@@ -23,6 +23,8 @@ export interface InvestigationDetails {
   operation_mode: string;
   trigger_reason: string;
   deployment_step?: string;
+  source_investigation_id?: string;
+  source_findings?: string;
 }
 
 export interface InvestigationSummary {
@@ -32,6 +34,7 @@ export interface InvestigationSummary {
   progress: number;
   has_findings: boolean;
   error_message?: string;
+  source_investigation_id?: string;
   created_at: string;
   completed_at?: string;
 }

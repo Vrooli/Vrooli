@@ -35,14 +35,16 @@ type Investigation struct {
 
 // InvestigationDetails contains structured metadata about an investigation.
 type InvestigationDetails struct {
-	Source         string  `json:"source"`                     // "agent-manager"
-	RunID          string  `json:"run_id,omitempty"`           // Agent run ID
-	DurationSecs   int     `json:"duration_seconds,omitempty"` // Total duration
-	TokensUsed     int32   `json:"tokens_used,omitempty"`      // Token consumption
-	CostEstimate   float64 `json:"cost_estimate,omitempty"`    // Estimated cost
-	OperationMode  string  `json:"operation_mode"`             // "report-only" or "auto-fix"
-	TriggerReason  string  `json:"trigger_reason"`             // "user_requested"
-	DeploymentStep string  `json:"deployment_step,omitempty"`  // Step that failed
+	Source                string  `json:"source"`                                // "agent-manager"
+	RunID                 string  `json:"run_id,omitempty"`                      // Agent run ID
+	DurationSecs          int     `json:"duration_seconds,omitempty"`            // Total duration
+	TokensUsed            int32   `json:"tokens_used,omitempty"`                 // Token consumption
+	CostEstimate          float64 `json:"cost_estimate,omitempty"`               // Estimated cost
+	OperationMode         string  `json:"operation_mode"`                        // "report-only", "auto-fix", or "fix-application:..."
+	TriggerReason         string  `json:"trigger_reason"`                        // "user_requested"
+	DeploymentStep        string  `json:"deployment_step,omitempty"`             // Step that failed
+	SourceInvestigationID string  `json:"source_investigation_id,omitempty"`     // For fix applications: ID of the original investigation
+	SourceFindings        string  `json:"source_findings,omitempty"`             // For fix applications: findings from original investigation
 }
 
 // CreateInvestigationRequest is the request body for triggering an investigation.
@@ -61,19 +63,20 @@ type ApplyFixesRequest struct {
 
 // InvestigationSummary is a lightweight view for list responses.
 type InvestigationSummary struct {
-	ID           string              `json:"id"`
-	DeploymentID string              `json:"deployment_id"`
-	Status       InvestigationStatus `json:"status"`
-	Progress     int                 `json:"progress"`
-	HasFindings  bool                `json:"has_findings"`
-	ErrorMessage *string             `json:"error_message,omitempty"`
-	CreatedAt    time.Time           `json:"created_at"`
-	CompletedAt  *time.Time          `json:"completed_at,omitempty"`
+	ID                    string              `json:"id"`
+	DeploymentID          string              `json:"deployment_id"`
+	Status                InvestigationStatus `json:"status"`
+	Progress              int                 `json:"progress"`
+	HasFindings           bool                `json:"has_findings"`
+	ErrorMessage          *string             `json:"error_message,omitempty"`
+	SourceInvestigationID *string             `json:"source_investigation_id,omitempty"`
+	CreatedAt             time.Time           `json:"created_at"`
+	CompletedAt           *time.Time          `json:"completed_at,omitempty"`
 }
 
 // ToSummary converts an Investigation to its summary form.
 func (i *Investigation) ToSummary() InvestigationSummary {
-	return InvestigationSummary{
+	summary := InvestigationSummary{
 		ID:           i.ID,
 		DeploymentID: i.DeploymentID,
 		Status:       i.Status,
@@ -83,6 +86,13 @@ func (i *Investigation) ToSummary() InvestigationSummary {
 		CreatedAt:    i.CreatedAt,
 		CompletedAt:  i.CompletedAt,
 	}
+
+	// Extract source_investigation_id from details if present
+	if details, err := i.ParseDetails(); err == nil && details != nil && details.SourceInvestigationID != "" {
+		summary.SourceInvestigationID = &details.SourceInvestigationID
+	}
+
+	return summary
 }
 
 // ParseDetails unmarshals the Details JSON into InvestigationDetails.

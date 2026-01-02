@@ -130,8 +130,8 @@ func (s *InvestigationService) runInvestigation(
 		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
 
-	// Use a timeout context for the agent execution (10 minutes)
-	execCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	// Use a timeout context for the agent execution (1 hour - agents can take a while)
+	execCtx, cancel := context.WithTimeout(ctx, 60*time.Minute)
 	defer cancel()
 
 	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
@@ -615,8 +615,8 @@ func (s *InvestigationService) runFixApplication(
 		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
 
-	// Use a timeout context for the agent execution (10 minutes)
-	execCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	// Use a timeout context for the agent execution (1 hour - agents can take a while)
+	execCtx, cancel := context.WithTimeout(ctx, 60*time.Minute)
 	defer cancel()
 
 	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
@@ -634,17 +634,7 @@ func (s *InvestigationService) runFixApplication(
 		log.Printf("[fix-application] failed to store run ID: %v", err)
 	}
 
-	// Poll for completion
-	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 20)
-	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 20, "Agent working on fixes...")
-
-	result, err := s.pollForCompletion(execCtx, fixInvID, deployment.ID, runID)
-	if err != nil {
-		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("fix application failed: %v", err))
-		return
-	}
-
-	// Build fix types string for details
+	// Build fix types string for details (do this early so we can save details even on error)
 	var fixTypes []string
 	if req.Immediate {
 		fixTypes = append(fixTypes, "immediate")
@@ -656,16 +646,44 @@ func (s *InvestigationService) runFixApplication(
 		fixTypes = append(fixTypes, "prevention")
 	}
 
+	// Poll for completion
+	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 20)
+	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 20, "Agent working on fixes...")
+
+	result, err := s.pollForCompletion(execCtx, fixInvID, deployment.ID, runID)
+	if err != nil {
+		// Build details even on error so source_investigation_id is preserved for grouping
+		details := domain.InvestigationDetails{
+			Source:                "agent-manager",
+			RunID:                 runID,
+			OperationMode:         "fix-application:" + strings.Join(fixTypes, ","),
+			TriggerReason:         "user_requested_fix",
+			DeploymentStep:        getStringPtr(deployment.ErrorStep),
+			SourceInvestigationID: originalInv.ID,
+			SourceFindings:        getStringPtr(originalInv.Findings),
+		}
+		detailsJSON, _ := json.Marshal(details)
+		errorMsg := fmt.Sprintf("fix application failed: %v", err)
+		if err := s.repo.UpdateInvestigationErrorWithDetails(ctx, fixInvID, errorMsg, detailsJSON); err != nil {
+			log.Printf("[fix-application] failed to store error with details: %v", err)
+		}
+		s.broadcastProgress(deployment.ID, fixInvID, "fix_failed", 0, errorMsg)
+		log.Printf("[fix-application] fix %s failed: %s", fixInvID, errorMsg)
+		return
+	}
+
 	// Store results
 	details := domain.InvestigationDetails{
-		Source:         "agent-manager",
-		RunID:          result.RunID,
-		DurationSecs:   result.DurationSeconds,
-		TokensUsed:     result.TokensUsed,
-		CostEstimate:   result.CostEstimate,
-		OperationMode:  "fix-application:" + strings.Join(fixTypes, ","),
-		TriggerReason:  "user_requested_fix",
-		DeploymentStep: getStringPtr(deployment.ErrorStep),
+		Source:                "agent-manager",
+		RunID:                 result.RunID,
+		DurationSecs:          result.DurationSeconds,
+		TokensUsed:            result.TokensUsed,
+		CostEstimate:          result.CostEstimate,
+		OperationMode:         "fix-application:" + strings.Join(fixTypes, ","),
+		TriggerReason:         "user_requested_fix",
+		DeploymentStep:        getStringPtr(deployment.ErrorStep),
+		SourceInvestigationID: originalInv.ID,
+		SourceFindings:        getStringPtr(originalInv.Findings),
 	}
 
 	detailsJSON, _ := json.Marshal(details)

@@ -11,7 +11,8 @@ interface InvestigationReportProps {
   isApplyingFixes?: boolean;
 }
 
-function getStatusConfig(status: Investigation["status"]) {
+function getStatusConfig(status: Investigation["status"], isFixReport: boolean) {
+  const typeLabel = isFixReport ? "Fix Application" : "Investigation";
   switch (status) {
     case "completed":
       return {
@@ -19,7 +20,7 @@ function getStatusConfig(status: Investigation["status"]) {
         iconColor: "text-emerald-400",
         label: "Completed",
         badgeClass: "bg-emerald-500/20 text-emerald-300",
-        title: "Investigation Report",
+        title: `${typeLabel} Report`,
       };
     case "failed":
       return {
@@ -27,7 +28,7 @@ function getStatusConfig(status: Investigation["status"]) {
         iconColor: "text-red-400",
         label: "Failed",
         badgeClass: "bg-red-500/20 text-red-300",
-        title: "Investigation Failed",
+        title: `${typeLabel} Failed`,
       };
     case "cancelled":
       return {
@@ -35,7 +36,7 @@ function getStatusConfig(status: Investigation["status"]) {
         iconColor: "text-slate-400",
         label: "Cancelled",
         badgeClass: "bg-slate-500/20 text-slate-300",
-        title: "Investigation Cancelled",
+        title: `${typeLabel} Cancelled`,
       };
     default:
       return {
@@ -43,7 +44,7 @@ function getStatusConfig(status: Investigation["status"]) {
         iconColor: "text-blue-400",
         label: status,
         badgeClass: "bg-blue-500/20 text-blue-300",
-        title: "Investigation Details",
+        title: `${typeLabel} Details`,
       };
   }
 }
@@ -78,11 +79,12 @@ export function InvestigationReport({ investigation, onClose, onApplyFixes, isAp
 
   const details = investigation.details;
   const createdAt = new Date(investigation.created_at);
-  const statusConfig = getStatusConfig(investigation.status);
-  const StatusIcon = statusConfig.icon;
 
   // Check if this is a fix application report (not an investigation)
-  const isFixReport = details?.operation_mode?.startsWith("fix-application");
+  const isFixReport = details?.operation_mode?.startsWith("fix-application") ?? false;
+
+  const statusConfig = getStatusConfig(investigation.status, isFixReport);
+  const StatusIcon = statusConfig.icon;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -192,16 +194,30 @@ export function InvestigationReport({ investigation, onClose, onApplyFixes, isAp
             </div>
           )}
 
-          {/* Findings */}
+          {/* For fix reports: show original investigation findings first */}
+          {isFixReport && details?.source_findings && (
+            <div className="prose prose-invert prose-sm max-w-none">
+              <p className="text-sm text-slate-400 font-medium mb-2">Original Investigation Findings</p>
+              <pre className="whitespace-pre-wrap font-mono text-sm text-slate-300 bg-slate-800/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                {details.source_findings}
+              </pre>
+            </div>
+          )}
+
+          {/* Findings / Fix Results */}
           {investigation.findings ? (
             <div className="prose prose-invert prose-sm max-w-none">
-              <p className="text-sm text-slate-400 font-medium mb-2">Findings</p>
+              <p className="text-sm text-slate-400 font-medium mb-2">
+                {isFixReport ? "Fix Application Results" : "Findings"}
+              </p>
               <pre className="whitespace-pre-wrap font-mono text-sm text-slate-300 bg-slate-800/50 p-4 rounded-lg">
                 {investigation.findings}
               </pre>
             </div>
           ) : !investigation.error_message ? (
-            <p className="text-slate-500 text-center py-8">No findings available.</p>
+            <p className="text-slate-500 text-center py-8">
+              {isFixReport ? "No fix results available." : "No findings available."}
+            </p>
           ) : null}
         </div>
 

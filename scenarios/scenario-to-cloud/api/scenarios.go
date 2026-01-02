@@ -19,10 +19,10 @@ import (
 
 // ScenarioInfo represents a scenario with its configuration
 type ScenarioInfo struct {
-	ID          string                  `json:"id"`
-	DisplayName string                  `json:"displayName,omitempty"`
-	Description string                  `json:"description,omitempty"`
-	Ports       map[string]PortConfig   `json:"ports,omitempty"`
+	ID          string                `json:"id"`
+	DisplayName string                `json:"displayName,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Ports       map[string]PortConfig `json:"ports,omitempty"`
 }
 
 // PortConfig represents a port configuration from service.json
@@ -42,7 +42,7 @@ type ServiceJSON struct {
 	} `json:"service"`
 	Ports        map[string]PortConfig `json:"ports"`
 	Dependencies struct {
-		Resources map[string]ResourceDependency `json:"resources"`
+		Resources map[string]ResourceDependency     `json:"resources"`
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
 	} `json:"dependencies"`
 }
@@ -365,6 +365,18 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 	// Try scenario-dependency-analyzer first
 	deps, err := s.fetchDependenciesFromAnalyzer(ctx, scenarioID)
 	if err == nil {
+		// Ensure declared dependencies from service.json are not dropped if analyzer misses them.
+		if fallback, fbErr := s.extractDependenciesFromServiceJSON(scenarioID); fbErr == nil {
+			mergedResources := stableUniqueStrings(append(deps.Resources, fallback.Resources...))
+			mergedScenarios := stableUniqueStrings(append(deps.Scenarios, fallback.Scenarios...))
+			if len(mergedResources) != len(deps.Resources) || len(mergedScenarios) != len(deps.Scenarios) {
+				s.log("merged service.json dependencies into analyzer response", map[string]interface{}{
+					"scenario_id": scenarioID,
+				})
+				deps.Resources = mergedResources
+				deps.Scenarios = mergedScenarios
+			}
+		}
 		writeJSON(w, http.StatusOK, deps)
 		return
 	}

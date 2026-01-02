@@ -43,6 +43,7 @@ export function ReplayPresentation({
     <ReplayStyleFrame
       backgroundDecor={model.backgroundDecor}
       chromeDecor={model.chromeDecor}
+      deviceFrameDecor={model.deviceFrameDecor}
       layout={model.layout}
       overlayNode={overlayNode}
       overlayTransformStyle={overlayTransformStyle}

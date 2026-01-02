@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -37,7 +40,54 @@ func buildPortEnvVars(ports ManifestPorts) string {
 	return strings.Join(parts, " ")
 }
 
+func requiredResourcesForScenario(scenarioID string) ([]string, error) {
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		return nil, fmt.Errorf("repo root not found for dependency validation: %w", err)
+	}
+	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	data, err := os.ReadFile(serviceJSONPath)
+	if err != nil {
+		return nil, fmt.Errorf("read service.json for dependency validation: %w", err)
+	}
+	var svc ServiceJSON
+	if err := json.Unmarshal(data, &svc); err != nil {
+		return nil, fmt.Errorf("parse service.json for dependency validation: %w", err)
+	}
+	var required []string
+	for name, dep := range svc.Dependencies.Resources {
+		if dep.Enabled || dep.Required {
+			required = append(required, name)
+		}
+	}
+	return stableUniqueStrings(required), nil
+}
+
+func validateManifestResourceDependencies(manifest CloudManifest) error {
+	required, err := requiredResourcesForScenario(manifest.Scenario.ID)
+	if err != nil {
+		return err
+	}
+	if len(required) == 0 {
+		return nil
+	}
+	declared := stableUniqueStrings(manifest.Dependencies.Resources)
+	var missing []string
+	for _, name := range required {
+		if !contains(declared, name) {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("deployment manifest missing required resources: %s. Re-export the manifest from scenario-dependency-analyzer or ensure .vrooli/service.json resources are captured in dependencies.resources", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
+	if err := validateManifestResourceDependencies(manifest); err != nil {
+		return nil, err
+	}
 	cfg := sshConfigFromManifest(manifest)
 	workdir := manifest.Target.VPS.Workdir
 	uiPort := manifest.Ports["ui"]

@@ -20,6 +20,7 @@ import {
   FolderOpen,
   GitCompare,
   History,
+  Search,
 } from "lucide-react";
 import {
   useDeployment,
@@ -31,7 +32,7 @@ import {
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import { cn } from "../../lib/utils";
 import type { Deployment } from "../../lib/api";
-import { LiveStateTab, FilesTab, DriftTab, HistoryTab, TerminalTab } from "./tabs";
+import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
 import { InvestigateButton } from "../wizard/InvestigateButton";
 import { InvestigationProgress } from "../wizard/InvestigationProgress";
@@ -52,7 +53,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "terminal">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "investigations" | "terminal">("overview");
   const [showInvestigationReport, setShowInvestigationReport] = useState(false);
 
   // Investigation state
@@ -301,6 +302,18 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           History
         </button>
         <button
+          onClick={() => setActiveTab("investigations")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "investigations"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <Search className="h-4 w-4" />
+          Investigations
+        </button>
+        <button
           onClick={() => setActiveTab("terminal")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
@@ -326,6 +339,15 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
       {activeTab === "history" && (
         <HistoryTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "investigations" && (
+        <InvestigationsTab
+          deploymentId={deploymentId}
+          onViewReport={(inv) => {
+            investigation.viewReport(inv.id);
+            setShowInvestigationReport(true);
+          }}
+        />
       )}
       {activeTab === "terminal" && (
         <TerminalTab deploymentId={deploymentId} />

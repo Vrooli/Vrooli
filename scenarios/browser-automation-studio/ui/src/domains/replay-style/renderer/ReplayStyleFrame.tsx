@@ -1,12 +1,13 @@
 import { useEffect, useRef, type CSSProperties, type Ref, type ReactNode } from 'react';
 import clsx from 'clsx';
-import type { BackgroundDecor, ChromeDecor } from '../catalog';
+import type { BackgroundDecor, ChromeDecor, DeviceFrameDecor } from '../catalog';
 import type { ReplayLayoutModel, ReplayRect } from '@/domains/replay-layout';
 import { OverlayRegistry, OverlayRegistryContext } from '@/domains/replay-positioning';
 
 interface ReplayStyleFrameProps {
   backgroundDecor: BackgroundDecor;
   chromeDecor: ChromeDecor;
+  deviceFrameDecor?: DeviceFrameDecor | null;
   layout: ReplayLayoutModel;
   presentationStyle?: CSSProperties;
   presentationClassName?: string;
@@ -26,6 +27,7 @@ interface ReplayStyleFrameProps {
 export function ReplayStyleFrame({
   backgroundDecor,
   chromeDecor,
+  deviceFrameDecor,
   layout,
   presentationStyle,
   presentationClassName,
@@ -83,7 +85,9 @@ export function ReplayStyleFrame({
     viewportContentRect,
   ]);
 
-  return (
+  const hasDeviceFrameWrapper = deviceFrameDecor?.wrapperClass || deviceFrameDecor?.wrapperStyle;
+
+  const backgroundContent = (
     <div
       className={clsx(
         'relative overflow-hidden rounded-3xl',
@@ -94,6 +98,8 @@ export function ReplayStyleFrame({
     >
       {backgroundDecor.baseLayer}
       {backgroundDecor.overlay}
+      {/* Device frame overlay for notch/punch-hole (positioned inside the screen area) */}
+      {deviceFrameDecor?.overlay && !deviceFrameDecor.wrapperStyle && deviceFrameDecor.overlay}
       <div
         className={clsx('relative z-[1]', backgroundDecor.contentClass, contentClassName)}
         style={contentStyle}
@@ -170,6 +176,22 @@ export function ReplayStyleFrame({
       </div>
     </div>
   );
+
+  // Wrap in device frame bezel if wrapper styling is provided
+  if (hasDeviceFrameWrapper) {
+    return (
+      <div
+        className={deviceFrameDecor?.wrapperClass}
+        style={deviceFrameDecor?.wrapperStyle}
+      >
+        {backgroundContent}
+        {/* Device frame overlay for monitor stand (positioned outside the screen area) */}
+        {deviceFrameDecor?.overlay && deviceFrameDecor.wrapperStyle && deviceFrameDecor.overlay}
+      </div>
+    );
+  }
+
+  return backgroundContent;
 }
 
 export default ReplayStyleFrame;

@@ -25,7 +25,23 @@ function StatusIcon({ status }: { status: InvestigationStatus }) {
   }
 }
 
-function statusLabel(status: InvestigationStatus): string {
+function statusLabel(status: InvestigationStatus, isFixApplication: boolean): string {
+  if (isFixApplication) {
+    switch (status) {
+      case "pending":
+        return "Preparing fix application...";
+      case "running":
+        return "Agent applying fixes...";
+      case "completed":
+        return "Fix application complete";
+      case "failed":
+        return "Fix application failed";
+      case "cancelled":
+        return "Fix application cancelled";
+      default:
+        return "Unknown status";
+    }
+  }
   switch (status) {
     case "pending":
       return "Preparing investigation...";
@@ -66,6 +82,9 @@ export function InvestigationProgress({
   const isFailed = status === "failed";
   const isSuccess = status === "completed" && !inv.error_message;
 
+  // Check if this is a fix application (operation_mode starts with "fix-application:")
+  const isFixApplication = inv.details?.operation_mode?.startsWith("fix-application") ?? false;
+
   // For completed status, always show 100%. For failed/cancelled, show actual progress (where it stopped)
   const displayProgress = status === "completed" ? 100 : (inv.progress ?? 0);
 
@@ -81,7 +100,9 @@ export function InvestigationProgress({
       <CardContent className="py-4">
         <div className="flex items-center gap-3 mb-4">
           <Bot className={`h-5 w-5 ${isFailed ? "text-red-400" : isSuccess ? "text-emerald-400" : "text-blue-400"}`} />
-          <span className="font-medium text-slate-200">Deployment Investigation</span>
+          <span className="font-medium text-slate-200">
+            {isFixApplication ? "Fix Application" : "Deployment Investigation"}
+          </span>
           <span className="text-xs text-slate-500 font-mono ml-auto">
             {inv.id.slice(0, 8)}
           </span>
@@ -110,7 +131,7 @@ export function InvestigationProgress({
           <div className="flex items-center gap-2">
             <StatusIcon status={status} />
             <span className={`text-sm ${isFailed ? "text-red-300" : "text-slate-300"}`}>
-              {statusLabel(status)}
+              {statusLabel(status, isFixApplication)}
             </span>
           </div>
           <span className="text-sm text-slate-400 font-mono">{displayProgress}%</span>
@@ -123,10 +144,12 @@ export function InvestigationProgress({
           </div>
         )}
 
-        {/* No findings message for failed investigations */}
+        {/* No findings message for failed investigations/fixes */}
         {isFailed && !inv.error_message && !inv.findings && (
           <div className="mt-3 text-sm text-amber-400 bg-amber-500/10 rounded-md p-2 border border-amber-500/20">
-            Investigation failed without details. The agent may have encountered an error.
+            {isFixApplication
+              ? "Fix application failed without details. The agent may have encountered an error."
+              : "Investigation failed without details. The agent may have encountered an error."}
           </div>
         )}
 

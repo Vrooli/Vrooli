@@ -25,7 +25,7 @@ export function useAgentManagerStatus() {
 /**
  * Hook to fetch investigations for a deployment.
  */
-export function useInvestigations(deploymentId: string | null, limit = 10) {
+export function useInvestigations(deploymentId: string | null, limit = 50) {
   return useQuery({
     queryKey: ["investigations", deploymentId, limit],
     queryFn: async () => {

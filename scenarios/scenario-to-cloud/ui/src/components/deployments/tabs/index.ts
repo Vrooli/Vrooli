@@ -12,4 +12,5 @@ export { DriftTab } from "./DriftTab";
 export { HistoryTab } from "./HistoryTab";
 export { Timeline } from "./Timeline";
 export { LogViewer } from "./LogViewer";
+export { InvestigationsTab } from "./InvestigationsTab";
 export { TerminalTab } from "./TerminalTab";

@@ -52,6 +52,8 @@ export type ChromeDecor = {
 
 export type DeviceFrameDecor = {
   containerClass: string;
+  wrapperClass?: string;
+  wrapperStyle?: CSSProperties;
   overlay?: ReactNode;
 };
 
@@ -99,8 +101,7 @@ export interface DeviceFrameOption {
   id: ReplayDeviceFrameTheme;
   label: string;
   subtitle: string;
-  previewClass: string;
-  previewNode?: ReactNode;
+  preview: ReactNode;
 }
 
 export const REPLAY_CHROME_OPTIONS: ChromeThemeOption[] = [
@@ -261,48 +262,73 @@ export const REPLAY_DEVICE_FRAME_OPTIONS: DeviceFrameOption[] = [
     id: 'minimal',
     label: 'Minimal Bezel',
     subtitle: 'Balanced modern frame',
-    previewClass: 'ring-1 ring-white/20 ring-offset-4 ring-offset-slate-900/70',
+    preview: (
+      <div className="relative h-12 w-20 rounded-lg bg-gradient-to-b from-slate-600 to-slate-700 p-[3px] shadow-lg">
+        <div className="h-full w-full rounded-[5px] bg-slate-950" />
+      </div>
+    ),
   },
   {
     id: 'slim',
     label: 'Slim Bezel',
     subtitle: 'Thin edge, tight radius',
-    previewClass: 'ring-1 ring-white/10 ring-offset-2 ring-offset-slate-900/60',
+    preview: (
+      <div className="relative h-12 w-20 rounded-md bg-gradient-to-b from-slate-600 to-slate-700 p-[2px] shadow-lg">
+        <div className="h-full w-full rounded-[4px] bg-slate-950" />
+      </div>
+    ),
   },
   {
     id: 'notch',
     label: 'Notch Top',
     subtitle: 'Mobile-style cutout',
-    previewClass: 'ring-1 ring-white/15 ring-offset-4 ring-offset-slate-900/65',
-    previewNode: (
-      <span className="absolute left-1/2 top-1.5 h-2 w-8 -translate-x-1/2 rounded-b-lg bg-slate-900/80 ring-1 ring-white/10" />
+    preview: (
+      <div className="relative h-12 w-20 rounded-xl bg-gradient-to-b from-slate-600 to-slate-700 p-[3px] shadow-lg">
+        <div className="relative h-full w-full rounded-[9px] bg-slate-950">
+          <div className="absolute left-1/2 top-0 h-[5px] w-6 -translate-x-1/2 rounded-b-lg bg-slate-700" />
+        </div>
+      </div>
     ),
   },
   {
     id: 'punch',
     label: 'Punch-Hole',
     subtitle: 'Camera dot detail',
-    previewClass: 'ring-1 ring-white/15 ring-offset-4 ring-offset-slate-900/65',
-    previewNode: (
-      <span className="absolute left-1/2 top-1.5 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-900/90 ring-1 ring-white/20" />
+    preview: (
+      <div className="relative h-12 w-20 rounded-lg bg-gradient-to-b from-slate-600 to-slate-700 p-[3px] shadow-lg">
+        <div className="relative h-full w-full rounded-[5px] bg-slate-950">
+          <div className="absolute left-1/2 top-1 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-slate-700 ring-1 ring-slate-600/50" />
+        </div>
+      </div>
     ),
   },
   {
     id: 'topbar',
     label: 'Tall Top Bar',
     subtitle: 'Laptop webcam bar',
-    previewClass: 'ring-1 ring-white/18 ring-offset-4 ring-offset-slate-900/70',
-    previewNode: (
-      <span className="absolute left-1/2 top-1.5 h-2 w-10 -translate-x-1/2 rounded-full bg-slate-900/80 ring-1 ring-white/10" />
+    preview: (
+      <div className="relative h-12 w-20 overflow-hidden rounded-lg bg-gradient-to-b from-slate-600 to-slate-700 p-[3px] shadow-lg">
+        <div className="relative h-full w-full rounded-[5px] bg-slate-950">
+          <div className="absolute left-0 right-0 top-0 flex h-3 items-center justify-center bg-slate-800 rounded-t-[5px]">
+            <div className="h-1 w-1 rounded-full bg-slate-600" />
+          </div>
+        </div>
+      </div>
     ),
   },
   {
     id: 'monitor',
     label: 'Monitor',
     subtitle: 'Hardware-style frame',
-    previewClass: 'ring-2 ring-white/18 ring-offset-6 ring-offset-slate-900/75 rounded-xl',
-    previewNode: (
-      <span className="absolute bottom-1.5 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-slate-900/70" />
+    preview: (
+      <div className="flex flex-col items-center">
+        <div className="relative h-10 w-20 rounded-t-lg bg-gradient-to-b from-slate-600 to-slate-700 p-[3px] shadow-lg">
+          <div className="h-full w-full rounded-t-[5px] bg-slate-950" />
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-2 rounded-full bg-slate-500" />
+        </div>
+        <div className="h-2 w-3 bg-gradient-to-b from-slate-600 to-slate-700" />
+        <div className="h-1 w-8 rounded-b bg-gradient-to-b from-slate-600 to-slate-700" />
+      </div>
     ),
   },
 ];
@@ -1074,55 +1100,74 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
   switch (theme) {
     case 'slim':
       return {
-        containerClass:
-          'ring-1 ring-white/10 ring-offset-4 ring-offset-slate-950/55 shadow-[0_22px_60px_rgba(15,23,42,0.35)]',
+        containerClass: 'rounded-lg shadow-2xl',
+        wrapperClass: 'p-[6px] rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
       };
     case 'notch':
       return {
-        containerClass:
-          'ring-1 ring-white/12 ring-offset-6 ring-offset-slate-950/65 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        containerClass: 'rounded-[1.75rem] shadow-2xl',
+        wrapperClass: 'p-3 rounded-[2.25rem] bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-1/2 top-3 h-3 w-16 -translate-x-1/2 rounded-b-2xl bg-slate-900/80 ring-1 ring-white/10 shadow-[inset_0_0_6px_rgba(255,255,255,0.12)]" />
-            <div className="absolute left-1/2 top-[14px] h-1.5 w-8 -translate-x-1/2 rounded-full bg-slate-800/70" />
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="absolute left-1/2 top-0 h-7 w-32 -translate-x-1/2 rounded-b-3xl bg-slate-800 shadow-[inset_0_-2px_6px_rgba(0,0,0,0.3)]">
+              <div className="absolute left-1/2 top-2 h-2.5 w-16 -translate-x-1/2 rounded-full bg-slate-700" />
+              <div className="absolute left-1/2 top-2.5 h-1.5 w-1.5 -translate-x-1/2 translate-x-6 rounded-full bg-slate-600 ring-1 ring-slate-500/30" />
+            </div>
           </div>
         ),
       };
     case 'punch':
       return {
-        containerClass:
-          'ring-1 ring-white/12 ring-offset-6 ring-offset-slate-950/65 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        containerClass: 'rounded-2xl shadow-2xl',
+        wrapperClass: 'p-3 rounded-[1.75rem] bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-1/2 top-3 h-3 w-3 -translate-x-1/2 rounded-full bg-slate-900/90 ring-1 ring-white/20 shadow-[inset_0_0_4px_rgba(255,255,255,0.2)]" />
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="absolute left-1/2 top-2.5 h-4 w-4 -translate-x-1/2 rounded-full bg-slate-800 ring-2 ring-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+              <div className="absolute inset-1 rounded-full bg-slate-900" />
+            </div>
           </div>
         ),
       };
     case 'topbar':
       return {
-        containerClass:
-          'ring-1 ring-white/14 ring-offset-6 ring-offset-slate-950/68 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        containerClass: 'rounded-lg shadow-2xl',
+        wrapperClass: 'p-3 pt-0 rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-1/2 top-3 h-3 w-24 -translate-x-1/2 rounded-full bg-slate-900/80 ring-1 ring-white/10" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
+            <div className="flex h-8 items-center justify-center rounded-t-xl bg-slate-800 border-b border-slate-700">
+              <div className="h-2 w-2 rounded-full bg-slate-600 ring-1 ring-slate-500/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]" />
+            </div>
           </div>
         ),
       };
     case 'monitor':
       return {
-        containerClass:
-          'rounded-2xl ring-2 ring-white/16 ring-offset-8 ring-offset-slate-950/70 shadow-[0_30px_90px_rgba(15,23,42,0.5)]',
+        containerClass: 'rounded-lg shadow-2xl',
+        wrapperClass: 'relative',
+        wrapperStyle: {
+          padding: '12px 12px 0 12px',
+          background: 'linear-gradient(to bottom, #475569, #334155)',
+          borderRadius: '16px 16px 8px 8px',
+          boxShadow: '0 30px 80px rgba(15,23,42,0.5)',
+        },
         overlay: (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute bottom-3 left-1/2 h-1.5 w-20 -translate-x-1/2 rounded-full bg-slate-900/70" />
+          <div className="pointer-events-none">
+            {/* Bottom bezel */}
+            <div className="flex h-8 items-center justify-center bg-gradient-to-b from-slate-600 to-slate-700 rounded-b-lg">
+              <div className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+            </div>
+            {/* Monitor stand neck */}
+            <div className="mx-auto h-6 w-8 bg-gradient-to-b from-slate-600 to-slate-700" />
+            {/* Monitor stand base */}
+            <div className="mx-auto h-2 w-24 rounded-b-lg bg-gradient-to-b from-slate-600 to-slate-700" />
           </div>
         ),
       };
     case 'minimal':
     default:
       return {
-        containerClass:
-          'ring-1 ring-white/12 ring-offset-8 ring-offset-slate-950/65 shadow-[0_28px_80px_rgba(15,23,42,0.45)]',
+        containerClass: 'rounded-xl shadow-2xl',
+        wrapperClass: 'p-3 rounded-2xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
       };
   }
 };

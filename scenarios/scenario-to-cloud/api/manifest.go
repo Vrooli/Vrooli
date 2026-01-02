@@ -168,6 +168,7 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 	// Dependencies snapshot (scenario-dependency-analyzer) should be explicit and include the target scenario.
 	out.Dependencies.Scenarios = stableUniqueStrings(out.Dependencies.Scenarios)
 	out.Dependencies.Resources = stableUniqueStrings(out.Dependencies.Resources)
+	out = mergeRequiredResources(out, &issues)
 	if len(out.Dependencies.Scenarios) == 0 {
 		issues = append(issues, ValidationIssue{
 			Path:     "dependencies.scenarios",
@@ -309,6 +310,46 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 	}
 
 	return out, stableIssues(issues)
+}
+
+func mergeRequiredResources(out CloudManifest, issues *[]ValidationIssue) CloudManifest {
+	if out.Scenario.ID == "" {
+		return out
+	}
+	required, err := requiredResourcesForScenario(out.Scenario.ID)
+	if err != nil {
+		if issues != nil {
+			*issues = append(*issues, ValidationIssue{
+				Path:     "dependencies.resources",
+				Message:  "unable to verify required resources from service.json",
+				Hint:     err.Error(),
+				Severity: SeverityWarn,
+			})
+		}
+		return out
+	}
+	if len(required) == 0 {
+		return out
+	}
+	var missing []string
+	for _, res := range required {
+		if !contains(out.Dependencies.Resources, res) {
+			missing = append(missing, res)
+		}
+	}
+	if len(missing) == 0 {
+		return out
+	}
+	out.Dependencies.Resources = stableUniqueStrings(append(out.Dependencies.Resources, missing...))
+	if issues != nil {
+		*issues = append(*issues, ValidationIssue{
+			Path:     "dependencies.resources",
+			Message:  "required resources were missing and have been added",
+			Hint:     "Ensure scenario-dependency-analyzer includes dependencies.resources from .vrooli/service.json when exporting manifests.",
+			Severity: SeverityWarn,
+		})
+	}
+	return out
 }
 
 func looksLikeDomain(domain string) bool {

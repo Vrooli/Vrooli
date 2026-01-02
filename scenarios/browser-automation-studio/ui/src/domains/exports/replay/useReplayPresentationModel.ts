@@ -7,7 +7,7 @@ import {
   useResolvedReplayBackground,
 } from '@/domains/replay-style';
 import { computeReplayLayout, type ReplayFitMode, type ReplayLayoutModel } from '@/domains/replay-layout';
-import type { BackgroundDecor, ChromeDecor, CursorDecor } from '@/domains/replay-style';
+import type { BackgroundDecor, ChromeDecor, CursorDecor, DeviceFrameDecor } from '@/domains/replay-style';
 import type { Dimensions } from './types';
 
 export interface ReplayPresentationModelParams {
@@ -25,6 +25,7 @@ export interface ReplayPresentationModel {
   backgroundDecor: BackgroundDecor;
   chromeDecor: ChromeDecor;
   cursorDecor: CursorDecor;
+  deviceFrameDecor: DeviceFrameDecor | null;
   layout: ReplayLayoutModel;
 }
 
@@ -43,7 +44,7 @@ export const useReplayPresentationModel = ({
     [normalizedStyle, resolvedBackground],
   );
 
-  const { backgroundDecor, chromeDecor, cursorDecor } = useMemo(
+  const { backgroundDecor, chromeDecor, cursorDecor, deviceFrameDecor } = useMemo(
     () => resolveReplayStyleTokens(resolvedStyle, { title }),
     [resolvedStyle, title],
   );
@@ -76,6 +77,7 @@ export const useReplayPresentationModel = ({
     backgroundDecor,
     chromeDecor,
     cursorDecor,
+    deviceFrameDecor,
     layout,
   };
 };

@@ -206,28 +206,33 @@ export function useDeployment() {
   // Save on manifest/step change (with undo history tracking)
   // Accepts either a string or a functional update (prev => newValue)
   const updateManifestJson = useCallback((jsonOrUpdater: string | ((prev: string) => string)) => {
-    // Resolve the new value
-    const newJson = typeof jsonOrUpdater === "function" ? jsonOrUpdater(manifestJson) : jsonOrUpdater;
+    // Use functional update to ensure we always have the latest state
+    // This is critical for async operations that may complete after other state changes
+    setManifestJson(prevManifest => {
+      const newJson = typeof jsonOrUpdater === "function" ? jsonOrUpdater(prevManifest) : jsonOrUpdater;
 
-    // Skip history tracking during undo/redo operations
-    if (!isUndoRedoRef.current) {
-      // Push current state to history before changing
-      historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
-      // Clear future on new change
-      futureRef.current = [];
-    }
-    isUndoRedoRef.current = false;
+      // Skip history tracking during undo/redo operations
+      if (!isUndoRedoRef.current) {
+        // Push current state to history before changing
+        historyRef.current = [...historyRef.current, prevManifest].slice(-MAX_HISTORY_SIZE);
+        // Clear future on new change
+        futureRef.current = [];
+      }
+      isUndoRedoRef.current = false;
 
-    setManifestJson(newJson);
-    saveDeployment({
-      manifestJson: newJson,
-      currentStep: currentStepIndex,
-      timestamp: Date.now(),
-      sshKeyPath,
-      deploymentId,
-      deploymentStatus,
+      // Save to localStorage (async, doesn't affect return value)
+      saveDeployment({
+        manifestJson: newJson,
+        currentStep: currentStepIndex,
+        timestamp: Date.now(),
+        sshKeyPath,
+        deploymentId,
+        deploymentStatus,
+      });
+
+      return newJson;
     });
-  }, [currentStepIndex, sshKeyPath, manifestJson, deploymentId, deploymentStatus]);
+  }, [currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Undo last manifest change
   const undo = useCallback(() => {

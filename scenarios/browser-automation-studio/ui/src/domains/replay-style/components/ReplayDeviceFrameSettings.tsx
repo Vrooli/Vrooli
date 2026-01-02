@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useMemo } from 'react';
+import { Check } from 'lucide-react';
 import { REPLAY_DEVICE_FRAME_OPTIONS } from '../catalog';
 import type { ReplayDeviceFrameTheme } from '../model';
 
@@ -11,61 +11,72 @@ interface ReplayDeviceFrameSettingsProps {
   variant?: ReplayDeviceFrameSettingsVariant;
 }
 
-const getStyles = (variant: ReplayDeviceFrameSettingsVariant) => {
-  const isCompact = variant === 'compact';
-  return {
-    isCompact,
-    grid: isCompact ? 'flex flex-wrap items-center gap-2' : 'grid grid-cols-2 sm:grid-cols-3 gap-3',
-    cardBase: clsx(
-      'rounded-xl border transition-all text-left',
-      isCompact ? 'px-3 py-2 text-xs font-medium' : 'flex flex-col gap-2 p-3',
-    ),
-    cardActive: isCompact
-      ? 'bg-flow-accent text-white shadow-[0_12px_35px_rgba(59,130,246,0.45)]'
-      : 'border-flow-accent bg-flow-accent/10 ring-1 ring-flow-accent/50',
-    cardIdle: isCompact
-      ? 'bg-slate-900/60 text-slate-300 hover:bg-slate-900/80'
-      : 'border-gray-700 hover:border-gray-600 bg-gray-800/30 text-gray-300',
-    cardLabel: isCompact ? 'text-xs' : 'text-sm font-medium text-surface',
-    cardSubtitle: isCompact ? 'text-[11px] text-slate-400' : 'text-xs text-gray-500',
-    previewBox: clsx(
-      'relative h-8 w-14 rounded-2xl bg-slate-950/70',
-      isCompact ? 'ring-offset-2' : 'ring-offset-4',
-    ),
-  };
-};
-
 export function ReplayDeviceFrameSettings({
   deviceFrameTheme,
   onDeviceFrameThemeChange,
   variant = 'settings',
 }: ReplayDeviceFrameSettingsProps) {
-  const styles = useMemo(() => getStyles(variant), [variant]);
+  const isCompact = variant === 'compact';
 
   return (
-    <div className={styles.grid}>
-      {REPLAY_DEVICE_FRAME_OPTIONS.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => onDeviceFrameThemeChange(option.id)}
-          title={option.subtitle}
-          className={clsx(
-            styles.cardBase,
-            deviceFrameTheme === option.id ? styles.cardActive : styles.cardIdle,
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className={styles.cardLabel}>{option.label}</div>
-              {!styles.isCompact && <div className={styles.cardSubtitle}>{option.subtitle}</div>}
+    <div
+      className={clsx(
+        'grid gap-3',
+        isCompact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3',
+      )}
+      role="radiogroup"
+      aria-label="Device frame style"
+    >
+      {REPLAY_DEVICE_FRAME_OPTIONS.map((option) => {
+        const isActive = deviceFrameTheme === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            onClick={() => onDeviceFrameThemeChange(option.id)}
+            title={option.subtitle}
+            className={clsx(
+              'relative flex flex-col items-center rounded-xl border p-3 transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60',
+              isActive
+                ? 'border-flow-accent bg-flow-accent/10 ring-1 ring-flow-accent/50'
+                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50',
+            )}
+          >
+            {/* Selection indicator */}
+            <div
+              className={clsx(
+                'absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors',
+                isActive
+                  ? 'border-flow-accent bg-flow-accent'
+                  : 'border-slate-600 bg-transparent',
+              )}
+            >
+              {isActive && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
             </div>
-            <div className={clsx(styles.previewBox, option.previewClass)}>
-              {option.previewNode}
+
+            {/* Device frame preview */}
+            <div className="mb-2 flex h-16 items-center justify-center">
+              {option.preview}
             </div>
-          </div>
-        </button>
-      ))}
+
+            {/* Label and subtitle */}
+            <div className="text-center">
+              <div className={clsx(
+                'font-medium',
+                isCompact ? 'text-xs' : 'text-sm',
+                isActive ? 'text-white' : 'text-gray-300',
+              )}>
+                {option.label}
+              </div>
+              {!isCompact && (
+                <div className="mt-0.5 text-xs text-gray-500">{option.subtitle}</div>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
