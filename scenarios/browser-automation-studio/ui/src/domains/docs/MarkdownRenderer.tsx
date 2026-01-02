@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { Components } from "react-markdown";
@@ -50,6 +51,12 @@ const components: Components = {
   },
   thead({ children }) {
     return <thead className="bg-gray-800/50">{children}</thead>;
+  },
+  tbody({ children }) {
+    return <tbody>{children}</tbody>;
+  },
+  tr({ children }) {
+    return <tr className="hover:bg-gray-800/30 transition-colors">{children}</tr>;
   },
   th({ children }) {
     return (
@@ -138,7 +145,9 @@ const components: Components = {
 export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
   return (
     <div className={`prose prose-invert max-w-none ${className}`}>
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
