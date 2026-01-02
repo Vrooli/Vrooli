@@ -1407,6 +1407,7 @@ import type {
   Investigation,
   InvestigationSummary,
   CreateInvestigationRequest,
+  ApplyFixesRequest,
   AgentManagerStatus
 } from "../types/investigation";
 
@@ -1507,6 +1508,35 @@ export async function stopInvestigation(
     throw new Error(`Failed to stop investigation: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+export type ApplyFixesResponse = {
+  investigation: Investigation;
+};
+
+/**
+ * Apply selected fixes from a completed investigation.
+ * Spawns a new agent to implement the fixes.
+ */
+export async function applyFixes(
+  deploymentId: string,
+  investigationId: string,
+  options: ApplyFixesRequest
+): Promise<ApplyFixesResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/investigations/${encodeURIComponent(investigationId)}/apply-fixes`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to apply fixes: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ApplyFixesResponse>;
 }
 
 /**

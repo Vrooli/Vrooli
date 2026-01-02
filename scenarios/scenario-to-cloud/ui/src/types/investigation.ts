@@ -41,6 +41,13 @@ export interface CreateInvestigationRequest {
   note?: string;
 }
 
+export interface ApplyFixesRequest {
+  immediate: boolean;
+  permanent: boolean;
+  prevention: boolean;
+  note?: string;
+}
+
 export interface AgentManagerStatus {
   enabled: boolean;
   available: boolean;

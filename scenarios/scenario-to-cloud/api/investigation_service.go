@@ -501,3 +501,329 @@ func getStringPtr(s *string) string {
 	}
 	return *s
 }
+
+// ApplyFixesRequest contains parameters for applying fixes from an investigation.
+type ApplyFixesRequest struct {
+	InvestigationID string
+	Immediate       bool
+	Permanent       bool
+	Prevention      bool
+	Note            string
+}
+
+// ApplyFixes spawns an agent to apply selected fixes from a completed investigation.
+// Returns a new investigation record tracking the fix application.
+func (s *InvestigationService) ApplyFixes(ctx context.Context, req ApplyFixesRequest) (*domain.Investigation, error) {
+	// Validate at least one fix type is selected
+	if !req.Immediate && !req.Permanent && !req.Prevention {
+		return nil, fmt.Errorf("at least one fix type must be selected")
+	}
+
+	// Get the original investigation
+	originalInv, err := s.repo.GetInvestigation(ctx, req.InvestigationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get investigation: %w", err)
+	}
+	if originalInv == nil {
+		return nil, fmt.Errorf("investigation not found: %s", req.InvestigationID)
+	}
+
+	// Ensure the investigation is completed with findings
+	if originalInv.Status != domain.InvestigationStatusCompleted {
+		return nil, fmt.Errorf("investigation status is %s, expected completed", originalInv.Status)
+	}
+	if originalInv.Findings == nil || *originalInv.Findings == "" {
+		return nil, fmt.Errorf("investigation has no findings to apply fixes from")
+	}
+
+	// Get the deployment for context
+	deployment, err := s.repo.GetDeployment(ctx, originalInv.DeploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment: %w", err)
+	}
+	if deployment == nil {
+		return nil, fmt.Errorf("deployment not found: %s", originalInv.DeploymentID)
+	}
+
+	// Check if agent-manager is available
+	if !s.agentSvc.IsAvailable(ctx) {
+		return nil, fmt.Errorf("agent-manager is not available; please ensure it is running")
+	}
+
+	// Check for existing active investigation/fix application
+	active, err := s.repo.GetActiveInvestigation(ctx, originalInv.DeploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check active investigation: %w", err)
+	}
+	if active != nil {
+		return nil, fmt.Errorf("investigation %s is already in progress", active.ID)
+	}
+
+	// Create a new investigation record for the fix application
+	now := time.Now()
+	fixInv := &domain.Investigation{
+		ID:           uuid.New().String(),
+		DeploymentID: originalInv.DeploymentID,
+		Status:       domain.InvestigationStatusPending,
+		Progress:     0,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	if err := s.repo.CreateInvestigation(ctx, fixInv); err != nil {
+		return nil, fmt.Errorf("failed to create fix investigation: %w", err)
+	}
+
+	// Start background fix application
+	go s.runFixApplication(fixInv.ID, originalInv, deployment, req)
+
+	return fixInv, nil
+}
+
+// runFixApplication executes the fix application in the background.
+func (s *InvestigationService) runFixApplication(
+	fixInvID string,
+	originalInv *domain.Investigation,
+	deployment *domain.Deployment,
+	req ApplyFixesRequest,
+) {
+	ctx := context.Background()
+
+	// Update status to running
+	if err := s.repo.UpdateInvestigationStatus(ctx, fixInvID, domain.InvestigationStatusRunning); err != nil {
+		log.Printf("[fix-application] failed to update status to running: %v", err)
+		return
+	}
+
+	// Broadcast fix started
+	s.broadcastProgress(deployment.ID, fixInvID, "fix_started", 0, "Applying selected fixes...")
+
+	// Build the fix prompt
+	prompt, err := s.buildFixPrompt(originalInv, deployment, req)
+	if err != nil {
+		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("failed to build fix prompt: %v", err))
+		return
+	}
+
+	// Update progress
+	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 10)
+	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 10, "Agent applying fixes...")
+
+	// Execute via agent-manager
+	workingDir := os.Getenv("VROOLI_ROOT")
+	if workingDir == "" {
+		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	// Use a timeout context for the agent execution (10 minutes)
+	execCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
+		InvestigationID: fixInvID,
+		Prompt:          prompt,
+		WorkingDir:      workingDir,
+	})
+	if err != nil {
+		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("failed to start fix agent: %v", err))
+		return
+	}
+
+	// Store the run ID
+	if err := s.repo.UpdateInvestigationRunID(ctx, fixInvID, runID); err != nil {
+		log.Printf("[fix-application] failed to store run ID: %v", err)
+	}
+
+	// Poll for completion
+	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 20)
+	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 20, "Agent working on fixes...")
+
+	result, err := s.pollForCompletion(execCtx, fixInvID, deployment.ID, runID)
+	if err != nil {
+		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("fix application failed: %v", err))
+		return
+	}
+
+	// Build fix types string for details
+	var fixTypes []string
+	if req.Immediate {
+		fixTypes = append(fixTypes, "immediate")
+	}
+	if req.Permanent {
+		fixTypes = append(fixTypes, "permanent")
+	}
+	if req.Prevention {
+		fixTypes = append(fixTypes, "prevention")
+	}
+
+	// Store results
+	details := domain.InvestigationDetails{
+		Source:         "agent-manager",
+		RunID:          result.RunID,
+		DurationSecs:   result.DurationSeconds,
+		TokensUsed:     result.TokensUsed,
+		CostEstimate:   result.CostEstimate,
+		OperationMode:  "fix-application:" + strings.Join(fixTypes, ","),
+		TriggerReason:  "user_requested_fix",
+		DeploymentStep: getStringPtr(deployment.ErrorStep),
+	}
+
+	detailsJSON, _ := json.Marshal(details)
+
+	findings := result.Output
+
+	// Handle cases where findings are empty
+	if findings == "" {
+		var errorMsg string
+		if result.ErrorMessage != "" {
+			errorMsg = fmt.Sprintf("Fix application encountered an error: %s", result.ErrorMessage)
+		} else {
+			errorMsg = "Agent completed but did not produce any output. The fixes may not have been applied correctly."
+		}
+		if err := s.repo.UpdateInvestigationErrorWithDetails(ctx, fixInvID, errorMsg, detailsJSON); err != nil {
+			log.Printf("[fix-application] failed to store error with details: %v", err)
+		}
+		s.broadcastProgress(deployment.ID, fixInvID, "fix_failed", 0, errorMsg)
+		log.Printf("[fix-application] fix %s failed: %s", fixInvID, errorMsg)
+		return
+	}
+
+	if err := s.repo.UpdateInvestigationFindings(ctx, fixInvID, findings, detailsJSON); err != nil {
+		log.Printf("[fix-application] failed to store findings: %v", err)
+	}
+
+	// Broadcast completion
+	s.broadcastProgress(deployment.ID, fixInvID, "fix_completed", 100, "Fixes applied successfully")
+
+	log.Printf("[fix-application] completed fix application %s (run=%s, duration=%ds, tokens=%d)",
+		fixInvID, result.RunID, result.DurationSeconds, result.TokensUsed)
+}
+
+// buildFixPrompt constructs the prompt for applying fixes from an investigation.
+func (s *InvestigationService) buildFixPrompt(
+	originalInv *domain.Investigation,
+	deployment *domain.Deployment,
+	req ApplyFixesRequest,
+) (string, error) {
+	// Parse the manifest to get VPS details
+	var manifest CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+		return "", fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	if manifest.Target.VPS == nil {
+		return "", fmt.Errorf("deployment has no VPS target")
+	}
+
+	vps := manifest.Target.VPS
+	sshPort := vps.Port
+	if sshPort == 0 {
+		sshPort = 22
+	}
+	sshUser := vps.User
+	if sshUser == "" {
+		sshUser = "root"
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString("# Fix Application Task\n\n")
+
+	// Selected fixes section
+	sb.WriteString("## Selected Fixes to Apply\n")
+	if req.Immediate {
+		sb.WriteString("- [x] **Immediate Fix** - Apply commands to fix the VPS right now\n")
+	} else {
+		sb.WriteString("- [ ] Immediate Fix - DO NOT APPLY\n")
+	}
+	if req.Permanent {
+		sb.WriteString("- [x] **Permanent Fix** - Apply code/configuration changes\n")
+	} else {
+		sb.WriteString("- [ ] Permanent Fix - DO NOT APPLY\n")
+	}
+	if req.Prevention {
+		sb.WriteString("- [x] **Prevention** - Implement monitoring/pipeline improvements\n")
+	} else {
+		sb.WriteString("- [ ] Prevention - DO NOT APPLY\n")
+	}
+	sb.WriteString("\n")
+
+	// Instructions based on selected fixes
+	sb.WriteString("## Instructions\n")
+	sb.WriteString("Apply ONLY the selected fix types from the investigation results below.\n\n")
+
+	if req.Immediate {
+		sb.WriteString("### For Immediate Fixes\n")
+		sb.WriteString("- SSH into the VPS and run the recommended commands\n")
+		sb.WriteString("- Verify the fix worked by checking service status\n")
+		sb.WriteString("- Report what commands you ran and their results\n\n")
+	}
+
+	if req.Permanent {
+		sb.WriteString("### For Permanent Fixes\n")
+		sb.WriteString("- Make the recommended code or configuration changes\n")
+		sb.WriteString("- This may include editing `.vrooli/service.json`, fixing manifest generation, etc.\n")
+		sb.WriteString("- Leave changes uncommitted for user review (do NOT commit)\n")
+		sb.WriteString("- Report what files you modified and why\n\n")
+	}
+
+	if req.Prevention {
+		sb.WriteString("### For Prevention\n")
+		sb.WriteString("- Implement the recommended monitoring, alerts, or pipeline improvements\n")
+		sb.WriteString("- This may involve adding health checks, deployment gates, or documentation\n")
+		sb.WriteString("- Report what preventive measures you implemented\n\n")
+	}
+
+	// VPS connection info
+	sb.WriteString("## VPS Connection\n")
+	sb.WriteString("To apply fixes on the VPS, use SSH commands:\n")
+	sb.WriteString("```bash\n")
+	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	sb.WriteString("```\n\n")
+
+	sb.WriteString("## Deployment Configuration\n")
+	sb.WriteString(fmt.Sprintf("- VPS Host: %s\n", vps.Host))
+	sb.WriteString(fmt.Sprintf("- SSH User: %s\n", sshUser))
+	sb.WriteString(fmt.Sprintf("- SSH Port: %d\n", sshPort))
+	sb.WriteString(fmt.Sprintf("- SSH Key Path: %s\n", vps.KeyPath))
+	if vps.Workdir != "" {
+		sb.WriteString(fmt.Sprintf("- VPS Workdir: %s\n", vps.Workdir))
+	}
+	sb.WriteString(fmt.Sprintf("- Scenario: %s\n", manifest.Scenario.ID))
+	sb.WriteString("\n")
+
+	// User note if provided
+	if req.Note != "" {
+		sb.WriteString("## User Note\n")
+		sb.WriteString(req.Note)
+		sb.WriteString("\n\n")
+	}
+
+	// Include the original investigation results
+	sb.WriteString("## Investigation Results\n")
+	sb.WriteString("The following investigation report contains the findings and recommended fixes.\n")
+	sb.WriteString("Apply ONLY the fixes that are selected above.\n\n")
+	sb.WriteString("<investigation_results>\n")
+	sb.WriteString(*originalInv.Findings)
+	sb.WriteString("\n</investigation_results>\n\n")
+
+	// Include deployment context
+	sb.WriteString("<deployment_context>\n")
+	manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
+	sb.WriteString(string(manifestJSON))
+	sb.WriteString("\n</deployment_context>\n\n")
+
+	// Report format
+	sb.WriteString("## Report Format\n")
+	sb.WriteString("Please provide a structured report with:\n\n")
+	sb.WriteString("### Fixes Applied\n")
+	sb.WriteString("List each fix you applied, what you did, and the result.\n\n")
+	sb.WriteString("### Verification\n")
+	sb.WriteString("How you verified each fix worked (command outputs, status checks, etc.)\n\n")
+	sb.WriteString("### Issues Encountered\n")
+	sb.WriteString("Any problems you ran into while applying fixes, and how you resolved them.\n\n")
+	sb.WriteString("### Next Steps\n")
+	sb.WriteString("Any remaining manual steps the user needs to take (e.g., review uncommitted changes, restart deployment).\n")
+
+	return sb.String(), nil
+}

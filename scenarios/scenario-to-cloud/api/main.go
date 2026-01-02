@@ -177,6 +177,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/investigations", s.handleListInvestigations).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}", s.handleGetInvestigation).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}/stop", s.handleStopInvestigation).Methods("POST")
+	api.HandleFunc("/deployments/{id}/investigations/{invId}/apply-fixes", s.handleApplyFixes).Methods("POST")
 	api.HandleFunc("/agent-manager/status", s.handleCheckAgentManagerStatus).Methods("GET")
 }
 

@@ -48,6 +48,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const stopMutation = useStopDeployment();
   const executeMutation = useExecuteDeployment();
 
+  const [showManifest, setShowManifest] = useState(false);
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
@@ -214,6 +215,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         <InvestigationReport
           investigation={investigation.activeInvestigation}
           onClose={() => setShowInvestigationReport(false)}
+          onApplyFixes={async (invId, options) => {
+            await investigation.applyFixes(invId, options);
+            setShowInvestigationReport(false);
+          }}
+          isApplyingFixes={investigation.isApplyingFixes}
         />
       )}
 
@@ -410,6 +416,23 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
             ))}
           </div>
         </div>
+      )}
+
+      {/* Deployment Manifest */}
+      {deployment.manifest && (
+        <CollapsibleSection
+          title="Deployment Manifest"
+          isOpen={showManifest}
+          onToggle={() => setShowManifest(!showManifest)}
+        >
+          <CodeBlock
+            code={JSON.stringify(deployment.manifest, null, 2)}
+            language="json"
+            maxHeight="500px"
+            showLineNumbers={true}
+            showHeader={true}
+          />
+        </CollapsibleSection>
       )}
 
       {/* Setup Result */}

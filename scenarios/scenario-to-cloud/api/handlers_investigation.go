@@ -180,6 +180,65 @@ func (s *Server) handleStopInvestigation(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// handleApplyFixes applies selected fixes from a completed investigation.
+// POST /api/v1/deployments/{id}/investigations/{invId}/apply-fixes
+func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	invID := vars["invId"]
+
+	if invID == "" {
+		http.Error(w, "investigation ID is required", http.StatusBadRequest)
+		return
+	}
+
+	if s.investigationSvc == nil {
+		http.Error(w, "investigation service not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse request body
+	var req domain.ApplyFixesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Apply fixes
+	fixInv, err := s.investigationSvc.ApplyFixes(r.Context(), ApplyFixesRequest{
+		InvestigationID: invID,
+		Immediate:       req.Immediate,
+		Permanent:       req.Permanent,
+		Prevention:      req.Prevention,
+		Note:            req.Note,
+	})
+	if err != nil {
+		errMsg := err.Error()
+		switch {
+		case strings.Contains(errMsg, "not found"):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		case strings.Contains(errMsg, "already in progress"):
+			http.Error(w, err.Error(), http.StatusConflict)
+		case strings.Contains(errMsg, "not available"):
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		case strings.Contains(errMsg, "expected completed"):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case strings.Contains(errMsg, "no findings"):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case strings.Contains(errMsg, "at least one"):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"investigation": fixInv,
+	})
+}
+
 // handleCheckAgentManagerStatus returns the status of agent-manager.
 // GET /api/v1/agent-manager/status
 func (s *Server) handleCheckAgentManagerStatus(w http.ResponseWriter, r *http.Request) {

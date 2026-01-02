@@ -67,7 +67,7 @@ export function useCreateDeployment() {
       manifest: unknown;
       name?: string;
     }) => {
-      const res = await createDeployment(manifest, name);
+      const res = await createDeployment(manifest, name ? { name } : undefined);
       return res.deployment;
     },
     onSuccess: () => {

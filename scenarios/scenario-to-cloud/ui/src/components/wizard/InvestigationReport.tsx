@@ -1,11 +1,14 @@
-import { X, Clock, Coins, FileText, Copy, Check, XCircle, CheckCircle2, StopCircle } from "lucide-react";
+import { X, Clock, Coins, FileText, Copy, Check, XCircle, CheckCircle2, StopCircle, Wrench, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import type { Investigation } from "../../types/investigation";
+import type { ApplyFixesRequest } from "../../types/investigation";
 
 interface InvestigationReportProps {
   investigation: Investigation;
   onClose: () => void;
+  onApplyFixes?: (investigationId: string, options: ApplyFixesRequest) => Promise<void>;
+  isApplyingFixes?: boolean;
 }
 
 function getStatusConfig(status: Investigation["status"]) {
@@ -45,8 +48,12 @@ function getStatusConfig(status: Investigation["status"]) {
   }
 }
 
-export function InvestigationReport({ investigation, onClose }: InvestigationReportProps) {
+export function InvestigationReport({ investigation, onClose, onApplyFixes, isApplyingFixes }: InvestigationReportProps) {
   const [copied, setCopied] = useState(false);
+  const [immediate, setImmediate] = useState(true);
+  const [permanent, setPermanent] = useState(false);
+  const [prevention, setPrevention] = useState(false);
+  const [fixNote, setFixNote] = useState("");
 
   const handleCopy = async () => {
     if (investigation.findings) {
@@ -56,10 +63,26 @@ export function InvestigationReport({ investigation, onClose }: InvestigationRep
     }
   };
 
+  const handleApplyFixes = async () => {
+    if (!onApplyFixes) return;
+    await onApplyFixes(investigation.id, {
+      immediate,
+      permanent,
+      prevention,
+      note: fixNote.trim() || undefined,
+    });
+  };
+
+  const canApplyFixes = investigation.status === "completed" && investigation.findings && onApplyFixes;
+  const hasSelectedFix = immediate || permanent || prevention;
+
   const details = investigation.details;
   const createdAt = new Date(investigation.created_at);
   const statusConfig = getStatusConfig(investigation.status);
   const StatusIcon = statusConfig.icon;
+
+  // Check if this is a fix application report (not an investigation)
+  const isFixReport = details?.operation_mode?.startsWith("fix-application");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -182,24 +205,106 @@ export function InvestigationReport({ investigation, onClose }: InvestigationRep
           ) : null}
         </div>
 
+        {/* Apply Fixes Section - only show for completed investigations with findings, not for fix reports */}
+        {canApplyFixes && !isFixReport && (
+          <div className="px-6 py-4 bg-slate-800/30 border-t border-slate-700">
+            <div className="flex items-center gap-2 mb-3">
+              <Wrench className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-medium text-slate-200">Apply Fixes</span>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={immediate}
+                  onChange={(e) => setImmediate(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm text-slate-200">Immediate Fix</span>
+                  <p className="text-xs text-slate-500">Run commands on VPS now</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={permanent}
+                  onChange={(e) => setPermanent(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm text-slate-200">Permanent Fix</span>
+                  <p className="text-xs text-slate-500">Modify code/config</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={prevention}
+                  onChange={(e) => setPrevention(e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm text-slate-200">Prevention</span>
+                  <p className="text-xs text-slate-500">Add monitoring/alerts</p>
+                </div>
+              </label>
+            </div>
+            <div className="mt-3">
+              <label className="block text-sm text-slate-300 mb-1">
+                Additional Instructions (optional)
+              </label>
+              <textarea
+                value={fixNote}
+                onChange={(e) => setFixNote(e.target.value)}
+                placeholder="Any additional context or instructions for the fix agent..."
+                className="w-full px-3 py-2 rounded-md border border-slate-600 bg-slate-800 text-slate-200 placeholder-slate-500 text-sm focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-700">
-          {investigation.findings && (
-            <Button variant="outline" size="sm" onClick={handleCopy}>
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 mr-1.5 text-emerald-400" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 mr-1.5" />
-                  Copy Report
-                </>
-              )}
-            </Button>
-          )}
-          <Button onClick={onClose}>Close</Button>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-700">
+          <div className="flex items-center gap-2">
+            {investigation.findings && (
+              <Button variant="outline" size="sm" onClick={handleCopy}>
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1.5 text-emerald-400" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1.5" />
+                    Copy Report
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {canApplyFixes && !isFixReport && (
+              <Button
+                onClick={handleApplyFixes}
+                disabled={!hasSelectedFix || isApplyingFixes}
+              >
+                {isApplyingFixes ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <Wrench className="h-4 w-4 mr-1.5" />
+                    Apply Selected Fixes
+                  </>
+                )}
+              </Button>
+            )}
+            <Button variant="outline" onClick={onClose}>Close</Button>
+          </div>
         </div>
       </div>
     </div>

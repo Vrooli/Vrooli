@@ -97,6 +97,11 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
             <InvestigationReport
               investigation={investigation.activeInvestigation}
               onClose={() => setShowInvestigationReport(false)}
+              onApplyFixes={async (invId, options) => {
+                await investigation.applyFixes(invId, options);
+                setShowInvestigationReport(false);
+              }}
+              isApplyingFixes={investigation.isApplyingFixes}
             />
           )}
         </div>

@@ -204,7 +204,11 @@ export function useDeployment() {
   }, []);
 
   // Save on manifest/step change (with undo history tracking)
-  const updateManifestJson = useCallback((json: string) => {
+  // Accepts either a string or a functional update (prev => newValue)
+  const updateManifestJson = useCallback((jsonOrUpdater: string | ((prev: string) => string)) => {
+    // Resolve the new value
+    const newJson = typeof jsonOrUpdater === "function" ? jsonOrUpdater(manifestJson) : jsonOrUpdater;
+
     // Skip history tracking during undo/redo operations
     if (!isUndoRedoRef.current) {
       // Push current state to history before changing
@@ -214,9 +218,9 @@ export function useDeployment() {
     }
     isUndoRedoRef.current = false;
 
-    setManifestJson(json);
+    setManifestJson(newJson);
     saveDeployment({
-      manifestJson: json,
+      manifestJson: newJson,
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,

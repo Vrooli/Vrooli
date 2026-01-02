@@ -5,9 +5,10 @@ import {
   listInvestigations,
   getInvestigation,
   stopInvestigation,
+  applyFixes,
   getAgentManagerStatus,
 } from "../lib/api";
-import type { Investigation, InvestigationSummary, CreateInvestigationRequest } from "../types/investigation";
+import type { Investigation, InvestigationSummary, CreateInvestigationRequest, ApplyFixesRequest } from "../types/investigation";
 
 /**
  * Hook to fetch the agent-manager status.
@@ -121,6 +122,32 @@ export function useStopInvestigation() {
 }
 
 /**
+ * Hook to apply fixes from a completed investigation.
+ */
+export function useApplyFixes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      deploymentId,
+      investigationId,
+      options,
+    }: {
+      deploymentId: string;
+      investigationId: string;
+      options: ApplyFixesRequest;
+    }) => {
+      const res = await applyFixes(deploymentId, investigationId, options);
+      return res.investigation;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["investigations", variables.deploymentId],
+      });
+    },
+  });
+}
+
+/**
  * Combined hook for managing investigations on a deployment.
  * Provides convenience methods for triggering, viewing, and stopping investigations.
  */
@@ -141,6 +168,7 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
   // Mutations
   const triggerMutation = useTriggerInvestigation();
   const stopMutation = useStopInvestigation();
+  const applyFixesMutation = useApplyFixes();
 
   // Auto-track latest investigation (prefer running, fallback to most recent)
   useEffect(() => {
@@ -179,6 +207,27 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
     if (!deploymentId || !activeInvestigationId) return;
     await stopMutation.mutateAsync({ deploymentId, investigationId: activeInvestigationId });
   }, [deploymentId, activeInvestigationId, stopMutation]);
+
+  // Apply fixes from an investigation
+  const applyFixesFromInvestigation = useCallback(
+    async (investigationId: string, options: Omit<ApplyFixesRequest, "note"> & { note?: string }) => {
+      if (!deploymentId) return;
+      const inv = await applyFixesMutation.mutateAsync({
+        deploymentId,
+        investigationId,
+        options: {
+          immediate: options.immediate,
+          permanent: options.permanent,
+          prevention: options.prevention,
+          note: options.note,
+        },
+      });
+      // Track the new fix investigation
+      setActiveInvestigationId(inv.id);
+      return inv;
+    },
+    [deploymentId, applyFixesMutation]
+  );
 
   // View investigation report
   const viewReport = useCallback((investigationId: string) => {
@@ -222,10 +271,13 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
     // Actions
     trigger,
     stop,
+    applyFixes: applyFixesFromInvestigation,
     isTriggering,
     isStopping,
+    isApplyingFixes: applyFixesMutation.isPending,
     triggerError: triggerMutation.error,
     stopError: stopMutation.error,
+    applyFixesError: applyFixesMutation.error,
 
     // Refresh
     refresh: () => {

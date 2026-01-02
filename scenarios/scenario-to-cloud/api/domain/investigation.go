@@ -51,6 +51,14 @@ type CreateInvestigationRequest struct {
 	Note    string `json:"note,omitempty"`     // User-provided context
 }
 
+// ApplyFixesRequest is the request body for applying fixes from an investigation.
+type ApplyFixesRequest struct {
+	Immediate  bool   `json:"immediate"`  // Apply immediate fixes (VPS commands)
+	Permanent  bool   `json:"permanent"`  // Apply permanent fixes (code/config changes)
+	Prevention bool   `json:"prevention"` // Apply prevention measures
+	Note       string `json:"note,omitempty"`
+}
+
 // InvestigationSummary is a lightweight view for list responses.
 type InvestigationSummary struct {
 	ID           string              `json:"id"`
