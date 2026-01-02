@@ -111,9 +111,9 @@ export default function RecordModeView() {
         }
       }
 
-      // Navigate to the generated workflow
+      // Navigate to the project page with the workflow focused in the preview pane
       toast.success('Workflow generated from recording!');
-      navigate(`/projects/${projectId}/workflows/${workflowId}`);
+      navigate(`/projects/${projectId}?preview=${workflowId}`);
     },
     [sessionId, navigate]
   );

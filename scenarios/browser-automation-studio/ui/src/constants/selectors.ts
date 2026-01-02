@@ -301,6 +301,26 @@ const literalSelectors = {
     continueEditingChip: "dashboard-continue-editing-chip",
     tryDemoButton: "dashboard-try-demo-button",
     startTutorialButton: "dashboard-start-tutorial-button",
+    startRecordingButton: "dashboard-start-recording-button",
+    featureCards: "dashboard-feature-cards",
+  },
+  recording: {
+    sidebar: {
+      timelineTab: "sidebar-timeline-tab",
+      autoTab: "sidebar-auto-tab",
+      artifactsTab: "sidebar-artifacts-tab",
+      historyTab: "sidebar-history-tab",
+      addStepButton: "timeline-add-step-button",
+      createWorkflowButton: "timeline-create-workflow-button",
+    },
+    browser: {
+      urlInput: "browser-url-input",
+      replayStyleButton: "browser-replay-style-button",
+    },
+    workflowCreation: {
+      nameInput: "workflow-creation-name-input",
+      submitButton: "workflow-creation-submit-button",
+    },
   },
   dialogs: {
     base: {
@@ -479,6 +499,13 @@ const literalSelectors = {
     },
     tabs: {
       executions: "project-tab-executions",
+    },
+    workflowPreview: {
+      pane: "workflow-preview-pane",
+      runButton: "workflow-preview-run-button",
+      openEditorButton: "workflow-preview-open-editor-button",
+      scheduleSection: "workflow-preview-schedule-section",
+      exportButton: "workflow-preview-export-button",
     },
   },
   replay: {

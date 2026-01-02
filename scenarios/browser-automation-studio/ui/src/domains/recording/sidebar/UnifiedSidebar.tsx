@@ -14,7 +14,7 @@
  * - Resizable width with persistence
  */
 
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
 import { ArtifactsTab, type ArtifactsTabProps } from './ArtifactsTab';
@@ -139,6 +139,9 @@ export function UnifiedSidebar({
     setHistoryActivity,
   } = useUnifiedSidebar(sidebarOptions);
 
+  // Track when we're syncing from parent to prevent feedback loops
+  const isSyncingFromParentRef = useRef(false);
+
   // Use controlled artifactSubType if provided, otherwise use internal state
   const artifactSubType = controlledArtifactSubType ?? internalArtifactSubType;
 
@@ -160,15 +163,24 @@ export function UnifiedSidebar({
     }
   }, [controlledActiveTab, internalActiveTab, setActiveTab]);
 
-  // Sync controlled open state
+  // Sync controlled open state from parent
   useEffect(() => {
     if (controlledIsOpen !== undefined && controlledIsOpen !== isOpen) {
+      isSyncingFromParentRef.current = true;
       setIsOpen(controlledIsOpen);
+      // Reset the flag after React has processed the state update
+      requestAnimationFrame(() => {
+        isSyncingFromParentRef.current = false;
+      });
     }
   }, [controlledIsOpen, isOpen, setIsOpen]);
 
-  // Notify parent of open state changes
+  // Notify parent of open state changes (only for internal changes, not syncs from parent)
   useEffect(() => {
+    // Skip notification if this change came from syncing with parent
+    if (isSyncingFromParentRef.current) {
+      return;
+    }
     if (onOpenChange && controlledIsOpen !== isOpen) {
       onOpenChange(isOpen);
     }
@@ -353,6 +365,7 @@ function TabButton({
 }: TabButtonProps) {
   return (
     <button
+      data-testid={`sidebar-${tabId}-tab`}
       onClick={() => onClick(tabId)}
       className={`relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
         isActive

@@ -226,6 +226,7 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
 
             {onStartRecording && (
               <button
+                data-testid={selectors.dashboard.startRecordingButton}
                 onClick={onStartRecording}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/25 transition-colors"
               >
@@ -249,7 +250,7 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
         </div>
 
         {/* Feature cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
+        <div data-testid={selectors.dashboard.featureCards} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
           {FEATURES.map((feature, index) => (
             <FeatureCard
               key={feature.title}

@@ -106,6 +106,7 @@ export function BrowserChrome({
       {/* Replay style toggle */}
       {showReplayStyleToggle && onReplayStyleToggle && (
         <button
+          data-testid="browser-replay-style-button"
           type="button"
           role="switch"
           aria-checked={showReplayStyle}

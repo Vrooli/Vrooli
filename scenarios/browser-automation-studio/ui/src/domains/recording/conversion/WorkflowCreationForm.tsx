@@ -299,6 +299,7 @@ export function WorkflowCreationForm({
                 Workflow Name <span className="text-red-500">*</span>
               </label>
               <input
+                data-testid="workflow-creation-name-input"
                 type="text"
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
@@ -528,6 +529,7 @@ export function WorkflowCreationForm({
             )}
           </button>
           <button
+            data-testid="workflow-creation-submit-button"
             onClick={handleGenerate}
             disabled={!isFormValid || isReplaying || isGenerating}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

@@ -1,24 +1,32 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   X,
   ChevronRight,
   ChevronLeft,
   GripHorizontal,
-  FolderPlus,
   Sparkles,
   Play,
-  MousePointer2,
-  Layers,
-  Eye,
   CheckCircle2,
   Circle,
   SkipForward,
+  Globe,
+  Plus,
+  Bot,
+  Palette,
+  FileText,
+  FolderTree,
+  Clock,
+  Loader2,
+  ArrowRight,
+  RotateCcw,
 } from "lucide-react";
 
 const TOUR_STORAGE_KEY = "browser-automation-studio-tour-completed";
 const TOUR_STEP_KEY = "browser-automation-studio-tour-step";
 const TOUR_ACTIVE_KEY = "browser-automation-studio-tour-active";
-const TOUR_VERSION = "2"; // Bump to show tour again after major updates
+const TOUR_PAUSED_KEY = "browser-automation-studio-tour-paused";
+const TOUR_VERSION = "4"; // Bump to show tour again after major updates
 
 export interface TourStep {
   id: string;
@@ -35,9 +43,21 @@ export interface TourStep {
   waitForInteraction?: boolean;
   /** Selector to watch for click to advance */
   advanceOnClick?: string;
-  /** Custom action to perform when this step becomes active */
-  onActivate?: () => void;
+  /** Called when this step becomes active */
+  onEnter?: () => void;
+  /** Called when leaving this step (for cleanup like closing modals) */
+  onExit?: () => void;
+  /** Action to auto-perform if user presses Next without completing the required interaction */
+  autoAction?: () => Promise<void>;
+  /** URL pattern this step requires (string for startsWith, RegExp for pattern match) */
+  requiredUrl?: string | RegExp;
+  /** Auto-navigate to this URL on step entry if not already there */
+  navigateTo?: string;
 }
+
+// ============================================================================
+// Default Tour Steps (17 steps focused on recording workflow)
+// ============================================================================
 
 let cachedDefaultTourSteps: TourStep[] | null = null;
 
@@ -47,112 +67,325 @@ export function getDefaultTourSteps(): TourStep[] {
   }
 
   cachedDefaultTourSteps = [
+    // Step 1: Welcome / Getting Started
     {
       id: "welcome",
-      title: "Welcome to Vrooli Ascension",
+      title: "Welcome to Browser Automation Studio",
       description:
-        "Let's take a quick tour to get you started. You can drag this panel anywhere on the screen.",
+        "Let's take a quick tour to help you create your first automated workflow. You can drag this panel anywhere on the screen.",
       icon: <Sparkles size={24} className="text-amber-400" />,
     },
+
+    // Step 2: Explain workflows and 3 creation methods
+    // Note: Feature cards only show in WelcomeHero when no projects exist,
+    // but the step still works - just without the highlight if cards aren't visible.
     {
-      id: "create-project",
-      title: "Create Your First Project",
+      id: "explain-methods",
+      title: "Three Ways to Create Workflows",
       description:
-        "Projects help you organize related workflows. Click the 'New Project' button to create one.",
-      icon: <FolderPlus size={24} className="text-blue-400" />,
-      anchorSelector: "[data-testid='dashboard-new-project-button']",
+        "You can create workflows by Recording browser actions, using AI to navigate for you, or building visually with drag-and-drop. We'll start with Recording - the easiest way to get started.",
+      icon: <Sparkles size={24} className="text-purple-400" />,
+      anchorSelector: "[data-testid='dashboard-feature-cards']",
       anchorPosition: "bottom",
-      actionHint: "Click 'New Project' to continue",
-      waitForInteraction: true,
-      advanceOnClick: "[data-testid='dashboard-new-project-button']",
     },
+
+    // Step 3: Open Record Mode
+    // Recording sessions start automatically when navigating to /record/new
     {
-      id: "name-project",
-      title: "Name Your Project",
+      id: "open-record-mode",
+      title: "Open Record Mode",
       description:
-        "Give your project a descriptive name and optional description. Then click 'Create Project'.",
-      icon: <FolderPlus size={24} className="text-blue-400" />,
-      anchorSelector: "[data-testid='project-modal']",
-      anchorPosition: "right",
-      actionHint: "Fill in details and create",
-      waitForInteraction: true,
-      advanceOnClick: "[data-testid='project-modal-submit']",
+        "Let's open Record Mode to start capturing browser actions. When you navigate to a page, every click, scroll, and input will be recorded automatically.",
+      icon: <Circle size={24} className="text-red-400 fill-red-400" />,
+      actionHint: "Press Next to open Record Mode",
+      requiredUrl: "/",
+      navigateTo: "/record/new",
     },
+
+    // Step 4: Enter URL
+    {
+      id: "enter-url",
+      title: "Enter a URL",
+      description:
+        "Type or paste the URL of the website you want to automate. We'll use vrooli.com as an example - it's our landing page!",
+      icon: <Globe size={24} className="text-blue-400" />,
+      anchorSelector: "[data-testid='browser-url-input']",
+      anchorPosition: "bottom",
+      actionHint: "Enter a URL (or we'll use vrooli.com)",
+      requiredUrl: /^\/record/,
+      waitForInteraction: true,
+      autoAction: async () => {
+        const input = document.querySelector(
+          "[data-testid='browser-url-input']"
+        ) as HTMLInputElement;
+        if (input && !input.value.trim()) {
+          // Focus the input first
+          input.focus();
+          await new Promise((r) => setTimeout(r, 100));
+
+          // For React controlled inputs, we need to use the native value setter
+          // to properly trigger React's onChange handler
+          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            "value"
+          )?.set;
+          if (nativeInputValueSetter) {
+            nativeInputValueSetter.call(input, "vrooli.com");
+          } else {
+            // Fallback for older browsers
+            input.value = "vrooli.com";
+          }
+
+          // Dispatch input event to trigger React state update
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+
+          // Wait for React to process the input
+          await new Promise((r) => setTimeout(r, 200));
+
+          // Press Enter to navigate
+          input.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Enter",
+              code: "Enter",
+              bubbles: true,
+            })
+          );
+        }
+      },
+    },
+
+    // Step 5: Observe timeline
+    {
+      id: "observe-timeline",
+      title: "Watch the Timeline",
+      description:
+        "As you scroll and click around the page, each action appears in the timeline on the left. Try interacting with the page to see how actions are captured!",
+      icon: <FileText size={24} className="text-green-400" />,
+      anchorSelector: "[data-testid='sidebar-timeline-tab']",
+      anchorPosition: "right",
+      actionHint: "Scroll or click on the page to see actions appear",
+      requiredUrl: /^\/record/,
+    },
+
+    // Step 6: Add Step button
+    {
+      id: "add-step",
+      title: "Add Advanced Steps",
+      description:
+        "Use 'Add Step' to insert complex behaviors like data extraction, assertions, and branching. These are great for building composable workflows and testing website behavior.",
+      icon: <Plus size={24} className="text-blue-400" />,
+      anchorSelector: "[data-testid='timeline-add-step-button']",
+      anchorPosition: "right",
+      actionHint: "Click to see available step types",
+      requiredUrl: /^\/record/,
+      onExit: () => {
+        // Close the InsertNodeModal if it's open
+        const overlay = document.querySelector(
+          "[data-testid='responsive-dialog-overlay']"
+        );
+        if (overlay) {
+          (overlay as HTMLElement).click();
+        }
+        // Note: Don't dispatch Escape key here - it triggers the tour's
+        // own keyboard handler and causes an infinite loop
+      },
+    },
+
+    // Step 7: AI Navigation button
+    {
+      id: "ai-navigation",
+      title: "AI Navigation",
+      description:
+        "Let AI navigate for you! Describe what you want to accomplish in natural language, and AI will perform the actions automatically.",
+      icon: <Bot size={24} className="text-purple-400" />,
+      anchorSelector: "[data-testid='sidebar-auto-tab']",
+      anchorPosition: "right",
+      actionHint: "Click to see AI navigation",
+      requiredUrl: /^\/record/,
+      onEnter: () => {
+        // Switch to Auto tab
+        const autoTab = document.querySelector(
+          "[data-testid='sidebar-auto-tab']"
+        );
+        if (autoTab) {
+          (autoTab as HTMLElement).click();
+        }
+      },
+      onExit: () => {
+        // Switch back to Timeline tab
+        const timelineTab = document.querySelector(
+          "[data-testid='sidebar-timeline-tab']"
+        );
+        if (timelineTab) {
+          (timelineTab as HTMLElement).click();
+        }
+      },
+    },
+
+    // Step 8: Replay Style button
+    {
+      id: "replay-style",
+      title: "Replay Style Settings",
+      description:
+        "Enable replay styling to create polished exports for marketing, demos, and documentation. You can customize the style in Settings anytime.",
+      icon: <Palette size={24} className="text-pink-400" />,
+      anchorSelector: "[data-testid='browser-replay-style-button']",
+      anchorPosition: "bottom",
+      actionHint: "Click to toggle replay styling",
+      requiredUrl: /^\/record/,
+      waitForInteraction: true,
+      advanceOnClick: "[data-testid='browser-replay-style-button']",
+    },
+
+    // Step 9: Create Workflow button
     {
       id: "create-workflow",
-      title: "Create a Workflow",
+      title: "Create Your Workflow",
       description:
-        "Now let's create a workflow. Click 'New Workflow' to open the AI assistant or manual builder.",
-      icon: <Sparkles size={24} className="text-purple-400" />,
-      anchorSelector: "[data-testid='new-workflow-button']",
-      anchorPosition: "bottom",
-      actionHint: "Click 'New Workflow' to continue",
+        "When you're done recording, click 'Create Workflow' to save your recorded actions as a reusable workflow.",
+      icon: <ArrowRight size={24} className="text-blue-400" />,
+      anchorSelector: "[data-testid='timeline-create-workflow-button']",
+      anchorPosition: "top",
+      actionHint: "Click 'Create Workflow' to continue",
+      requiredUrl: /^\/record/,
       waitForInteraction: true,
-      advanceOnClick: "[data-testid='new-workflow-button']",
+      advanceOnClick: "[data-testid='timeline-create-workflow-button']",
+      autoAction: async () => {
+        const button = document.querySelector(
+          "[data-testid='timeline-create-workflow-button']"
+        );
+        if (button) {
+          (button as HTMLElement).click();
+        }
+      },
     },
+
+    // Step 10: Fill form and submit
     {
-      id: "ai-or-manual",
-      title: "AI or Manual Building",
+      id: "fill-form",
+      title: "Name Your Workflow",
       description:
-        "Describe what you want to automate in plain English, or switch to the manual visual builder.",
-      icon: <Sparkles size={24} className="text-amber-400" />,
-      anchorSelector: "[data-testid='ai-prompt-modal']",
+        "Give your workflow a descriptive name and select a project to save it in. Then click 'Generate Workflow' to create it.",
+      icon: <FileText size={24} className="text-blue-400" />,
+      anchorSelector: "[data-testid='workflow-creation-name-input']",
       anchorPosition: "left",
-      actionHint: "Enter a prompt or switch to manual",
+      actionHint: "Enter a name and click 'Generate Workflow'",
+      requiredUrl: /^\/record/,
       waitForInteraction: true,
-      advanceOnClick:
-        "[data-testid='switch-to-manual-button'], [data-testid='ai-generate-button']",
+      advanceOnClick: "[data-testid='workflow-creation-submit-button']",
+      autoAction: async () => {
+        // Fill in a random name if empty
+        const nameInput = document.querySelector(
+          "[data-testid='workflow-creation-name-input']"
+        ) as HTMLInputElement;
+        if (nameInput && !nameInput.value.trim()) {
+          nameInput.focus();
+          nameInput.value = `My Workflow ${Date.now().toString().slice(-4)}`;
+          nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        // Click submit
+        await new Promise((r) => setTimeout(r, 200));
+        const submitButton = document.querySelector(
+          "[data-testid='workflow-creation-submit-button']"
+        );
+        if (submitButton) {
+          (submitButton as HTMLElement).click();
+        }
+      },
     },
+
+    // Step 11: Project page - file tree
     {
-      id: "node-palette",
-      title: "Node Palette",
+      id: "project-page",
+      title: "Your Project",
       description:
-        "Drag nodes from the palette to build your workflow. Each node represents an action like clicking, typing, or navigating.",
-      icon: <Layers size={24} className="text-purple-400" />,
-      anchorSelector: "[data-testid='node-palette-container']",
+        "Welcome to your project! The file tree on the left shows all your workflows organized in folders. Click any workflow to see its details.",
+      icon: <FolderTree size={24} className="text-amber-400" />,
+      anchorSelector: "[data-testid='project-file-tree']",
       anchorPosition: "right",
-      actionHint: "Try dragging a node to the canvas",
+      requiredUrl: /^\/projects/,
     },
+
+    // Step 12: Workflow details panel
     {
-      id: "workflow-canvas",
-      title: "Visual Workflow Builder",
+      id: "workflow-panel",
+      title: "Workflow Details",
       description:
-        "Connect nodes together to define your automation flow. The workflow runs from top to bottom.",
-      icon: <MousePointer2 size={24} className="text-green-400" />,
-      anchorSelector: "[data-testid='workflow-builder-canvas']",
+        "This panel shows the selected workflow's details - its steps, execution stats, and settings. You can quickly run, edit, or schedule workflows from here.",
+      icon: <FileText size={24} className="text-blue-400" />,
+      anchorSelector: "[data-testid='workflow-preview-pane']",
       anchorPosition: "left",
-      actionHint: "Connect nodes by dragging between handles",
+      requiredUrl: /^\/projects/,
     },
+
+    // Step 13: Run button - introduction
     {
-      id: "execute",
-      title: "Execute Your Workflow",
+      id: "run-button",
+      title: "Run Your Workflow",
       description:
-        "When ready, click Execute to run your automation. Watch real-time screenshots as it runs!",
-      icon: <Play size={24} className="text-emerald-400" />,
-      anchorSelector: "[data-testid='header-execute-button']",
-      anchorPosition: "bottom",
-      actionHint: "Click Execute when you're ready",
+        "Click 'Run' to execute your workflow. You'll see a live preview of each step as it runs, just like during recording!",
+      icon: <Play size={24} className="text-green-400" />,
+      anchorSelector: "[data-testid='workflow-preview-run-button']",
+      anchorPosition: "left",
+      actionHint: "We'll try it after a few more tips",
+      requiredUrl: /^\/projects/,
     },
+
+    // Step 14: Open Editor
     {
-      id: "replay",
-      title: "Review Executions",
+      id: "open-editor",
+      title: "Visual Editor",
       description:
-        "After execution, review the results in the Executions tab. Replay recordings and export reports.",
-      icon: <Eye size={24} className="text-cyan-400" />,
-      anchorSelector: "[data-testid='execution-tab-executions']",
-      anchorPosition: "bottom",
+        "For more advanced editing, click 'Open Editor' to use the visual workflow builder. Add conditional logic, loops, and complex branching.",
+      icon: <Sparkles size={24} className="text-purple-400" />,
+      anchorSelector: "[data-testid='workflow-preview-open-editor-button']",
+      anchorPosition: "left",
+      requiredUrl: /^\/projects/,
     },
+
+    // Step 15: Schedule section
+    {
+      id: "schedule-section",
+      title: "Schedule Automation",
+      description:
+        "Set up schedules to run your workflows automatically - daily reports, hourly checks, or custom cron expressions. Perfect for monitoring and automation.",
+      icon: <Clock size={24} className="text-cyan-400" />,
+      anchorSelector: "[data-testid='workflow-preview-schedule-section']",
+      anchorPosition: "left",
+      requiredUrl: /^\/projects/,
+    },
+
+    // Step 16: Run the workflow
+    {
+      id: "run-workflow",
+      title: "Try Running It!",
+      description:
+        "Go ahead and click 'Run' to see your workflow in action. Watch as each recorded step is replayed automatically. After running, you can export the replay as video, GIF, or JSON!",
+      icon: <Play size={24} className="text-green-400" />,
+      anchorSelector: "[data-testid='workflow-preview-run-button']",
+      anchorPosition: "left",
+      actionHint: "Click 'Run' to execute your workflow",
+      requiredUrl: /^\/projects/,
+      waitForInteraction: true,
+      advanceOnClick: "[data-testid='workflow-preview-run-button']",
+    },
+
+    // Step 17: Complete
     {
       id: "complete",
       title: "You're All Set!",
       description:
-        "You now know the basics. Explore node types, use variables, and build powerful automations. Happy automating!",
+        "Congratulations! You now know the basics of Browser Automation Studio. Explore AI-assisted recording, visual editing, and scheduling to unlock even more power. Happy automating!",
       icon: <CheckCircle2 size={24} className="text-emerald-400" />,
     },
   ];
 
   return cachedDefaultTourSteps;
 }
+
+// ============================================================================
+// Component Types
+// ============================================================================
 
 interface GuidedTourProps {
   isOpen: boolean;
@@ -167,6 +400,136 @@ interface Position {
   y: number;
 }
 
+type AnchorPosition = "top" | "bottom" | "left" | "right";
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/** Check if a position overlaps with the anchor element */
+function overlapsAnchor(
+  panelRect: { x: number; y: number; width: number; height: number },
+  anchorRect: DOMRect
+): boolean {
+  const panelRight = panelRect.x + panelRect.width;
+  const panelBottom = panelRect.y + panelRect.height;
+
+  return !(
+    panelRect.x > anchorRect.right ||
+    panelRight < anchorRect.left ||
+    panelRect.y > anchorRect.bottom ||
+    panelBottom < anchorRect.top
+  );
+}
+
+/** Compute panel position for a given anchor position */
+function computePositionForSide(
+  anchorRect: DOMRect,
+  panelWidth: number,
+  panelHeight: number,
+  side: AnchorPosition,
+  gap: number = 12
+): Position {
+  switch (side) {
+    case "top":
+      return {
+        x: anchorRect.left + anchorRect.width / 2 - panelWidth / 2,
+        y: anchorRect.top - panelHeight - gap,
+      };
+    case "bottom":
+      return {
+        x: anchorRect.left + anchorRect.width / 2 - panelWidth / 2,
+        y: anchorRect.bottom + gap,
+      };
+    case "left":
+      return {
+        x: anchorRect.left - panelWidth - gap,
+        y: anchorRect.top + anchorRect.height / 2 - panelHeight / 2,
+      };
+    case "right":
+    default:
+      return {
+        x: anchorRect.right + gap,
+        y: anchorRect.top + anchorRect.height / 2 - panelHeight / 2,
+      };
+  }
+}
+
+/** Clamp position to viewport bounds */
+function clampToViewport(
+  pos: Position,
+  panelWidth: number,
+  panelHeight: number,
+  padding: number = 16
+): Position {
+  return {
+    x: Math.max(
+      padding,
+      Math.min(pos.x, window.innerWidth - panelWidth - padding)
+    ),
+    y: Math.max(
+      padding,
+      Math.min(pos.y, window.innerHeight - panelHeight - padding)
+    ),
+  };
+}
+
+/** Find a non-overlapping position for the panel */
+function computeNonOverlappingPosition(
+  anchorRect: DOMRect,
+  panelWidth: number,
+  panelHeight: number,
+  preferredPosition: AnchorPosition
+): Position {
+  const positions: AnchorPosition[] = [
+    preferredPosition,
+    "right",
+    "left",
+    "bottom",
+    "top",
+  ];
+
+  for (const pos of positions) {
+    const candidate = computePositionForSide(
+      anchorRect,
+      panelWidth,
+      panelHeight,
+      pos
+    );
+    const clamped = clampToViewport(candidate, panelWidth, panelHeight);
+
+    if (
+      !overlapsAnchor(
+        { ...clamped, width: panelWidth, height: panelHeight },
+        anchorRect
+      )
+    ) {
+      return clamped;
+    }
+  }
+
+  // Fallback: corner position
+  return { x: 20, y: 80 };
+}
+
+/** Check if current URL matches the required pattern */
+function urlMatches(
+  currentPath: string,
+  requiredUrl: string | RegExp | undefined
+): boolean {
+  if (!requiredUrl) return true;
+
+  if (typeof requiredUrl === "string") {
+    return currentPath.startsWith(requiredUrl);
+  }
+
+  return requiredUrl.test(currentPath);
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export function GuidedTour({
   isOpen,
   onClose,
@@ -174,13 +537,11 @@ export function GuidedTour({
   steps,
   startAtStep = 0,
 }: GuidedTourProps) {
-  if (!isOpen) {
-    return null;
-  }
-
+  const location = useLocation();
+  const navigate = useNavigate();
   const resolvedSteps = steps ?? getDefaultTourSteps();
 
-  // Initialize from sessionStorage if available, otherwise use startAtStep
+  // State
   const [currentStepIndex, setCurrentStepIndex] = useState(() => {
     try {
       const savedStep = sessionStorage.getItem(TOUR_STEP_KEY);
@@ -199,15 +560,26 @@ export function GuidedTour({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
-  const hasInitializedRef = useRef(false);
+  const [pendingAutoAction, setPendingAutoAction] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
+  // Refs
+  const panelRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
+  const previousStepRef = useRef<number | null>(null);
+
+  // Derived state
   const currentStep = resolvedSteps[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === resolvedSteps.length - 1;
+  const isOffTrack =
+    currentStep?.requiredUrl &&
+    !urlMatches(location.pathname, currentStep.requiredUrl);
 
-  // Persist step changes to sessionStorage
+  // ============================================================================
+  // Persistence
+  // ============================================================================
+
   useEffect(() => {
     if (!isOpen) return;
     try {
@@ -218,9 +590,36 @@ export function GuidedTour({
     }
   }, [currentStepIndex, isOpen]);
 
-  // Find and track anchor element
+  // ============================================================================
+  // Lifecycle Hooks (onEnter / onExit)
+  // ============================================================================
+
   useEffect(() => {
-    if (!isOpen || !currentStep?.anchorSelector) {
+    if (!isOpen || isPaused) return;
+
+    const prevStep = previousStepRef.current;
+    const newStep = currentStepIndex;
+
+    // Call onExit for previous step
+    if (prevStep !== null && prevStep !== newStep) {
+      const previousStepObj = resolvedSteps[prevStep];
+      previousStepObj?.onExit?.();
+    }
+
+    // Call onEnter for current step
+    if (prevStep !== newStep) {
+      currentStep?.onEnter?.();
+    }
+
+    previousStepRef.current = currentStepIndex;
+  }, [currentStepIndex, isOpen, isPaused, currentStep, resolvedSteps]);
+
+  // ============================================================================
+  // Anchor Element Tracking
+  // ============================================================================
+
+  useEffect(() => {
+    if (!isOpen || !currentStep?.anchorSelector || isPaused) {
       setAnchorRect(null);
       return;
     }
@@ -234,15 +633,12 @@ export function GuidedTour({
       }
     };
 
-    // Initial find
     findAnchor();
 
-    // Re-find on scroll/resize
     const handleUpdate = () => findAnchor();
     window.addEventListener("scroll", handleUpdate, true);
     window.addEventListener("resize", handleUpdate);
 
-    // Watch for DOM changes (element might appear after modal opens)
     const observer = new MutationObserver(findAnchor);
     observer.observe(document.body, { childList: true, subtree: true });
 
@@ -251,64 +647,47 @@ export function GuidedTour({
       window.removeEventListener("resize", handleUpdate);
       observer.disconnect();
     };
-  }, [isOpen, currentStep?.anchorSelector, currentStepIndex]);
+  }, [isOpen, currentStep?.anchorSelector, currentStepIndex, isPaused]);
 
-  // Position panel near anchor element
+  // ============================================================================
+  // Panel Positioning (with auto-repositioning to avoid overlap)
+  // ============================================================================
+
   useEffect(() => {
     if (!anchorRect || !panelRef.current || isDragging) return;
 
-    const panelWidth = 340;
-    const panelHeight = panelRef.current.offsetHeight || 280;
-    const padding = 16;
-    const anchorGap = 12;
+    const panelWidth = 360;
+    const panelHeight = panelRef.current.offsetHeight || 320;
+    const preferredPosition = currentStep?.anchorPosition || "right";
 
-    let newX = position.x;
-    let newY = position.y;
+    const newPos = computeNonOverlappingPosition(
+      anchorRect,
+      panelWidth,
+      panelHeight,
+      preferredPosition
+    );
 
-    const anchorPosition = currentStep?.anchorPosition || "right";
-
-    switch (anchorPosition) {
-      case "top":
-        newX = anchorRect.left + anchorRect.width / 2 - panelWidth / 2;
-        newY = anchorRect.top - panelHeight - anchorGap;
-        break;
-      case "bottom":
-        newX = anchorRect.left + anchorRect.width / 2 - panelWidth / 2;
-        newY = anchorRect.bottom + anchorGap;
-        break;
-      case "left":
-        newX = anchorRect.left - panelWidth - anchorGap;
-        newY = anchorRect.top + anchorRect.height / 2 - panelHeight / 2;
-        break;
-      case "right":
-      default:
-        newX = anchorRect.right + anchorGap;
-        newY = anchorRect.top + anchorRect.height / 2 - panelHeight / 2;
-        break;
-    }
-
-    // Keep within viewport
-    newX = Math.max(padding, Math.min(newX, window.innerWidth - panelWidth - padding));
-    newY = Math.max(padding, Math.min(newY, window.innerHeight - panelHeight - padding));
-
-    setPosition({ x: newX, y: newY });
+    setPosition(newPos);
   }, [anchorRect, isDragging, currentStep?.anchorPosition]);
 
-  // Listen for advance clicks
+  // ============================================================================
+  // Advance on Click
+  // ============================================================================
+
   useEffect(() => {
-    if (!isOpen || !currentStep?.advanceOnClick) return;
+    if (!isOpen || !currentStep?.advanceOnClick || isPaused) return;
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Element;
-      const selectors = currentStep.advanceOnClick!.split(",").map((s) => s.trim());
+      const selectors = currentStep
+        .advanceOnClick!.split(",")
+        .map((s) => s.trim());
 
       for (const selector of selectors) {
         if (target.closest(selector)) {
           const nextStep = currentStepIndex + 1;
 
-          // Save to sessionStorage IMMEDIATELY before any async work
-          // This ensures the step is persisted even if the component unmounts
-          // due to navigation triggered by this click
+          // Persist immediately before navigation
           if (!isLastStep) {
             try {
               sessionStorage.setItem(TOUR_STEP_KEY, nextStep.toString());
@@ -318,7 +697,7 @@ export function GuidedTour({
             }
           }
 
-          // Delay the state update slightly to let the action complete
+          // Delay to let action complete
           setTimeout(() => {
             if (isLastStep) {
               handleComplete();
@@ -333,9 +712,12 @@ export function GuidedTour({
 
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
-  }, [isOpen, currentStep?.advanceOnClick, isLastStep, currentStepIndex]);
+  }, [isOpen, currentStep?.advanceOnClick, isLastStep, currentStepIndex, isPaused]);
 
-  // Dragging logic
+  // ============================================================================
+  // Dragging
+  // ============================================================================
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!panelRef.current) return;
@@ -353,16 +735,21 @@ export function GuidedTour({
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const panelWidth = panelRef.current?.offsetWidth || 340;
-      const panelHeight = panelRef.current?.offsetHeight || 280;
+      const panelWidth = panelRef.current?.offsetWidth || 360;
+      const panelHeight = panelRef.current?.offsetHeight || 320;
       const padding = 8;
 
       let newX = e.clientX - dragOffset.x;
       let newY = e.clientY - dragOffset.y;
 
-      // Keep within viewport
-      newX = Math.max(padding, Math.min(newX, window.innerWidth - panelWidth - padding));
-      newY = Math.max(padding, Math.min(newY, window.innerHeight - panelHeight - padding));
+      newX = Math.max(
+        padding,
+        Math.min(newX, window.innerWidth - panelWidth - padding)
+      );
+      newY = Math.max(
+        padding,
+        Math.min(newY, window.innerHeight - panelHeight - padding)
+      );
 
       setPosition({ x: newX, y: newY });
     };
@@ -382,14 +769,17 @@ export function GuidedTour({
     };
   }, [isDragging, dragOffset]);
 
-  // Keyboard navigation
+  // ============================================================================
+  // Keyboard Navigation
+  // ============================================================================
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isPaused) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         handleSkip();
-      } else if (e.key === "ArrowRight" && !currentStep?.waitForInteraction) {
+      } else if (e.key === "ArrowRight") {
         handleNext();
       } else if (e.key === "ArrowLeft") {
         handlePrevious();
@@ -398,101 +788,293 @@ export function GuidedTour({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentStepIndex, currentStep?.waitForInteraction]);
+  }, [isOpen, currentStepIndex, isPaused]);
 
-  // Handle opening - only reset to startAtStep if this is a fresh start (not resuming)
+  // ============================================================================
+  // Initialization
+  // ============================================================================
+
   useEffect(() => {
     if (isOpen && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      // Check if we're resuming from a previous session
       try {
         const wasActive = sessionStorage.getItem(TOUR_ACTIVE_KEY);
         const savedStep = sessionStorage.getItem(TOUR_STEP_KEY);
+        const wasPaused = sessionStorage.getItem(TOUR_PAUSED_KEY);
+
+        if (wasPaused === "true") {
+          setIsPaused(true);
+        }
+
         if (wasActive === "true" && savedStep !== null) {
-          // Resuming - step was already loaded in useState initializer
-          // Just reset position
           setPosition({ x: 20, y: 80 });
           return;
         }
       } catch {
         // sessionStorage unavailable
       }
-      // Fresh start
       setCurrentStepIndex(startAtStep);
       setPosition({ x: 20, y: 80 });
     }
   }, [isOpen, startAtStep]);
 
-  const handleNext = useCallback(() => {
+  // ============================================================================
+  // Navigation Handlers
+  // ============================================================================
+
+  const handleNext = useCallback(async () => {
+    if (pendingAutoAction) return;
+
+    const step = resolvedSteps[currentStepIndex];
+
+    // If step requires interaction and has autoAction, perform it
+    if (step.waitForInteraction && step.autoAction) {
+      setPendingAutoAction(true);
+      await new Promise((r) => setTimeout(r, 500)); // Visual delay
+      await step.autoAction();
+      setPendingAutoAction(false);
+
+      // If step has advanceOnClick, wait for that to trigger advancement
+      // Otherwise, advance now since autoAction completed
+      if (step.advanceOnClick) {
+        return;
+      }
+      // Fall through to advance logic below
+    }
+
+    // Call onExit before advancing
+    step?.onExit?.();
+
     if (isLastStep) {
       handleComplete();
     } else {
+      const nextStep = resolvedSteps[currentStepIndex + 1];
+
+      // Handle navigation if needed
+      if (
+        nextStep.navigateTo &&
+        !location.pathname.startsWith(nextStep.navigateTo)
+      ) {
+        navigate(nextStep.navigateTo);
+      }
+
       setCurrentStepIndex((prev) => prev + 1);
     }
-  }, [isLastStep]);
+  }, [
+    isLastStep,
+    currentStepIndex,
+    resolvedSteps,
+    pendingAutoAction,
+    location.pathname,
+    navigate,
+  ]);
 
   const handlePrevious = useCallback(() => {
-    if (!isFirstStep) {
+    if (!isFirstStep && !pendingAutoAction) {
+      currentStep?.onExit?.();
       setCurrentStepIndex((prev) => prev - 1);
     }
-  }, [isFirstStep]);
+  }, [isFirstStep, pendingAutoAction, currentStep]);
 
   const handleComplete = useCallback(() => {
+    currentStep?.onExit?.();
     try {
       localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-      // Clear session state since tour is complete
       sessionStorage.removeItem(TOUR_STEP_KEY);
       sessionStorage.removeItem(TOUR_ACTIVE_KEY);
+      sessionStorage.removeItem(TOUR_PAUSED_KEY);
     } catch {
       // storage might be unavailable
     }
     hasInitializedRef.current = false;
     onComplete?.();
     onClose();
-  }, [onComplete, onClose]);
+  }, [onComplete, onClose, currentStep]);
 
   const handleSkip = useCallback(() => {
+    currentStep?.onExit?.();
     try {
       localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-      // Clear session state since tour was skipped
       sessionStorage.removeItem(TOUR_STEP_KEY);
       sessionStorage.removeItem(TOUR_ACTIVE_KEY);
+      sessionStorage.removeItem(TOUR_PAUSED_KEY);
     } catch {
       // storage might be unavailable
     }
     hasInitializedRef.current = false;
     onClose();
-  }, [onClose]);
+  }, [onClose, currentStep]);
 
-  const handleStepClick = useCallback((index: number) => {
-    setCurrentStepIndex(index);
+  const handlePause = useCallback(() => {
+    try {
+      sessionStorage.setItem(TOUR_PAUSED_KEY, "true");
+    } catch {
+      // storage unavailable
+    }
+    setIsPaused(true);
   }, []);
 
-  // Highlight styles for anchor element
-  const highlightStyles = useMemo(() => {
-    if (!anchorRect) return null;
+  const handleResume = useCallback(() => {
+    try {
+      sessionStorage.removeItem(TOUR_PAUSED_KEY);
+    } catch {
+      // storage unavailable
+    }
+    setIsPaused(false);
 
-    const padding = 4;
+    // Navigate to the required URL if needed
+    if (currentStep?.navigateTo) {
+      navigate(currentStep.navigateTo);
+    } else if (
+      currentStep?.requiredUrl &&
+      typeof currentStep.requiredUrl === "string"
+    ) {
+      navigate(currentStep.requiredUrl);
+    }
+  }, [currentStep, navigate]);
+
+  const handleRestart = useCallback(() => {
+    // Reset to step 0
+    setCurrentStepIndex(0);
+    setIsPaused(false);
+
+    // Clear paused state from storage
+    try {
+      sessionStorage.removeItem(TOUR_PAUSED_KEY);
+      sessionStorage.setItem(TOUR_STEP_KEY, "0");
+    } catch {
+      // storage unavailable
+    }
+
+    // Navigate to the first step's URL
+    const firstStep = resolvedSteps[0];
+    if (firstStep?.navigateTo) {
+      navigate(firstStep.navigateTo);
+    } else if (firstStep?.requiredUrl && typeof firstStep.requiredUrl === "string") {
+      navigate(firstStep.requiredUrl);
+    } else {
+      // Default to dashboard
+      navigate("/");
+    }
+  }, [resolvedSteps, navigate]);
+
+  // ============================================================================
+  // Highlight Styles (with pulsing glow effect)
+  // ============================================================================
+
+  const highlightStyles = useMemo(() => {
+    if (!anchorRect || isPaused) return null;
+
+    const padding = 6;
     return {
       position: "fixed" as const,
       left: anchorRect.left - padding,
       top: anchorRect.top - padding,
       width: anchorRect.width + padding * 2,
       height: anchorRect.height + padding * 2,
-      borderRadius: 8,
-      border: "2px solid rgba(59, 130, 246, 0.8)",
-      boxShadow: "0 0 0 4000px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.4)",
+      borderRadius: 12,
+      border: "3px solid rgba(59, 130, 246, 0.9)",
+      boxShadow: `
+        0 0 0 4000px rgba(0, 0, 0, 0.25),
+        0 0 0 6px rgba(59, 130, 246, 0.3),
+        0 0 20px rgba(59, 130, 246, 0.5),
+        0 0 40px rgba(59, 130, 246, 0.3)
+      `,
       pointerEvents: "none" as const,
       zIndex: 9998,
       transition: "all 0.3s ease-out",
+      animation: "tour-pulse 2s ease-in-out infinite",
     };
-  }, [anchorRect]);
+  }, [anchorRect, isPaused]);
+
+  // ============================================================================
+  // Render
+  // ============================================================================
 
   if (!isOpen) return null;
 
+  // Show resume banner when paused or off-track
+  if (isPaused || isOffTrack) {
+    return (
+      <>
+        <style>{`
+          @keyframes tour-slide-in {
+            from {
+              transform: translateY(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
+        `}</style>
+        <div
+          className="fixed bottom-4 right-4 z-[9999] bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl p-4 shadow-2xl max-w-sm"
+          style={{ animation: "tour-slide-in 0.3s ease-out" }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Sparkles size={20} className="text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">Continue tutorial?</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Step {currentStepIndex + 1}: {currentStep.title}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleResume}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+            >
+              <Play size={14} />
+              Resume
+            </button>
+            <button
+              onClick={handleRestart}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              title="Start tutorial from the beginning"
+            >
+              <RotateCcw size={14} />
+              Restart
+            </button>
+            <button
+              onClick={handleSkip}
+              className="px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Subtle highlight around anchor element */}
+      {/* CSS for pulsing animation */}
+      <style>{`
+        @keyframes tour-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 0 4000px rgba(0, 0, 0, 0.25),
+              0 0 0 6px rgba(59, 130, 246, 0.3),
+              0 0 20px rgba(59, 130, 246, 0.5),
+              0 0 40px rgba(59, 130, 246, 0.3);
+          }
+          50% {
+            box-shadow:
+              0 0 0 4000px rgba(0, 0, 0, 0.25),
+              0 0 0 8px rgba(59, 130, 246, 0.5),
+              0 0 30px rgba(59, 130, 246, 0.7),
+              0 0 60px rgba(59, 130, 246, 0.4);
+          }
+        }
+      `}</style>
+
+      {/* Highlight around anchor element */}
       {highlightStyles && <div style={highlightStyles} aria-hidden="true" />}
 
       {/* Tour panel */}
@@ -501,7 +1083,7 @@ export function GuidedTour({
         role="dialog"
         aria-modal="false"
         aria-label="Guided Tour"
-        className={`fixed z-[9999] w-[340px] bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl ${
+        className={`fixed z-[9999] w-[360px] bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl shadow-2xl ${
           isDragging ? "cursor-grabbing" : ""
         }`}
         style={{
@@ -512,20 +1094,19 @@ export function GuidedTour({
       >
         {/* Drag handle */}
         <div
-          ref={dragHandleRef}
           onMouseDown={handleMouseDown}
           className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 cursor-grab active:cursor-grabbing bg-gray-800/50 rounded-t-xl"
         >
           <div className="flex items-center gap-2 text-gray-400">
             <GripHorizontal size={16} className="opacity-50" />
-            <span className="text-xs font-medium">Getting Started</span>
+            <span className="text-xs font-medium">Tutorial</span>
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={handleSkip}
+              onClick={handlePause}
               className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-700 rounded-md transition-colors"
-              aria-label="Skip tour"
-              title="Skip tour (Esc)"
+              aria-label="Pause tour"
+              title="Pause tour"
             >
               <SkipForward size={14} />
             </button>
@@ -547,7 +1128,7 @@ export function GuidedTour({
               {currentStep.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-surface leading-tight">
+              <h3 className="text-base font-semibold text-white leading-tight">
                 {currentStep.title}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -564,87 +1145,64 @@ export function GuidedTour({
           {/* Action hint */}
           {currentStep.actionHint && (
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg mb-4">
-              <MousePointer2 size={14} className="text-blue-400 flex-shrink-0" />
+              <Circle size={10} className="text-blue-400 fill-blue-400 flex-shrink-0" />
               <span className="text-xs text-blue-300">{currentStep.actionHint}</span>
             </div>
           )}
 
-          {/* Step indicators */}
-          <div className="flex items-center justify-center gap-1.5 mb-4">
-            {resolvedSteps.map((step, index) => (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => handleStepClick(index)}
-                className={`flex items-center justify-center w-11 h-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
-                  index === currentStepIndex
-                    ? "text-blue-300 bg-blue-500/10"
-                    : index < currentStepIndex
-                      ? "text-blue-300 hover:bg-blue-500/10"
-                      : "text-gray-300 hover:text-gray-200 hover:bg-gray-800"
-                }`}
-                aria-label={`Go to step ${index + 1}: ${step.title}`}
-                aria-current={index === currentStepIndex ? "step" : undefined}
-              >
-                {index < currentStepIndex ? (
-                  <CheckCircle2 size={12} />
-                ) : index === currentStepIndex ? (
-                  <Circle size={12} className="fill-current" />
-                ) : (
-                  <Circle size={12} />
-                )}
-              </button>
-            ))}
+          {/* Progress bar */}
+          <div className="h-1.5 bg-gray-800 rounded-full mb-4 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
+              style={{
+                width: `${((currentStepIndex + 1) / resolvedSteps.length) * 100}%`,
+              }}
+            />
           </div>
 
           {/* Navigation buttons */}
           <div className="flex items-center justify-between">
             <button
               onClick={handlePrevious}
-              disabled={isFirstStep}
+              disabled={isFirstStep || pendingAutoAction}
               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                isFirstStep
+                isFirstStep || pendingAutoAction
                   ? "text-gray-600 cursor-not-allowed"
-                  : "text-subtle hover:text-surface hover:bg-gray-800"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
               }`}
             >
               <ChevronLeft size={16} />
               <span>Back</span>
             </button>
 
-            {currentStep.waitForInteraction && !isLastStep ? (
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
-                title="Skip this step"
-              >
-                <span>Skip</span>
-                <ChevronRight size={16} />
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-              >
-                {isLastStep ? (
-                  <>
-                    <span>Finish</span>
-                    <CheckCircle2 size={16} />
-                  </>
-                ) : (
-                  <>
-                    <span>Next</span>
-                    <ChevronRight size={16} />
-                  </>
-                )}
-              </button>
-            )}
+            <button
+              onClick={handleNext}
+              disabled={pendingAutoAction}
+              className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-lg transition-colors min-w-[100px] justify-center"
+            >
+              {pendingAutoAction ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Working...</span>
+                </>
+              ) : isLastStep ? (
+                <>
+                  <span>Finish</span>
+                  <CheckCircle2 size={16} />
+                </>
+              ) : (
+                <>
+                  <span>Next</span>
+                  <ChevronRight size={16} />
+                </>
+              )}
+            </button>
           </div>
         </div>
 
         {/* Keyboard hint */}
         <div className="px-4 py-2 border-t border-gray-800 text-center">
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-500">
             Arrow keys to navigate · Esc to close · Drag to move
           </span>
         </div>
@@ -653,17 +1211,17 @@ export function GuidedTour({
   );
 }
 
-/**
- * Hook to manage guided tour state
- * Persists tour progress in sessionStorage so it survives navigation/remounts
- */
+// ============================================================================
+// Hook: useGuidedTour
+// ============================================================================
+
 export function useGuidedTour() {
   const [showTour, setShowTour] = useState(false);
   const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
 
   useEffect(() => {
     try {
-      // Suppress auto-opening the tour during automated runs (e.g. Lighthouse/Playwright) to avoid skewing perf/a11y audits.
+      // Suppress auto-opening during automated runs
       const isAutomatedRun =
         typeof navigator !== "undefined" &&
         (navigator.webdriver === true ||
@@ -677,9 +1235,6 @@ export function useGuidedTour() {
       const completed = localStorage.getItem(TOUR_STORAGE_KEY);
       const wasActive = sessionStorage.getItem(TOUR_ACTIVE_KEY);
 
-      // Show tour if:
-      // 1. Tour was never completed (or old version), OR
-      // 2. Tour was in progress (user navigated mid-tour)
       if (completed !== TOUR_VERSION || wasActive === "true") {
         setShowTour(true);
       }
@@ -702,6 +1257,7 @@ export function useGuidedTour() {
       localStorage.removeItem(TOUR_STORAGE_KEY);
       sessionStorage.removeItem(TOUR_STEP_KEY);
       sessionStorage.removeItem(TOUR_ACTIVE_KEY);
+      sessionStorage.removeItem(TOUR_PAUSED_KEY);
     } catch {
       // storage unavailable
     }

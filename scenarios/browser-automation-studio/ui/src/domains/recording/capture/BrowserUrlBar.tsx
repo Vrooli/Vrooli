@@ -450,6 +450,7 @@ export function BrowserUrlBar({
 
         {/* URL input */}
         <input
+          data-testid="browser-url-input"
           ref={inputRef}
           type="text"
           className={`
