@@ -16,7 +16,8 @@ func isIPLiteral(host string) bool {
 
 func resolveHostIPs(ctx context.Context, resolver interface {
 	LookupHost(ctx context.Context, host string) ([]string, error)
-}, host string) ([]string, error) {
+}, host string,
+) ([]string, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return nil, fmt.Errorf("host is empty")

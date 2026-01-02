@@ -134,11 +134,17 @@ type ListFilter struct {
 
 // CreateDeploymentRequest is the request body for creating a new deployment.
 type CreateDeploymentRequest struct {
-	Name            string          `json:"name,omitempty"`             // Optional, auto-generated if empty
-	Manifest        json.RawMessage `json:"manifest"`                   // Required: deployment manifest
-	BundlePath      string          `json:"bundle_path,omitempty"`      // Optional: path to pre-built bundle
-	BundleSHA256    string          `json:"bundle_sha256,omitempty"`    // Optional: bundle checksum
-	BundleSizeBytes int64           `json:"bundle_size_bytes,omitempty"` // Optional: bundle size
+	Name            string            `json:"name,omitempty"`              // Optional, auto-generated if empty
+	Manifest        json.RawMessage   `json:"manifest"`                    // Required: deployment manifest
+	BundlePath      string            `json:"bundle_path,omitempty"`       // Optional: path to pre-built bundle
+	BundleSHA256    string            `json:"bundle_sha256,omitempty"`     // Optional: bundle checksum
+	BundleSizeBytes int64             `json:"bundle_size_bytes,omitempty"` // Optional: bundle size
+	ProvidedSecrets map[string]string `json:"provided_secrets,omitempty"`  // Optional: user-provided secrets (user_prompt class)
+}
+
+// ExecuteDeploymentRequest is the request body for executing a deployment.
+type ExecuteDeploymentRequest struct {
+	ProvidedSecrets map[string]string `json:"provided_secrets,omitempty"` // User-provided secrets (user_prompt class)
 }
 
 // UpdateDeploymentStatusRequest is used to update deployment status.

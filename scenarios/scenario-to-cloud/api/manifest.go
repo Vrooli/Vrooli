@@ -38,6 +38,7 @@ type CloudManifest struct {
 	Bundle       ManifestBundle       `json:"bundle"`
 	Ports        ManifestPorts        `json:"ports"`
 	Edge         ManifestEdge         `json:"edge"`
+	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
 }
 
 type ManifestTarget struct {
@@ -88,6 +89,46 @@ type ManifestEdge struct {
 type ManifestCaddy struct {
 	Enabled bool   `json:"enabled"`
 	Email   string `json:"email,omitempty"`
+}
+
+// BundleSecretPlan represents a secret from secrets-manager.
+// This is included in the manifest so the deploy target can generate/prompt for secrets.
+type BundleSecretPlan struct {
+	ID          string                 `json:"id"`
+	Class       string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
+	Required    bool                   `json:"required"`
+	Description string                 `json:"description,omitempty"`
+	Format      string                 `json:"format,omitempty"` // validation pattern
+	Target      BundleSecretTarget     `json:"target"`
+	Prompt      *SecretPromptMetadata  `json:"prompt,omitempty"`
+	Generator   map[string]interface{} `json:"generator,omitempty"`
+}
+
+// BundleSecretTarget specifies where to inject the secret value.
+type BundleSecretTarget struct {
+	Type string `json:"type"` // "env" or "file"
+	Name string `json:"name"` // env var name or file path
+}
+
+// SecretPromptMetadata contains UI hints for user_prompt secrets.
+type SecretPromptMetadata struct {
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// ManifestSecrets holds the secrets configuration for deployment.
+type ManifestSecrets struct {
+	BundleSecrets []BundleSecretPlan `json:"bundle_secrets,omitempty"`
+	Summary       SecretsSummary     `json:"summary"`
+}
+
+// SecretsSummary provides a quick overview of secret requirements.
+type SecretsSummary struct {
+	TotalSecrets        int `json:"total_secrets"`
+	PerInstallGenerated int `json:"per_install_generated"`
+	UserPrompt          int `json:"user_prompt"`
+	RemoteFetch         int `json:"remote_fetch"`
+	Infrastructure      int `json:"infrastructure"`
 }
 
 type ManifestValidateResponse struct {

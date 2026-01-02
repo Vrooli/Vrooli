@@ -73,9 +73,9 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"example.com":  {"203.0.113.10"},
 		}},
 		fakeSSHRunner{responses: map[string]SSHResult{
-			"echo ok":                       {ExitCode: 0, Stdout: "ok"},
-			"cat /etc/os-release":           {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-			"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
+			"echo ok":             {ExitCode: 0, Stdout: "ok"},
+			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
+			"ss -ltnH '( sport = :80 or sport = :443 )'":            {ExitCode: 0, Stdout: ""},
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
@@ -127,7 +127,7 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 		fakeSSHRunner{responses: map[string]SSHResult{
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
 			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
-			"ss -ltnH '( sport = :80 or sport = :443 )'": {ExitCode: 0, Stdout: ""},
+			"ss -ltnH '( sport = :80 or sport = :443 )'":            {ExitCode: 0, Stdout: ""},
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
@@ -157,4 +157,3 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 		t.Fatalf("expected dns_points_to_vps check")
 	}
 }
-

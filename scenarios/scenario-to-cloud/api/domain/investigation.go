@@ -35,16 +35,16 @@ type Investigation struct {
 
 // InvestigationDetails contains structured metadata about an investigation.
 type InvestigationDetails struct {
-	Source                string  `json:"source"`                                // "agent-manager"
-	RunID                 string  `json:"run_id,omitempty"`                      // Agent run ID
-	DurationSecs          int     `json:"duration_seconds,omitempty"`            // Total duration
-	TokensUsed            int32   `json:"tokens_used,omitempty"`                 // Token consumption
-	CostEstimate          float64 `json:"cost_estimate,omitempty"`               // Estimated cost
-	OperationMode         string  `json:"operation_mode"`                        // "report-only", "auto-fix", or "fix-application:..."
-	TriggerReason         string  `json:"trigger_reason"`                        // "user_requested"
-	DeploymentStep        string  `json:"deployment_step,omitempty"`             // Step that failed
-	SourceInvestigationID string  `json:"source_investigation_id,omitempty"`     // For fix applications: ID of the original investigation
-	SourceFindings        string  `json:"source_findings,omitempty"`             // For fix applications: findings from original investigation
+	Source                string  `json:"source"`                            // "agent-manager"
+	RunID                 string  `json:"run_id,omitempty"`                  // Agent run ID
+	DurationSecs          int     `json:"duration_seconds,omitempty"`        // Total duration
+	TokensUsed            int32   `json:"tokens_used,omitempty"`             // Token consumption
+	CostEstimate          float64 `json:"cost_estimate,omitempty"`           // Estimated cost
+	OperationMode         string  `json:"operation_mode"`                    // "report-only", "auto-fix", or "fix-application:..."
+	TriggerReason         string  `json:"trigger_reason"`                    // "user_requested"
+	DeploymentStep        string  `json:"deployment_step,omitempty"`         // Step that failed
+	SourceInvestigationID string  `json:"source_investigation_id,omitempty"` // For fix applications: ID of the original investigation
+	SourceFindings        string  `json:"source_findings,omitempty"`         // For fix applications: findings from original investigation
 }
 
 // CreateInvestigationRequest is the request body for triggering an investigation.

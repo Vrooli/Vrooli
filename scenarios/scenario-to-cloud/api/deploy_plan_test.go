@@ -50,4 +50,3 @@ func TestBuildVPSDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 		t.Fatalf("expected caddy/target/https steps, got: %+v", plan)
 	}
 }
-

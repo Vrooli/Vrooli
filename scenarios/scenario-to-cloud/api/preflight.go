@@ -17,19 +17,19 @@ const (
 )
 
 type PreflightCheck struct {
-	ID      string             `json:"id"`
-	Title   string             `json:"title"`
+	ID      string               `json:"id"`
+	Title   string               `json:"title"`
 	Status  PreflightCheckStatus `json:"status"`
-	Details string             `json:"details,omitempty"`
-	Hint    string             `json:"hint,omitempty"`
-	Data    map[string]string  `json:"data,omitempty"`
+	Details string               `json:"details,omitempty"`
+	Hint    string               `json:"hint,omitempty"`
+	Data    map[string]string    `json:"data,omitempty"`
 }
 
 type PreflightResponse struct {
-	OK        bool             `json:"ok"`
-	Checks    []PreflightCheck `json:"checks"`
+	OK        bool              `json:"ok"`
+	Checks    []PreflightCheck  `json:"checks"`
 	Issues    []ValidationIssue `json:"issues,omitempty"`
-	Timestamp string           `json:"timestamp"`
+	Timestamp string            `json:"timestamp"`
 }
 
 func RunVPSPreflight(

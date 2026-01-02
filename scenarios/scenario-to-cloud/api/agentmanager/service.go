@@ -119,11 +119,11 @@ func DefaultProfileConfig() *ProfileConfig {
 		// 10 minute timeout for thorough VPS investigation
 		TimeoutSeconds: 600,
 		AllowedTools: []string{
-			"read_file",        // Read local logs, config files
-			"list_files",       // Browse deployment bundle contents
-			"execute_command",  // SSH into VPS, run diagnostic commands
-			"analyze_code",     // Understand deployment scripts
-			"write_file",       // Write investigation report
+			"read_file",       // Read local logs, config files
+			"list_files",      // Browse deployment bundle contents
+			"execute_command", // SSH into VPS, run diagnostic commands
+			"analyze_code",    // Understand deployment scripts
+			"write_file",      // Write investigation report
 		},
 		SkipPermissions:  true,  // Auto-approve for automated investigations
 		RequiresSandbox:  false, // In-place execution for SSH access

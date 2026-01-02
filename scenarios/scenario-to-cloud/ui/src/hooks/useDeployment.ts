@@ -7,11 +7,14 @@ import {
   executeDeployment,
   getDeployment,
   findInProgressDeployment,
+  fetchSecretsManifest,
   type ValidationIssue,
   type BundleArtifact,
   type PreflightCheck,
   type SSHConnectionStatus,
   type DeploymentStatus,
+  type SecretsManifest,
+  type ProvidedSecrets,
 } from "../lib/api";
 import {
   type DeploymentManifest,
@@ -100,6 +103,13 @@ export function useDeployment() {
   // SSH state
   const [sshKeyPath, setSSHKeyPath] = useState<string | null>(saved?.sshKeyPath ?? null);
   const [sshConnectionStatus, setSSHConnectionStatus] = useState<SSHConnectionStatus>("untested");
+
+  // Secrets state
+  const [secretsManifest, setSecretsManifest] = useState<SecretsManifest | null>(null);
+  const [secretsError, setSecretsError] = useState<string | null>(null);
+  const [isFetchingSecrets, setIsFetchingSecrets] = useState(false);
+  const [secretsFetched, setSecretsFetched] = useState(false); // Track if fetch was attempted
+  const [providedSecrets, setProvidedSecrets] = useState<ProvidedSecrets>({});
 
   // Undo/redo history
   const historyRef = useRef<string[]>([]);
@@ -398,6 +408,39 @@ export function useDeployment() {
     }
   }, [parsedManifest]);
 
+  // Fetch secrets requirements for the current scenario
+  const fetchSecrets = useCallback(async () => {
+    if (!parsedManifest.ok) return;
+    const scenarioId = parsedManifest.value.scenario?.id;
+    if (!scenarioId) {
+      setSecretsError("No scenario selected");
+      setSecretsFetched(true);
+      return;
+    }
+
+    setIsFetchingSecrets(true);
+    setSecretsError(null);
+
+    try {
+      const res = await fetchSecretsManifest(
+        scenarioId,
+        "tier-4-saas", // Cloud deployments use tier-4
+        parsedManifest.value.dependencies?.resources
+      );
+      setSecretsManifest(res.secrets);
+    } catch (e) {
+      setSecretsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsFetchingSecrets(false);
+      setSecretsFetched(true);
+    }
+  }, [parsedManifest]);
+
+  // Update a single provided secret
+  const updateProvidedSecret = useCallback((key: string, value: string) => {
+    setProvidedSecrets(prev => ({ ...prev, [key]: value }));
+  }, []);
+
   const deploy = useCallback(async () => {
     setDeploymentStatus("deploying");
     setDeploymentError(null);
@@ -431,14 +474,14 @@ export function useDeployment() {
       // This is now non-blocking - it returns immediately.
       // Progress is tracked via SSE on /deployments/{id}/progress
       // and status updates come via the onDeploymentComplete callback
-      await executeDeployment(newDeploymentId);
+      await executeDeployment(newDeploymentId, { providedSecrets });
 
       // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact]);
+  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, providedSecrets]);
 
   // Called when SSE progress stream reports completion or error
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
@@ -519,6 +562,10 @@ export function useDeployment() {
     setValidationIssues(null);
     setValidationError(null);
     setNormalizedManifest(null);
+    setSecretsManifest(null);
+    setSecretsError(null);
+    setSecretsFetched(false);
+    setProvidedSecrets({});
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
@@ -542,6 +589,19 @@ export function useDeployment() {
           validationIssues !== null &&
           validationIssues.filter((i) => i.severity === "error").length === 0
         );
+      case "secrets":
+        // Must have completed fetch attempt
+        if (!secretsFetched) return false;
+        // If no secrets manifest (null response), no secrets required - can proceed
+        if (!secretsManifest) return true;
+        // Check all required user_prompt secrets are provided
+        const requiredUserPrompt = secretsManifest.bundle_secrets.filter(
+          (s) => s.class === "user_prompt" && s.required
+        );
+        return requiredUserPrompt.every((s) => {
+          const key = s.target.name || s.id;
+          return providedSecrets[key]?.trim();
+        });
       case "build":
         return bundleArtifact !== null;
       case "preflight":
@@ -552,7 +612,7 @@ export function useDeployment() {
       default:
         return false;
     }
-  }, [currentStep.id, parsedManifest, validationIssues, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
+  }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
 
   const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
 
@@ -589,6 +649,15 @@ export function useDeployment() {
     validate,
     normalizedManifest,
     applyAllFixes,
+
+    // Secrets
+    secretsManifest,
+    secretsError,
+    isFetchingSecrets,
+    secretsFetched,
+    fetchSecrets,
+    providedSecrets,
+    setProvidedSecrets: updateProvidedSecret,
 
     // Bundle
     bundleArtifact,

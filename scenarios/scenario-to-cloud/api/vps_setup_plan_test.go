@@ -63,4 +63,3 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		t.Fatalf("expected bootstrap step with apt-get command, got: %+v", plan)
 	}
 }
-

@@ -66,13 +66,13 @@ type DiskCleanupRequest struct {
 
 // DiskCleanupResponse is the response from disk cleanup
 type DiskCleanupResponse struct {
-	OK            bool   `json:"ok"`
-	SpaceFreed    string `json:"space_freed"`
-	SpaceFreedKB  int64  `json:"space_freed_kb"`
-	Message       string `json:"message"`
+	OK            bool     `json:"ok"`
+	SpaceFreed    string   `json:"space_freed"`
+	SpaceFreedKB  int64    `json:"space_freed_kb"`
+	Message       string   `json:"message"`
 	ActionsRun    []string `json:"actions_run"`
 	ActionsFailed []string `json:"actions_failed,omitempty"`
-	Timestamp     string `json:"timestamp"`
+	Timestamp     string   `json:"timestamp"`
 }
 
 func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) {

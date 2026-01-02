@@ -23,6 +23,79 @@ type VPSDeployResult struct {
 	Timestamp  string        `json:"timestamp"`
 }
 
+// MissingSecretInfo describes a missing user_prompt secret.
+type MissingSecretInfo struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`         // env var name
+	Label       string `json:"label"`       // human-readable label
+	Description string `json:"description"` // help text
+}
+
+// ValidateUserPromptSecrets checks that all required user_prompt secrets are provided.
+// Returns nil if all required secrets are present, or an error with details about missing secrets.
+func ValidateUserPromptSecrets(manifest CloudManifest, providedSecrets map[string]string) ([]MissingSecretInfo, error) {
+	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
+		return nil, nil // No secrets required
+	}
+
+	var missing []MissingSecretInfo
+	for _, secret := range manifest.Secrets.BundleSecrets {
+		if secret.Class != "user_prompt" {
+			continue // Not a user-provided secret
+		}
+		if !secret.Required {
+			continue // Optional secret
+		}
+
+		key := secret.Target.Name
+		if key == "" {
+			key = secret.ID
+		}
+
+		// Check if secret was provided
+		if _, ok := providedSecrets[key]; ok {
+			continue // Secret provided
+		}
+
+		// Secret is missing - collect info for error message
+		label := key
+		description := secret.Description
+		if secret.Prompt != nil {
+			if secret.Prompt.Label != "" {
+				label = secret.Prompt.Label
+			}
+			if secret.Prompt.Description != "" {
+				description = secret.Prompt.Description
+			}
+		}
+
+		missing = append(missing, MissingSecretInfo{
+			ID:          secret.ID,
+			Key:         key,
+			Label:       label,
+			Description: description,
+		})
+	}
+
+	if len(missing) == 0 {
+		return nil, nil
+	}
+
+	// Build actionable error message
+	var sb strings.Builder
+	sb.WriteString("missing required secrets:\n")
+	for _, m := range missing {
+		sb.WriteString(fmt.Sprintf("  - %s (%s)", m.Label, m.Key))
+		if m.Description != "" {
+			sb.WriteString(": " + m.Description)
+		}
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\nProvide secrets via --secret KEY=VALUE flags or environment variables")
+
+	return missing, fmt.Errorf("%s", sb.String())
+}
+
 // buildPortEnvVars builds environment variable assignments for all ports in the manifest
 func buildPortEnvVars(ports ManifestPorts) string {
 	var parts []string
@@ -114,6 +187,16 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 				"systemctl reload caddy",
 			}, " && ")),
 		},
+	}
+
+	// Add secrets provisioning step if secrets are present
+	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
+		steps = append(steps, VPSPlanStep{
+			ID:          "secrets_provision",
+			Title:       "Provision secrets",
+			Description: "Generate per-install secrets and write to .vrooli/secrets.json before resource startup.",
+			Command:     "(custom step - secrets generated and written via API)",
+		})
 	}
 
 	for _, res := range stableUniqueStrings(manifest.Dependencies.Resources) {
@@ -215,6 +298,20 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 	}
 	if err := run("systemctl reload caddy"); err != nil {
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
+
+	// Secrets provisioning: Generate per_install_generated secrets and write to VPS BEFORE resource startup
+	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
+		generator := NewSecretsGenerator()
+		generated, err := generator.GenerateSecrets(manifest.Secrets.BundleSecrets)
+		if err != nil {
+			return VPSDeployResult{OK: false, Steps: steps, Error: fmt.Sprintf("generate secrets: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		}
+		if len(generated) > 0 {
+			if err := WriteSecretsToVPS(ctx, sshRunner, cfg, workdir, generated, manifest.Scenario.ID); err != nil {
+				return VPSDeployResult{OK: false, Steps: steps, Error: fmt.Sprintf("write secrets: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+			}
+		}
 	}
 
 	for _, res := range stableUniqueStrings(manifest.Dependencies.Resources) {
@@ -346,6 +443,28 @@ func RunVPSDeployWithProgress(
 	}
 	*progress += StepWeights["caddy_config"]
 	emit("step_completed", "caddy_config", "Configuring Caddy")
+
+	// Step: secrets_provision - Generate and write secrets BEFORE resource startup
+	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
+		emit("step_started", "secrets_provision", "Provisioning secrets")
+
+		// Generate per_install_generated secrets
+		generator := NewSecretsGenerator()
+		generated, err := generator.GenerateSecrets(manifest.Secrets.BundleSecrets)
+		if err != nil {
+			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("generate secrets: %v", err))
+		}
+
+		// Write secrets.json to VPS
+		if len(generated) > 0 {
+			if err := WriteSecretsToVPS(ctx, sshRunner, cfg, workdir, generated, manifest.Scenario.ID); err != nil {
+				return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("write secrets: %v", err))
+			}
+		}
+
+		*progress += StepWeights["secrets_provision"]
+		emit("step_completed", "secrets_provision", "Provisioning secrets")
+	}
 
 	// Step: resource_start
 	resources := stableUniqueStrings(manifest.Dependencies.Resources)

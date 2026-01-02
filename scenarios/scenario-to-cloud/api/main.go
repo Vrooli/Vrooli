@@ -31,12 +31,12 @@ type Config struct {
 
 // Server wires the HTTP router.
 type Server struct {
-	config          *Config
-	router          *mux.Router
-	db              *sql.DB
-	repo            *persistence.Repository
-	progressHub     *ProgressHub
-	agentSvc        *agentmanager.AgentService
+	config           *Config
+	router           *mux.Router
+	db               *sql.DB
+	repo             *persistence.Repository
+	progressHub      *ProgressHub
+	agentSvc         *agentmanager.AgentService
 	investigationSvc *InvestigationService
 }
 
@@ -82,12 +82,12 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config:          cfg,
-		router:          mux.NewRouter(),
-		db:              db,
-		repo:            repo,
-		progressHub:     progressHub,
-		agentSvc:        agentSvc,
+		config:           cfg,
+		router:           mux.NewRouter(),
+		db:               db,
+		repo:             repo,
+		progressHub:      progressHub,
+		agentSvc:         agentSvc,
 		investigationSvc: NewInvestigationService(repo, agentSvc, progressHub),
 	}
 
@@ -116,6 +116,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bundles/vps/delete", s.handleDeleteVPSBundle).Methods("POST")
 	api.HandleFunc("/bundles/{sha256}", s.handleDeleteBundle).Methods("DELETE")
 	api.HandleFunc("/preflight", s.handlePreflight).Methods("POST")
+	api.HandleFunc("/secrets/{scenario}", s.handleGetSecrets).Methods("GET")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
 	api.HandleFunc("/vps/deploy/plan", s.handleVPSDeployPlan).Methods("POST")

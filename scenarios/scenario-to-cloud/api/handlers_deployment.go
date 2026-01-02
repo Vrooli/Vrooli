@@ -370,6 +370,15 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
+	// Parse optional request body for provided secrets
+	var req domain.ExecuteDeploymentRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Non-fatal: if body can't be parsed, just use empty secrets
+			s.log("failed to parse execute request body", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
@@ -425,7 +434,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Start deployment in background
-	go s.runDeploymentPipeline(id, normalized, deployment.BundlePath)
+	go s.runDeploymentPipeline(id, normalized, deployment.BundlePath, req.ProvidedSecrets)
 
 	writeJSON(w, http.StatusAccepted, map[string]interface{}{
 		"deployment": deployment,
@@ -435,7 +444,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 }
 
 // runDeploymentPipeline executes the full deployment with progress tracking.
-func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existingBundlePath *string) {
+func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existingBundlePath *string, providedSecrets map[string]string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
@@ -474,6 +483,51 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		}
 		s.progressHub.Broadcast(id, event)
+	}
+
+	// Fetch secrets from secrets-manager BEFORE building bundle
+	// This populates manifest.Secrets with the secrets plan (what secrets are needed and how to generate them)
+	if manifest.Secrets == nil {
+		secretsClient := NewSecretsClient()
+		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
+		secretsResp, err := secretsClient.FetchBundleSecrets(
+			secretsCtx,
+			manifest.Scenario.ID,
+			DefaultDeploymentTier,
+			manifest.Dependencies.Resources,
+		)
+		secretsCancel()
+
+		if err != nil {
+			s.log("secrets-manager fetch failed", map[string]interface{}{
+				"scenario_id": manifest.Scenario.ID,
+				"error":       err.Error(),
+			})
+			// secrets-manager is required - fail the deployment
+			setDeploymentError(s.repo, ctx, id, "secrets_fetch", fmt.Sprintf("secrets-manager unavailable: %v", err))
+			emitError("secrets_fetch", "Fetching secrets", err.Error())
+			return
+		}
+
+		manifest.Secrets = BuildManifestSecrets(secretsResp)
+		s.log("fetched secrets manifest", map[string]interface{}{
+			"scenario_id":   manifest.Scenario.ID,
+			"total_secrets": len(secretsResp.BundleSecrets),
+		})
+	}
+
+	// Validate that all required user_prompt secrets are provided
+	if providedSecrets == nil {
+		providedSecrets = make(map[string]string)
+	}
+	if missing, err := ValidateUserPromptSecrets(manifest, providedSecrets); err != nil {
+		s.log("missing required user_prompt secrets", map[string]interface{}{
+			"scenario_id": manifest.Scenario.ID,
+			"missing":     missing,
+		})
+		setDeploymentError(s.repo, ctx, id, "secrets_validate", err.Error())
+		emitError("secrets_validate", "Validating secrets", err.Error())
+		return
 	}
 
 	// Step 1: Build bundle (if not already built)

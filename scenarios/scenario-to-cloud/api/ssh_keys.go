@@ -396,7 +396,7 @@ func GenerateSSHKey(req GenerateSSHKeyRequest) (SSHKeyInfo, error) {
 	}
 
 	// Ensure ~/.ssh exists with proper permissions
-	if err := os.MkdirAll(sshDir, 0700); err != nil {
+	if err := os.MkdirAll(sshDir, 0o700); err != nil {
 		return SSHKeyInfo{}, fmt.Errorf("cannot create ~/.ssh directory: %w", err)
 	}
 
@@ -886,4 +886,3 @@ func DeleteSSHKey(req DeleteSSHKeyRequest) DeleteSSHKeyResponse {
 		Timestamp:      timestamp,
 	}
 }
-

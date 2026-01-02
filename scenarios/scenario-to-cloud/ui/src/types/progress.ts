@@ -42,6 +42,7 @@ export interface DeploymentProgress {
 export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "bundle_build", title: "Building bundle" },
   { id: "mkdir", title: "Creating directories" },
+  { id: "bootstrap", title: "Installing prerequisites" },
   { id: "upload", title: "Uploading bundle" },
   { id: "extract", title: "Extracting bundle" },
   { id: "setup", title: "Running setup" },
@@ -49,6 +50,7 @@ export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "verify_setup", title: "Verifying installation" },
   { id: "caddy_install", title: "Installing Caddy" },
   { id: "caddy_config", title: "Configuring Caddy" },
+  { id: "secrets_provision", title: "Provisioning secrets" },
   { id: "resource_start", title: "Starting resources" },
   { id: "scenario_deps", title: "Starting dependencies" },
   { id: "scenario_target", title: "Starting scenario" },

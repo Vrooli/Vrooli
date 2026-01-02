@@ -52,8 +52,8 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 	// Commands now include PATH setup for SSH non-interactive sessions
 	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
 	runner := fakeSSHRunner{responses: map[string]SSHResult{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json": {ExitCode: 0, Stdout: `{"status":"healthy"}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                               {ExitCode: 0, Stdout: `{"resources":[]}`},
+		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json":   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
+		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
 	}}
 

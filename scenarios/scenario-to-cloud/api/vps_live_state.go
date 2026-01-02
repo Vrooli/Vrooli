@@ -31,8 +31,8 @@ type LiveStateResult struct {
 // ExpectedProcess represents a process expected from the manifest.
 type ExpectedProcess struct {
 	ID              string `json:"id"`
-	Type            string `json:"type"`             // "scenario" or "resource"
-	State           string `json:"state"`            // "running", "stopped", "needs_setup"
+	Type            string `json:"type"`  // "scenario" or "resource"
+	State           string `json:"state"` // "running", "stopped", "needs_setup"
 	DirectoryExists bool   `json:"directory_exists"`
 }
 
@@ -135,11 +135,11 @@ type SystemState struct {
 
 // SSHHealth contains SSH connectivity status.
 type SSHHealth struct {
-	Connected    bool   `json:"connected"`
-	LatencyMs    int64  `json:"latency_ms"`
-	KeyInAuth    bool   `json:"key_in_auth"`    // Is manifest key in authorized_keys?
-	KeyPath      string `json:"key_path"`       // Path to the key file used
-	Error        string `json:"error,omitempty"`
+	Connected bool   `json:"connected"`
+	LatencyMs int64  `json:"latency_ms"`
+	KeyInAuth bool   `json:"key_in_auth"` // Is manifest key in authorized_keys?
+	KeyPath   string `json:"key_path"`    // Path to the key file used
+	Error     string `json:"error,omitempty"`
 }
 
 // CPUInfo contains CPU information.

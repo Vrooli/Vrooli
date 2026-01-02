@@ -379,6 +379,48 @@ export async function runPreflight(manifest: unknown) {
 }
 
 // ============================================================================
+// Secrets Management Types & Functions
+// ============================================================================
+
+import type { SecretsManifest, ProvidedSecrets } from "../types/secrets";
+
+export type SecretsResponse = {
+  secrets: SecretsManifest;
+};
+
+/**
+ * Fetch secrets requirements for a scenario from secrets-manager.
+ * This returns what secrets are needed and how they will be handled during deployment.
+ */
+export async function fetchSecretsManifest(
+  scenarioId: string,
+  tier?: string,
+  resources?: string[]
+): Promise<SecretsResponse> {
+  const params = new URLSearchParams();
+  if (tier) params.set("tier", tier);
+  if (resources?.length) params.set("resources", resources.join(","));
+  const queryString = params.toString();
+
+  const url = buildApiUrl(
+    `/secrets/${encodeURIComponent(scenarioId)}${queryString ? `?${queryString}` : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to fetch secrets: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretsResponse>;
+}
+
+// Re-export secrets types for convenience
+export type { SecretsManifest, ProvidedSecrets, BundleSecretPlan, SecretsSummary } from "../types/secrets";
+
+// ============================================================================
 // Deployment Management Types & Functions
 // ============================================================================
 
@@ -505,6 +547,7 @@ export async function createDeployment(
     bundlePath?: string;
     bundleSha256?: string;
     bundleSizeBytes?: number;
+    providedSecrets?: ProvidedSecrets;
   }
 ): Promise<DeploymentResponse> {
   const url = buildApiUrl("/deployments", { baseUrl: API_BASE });
@@ -514,6 +557,9 @@ export async function createDeployment(
     body.bundle_path = options.bundlePath;
     body.bundle_sha256 = options.bundleSha256;
     body.bundle_size_bytes = options.bundleSizeBytes;
+  }
+  if (options?.providedSecrets && Object.keys(options.providedSecrets).length > 0) {
+    body.provided_secrets = options.providedSecrets;
   }
   const res = await fetch(url, {
     method: "POST",
@@ -540,11 +586,19 @@ export async function getDeployment(id: string): Promise<DeploymentResponse> {
   return res.json() as Promise<DeploymentResponse>;
 }
 
-export async function executeDeployment(id: string): Promise<ExecuteDeploymentResponse> {
+export async function executeDeployment(
+  id: string,
+  options?: { providedSecrets?: ProvidedSecrets }
+): Promise<ExecuteDeploymentResponse> {
   const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/execute`, { baseUrl: API_BASE });
+  const body: Record<string, unknown> = {};
+  if (options?.providedSecrets && Object.keys(options.providedSecrets).length > 0) {
+    body.provided_secrets = options.providedSecrets;
+  }
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();

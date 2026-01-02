@@ -98,11 +98,11 @@ type ScenarioStats struct {
 
 // BundleStats holds aggregate bundle storage statistics.
 type BundleStats struct {
-	TotalCount     int                      `json:"total_count"`
-	TotalSizeBytes int64                    `json:"total_size_bytes"`
-	OldestCreatedAt string                  `json:"oldest_created_at,omitempty"`
-	NewestCreatedAt string                  `json:"newest_created_at,omitempty"`
-	ByScenario     map[string]ScenarioStats `json:"by_scenario"`
+	TotalCount      int                      `json:"total_count"`
+	TotalSizeBytes  int64                    `json:"total_size_bytes"`
+	OldestCreatedAt string                   `json:"oldest_created_at,omitempty"`
+	NewestCreatedAt string                   `json:"newest_created_at,omitempty"`
+	ByScenario      map[string]ScenarioStats `json:"by_scenario"`
 }
 
 // GetBundleStats returns aggregate storage statistics for all bundles.
@@ -407,6 +407,8 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 		"resources/**/dist/**",
 		"dist/**",
 		"**/.next/**",
+		// NEVER bundle mothership secrets - these are generated on the target VPS
+		".vrooli/secrets.json",
 	}
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
@@ -429,7 +431,7 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 		"scenario_id":    manifest.Scenario.ID,
 		"include_roots":  roots,
 		"excludes":       excludes,
-		"manifest_path": ".vrooli/cloud/manifest.json",
+		"manifest_path":  ".vrooli/cloud/manifest.json",
 	}, "", "  ")
 	if err != nil {
 		return MiniBundleSpec{}, err
@@ -438,7 +440,7 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 	extra := map[string][]byte{
 		".vrooli/cloud/manifest.json":        manifestBytes,
 		".vrooli/cloud/bundle-metadata.json": metaBytes,
-		"go.work":                           []byte(goWork),
+		"go.work":                            []byte(goWork),
 	}
 	if len(serviceJSON) > 0 {
 		extra[".vrooli/service.json"] = serviceJSON
@@ -447,7 +449,7 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 	return MiniBundleSpec{
 		IncludeRoots: roots,
 		Excludes:     excludes,
-		ExtraFiles: extra,
+		ExtraFiles:   extra,
 	}, nil
 }
 
@@ -690,24 +692,24 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 		out = append(out, rel)
 	}
 
-		for _, relRoot := range spec.IncludeRoots {
-			relRoot = filepath.Clean(relRoot)
-			absRoot := filepath.Join(repoRoot, relRoot)
+	for _, relRoot := range spec.IncludeRoots {
+		relRoot = filepath.Clean(relRoot)
+		absRoot := filepath.Join(repoRoot, relRoot)
 
-			info, err := os.Lstat(absRoot)
-			if err != nil {
-				return nil, err
-			}
+		info, err := os.Lstat(absRoot)
+		if err != nil {
+			return nil, err
+		}
 
-			if !info.IsDir() {
-				if _, ok := extraFiles[filepath.ToSlash(relRoot)]; ok {
-					continue
-				}
-				if !isExcluded(relRoot, spec.Excludes) {
-					addPath(relRoot)
-				}
+		if !info.IsDir() {
+			if _, ok := extraFiles[filepath.ToSlash(relRoot)]; ok {
 				continue
 			}
+			if !isExcluded(relRoot, spec.Excludes) {
+				addPath(relRoot)
+			}
+			continue
+		}
 
 		err = filepath.WalkDir(absRoot, func(p string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {

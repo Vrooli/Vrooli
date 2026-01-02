@@ -25,21 +25,22 @@ type ProgressEmitter interface {
 // StepWeights defines the percentage weight for each deployment step.
 // These sum to 100%.
 var StepWeights = map[string]float64{
-	"bundle_build":    5,
-	"mkdir":           0, // Trivial, no weight
-	"bootstrap":       5, // apt update + install prereqs
-	"upload":          20,
-	"extract":         5,
-	"setup":           12, // Reduced from 15 (bootstrap handles some work now)
-	"autoheal":        2,
-	"verify_setup":    1, // Reduced from 3
-	"caddy_install":   5,
-	"caddy_config":    5,
-	"resource_start":  15,
-	"scenario_deps":   10,
-	"scenario_target": 10,
-	"verify_local":    3,
-	"verify_https":    2,
+	"bundle_build":      5,
+	"mkdir":             0, // Trivial, no weight
+	"bootstrap":         5, // apt update + install prereqs
+	"upload":            20,
+	"extract":           5,
+	"setup":             12, // Reduced from 15 (bootstrap handles some work now)
+	"autoheal":          2,
+	"verify_setup":      1, // Reduced from 3
+	"caddy_install":     5,
+	"caddy_config":      5,
+	"secrets_provision": 5, // Generate and write secrets before resource start
+	"resource_start":    10,
+	"scenario_deps":     10,
+	"scenario_target":   10,
+	"verify_local":      3,
+	"verify_https":      2,
 }
 
 // StepInfo provides metadata for each deployment step.
@@ -64,6 +65,7 @@ var SetupSteps = []StepInfo{
 var DeploySteps = []StepInfo{
 	{ID: "caddy_install", Title: "Installing Caddy", Weight: StepWeights["caddy_install"]},
 	{ID: "caddy_config", Title: "Configuring Caddy", Weight: StepWeights["caddy_config"]},
+	{ID: "secrets_provision", Title: "Provisioning secrets", Weight: StepWeights["secrets_provision"]},
 	{ID: "resource_start", Title: "Starting resources", Weight: StepWeights["resource_start"]},
 	{ID: "scenario_deps", Title: "Starting dependencies", Weight: StepWeights["scenario_deps"]},
 	{ID: "scenario_target", Title: "Starting scenario", Weight: StepWeights["scenario_target"]},

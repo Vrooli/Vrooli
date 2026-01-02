@@ -16,15 +16,15 @@ import (
 
 // DNSCheckResponse is the response from the DNS check endpoint.
 type DNSCheckResponse struct {
-	OK           bool              `json:"ok"`
-	Domain       string            `json:"domain"`
-	VPSHost      string            `json:"vps_host"`
-	DomainIPs    []string          `json:"domain_ips"`
-	VPSIPs       []string          `json:"vps_ips"`
-	PointsToVPS  bool              `json:"points_to_vps"`
-	Message      string            `json:"message"`
-	Hint         string            `json:"hint,omitempty"`
-	Timestamp    string            `json:"timestamp"`
+	OK          bool     `json:"ok"`
+	Domain      string   `json:"domain"`
+	VPSHost     string   `json:"vps_host"`
+	DomainIPs   []string `json:"domain_ips"`
+	VPSIPs      []string `json:"vps_ips"`
+	PointsToVPS bool     `json:"points_to_vps"`
+	Message     string   `json:"message"`
+	Hint        string   `json:"hint,omitempty"`
+	Timestamp   string   `json:"timestamp"`
 }
 
 // CaddyControlRequest is the request body for Caddy control actions.
@@ -43,18 +43,18 @@ type CaddyControlResponse struct {
 
 // TLSInfoResponse contains detailed TLS certificate information.
 type TLSInfoResponse struct {
-	OK            bool      `json:"ok"`
-	Domain        string    `json:"domain"`
-	Valid         bool      `json:"valid"`
-	Issuer        string    `json:"issuer,omitempty"`
-	Subject       string    `json:"subject,omitempty"`
-	NotBefore     string    `json:"not_before,omitempty"`
-	NotAfter      string    `json:"not_after,omitempty"`
-	DaysRemaining int       `json:"days_remaining"`
-	SerialNumber  string    `json:"serial_number,omitempty"`
-	SANs          []string  `json:"sans,omitempty"`
-	Error         string    `json:"error,omitempty"`
-	Timestamp     string    `json:"timestamp"`
+	OK            bool     `json:"ok"`
+	Domain        string   `json:"domain"`
+	Valid         bool     `json:"valid"`
+	Issuer        string   `json:"issuer,omitempty"`
+	Subject       string   `json:"subject,omitempty"`
+	NotBefore     string   `json:"not_before,omitempty"`
+	NotAfter      string   `json:"not_after,omitempty"`
+	DaysRemaining int      `json:"days_remaining"`
+	SerialNumber  string   `json:"serial_number,omitempty"`
+	SANs          []string `json:"sans,omitempty"`
+	Error         string   `json:"error,omitempty"`
+	Timestamp     string   `json:"timestamp"`
 }
 
 // TLSRenewResponse is the response from TLS certificate renewal.
