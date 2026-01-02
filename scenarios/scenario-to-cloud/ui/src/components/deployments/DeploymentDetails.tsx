@@ -329,7 +329,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
       {/* Tab Content */}
       {activeTab === "live-state" && (
-        <LiveStateTab deploymentId={deploymentId} />
+        <LiveStateTab deploymentId={deploymentId} deploymentName={deployment.name} />
       )}
       {activeTab === "files" && (
         <FilesTab deploymentId={deploymentId} />

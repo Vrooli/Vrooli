@@ -7,21 +7,24 @@ import {
   Network,
   HardDrive,
   Shield,
+  Settings,
 } from "lucide-react";
 import { useLiveState, getTimeSince } from "../../../hooks/useLiveState";
 import { ProcessCards } from "./ProcessCards";
 import { PortTable } from "./PortTable";
 import { SystemResources } from "./SystemResources";
 import { CaddyStatus } from "./CaddyStatus";
+import { VPSManagement } from "./VPSManagement";
 import { cn } from "../../../lib/utils";
 
 interface LiveStateTabProps {
   deploymentId: string;
+  deploymentName?: string;
 }
 
-export function LiveStateTab({ deploymentId }: LiveStateTabProps) {
+export function LiveStateTab({ deploymentId, deploymentName }: LiveStateTabProps) {
   const { data: liveState, isLoading, error, refetch, isFetching } = useLiveState(deploymentId);
-  const [activeSection, setActiveSection] = useState<"processes" | "ports" | "system" | "caddy">("processes");
+  const [activeSection, setActiveSection] = useState<"processes" | "ports" | "system" | "caddy" | "management">("processes");
 
   const handleRefresh = () => {
     refetch();
@@ -62,6 +65,7 @@ export function LiveStateTab({ deploymentId }: LiveStateTabProps) {
     { id: "ports" as const, label: "Network", icon: Network },
     { id: "system" as const, label: "System", icon: HardDrive },
     { id: "caddy" as const, label: "Edge/TLS", icon: Shield },
+    { id: "management" as const, label: "VPS Management", icon: Settings },
   ];
 
   return (
@@ -116,6 +120,7 @@ export function LiveStateTab({ deploymentId }: LiveStateTabProps) {
           <ProcessCards
             deploymentId={deploymentId}
             processes={liveState.processes}
+            expected={liveState.expected}
           />
         )}
         {activeSection === "ports" && liveState.ports && (
@@ -126,6 +131,12 @@ export function LiveStateTab({ deploymentId }: LiveStateTabProps) {
         )}
         {activeSection === "caddy" && liveState.caddy && (
           <CaddyStatus caddy={liveState.caddy} deploymentId={deploymentId} />
+        )}
+        {activeSection === "management" && (
+          <VPSManagement
+            deploymentId={deploymentId}
+            deploymentName={deploymentName || deploymentId}
+          />
         )}
       </div>
     </div>

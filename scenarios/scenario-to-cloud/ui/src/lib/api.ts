@@ -989,11 +989,19 @@ export type SystemState = {
   uptime_seconds: number;
 };
 
+export type ExpectedProcess = {
+  id: string;
+  type: "scenario" | "resource";
+  state: "running" | "stopped" | "needs_setup";
+  directory_exists: boolean;
+};
+
 export type LiveStateResult = {
   ok: boolean;
   timestamp: string;
   sync_duration_ms: number;
   processes?: ProcessState;
+  expected?: ExpectedProcess[];
   ports?: PortBinding[];
   caddy?: CaddyState;
   system?: SystemState;
@@ -1078,6 +1086,41 @@ export type RestartResponse = {
   ok: boolean;
   type: string;
   id: string;
+  output?: string;
+  timestamp: string;
+};
+
+export type ProcessAction = "start" | "stop" | "restart" | "setup";
+
+export type ProcessControlRequest = {
+  action: ProcessAction;
+  type: "scenario" | "resource";
+  id: string;
+};
+
+export type ProcessControlResponse = {
+  ok: boolean;
+  action: string;
+  type: string;
+  id: string;
+  message: string;
+  output?: string;
+  timestamp: string;
+};
+
+export type VPSAction = "reboot" | "stop_vrooli" | "cleanup";
+export type CleanupLevel = 1 | 2 | 3 | 4;
+
+export type VPSActionRequest = {
+  action: VPSAction;
+  cleanup_level?: CleanupLevel;
+  confirmation: string;
+};
+
+export type VPSActionResponse = {
+  ok: boolean;
+  action: string;
+  message: string;
   output?: string;
   timestamp: string;
 };
@@ -1179,6 +1222,46 @@ export async function restartProcess(deploymentId: string, request: RestartReque
     throw new Error(`Failed to restart: ${res.status} ${text}`);
   }
   return res.json() as Promise<RestartResponse>;
+}
+
+/**
+ * Control a scenario or resource on VPS (start, stop, restart, setup)
+ */
+export async function controlProcess(
+  deploymentId: string,
+  request: ProcessControlRequest
+): Promise<ProcessControlResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/actions/process`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to ${request.action} ${request.type}: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ProcessControlResponse>;
+}
+
+/**
+ * Execute VPS management actions (reboot, stop_vrooli, cleanup)
+ */
+export async function executeVPSAction(
+  deploymentId: string,
+  request: VPSActionRequest
+): Promise<VPSActionResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/actions/vps`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to execute VPS action: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<VPSActionResponse>;
 }
 
 // ============================================================================

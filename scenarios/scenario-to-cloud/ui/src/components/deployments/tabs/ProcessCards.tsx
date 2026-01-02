@@ -8,19 +8,27 @@ import {
   HardDrive,
   Loader2,
   CheckCircle2,
+  Play,
+  Square,
+  Settings,
 } from "lucide-react";
-import { useRestartProcess, useKillProcess, formatUptime } from "../../../hooks/useLiveState";
-import type { ProcessState, ScenarioProcess, ResourceProcess, UnexpectedProcess } from "../../../lib/api";
+import { useRestartProcess, useKillProcess, useProcessControl, formatUptime } from "../../../hooks/useLiveState";
+import type { ProcessState, ScenarioProcess, ResourceProcess, UnexpectedProcess, ExpectedProcess } from "../../../lib/api";
 import { cn } from "../../../lib/utils";
 
 interface ProcessCardsProps {
   deploymentId: string;
   processes: ProcessState;
+  expected?: ExpectedProcess[];
 }
 
-export function ProcessCards({ deploymentId, processes }: ProcessCardsProps) {
+export function ProcessCards({ deploymentId, processes, expected }: ProcessCardsProps) {
   const restartMutation = useRestartProcess(deploymentId);
   const killMutation = useKillProcess(deploymentId);
+  const controlMutation = useProcessControl(deploymentId);
+
+  // Find expected processes that are not running
+  const missingProcesses = expected?.filter((exp) => exp.state !== "running") || [];
 
   return (
     <div className="space-y-6">
@@ -37,11 +45,9 @@ export function ProcessCards({ deploymentId, processes }: ProcessCardsProps) {
             {processes.scenarios.map((scenario) => (
               <ScenarioCard
                 key={scenario.id}
+                deploymentId={deploymentId}
                 scenario={scenario}
-                onRestart={() =>
-                  restartMutation.mutate({ type: "scenario", id: scenario.id })
-                }
-                isRestarting={restartMutation.isPending}
+                controlMutation={controlMutation}
               />
             ))}
           </div>
@@ -61,16 +67,34 @@ export function ProcessCards({ deploymentId, processes }: ProcessCardsProps) {
             {processes.resources.map((resource) => (
               <ResourceCard
                 key={resource.id}
+                deploymentId={deploymentId}
                 resource={resource}
-                onRestart={() =>
-                  restartMutation.mutate({ type: "resource", id: resource.id })
-                }
-                isRestarting={restartMutation.isPending}
+                controlMutation={controlMutation}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Missing Dependencies */}
+      {missingProcesses.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-amber-400 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Missing Dependencies ({missingProcesses.length})
+          </h3>
+          <div className="grid gap-3">
+            {missingProcesses.map((proc) => (
+              <MissingProcessCard
+                key={`${proc.type}-${proc.id}`}
+                deploymentId={deploymentId}
+                process={proc}
+                controlMutation={controlMutation}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Unexpected Processes */}
       {processes.unexpected.length > 0 && (
@@ -96,13 +120,14 @@ export function ProcessCards({ deploymentId, processes }: ProcessCardsProps) {
 }
 
 interface ScenarioCardProps {
+  deploymentId: string;
   scenario: ScenarioProcess;
-  onRestart: () => void;
-  isRestarting: boolean;
+  controlMutation: ReturnType<typeof useProcessControl>;
 }
 
-function ScenarioCard({ scenario, onRestart, isRestarting }: ScenarioCardProps) {
+function ScenarioCard({ deploymentId, scenario, controlMutation }: ScenarioCardProps) {
   const isRunning = scenario.status === "running";
+  const isPending = controlMutation.isPending;
 
   return (
     <div
@@ -142,22 +167,49 @@ function ScenarioCard({ scenario, onRestart, isRestarting }: ScenarioCardProps) 
           </div>
         </div>
 
-        <button
-          onClick={onRestart}
-          disabled={isRestarting}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
-            "border border-white/10 hover:bg-white/5 transition-colors",
-            isRestarting && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {isRestarting ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+        <div className="flex items-center gap-2">
+          {isRunning ? (
+            <>
+              <button
+                onClick={() => controlMutation.mutate({ action: "restart", type: "scenario", id: scenario.id })}
+                disabled={isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                  "border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors",
+                  isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Restart
+              </button>
+              <button
+                onClick={() => controlMutation.mutate({ action: "stop", type: "scenario", id: scenario.id })}
+                disabled={isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                  "border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors",
+                  isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Square className="h-3 w-3" />}
+                Stop
+              </button>
+            </>
           ) : (
-            <RefreshCw className="h-3 w-3" />
+            <button
+              onClick={() => controlMutation.mutate({ action: "start", type: "scenario", id: scenario.id })}
+              disabled={isPending}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors",
+                isPending && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+              Start
+            </button>
           )}
-          Restart
-        </button>
+        </div>
       </div>
 
       {/* Resource usage */}
@@ -196,13 +248,14 @@ function ScenarioCard({ scenario, onRestart, isRestarting }: ScenarioCardProps) 
 }
 
 interface ResourceCardProps {
+  deploymentId: string;
   resource: ResourceProcess;
-  onRestart: () => void;
-  isRestarting: boolean;
+  controlMutation: ReturnType<typeof useProcessControl>;
 }
 
-function ResourceCard({ resource, onRestart, isRestarting }: ResourceCardProps) {
+function ResourceCard({ deploymentId, resource, controlMutation }: ResourceCardProps) {
   const isRunning = resource.status === "running";
+  const isPending = controlMutation.isPending;
 
   return (
     <div
@@ -245,22 +298,123 @@ function ResourceCard({ resource, onRestart, isRestarting }: ResourceCardProps) 
           </div>
         </div>
 
-        <button
-          onClick={onRestart}
-          disabled={isRestarting}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
-            "border border-white/10 hover:bg-white/5 transition-colors",
-            isRestarting && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {isRestarting ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+        <div className="flex items-center gap-2">
+          {isRunning ? (
+            <>
+              <button
+                onClick={() => controlMutation.mutate({ action: "restart", type: "resource", id: resource.id })}
+                disabled={isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                  "border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors",
+                  isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Restart
+              </button>
+              <button
+                onClick={() => controlMutation.mutate({ action: "stop", type: "resource", id: resource.id })}
+                disabled={isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                  "border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors",
+                  isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Square className="h-3 w-3" />}
+                Stop
+              </button>
+            </>
           ) : (
-            <RefreshCw className="h-3 w-3" />
+            <button
+              onClick={() => controlMutation.mutate({ action: "start", type: "resource", id: resource.id })}
+              disabled={isPending}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors",
+                isPending && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+              Start
+            </button>
           )}
-          Restart
-        </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface MissingProcessCardProps {
+  deploymentId: string;
+  process: ExpectedProcess;
+  controlMutation: ReturnType<typeof useProcessControl>;
+}
+
+function MissingProcessCard({ deploymentId, process, controlMutation }: MissingProcessCardProps) {
+  const isPending = controlMutation.isPending;
+  const needsSetup = process.state === "needs_setup";
+  const isResource = process.type === "resource";
+
+  return (
+    <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-amber-500/20">
+            {process.type === "scenario" ? (
+              <Activity className="h-5 w-5 text-amber-400" />
+            ) : (
+              <Database className="h-5 w-5 text-amber-400" />
+            )}
+          </div>
+          <div>
+            <h4 className="font-medium text-white capitalize">{process.id}</h4>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium",
+                  needsSetup
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-slate-500/20 text-slate-400"
+                )}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {needsSetup ? "needs setup" : "stopped"}
+              </span>
+              <span className="text-xs text-slate-500 capitalize">{process.type}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {needsSetup && isResource && (
+            <button
+              onClick={() => controlMutation.mutate({ action: "setup", type: "resource", id: process.id })}
+              disabled={isPending}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+                "border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors",
+                isPending && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Settings className="h-3 w-3" />}
+              Setup
+            </button>
+          )}
+          <button
+            onClick={() => controlMutation.mutate({ action: "start", type: process.type, id: process.id })}
+            disabled={isPending}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium",
+              "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors",
+              isPending && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+            Start
+          </button>
+        </div>
       </div>
     </div>
   );

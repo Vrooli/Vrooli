@@ -140,6 +140,8 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/drift", s.handleGetDrift).Methods("GET")
 	api.HandleFunc("/deployments/{id}/actions/kill", s.handleKillProcess).Methods("POST")
 	api.HandleFunc("/deployments/{id}/actions/restart", s.handleRestartProcess).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/process", s.handleProcessControl).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/vps", s.handleVPSAction).Methods("POST")
 
 	// History & Logs (Ground Truth Redesign - Phase 7)
 	api.HandleFunc("/deployments/{id}/history", s.handleGetHistory).Methods("GET")

@@ -545,6 +545,134 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleProcessControl handles start/stop/restart/setup for scenarios and resources.
+// POST /api/v1/deployments/{id}/actions/process
+func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	req, err := decodeJSON[ProcessControlRequest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	// Validate action
+	validActions := map[string]bool{"start": true, "stop": true, "restart": true, "setup": true}
+	if !validActions[req.Action] {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_action",
+			Message: "Action must be 'start', 'stop', 'restart', or 'setup'",
+		})
+		return
+	}
+
+	// Validate type
+	if req.Type != "scenario" && req.Type != "resource" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_type",
+			Message: "Type must be 'scenario' or 'resource'",
+		})
+		return
+	}
+
+	// Setup is only valid for resources
+	if req.Action == "setup" && req.Type != "resource" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_action",
+			Message: "Setup action is only valid for resources",
+		})
+		return
+	}
+
+	if req.ID == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_id",
+			Message: "ID is required",
+		})
+		return
+	}
+
+	// Get deployment
+	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "get_failed",
+			Message: "Failed to get deployment",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	if deployment == nil {
+		writeAPIError(w, http.StatusNotFound, APIError{
+			Code:    "not_found",
+			Message: "Deployment not found",
+		})
+		return
+	}
+
+	// Parse manifest
+	var manifest CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "manifest_parse_failed",
+			Message: "Failed to parse deployment manifest",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	if normalized.Target.VPS == nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "no_vps_target",
+			Message: "Deployment does not have a VPS target",
+		})
+		return
+	}
+
+	cfg := sshConfigFromManifest(normalized)
+	workdir := normalized.Target.VPS.Workdir
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	// Build command based on type and action
+	var cmd string
+	if req.Type == "scenario" {
+		cmd = vrooliCommand(workdir, "vrooli scenario "+req.Action+" "+shellQuoteSingle(req.ID))
+	} else {
+		cmd = vrooliCommand(workdir, "vrooli resource "+req.Action+" "+shellQuoteSingle(req.ID))
+	}
+
+	sshRunner := ExecSSHRunner{}
+	result, err := sshRunner.Run(ctx, cfg, cmd)
+
+	response := ProcessControlResponse{
+		Action:    req.Action,
+		Type:      req.Type,
+		ID:        req.ID,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if err != nil {
+		response.OK = false
+		response.Message = "Failed to " + req.Action + " " + req.Type
+		response.Output = result.Stderr
+		writeJSON(w, http.StatusInternalServerError, response)
+		return
+	}
+
+	response.OK = true
+	response.Message = "Successfully " + req.Action + "ed " + req.Type + " " + req.ID
+	response.Output = result.Stdout
+	writeJSON(w, http.StatusOK, response)
+}
+
 // KillProcessRequest is the request body for killing a process.
 type KillProcessRequest struct {
 	PID    int    `json:"pid"`
@@ -555,6 +683,24 @@ type KillProcessRequest struct {
 type RestartRequest struct {
 	Type string `json:"type"` // "scenario" or "resource"
 	ID   string `json:"id"`
+}
+
+// ProcessControlRequest is the request body for controlling a scenario or resource.
+type ProcessControlRequest struct {
+	Action string `json:"action"` // "start", "stop", "restart", "setup"
+	Type   string `json:"type"`   // "scenario" or "resource"
+	ID     string `json:"id"`
+}
+
+// ProcessControlResponse is the response for process control actions.
+type ProcessControlResponse struct {
+	OK        bool   `json:"ok"`
+	Action    string `json:"action"`
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	Message   string `json:"message"`
+	Output    string `json:"output,omitempty"`
+	Timestamp string `json:"timestamp"`
 }
 
 // DriftReport contains the drift detection results.

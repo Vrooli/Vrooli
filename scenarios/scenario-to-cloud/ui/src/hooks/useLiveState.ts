@@ -6,6 +6,8 @@ import {
   getDrift,
   killProcess,
   restartProcess,
+  controlProcess,
+  executeVPSAction,
   getHistory,
   getLogs,
   checkDNS,
@@ -17,6 +19,8 @@ import {
   type DriftReport,
   type KillProcessRequest,
   type RestartRequest,
+  type ProcessControlRequest,
+  type VPSActionRequest,
   type HistoryEvent,
   type LogEntry,
   type CaddyAction,
@@ -123,6 +127,40 @@ export function useRestartProcess(deploymentId: string) {
     },
     onSuccess: () => {
       // Invalidate live state and drift to refresh
+      queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
+      queryClient.invalidateQueries({ queryKey: ["drift", deploymentId] });
+    },
+  });
+}
+
+/**
+ * Hook to control a scenario or resource on VPS (start, stop, restart, setup).
+ */
+export function useProcessControl(deploymentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (request: ProcessControlRequest) => {
+      return controlProcess(deploymentId, request);
+    },
+    onSuccess: () => {
+      // Invalidate live state and drift to refresh
+      queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
+      queryClient.invalidateQueries({ queryKey: ["drift", deploymentId] });
+    },
+  });
+}
+
+/**
+ * Hook to execute VPS management actions (reboot, stop_vrooli, cleanup).
+ */
+export function useVPSAction(deploymentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (request: VPSActionRequest) => {
+      return executeVPSAction(deploymentId, request);
+    },
+    onSuccess: () => {
+      // Invalidate live state to refresh
       queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
       queryClient.invalidateQueries({ queryKey: ["drift", deploymentId] });
     },

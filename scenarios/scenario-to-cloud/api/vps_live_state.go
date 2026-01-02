@@ -17,14 +17,23 @@ type LiveStateRequest struct {
 
 // LiveStateResult contains the comprehensive live state of a VPS.
 type LiveStateResult struct {
-	OK             bool          `json:"ok"`
-	Timestamp      string        `json:"timestamp"`
-	SyncDurationMs int64         `json:"sync_duration_ms"`
-	Processes      *ProcessState `json:"processes,omitempty"`
-	Ports          []PortBinding `json:"ports,omitempty"`
-	Caddy          *CaddyState   `json:"caddy,omitempty"`
-	System         *SystemState  `json:"system,omitempty"`
-	Error          string        `json:"error,omitempty"`
+	OK             bool              `json:"ok"`
+	Timestamp      string            `json:"timestamp"`
+	SyncDurationMs int64             `json:"sync_duration_ms"`
+	Processes      *ProcessState     `json:"processes,omitempty"`
+	Expected       []ExpectedProcess `json:"expected,omitempty"`
+	Ports          []PortBinding     `json:"ports,omitempty"`
+	Caddy          *CaddyState       `json:"caddy,omitempty"`
+	System         *SystemState      `json:"system,omitempty"`
+	Error          string            `json:"error,omitempty"`
+}
+
+// ExpectedProcess represents a process expected from the manifest.
+type ExpectedProcess struct {
+	ID              string `json:"id"`
+	Type            string `json:"type"`             // "scenario" or "resource"
+	State           string `json:"state"`            // "running", "stopped", "needs_setup"
+	DirectoryExists bool   `json:"directory_exists"`
 }
 
 // ProcessState contains all process information.
@@ -188,6 +197,9 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 	keyPath := cfg.KeyPath
 	pubKeyFingerprint := getPublicKeyFingerprint(keyPath)
 
+	// Build directory check command for expected processes
+	dirCheckCmd := buildDirCheckCommand(workdir, manifest)
+
 	// Define all commands to execute
 	commands := []sshCommand{
 		{id: "ps", command: "ps aux --no-headers"},
@@ -207,6 +219,8 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
 		// SSH health: check if our public key is in authorized_keys
 		{id: "ssh_key_check", command: "cat ~/.ssh/authorized_keys 2>/dev/null || echo ''"},
+		// Check directory existence for expected processes
+		{id: "dir_check", command: dirCheckCmd},
 	}
 
 	// Execute commands in parallel
@@ -270,6 +284,10 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 		expectedResources,
 	)
 	liveState.Processes = &processState
+
+	// Build expected processes list from manifest
+	dirCheckOutput := results["dir_check"].result.Stdout
+	liveState.Expected = buildExpectedProcesses(manifest, processState, dirCheckOutput)
 
 	// Parse Caddy state
 	caddyState := parseCaddyState(
@@ -550,4 +568,142 @@ func getPublicKeyFingerprint(keyPath string) string {
 
 	// Return the key content for matching
 	return strings.TrimSpace(string(content))
+}
+
+// buildDirCheckCommand creates a shell command to check if directories exist for expected processes.
+// Output format: "type:id:exists" or "type:id:missing" per line
+func buildDirCheckCommand(workdir string, manifest CloudManifest) string {
+	var checks []string
+
+	// Check target scenario directory
+	scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)
+	checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
+		shellQuoteSingle(scenarioDir), manifest.Scenario.ID, manifest.Scenario.ID))
+
+	// Check dependent scenarios
+	for _, scenarioID := range manifest.Dependencies.Scenarios {
+		if scenarioID == manifest.Scenario.ID {
+			continue // Already checked
+		}
+		scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID)
+		checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
+			shellQuoteSingle(scenarioDir), scenarioID, scenarioID))
+	}
+
+	// Check resource directories
+	for _, resourceID := range manifest.Dependencies.Resources {
+		resourceDir := fmt.Sprintf("%s/resources/%s", workdir, resourceID)
+		checks = append(checks, fmt.Sprintf("test -d %s && echo 'resource:%s:exists' || echo 'resource:%s:missing'",
+			shellQuoteSingle(resourceDir), resourceID, resourceID))
+	}
+
+	if len(checks) == 0 {
+		return "echo 'no_expected_processes'"
+	}
+
+	return strings.Join(checks, "; ")
+}
+
+// buildExpectedProcesses constructs the expected processes list by comparing manifest with running state.
+func buildExpectedProcesses(manifest CloudManifest, processState ProcessState, dirCheckOutput string) []ExpectedProcess {
+	expected := []ExpectedProcess{}
+
+	// Parse directory check output
+	dirExists := make(map[string]bool)
+	for _, line := range strings.Split(dirCheckOutput, "\n") {
+		line = strings.TrimSpace(line)
+		parts := strings.Split(line, ":")
+		if len(parts) == 3 {
+			key := parts[0] + ":" + parts[1] // "scenario:id" or "resource:id"
+			dirExists[key] = parts[2] == "exists"
+		}
+	}
+
+	// Build map of running processes for quick lookup
+	runningScenarios := make(map[string]bool)
+	for _, s := range processState.Scenarios {
+		if s.Status == "running" {
+			runningScenarios[s.ID] = true
+		}
+	}
+
+	runningResources := make(map[string]bool)
+	for _, r := range processState.Resources {
+		if r.Status == "running" {
+			runningResources[r.ID] = true
+		}
+	}
+
+	// Check target scenario
+	targetKey := "scenario:" + manifest.Scenario.ID
+	targetDirExists := dirExists[targetKey]
+	targetRunning := runningScenarios[manifest.Scenario.ID]
+
+	var targetState string
+	if targetRunning {
+		targetState = "running"
+	} else if targetDirExists {
+		targetState = "stopped"
+	} else {
+		targetState = "needs_setup"
+	}
+
+	expected = append(expected, ExpectedProcess{
+		ID:              manifest.Scenario.ID,
+		Type:            "scenario",
+		State:           targetState,
+		DirectoryExists: targetDirExists,
+	})
+
+	// Check dependent scenarios
+	for _, scenarioID := range manifest.Dependencies.Scenarios {
+		if scenarioID == manifest.Scenario.ID {
+			continue // Already added
+		}
+
+		key := "scenario:" + scenarioID
+		scenarioDirExists := dirExists[key]
+		scenarioRunning := runningScenarios[scenarioID]
+
+		var state string
+		if scenarioRunning {
+			state = "running"
+		} else if scenarioDirExists {
+			state = "stopped"
+		} else {
+			state = "needs_setup"
+		}
+
+		expected = append(expected, ExpectedProcess{
+			ID:              scenarioID,
+			Type:            "scenario",
+			State:           state,
+			DirectoryExists: scenarioDirExists,
+		})
+	}
+
+	// Check resources
+	for _, resourceID := range manifest.Dependencies.Resources {
+		key := "resource:" + resourceID
+		resourceDirExists := dirExists[key]
+		resourceRunning := runningResources[resourceID]
+
+		var state string
+		if resourceRunning {
+			state = "running"
+		} else if resourceDirExists {
+			state = "stopped"
+		} else {
+			state = "needs_setup"
+		}
+
+		expected = append(expected, ExpectedProcess{
+			ID:              resourceID,
+			Type:            "resource",
+			State:           state,
+			DirectoryExists: resourceDirExists,
+		})
+	}
+
+	return expected
 }
