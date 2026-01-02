@@ -43,17 +43,17 @@ type CodexStreamEvent struct {
 
 // CodexItem represents an item in the Codex stream.
 type CodexItem struct {
-	ID       string            `json:"id"`
-	Type     string            `json:"type"` // agent_message, reasoning, file_change, tool_call, tool_result
-	Text     string            `json:"text,omitempty"`
-	Name     string            `json:"name,omitempty"`   // tool name
-	Input    json.RawMessage   `json:"input,omitempty"`  // tool input
-	Output   string            `json:"output,omitempty"` // tool output
-	ExitCode *int              `json:"exit_code,omitempty"`
-	Command  string            `json:"command,omitempty"`
-	AggregatedOutput string    `json:"aggregated_output,omitempty"` // for command_execution items
-	Changes  []CodexFileChange `json:"changes,omitempty"` // for file_change items
-	Status   string            `json:"status,omitempty"`  // for file_change items (e.g., "completed")
+	ID               string            `json:"id"`
+	Type             string            `json:"type"` // agent_message, reasoning, file_change, tool_call, tool_result
+	Text             string            `json:"text,omitempty"`
+	Name             string            `json:"name,omitempty"`   // tool name
+	Input            json.RawMessage   `json:"input,omitempty"`  // tool input
+	Output           string            `json:"output,omitempty"` // tool output
+	ExitCode         *int              `json:"exit_code,omitempty"`
+	Command          string            `json:"command,omitempty"`
+	AggregatedOutput string            `json:"aggregated_output,omitempty"` // for command_execution items
+	Changes          []CodexFileChange `json:"changes,omitempty"`           // for file_change items
+	Status           string            `json:"status,omitempty"`            // for file_change items (e.g., "completed")
 }
 
 // CodexFileChange represents a file modification in Codex's file_change event.
@@ -669,7 +669,16 @@ func (r *CodexRunner) buildJSONArgs(req ExecuteRequest) []string {
 		"exec",
 		"--json",
 		"--skip-git-repo-check",
-		"--full-auto",
+	}
+
+	// Respect the profile's sandbox setting.
+	// When RequiresSandbox is false, we use --dangerously-bypass-approvals-and-sandbox
+	// which is designed for "environments that are externally sandboxed" (per Codex docs).
+	// This enables network access (e.g., SSH) which is blocked by --full-auto.
+	if cfg.RequiresSandbox {
+		args = append(args, "--full-auto")
+	} else {
+		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}
 
 	// Model selection

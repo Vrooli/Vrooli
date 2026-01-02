@@ -85,12 +85,107 @@ type PurgeCounts = {
   runs?: number;
 };
 
+const jsonValueKeys = [
+  { snake: "bool_value", camel: "boolValue" },
+  { snake: "int_value", camel: "intValue" },
+  { snake: "double_value", camel: "doubleValue" },
+  { snake: "string_value", camel: "stringValue" },
+  { snake: "object_value", camel: "objectValue" },
+  { snake: "list_value", camel: "listValue" },
+  { snake: "null_value", camel: "nullValue" },
+  { snake: "bytes_value", camel: "bytesValue" },
+];
+
 function parseProto<T>(schema: any, raw: unknown): T {
   return fromJson(schema, raw as any, protoReadOptions) as T;
 }
 
 function toProtoJson(schema: any, message: any): Record<string, unknown> {
   return toJson(schema, message, protoWriteOptions) as Record<string, unknown>;
+}
+
+function normalizeJsonValueInput(value: unknown): Record<string, unknown> {
+  if (value === null) {
+    return { null_value: "NULL_VALUE" };
+  }
+  if (typeof value === "boolean") {
+    return { bool_value: value };
+  }
+  if (typeof value === "number") {
+    if (Number.isInteger(value)) {
+      return { int_value: value };
+    }
+    return { double_value: value };
+  }
+  if (typeof value === "string") {
+    return { string_value: value };
+  }
+  if (Array.isArray(value)) {
+    return { list_value: { values: value.map(normalizeJsonValueInput) } };
+  }
+  if (typeof value === "object" && value !== null) {
+    const obj = value as Record<string, unknown>;
+    for (const key of jsonValueKeys) {
+      if (key.snake in obj || key.camel in obj) {
+        const raw = (key.snake in obj ? obj[key.snake] : obj[key.camel]) as unknown;
+        if (key.snake === "object_value") {
+          const rawObj = raw as Record<string, unknown> | undefined;
+          const rawFields = rawObj && typeof rawObj === "object" ? (rawObj.fields as Record<string, unknown> | undefined) : undefined;
+          const fieldsSource = rawFields ?? (rawObj && !Array.isArray(rawObj) ? rawObj : {});
+          const fields: Record<string, unknown> = {};
+          for (const [fieldKey, fieldValue] of Object.entries(fieldsSource ?? {})) {
+            fields[fieldKey] = normalizeJsonValueInput(fieldValue);
+          }
+          return { object_value: { fields } };
+        }
+        if (key.snake === "list_value") {
+          const rawList = Array.isArray(raw) ? raw : (raw as Record<string, unknown>)?.values;
+          const values = Array.isArray(rawList) ? rawList.map(normalizeJsonValueInput) : [];
+          return { list_value: { values } };
+        }
+        if (key.snake === "null_value") {
+          return { null_value: "NULL_VALUE" };
+        }
+        return { [key.snake]: raw };
+      }
+    }
+
+    const fields: Record<string, unknown> = {};
+    for (const [fieldKey, fieldValue] of Object.entries(obj)) {
+      fields[fieldKey] = normalizeJsonValueInput(fieldValue);
+    }
+    return { object_value: { fields } };
+  }
+
+  return { string_value: String(value) };
+}
+
+function normalizeJsonValueMap(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    normalized[key] = normalizeJsonValueInput(entry);
+  }
+  return normalized;
+}
+
+function normalizeHealthResponseJson(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const obj = raw as Record<string, unknown>;
+  const normalized: Record<string, unknown> = { ...obj };
+  const dependencies = normalizeJsonValueMap(obj.dependencies);
+  const metrics = normalizeJsonValueMap(obj.metrics);
+  if (dependencies) {
+    normalized.dependencies = dependencies;
+  }
+  if (metrics) {
+    normalized.metrics = metrics;
+  }
+  return normalized;
 }
 
 function extractErrorMessage(raw: unknown, fallback: string): string {
@@ -290,7 +385,8 @@ export function useHealth() {
       const data = await apiRequest<unknown>("/health", {
         signal: controller.signal,
       });
-      const message = parseProto<HealthResponse>(HealthResponseSchema, data);
+      const normalized = normalizeHealthResponseJson(data);
+      const message = parseProto<HealthResponse>(HealthResponseSchema, normalized);
       state.setData(message);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {

@@ -383,8 +383,8 @@ func (t SQLiteTime) Value() (driver.Value, error) {
 	if tt.IsZero() {
 		return nil, nil
 	}
-	// Format in ISO 8601 / RFC 3339 for consistent parsing
-	return tt.Format("2006-01-02 15:04:05.999999999"), nil
+	// Store in UTC with timezone info so round-trips don't drop the offset.
+	return tt.UTC().Format(time.RFC3339Nano), nil
 }
 
 // Time returns the underlying time.Time.

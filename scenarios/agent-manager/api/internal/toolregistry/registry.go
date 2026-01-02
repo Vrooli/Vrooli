@@ -17,9 +17,11 @@ package toolregistry
 import (
 	"context"
 	"sync"
-	"time"
 
 	"agent-manager/internal/domain"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ToolProvider is the interface for components that contribute tools.
@@ -30,10 +32,10 @@ type ToolProvider interface {
 
 	// Tools returns the tool definitions this provider contributes.
 	// Context allows for cancellation of expensive operations.
-	Tools(ctx context.Context) []domain.ToolDefinition
+	Tools(ctx context.Context) []*toolspb.ToolDefinition
 
 	// Categories returns the category definitions for this provider's tools.
-	Categories(ctx context.Context) []domain.ToolCategory
+	Categories(ctx context.Context) []*toolspb.ToolCategory
 }
 
 // Registry manages tool discovery and manifest generation.
@@ -81,13 +83,13 @@ func (r *Registry) UnregisterProvider(name string) {
 
 // GetManifest generates the complete tool manifest.
 // This is the main entry point for the GET /api/v1/tools endpoint.
-func (r *Registry) GetManifest(ctx context.Context) *domain.ToolManifest {
+func (r *Registry) GetManifest(ctx context.Context) *toolspb.ToolManifest {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	// Collect tools and categories from all providers
-	var allTools []domain.ToolDefinition
-	categoryMap := make(map[string]domain.ToolCategory)
+	var allTools []*toolspb.ToolDefinition
+	categoryMap := make(map[string]*toolspb.ToolCategory)
 
 	for _, provider := range r.providers {
 		tools := provider.Tools(ctx)
@@ -95,39 +97,39 @@ func (r *Registry) GetManifest(ctx context.Context) *domain.ToolManifest {
 
 		for _, cat := range provider.Categories(ctx) {
 			// Later providers can override categories
-			categoryMap[cat.ID] = cat
+			categoryMap[cat.Id] = cat
 		}
 	}
 
 	// Convert category map to slice
-	categories := make([]domain.ToolCategory, 0, len(categoryMap))
+	categories := make([]*toolspb.ToolCategory, 0, len(categoryMap))
 	for _, cat := range categoryMap {
 		categories = append(categories, cat)
 	}
 
-	return &domain.ToolManifest{
-		ProtocolVersion: domain.ProtocolVersion,
-		Scenario: domain.ScenarioInfo{
+	return &toolspb.ToolManifest{
+		ProtocolVersion: domain.ToolProtocolVersion,
+		Scenario: &toolspb.ScenarioInfo{
 			Name:        r.scenarioName,
 			Version:     r.scenarioVersion,
 			Description: r.scenarioDesc,
 		},
 		Tools:       allTools,
 		Categories:  categories,
-		GeneratedAt: time.Now().UTC(),
+		GeneratedAt: timestamppb.Now(),
 	}
 }
 
 // GetTool returns a specific tool by name.
 // Returns nil if the tool is not found.
-func (r *Registry) GetTool(ctx context.Context, name string) *domain.ToolDefinition {
+func (r *Registry) GetTool(ctx context.Context, name string) *toolspb.ToolDefinition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for _, provider := range r.providers {
 		for _, tool := range provider.Tools(ctx) {
 			if tool.Name == name {
-				return &tool
+				return tool
 			}
 		}
 	}

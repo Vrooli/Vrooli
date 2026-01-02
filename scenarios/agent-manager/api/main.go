@@ -334,12 +334,14 @@ func (s *Server) setupRoutes() {
 		Check(health.DB(rawDB), health.Optional). // Optional since in-memory mode is valid
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	// Detailed health for UI (includes sandbox + runner dependencies).
+	// Keep /health minimal for infra probes.
+	handler := handlers.New(s.orchestrator)
+	handler.SetWebSocketHub(s.wsHub)
+	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
 	// Register all API routes via the handlers package
 	// WebSocket hub was created in NewServer and is shared with orchestrator
-	handler := handlers.New(s.orchestrator)
-	handler.SetWebSocketHub(s.wsHub)
 	handler.RegisterRoutes(s.router)
 
 	// Register tool discovery routes

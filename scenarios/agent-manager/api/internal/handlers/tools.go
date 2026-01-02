@@ -6,10 +6,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"agent-manager/internal/toolregistry"
+
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ToolsHandler handles tool discovery endpoints.
@@ -40,6 +41,12 @@ type RouteMethoder interface {
 	Methods(methods ...string) RouteMethoder
 }
 
+// protojson marshaler configured for compatibility with OpenAI format
+var protoMarshaler = protojson.MarshalOptions{
+	UseProtoNames:   false, // Use camelCase field names for JSON
+	EmitUnpopulated: false, // Don't emit zero values
+}
+
 // GetTools handles GET /api/v1/tools
 // Returns the complete tool manifest for this scenario.
 func (h *ToolsHandler) GetTools(w http.ResponseWriter, r *http.Request) {
@@ -51,14 +58,17 @@ func (h *ToolsHandler) GetTools(w http.ResponseWriter, r *http.Request) {
 
 	manifest := h.registry.GetManifest(r.Context())
 
+	// Use protojson for proper proto JSON serialization
+	data, err := protoMarshaler.Marshal(manifest)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to encode response")
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=60") // Cache for 1 minute
 	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(manifest); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	w.Write(data)
 }
 
 // GetTool handles GET /api/v1/tools/{name}
@@ -84,14 +94,17 @@ func (h *ToolsHandler) GetTool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use protojson for proper proto JSON serialization
+	data, err := protoMarshaler.Marshal(tool)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "failed to encode response")
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(tool); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	w.Write(data)
 }
 
 // extractPathParam extracts the parameter after a prefix from the URL path.
@@ -106,8 +119,6 @@ func extractPathParam(path, prefix string) string {
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   http.StatusText(status),
-		"message": message,
-	})
+	// Use simple JSON for error responses
+	w.Write([]byte(`{"error":"` + http.StatusText(status) + `","message":"` + message + `"}`))
 }
