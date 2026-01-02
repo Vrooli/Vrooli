@@ -36,7 +36,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
     openWorkflowCreationModal,
     closeWorkflowCreationModal,
   } = useModals();
-  const { openTour } = useGuidedTour();
+  const { resetTour } = useGuidedTour();
   const loadExecution = useExecutionStore((state) => state.loadExecution);
 
   // Execution hook with start URL prompt
@@ -128,8 +128,8 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
   }, [openDocs]);
 
   const handleOpenTutorial = useCallback(() => {
-    openTour();
-  }, [openTour]);
+    resetTour();
+  }, [resetTour]);
 
   const handleNavigateToWorkflow = useCallback(
     async (projectId: string, workflowId: string) => {

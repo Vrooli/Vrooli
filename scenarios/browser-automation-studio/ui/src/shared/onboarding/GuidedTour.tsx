@@ -28,6 +28,10 @@ const TOUR_ACTIVE_KEY = "browser-automation-studio-tour-active";
 const TOUR_PAUSED_KEY = "browser-automation-studio-tour-paused";
 const TOUR_VERSION = "4"; // Bump to show tour again after major updates
 
+// Custom events for controlling the tour from anywhere
+const TOUR_RESET_EVENT = "guided-tour-reset";
+const TOUR_OPEN_EVENT = "guided-tour-open";
+
 export interface TourStep {
   id: string;
   title: string;
@@ -235,6 +239,21 @@ export function getDefaultTourSteps(): TourStep[] {
       requiredUrl: /^\/record/,
       waitForInteraction: true,
       advanceOnClick: "[data-testid='browser-replay-style-button']",
+      autoAction: async () => {
+        const button = document.querySelector(
+          "[data-testid='browser-replay-style-button']"
+        ) as HTMLButtonElement;
+        if (button) {
+          const wasOn = button.getAttribute("aria-checked") === "true";
+          // Always click to trigger advanceOnClick and advance the step
+          button.click();
+          // If it was already on, clicking turned it off - click again to restore
+          if (wasOn) {
+            await new Promise((r) => setTimeout(r, 50));
+            button.click();
+          }
+        }
+      },
     },
 
     // Step 9: Create Workflow button
@@ -280,15 +299,28 @@ export function getDefaultTourSteps(): TourStep[] {
         ) as HTMLInputElement;
         if (nameInput && !nameInput.value.trim()) {
           nameInput.focus();
-          nameInput.value = `My Workflow ${Date.now().toString().slice(-4)}`;
+          await new Promise((r) => setTimeout(r, 100));
+
+          // For React controlled inputs, use native value setter
+          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            "value"
+          )?.set;
+          const workflowName = `My Workflow ${Date.now().toString().slice(-4)}`;
+          if (nativeInputValueSetter) {
+            nativeInputValueSetter.call(nameInput, workflowName);
+          } else {
+            nameInput.value = workflowName;
+          }
           nameInput.dispatchEvent(new Event("input", { bubbles: true }));
         }
-        // Click submit
-        await new Promise((r) => setTimeout(r, 200));
+
+        // Wait for React to process, then click submit
+        await new Promise((r) => setTimeout(r, 300));
         const submitButton = document.querySelector(
           "[data-testid='workflow-creation-submit-button']"
         );
-        if (submitButton) {
+        if (submitButton && !(submitButton as HTMLButtonElement).disabled) {
           (submitButton as HTMLElement).click();
         }
       },
@@ -589,6 +621,21 @@ export function GuidedTour({
       // sessionStorage unavailable
     }
   }, [currentStepIndex, isOpen]);
+
+  // ============================================================================
+  // Listen for Reset Event (allows resetting from any component)
+  // ============================================================================
+
+  useEffect(() => {
+    const handleReset = () => {
+      setCurrentStepIndex(0);
+      setIsPaused(false);
+      previousStepRef.current = null;
+    };
+
+    window.addEventListener(TOUR_RESET_EVENT, handleReset);
+    return () => window.removeEventListener(TOUR_RESET_EVENT, handleReset);
+  }, []);
 
   // ============================================================================
   // Lifecycle Hooks (onEnter / onExit)
@@ -925,11 +972,20 @@ export function GuidedTour({
     // Navigate to the required URL if needed
     if (currentStep?.navigateTo) {
       navigate(currentStep.navigateTo);
-    } else if (
-      currentStep?.requiredUrl &&
-      typeof currentStep.requiredUrl === "string"
-    ) {
-      navigate(currentStep.requiredUrl);
+    } else if (currentStep?.requiredUrl) {
+      if (typeof currentStep.requiredUrl === "string") {
+        navigate(currentStep.requiredUrl);
+      } else {
+        // Extract base path from regex pattern (e.g., /^\/record/ -> /record/new)
+        const pattern = currentStep.requiredUrl.source;
+        if (pattern.startsWith("^\\/record")) {
+          // For record mode, we can start a new session
+          navigate("/record/new");
+        }
+        // For /projects patterns, we can't know which project, so don't navigate.
+        // The user will need to manually return to their project.
+        // The banner will remain visible until they're back on a matching URL.
+      }
     }
   }, [currentStep, navigate]);
 
@@ -1175,28 +1231,43 @@ export function GuidedTour({
               <span>Back</span>
             </button>
 
-            <button
-              onClick={handleNext}
-              disabled={pendingAutoAction}
-              className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-lg transition-colors min-w-[100px] justify-center"
-            >
-              {pendingAutoAction ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  <span>Working...</span>
-                </>
-              ) : isLastStep ? (
-                <>
-                  <span>Finish</span>
-                  <CheckCircle2 size={16} />
-                </>
-              ) : (
-                <>
-                  <span>Next</span>
-                  <ChevronRight size={16} />
-                </>
+            <div className="flex items-center gap-2">
+              {/* Restart button on last step */}
+              {isLastStep && (
+                <button
+                  onClick={handleRestart}
+                  disabled={pendingAutoAction}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                  title="Start the tutorial again"
+                >
+                  <RotateCcw size={14} />
+                  <span>Restart</span>
+                </button>
               )}
-            </button>
+
+              <button
+                onClick={handleNext}
+                disabled={pendingAutoAction}
+                className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-lg transition-colors min-w-[100px] justify-center"
+              >
+                {pendingAutoAction ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Working...</span>
+                  </>
+                ) : isLastStep ? (
+                  <>
+                    <span>Finish</span>
+                    <CheckCircle2 size={16} />
+                  </>
+                ) : (
+                  <>
+                    <span>Next</span>
+                    <ChevronRight size={16} />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1218,6 +1289,8 @@ export function GuidedTour({
 export function useGuidedTour() {
   const [showTour, setShowTour] = useState(false);
   const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
+  // Key that changes when resetTour is called, forcing GuidedTour to remount
+  const [tourKey, setTourKey] = useState(0);
 
   useEffect(() => {
     try {
@@ -1244,6 +1317,17 @@ export function useGuidedTour() {
     setHasCheckedStorage(true);
   }, []);
 
+  // Listen for global open event (allows opening from any component)
+  useEffect(() => {
+    const handleOpen = () => {
+      setShowTour(true);
+      setTourKey((k) => k + 1);
+    };
+
+    window.addEventListener(TOUR_OPEN_EVENT, handleOpen);
+    return () => window.removeEventListener(TOUR_OPEN_EVENT, handleOpen);
+  }, []);
+
   const openTour = useCallback(() => {
     setShowTour(true);
   }, []);
@@ -1261,7 +1345,9 @@ export function useGuidedTour() {
     } catch {
       // storage unavailable
     }
-    setShowTour(true);
+    // Dispatch events to reset and open the tour from any hook instance
+    window.dispatchEvent(new CustomEvent(TOUR_RESET_EVENT));
+    window.dispatchEvent(new CustomEvent(TOUR_OPEN_EVENT));
   }, []);
 
   return {
@@ -1270,6 +1356,7 @@ export function useGuidedTour() {
     openTour,
     closeTour,
     resetTour,
+    tourKey,
   };
 }
 

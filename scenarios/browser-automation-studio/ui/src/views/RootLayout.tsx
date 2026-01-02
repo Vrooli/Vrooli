@@ -65,7 +65,7 @@ function RootLayoutContent() {
   } = useModals();
 
   // Guided tour state
-  const { showTour, openTour, closeTour } = useGuidedTour();
+  const { showTour, openTour, closeTour, resetTour, tourKey } = useGuidedTour();
 
   // Project state
   const { currentProject, setCurrentProject } = useProjectStore();
@@ -125,7 +125,7 @@ function RootLayoutContent() {
       </Suspense>
 
       {/* Global modals rendered at root level */}
-      <GuidedTour isOpen={showTour} onClose={closeTour} />
+      <GuidedTour key={tourKey} isOpen={showTour} onClose={closeTour} />
 
       <ProjectModal
         isOpen={showProjectModal}
@@ -140,7 +140,7 @@ function RootLayoutContent() {
         isOpen={showDocs}
         initialTab={docsInitialTab}
         onClose={closeDocs}
-        onOpenTutorial={openTour}
+        onOpenTutorial={resetTour}
       />
 
       <Toaster position="bottom-right" />
