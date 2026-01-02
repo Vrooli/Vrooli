@@ -8,19 +8,22 @@ import (
 	"strings"
 	"time"
 
+	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
 // BuildBundleManifest generates a manifest of all files and dependencies needed
 // to package the scenario for deployment.
 func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []types.DeploymentDependencyNode, cfg *types.ServiceConfig) types.BundleManifest {
-	return types.BundleManifest{
+	manifest := types.BundleManifest{
 		Scenario:     scenarioName,
 		GeneratedAt:  generatedAt,
 		Files:        discoverBundleFiles(scenarioName, scenarioPath),
 		Dependencies: flattenBundleDependencies(nodes),
 		Skeleton:     buildDesktopBundleSkeleton(scenarioName, scenarioPath, cfg, nodes),
 	}
+	manifest.Dependencies = includeDeclaredResources(manifest.Dependencies, cfg)
+	return manifest
 }
 
 // discoverBundleFiles scans for standard scenario files needed in a deployment bundle
@@ -77,6 +80,43 @@ func flattenBundleDependencies(nodes []types.DeploymentDependencyNode) []types.B
 	entries := make([]types.BundleDependencyEntry, 0, len(seen))
 	for _, entry := range seen {
 		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Type == entries[j].Type {
+			return entries[i].Name < entries[j].Name
+		}
+		return entries[i].Type < entries[j].Type
+	})
+	return entries
+}
+
+func includeDeclaredResources(entries []types.BundleDependencyEntry, cfg *types.ServiceConfig) []types.BundleDependencyEntry {
+	if cfg == nil {
+		return entries
+	}
+	resources := config.ResolvedResourceMap(cfg)
+	if len(resources) == 0 {
+		return entries
+	}
+	seen := map[string]struct{}{}
+	for _, entry := range entries {
+		if entry.Type == "resource" {
+			seen[fmt.Sprintf("resource:%s", entry.Name)] = struct{}{}
+		}
+	}
+	for name, resource := range resources {
+		if !(resource.Required || resource.Enabled) {
+			continue
+		}
+		key := fmt.Sprintf("resource:%s", name)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		entries = append(entries, types.BundleDependencyEntry{
+			Name:         name,
+			Type:         "resource",
+			ResourceType: resource.Type,
+		})
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].Type == entries[j].Type {

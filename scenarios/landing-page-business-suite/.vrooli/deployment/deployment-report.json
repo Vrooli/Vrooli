@@ -1,7 +1,7 @@
 {
   "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2026-01-01T00:12:32.528597035Z",
+  "generated_at": "2026-01-02T05:30:49.639450761Z",
   "dependencies": [
     {
       "name": "browserless",
@@ -244,7 +244,7 @@
   },
   "bundle_manifest": {
     "scenario": "landing-page-business-suite",
-    "generated_at": "2026-01-01T00:12:32.528597035Z",
+    "generated_at": "2026-01-02T05:30:49.639450761Z",
     "files": [
       {
         "path": ".vrooli/service.json",
