@@ -54,6 +54,10 @@ export type {
 export { default as ExecutionHistory } from "./history/ExecutionHistory";
 export { ExecutionLimitModal } from "./viewer/ExecutionLimitModal";
 export { ExecutionsTab } from "./history/ExecutionsTab";
+export { ExecutionCard } from "./history/ExecutionCard";
+export type { ExecutionCardData, ExecutionCardProps, ExecutionStatus } from "./history/ExecutionCard";
+export { ExecutionFilters } from "./history/ExecutionFilters";
+export type { ExecutionFiltersProps, StatusFilter } from "./history/ExecutionFilters";
 
 // Inline execution viewer (for Project view)
 export { InlineExecutionViewer } from "./InlineExecutionViewer";

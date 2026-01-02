@@ -18,11 +18,11 @@ import (
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
-func (s *WorkflowService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (s *WorkflowService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 	if s == nil {
 		return nil, fmt.Errorf("workflow service not configured")
 	}
-	return s.repo.ListExecutions(ctx, workflowID, limit, offset)
+	return s.repo.ListExecutions(ctx, workflowID, projectID, limit, offset)
 }
 
 // ResumeExecution resumes a failed or stopped execution from its last checkpoint.

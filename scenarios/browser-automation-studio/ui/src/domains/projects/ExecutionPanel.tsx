@@ -63,7 +63,7 @@ export function ExecutionPanel() {
             : "block md:w-full"
         } flex-1 min-h-0`}
       >
-        <ExecutionHistory onSelectExecution={handleSelectExecution} />
+        <ExecutionHistory projectId={projectId ?? undefined} onSelectExecution={handleSelectExecution} />
       </div>
 
       {/* Inline Execution Viewer (side panel on desktop) */}

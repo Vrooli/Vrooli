@@ -516,7 +516,7 @@ func (m *MockExecutionService) ResumeExecution(ctx context.Context, executionID 
 	return newExecution, nil
 }
 
-func (m *MockExecutionService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (m *MockExecutionService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 	if m.ListExecutionsError != nil {
 		return nil, m.ListExecutionsError
 	}
@@ -526,6 +526,7 @@ func (m *MockExecutionService) ListExecutions(ctx context.Context, workflowID *u
 
 	executions := make([]*database.ExecutionIndex, 0, len(m.executions))
 	for _, e := range m.executions {
+		// Note: projectID filtering would require workflow lookup, skip for mock
 		if workflowID == nil || e.WorkflowID == *workflowID {
 			copy := *e
 			executions = append(executions, &copy)

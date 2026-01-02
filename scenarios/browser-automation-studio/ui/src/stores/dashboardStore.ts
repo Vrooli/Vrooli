@@ -219,8 +219,8 @@ export const useDashboardStore = create<DashboardState>()(
         try {
           const config = await getConfig();
 
-          // Fetch executions first
-          const response = await fetch(`${config.API_URL}/executions?limit=10`);
+          // Fetch executions - use higher limit to show more in dashboard
+          const response = await fetch(`${config.API_URL}/executions?limit=50`);
           if (!response.ok) {
             throw new Error(`Failed to fetch executions: ${response.status}`);
           }
@@ -242,7 +242,7 @@ export const useDashboardStore = create<DashboardState>()(
           const completed = executions.filter((e: RecentExecution) => e.status !== 'running' && e.status !== 'pending');
 
           set({
-            recentExecutions: completed.slice(0, 5),
+            recentExecutions: completed,
             runningExecutions: running,
             isLoadingExecutions: false
           });

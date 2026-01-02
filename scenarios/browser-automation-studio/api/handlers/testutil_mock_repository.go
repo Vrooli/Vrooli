@@ -399,12 +399,13 @@ func (r *MockRepository) DeleteExecution(_ context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *MockRepository) ListExecutions(_ context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (r *MockRepository) ListExecutions(_ context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	executions := make([]*database.ExecutionIndex, 0)
 	for _, e := range r.executions {
+		// Note: projectID filtering would require workflow lookup, skip for mock
 		if workflowID == nil || e.WorkflowID == *workflowID {
 			copy := *e
 			executions = append(executions, &copy)

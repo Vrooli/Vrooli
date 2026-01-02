@@ -25,7 +25,7 @@ type statusUpdate struct {
 	updatedAt    time.Time
 }
 
-func (m *mockRepo) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
+func (m *mockRepo) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}

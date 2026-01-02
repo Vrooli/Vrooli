@@ -273,7 +273,7 @@ interface ExecutionStore {
   startExecution: (workflowId: string, options?: StartExecutionOptions) => Promise<string>;
   setArtifactProfile: (profile: ArtifactProfile) => void;
   stopExecution: (executionId: string) => Promise<void>;
-  loadExecutions: (workflowId?: string) => Promise<void>;
+  loadExecutions: (workflowId?: string, projectId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
   refreshTimeline: (executionId: string) => Promise<void>;
   addScreenshot: (screenshot: Screenshot) => void;
@@ -719,11 +719,15 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     }
   },
 
-  loadExecutions: async (workflowId?: string) => {
+  loadExecutions: async (workflowId?: string, projectId?: string) => {
     try {
       const config = await getConfig();
-      const url = workflowId
-        ? `${config.API_URL}/executions?workflow_id=${encodeURIComponent(workflowId)}`
+      const params = new URLSearchParams();
+      if (workflowId) params.set('workflow_id', workflowId);
+      if (projectId) params.set('project_id', projectId);
+      const queryString = params.toString();
+      const url = queryString
+        ? `${config.API_URL}/executions?${queryString}`
         : `${config.API_URL}/executions`;
       const response = await fetch(url);
 

@@ -44,7 +44,7 @@ type Repository interface {
 	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
 	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error)
+	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error)
 	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error)
 
 	// Schedule operations (must be in DB for cron queries)
@@ -441,13 +441,37 @@ func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error) {
-	base := fmt.Sprintf("SELECT %s FROM executions", executionSelectColumns)
+func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error) {
+	var base string
 	var args []any
+	var conditions []string
+
+	if projectID != nil {
+		// Join with workflows to filter by project_id
+		base = fmt.Sprintf("SELECT e.%s FROM executions e JOIN workflows w ON e.workflow_id = w.id",
+			"id, e.workflow_id, e.status, e.started_at, e.completed_at, COALESCE(e.error_message, '') as error_message, COALESCE(e.result_path, '') as result_path, e.resumed_from_id, e.created_at, e.updated_at")
+		conditions = append(conditions, "w.project_id = ?")
+		args = append(args, *projectID)
+	} else {
+		base = fmt.Sprintf("SELECT %s FROM executions", executionSelectColumns)
+	}
+
 	if workflowID != nil {
-		base += " WHERE workflow_id = ?"
+		if projectID != nil {
+			conditions = append(conditions, "e.workflow_id = ?")
+		} else {
+			conditions = append(conditions, "workflow_id = ?")
+		}
 		args = append(args, *workflowID)
 	}
+
+	if len(conditions) > 0 {
+		base += " WHERE " + conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			base += " AND " + conditions[i]
+		}
+	}
+
 	base += " ORDER BY started_at DESC"
 	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
 	args = append(args, pagingArgs...)

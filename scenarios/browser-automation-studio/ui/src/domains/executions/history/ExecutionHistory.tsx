@@ -1,24 +1,18 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  Loader,
-  AlertCircle,
-  Eye,
-  Filter,
-  RefreshCw,
-  ChevronDown,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Clock, Loader, AlertCircle } from "lucide-react";
 import { useExecutionStore } from "../store";
 import { logger } from "@utils/logger";
-import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import { selectors } from "@constants/selectors";
+import { ExecutionCard, type ExecutionCardData, type ExecutionStatus } from "./ExecutionCard";
+import { ExecutionFilters, type StatusFilter } from "./ExecutionFilters";
 
 interface ExecutionHistoryProps {
   workflowId?: string;
+  /** Filter executions by project ID */
+  projectId?: string;
   onSelectExecution?: (execution: ExecutionSummary) => void;
+  /** The currently selected execution ID (for highlighting) */
+  selectedExecutionId?: string;
 }
 
 interface ExecutionSummary {
@@ -33,40 +27,33 @@ interface ExecutionSummary {
   error?: string;
 }
 
-type StatusFilter = "all" | "completed" | "failed" | "running" | "cancelled";
-
-const STATUS_FILTERS: StatusFilter[] = [
-  "all",
-  "completed",
-  "failed",
-  "running",
-  "cancelled",
-];
+/** Convert ExecutionSummary to ExecutionCardData */
+const toCardData = (execution: ExecutionSummary): ExecutionCardData => ({
+  id: execution.id,
+  workflowId: execution.workflow_id,
+  workflowName: execution.workflow_name ?? 'Unknown Workflow',
+  status: execution.status as ExecutionStatus,
+  startedAt: new Date(execution.started_at),
+  completedAt: execution.completed_at ? new Date(execution.completed_at) : undefined,
+  error: execution.error,
+  progress: execution.progress,
+  currentStep: execution.current_step,
+});
 
 function ExecutionHistory({
   workflowId,
+  projectId,
   onSelectExecution,
+  selectedExecutionId,
 }: ExecutionHistoryProps) {
+  // Get the current execution from the store to determine which card is selected
+  const currentExecution = useExecutionStore((state) => state.currentExecution);
+  const effectiveSelectedId = selectedExecutionId ?? currentExecution?.id;
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-
-  const mobileFilterContainerRef = useRef<HTMLDivElement | null>(null);
-  const mobileFilterButtonRef = useRef<HTMLButtonElement | null>(null);
-  const mobileFilterDropdownRef = useRef<HTMLDivElement | null>(null);
-
-  const { floatingStyles: mobileFilterStyles } = usePopoverPosition(
-    mobileFilterButtonRef,
-    mobileFilterDropdownRef,
-    {
-      isOpen: isMobileFilterOpen,
-      placementPriority: ["bottom-start", "bottom-end", "top-start", "top-end"],
-      matchReferenceWidth: true,
-    },
-  );
 
   const loadExecutions = useExecutionStore((state) => state.loadExecutions);
   const storeExecutions = useExecutionStore((state) => state.executions);
@@ -79,7 +66,7 @@ function ExecutionHistory({
       setError(null);
       try {
         // Use the store's loadExecutions to fetch and populate the executions array
-        await loadExecutions(workflowId);
+        await loadExecutions(workflowId, projectId);
 
         // Get the executions from the store
         const storeExecutions = useExecutionStore.getState().executions;
@@ -94,6 +81,7 @@ function ExecutionHistory({
             component: "ExecutionHistory",
             action: "fetchExecutions",
             workflowId,
+            projectId,
           },
           err,
         );
@@ -101,7 +89,7 @@ function ExecutionHistory({
         setIsLoading(false);
       }
     },
-    [loadExecutions, workflowId],
+    [loadExecutions, workflowId, projectId],
   );
 
   const handleRefresh = async () => {
@@ -123,29 +111,6 @@ function ExecutionHistory({
     setExecutions(storeExecutions as unknown as ExecutionSummary[]);
   }, [storeExecutions]);
 
-  useEffect(() => {
-    if (!isMobileFilterOpen) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (!mobileFilterContainerRef.current) {
-        return;
-      }
-      if (!mobileFilterContainerRef.current.contains(event.target as Node)) {
-        setIsMobileFilterOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isMobileFilterOpen]);
-
   const filteredExecutions = useMemo(() => {
     if (statusFilter === "all") {
       return executions;
@@ -153,105 +118,15 @@ function ExecutionHistory({
     return executions.filter((exec) => exec.status === statusFilter);
   }, [executions, statusFilter]);
 
-  const getStatusIcon = (status: ExecutionSummary["status"]) => {
-    switch (status) {
-      case "running":
-        return <Loader size={16} className="animate-spin text-blue-400" />;
-      case "completed":
-        return <CheckCircle size={16} className="text-green-400" />;
-      case "failed":
-        return <XCircle size={16} className="text-red-400" />;
-      case "cancelled":
-        return <AlertCircle size={16} className="text-yellow-400" />;
-      default:
-        return <Clock size={16} className="text-gray-400" />;
-    }
-  };
-
-  const getStatusBadge = (status: ExecutionSummary["status"]) => {
-    const baseClasses = "px-2 py-1 text-xs font-medium rounded-full";
-    switch (status) {
-      case "running":
-        return (
-          <span
-            className={`${baseClasses} bg-blue-500/20 text-blue-400`}
-            data-testid="execution-status-running"
-          >
-            Running
-          </span>
-        );
-      case "completed":
-        return (
-          <span
-            className={`${baseClasses} bg-green-500/20 text-green-400`}
-            data-testid="execution-status-completed"
-          >
-            Completed
-          </span>
-        );
-      case "failed":
-        return (
-          <span
-            className={`${baseClasses} bg-red-500/20 text-red-400`}
-            data-testid="execution-status-failed"
-          >
-            Failed
-          </span>
-        );
-      case "cancelled":
-        return (
-          <span
-            className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}
-            data-testid="execution-status-cancelled"
-          >
-            Cancelled
-          </span>
-        );
-      default:
-        return (
-          <span
-            className={`${baseClasses} bg-gray-500/20 text-gray-400`}
-            data-testid="execution-status-pending"
-          >
-            Pending
-          </span>
-        );
-    }
-  };
-
-  const calculateDuration = (execution: ExecutionSummary): string => {
-    if (!execution.completed_at) {
-      return "In progress...";
-    }
-
-    const start = new Date(execution.started_at);
-    const end = new Date(execution.completed_at);
-    const durationMs = end.getTime() - start.getTime();
-
-    if (durationMs < 1000) {
-      return `${durationMs}ms`;
-    } else if (durationMs < 60000) {
-      return `${(durationMs / 1000).toFixed(1)}s`;
-    } else {
-      const minutes = Math.floor(durationMs / 60000);
-      const seconds = Math.floor((durationMs % 60000) / 1000);
-      return `${minutes}m ${seconds}s`;
-    }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      const date = new Date(timestamp);
-      const isRecent = Date.now() - date.getTime() < 24 * 60 * 60 * 1000; // Within last 24 hours
-
-      if (isRecent) {
-        return formatDistanceToNow(date, { addSuffix: true });
+  const handleSelectExecution = useCallback(
+    (executionId: string, _workflowId: string) => {
+      const execution = executions.find((e) => e.id === executionId);
+      if (execution && onSelectExecution) {
+        onSelectExecution(execution);
       }
-      return format(date, "MMM d, yyyy HH:mm");
-    } catch {
-      return "Unknown";
-    }
-  };
+    },
+    [executions, onSelectExecution],
+  );
 
   const statusCounts = useMemo(() => {
     return {
@@ -262,9 +137,6 @@ function ExecutionHistory({
       cancelled: executions.filter((e) => e.status === "cancelled").length,
     };
   }, [executions]);
-
-  const formatFilterLabel = (filter: StatusFilter) =>
-    filter.charAt(0).toUpperCase() + filter.slice(1);
 
   if (isLoading && executions.length === 0) {
     return (
@@ -306,103 +178,16 @@ function ExecutionHistory({
       data-testid={selectors.executions.list.root}
     >
       {/* Header with filters */}
-      <div className="p-4 border-b border-gray-800 space-y-2">
-        {/* Desktop filters */}
-        <div className="hidden md:flex items-center gap-2 flex-wrap">
-          <Filter size={14} className="text-gray-500" />
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter}
-              data-testid={selectors.executions.filters.filter({ filter })}
-              onClick={() => setStatusFilter(filter)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                statusFilter === filter
-                  ? "bg-flow-accent text-surface"
-                  : "bg-flow-node text-subtle hover:text-surface hover:bg-gray-700"
-              }`}
-            >
-              {formatFilterLabel(filter)} ({statusCounts[filter]})
-            </button>
-          ))}
-          <button
-            data-testid={selectors.executions.list.refreshButton}
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="ml-auto p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Refresh"
-          >
-            <RefreshCw
-              size={16}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-          </button>
-        </div>
-
-        {/* Mobile filter dropdown */}
-        <div className="flex items-center gap-2 md:hidden">
-          <div className="relative flex-1" ref={mobileFilterContainerRef}>
-            <button
-              ref={mobileFilterButtonRef}
-              type="button"
-              onClick={() => setIsMobileFilterOpen((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-700 bg-flow-node px-3 py-2 text-sm text-surface hover:border-flow-accent hover:text-surface transition-colors"
-              aria-haspopup="listbox"
-              aria-expanded={isMobileFilterOpen}
-            >
-              <span className="flex items-center gap-2">
-                <Filter size={14} />
-                <span>
-                  {formatFilterLabel(statusFilter)} (
-                  {statusCounts[statusFilter]})
-                </span>
-              </span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform ${isMobileFilterOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {isMobileFilterOpen && (
-              <div
-                ref={mobileFilterDropdownRef}
-                style={mobileFilterStyles}
-                className="z-20 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
-              >
-                {STATUS_FILTERS.map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => {
-                      setStatusFilter(filter);
-                      setIsMobileFilterOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
-                      statusFilter === filter
-                        ? "bg-flow-accent/20 text-surface"
-                        : "text-gray-300 hover:bg-gray-700/50 hover:text-surface"
-                    }`}
-                  >
-                    <span>{formatFilterLabel(filter)}</span>
-                    <span className="text-xs text-gray-400">
-                      {statusCounts[filter]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="ml-auto p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Refresh"
-          >
-            <RefreshCw
-              size={16}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-          </button>
-        </div>
+      <div className="p-4 border-b border-gray-800">
+        <ExecutionFilters
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          statusCounts={statusCounts}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          filters={['all', 'running', 'completed', 'failed', 'cancelled']}
+          testIdPrefix="execution-filter"
+        />
       </div>
 
       {/* Execution list */}
@@ -427,95 +212,18 @@ function ExecutionHistory({
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800">
+          <div className="space-y-2 p-4">
             {filteredExecutions.map((execution) => (
-              <div
+              <ExecutionCard
                 key={execution.id}
-                data-testid={selectors.executions.list.item}
-                data-execution-id={execution.id}
-                data-execution-status={execution.status}
-                onClick={() => onSelectExecution?.(execution)}
-                className={`p-4 cursor-pointer transition-all hover:bg-flow-node ${
-                  onSelectExecution
-                    ? "hover:border-l-4 hover:border-flow-accent"
-                    : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="mt-0.5">
-                      {getStatusIcon(execution.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {/* Execution ID */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-surface">
-                          #{execution.id.slice(0, 8)}
-                        </span>
-                        {getStatusBadge(execution.status)}
-                      </div>
-
-                      {/* Workflow name (if available) */}
-                      {execution.workflow_name && (
-                        <div className="text-sm text-gray-400 mb-1">
-                          {execution.workflow_name}
-                        </div>
-                      )}
-
-                      {/* Current step or error */}
-                      {execution.status === "running" &&
-                        execution.current_step && (
-                          <div className="text-xs text-blue-400 mb-1">
-                            Current: {execution.current_step}
-                          </div>
-                        )}
-                      {execution.status === "failed" && execution.error && (
-                        <div
-                          className="text-xs text-red-400 mb-1 truncate"
-                          title={execution.error}
-                        >
-                          Error: {execution.error}
-                        </div>
-                      )}
-
-                      {/* Timestamp and duration */}
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} />
-                          <span>{formatTimestamp(execution.started_at)}</span>
-                        </div>
-                        <span>Duration: {calculateDuration(execution)}</span>
-                      </div>
-
-                      {/* Progress bar for running executions */}
-                      {execution.status === "running" && (
-                        <div className="mt-2 w-full bg-gray-700 rounded-full h-1.5">
-                          <div
-                            className="bg-flow-accent h-1.5 rounded-full transition-all duration-300"
-                            style={{ width: `${execution.progress || 0}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* View button */}
-                  {onSelectExecution && (
-                    <button
-                      data-testid={selectors.executions.actions.viewButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectExecution(execution);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
-                      title="View execution details"
-                    >
-                      <Eye size={14} />
-                      <span>View</span>
-                    </button>
-                  )}
-                </div>
-              </div>
+                execution={toCardData(execution)}
+                isRunning={execution.status === 'running' || execution.status === 'pending'}
+                isSelected={effectiveSelectedId === execution.id}
+                onClick={onSelectExecution ? handleSelectExecution : undefined}
+                showProjectName={false}
+                showProgressBar
+                testId={selectors.executions.list.item}
+              />
             ))}
           </div>
         )}

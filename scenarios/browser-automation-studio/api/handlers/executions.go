@@ -602,12 +602,20 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	projectIDStr := r.URL.Query().Get("project_id")
+	var projectID *uuid.UUID
+	if projectIDStr != "" {
+		if id, err := uuid.Parse(projectIDStr); err == nil {
+			projectID = &id
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
 	limit, offset := parsePaginationParams(r, 0, 0)
 
-	executions, err := h.executionService.ListExecutions(ctx, workflowID, limit, offset)
+	executions, err := h.executionService.ListExecutions(ctx, workflowID, projectID, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list executions")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_executions"}))

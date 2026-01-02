@@ -241,7 +241,7 @@ func TestExecutionCRUD(t *testing.T) {
 		t.Fatalf("UpdateExecution: %v", err)
 	}
 
-	list, err := repo.ListExecutions(ctx, &workflowID, 10, 0)
+	list, err := repo.ListExecutions(ctx, &workflowID, nil, 10, 0)
 	if err != nil {
 		t.Fatalf("ListExecutions: %v", err)
 	}

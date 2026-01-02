@@ -45,7 +45,7 @@ func (s *executionServiceStub) StopExecution(context.Context, uuid.UUID) error {
 func (s *executionServiceStub) ResumeExecution(context.Context, uuid.UUID, map[string]any) (*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
-func (s *executionServiceStub) ListExecutions(context.Context, *uuid.UUID, int, int) ([]*database.ExecutionIndex, error) {
+func (s *executionServiceStub) ListExecutions(context.Context, *uuid.UUID, *uuid.UUID, int, int) ([]*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
 func (s *executionServiceStub) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
