@@ -641,13 +641,17 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       // Add frame streaming parameters for live execution preview
-      if (options?.frameStreaming?.enabled) {
+      // Frame streaming is enabled by default for all executions to support live preview
+      // It can be explicitly disabled by setting enabled: false
+      const frameStreaming = options?.frameStreaming;
+      const frameStreamingEnabled = frameStreaming?.enabled !== false; // Enable by default
+      if (frameStreamingEnabled) {
         executeURL.searchParams.set('frame_streaming', 'true');
-        if (options.frameStreaming.quality) {
-          executeURL.searchParams.set('frame_streaming_quality', String(options.frameStreaming.quality));
+        if (frameStreaming?.quality) {
+          executeURL.searchParams.set('frame_streaming_quality', String(frameStreaming.quality));
         }
-        if (options.frameStreaming.fps) {
-          executeURL.searchParams.set('frame_streaming_fps', String(options.frameStreaming.fps));
+        if (frameStreaming?.fps) {
+          executeURL.searchParams.set('frame_streaming_fps', String(frameStreaming.fps));
         }
       }
 
