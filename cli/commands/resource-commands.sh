@@ -161,21 +161,43 @@ route_to_resource_cli() {
     done
     
     if [[ -n "$cli_script" ]] && [[ -f "$cli_script" ]]; then
-        # Clear source guards before calling CLI to allow proper sourcing  
+        # Clear source guards before calling CLI to allow proper sourcing
         unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-        
+
         # Set up proper environment and working directory
         # VROOLI_ROOT is already set at the script level, no need to redefine
-        
-        # Simple, reliable execution with explicit environment
-        # Note: VROOLI_ROOT is already set and will be inherited by the subshell
-        (
-            cd "$VROOLI_ROOT"
-            # VROOLI_ROOT is already available from parent scope
-            export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
-            bash "$cli_script" "$@"
-        )
-        local exit_code=$?
+
+        # For lifecycle commands (start, stop, install), try v2.0 pattern first (manage <cmd>)
+        local cmd="${1:-}"
+        local exit_code=0
+
+        case "$cmd" in
+            start|stop|install)
+                # Try v2.0 pattern: cli.sh manage <cmd>
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" manage "$@" 2>&1
+                ) && return 0
+
+                # Fall back to direct: cli.sh <cmd>
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" "$@" 2>&1
+                )
+                exit_code=$?
+                ;;
+            *)
+                # Non-lifecycle commands: run directly
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" "$@"
+                )
+                exit_code=$?
+                ;;
+        esac
         return $exit_code
     fi
     
@@ -987,14 +1009,40 @@ resource_stop() {
     fi
     
     log::info "Stopping resource: $resource_name"
-    
-    # Try to route to resource CLI or manage.sh
+
+    # Try to route to resource CLI or manage.sh with v2.0 support
+    local exit_code=0
     if has_resource_cli "$resource_name"; then
-        route_to_resource_cli "$resource_name" stop
+        # Try v2.0 manage stop pattern first (most likely to work)
+        local resource_command="resource-${resource_name}"
+        if command -v "$resource_command" >/dev/null 2>&1; then
+            # Clear source guards before exec to allow proper sourcing
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
+                export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                "$resource_command" manage stop 2>&1); then
+                exit_code=0
+            elif (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
+                  export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                  "$resource_command" stop 2>&1); then
+                exit_code=0
+            else
+                exit_code=1
+            fi
+        else
+            route_to_resource_cli "$resource_name" stop 2>&1 || exit_code=$?
+        fi
     else
-        route_to_manage_sh "$resource_name" stop
+        route_to_manage_sh "$resource_name" stop || exit_code=$?
     fi
-    
+
+    # Report result
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "Successfully stopped resource: $resource_name"
+    else
+        log::error "Failed to stop resource: $resource_name"
+        return $exit_code
+    fi
+
     # Update registry if available
     if command -v resource_registry::register >/dev/null 2>&1; then
         resource_registry::register "$resource_name" "stopped"

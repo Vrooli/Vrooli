@@ -446,6 +446,18 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 		extra[".vrooli/service.json"] = serviceJSON
 	}
 
+	// Override the target scenario's service.json with fixed ports from the manifest
+	// This ensures VPS deployments use the exact ports specified in the deployment manifest
+	// rather than dynamically allocating from ranges
+	scenarioServiceJSON, err := buildScenarioServiceJSONWithFixedPorts(repoRoot, manifest)
+	if err != nil {
+		return MiniBundleSpec{}, fmt.Errorf("build scenario service.json with fixed ports: %w", err)
+	}
+	if len(scenarioServiceJSON) > 0 {
+		scenarioServicePath := filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+		extra[scenarioServicePath] = scenarioServiceJSON
+	}
+
 	return MiniBundleSpec{
 		IncludeRoots: roots,
 		Excludes:     excludes,
@@ -859,6 +871,79 @@ func buildMiniServiceJSON(repoRoot string, manifest CloudManifest) ([]byte, erro
 		}
 	}
 
+	return json.MarshalIndent(doc, "", "  ")
+}
+
+// buildScenarioServiceJSONWithFixedPorts reads the target scenario's service.json
+// and replaces port ranges with fixed port values from the deployment manifest.
+// This ensures VPS deployments use exact ports rather than dynamic allocation.
+func buildScenarioServiceJSONWithFixedPorts(repoRoot string, manifest CloudManifest) ([]byte, error) {
+	if manifest.Scenario.ID == "" {
+		return nil, nil
+	}
+
+	// Read the scenario's service.json
+	path := filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No service.json, nothing to modify
+		}
+		return nil, err
+	}
+
+	// Parse the service.json
+	var doc map[string]interface{}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return nil, fmt.Errorf("parse scenario service.json: %w", err)
+	}
+
+	// Get the ports section
+	portsAny, hasPorts := doc["ports"]
+	if !hasPorts {
+		// No ports section, return as-is
+		return json.MarshalIndent(doc, "", "  ")
+	}
+
+	ports, ok := portsAny.(map[string]interface{})
+	if !ok {
+		return json.MarshalIndent(doc, "", "  ")
+	}
+
+	// For each port in manifest.Ports, replace the range with a fixed port
+	for portName, portValue := range manifest.Ports {
+		portConfig, exists := ports[portName]
+		if !exists {
+			// Port doesn't exist in service.json, add it
+			ports[portName] = map[string]interface{}{
+				"port":    portValue,
+				"env_var": strings.ToUpper(portName) + "_PORT",
+			}
+			continue
+		}
+
+		// Port exists, modify it
+		configMap, ok := portConfig.(map[string]interface{})
+		if !ok {
+			// Not a map, replace with fixed port
+			ports[portName] = map[string]interface{}{
+				"port":    portValue,
+				"env_var": strings.ToUpper(portName) + "_PORT",
+			}
+			continue
+		}
+
+		// Remove the range field and add fixed port
+		delete(configMap, "range")
+		configMap["port"] = portValue
+
+		// Ensure env_var is set
+		if _, hasEnvVar := configMap["env_var"]; !hasEnvVar {
+			configMap["env_var"] = strings.ToUpper(portName) + "_PORT"
+		}
+	}
+
+	doc["ports"] = ports
 	return json.MarshalIndent(doc, "", "  ")
 }
 
