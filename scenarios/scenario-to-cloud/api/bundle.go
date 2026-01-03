@@ -15,22 +15,17 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
-type BundleArtifact struct {
-	Path      string `json:"path"`
-	Sha256    string `json:"sha256"`
-	SizeBytes int64  `json:"size_bytes"`
-}
-
-type BundleInfo struct {
-	Path       string `json:"path"`
-	Filename   string `json:"filename"`
-	ScenarioID string `json:"scenario_id"`
-	Sha256     string `json:"sha256"`
-	SizeBytes  int64  `json:"size_bytes"`
-	CreatedAt  string `json:"created_at"`
-}
+// Type aliases for backward compatibility and shorter references within main package.
+type (
+	BundleArtifact = domain.BundleArtifact
+	BundleInfo     = domain.BundleInfo
+	ScenarioStats  = domain.ScenarioStats
+	BundleStats    = domain.BundleStats
+)
 
 func ListBundles(bundlesDir string) ([]BundleInfo, error) {
 	if !dirExists(bundlesDir) {
@@ -88,21 +83,6 @@ func parseBundleFilename(name string) (scenarioID, sha256Hash string) {
 	}
 
 	return name[:lastUnderscore], name[lastUnderscore+1:]
-}
-
-// ScenarioStats holds per-scenario bundle statistics.
-type ScenarioStats struct {
-	Count     int   `json:"count"`
-	SizeBytes int64 `json:"size_bytes"`
-}
-
-// BundleStats holds aggregate bundle storage statistics.
-type BundleStats struct {
-	TotalCount      int                      `json:"total_count"`
-	TotalSizeBytes  int64                    `json:"total_size_bytes"`
-	OldestCreatedAt string                   `json:"oldest_created_at,omitempty"`
-	NewestCreatedAt string                   `json:"newest_created_at,omitempty"`
-	ByScenario      map[string]ScenarioStats `json:"by_scenario"`
 }
 
 // GetBundleStats returns aggregate storage statistics for all bundles.

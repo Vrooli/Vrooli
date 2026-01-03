@@ -8,6 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+)
+
+// Type aliases for backward compatibility and shorter references within main package.
+type (
+	VPSPlanStep    = domain.VPSPlanStep
+	VPSSetupResult = domain.VPSSetupResult
 )
 
 // bootstrapCommand installs system prerequisites on a fresh VPS.
@@ -16,24 +24,10 @@ const bootstrapCommand = `export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE
 	`apt-get update -qq && ` +
 	`apt-get install -y -qq curl git unzip tar jq ca-certificates gnupg lsb-release`
 
+// VPSSetupRequest is the request body for VPS setup.
 type VPSSetupRequest struct {
 	Manifest   CloudManifest `json:"manifest"`
 	BundlePath string        `json:"bundle_path"`
-}
-
-type VPSPlanStep struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Command     string `json:"command,omitempty"`
-}
-
-type VPSSetupResult struct {
-	OK         bool          `json:"ok"`
-	Steps      []VPSPlanStep `json:"steps"`
-	Error      string        `json:"error,omitempty"`
-	FailedStep string        `json:"failed_step,omitempty"`
-	Timestamp  string        `json:"timestamp"`
 }
 
 func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep, error) {

@@ -6,31 +6,23 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
-type PreflightCheckStatus string
+// Type aliases for backward compatibility and shorter references within main package.
+type (
+	PreflightCheckStatus = domain.PreflightCheckStatus
+	PreflightCheck       = domain.PreflightCheck
+	PreflightResponse    = domain.PreflightResponse
+)
 
+// Re-export constants for backward compatibility.
 const (
-	PreflightPass PreflightCheckStatus = "pass"
-	PreflightWarn PreflightCheckStatus = "warn"
-	PreflightFail PreflightCheckStatus = "fail"
+	PreflightPass = domain.PreflightPass
+	PreflightWarn = domain.PreflightWarn
+	PreflightFail = domain.PreflightFail
 )
-
-type PreflightCheck struct {
-	ID      string               `json:"id"`
-	Title   string               `json:"title"`
-	Status  PreflightCheckStatus `json:"status"`
-	Details string               `json:"details,omitempty"`
-	Hint    string               `json:"hint,omitempty"`
-	Data    map[string]string    `json:"data,omitempty"`
-}
-
-type PreflightResponse struct {
-	OK        bool              `json:"ok"`
-	Checks    []PreflightCheck  `json:"checks"`
-	Issues    []ValidationIssue `json:"issues,omitempty"`
-	Timestamp string            `json:"timestamp"`
-}
 
 func RunVPSPreflight(
 	ctx context.Context,

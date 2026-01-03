@@ -11,6 +11,38 @@ import (
 	"time"
 )
 
+// handlePreflight runs VPS preflight checks to validate the target is ready for deployment.
+// POST /api/v1/preflight
+func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+
+	resp := RunVPSPreflight(ctx, normalized, NetResolver{}, ExecSSHRunner{})
+	resp.Issues = issues
+	writeJSON(w, http.StatusOK, resp)
+}
+
 // StopPortServicesRequest is the request body for stopping services on ports 80/443
 type StopPortServicesRequest struct {
 	Host    string `json:"host"`

@@ -8,39 +8,127 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
-// BundleCleanupRequest is the request body for bundle cleanup.
-type BundleCleanupRequest struct {
-	// Local cleanup options
-	ScenarioID string `json:"scenario_id,omitempty"` // If set, only clean this scenario's bundles
-	KeepLatest int    `json:"keep_latest"`           // Keep N most recent per scenario (default: 3)
+// Type aliases for backward compatibility and shorter references within main package.
+type (
+	BundleCleanupRequest    = domain.BundleCleanupRequest
+	BundleCleanupResponse   = domain.BundleCleanupResponse
+	BundleStatsResponse     = domain.BundleStatsResponse
+	BundleDeleteResponse    = domain.BundleDeleteResponse
+	VPSBundleListRequest    = domain.VPSBundleListRequest
+	VPSBundleInfo           = domain.VPSBundleInfo
+	VPSBundleListResponse   = domain.VPSBundleListResponse
+	VPSBundleDeleteRequest  = domain.VPSBundleDeleteRequest
+	VPSBundleDeleteResponse = domain.VPSBundleDeleteResponse
+)
 
-	// VPS cleanup options (optional)
-	CleanVPS bool   `json:"clean_vps,omitempty"`
-	Host     string `json:"host,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	User     string `json:"user,omitempty"`
-	KeyPath  string `json:"key_path,omitempty"`
-	Workdir  string `json:"workdir,omitempty"`
+// handleManifestValidate validates a CloudManifest and returns normalized output.
+// POST /api/v1/manifest/validate
+func (s *Server) handleManifestValidate(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	resp := ManifestValidateResponse{
+		Valid:      len(issues) == 0,
+		Issues:     issues,
+		Manifest:   normalized,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		SchemaHint: "This endpoint is the consumer-side contract. deployment-manager is responsible for exporting the manifest.",
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
-// BundleCleanupResponse is the response from bundle cleanup.
-type BundleCleanupResponse struct {
-	OK              bool         `json:"ok"`
-	LocalDeleted    []BundleInfo `json:"local_deleted,omitempty"`
-	LocalFreedBytes int64        `json:"local_freed_bytes"`
-	VPSDeleted      int          `json:"vps_deleted,omitempty"`
-	VPSFreedBytes   int64        `json:"vps_freed_bytes,omitempty"`
-	VPSError        string       `json:"vps_error,omitempty"`
-	Message         string       `json:"message"`
-	Timestamp       string       `json:"timestamp"`
+// handleBundleBuild builds a mini-Vrooli bundle from a manifest.
+// POST /api/v1/bundle/build
+func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "repo_root_not_found",
+			Message: "Unable to locate Vrooli repo root from server working directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, normalized)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "bundle_build_failed",
+			Message: "Failed to build mini-Vrooli bundle",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"artifact":  artifact,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
-// BundleStatsResponse is the response from bundle stats.
-type BundleStatsResponse struct {
-	Stats     BundleStats `json:"stats"`
-	Timestamp string      `json:"timestamp"`
+// handleListBundles lists all stored bundles.
+// GET /api/v1/bundles
+func (s *Server) handleListBundles(w http.ResponseWriter, r *http.Request) {
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "repo_root_not_found",
+			Message: "Unable to locate Vrooli repo root from server working directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	bundlesDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "list_bundles_failed",
+			Message: "Failed to list bundles",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"bundles":   bundles,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // handleBundleStats returns aggregate statistics about stored bundles.
@@ -243,41 +331,6 @@ func parseBytes(s string) int64 {
 	return n
 }
 
-// BundleDeleteResponse is the response from deleting a single bundle.
-type BundleDeleteResponse struct {
-	OK         bool   `json:"ok"`
-	FreedBytes int64  `json:"freed_bytes"`
-	Message    string `json:"message"`
-	Timestamp  string `json:"timestamp"`
-}
-
-// VPSBundleListRequest is the request body for listing VPS bundles.
-type VPSBundleListRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
-	Workdir string `json:"workdir"`
-}
-
-// VPSBundleInfo represents a bundle stored on the VPS.
-type VPSBundleInfo struct {
-	Filename   string `json:"filename"`
-	ScenarioID string `json:"scenario_id"`
-	Sha256     string `json:"sha256"`
-	SizeBytes  int64  `json:"size_bytes"`
-	ModTime    string `json:"mod_time"`
-}
-
-// VPSBundleListResponse is the response from listing VPS bundles.
-type VPSBundleListResponse struct {
-	OK             bool            `json:"ok"`
-	Bundles        []VPSBundleInfo `json:"bundles"`
-	TotalSizeBytes int64           `json:"total_size_bytes"`
-	Error          string          `json:"error,omitempty"`
-	Timestamp      string          `json:"timestamp"`
-}
-
 // handleListVPSBundles lists bundles stored on the VPS.
 func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 	var req VPSBundleListRequest
@@ -387,25 +440,6 @@ func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 		TotalSizeBytes: totalSize,
 		Timestamp:      time.Now().UTC().Format(time.RFC3339),
 	})
-}
-
-// VPSBundleDeleteRequest is the request body for deleting a VPS bundle.
-type VPSBundleDeleteRequest struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port,omitempty"`
-	User     string `json:"user,omitempty"`
-	KeyPath  string `json:"key_path"`
-	Workdir  string `json:"workdir"`
-	Filename string `json:"filename"`
-}
-
-// VPSBundleDeleteResponse is the response from deleting a VPS bundle.
-type VPSBundleDeleteResponse struct {
-	OK         bool   `json:"ok"`
-	FreedBytes int64  `json:"freed_bytes"`
-	Message    string `json:"message"`
-	Error      string `json:"error,omitempty"`
-	Timestamp  string `json:"timestamp"`
 }
 
 // handleDeleteVPSBundle deletes a single bundle from the VPS.

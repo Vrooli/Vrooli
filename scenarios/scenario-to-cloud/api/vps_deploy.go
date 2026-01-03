@@ -9,26 +9,19 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
+// Type aliases for backward compatibility and shorter references within main package.
+type (
+	VPSDeployResult   = domain.VPSDeployResult
+	MissingSecretInfo = domain.MissingSecretInfo
+)
+
+// VPSDeployRequest is the request body for VPS deployment (unused but kept for API docs).
 type VPSDeployRequest struct {
 	Manifest CloudManifest `json:"manifest"`
-}
-
-type VPSDeployResult struct {
-	OK         bool          `json:"ok"`
-	Steps      []VPSPlanStep `json:"steps"`
-	Error      string        `json:"error,omitempty"`
-	FailedStep string        `json:"failed_step,omitempty"`
-	Timestamp  string        `json:"timestamp"`
-}
-
-// MissingSecretInfo describes a missing user_prompt secret.
-type MissingSecretInfo struct {
-	ID          string `json:"id"`
-	Key         string `json:"key"`         // env var name
-	Label       string `json:"label"`       // human-readable label
-	Description string `json:"description"` // help text
 }
 
 // ValidateUserPromptSecrets checks that all required user_prompt secrets are provided.

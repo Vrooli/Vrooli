@@ -19,11 +19,22 @@ const (
 	DefaultDeploymentTier = "tier-4-saas"
 )
 
+// SecretsFetcher defines the interface for fetching deployment secrets.
+// This seam enables testing without requiring a live secrets-manager service.
+type SecretsFetcher interface {
+	FetchBundleSecrets(ctx context.Context, scenario, tier string, resources []string) (*SecretsManagerResponse, error)
+	HealthCheck(ctx context.Context) error
+}
+
 // SecretsClient interfaces with the secrets-manager service to fetch deployment secrets.
 // It uses dynamic service discovery to resolve the secrets-manager URL.
+// SecretsClient implements SecretsFetcher.
 type SecretsClient struct {
 	httpClient *http.Client
 }
+
+// Ensure SecretsClient implements SecretsFetcher at compile time.
+var _ SecretsFetcher = (*SecretsClient)(nil)
 
 // SecretsManagerSecret represents a secret as returned by secrets-manager API.
 type SecretsManagerSecret struct {
@@ -51,10 +62,10 @@ type SecretsManagerResponse struct {
 	Resources   []string               `json:"resources"`
 	Secrets     []SecretsManagerSecret `json:"secrets"` // Note: field is "secrets", not "bundle_secrets"
 	Summary     struct {
-		TotalSecrets      int            `json:"total_secrets"`
-		StrategizedSecrets int           `json:"strategized_secrets"`
-		RequiresAction    int            `json:"requires_action"`
-		StrategyBreakdown map[string]int `json:"strategy_breakdown"`
+		TotalSecrets       int            `json:"total_secrets"`
+		StrategizedSecrets int            `json:"strategized_secrets"`
+		RequiresAction     int            `json:"requires_action"`
+		StrategyBreakdown  map[string]int `json:"strategy_breakdown"`
 	} `json:"summary"`
 	// Transformed secrets - populated by TransformSecrets()
 	BundleSecrets []BundleSecretPlan `json:"-"`

@@ -15,8 +15,18 @@ type GeneratedSecret struct {
 	Value string `json:"value"` // generated value
 }
 
+// SecretsGeneratorFunc defines the interface for generating secrets.
+// This seam enables testing with deterministic values instead of crypto/rand.
+type SecretsGeneratorFunc interface {
+	GenerateSecrets(plans []BundleSecretPlan) ([]GeneratedSecret, error)
+}
+
 // SecretsGenerator generates secrets for per_install_generated class.
+// SecretsGenerator implements SecretsGeneratorFunc.
 type SecretsGenerator struct{}
+
+// Ensure SecretsGenerator implements SecretsGeneratorFunc at compile time.
+var _ SecretsGeneratorFunc = (*SecretsGenerator)(nil)
 
 // NewSecretsGenerator creates a new SecretsGenerator.
 func NewSecretsGenerator() *SecretsGenerator {

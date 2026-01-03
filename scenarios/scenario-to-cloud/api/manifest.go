@@ -4,26 +4,40 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"scenario-to-cloud/domain"
 )
 
-type ValidationIssueSeverity string
+// Type aliases for backward compatibility and shorter references within main package.
+// These allow existing code to continue working without fully-qualified domain.Type names.
+type (
+	CloudManifest            = domain.CloudManifest
+	ManifestTarget           = domain.ManifestTarget
+	ManifestVPS              = domain.ManifestVPS
+	ManifestScenario         = domain.ManifestScenario
+	ManifestDependencies     = domain.ManifestDependencies
+	ManifestBundle           = domain.ManifestBundle
+	ManifestPorts            = domain.ManifestPorts
+	ManifestEdge             = domain.ManifestEdge
+	ManifestCaddy            = domain.ManifestCaddy
+	ManifestSecrets          = domain.ManifestSecrets
+	BundleSecretPlan         = domain.BundleSecretPlan
+	BundleSecretTarget       = domain.BundleSecretTarget
+	SecretPromptMetadata     = domain.SecretPromptMetadata
+	SecretsSummary           = domain.SecretsSummary
+	ValidationIssueSeverity  = domain.ValidationIssueSeverity
+	ValidationIssue          = domain.ValidationIssue
+	ManifestValidateResponse = domain.ManifestValidateResponse
+)
 
+// Re-export constants for backward compatibility.
 const (
-	SeverityError ValidationIssueSeverity = "error"
-	SeverityWarn  ValidationIssueSeverity = "warn"
-
-	// DefaultVPSWorkdir is the default directory where Vrooli is installed on the VPS.
-	// This is the single source of truth for this value - do not hardcode "/root/Vrooli" elsewhere.
-	DefaultVPSWorkdir = "/root/Vrooli"
+	SeverityError     = domain.SeverityError
+	SeverityWarn      = domain.SeverityWarn
+	DefaultVPSWorkdir = domain.DefaultVPSWorkdir
 )
 
-type ValidationIssue struct {
-	Path     string                  `json:"path"`
-	Message  string                  `json:"message"`
-	Hint     string                  `json:"hint,omitempty"`
-	Severity ValidationIssueSeverity `json:"severity"`
-}
-
+// hasBlockingIssues returns true if any issue has error severity.
 func hasBlockingIssues(issues []ValidationIssue) bool {
 	for _, issue := range issues {
 		if issue.Severity == SeverityError {
@@ -33,116 +47,8 @@ func hasBlockingIssues(issues []ValidationIssue) bool {
 	return false
 }
 
-type CloudManifest struct {
-	Version      string               `json:"version"`
-	Environment  string               `json:"environment,omitempty"`
-	Target       ManifestTarget       `json:"target"`
-	Scenario     ManifestScenario     `json:"scenario"`
-	Dependencies ManifestDependencies `json:"dependencies"`
-	Bundle       ManifestBundle       `json:"bundle"`
-	Ports        ManifestPorts        `json:"ports"`
-	Edge         ManifestEdge         `json:"edge"`
-	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
-}
-
-type ManifestTarget struct {
-	Type string       `json:"type"`
-	VPS  *ManifestVPS `json:"vps,omitempty"`
-}
-
-type ManifestVPS struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path,omitempty"`
-	Workdir string `json:"workdir,omitempty"`
-}
-
-type ManifestScenario struct {
-	ID  string `json:"id"`
-	Ref string `json:"ref,omitempty"`
-}
-
-type ManifestDependencies struct {
-	Scenarios []string `json:"scenarios,omitempty"`
-	Resources []string `json:"resources,omitempty"`
-	Analyzer  struct {
-		Tool        string `json:"tool,omitempty"`
-		Fingerprint string `json:"fingerprint,omitempty"`
-		GeneratedAt string `json:"generated_at,omitempty"`
-	} `json:"analyzer,omitempty"`
-}
-
-type ManifestBundle struct {
-	IncludePackages bool     `json:"include_packages"`
-	IncludeAutoheal bool     `json:"include_autoheal"`
-	Scenarios       []string `json:"scenarios,omitempty"`
-	Resources       []string `json:"resources,omitempty"`
-}
-
-// ManifestPorts maps port names to port numbers.
-// Standard ports (ui, api, ws) are common, but scenarios can define additional ports
-// like playwright_driver, metrics, etc. in their service.json.
-type ManifestPorts map[string]int
-
-type ManifestEdge struct {
-	Domain string        `json:"domain"`
-	Caddy  ManifestCaddy `json:"caddy"`
-}
-
-type ManifestCaddy struct {
-	Enabled bool   `json:"enabled"`
-	Email   string `json:"email,omitempty"`
-}
-
-// BundleSecretPlan represents a secret from secrets-manager.
-// This is included in the manifest so the deploy target can generate/prompt for secrets.
-type BundleSecretPlan struct {
-	ID          string                 `json:"id"`
-	Class       string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
-	Required    bool                   `json:"required"`
-	Description string                 `json:"description,omitempty"`
-	Format      string                 `json:"format,omitempty"` // validation pattern
-	Target      BundleSecretTarget     `json:"target"`
-	Prompt      *SecretPromptMetadata  `json:"prompt,omitempty"`
-	Generator   map[string]interface{} `json:"generator,omitempty"`
-}
-
-// BundleSecretTarget specifies where to inject the secret value.
-type BundleSecretTarget struct {
-	Type string `json:"type"` // "env" or "file"
-	Name string `json:"name"` // env var name or file path
-}
-
-// SecretPromptMetadata contains UI hints for user_prompt secrets.
-type SecretPromptMetadata struct {
-	Label       string `json:"label,omitempty"`
-	Description string `json:"description,omitempty"`
-}
-
-// ManifestSecrets holds the secrets configuration for deployment.
-type ManifestSecrets struct {
-	BundleSecrets []BundleSecretPlan `json:"bundle_secrets,omitempty"`
-	Summary       SecretsSummary     `json:"summary"`
-}
-
-// SecretsSummary provides a quick overview of secret requirements.
-type SecretsSummary struct {
-	TotalSecrets        int `json:"total_secrets"`
-	PerInstallGenerated int `json:"per_install_generated"`
-	UserPrompt          int `json:"user_prompt"`
-	RemoteFetch         int `json:"remote_fetch"`
-	Infrastructure      int `json:"infrastructure"`
-}
-
-type ManifestValidateResponse struct {
-	Valid      bool              `json:"valid"`
-	Issues     []ValidationIssue `json:"issues,omitempty"`
-	Manifest   CloudManifest     `json:"manifest"`
-	Timestamp  string            `json:"timestamp"`
-	SchemaHint string            `json:"schema_hint,omitempty"`
-}
-
+// ValidateAndNormalizeManifest validates a CloudManifest and returns a normalized copy
+// along with any validation issues found.
 func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []ValidationIssue) {
 	out := in
 	var issues []ValidationIssue
@@ -296,7 +202,7 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 		issues = append(issues, ValidationIssue{
 			Path:     "edge.domain",
 			Message:  "edge.domain is required",
-			Hint:     "DNS must already point to the VPS for Let’s Encrypt HTTP-01.",
+			Hint:     "DNS must already point to the VPS for Let's Encrypt HTTP-01.",
 			Severity: SeverityError,
 		})
 	} else if !looksLikeDomain(out.Edge.Domain) {
@@ -312,7 +218,7 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 		issues = append(issues, ValidationIssue{
 			Path:     "edge.caddy.enabled",
 			Message:  "Caddy should be enabled for P0",
-			Hint:     "Set edge.caddy.enabled=true to provision TLS via Let’s Encrypt.",
+			Hint:     "Set edge.caddy.enabled=true to provision TLS via Let's Encrypt.",
 			Severity: SeverityWarn,
 		})
 	}
@@ -357,6 +263,8 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 	return out, stableIssues(issues)
 }
 
+// mergeRequiredResources adds any required resources from the scenario's service.json
+// that are missing from the manifest.
 func mergeRequiredResources(out CloudManifest, issues *[]ValidationIssue) CloudManifest {
 	if out.Scenario.ID == "" {
 		return out
@@ -397,18 +305,19 @@ func mergeRequiredResources(out CloudManifest, issues *[]ValidationIssue) CloudM
 	return out
 }
 
-func looksLikeDomain(domain string) bool {
-	domain = strings.TrimSpace(domain)
-	if domain == "" {
+// looksLikeDomain returns true if the string appears to be a valid domain name.
+func looksLikeDomain(d string) bool {
+	d = strings.TrimSpace(d)
+	if d == "" {
 		return false
 	}
-	if strings.Contains(domain, "://") || strings.Contains(domain, "/") {
+	if strings.Contains(d, "://") || strings.Contains(d, "/") {
 		return false
 	}
-	if strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+	if strings.HasPrefix(d, ".") || strings.HasSuffix(d, ".") {
 		return false
 	}
-	host := strings.TrimSuffix(domain, ".")
+	host := strings.TrimSuffix(d, ".")
 	if len(host) > 253 {
 		return false
 	}
@@ -427,6 +336,7 @@ func looksLikeDomain(domain string) bool {
 	return true
 }
 
+// findDuplicatePorts returns descriptions of any duplicate port assignments.
 func findDuplicatePorts(p ManifestPorts) []string {
 	seen := map[int]string{}
 	var duplicates []string
@@ -455,6 +365,7 @@ type invalidPort struct {
 	Value int
 }
 
+// findInvalidPorts returns ports outside the valid TCP port range.
 func findInvalidPorts(p ManifestPorts) []invalidPort {
 	var invalid []invalidPort
 	for name, value := range p {
@@ -466,6 +377,7 @@ func findInvalidPorts(p ManifestPorts) []invalidPort {
 	return invalid
 }
 
+// stableIssues sorts issues for deterministic output (errors before warnings, then by path).
 func stableIssues(in []ValidationIssue) []ValidationIssue {
 	out := append([]ValidationIssue(nil), in...)
 	sort.Slice(out, func(i, j int) bool {
@@ -477,6 +389,7 @@ func stableIssues(in []ValidationIssue) []ValidationIssue {
 	return out
 }
 
+// stableUniqueStrings returns a sorted, deduplicated copy of the input slice.
 func stableUniqueStrings(in []string) []string {
 	seen := map[string]struct{}{}
 	out := make([]string, 0, len(in))
@@ -495,6 +408,7 @@ func stableUniqueStrings(in []string) []string {
 	return out
 }
 
+// contains returns true if value is in the slice.
 func contains(in []string, value string) bool {
 	for _, v := range in {
 		if v == value {
