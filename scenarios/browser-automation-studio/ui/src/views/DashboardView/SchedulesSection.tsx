@@ -15,6 +15,7 @@ import {
   X,
   CalendarDays,
   Globe2,
+  List,
 } from 'lucide-react';
 import {
   useScheduleStore,
@@ -27,6 +28,9 @@ import {
 import { useWorkflowStore } from '@stores/workflowStore';
 import { TabEmptyState } from './previews/TabEmptyState';
 import { ScheduleModal } from '@/views/SettingsView/sections/schedules';
+import { CalendarView } from '@/views/SettingsView/sections/schedules/calendar/CalendarView';
+
+type ViewMode = 'list' | 'calendar';
 
 interface SchedulesTabProps {
   onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
@@ -216,9 +220,11 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
 
   const { workflows, loadWorkflows } = useWorkflowStore();
 
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkflowSchedule | null>(null);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [defaultDate, setDefaultDate] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -233,22 +239,37 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
     setIsRefreshing(false);
   }, [fetchSchedules]);
 
-  const handleCreateSchedule = () => {
+  const handleCreateSchedule = (date?: Date) => {
     setEditingSchedule(null);
     setSelectedWorkflowId(null);
+    setDefaultDate(date ?? null);
     setIsModalOpen(true);
   };
 
   const handleEditSchedule = (schedule: WorkflowSchedule) => {
     setEditingSchedule(schedule);
     setSelectedWorkflowId(schedule.workflow_id);
+    setDefaultDate(null);
     setIsModalOpen(true);
   };
+
+  // Calendar-specific handlers
+  const handleCalendarCreateSchedule = useCallback((date: Date) => {
+    handleCreateSchedule(date);
+  }, []);
+
+  const handleCalendarEditSchedule = useCallback((scheduleId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (schedule) {
+      handleEditSchedule(schedule);
+    }
+  }, [schedules]);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingSchedule(null);
     setSelectedWorkflowId(null);
+    setDefaultDate(null);
   }, []);
 
   const handleSaveSchedule = async (input: CreateScheduleInput | UpdateScheduleInput, workflowId: string) => {
@@ -309,6 +330,32 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-lg bg-gray-800 p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <List size={14} />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <CalendarDays size={14} />
+              Calendar
+            </button>
+          </div>
+
           <button
             onClick={handleRefresh}
             disabled={isRefreshing || isLoading}
@@ -318,7 +365,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
             Refresh
           </button>
           <button
-            onClick={handleCreateSchedule}
+            onClick={() => handleCreateSchedule()}
             className="hero-button-primary flex items-center gap-2"
           >
             <Plus size={16} />
@@ -343,8 +390,13 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
         </div>
       )}
 
-      {/* Loading state */}
-      {isLoading && schedules.length === 0 ? (
+      {/* Main content - Calendar or List view */}
+      {viewMode === 'calendar' ? (
+        <CalendarView
+          onCreateSchedule={handleCalendarCreateSchedule}
+          onEditSchedule={handleCalendarEditSchedule}
+        />
+      ) : isLoading && schedules.length === 0 ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 size={24} className="animate-spin text-gray-500" />
         </div>
@@ -358,7 +410,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
           variant="polished"
           primaryCta={{
             label: 'Create your first schedule',
-            onClick: handleCreateSchedule,
+            onClick: () => handleCreateSchedule(),
           }}
           secondaryCta={
             onNavigateToHome
@@ -446,6 +498,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
         onClose={handleCloseModal}
         onSave={handleSaveSchedule}
         schedule={editingSchedule}
+        defaultDate={defaultDate ?? undefined}
         workflowId={selectedWorkflowId ?? undefined}
         workflowName={selectedWorkflowId ? workflows.find(w => w.id === selectedWorkflowId)?.name : undefined}
         workflows={workflows.map(w => ({ id: w.id, name: w.name }))}

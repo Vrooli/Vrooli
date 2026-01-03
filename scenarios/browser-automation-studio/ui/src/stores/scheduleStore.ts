@@ -39,15 +39,40 @@ export interface UpdateScheduleInput {
   is_active?: boolean;
 }
 
+// Calendar view types
+export interface ScheduleOccurrence {
+  schedule_id: string;
+  schedule_name: string;
+  workflow_id: string;
+  workflow_name: string;
+  run_at: string;
+  is_active: boolean;
+  cron_expression: string;
+  timezone: string;
+}
+
+export interface ScheduleAggregate {
+  schedule_id: string;
+  schedule_name: string;
+  total_runs: number;
+  truncated: boolean;
+  cron_expression: string;
+}
+
 interface ScheduleState {
   schedules: WorkflowSchedule[];
   selectedScheduleId: string | null;
   isLoading: boolean;
   error: string | null;
+  // Calendar view state
+  occurrences: ScheduleOccurrence[];
+  aggregates: Record<string, ScheduleAggregate>;
+  isLoadingOccurrences: boolean;
 
   // Actions
   fetchSchedules: (workflowId?: string) => Promise<void>;
   fetchSchedulesByWorkflow: (workflowId: string) => Promise<void>;
+  fetchOccurrences: (start: Date, end: Date, workflowId?: string) => Promise<void>;
   createSchedule: (workflowId: string, input: CreateScheduleInput) => Promise<WorkflowSchedule | null>;
   updateSchedule: (scheduleId: string, input: UpdateScheduleInput) => Promise<WorkflowSchedule | null>;
   deleteSchedule: (scheduleId: string) => Promise<boolean>;
@@ -63,6 +88,10 @@ const initialState = {
   selectedScheduleId: null as string | null,
   isLoading: false,
   error: null as string | null,
+  // Calendar view state
+  occurrences: [] as ScheduleOccurrence[],
+  aggregates: {} as Record<string, ScheduleAggregate>,
+  isLoadingOccurrences: false,
 };
 
 export const useScheduleStore = create<ScheduleState>((set) => ({
@@ -115,6 +144,38 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       const message = error instanceof Error ? error.message : 'Unable to load workflow schedules';
       logger.error('Failed to load workflow schedules', { component: 'ScheduleStore', action: 'fetchSchedulesByWorkflow' }, error);
       set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchOccurrences: async (start: Date, end: Date, workflowId?: string) => {
+    set({ isLoadingOccurrences: true });
+
+    try {
+      const config = await getConfig();
+      const params = new URLSearchParams({
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      if (workflowId) {
+        params.set('workflow_id', workflowId);
+      }
+
+      const response = await fetch(`${config.API_URL}/schedules/occurrences?${params}`);
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to load schedule occurrences (${response.status})`);
+      }
+
+      const payload = await response.json();
+      const occurrences = Array.isArray(payload?.occurrences) ? payload.occurrences : [];
+      const aggregates = payload?.aggregates || {};
+
+      set({ occurrences, aggregates, isLoadingOccurrences: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load schedule occurrences';
+      logger.error('Failed to load schedule occurrences', { component: 'ScheduleStore', action: 'fetchOccurrences' }, error);
+      set({ occurrences: [], aggregates: {}, isLoadingOccurrences: false, error: message });
     }
   },
 

@@ -398,6 +398,7 @@ func main() {
 		r.Post("/workflows/{workflowID}/schedules", handler.CreateSchedule)
 		r.Get("/workflows/{workflowID}/schedules", handler.ListWorkflowSchedules)
 		r.Get("/schedules", handler.ListAllSchedules)
+		r.Get("/schedules/occurrences", handler.GetScheduleOccurrences)
 		r.Get("/schedules/{scheduleID}", handler.GetSchedule)
 		r.Patch("/schedules/{scheduleID}", handler.UpdateSchedule)
 		r.Delete("/schedules/{scheduleID}", handler.DeleteSchedule)

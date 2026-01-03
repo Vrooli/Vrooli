@@ -18,6 +18,8 @@ interface ScheduleModalProps {
   onClose: () => void;
   onSave: (input: CreateScheduleInput | UpdateScheduleInput, workflowId: string) => Promise<void>;
   schedule?: WorkflowSchedule | null;
+  /** Default date for new schedule (when created from calendar view) */
+  defaultDate?: Date;
   /** Pre-selected workflow ID (when opened from workflow details) */
   workflowId?: string;
   /** Display name of pre-selected workflow */
@@ -41,6 +43,7 @@ export function ScheduleModal({
   onClose,
   onSave,
   schedule,
+  defaultDate,
   workflowId: initialWorkflowId,
   workflowName,
   projectId: initialProjectId,
@@ -131,11 +134,30 @@ export function ScheduleModal({
             : workflows;
           setSelectedWorkflowId(projectWorkflows.length === 1 ? projectWorkflows[0].id : '');
         }
-        setCronExpression('0 9 * * *');
-        setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+
+        // Set timezone first
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        setTimezone(userTimezone);
+
+        // If defaultDate is provided (from calendar click), generate cron for that date/time
+        if (defaultDate) {
+          const minute = defaultDate.getMinutes();
+          const hour = defaultDate.getHours();
+          // Create daily recurring cron at the clicked time: minute hour * * *
+          const cronForDate = `${minute} ${hour} * * *`;
+          setCronExpression(cronForDate);
+          setUsePreset(false);
+          setSelectedPreset(null);
+          // Set a helpful default name based on the time
+          const timeStr = defaultDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setName(`Daily at ${timeStr}`);
+        } else {
+          setCronExpression('0 9 * * *');
+          setUsePreset(true);
+          setSelectedPreset('0 9 * * *');
+        }
+
         setIsActive(true);
-        setUsePreset(true);
-        setSelectedPreset('0 9 * * *');
         setStartUrl('');
       }
       setError(null);
@@ -143,7 +165,7 @@ export function ScheduleModal({
       // Reset the ref when modal closes so we reinitialize next time
       wasOpenRef.current = false;
     }
-  }, [isOpen, schedule, initialWorkflowId, initialProjectId, workflows, projects]);
+  }, [isOpen, schedule, defaultDate, initialWorkflowId, initialProjectId, workflows, projects]);
 
   const handlePresetChange = useCallback((presetValue: string) => {
     setSelectedPreset(presetValue);

@@ -1,0 +1,215 @@
+/* FullCalendar Dark Theme Overrides for Browser Automation Studio */
+
+.calendar-container {
+  --fc-border-color: rgb(var(--flow-border));
+  --fc-button-bg-color: rgb(var(--flow-bg-secondary));
+  --fc-button-border-color: rgb(var(--flow-border));
+  --fc-button-text-color: rgb(var(--flow-text));
+  --fc-button-hover-bg-color: rgb(var(--flow-surface-hover));
+  --fc-button-hover-border-color: rgb(var(--flow-border-light));
+  --fc-button-active-bg-color: rgb(var(--flow-accent));
+  --fc-button-active-border-color: rgb(var(--flow-accent));
+  --fc-today-bg-color: rgba(var(--flow-accent), 0.1);
+  --fc-event-bg-color: rgb(var(--flow-accent));
+  --fc-event-border-color: rgb(var(--flow-accent));
+  --fc-event-text-color: #ffffff;
+  --fc-page-bg-color: rgb(var(--flow-bg));
+  --fc-neutral-bg-color: rgb(var(--flow-bg-secondary));
+  --fc-list-event-hover-bg-color: rgb(var(--flow-surface-hover));
+  --fc-highlight-color: rgba(var(--flow-accent), 0.2);
+  --fc-non-business-color: rgba(var(--flow-bg-secondary), 0.5);
+}
+
+/* Calendar container styling */
+.calendar-container .fc {
+  font-family: inherit;
+  background-color: rgb(var(--flow-bg));
+  border-radius: 0.5rem;
+}
+
+/* Header toolbar */
+.calendar-container .fc .fc-toolbar {
+  padding: 1rem;
+  gap: 0.75rem;
+}
+
+.calendar-container .fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(var(--flow-text));
+}
+
+/* Buttons */
+.calendar-container .fc .fc-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.calendar-container .fc .fc-button:hover {
+  background-color: var(--fc-button-hover-bg-color);
+  border-color: var(--fc-button-hover-border-color);
+}
+
+.calendar-container .fc .fc-button:focus {
+  box-shadow: 0 0 0 2px rgba(var(--flow-accent), 0.5);
+  outline: none;
+}
+
+.calendar-container .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: rgb(var(--flow-accent));
+  border-color: rgb(var(--flow-accent));
+}
+
+.calendar-container .fc .fc-button-group {
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.calendar-container .fc .fc-button-group .fc-button {
+  border-radius: 0;
+}
+
+/* Day headers */
+.calendar-container .fc .fc-col-header-cell {
+  padding: 0.75rem 0.5rem;
+  background-color: rgb(var(--flow-bg-secondary));
+}
+
+.calendar-container .fc .fc-col-header-cell-cushion {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--flow-text-secondary));
+}
+
+/* Day cells */
+.calendar-container .fc .fc-daygrid-day {
+  transition: background-color 0.15s ease;
+}
+
+.calendar-container .fc .fc-daygrid-day:hover {
+  background-color: rgba(var(--flow-accent), 0.05);
+}
+
+.calendar-container .fc .fc-daygrid-day-number {
+  padding: 0.5rem;
+  font-weight: 500;
+  color: rgb(var(--flow-text));
+}
+
+.calendar-container .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+  color: rgb(var(--flow-text-muted));
+}
+
+.calendar-container .fc .fc-daygrid-day.fc-day-today {
+  background-color: var(--fc-today-bg-color);
+}
+
+.calendar-container .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  color: rgb(var(--flow-accent));
+  font-weight: 700;
+}
+
+/* Events */
+.calendar-container .fc .fc-event {
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.calendar-container .fc .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.calendar-container .fc .fc-daygrid-event {
+  margin: 1px 2px;
+  padding: 2px 4px;
+}
+
+.calendar-container .fc .fc-event-title {
+  font-weight: 500;
+}
+
+/* More events link */
+.calendar-container .fc .fc-daygrid-more-link {
+  color: rgb(var(--flow-accent));
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.25rem;
+}
+
+.calendar-container .fc .fc-daygrid-more-link:hover {
+  color: rgb(var(--flow-accent-hover));
+}
+
+/* Time grid (week/day views) */
+.calendar-container .fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.calendar-container .fc .fc-timegrid-slot-label {
+  font-size: 0.75rem;
+  color: rgb(var(--flow-text-muted));
+}
+
+.calendar-container .fc .fc-timegrid-now-indicator-line {
+  border-color: rgb(var(--flow-error));
+}
+
+.calendar-container .fc .fc-timegrid-now-indicator-arrow {
+  border-color: rgb(var(--flow-error));
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+}
+
+/* Popover */
+.calendar-container .fc .fc-popover {
+  background-color: rgb(var(--flow-surface));
+  border-color: rgb(var(--flow-border));
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.calendar-container .fc .fc-popover-header {
+  background-color: rgb(var(--flow-bg-secondary));
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--flow-text));
+}
+
+.calendar-container .fc .fc-popover-body {
+  padding: 0.5rem;
+}
+
+/* Scrollbar styling for time grid */
+.calendar-container .fc .fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.calendar-container .fc .fc-scroller::-webkit-scrollbar-track {
+  background: rgb(var(--flow-bg-secondary));
+}
+
+.calendar-container .fc .fc-scroller::-webkit-scrollbar-thumb {
+  background: rgb(var(--flow-border));
+  border-radius: 4px;
+}
+
+.calendar-container .fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--flow-border-light));
+}
+
+/* Light theme overrides */
+[data-theme="light"] .calendar-container {
+  --fc-today-bg-color: rgba(var(--flow-accent), 0.08);
+}
+
+[data-theme="light"] .calendar-container .fc .fc-event:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}

@@ -11,12 +11,17 @@ import {
   Plus,
   ChevronRight,
   AlertCircle,
+  List,
+  CalendarDays,
 } from 'lucide-react';
 import { useScheduleStore, formatNextRun, describeCron } from '@stores/scheduleStore';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useProjectStore } from '@/domains/projects';
 import { ScheduleModal } from './ScheduleModal';
+import { CalendarView } from './calendar/CalendarView';
+
+type ViewMode = 'list' | 'calendar';
 
 export function SchedulesTab() {
   const { workflows, loadWorkflows } = useWorkflowStore();
@@ -34,9 +39,11 @@ export function SchedulesTab() {
     clearError,
   } = useScheduleStore();
 
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkflowSchedule | null>(null);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [defaultDate, setDefaultDate] = useState<Date | null>(null);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -60,11 +67,24 @@ export function SchedulesTab() {
     });
   }, [schedules]);
 
-  const handleOpenCreate = useCallback((workflowId?: string) => {
+  const handleOpenCreate = useCallback((workflowId?: string, date?: Date) => {
     setEditingSchedule(null);
     setSelectedWorkflowId(workflowId ?? null);
+    setDefaultDate(date ?? null);
     setIsModalOpen(true);
   }, []);
+
+  // Calendar-specific handlers
+  const handleCalendarCreateSchedule = useCallback((date: Date) => {
+    handleOpenCreate(undefined, date);
+  }, [handleOpenCreate]);
+
+  const handleCalendarEditSchedule = useCallback((scheduleId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (schedule) {
+      handleOpenEdit(schedule);
+    }
+  }, [schedules]);
 
   const handleOpenEdit = useCallback((schedule: WorkflowSchedule) => {
     setEditingSchedule(schedule);
@@ -76,6 +96,7 @@ export function SchedulesTab() {
     setIsModalOpen(false);
     setEditingSchedule(null);
     setSelectedWorkflowId(null);
+    setDefaultDate(null);
   }, []);
 
   const handleSave = useCallback(async (input: CreateScheduleInput | UpdateScheduleInput, workflowId: string) => {
@@ -144,6 +165,32 @@ export function SchedulesTab() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              <List size={16} />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              <CalendarDays size={16} />
+              Calendar
+            </button>
+          </div>
+
           {workflows.length > 0 && (
             <button
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-60"
@@ -188,133 +235,141 @@ export function SchedulesTab() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-sm text-gray-700 dark:text-gray-200">
-            {isLoading
-              ? 'Loading schedules...'
-              : `${schedules.length} schedule${schedules.length === 1 ? '' : 's'}`}
-          </span>
-        </div>
-
-        {sortedSchedules.length === 0 && !isLoading ? (
-          <div className="px-4 py-8 text-center">
-            <Calendar size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-              No schedules yet
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Create a schedule to automate your workflow executions
-            </p>
+      {viewMode === 'calendar' ? (
+        <CalendarView
+          onCreateSchedule={handleCalendarCreateSchedule}
+          onEditSchedule={handleCalendarEditSchedule}
+        />
+      ) : (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+            <span className="text-sm text-gray-700 dark:text-gray-200">
+              {isLoading
+                ? 'Loading schedules...'
+                : `${schedules.length} schedule${schedules.length === 1 ? '' : 's'}`}
+            </span>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-800">
-            {sortedSchedules.map((schedule) => (
-              <li
-                key={schedule.id}
-                className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={`inline-flex items-center gap-1 text-sm font-semibold ${
-                          schedule.is_active
-                            ? 'text-gray-900 dark:text-gray-100'
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}
-                      >
-                        {schedule.name}
-                      </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          schedule.is_active
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200'
-                            : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                        }`}
-                      >
-                        {schedule.is_active ? 'Active' : 'Paused'}
-                      </span>
-                    </div>
 
-                    {schedule.workflow_name && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        <ChevronRight size={12} />
-                        <span>{schedule.workflow_name}</span>
+          {sortedSchedules.length === 0 && !isLoading ? (
+            <div className="px-4 py-8 text-center">
+              <Calendar size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                No schedules yet
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Create a schedule to automate your workflow executions
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200 dark:divide-gray-800">
+              {sortedSchedules.map((schedule) => (
+                <li
+                  key={schedule.id}
+                  className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`inline-flex items-center gap-1 text-sm font-semibold ${
+                            schedule.is_active
+                              ? 'text-gray-900 dark:text-gray-100'
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                        >
+                          {schedule.name}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full ${
+                            schedule.is_active
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200'
+                              : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                          }`}
+                        >
+                          {schedule.is_active ? 'Active' : 'Paused'}
+                        </span>
                       </div>
-                    )}
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center gap-1" title={`Cron: ${schedule.cron_expression}`}>
-                        <Clock size={12} />
-                        {describeCron(schedule.cron_expression)}
-                      </span>
-                      <span title="Next run">
-                        Next: {formatNextRun(schedule.next_run_at, schedule.next_run_human)}
-                      </span>
-                      <span title="Last run">
-                        Last: {formatLastRun(schedule.last_run_at, schedule.last_run_status)}
-                      </span>
+                      {schedule.workflow_name && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <ChevronRight size={12} />
+                          <span>{schedule.workflow_name}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center gap-1" title={`Cron: ${schedule.cron_expression}`}>
+                          <Clock size={12} />
+                          {describeCron(schedule.cron_expression)}
+                        </span>
+                        <span title="Next run">
+                          Next: {formatNextRun(schedule.next_run_at, schedule.next_run_human)}
+                        </span>
+                        <span title="Last run">
+                          Last: {formatLastRun(schedule.last_run_at, schedule.last_run_status)}
+                        </span>
+                      </div>
+
+                      {schedule.description && (
+                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 truncate">
+                          {schedule.description}
+                        </p>
+                      )}
                     </div>
 
-                    {schedule.description && (
-                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-500 truncate">
-                        {schedule.description}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => void handleTrigger(schedule)}
+                        disabled={triggeringId === schedule.id || !schedule.is_active}
+                        className="p-1.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Run now"
+                      >
+                        <PlayCircle size={18} className={triggeringId === schedule.id ? 'animate-pulse' : ''} />
+                      </button>
+
+                      <button
+                        onClick={() => void handleToggle(schedule)}
+                        className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                          schedule.is_active
+                            ? 'text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200'
+                            : 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200'
+                        }`}
+                        title={schedule.is_active ? 'Pause' : 'Resume'}
+                      >
+                        {schedule.is_active ? <Pause size={18} /> : <Play size={18} />}
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenEdit(schedule)}
+                        className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+
+                      <button
+                        onClick={() => void handleDelete(schedule)}
+                        disabled={deletingId === schedule.id}
+                        className="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/30 rounded disabled:opacity-40"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => void handleTrigger(schedule)}
-                      disabled={triggeringId === schedule.id || !schedule.is_active}
-                      className="p-1.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded disabled:opacity-40 disabled:cursor-not-allowed"
-                      title="Run now"
-                    >
-                      <PlayCircle size={18} className={triggeringId === schedule.id ? 'animate-pulse' : ''} />
-                    </button>
-
-                    <button
-                      onClick={() => void handleToggle(schedule)}
-                      className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                        schedule.is_active
-                          ? 'text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200'
-                          : 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200'
-                      }`}
-                      title={schedule.is_active ? 'Pause' : 'Resume'}
-                    >
-                      {schedule.is_active ? <Pause size={18} /> : <Play size={18} />}
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenEdit(schedule)}
-                      className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-                      title="Edit"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-
-                    <button
-                      onClick={() => void handleDelete(schedule)}
-                      disabled={deletingId === schedule.id}
-                      className="p-1.5 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/30 rounded disabled:opacity-40"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <ScheduleModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSave}
         schedule={editingSchedule}
+        defaultDate={defaultDate ?? undefined}
         workflowId={selectedWorkflowId ?? undefined}
         workflowName={selectedWorkflowId ? getWorkflowName(selectedWorkflowId) : undefined}
         projectId={selectedWorkflowId ? getProjectForWorkflow(selectedWorkflowId)?.id : undefined}

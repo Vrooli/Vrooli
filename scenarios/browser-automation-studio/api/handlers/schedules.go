@@ -660,3 +660,237 @@ func getLastRunStatus(lastRun *time.Time) string {
 	// For now just return "success" - actual status tracking will come with scheduler service
 	return "success"
 }
+
+// ScheduleOccurrence represents a single projected run of a schedule
+type ScheduleOccurrence struct {
+	ScheduleID     uuid.UUID `json:"schedule_id"`
+	ScheduleName   string    `json:"schedule_name"`
+	WorkflowID     uuid.UUID `json:"workflow_id"`
+	WorkflowName   string    `json:"workflow_name"`
+	RunAt          time.Time `json:"run_at"`
+	IsActive       bool      `json:"is_active"`
+	CronExpression string    `json:"cron_expression"`
+	Timezone       string    `json:"timezone"`
+}
+
+// ScheduleAggregate represents aggregated info for high-frequency schedules
+type ScheduleAggregate struct {
+	ScheduleID     uuid.UUID `json:"schedule_id"`
+	ScheduleName   string    `json:"schedule_name"`
+	TotalRuns      int       `json:"total_runs"`
+	Truncated      bool      `json:"truncated"`
+	CronExpression string    `json:"cron_expression"`
+}
+
+// GetScheduleOccurrences handles GET /api/v1/schedules/occurrences
+// Returns projected schedule runs for a date range, with aggregation for high-frequency schedules
+func (h *Handler) GetScheduleOccurrences(w http.ResponseWriter, r *http.Request) {
+	// Parse required query params
+	startStr := r.URL.Query().Get("start")
+	endStr := r.URL.Query().Get("end")
+
+	if startStr == "" || endStr == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "start and end query parameters are required",
+		}))
+		return
+	}
+
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"field": "start",
+			"error": "must be valid RFC3339 timestamp",
+		}))
+		return
+	}
+
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"field": "end",
+			"error": "must be valid RFC3339 timestamp",
+		}))
+		return
+	}
+
+	if end.Before(start) {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "end must be after start",
+		}))
+		return
+	}
+
+	// Cap the range to prevent excessive computation (max 1 year)
+	maxRange := 365 * 24 * time.Hour
+	if end.Sub(start) > maxRange {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "date range cannot exceed 1 year",
+		}))
+		return
+	}
+
+	// Parse optional params
+	maxPerSchedule := 100
+	if maxStr := r.URL.Query().Get("max_per_schedule"); maxStr != "" {
+		if parsed, err := strconv.Atoi(maxStr); err == nil && parsed > 0 && parsed <= 1000 {
+			maxPerSchedule = parsed
+		}
+	}
+
+	// Optional workflow filter
+	var workflowIDFilter *uuid.UUID
+	if wfIDStr := strings.TrimSpace(r.URL.Query().Get("workflow_id")); wfIDStr != "" {
+		id, err := uuid.Parse(wfIDStr)
+		if err != nil {
+			h.respondError(w, ErrInvalidWorkflowID)
+			return
+		}
+		workflowIDFilter = &id
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	// Get all active schedules
+	schedules, err := h.repo.ListSchedules(ctx, workflowIDFilter, true, 0, 0)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to list schedules for occurrences")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_schedules"}))
+		return
+	}
+
+	// Cache workflow names
+	workflowNames := make(map[uuid.UUID]string)
+	for _, s := range schedules {
+		if _, ok := workflowNames[s.WorkflowID]; !ok {
+			if wf, wfErr := h.catalogService.GetWorkflow(ctx, s.WorkflowID); wfErr == nil && wf != nil {
+				workflowNames[s.WorkflowID] = wf.GetName()
+			}
+		}
+	}
+
+	// Calculate occurrences for each schedule
+	var occurrences []ScheduleOccurrence
+	aggregates := make(map[string]ScheduleAggregate)
+
+	for _, s := range schedules {
+		// Calculate runs within the date range
+		runs, err := calculateOccurrencesInRange(s.CronExpression, s.Timezone, start, end, maxPerSchedule+1)
+		if err != nil {
+			h.log.WithError(err).WithField("schedule_id", s.ID).Warn("Failed to calculate occurrences for schedule")
+			continue
+		}
+
+		workflowName := workflowNames[s.WorkflowID]
+
+		// Check if this is a high-frequency schedule (more than max per schedule)
+		if len(runs) > maxPerSchedule {
+			// Count total runs more accurately for the aggregate
+			totalRuns := len(runs)
+			// For very high frequency schedules, estimate the total
+			if totalRuns > maxPerSchedule {
+				// Use remaining runs to estimate
+				totalRuns = estimateTotalRuns(s.CronExpression, start, end)
+			}
+
+			aggregates[s.ID.String()] = ScheduleAggregate{
+				ScheduleID:     s.ID,
+				ScheduleName:   s.Name,
+				TotalRuns:      totalRuns,
+				Truncated:      true,
+				CronExpression: s.CronExpression,
+			}
+			// Still include first few occurrences for week/day view
+			runs = runs[:min(maxPerSchedule, len(runs))]
+		}
+
+		for _, runAt := range runs {
+			occurrences = append(occurrences, ScheduleOccurrence{
+				ScheduleID:     s.ID,
+				ScheduleName:   s.Name,
+				WorkflowID:     s.WorkflowID,
+				WorkflowName:   workflowName,
+				RunAt:          runAt,
+				IsActive:       s.IsActive,
+				CronExpression: s.CronExpression,
+				Timezone:       s.Timezone,
+			})
+		}
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"occurrences": occurrences,
+		"aggregates":  aggregates,
+		"total":       len(occurrences),
+		"range": map[string]string{
+			"start": start.Format(time.RFC3339),
+			"end":   end.Format(time.RFC3339),
+		},
+	})
+}
+
+// calculateOccurrencesInRange calculates schedule occurrences within a date range
+func calculateOccurrencesInRange(cronExpr, timezone string, start, end time.Time, maxRuns int) ([]time.Time, error) {
+	schedule, err := scheduler.ParseCronExpression(cronExpr)
+	if err != nil {
+		return nil, err
+	}
+
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+
+	var runs []time.Time
+	current := start.In(loc)
+
+	for len(runs) < maxRuns {
+		next := schedule.Next(current)
+		if next.After(end) {
+			break
+		}
+		runs = append(runs, next.UTC())
+		current = next
+	}
+
+	return runs, nil
+}
+
+// estimateTotalRuns estimates the total number of runs in a date range
+// for high-frequency schedules where calculating each one is too expensive
+func estimateTotalRuns(cronExpr string, start, end time.Time) int {
+	// Estimate based on common cron patterns
+	duration := end.Sub(start)
+
+	// Check for common patterns
+	fields := strings.Fields(strings.TrimSpace(cronExpr))
+	if len(fields) >= 5 {
+		minute := fields[0]
+		hour := fields[1]
+
+		// Every minute
+		if minute == "*" && hour == "*" {
+			return int(duration.Minutes())
+		}
+		// Every N minutes
+		if strings.HasPrefix(minute, "*/") && hour == "*" {
+			if n, err := strconv.Atoi(strings.TrimPrefix(minute, "*/")); err == nil && n > 0 {
+				return int(duration.Minutes()) / n
+			}
+		}
+		// Every hour
+		if minute == "0" && hour == "*" {
+			return int(duration.Hours())
+		}
+		// Every N hours
+		if minute == "0" && strings.HasPrefix(hour, "*/") {
+			if n, err := strconv.Atoi(strings.TrimPrefix(hour, "*/")); err == nil && n > 0 {
+				return int(duration.Hours()) / n
+			}
+		}
+	}
+
+	// Default: assume daily
+	return int(duration.Hours() / 24)
+}
