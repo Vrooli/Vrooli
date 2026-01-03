@@ -177,6 +177,12 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 
 	steps := []VPSPlanStep{
 		{
+			ID:          "scenario_stop",
+			Title:       "Stop existing scenario",
+			Description: "Gracefully stop any running instance of the scenario to free ports.",
+			Command:     "(vrooli scenario stop + pkill fallback + port cleanup)",
+		},
+		{
 			ID:          "caddy_install",
 			Title:       "Install Caddy",
 			Description: "Ensure Caddy is installed (apt) and enabled (systemd).",
@@ -289,6 +295,16 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 			return err
 		}
 		return nil
+	}
+
+	// Step: scenario_stop - Stop existing scenario before deployment
+	var targetPorts []int
+	for _, port := range manifest.Ports {
+		targetPorts = append(targetPorts, port)
+	}
+	stopResult := StopExistingScenario(ctx, sshRunner, cfg, workdir, manifest.Scenario.ID, targetPorts)
+	if !stopResult.OK {
+		return VPSDeployResult{OK: false, Steps: steps, Error: stopResult.Error, FailedStep: "scenario_stop", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
 	if err := run("command -v caddy >/dev/null || (apt-get update -y && apt-get install -y caddy)"); err != nil {
@@ -432,6 +448,19 @@ func RunVPSDeployWithProgress(
 		}
 		return nil
 	}
+
+	// Step: scenario_stop - Stop existing scenario before deployment
+	emit("step_started", "scenario_stop", "Stopping existing scenario")
+	var targetPorts []int
+	for _, port := range manifest.Ports {
+		targetPorts = append(targetPorts, port)
+	}
+	stopResult := StopExistingScenario(ctx, sshRunner, cfg, workdir, manifest.Scenario.ID, targetPorts)
+	if !stopResult.OK {
+		return failStep("scenario_stop", "Stopping existing scenario", stopResult.Error)
+	}
+	*progress += StepWeights["scenario_stop"]
+	emit("step_completed", "scenario_stop", "Stopping existing scenario")
 
 	// Step: caddy_install
 	emit("step_started", "caddy_install", "Installing Caddy")

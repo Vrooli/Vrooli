@@ -403,7 +403,7 @@ func (s *Server) handleStopScenarioProcesses(w http.ResponseWriter, r *http.Requ
 
 	var action string
 	if req.ScenarioID != "" {
-		// Stop specific scenario
+		// Stop specific scenario - use shared StopExistingScenario function
 		action = "stop_scenario"
 
 		// First check if workdir exists
@@ -418,27 +418,14 @@ func (s *Server) handleStopScenarioProcesses(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		var outputs []string
-
-		// Step 1: Try vrooli scenario stop first (if vrooli is available)
-		checkCliResult, _ := sshRunner.Run(ctx, cfg, vrooliCommand(req.Workdir, "which vrooli || echo notfound"))
-		if !strings.Contains(checkCliResult.Stdout, "notfound") {
-			vrooliResult, _ := sshRunner.Run(ctx, cfg, vrooliCommand(req.Workdir, "vrooli scenario stop "+shellQuoteSingle(req.ScenarioID)))
-			if vrooliResult.Stdout != "" {
-				outputs = append(outputs, vrooliResult.Stdout)
-			}
-		}
-
-		// Step 2: Kill any orphaned processes matching this specific scenario
-		killOrphansCmd := fmt.Sprintf("pkill -f %s 2>/dev/null; true", shellQuoteSingle(req.ScenarioID))
-		sshRunner.Run(ctx, cfg, killOrphansCmd)
-		outputs = append(outputs, fmt.Sprintf("Killed orphaned processes for %s", req.ScenarioID))
+		// Use the shared StopExistingScenario function (no port cleanup needed for this endpoint)
+		result := StopExistingScenario(ctx, sshRunner, cfg, req.Workdir, req.ScenarioID, nil)
 
 		writeJSON(w, http.StatusOK, StopScenarioProcessesResponse{
-			OK:        true,
+			OK:        result.OK,
 			Action:    action,
-			Message:   fmt.Sprintf("Stopped scenario %s and killed orphans", req.ScenarioID),
-			Output:    strings.Join(outputs, "\n"),
+			Message:   result.Message,
+			Output:    fmt.Sprintf("Stopped scenario %s: %s", req.ScenarioID, result.Message),
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 		return

@@ -48,6 +48,7 @@ export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "setup", title: "Running setup" },
   { id: "autoheal", title: "Configuring autoheal" },
   { id: "verify_setup", title: "Verifying installation" },
+  { id: "scenario_stop", title: "Stopping existing scenario" },
   { id: "caddy_install", title: "Installing Caddy" },
   { id: "caddy_config", title: "Configuring Caddy" },
   { id: "secrets_provision", title: "Provisioning secrets" },

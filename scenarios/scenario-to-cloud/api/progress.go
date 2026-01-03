@@ -33,6 +33,7 @@ var StepWeights = map[string]float64{
 	"setup":             12, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,
 	"verify_setup":      1, // Reduced from 3
+	"scenario_stop":     3, // Stop existing scenario before deployment
 	"caddy_install":     5,
 	"caddy_config":      5,
 	"secrets_provision": 5, // Generate and write secrets before resource start
@@ -63,6 +64,7 @@ var SetupSteps = []StepInfo{
 
 // DeploySteps defines the steps in the VPS deploy phase.
 var DeploySteps = []StepInfo{
+	{ID: "scenario_stop", Title: "Stopping existing scenario", Weight: StepWeights["scenario_stop"]},
 	{ID: "caddy_install", Title: "Installing Caddy", Weight: StepWeights["caddy_install"]},
 	{ID: "caddy_config", Title: "Configuring Caddy", Weight: StepWeights["caddy_config"]},
 	{ID: "secrets_provision", Title: "Provisioning secrets", Weight: StepWeights["secrets_provision"]},
