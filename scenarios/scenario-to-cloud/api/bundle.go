@@ -409,6 +409,8 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 		"**/.next/**",
 		// NEVER bundle mothership secrets - these are generated on the target VPS
 		".vrooli/secrets.json",
+		// Exclude scenario templates - they have placeholder go.mod files that break go.work
+		"scripts/scenarios/templates/**",
 	}
 
 	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")

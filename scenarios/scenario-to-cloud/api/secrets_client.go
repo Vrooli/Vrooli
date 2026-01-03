@@ -27,19 +27,20 @@ type SecretsClient struct {
 
 // SecretsManagerSecret represents a secret as returned by secrets-manager API.
 type SecretsManagerSecret struct {
-	ID               string            `json:"id"`
-	ResourceName     string            `json:"resource_name"`
-	SecretKey        string            `json:"secret_key"`
-	SecretType       string            `json:"secret_type"` // env_var, file, password, api_key
-	Required         bool              `json:"required"`
-	Classification   string            `json:"classification"` // infrastructure, integration, user_defined
-	Description      string            `json:"description"`
-	ValidationPattern string           `json:"validation_pattern"`
-	OwnerTeam        string            `json:"owner_team"`
-	OwnerContact     string            `json:"owner_contact"`
-	HandlingStrategy string            `json:"handling_strategy"` // unspecified, generate, prompt, fetch, strip
-	RequiresUserInput bool             `json:"requires_user_input"`
-	TierStrategies   map[string]string `json:"tier_strategies"`
+	ID                string                 `json:"id"`
+	ResourceName      string                 `json:"resource_name"`
+	SecretKey         string                 `json:"secret_key"`
+	SecretType        string                 `json:"secret_type"` // env_var, file, password, api_key
+	Required          bool                   `json:"required"`
+	Classification    string                 `json:"classification"` // infrastructure, integration, user_defined
+	Description       string                 `json:"description"`
+	ValidationPattern string                 `json:"validation_pattern"`
+	OwnerTeam         string                 `json:"owner_team"`
+	OwnerContact      string                 `json:"owner_contact"`
+	HandlingStrategy  string                 `json:"handling_strategy"` // unspecified, generate, prompt, fetch, strip
+	RequiresUserInput bool                   `json:"requires_user_input"`
+	TierStrategies    map[string]string      `json:"tier_strategies"`
+	GeneratorTemplate map[string]interface{} `json:"generator_template,omitempty"` // Generator config from secrets-manager
 }
 
 // SecretsManagerResponse matches the actual response from secrets-manager deployment API.
@@ -220,9 +221,15 @@ func transformSecrets(secrets []SecretsManagerSecret, tier string) []BundleSecre
 
 		// Add generator config for per_install_generated secrets
 		if class == "per_install_generated" {
-			plan.Generator = map[string]interface{}{
-				"type":   inferGeneratorType(s.SecretType, s.SecretKey),
-				"length": 32,
+			// Use generator_template from secrets-manager if available
+			if s.GeneratorTemplate != nil && len(s.GeneratorTemplate) > 0 {
+				plan.Generator = s.GeneratorTemplate
+			} else {
+				// Fallback to inferred generator config
+				plan.Generator = map[string]interface{}{
+					"type":   inferGeneratorType(s.SecretType, s.SecretKey),
+					"length": 32,
+				}
 			}
 		}
 

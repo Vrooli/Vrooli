@@ -2,15 +2,11 @@
 package health
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/vrooli/api-core/health"
 )
-
-// DBPinger defines the interface for checking database connectivity.
-type DBPinger interface {
-	Ping() error
-}
 
 // Handler handles health check requests.
 type Handler struct {
@@ -18,7 +14,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new health handler using the standardized api-core/health package.
-func NewHandler(db DBPinger) *Handler {
+func NewHandler(db *sql.DB) *Handler {
 	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	return &Handler{healthFunc: healthHandler}
 }

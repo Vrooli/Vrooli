@@ -56,6 +56,25 @@ FROM resource_secrets rs
 WHERE rs.resource_name = 'vault' AND rs.secret_key = 'VAULT_TOKEN'
 ON CONFLICT DO NOTHING;
 
+-- tier-4-saas (VPS/Cloud) strategies for postgres
+-- POSTGRES_PASSWORD: Generate a secure 25-character alphanumeric password
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, generator_template, bundle_hints)
+SELECT rs.id, 'tier-4-saas', 'generate', false, NULL, 'Generate secure database password during VPS deployment',
+       '{"type":"random","length":25,"charset":"alnum"}'::jsonb,
+       '{"class":"per_install_generated","target_type":"env"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key = 'POSTGRES_PASSWORD'
+ON CONFLICT DO NOTHING;
+
+-- POSTGRES_USER, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT: Strip (managed by runtime on VPS)
+-- Runtime uses default values: POSTGRES_USER=vrooli, POSTGRES_DB=vrooli, POSTGRES_HOST=localhost, POSTGRES_PORT=5433
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, bundle_hints)
+SELECT rs.id, 'tier-4-saas', 'strip', false, NULL, 'Managed by VPS runtime - uses defaults',
+       '{"reason":"Managed by Tier 4 VPS runtime with sensible defaults"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key IN ('POSTGRES_USER', 'POSTGRES_DB', 'POSTGRES_HOST', 'POSTGRES_PORT')
+ON CONFLICT DO NOTHING;
+
 -- Vault resource secrets  
 INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
 ('vault', 'VAULT_ADDR', 'env_var', true, 'Vault server address', '^https?://[a-zA-Z0-9.-]+(:[0-9]+)?$', 'https://www.vaultproject.io/docs/commands#vault_addr'),

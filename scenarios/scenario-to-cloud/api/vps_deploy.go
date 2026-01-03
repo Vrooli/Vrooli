@@ -96,8 +96,13 @@ func ValidateUserPromptSecrets(manifest CloudManifest, providedSecrets map[strin
 	return missing, fmt.Errorf("%s", sb.String())
 }
 
-// buildPortEnvVars builds environment variable assignments for all ports in the manifest
+// buildPortEnvVars builds exported environment variable assignments for all ports in the manifest.
+// Uses "export VAR=value &&" format to ensure environment variables are inherited by all
+// child processes (API, UI servers, etc.) spawned by vrooli scenario start.
 func buildPortEnvVars(ports ManifestPorts) string {
+	if len(ports) == 0 {
+		return ""
+	}
 	var parts []string
 	// Sort keys for deterministic output
 	keys := make([]string, 0, len(ports))
@@ -110,7 +115,9 @@ func buildPortEnvVars(ports ManifestPorts) string {
 		envVar := strings.ToUpper(key) + "_PORT"
 		parts = append(parts, fmt.Sprintf("%s=%d", envVar, ports[key]))
 	}
-	return strings.Join(parts, " ")
+	// Use "export VAR1=val1 VAR2=val2 &&" format so variables are exported and available
+	// to all child processes started by the subsequent command
+	return fmt.Sprintf("export %s &&", strings.Join(parts, " "))
 }
 
 func requiredResourcesForScenario(scenarioID string) ([]string, error) {
@@ -233,14 +240,14 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 		VPSPlanStep{
 			ID:          "verify_local",
 			Title:       "Verify local health",
-			Description: "Checks the UI health endpoint locally on the VPS.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", uiPort)),
+			Description: "Checks the UI health endpoint locally on the VPS. On failure, provides detailed diagnostics including API connectivity status and investigation commands.",
+			Command:     localSSHCommand(cfg, fmt.Sprintf("curl http://127.0.0.1:%d/health (with detailed error reporting)", uiPort)),
 		},
 		VPSPlanStep{
 			ID:          "verify_https",
 			Title:       "Verify HTTPS health",
-			Description: "Checks https://<domain>/health via Caddy + Let's Encrypt.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)),
+			Description: "Checks https://<domain>/health via Caddy + Let's Encrypt. On failure, provides detailed diagnostics.",
+			Command:     localSSHCommand(cfg, fmt.Sprintf("curl https://%s/health (with detailed error reporting)", manifest.Edge.Domain)),
 		},
 	)
 
@@ -335,11 +342,17 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
-	if err := run(fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", uiPort)); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	// Use detailed health check scripts for actionable error messages
+	localHealthURL := fmt.Sprintf("http://127.0.0.1:%d/health", uiPort)
+	localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
+	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(localHealthScript))); err != nil {
+		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify_local", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	if err := run(fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+
+	httpsHealthURL := fmt.Sprintf("https://%s/health", manifest.Edge.Domain)
+	httpsHealthScript := buildHealthCheckScript(httpsHealthURL, 10, "https")
+	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(httpsHealthScript))); err != nil {
+		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify_https", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
 	return VPSDeployResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
@@ -510,17 +523,21 @@ func RunVPSDeployWithProgress(
 	*progress += StepWeights["scenario_target"]
 	emit("step_completed", "scenario_target", "Starting scenario")
 
-	// Step: verify_local
+	// Step: verify_local - Use detailed health check script for actionable error messages
 	emit("step_started", "verify_local", "Verifying local health")
-	if err := run(fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", uiPort)); err != nil {
+	localHealthURL := fmt.Sprintf("http://127.0.0.1:%d/health", uiPort)
+	localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
+	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(localHealthScript))); err != nil {
 		return failStep("verify_local", "Verifying local health", err.Error())
 	}
 	*progress += StepWeights["verify_local"]
 	emit("step_completed", "verify_local", "Verifying local health")
 
-	// Step: verify_https
+	// Step: verify_https - Use detailed health check script for actionable error messages
 	emit("step_started", "verify_https", "Verifying HTTPS")
-	if err := run(fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)); err != nil {
+	httpsHealthURL := fmt.Sprintf("https://%s/health", manifest.Edge.Domain)
+	httpsHealthScript := buildHealthCheckScript(httpsHealthURL, 10, "https")
+	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(httpsHealthScript))); err != nil {
 		return failStep("verify_https", "Verifying HTTPS", err.Error())
 	}
 	*progress += StepWeights["verify_https"]
@@ -537,4 +554,117 @@ func buildCaddyfile(domain string, uiPort int) string {
 	return fmt.Sprintf(`%s {
   reverse_proxy 127.0.0.1:%d
 }`, domain, uiPort)
+}
+
+// buildHealthCheckScript returns a shell script that performs a health check with detailed error reporting.
+// It captures the HTTP status code, response body, and provides actionable diagnostics.
+func buildHealthCheckScript(url string, timeoutSecs int, checkType string) string {
+	// This script:
+	// 1. Captures HTTP status and response body separately
+	// 2. Parses JSON response for error details
+	// 3. Provides contextual error messages based on status codes
+	// 4. Includes investigation commands for common failures
+	return fmt.Sprintf(`
+set -e
+URL="%s"
+TIMEOUT=%d
+CHECK_TYPE="%s"
+
+# Perform the request, capturing status code and body
+RESPONSE=$(curl -sS --max-time "$TIMEOUT" -w '\n%%{http_code}' "$URL" 2>&1) || {
+    EXIT_CODE=$?
+    case $EXIT_CODE in
+        7)  echo "❌ Connection refused: No service listening on $URL"
+            echo ""
+            echo "Investigation:"
+            if [[ "$CHECK_TYPE" == "local" ]]; then
+                echo "  • Check if UI server is running: ps aux | grep -E 'node|server'"
+                echo "  • Check port binding: ss -tlnp | grep -E '35000|15000'"
+                echo "  • Check UI logs: tail -50 scenarios/*/logs/ui.log"
+            fi
+            ;;
+        28) echo "❌ Timeout: $URL did not respond within ${TIMEOUT}s"
+            echo ""
+            echo "Investigation:"
+            echo "  • Service may be starting up - wait and retry"
+            echo "  • Check system resources: top -bn1 | head -20"
+            ;;
+        *)  echo "❌ curl failed with exit code $EXIT_CODE"
+            echo "Response: $RESPONSE"
+            ;;
+    esac
+    exit 1
+}
+
+# Split response body and status code
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+
+if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+    echo "✓ Health check passed ($HTTP_CODE)"
+    exit 0
+fi
+
+# Handle error responses with detailed diagnostics
+echo "❌ Health check failed: HTTP $HTTP_CODE"
+echo ""
+echo "URL: $URL"
+echo ""
+
+case $HTTP_CODE in
+    503)
+        echo "Status: Service Unavailable"
+        echo ""
+        # Try to parse JSON response for details
+        if echo "$BODY" | jq -e '.api_connectivity' >/dev/null 2>&1; then
+            API_CONNECTED=$(echo "$BODY" | jq -r '.api_connectivity.connected // "unknown"')
+            API_ERROR=$(echo "$BODY" | jq -r '.api_connectivity.error.message // "no details"')
+            echo "API Connectivity: $API_CONNECTED"
+            if [ "$API_CONNECTED" = "false" ]; then
+                echo "API Error: $API_ERROR"
+                echo ""
+                echo "The UI server is running but cannot reach the API server."
+                echo ""
+                echo "Investigation:"
+                echo "  • Check API process: ps aux | grep -E 'api|go'"
+                echo "  • Check API port: ss -tlnp | grep 15000"
+                echo "  • Check API logs: tail -50 scenarios/*/logs/api.log"
+                echo "  • Verify API_PORT env var was set: echo \$API_PORT"
+            fi
+        elif echo "$BODY" | jq -e '.status' >/dev/null 2>&1; then
+            STATUS=$(echo "$BODY" | jq -r '.status')
+            echo "Service status: $STATUS"
+            echo ""
+            echo "Response body:"
+            echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+        else
+            echo "Response body:"
+            echo "$BODY" | head -20
+        fi
+        ;;
+    502)
+        echo "Status: Bad Gateway"
+        echo "The reverse proxy (Caddy) cannot reach the upstream service."
+        echo ""
+        echo "Investigation:"
+        echo "  • Check Caddyfile: cat /etc/caddy/Caddyfile"
+        echo "  • Check Caddy status: systemctl status caddy"
+        echo "  • Verify UI is running on configured port"
+        ;;
+    404)
+        echo "Status: Not Found"
+        echo "The /health endpoint does not exist at this URL."
+        echo ""
+        echo "Investigation:"
+        echo "  • Verify the service exposes /health"
+        echo "  • Check if correct port is being used"
+        ;;
+    *)
+        echo "Response body:"
+        echo "$BODY" | head -20
+        ;;
+esac
+
+exit 1
+`, url, timeoutSecs, checkType)
 }
