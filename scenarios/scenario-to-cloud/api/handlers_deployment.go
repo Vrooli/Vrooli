@@ -350,8 +350,7 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 		defer cancel()
 
 		cmd := fmt.Sprintf("rm -f %s", shellQuoteSingle(remoteBundlePath))
-		sshRunner := ExecSSHRunner{}
-		if _, err := sshRunner.Run(ctx, cfg, cmd); err != nil {
+		if _, err := s.sshRunner.Run(ctx, cfg, cmd); err != nil {
 			s.log("failed to delete VPS bundle", map[string]interface{}{
 				"path":  remoteBundlePath,
 				"error": err.Error(),
@@ -367,6 +366,10 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 // handleExecuteDeployment starts the deployment pipeline in the background.
 // Returns immediately with the deployment info. Clients can subscribe to
 // /deployments/{id}/progress for real-time progress updates via SSE.
+//
+// Idempotency: Uses atomic status transition via StartDeploymentRun to prevent
+// duplicate concurrent executions. The run_id allows tracking which execution
+// produced which results.
 func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -397,16 +400,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Check if already running
-	if deployment.Status == domain.StatusSetupRunning || deployment.Status == domain.StatusDeploying {
-		writeAPIError(w, http.StatusConflict, APIError{
-			Code:    "already_running",
-			Message: "Deployment is already in progress",
-		})
-		return
-	}
-
-	// Parse manifest
+	// Parse manifest before attempting to start (fail fast on invalid manifest)
 	var manifest CloudManifest
 	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
@@ -428,23 +422,40 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Reset progress for new deployment
-	if err := s.repo.ResetDeploymentProgress(r.Context(), id); err != nil {
-		s.log("failed to reset progress", map[string]interface{}{"error": err.Error()})
+	// Generate a unique run_id for this execution
+	runID := uuid.New().String()
+
+	// Atomic status transition: prevents race conditions where two requests
+	// could both pass a status check and start duplicate deployments.
+	// StartDeploymentRun only succeeds if status is NOT already running.
+	if err := s.repo.StartDeploymentRun(r.Context(), id, runID); err != nil {
+		writeAPIError(w, http.StatusConflict, APIError{
+			Code:    "already_running",
+			Message: "Deployment is already in progress or not found",
+			Hint:    err.Error(),
+		})
+		return
 	}
 
-	// Start deployment in background
-	go s.runDeploymentPipeline(id, normalized, deployment.BundlePath, req.ProvidedSecrets)
+	s.log("deployment run started", map[string]interface{}{
+		"deployment_id": id,
+		"run_id":        runID,
+	})
+
+	// Start deployment in background with the run_id for tracking
+	go s.runDeploymentPipeline(id, runID, normalized, deployment.BundlePath, req.ProvidedSecrets)
 
 	writeJSON(w, http.StatusAccepted, map[string]interface{}{
 		"deployment": deployment,
+		"run_id":     runID,
 		"message":    "Deployment started. Subscribe to /deployments/{id}/progress for real-time updates.",
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // runDeploymentPipeline executes the full deployment with progress tracking.
-func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existingBundlePath *string, providedSecrets map[string]string) {
+// The runID parameter uniquely identifies this execution for idempotency tracking.
+func (s *Server) runDeploymentPipeline(id, runID string, manifest CloudManifest, existingBundlePath *string, providedSecrets map[string]string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
@@ -485,12 +496,18 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		s.progressHub.Broadcast(id, event)
 	}
 
+	// Log the run_id for traceability
+	s.log("deployment pipeline started", map[string]interface{}{
+		"deployment_id": id,
+		"run_id":        runID,
+		"scenario_id":   manifest.Scenario.ID,
+	})
+
 	// Fetch secrets from secrets-manager BEFORE building bundle
 	// This populates manifest.Secrets with the secrets plan (what secrets are needed and how to generate them)
 	if manifest.Secrets == nil {
-		secretsClient := NewSecretsClient()
 		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
-		secretsResp, err := secretsClient.FetchBundleSecrets(
+		secretsResp, err := s.secretsFetcher.FetchBundleSecrets(
 			secretsCtx,
 			manifest.Scenario.ID,
 			DefaultDeploymentTier,
@@ -581,7 +598,7 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
 
-	setupResult := RunVPSSetupWithProgress(ctx, manifest, bundlePath, ExecSSHRunner{}, ExecSCPRunner{}, s.progressHub, s.repo, id, &progress)
+	setupResult := RunVPSSetupWithProgress(ctx, manifest, bundlePath, s.sshRunner, s.scpRunner, s.progressHub, s.repo, id, &progress)
 	setupJSON, _ := json.Marshal(setupResult)
 	if err := s.repo.UpdateDeploymentSetupResult(ctx, id, setupJSON); err != nil {
 		s.log("failed to save setup result", map[string]interface{}{"error": err.Error()})
@@ -602,7 +619,7 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
 
-	deployResult := RunVPSDeployWithProgress(ctx, manifest, ExecSSHRunner{}, s.progressHub, s.repo, id, &progress)
+	deployResult := RunVPSDeployWithProgress(ctx, manifest, s.sshRunner, s.secretsGenerator, s.progressHub, s.repo, id, &progress)
 	deployJSON, _ := json.Marshal(deployResult)
 	if err := s.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
 		s.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
@@ -669,7 +686,7 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 		TailLines: 200,
 	}
 
-	result := RunVPSInspect(ctx, normalized, opts, ExecSSHRunner{})
+	result := RunVPSInspect(ctx, normalized, opts, s.sshRunner)
 	resultJSON, _ := json.Marshal(result)
 
 	// Store the inspect result
@@ -740,10 +757,9 @@ func (s *Server) stopDeploymentOnVPS(ctx context.Context, manifest CloudManifest
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
 	cmd := vrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellQuoteSingle(normalized.Scenario.ID)))
 
-	_, err := sshRunner.Run(ctx, cfg, cmd)
+	_, err := s.sshRunner.Run(ctx, cfg, cmd)
 	if err != nil {
 		return VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

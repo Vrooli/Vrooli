@@ -326,7 +326,140 @@ var _ SecretsFetcher = (*SecretsClient)(nil)
 - Inline resolver interface for DNS lookups in preflight
 - `ProgressRepo` for deployment progress persistence
 
+### Server-Level Dependency Injection (2026-01-03)
+Promoted seams from inline instantiation to proper dependency injection via the `Server` struct:
+
+**Server struct now holds seams:**
+```go
+type Server struct {
+    // ... existing fields ...
+
+    // Seam: SSH command execution (defaults to ExecSSHRunner)
+    sshRunner SSHRunner
+    // Seam: SCP file transfer (defaults to ExecSCPRunner)
+    scpRunner SCPRunner
+    // Seam: Secrets fetching (defaults to NewSecretsClient())
+    secretsFetcher SecretsFetcher
+    // Seam: Secrets generation (defaults to NewSecretsGenerator())
+    secretsGenerator SecretsGeneratorFunc
+    // Seam: DNS resolution (defaults to NetResolver)
+    dnsResolver DNSResolver
+}
+```
+
+**Handler migration complete - all handlers now use Server seams:**
+- `handlers_deployment.go`: Uses `s.sshRunner`, `s.scpRunner`, `s.secretsFetcher`, `s.secretsGenerator`
+- `handlers_preflight.go`: Uses `s.sshRunner`, `s.dnsResolver`
+- `handlers_bundle.go`: Uses `s.sshRunner`
+- `handlers_live_state.go`: Uses `s.sshRunner`
+- `handlers_vps_management.go`: Uses `s.sshRunner`
+- `handlers_edge.go`: Uses `s.sshRunner`, `s.dnsResolver`
+
+**Updated business logic in `vps_deploy.go`:**
+- `RunVPSDeploy`: Now accepts `SecretsGeneratorFunc` parameter (defaults to `NewSecretsGenerator()` if nil)
+- `RunVPSDeployWithProgress`: Now accepts `SecretsGeneratorFunc` parameter (defaults to `NewSecretsGenerator()` if nil)
+
+**Benefits:**
+- All handlers can be fully tested with fake implementations
+- No live SSH/SCP/DNS/secrets-manager connections required in tests
+- Production code unchanged (defaults to real implementations)
+
+**Testing pattern:**
+```go
+// In tests, create a Server with fake seams:
+srv := &Server{
+    sshRunner:        &FakeSSHRunner{Responses: map[string]SSHResult{...}},
+    scpRunner:        &FakeSCPRunner{},
+    secretsFetcher:   &FakeSecretsFetcher{Response: testSecrets},
+    secretsGenerator: &FakeSecretsGenerator{Values: map[string]string{"key": "deterministic-value"}},
+    dnsResolver:      &FakeResolver{Hosts: map[string][]string{"example.com": {"1.2.3.4"}}},
+    // ... other fields ...
+}
+```
+
+**Seam migration status: COMPLETE**
+All handlers that use external integrations (SSH, SCP, DNS, secrets) now obtain these dependencies from the Server struct rather than creating instances inline. This makes the entire API testable without live external services.
+
+### Reusable Test Fakes (2026-01-03)
+
+Added `test_fakes.go` with reusable fake implementations for all seams:
+
+| Fake | Interface | Purpose |
+|------|-----------|---------|
+| `FakeResolver` | `DNSResolver` | Control DNS lookup responses |
+| `FakeSSHRunner` | `SSHRunner` | Control SSH command responses, track calls |
+| `FakeSCPRunner` | `SCPRunner` | Control SCP copy results, track calls |
+| `FakeSecretsFetcher` | `SecretsFetcher` | Control secrets-manager responses |
+| `FakeSecretsGenerator` | `SecretsGeneratorFunc` | Return deterministic secret values |
+
+**Features of all fakes:**
+- Thread-safe call recording via `Calls` field
+- Configurable error injection via `Err`/`Errs` fields
+- Default behaviors for unspecified cases
+- Compile-time interface verification via `var _ Interface = (*Fake)(nil)`
+
+**Example with call verification:**
+```go
+ssh := &FakeSSHRunner{Responses: map[string]SSHResult{
+    "echo ok": {ExitCode: 0, Stdout: "ok"},
+}}
+// ... run handler ...
+if len(ssh.Calls) != 1 || ssh.Calls[0] != "echo ok" {
+    t.Errorf("unexpected SSH calls: %v", ssh.Calls)
+}
+```
+
 ## Future Improvements
+
+### Local Command Execution Seam
+
+**Location:** `scenarios.go`, `handlers_edge.go`
+
+There are a few remaining inline `exec.Command` usages for local operations:
+
+| File | Function | Purpose | Priority |
+|------|----------|---------|----------|
+| `scenarios.go:553` | `discoverScenarioPort` | Runs `vrooli scenario port` to discover ports | Low |
+| `handlers_edge.go:456` | `runLocalCommand` | Runs local bash commands for edge operations | Low |
+
+**Why low priority:**
+- These are local-only operations (not remote VPS commands)
+- They're used infrequently and for discovery/utility purposes
+- The primary external integration seams (SSH/SCP/DNS/secrets) are fully migrated
+
+**Potential seam design:**
+```go
+type LocalCommandRunner interface {
+    Run(ctx context.Context, cmd string) (stdout string, err error)
+}
+```
+
+This would allow tests to control local command execution, useful for:
+- Testing port discovery without running vrooli CLI
+- Testing edge operations without bash execution
+
+**Recommendation:** Extract if tests require controlling local command behavior, or if local command failures become a testing pain point.
+
+### Analyzer Client Seam
+
+**Location:** `scenarios.go:428`
+
+The `GetScenarioRequiredResources` function creates an inline `http.Client` to call the analyzer API.
+
+**Current pattern:**
+```go
+client := &http.Client{Timeout: 5 * time.Second}
+resp, err := client.Do(req)
+```
+
+**Potential seam design:**
+```go
+type AnalyzerClient interface {
+    Analyze(ctx context.Context, scenarioID string) (*AnalyzerResponse, error)
+}
+```
+
+**Recommendation:** Extract if tests need to mock analyzer responses. Currently, analyzer is typically available during testing via the scenario lifecycle.
 
 ### Orchestrator Extraction
 The `runDeploymentPipeline` function in `handlers_deployment.go` is ~180 lines of orchestration logic that coordinates:

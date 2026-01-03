@@ -476,3 +476,92 @@ func (r *Repository) GetDeploymentHistory(ctx context.Context, id string) ([]dom
 
 	return history, nil
 }
+
+// StartDeploymentRun begins a new deployment execution run with a fresh run_id.
+// This clears completed_steps and sets status atomically to prevent race conditions.
+// Returns the new run_id, or error if deployment is already running.
+func (r *Repository) StartDeploymentRun(ctx context.Context, id, runID string) error {
+	const q = `
+		UPDATE deployments SET
+			run_id = $2,
+			completed_steps = '[]'::jsonb,
+			status = 'setup_running',
+			error_message = NULL,
+			error_step = NULL,
+			progress_step = NULL,
+			progress_percent = 0,
+			updated_at = $3
+		WHERE id = $1
+		  AND status NOT IN ('setup_running', 'deploying')
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, runID, now)
+	if err != nil {
+		return fmt.Errorf("failed to start deployment run: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment is already running or not found")
+	}
+
+	return nil
+}
+
+// MarkStepCompleted records a step as completed for idempotent replay.
+// Uses JSONB append to add the step ID to completed_steps array.
+func (r *Repository) MarkStepCompleted(ctx context.Context, id, stepID string) error {
+	const q = `
+		UPDATE deployments SET
+			completed_steps = COALESCE(completed_steps, '[]'::jsonb) || to_jsonb($2::text),
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, q, id, stepID, now)
+	if err != nil {
+		return fmt.Errorf("failed to mark step completed: %w", err)
+	}
+	return nil
+}
+
+// GetCompletedSteps retrieves the list of completed step IDs for a deployment.
+func (r *Repository) GetCompletedSteps(ctx context.Context, id string) ([]string, error) {
+	const q = `
+		SELECT COALESCE(completed_steps, '[]'::jsonb)
+		FROM deployments
+		WHERE id = $1
+	`
+	var stepsJSON []byte
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&stepsJSON)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get completed steps: %w", err)
+	}
+
+	var steps []string
+	if err := json.Unmarshal(stepsJSON, &steps); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal completed steps: %w", err)
+	}
+
+	return steps, nil
+}
+
+// GetRunID retrieves the current run_id for a deployment.
+func (r *Repository) GetRunID(ctx context.Context, id string) (*string, error) {
+	const q = `SELECT run_id FROM deployments WHERE id = $1`
+	var runID *string
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&runID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get run_id: %w", err)
+	}
+	return runID, nil
+}

@@ -135,8 +135,7 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 		cmd, actionDesc = buildCleanupCommand(workdir, normalized, req.CleanupLevel)
 	}
 
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, cfg, cmd)
 
 	response := VPSActionResponse{
 		Action:    req.Action,

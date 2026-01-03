@@ -98,12 +98,11 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
-	resolver := NetResolver{}
 	vpsHost := normalized.Target.VPS.Host
 	domain := normalized.Edge.Domain
 
 	// Resolve VPS host
-	vpsIPs, vpsErr := resolveHostIPs(ctx, resolver, vpsHost)
+	vpsIPs, vpsErr := resolveHostIPs(ctx, s.dnsResolver, vpsHost)
 	if vpsErr != nil {
 		writeJSON(w, http.StatusOK, DNSCheckResponse{
 			OK:        false,
@@ -116,7 +115,7 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve edge domain
-	domainIPs, domainErr := resolveHostIPs(ctx, resolver, domain)
+	domainIPs, domainErr := resolveHostIPs(ctx, s.dnsResolver, domain)
 	if domainErr != nil {
 		writeJSON(w, http.StatusOK, DNSCheckResponse{
 			OK:        false,
@@ -217,8 +216,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, cfg, cmd)
 
 	resp := CaddyControlResponse{
 		Action:    req.Action,
@@ -346,8 +344,7 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 		domain,
 	)
 
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, cfg, cmd)
 
 	resp := TLSRenewResponse{
 		Domain:    domain,

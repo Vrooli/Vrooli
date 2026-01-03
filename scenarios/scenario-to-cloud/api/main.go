@@ -30,6 +30,8 @@ type Config struct {
 }
 
 // Server wires the HTTP router.
+// Fields marked with "// Seam:" are integration points that can be substituted
+// for testing. If nil, defaults to the production implementation.
 type Server struct {
 	config           *Config
 	router           *mux.Router
@@ -38,6 +40,22 @@ type Server struct {
 	progressHub      *ProgressHub
 	agentSvc         *agentmanager.AgentService
 	investigationSvc *InvestigationService
+
+	// Seam: SSH command execution (defaults to ExecSSHRunner)
+	sshRunner SSHRunner
+	// Seam: SCP file transfer (defaults to ExecSCPRunner)
+	scpRunner SCPRunner
+	// Seam: Secrets fetching (defaults to NewSecretsClient())
+	secretsFetcher SecretsFetcher
+	// Seam: Secrets generation (defaults to NewSecretsGenerator())
+	secretsGenerator SecretsGeneratorFunc
+	// Seam: DNS resolution (defaults to NetResolver)
+	dnsResolver DNSResolver
+}
+
+// DNSResolver abstracts DNS lookups for testing.
+type DNSResolver interface {
+	LookupHost(ctx context.Context, host string) ([]string, error)
 }
 
 // NewServer initializes configuration, database, and routes
@@ -89,6 +107,12 @@ func NewServer() (*Server, error) {
 		progressHub:      progressHub,
 		agentSvc:         agentSvc,
 		investigationSvc: NewInvestigationService(repo, agentSvc, progressHub),
+		// Initialize seams with production implementations
+		sshRunner:        ExecSSHRunner{},
+		scpRunner:        ExecSCPRunner{},
+		secretsFetcher:   NewSecretsClient(),
+		secretsGenerator: NewSecretsGenerator(),
+		dnsResolver:      NetResolver{},
 	}
 
 	srv.setupRoutes()

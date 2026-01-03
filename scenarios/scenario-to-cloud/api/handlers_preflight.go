@@ -38,7 +38,7 @@ func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
 
-	resp := RunVPSPreflight(ctx, normalized, NetResolver{}, ExecSSHRunner{})
+	resp := RunVPSPreflight(ctx, normalized, s.dnsResolver, s.sshRunner)
 	resp.Issues = issues
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -116,27 +116,13 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
-
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
-
 	// First, get list of processes on ports 80/443
-	ssRes, err := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
+	ssRes, err := s.sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
 	if err != nil {
 		writeJSON(w, http.StatusOK, StopPortServicesResponse{
 			OK:        false,
@@ -164,11 +150,11 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 	// Try to stop each process
 	for _, pid := range pids {
 		killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
-		_, err := sshRunner.Run(ctx, cfg, killCmd)
+		_, err := s.sshRunner.Run(ctx, cfg, killCmd)
 		if err != nil {
 			// Try SIGKILL
 			killCmd = fmt.Sprintf("kill -9 %s 2>/dev/null", pid)
-			_, err = sshRunner.Run(ctx, cfg, killCmd)
+			_, err = s.sshRunner.Run(ctx, cfg, killCmd)
 			if err != nil {
 				failed = append(failed, "pid "+pid)
 				continue
@@ -181,10 +167,10 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 	commonServices := []string{"nginx", "apache2", "httpd", "caddy"}
 	for _, svc := range commonServices {
 		checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc)
-		checkRes, _ := sshRunner.Run(ctx, cfg, checkCmd)
+		checkRes, _ := s.sshRunner.Run(ctx, cfg, checkCmd)
 		if strings.TrimSpace(checkRes.Stdout) == "active" {
 			stopCmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", svc)
-			_, err := sshRunner.Run(ctx, cfg, stopCmd)
+			_, err := s.sshRunner.Run(ctx, cfg, stopCmd)
 			if err != nil {
 				failed = append(failed, svc)
 			} else {
@@ -216,27 +202,13 @@ func (s *Server) handleDiskUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
-
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
-
 	// Get disk usage stats
-	dfRes, err := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $2, $3, $4, $5}'`)
+	dfRes, err := s.sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $2, $3, $4, $5}'`)
 	if err != nil {
 		writeJSON(w, http.StatusOK, DiskUsageResponse{
 			OK:        false,
@@ -257,7 +229,7 @@ func (s *Server) handleDiskUsage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get largest directories
-	duRes, _ := sshRunner.Run(ctx, cfg, `du -sk /var/* /home/* /root/* /opt/* /tmp/* 2>/dev/null | sort -rn | head -10`)
+	duRes, _ := s.sshRunner.Run(ctx, cfg, `du -sk /var/* /home/* /root/* /opt/* /tmp/* 2>/dev/null | sort -rn | head -10`)
 	var largestDirs []DiskUsageEntry
 	for _, line := range strings.Split(duRes.Stdout, "\n") {
 		line = strings.TrimSpace(line)
@@ -296,30 +268,17 @@ func (s *Server) handleDiskCleanup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
 	if len(req.Actions) == 0 {
 		req.Actions = []string{"apt_clean", "journal_vacuum"}
 	}
 
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
-
 	// Get initial free space
-	beforeRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
+	beforeRes, _ := s.sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
 	beforeKB, _ := strconv.ParseInt(strings.TrimSpace(beforeRes.Stdout), 10, 64)
 
 	var actionsRun, actionsFailed []string
@@ -336,7 +295,7 @@ func (s *Server) handleDiskCleanup(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
-		_, err := sshRunner.Run(ctx, cfg, cmd)
+		_, err := s.sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
 			actionsFailed = append(actionsFailed, action)
 		} else {
@@ -345,7 +304,7 @@ func (s *Server) handleDiskCleanup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get final free space
-	afterRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
+	afterRes, _ := s.sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
 	afterKB, _ := strconv.ParseInt(strings.TrimSpace(afterRes.Stdout), 10, 64)
 
 	freedKB := afterKB - beforeKB
@@ -397,117 +356,82 @@ func (s *Server) handleStopScenarioProcesses(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
 	if req.Workdir == "" {
 		req.Workdir = DefaultVPSWorkdir
 	}
 
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: strings.TrimSpace(req.KeyPath), // Trim whitespace like sshConfigFromManifest does
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
-
-	// First, verify SSH works with a simple command
-	testResult, testErr := sshRunner.Run(ctx, cfg, "echo ok")
+	// Verify SSH connectivity first
+	testResult, testErr := s.sshRunner.Run(ctx, cfg, "echo ok")
 	if testErr != nil {
-		response := StopScenarioProcessesResponse{
-			OK:        false,
-			Action:    "test_ssh",
-			Message:   fmt.Sprintf("SSH connection test failed: %v (stdout: %s, stderr: %s)", testErr, testResult.Stdout, testResult.Stderr),
-			Output:    testResult.Stderr,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-		writeJSON(w, http.StatusOK, response)
+		writeStopScenarioResponse(w, false, "test_ssh",
+			fmt.Sprintf("SSH connection test failed: %v (stdout: %s, stderr: %s)", testErr, testResult.Stdout, testResult.Stderr),
+			testResult.Stderr)
 		return
 	}
 
-	var action string
+	// Verify workdir exists (common check for both branches)
+	if !s.workdirExists(ctx, cfg, req.Workdir) {
+		writeStopScenarioResponse(w, false, "check_workdir",
+			fmt.Sprintf("Workdir %s does not exist on VPS", req.Workdir), "")
+		return
+	}
+
+	// Branch: Stop specific scenario
 	if req.ScenarioID != "" {
-		// Stop specific scenario - use shared StopExistingScenario function
-		action = "stop_scenario"
-
-		// First check if workdir exists
-		checkDirResult, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellQuoteSingle(req.Workdir)))
-		if strings.TrimSpace(checkDirResult.Stdout) != "exists" {
-			writeJSON(w, http.StatusOK, StopScenarioProcessesResponse{
-				OK:        false,
-				Action:    "check_workdir",
-				Message:   fmt.Sprintf("Workdir %s does not exist on VPS", req.Workdir),
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			})
-			return
-		}
-
-		// Use the shared StopExistingScenario function (no port cleanup needed for this endpoint)
-		result := StopExistingScenario(ctx, sshRunner, cfg, req.Workdir, req.ScenarioID, nil)
-
-		writeJSON(w, http.StatusOK, StopScenarioProcessesResponse{
-			OK:        result.OK,
-			Action:    action,
-			Message:   result.Message,
-			Output:    fmt.Sprintf("Stopped scenario %s: %s", req.ScenarioID, result.Message),
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-		return
-	} else {
-		// Stop all vrooli processes
-		action = "stop_all"
-
-		// First check if workdir exists
-		checkDirResult, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellQuoteSingle(req.Workdir)))
-		if strings.TrimSpace(checkDirResult.Stdout) != "exists" {
-			response := StopScenarioProcessesResponse{
-				OK:        false,
-				Action:    "check_workdir",
-				Message:   fmt.Sprintf("Workdir %s does not exist on VPS (output: %s)", req.Workdir, checkDirResult.Stdout),
-				Timestamp: time.Now().UTC().Format(time.RFC3339),
-			}
-			writeJSON(w, http.StatusOK, response)
-			return
-		}
-
-		// Check if vrooli CLI is available
-		checkCliResult, _ := sshRunner.Run(ctx, cfg, vrooliCommand(req.Workdir, "which vrooli || echo notfound"))
-		vrooliAvailable := !strings.Contains(checkCliResult.Stdout, "notfound")
-
-		var outputs []string
-
-		// Step 1: Try vrooli stop first (if available)
-		if vrooliAvailable {
-			vrooliResult, _ := sshRunner.Run(ctx, cfg, vrooliCommand(req.Workdir, "vrooli stop"))
-			if vrooliResult.Stdout != "" {
-				outputs = append(outputs, vrooliResult.Stdout)
-			}
-		}
-
-		// Step 2: Kill any remaining orphaned processes matching scenario patterns
-		// This catches processes started directly (not through vrooli lifecycle)
-		killOrphansCmd := "pkill -f 'pm2' 2>/dev/null; pkill -f '-api$' 2>/dev/null; pkill -f 'scenario.*api' 2>/dev/null; true"
-		sshRunner.Run(ctx, cfg, killOrphansCmd)
-		outputs = append(outputs, "Killed orphaned processes")
-
-		// Return combined output
-		writeJSON(w, http.StatusOK, StopScenarioProcessesResponse{
-			OK:        true,
-			Action:    action,
-			Message:   "Stopped all vrooli processes and killed orphans",
-			Output:    strings.Join(outputs, "\n"),
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
+		result := StopExistingScenario(ctx, s.sshRunner, cfg, req.Workdir, req.ScenarioID, nil)
+		writeStopScenarioResponse(w, result.OK, "stop_scenario", result.Message,
+			fmt.Sprintf("Stopped scenario %s: %s", req.ScenarioID, result.Message))
 		return
 	}
+
+	// Branch: Stop all vrooli processes
+	outputs := s.stopAllVrooliProcesses(ctx, cfg, req.Workdir)
+	writeStopScenarioResponse(w, true, "stop_all",
+		"Stopped all vrooli processes and killed orphans",
+		strings.Join(outputs, "\n"))
+}
+
+// writeStopScenarioResponse is a helper to reduce response construction boilerplate.
+func writeStopScenarioResponse(w http.ResponseWriter, ok bool, action, message, output string) {
+	writeJSON(w, http.StatusOK, StopScenarioProcessesResponse{
+		OK:        ok,
+		Action:    action,
+		Message:   message,
+		Output:    output,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// workdirExists checks if the specified directory exists on the remote VPS.
+func (s *Server) workdirExists(ctx context.Context, cfg SSHConfig, workdir string) bool {
+	result, _ := s.sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellQuoteSingle(workdir)))
+	return strings.TrimSpace(result.Stdout) == "exists"
+}
+
+// stopAllVrooliProcesses attempts to stop all vrooli processes using CLI (if available) and pkill.
+func (s *Server) stopAllVrooliProcesses(ctx context.Context, cfg SSHConfig, workdir string) []string {
+	var outputs []string
+
+	// Try vrooli stop first (if CLI available)
+	checkCliResult, _ := s.sshRunner.Run(ctx, cfg, vrooliCommand(workdir, "which vrooli || echo notfound"))
+	if !strings.Contains(checkCliResult.Stdout, "notfound") {
+		vrooliResult, _ := s.sshRunner.Run(ctx, cfg, vrooliCommand(workdir, "vrooli stop"))
+		if vrooliResult.Stdout != "" {
+			outputs = append(outputs, vrooliResult.Stdout)
+		}
+	}
+
+	// Kill orphaned processes that may not be managed by vrooli lifecycle
+	killOrphansCmd := "pkill -f 'pm2' 2>/dev/null; pkill -f '-api$' 2>/dev/null; pkill -f 'scenario.*api' 2>/dev/null; true"
+	s.sshRunner.Run(ctx, cfg, killOrphansCmd)
+	outputs = append(outputs, "Killed orphaned processes")
+
+	return outputs
 }
 
 // extractPIDsFromSS parses PIDs from ss -ltnp output

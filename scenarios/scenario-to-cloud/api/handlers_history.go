@@ -144,7 +144,7 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Fetch logs from VPS
-	logs, sources, err := fetchAggregatedLogs(ctx, normalized, tail, source, level, search)
+	logs, sources, err := fetchAggregatedLogs(ctx, normalized, s.sshRunner, tail, source, level, search)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "logs_failed",
@@ -164,12 +164,11 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchAggregatedLogs fetches logs from multiple sources on the VPS.
-func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string, error) {
+func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, sshRunner SSHRunner, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string, error) {
 	cfg := sshConfigFromManifest(manifest)
 	workdir := manifest.Target.VPS.Workdir
 	scenarioID := manifest.Scenario.ID
 
-	sshRunner := ExecSSHRunner{}
 	var allLogs []LogEntry
 	sources := []string{}
 

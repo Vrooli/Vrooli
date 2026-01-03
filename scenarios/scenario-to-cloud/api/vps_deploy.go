@@ -253,130 +253,44 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 	return steps, nil
 }
 
-func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunner) VPSDeployResult {
-	steps, err := BuildVPSDeployPlan(manifest)
-	if err != nil {
-		return VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
+// RunVPSDeploy executes VPS deployment without progress tracking.
+// This is a convenience wrapper around RunVPSDeployWithProgress that uses no-op progress callbacks.
+func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunner, secretsGen SecretsGeneratorFunc) VPSDeployResult {
+	progress := 0.0
+	return RunVPSDeployWithProgress(ctx, manifest, sshRunner, secretsGen, noopProgressHub{}, noopProgressRepo{}, "", &progress)
+}
 
-	cfg := sshConfigFromManifest(manifest)
-	workdir := manifest.Target.VPS.Workdir
-	uiPort := manifest.Ports["ui"]
+// noopProgressHub is a no-op implementation of progress broadcasting for RunVPSDeploy.
+type noopProgressHub struct{}
 
-	run := func(cmd string) error {
-		res, err := sshRunner.Run(ctx, cfg, cmd)
-		if err != nil {
-			// Collect output from both stderr and stdout for better error context.
-			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
-			var outputParts []string
-			if res.Stderr != "" {
-				outputParts = append(outputParts, "stderr: "+res.Stderr)
-			}
-			if res.Stdout != "" {
-				// Limit stdout to last 50 lines to avoid overwhelming error messages
-				lines := strings.Split(res.Stdout, "\n")
-				if len(lines) > 50 {
-					lines = lines[len(lines)-50:]
-					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
-				} else {
-					outputParts = append(outputParts, "stdout: "+res.Stdout)
-				}
-			}
-			if len(outputParts) > 0 {
-				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
-			}
-			return err
-		}
-		return nil
-	}
+func (noopProgressHub) Broadcast(string, ProgressEvent) {}
 
-	// Step: scenario_stop - Stop existing scenario before deployment
-	var targetPorts []int
-	for _, port := range manifest.Ports {
-		targetPorts = append(targetPorts, port)
-	}
-	stopResult := StopExistingScenario(ctx, sshRunner, cfg, workdir, manifest.Scenario.ID, targetPorts)
-	if !stopResult.OK {
-		return VPSDeployResult{OK: false, Steps: steps, Error: stopResult.Error, FailedStep: "scenario_stop", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
+// noopProgressRepo is a no-op implementation of progress persistence for RunVPSDeploy.
+type noopProgressRepo struct{}
 
-	if err := run("command -v caddy >/dev/null || (apt-get update -y && apt-get install -y caddy)"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run("systemctl enable --now caddy"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	caddyfilePath := "/etc/caddy/Caddyfile"
-	caddyfile := buildCaddyfile(manifest.Edge.Domain, uiPort)
-	if err := run(fmt.Sprintf("printf '%%s' %s > %s", shellQuoteSingle(caddyfile), shellQuoteSingle(caddyfilePath))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run("systemctl reload caddy"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	// Secrets provisioning: Generate per_install_generated secrets and write to VPS BEFORE resource startup
-	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
-		generator := NewSecretsGenerator()
-		generated, err := generator.GenerateSecrets(manifest.Secrets.BundleSecrets)
-		if err != nil {
-			return VPSDeployResult{OK: false, Steps: steps, Error: fmt.Sprintf("generate secrets: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-		}
-		if len(generated) > 0 {
-			if err := WriteSecretsToVPS(ctx, sshRunner, cfg, workdir, generated, manifest.Scenario.ID); err != nil {
-				return VPSDeployResult{OK: false, Steps: steps, Error: fmt.Sprintf("write secrets: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-			}
-		}
-	}
-
-	for _, res := range stableUniqueStrings(manifest.Dependencies.Resources) {
-		if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellQuoteSingle(res)))); err != nil {
-			return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-		}
-	}
-
-	for _, scen := range stableUniqueStrings(manifest.Dependencies.Scenarios) {
-		if scen == manifest.Scenario.ID {
-			continue
-		}
-		if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellQuoteSingle(scen)))); err != nil {
-			return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-		}
-	}
-
-	// Build port environment variables from manifest
-	portEnvVars := buildPortEnvVars(manifest.Ports)
-	if err := run(vrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, shellQuoteSingle(manifest.Scenario.ID)))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	// Use detailed health check scripts for actionable error messages
-	localHealthURL := fmt.Sprintf("http://127.0.0.1:%d/health", uiPort)
-	localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
-	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(localHealthScript))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify_local", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	httpsHealthURL := fmt.Sprintf("https://%s/health", manifest.Edge.Domain)
-	httpsHealthScript := buildHealthCheckScript(httpsHealthURL, 10, "https")
-	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(httpsHealthScript))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify_https", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	return VPSDeployResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+func (noopProgressRepo) UpdateDeploymentProgress(context.Context, string, string, float64) error {
+	return nil
 }
 
 // RunVPSDeployWithProgress runs VPS deployment with progress tracking.
+// The secretsGen parameter enables testing with deterministic secret values.
+// Pass nil to use the default NewSecretsGenerator().
+// The hub parameter accepts any ProgressBroadcaster, allowing use with the real ProgressHub
+// or a no-op implementation for callers that don't need progress tracking.
 func RunVPSDeployWithProgress(
 	ctx context.Context,
 	manifest CloudManifest,
 	sshRunner SSHRunner,
-	hub *ProgressHub,
+	secretsGen SecretsGeneratorFunc,
+	hub ProgressBroadcaster,
 	repo ProgressRepo,
 	deploymentID string,
 	progress *float64,
 ) VPSDeployResult {
+	// Default to production implementation if nil
+	if secretsGen == nil {
+		secretsGen = NewSecretsGenerator()
+	}
 	steps, err := BuildVPSDeployPlan(manifest)
 	if err != nil {
 		return VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
@@ -415,31 +329,9 @@ func RunVPSDeployWithProgress(
 		return VPSDeployResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
+	// run executes an SSH command and returns an error with output context if it fails.
 	run := func(cmd string) error {
-		res, err := sshRunner.Run(ctx, cfg, cmd)
-		if err != nil {
-			// Collect output from both stderr and stdout for better error context.
-			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
-			var outputParts []string
-			if res.Stderr != "" {
-				outputParts = append(outputParts, "stderr: "+res.Stderr)
-			}
-			if res.Stdout != "" {
-				// Limit stdout to last 50 lines to avoid overwhelming error messages
-				lines := strings.Split(res.Stdout, "\n")
-				if len(lines) > 50 {
-					lines = lines[len(lines)-50:]
-					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
-				} else {
-					outputParts = append(outputParts, "stdout: "+res.Stdout)
-				}
-			}
-			if len(outputParts) > 0 {
-				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
-			}
-			return err
-		}
-		return nil
+		return RunSSHWithOutput(ctx, sshRunner, cfg, cmd)
 	}
 
 	// Step: scenario_stop - Stop existing scenario before deployment
@@ -467,15 +359,28 @@ func RunVPSDeployWithProgress(
 	emit("step_completed", "caddy_install", "Installing Caddy")
 
 	// Step: caddy_config
+	// Idempotency: Only write Caddyfile and reload if content differs from current
 	emit("step_started", "caddy_config", "Configuring Caddy")
 	caddyfilePath := "/etc/caddy/Caddyfile"
 	caddyfile := buildCaddyfile(manifest.Edge.Domain, uiPort)
-	if err := run(fmt.Sprintf("printf '%%s' %s > %s", shellQuoteSingle(caddyfile), shellQuoteSingle(caddyfilePath))); err != nil {
-		return failStep("caddy_config", "Configuring Caddy", err.Error())
+
+	// Check if current Caddyfile matches desired content (idempotent write)
+	checkCmd := fmt.Sprintf("cat %s 2>/dev/null || echo ''", shellQuoteSingle(caddyfilePath))
+	currentCaddyfile, _ := sshRunner.Run(ctx, cfg, checkCmd)
+	currentContent := strings.TrimSpace(currentCaddyfile.Stdout)
+	desiredContent := strings.TrimSpace(caddyfile)
+
+	if currentContent != desiredContent {
+		// Content differs, write new config
+		if err := run(fmt.Sprintf("printf '%%s' %s > %s", shellQuoteSingle(caddyfile), shellQuoteSingle(caddyfilePath))); err != nil {
+			return failStep("caddy_config", "Configuring Caddy", err.Error())
+		}
+		// Only reload if we actually changed the config
+		if err := run("systemctl reload caddy"); err != nil {
+			return failStep("caddy_config", "Configuring Caddy", err.Error())
+		}
 	}
-	if err := run("systemctl reload caddy"); err != nil {
-		return failStep("caddy_config", "Configuring Caddy", err.Error())
-	}
+	// If content matches, skip write and reload (already configured correctly)
 	*progress += StepWeights["caddy_config"]
 	emit("step_completed", "caddy_config", "Configuring Caddy")
 
@@ -483,9 +388,8 @@ func RunVPSDeployWithProgress(
 	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
 		emit("step_started", "secrets_provision", "Provisioning secrets")
 
-		// Generate per_install_generated secrets
-		generator := NewSecretsGenerator()
-		generated, err := generator.GenerateSecrets(manifest.Secrets.BundleSecrets)
+		// Generate per_install_generated secrets using the injected generator (seam)
+		generated, err := secretsGen.GenerateSecrets(manifest.Secrets.BundleSecrets)
 		if err != nil {
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("generate secrets: %v", err))
 		}

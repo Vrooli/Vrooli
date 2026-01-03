@@ -477,6 +477,89 @@ func isIPv6(host string) bool {
 // ipv6ConnectivityHint returns a helpful hint for IPv6 connectivity issues
 const ipv6ConnectivityHint = "You entered an IPv6 address, but your network may not have IPv6 connectivity. Most ISPs still only provide IPv4. Try using the IPv4 address of your server instead."
 
+// sshErrorClassification represents a classified SSH connection error with
+// actionable status, message, and hint for the user.
+type sshErrorClassification struct {
+	Status  string
+	Message string
+	Hint    string
+}
+
+// classifySSHError analyzes an SSH error string and returns a user-friendly classification.
+// This consolidates the repeated pattern of error classification in SSH-related functions.
+func classifySSHError(errStr, host, defaultHint string) sshErrorClassification {
+	errLower := strings.ToLower(errStr)
+
+	switch {
+	case strings.Contains(errStr, "Host key verification failed"):
+		return sshErrorClassification{
+			Status:  "host_key_changed",
+			Message: "Server host key has changed",
+			Hint:    "The server's identity has changed since you last connected. This could indicate a server rebuild or a security issue. Remove the old key with: ssh-keygen -R " + host,
+		}
+
+	case strings.Contains(errStr, "Permission denied"):
+		return sshErrorClassification{
+			Status:  "auth_failed",
+			Message: "SSH authentication failed",
+			Hint:    "The server rejected the SSH key. Use 'Copy Key to Server' to add your key, or verify the correct key is selected.",
+		}
+
+	case strings.Contains(errLower, "unable to authenticate"),
+		strings.Contains(errLower, "no supported methods remain"):
+		return sshErrorClassification{
+			Status:  "auth_failed",
+			Message: "Password authentication failed",
+			Hint:    "The password may be incorrect, or password authentication may be disabled on the server.",
+		}
+
+	case strings.Contains(errLower, "connection refused"):
+		return sshErrorClassification{
+			Status:  "host_unreachable",
+			Message: "SSH connection refused",
+			Hint:    "Verify the host and port are correct and that SSH is running on the server.",
+		}
+
+	case strings.Contains(errLower, "i/o timeout"),
+		strings.Contains(errLower, "connection timed out"),
+		strings.Contains(errLower, "timed out"):
+		if isIPv6(host) {
+			return sshErrorClassification{
+				Status:  "ipv6_unavailable",
+				Message: "SSH connection timed out (IPv6)",
+				Hint:    ipv6ConnectivityHint,
+			}
+		}
+		return sshErrorClassification{
+			Status:  "timeout",
+			Message: "SSH connection timed out",
+			Hint:    "Check network connectivity and firewall rules.",
+		}
+
+	case strings.Contains(errLower, "no route to host"),
+		strings.Contains(errLower, "network is unreachable"):
+		if isIPv6(host) {
+			return sshErrorClassification{
+				Status:  "ipv6_unavailable",
+				Message: "IPv6 not available",
+				Hint:    ipv6ConnectivityHint,
+			}
+		}
+		return sshErrorClassification{
+			Status:  "host_unreachable",
+			Message: "Host unreachable",
+			Hint:    "The network path to the host could not be found. Check the IP address and network connectivity.",
+		}
+
+	default:
+		return sshErrorClassification{
+			Status:  "unknown_error",
+			Message: "SSH connection failed",
+			Hint:    defaultHint,
+		}
+	}
+}
+
 // TestSSHConnection tests SSH connection to a host using key authentication
 func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSSHConnectionResponse {
 	timestamp := time.Now().UTC().Format(time.RFC3339)
@@ -551,55 +634,19 @@ func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSS
 	}
 
 	if runErr != nil {
-		// Parse error to provide helpful hints
-		// Check both err.Error() and stderr for SSH error messages
+		// Combine error sources for classification
 		errStr := runErr.Error() + " " + result.Stderr
-		status := "unknown_error"
-		message := "SSH connection failed"
-		hint := result.Stderr
-		if hint == "" {
-			hint = runErr.Error()
+		defaultHint := result.Stderr
+		if defaultHint == "" {
+			defaultHint = runErr.Error()
 		}
 
-		if strings.Contains(errStr, "Host key verification failed") {
-			status = "host_key_changed"
-			message = "Server host key has changed"
-			hint = "The server's identity has changed since you last connected. This could indicate a server rebuild or a security issue. Remove the old key with: ssh-keygen -R " + req.Host
-		} else if strings.Contains(errStr, "Permission denied") {
-			status = "auth_failed"
-			message = "SSH authentication failed"
-			hint = "The server rejected the SSH key. Use 'Copy Key to Server' to add your key, or verify the correct key is selected."
-		} else if strings.Contains(errStr, "Connection refused") {
-			status = "host_unreachable"
-			message = "SSH connection refused"
-			hint = "Verify the host and port are correct and that SSH is running on the server."
-		} else if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "connection timed out") || strings.Contains(errStr, "timed out") {
-			status = "timeout"
-			message = "SSH connection timed out"
-			if isIPv6(req.Host) {
-				status = "ipv6_unavailable"
-				message = "SSH connection timed out (IPv6)"
-				hint = ipv6ConnectivityHint
-			} else {
-				hint = "Check network connectivity and firewall rules."
-			}
-		} else if strings.Contains(errStr, "No route to host") || strings.Contains(errStr, "network is unreachable") {
-			if isIPv6(req.Host) {
-				status = "ipv6_unavailable"
-				message = "IPv6 not available"
-				hint = ipv6ConnectivityHint
-			} else {
-				status = "host_unreachable"
-				message = "Host unreachable"
-				hint = "The network path to the host could not be found. Check the IP address and network connectivity."
-			}
-		}
-
+		classified := classifySSHError(errStr, req.Host, defaultHint)
 		return TestSSHConnectionResponse{
 			OK:        false,
-			Status:    status,
-			Message:   message,
-			Hint:      hint,
+			Status:    classified.Status,
+			Message:   classified.Message,
+			Hint:      classified.Hint,
 			LatencyMs: latency,
 			Timestamp: timestamp,
 		}
@@ -696,46 +743,12 @@ func CopySSHKeyToServer(ctx context.Context, req CopySSHKeyRequest) CopySSHKeyRe
 	addr := net.JoinHostPort(req.Host, fmt.Sprint(req.Port))
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
-		status := "error"
-		message := "SSH connection failed"
-		hint := err.Error()
-
-		if strings.Contains(err.Error(), "unable to authenticate") ||
-			strings.Contains(err.Error(), "no supported methods remain") {
-			status = "auth_failed"
-			message = "Password authentication failed"
-			hint = "The password may be incorrect, or password authentication may be disabled on the server."
-		} else if strings.Contains(err.Error(), "connection refused") {
-			status = "error"
-			message = "SSH connection refused"
-			hint = "Verify the host and port are correct and that SSH is running on the server."
-		} else if strings.Contains(err.Error(), "i/o timeout") || strings.Contains(err.Error(), "connection timed out") {
-			if isIPv6(req.Host) {
-				status = "ipv6_unavailable"
-				message = "SSH connection timed out (IPv6)"
-				hint = ipv6ConnectivityHint
-			} else {
-				status = "error"
-				message = "SSH connection timed out"
-				hint = "Check network connectivity and firewall rules."
-			}
-		} else if strings.Contains(err.Error(), "no route to host") || strings.Contains(err.Error(), "network is unreachable") {
-			if isIPv6(req.Host) {
-				status = "ipv6_unavailable"
-				message = "IPv6 not available"
-				hint = ipv6ConnectivityHint
-			} else {
-				status = "error"
-				message = "Host unreachable"
-				hint = "The network path to the host could not be found. Check the IP address and network connectivity."
-			}
-		}
-
+		classified := classifySSHError(err.Error(), req.Host, err.Error())
 		return CopySSHKeyResponse{
 			OK:        false,
-			Status:    status,
-			Message:   message,
-			Hint:      hint,
+			Status:    classified.Status,
+			Message:   classified.Message,
+			Hint:      classified.Hint,
 			Timestamp: timestamp,
 		}
 	}

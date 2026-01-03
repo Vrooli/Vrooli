@@ -102,6 +102,12 @@ type Deployment struct {
 	ProgressStep    *string `json:"progress_step,omitempty"`
 	ProgressPercent float64 `json:"progress_percent"`
 
+	// Idempotency tracking - tracks completed steps for replay-safe execution
+	// CompletedSteps: JSON array of step IDs that completed successfully in the current run
+	// RunID: UUID for the current execution run; changes on each fresh execution
+	CompletedSteps NullRawMessage `json:"completed_steps,omitempty"`
+	RunID          *string        `json:"run_id,omitempty"`
+
 	// Timestamps
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`

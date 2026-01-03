@@ -2,68 +2,24 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // handleGetLiveState fetches comprehensive live state from the VPS.
 // GET /api/v1/deployments/{id}/live-state
 func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	// Get deployment from database
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
 
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	// Validate and normalize manifest
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-
-	// Check if VPS target exists
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	// Run live state inspection
-	result := RunLiveStateInspection(ctx, normalized, ExecSSHRunner{})
+	result := RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"result":    result,
@@ -74,58 +30,18 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 // handleGetFiles lists directory contents on VPS.
 // GET /api/v1/deployments/{id}/files?path=...
 func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
+	}
+
 	requestedPath := r.URL.Query().Get("path")
-
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	cfg := sshConfigFromManifest(normalized)
-	workdir := normalized.Target.VPS.Workdir
-
-	// Default to workdir if no path specified
 	if requestedPath == "" {
-		requestedPath = workdir
+		requestedPath = dc.Workdir
 	}
 
 	// Security: Ensure path is within workdir to prevent directory traversal
-	if !isPathWithinWorkdir(requestedPath, workdir) {
+	if !isPathWithinWorkdir(requestedPath, dc.Workdir) {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "path_not_allowed",
 			Message: "Path must be within the deployment workdir",
@@ -139,8 +55,7 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 
 	// Execute ls -la
 	cmd := "ls -la " + shellQuoteSingle(requestedPath)
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "ssh_failed",
@@ -164,9 +79,7 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 // handleGetFileContent reads file contents from VPS.
 // GET /api/v1/deployments/{id}/files/content?path=...
 func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
 	requestedPath := r.URL.Query().Get("path")
-
 	if requestedPath == "" {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "missing_path",
@@ -175,56 +88,19 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	cfg := sshConfigFromManifest(normalized)
-	workdir := normalized.Target.VPS.Workdir
 
 	// Handle relative paths by prepending workdir
 	if !strings.HasPrefix(requestedPath, "/") {
-		requestedPath = workdir + "/" + requestedPath
+		requestedPath = dc.Workdir + "/" + requestedPath
 	}
 
 	// Security: Ensure path is within workdir (with exception for common config files)
 	allowedPaths := []string{"/etc/caddy/Caddyfile"}
-	pathAllowed := isPathWithinWorkdir(requestedPath, workdir)
+	pathAllowed := isPathWithinWorkdir(requestedPath, dc.Workdir)
 	for _, allowed := range allowedPaths {
 		if requestedPath == allowed {
 			pathAllowed = true
@@ -236,7 +112,7 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "path_not_allowed",
 			Message: "Path must be within the deployment workdir",
-			Hint:    "Requested path: " + requestedPath + ", Workdir: " + workdir,
+			Hint:    "Requested path: " + requestedPath + ", Workdir: " + dc.Workdir,
 		})
 		return
 	}
@@ -246,8 +122,7 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 
 	// Get file size first
 	sizeCmd := "stat -c %s " + shellQuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
-	sshRunner := ExecSSHRunner{}
-	sizeResult, _ := sshRunner.Run(ctx, cfg, sizeCmd)
+	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd)
 	fileSize := -1
 	if sizeResult.Stdout != "" {
 		fileSize, _ = parseInt(sizeResult.Stdout)
@@ -262,7 +137,7 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 		truncated = true
 	}
 
-	result, err := sshRunner.Run(ctx, cfg, readCmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "ssh_failed",
@@ -285,52 +160,15 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 // handleGetDrift compares manifest expectations vs actual state.
 // GET /api/v1/deployments/{id}/drift
 func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	// Get live state first
-	liveState := RunLiveStateInspection(ctx, normalized, ExecSSHRunner{})
+	liveState := RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
 	if !liveState.OK {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "live_state_failed",
@@ -340,8 +178,7 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Perform drift detection
-	driftReport := computeDrift(normalized, liveState)
+	driftReport := computeDrift(dc.Manifest, liveState)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"result":    driftReport,
@@ -352,8 +189,6 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 // handleKillProcess kills a specific process on VPS.
 // POST /api/v1/deployments/{id}/actions/kill
 func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
 	req, err := decodeJSON[KillProcessRequest](r.Body, 1<<20)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, APIError{
@@ -372,59 +207,21 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	cfg := sshConfigFromManifest(normalized)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	// Determine signal
 	signal := req.Signal
 	if signal == "" {
 		signal = "TERM"
 	}
 
 	cmd := "kill -" + signal + " " + intToStr(req.PID)
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "kill_failed",
@@ -445,8 +242,6 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 // handleRestartProcess restarts a scenario or resource on VPS.
 // POST /api/v1/deployments/{id}/actions/restart
 func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
 	req, err := decodeJSON[RestartRequest](r.Body, 1<<20)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, APIError{
@@ -473,60 +268,17 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	cfg := sshConfigFromManifest(normalized)
-	workdir := normalized.Target.VPS.Workdir
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	var cmd string
-	if req.Type == "scenario" {
-		cmd = vrooliCommand(workdir, "vrooli scenario restart "+shellQuoteSingle(req.ID))
-	} else {
-		cmd = vrooliCommand(workdir, "vrooli resource restart "+shellQuoteSingle(req.ID))
-	}
+	cmd := vrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+shellQuoteSingle(req.ID))
 
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "restart_failed",
@@ -548,8 +300,6 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 // handleProcessControl handles start/stop/restart/setup for scenarios and resources.
 // POST /api/v1/deployments/{id}/actions/process
 func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
 	req, err := decodeJSON[ProcessControlRequest](r.Body, 1<<20)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, APIError{
@@ -560,97 +310,22 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate action
-	validActions := map[string]bool{"start": true, "stop": true, "restart": true, "setup": true}
-	if !validActions[req.Action] {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_action",
-			Message: "Action must be 'start', 'stop', 'restart', or 'setup'",
-		})
+	// Validate request using early returns for clarity
+	if apiErr := validateProcessControlRequest(req); apiErr != nil {
+		writeAPIError(w, http.StatusBadRequest, *apiErr)
 		return
 	}
 
-	// Validate type
-	if req.Type != "scenario" && req.Type != "resource" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_type",
-			Message: "Type must be 'scenario' or 'resource'",
-		})
-		return
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
 	}
-
-	// Setup is only valid for resources
-	if req.Action == "setup" && req.Type != "resource" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_action",
-			Message: "Setup action is only valid for resources",
-		})
-		return
-	}
-
-	if req.ID == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_id",
-			Message: "ID is required",
-		})
-		return
-	}
-
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
-		return
-	}
-
-	cfg := sshConfigFromManifest(normalized)
-	workdir := normalized.Target.VPS.Workdir
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	// Build command based on type and action
-	var cmd string
-	if req.Type == "scenario" {
-		cmd = vrooliCommand(workdir, "vrooli scenario "+req.Action+" "+shellQuoteSingle(req.ID))
-	} else {
-		cmd = vrooliCommand(workdir, "vrooli resource "+req.Action+" "+shellQuoteSingle(req.ID))
-	}
-
-	sshRunner := ExecSSHRunner{}
-	result, err := sshRunner.Run(ctx, cfg, cmd)
+	cmd := vrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+shellQuoteSingle(req.ID))
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
 
 	response := ProcessControlResponse{
 		Action:    req.Action,
@@ -671,6 +346,41 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	response.Message = "Successfully " + req.Action + "ed " + req.Type + " " + req.ID
 	response.Output = result.Stdout
 	writeJSON(w, http.StatusOK, response)
+}
+
+// validateProcessControlRequest validates the ProcessControlRequest fields.
+// Returns nil if valid, or an APIError pointer if validation fails.
+func validateProcessControlRequest(req ProcessControlRequest) *APIError {
+	validActions := map[string]bool{"start": true, "stop": true, "restart": true, "setup": true}
+	if !validActions[req.Action] {
+		return &APIError{
+			Code:    "invalid_action",
+			Message: "Action must be 'start', 'stop', 'restart', or 'setup'",
+		}
+	}
+
+	if req.Type != "scenario" && req.Type != "resource" {
+		return &APIError{
+			Code:    "invalid_type",
+			Message: "Type must be 'scenario' or 'resource'",
+		}
+	}
+
+	if req.Action == "setup" && req.Type != "resource" {
+		return &APIError{
+			Code:    "invalid_action",
+			Message: "Setup action is only valid for resources",
+		}
+	}
+
+	if req.ID == "" {
+		return &APIError{
+			Code:    "missing_id",
+			Message: "ID is required",
+		}
+	}
+
+	return nil
 }
 
 // KillProcessRequest is the request body for killing a process.

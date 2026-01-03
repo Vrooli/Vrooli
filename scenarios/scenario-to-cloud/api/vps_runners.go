@@ -44,6 +44,29 @@ func sshConfigFromManifest(manifest CloudManifest) SSHConfig {
 	}
 }
 
+// SSHConfigDefaults provides common default values for SSH connection parameters.
+const (
+	DefaultSSHPort = 22
+	DefaultSSHUser = "root"
+)
+
+// NewSSHConfig creates an SSHConfig with defaults applied for missing values.
+// This reduces repeated `if port == 0 { port = 22 }` patterns in handlers.
+func NewSSHConfig(host string, port int, user string, keyPath string) SSHConfig {
+	if port == 0 {
+		port = DefaultSSHPort
+	}
+	if user == "" {
+		user = DefaultSSHUser
+	}
+	return SSHConfig{
+		Host:    host,
+		Port:    port,
+		User:    user,
+		KeyPath: strings.TrimSpace(keyPath),
+	}
+}
+
 type SSHResult struct {
 	Stdout   string `json:"stdout"`
 	Stderr   string `json:"stderr"`
@@ -100,6 +123,40 @@ func (ExecSSHRunner) Run(ctx context.Context, cfg SSHConfig, command string) (SS
 		Stderr:   strings.TrimRight(stderr.String(), "\n"),
 		ExitCode: exitCode,
 	}, err
+}
+
+// RunSSHWithOutput executes an SSH command and returns an error with output context if it fails.
+// This reduces cognitive load by consolidating the repeated pattern of running SSH commands
+// and building error messages from stdout/stderr. The returned error includes the last 50 lines
+// of stdout (useful because tools like vrooli often redirect stderr to stdout via `2>&1 | tee`).
+func RunSSHWithOutput(ctx context.Context, runner SSHRunner, cfg SSHConfig, cmd string) error {
+	res, err := runner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return buildSSHError(err, res)
+	}
+	return nil
+}
+
+// buildSSHError constructs an error with output context from an SSH result.
+// Collects both stderr and stdout (limited to last 50 lines) for comprehensive error context.
+func buildSSHError(err error, res SSHResult) error {
+	var outputParts []string
+	if res.Stderr != "" {
+		outputParts = append(outputParts, "stderr: "+res.Stderr)
+	}
+	if res.Stdout != "" {
+		lines := strings.Split(res.Stdout, "\n")
+		if len(lines) > 50 {
+			lines = lines[len(lines)-50:]
+			outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
+		} else {
+			outputParts = append(outputParts, "stdout: "+res.Stdout)
+		}
+	}
+	if len(outputParts) > 0 {
+		return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
+	}
+	return err
 }
 
 type ExecSCPRunner struct{}

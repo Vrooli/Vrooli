@@ -109,6 +109,12 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			CREATE INDEX IF NOT EXISTS idx_investigations_deployment_id ON deployment_investigations(deployment_id);
 			CREATE INDEX IF NOT EXISTS idx_investigations_status ON deployment_investigations(status);
 		`},
+		{"add_idempotency_tracking", `
+			-- Track completed steps for replay-safe execution
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS completed_steps JSONB DEFAULT '[]'::jsonb;
+			-- UUID for the current execution run; changes on each fresh execution
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS run_id TEXT;
+		`},
 	}
 
 	for _, m := range migrations {

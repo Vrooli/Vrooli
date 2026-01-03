@@ -254,22 +254,16 @@ func (s *Server) handleBundleCleanup(w http.ResponseWriter, r *http.Request) {
 // cleanupVPSBundles removes old bundles from the VPS.
 // Returns count of deleted bundles, freed bytes, and any error.
 func (s *Server) cleanupVPSBundles(ctx context.Context, req BundleCleanupRequest) (int, int64, error) {
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
 	bundlesPath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
 
 	// Get initial disk usage
 	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", shellQuoteSingle(bundlesPath))
-	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	beforeRes, _ := s.sshRunner.Run(ctx, cfg, beforeCmd)
 	beforeBytes := parseBytes(strings.TrimSpace(beforeRes.Stdout))
 
 	// Build cleanup command based on options
@@ -297,13 +291,13 @@ func (s *Server) cleanupVPSBundles(ctx context.Context, req BundleCleanupRequest
 	}
 
 	// Run cleanup
-	_, err := sshRunner.Run(ctx, cfg, cleanupCmd)
+	_, err := s.sshRunner.Run(ctx, cfg, cleanupCmd)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cleanup command failed: %w", err)
 	}
 
 	// Get final disk usage
-	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	afterRes, _ := s.sshRunner.Run(ctx, cfg, beforeCmd)
 	afterBytes := parseBytes(strings.TrimSpace(afterRes.Stdout))
 
 	freedBytes := beforeBytes - afterBytes
@@ -366,25 +360,11 @@ func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set defaults
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
-
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
 	bundlesPath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
 
 	// List bundles with size and modification time
@@ -394,7 +374,7 @@ func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 		shellQuoteSingle(bundlesPath),
 	)
 
-	res, err := sshRunner.Run(ctx, cfg, listCmd)
+	res, err := s.sshRunner.Run(ctx, cfg, listCmd)
 	if err != nil {
 		writeJSON(w, http.StatusOK, VPSBundleListResponse{
 			OK:        false,
@@ -472,35 +452,21 @@ func (s *Server) handleDeleteVPSBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set defaults
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
-
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: req.KeyPath,
-	}
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	sshRunner := ExecSSHRunner{}
 	bundlePath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
 
 	// Get file size before deleting
 	sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", shellQuoteSingle(bundlePath))
-	sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd)
+	sizeRes, _ := s.sshRunner.Run(ctx, cfg, sizeCmd)
 	sizeBytes := parseBytes(strings.TrimSpace(sizeRes.Stdout))
 
 	// Delete the file
 	deleteCmd := fmt.Sprintf("rm -f %s", shellQuoteSingle(bundlePath))
-	_, err := sshRunner.Run(ctx, cfg, deleteCmd)
+	_, err := s.sshRunner.Run(ctx, cfg, deleteCmd)
 	if err != nil {
 		writeJSON(w, http.StatusOK, VPSBundleDeleteResponse{
 			OK:        false,

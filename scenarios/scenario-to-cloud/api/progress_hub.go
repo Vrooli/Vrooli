@@ -4,6 +4,13 @@ import (
 	"sync"
 )
 
+// ProgressBroadcaster is the interface for broadcasting progress events.
+// This abstraction allows RunVPSDeployWithProgress to work with both the real ProgressHub
+// and a no-op implementation for callers that don't need progress tracking.
+type ProgressBroadcaster interface {
+	Broadcast(deploymentID string, event ProgressEvent)
+}
+
 // ProgressHub manages SSE subscriptions for deployment progress.
 // It allows multiple clients to subscribe to progress updates for a deployment.
 type ProgressHub struct {

@@ -53,8 +53,7 @@ func (s *Server) handleGetSecrets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch from secrets-manager (uses dynamic service discovery)
-	client := NewSecretsClient()
-	resp, err := client.FetchBundleSecrets(r.Context(), scenario, tier, resources)
+	resp, err := s.secretsFetcher.FetchBundleSecrets(r.Context(), scenario, tier, resources)
 	if err != nil {
 		writeAPIError(w, http.StatusBadGateway, APIError{
 			Code:    "secrets_fetch_failed",
