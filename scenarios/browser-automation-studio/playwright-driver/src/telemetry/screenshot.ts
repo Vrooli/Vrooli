@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import { MAX_SCREENSHOT_SIZE_BYTES } from '../constants';
 import { logger, metrics } from '../utils';

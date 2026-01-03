@@ -73,7 +73,10 @@ export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   patch_screen_properties: false,
   patch_battery_api: false,
   patch_connection_api: false,
-  ad_blocking_mode: 'ads_and_tracking',
+  ad_blocking_mode: 'ads_only',
+  // Google domains whitelisted by default because ad blockers can interfere with
+  // Google's service worker scripts, causing redirect loops (no_sw_cr=1 parameter).
+  ad_blocking_whitelist: ['*.google.com', '*.gstatic.com', '*.googleapis.com'],
 };
 
 /**

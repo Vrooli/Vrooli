@@ -25,7 +25,7 @@ import {
   clearTimelineEntries,
 } from '../../recording/buffer';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type {
   StartRecordingRequest,
   StartRecordingResponse,

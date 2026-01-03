@@ -14,12 +14,12 @@ importers:
       '@ghostery/adblocker-playwright':
         specifier: ^2.13.2
         version: 2.13.2(playwright@1.57.0)
-      playwright:
-        specifier: ^1.40.0
-        version: 1.57.0
       prom-client:
         specifier: ^15.1.0
         version: 15.1.3
+      rebrowser-playwright:
+        specifier: ^1.52.0
+        version: 1.52.0
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
@@ -1652,6 +1652,16 @@ packages:
   readable-stream@3.6.2:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
     engines: {node: '>= 6'}
+
+  rebrowser-playwright-core@1.52.0:
+    resolution: {integrity: sha512-gjrvLNh0RX6B/tg6pWaPNGf+9+z1Jl2EyAh5MXD5xMa2lputGRZ9V2MJ/uofcC5Np3vSOJ3SdVSRqwteC0FjfQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  rebrowser-playwright@1.52.0:
+    resolution: {integrity: sha512-UjpqfwmF9+XtOuCCxGQ2ZlLeuSaSv//4Z6ZQgYPsJovz3d7nWodCd2hSRQigAswAUnsPmVwnQUpSn+TLKaKV+A==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
@@ -3855,6 +3865,14 @@ snapshots:
       inherits: 2.0.4
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
+
+  rebrowser-playwright-core@1.52.0: {}
+
+  rebrowser-playwright@1.52.0:
+    dependencies:
+      playwright-core: rebrowser-playwright-core@1.52.0
+    optionalDependencies:
+      fsevents: 2.3.2
 
   require-directory@2.1.1: {}
 

@@ -34,7 +34,7 @@
  * @module recording/replay-service
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import {
   executeTimelineEntry,
   type ExecutorContext,

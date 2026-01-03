@@ -1,3 +1,4 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -7,15 +8,26 @@ DESCRIPTOR: _descriptor.FileDescriptor
 
 class BrowserProfile(_message.Message):
     __slots__ = ()
+    class ExtraHeadersEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     PRESET_FIELD_NUMBER: _ClassVar[int]
     FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
     ANTI_DETECTION_FIELD_NUMBER: _ClassVar[int]
+    PROXY_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_HEADERS_FIELD_NUMBER: _ClassVar[int]
     preset: str
     fingerprint: FingerprintSettings
     behavior: BehaviorSettings
     anti_detection: AntiDetectionSettings
-    def __init__(self, preset: _Optional[str] = ..., fingerprint: _Optional[_Union[FingerprintSettings, _Mapping]] = ..., behavior: _Optional[_Union[BehaviorSettings, _Mapping]] = ..., anti_detection: _Optional[_Union[AntiDetectionSettings, _Mapping]] = ...) -> None: ...
+    proxy: ProxySettings
+    extra_headers: _containers.ScalarMap[str, str]
+    def __init__(self, preset: _Optional[str] = ..., fingerprint: _Optional[_Union[FingerprintSettings, _Mapping]] = ..., behavior: _Optional[_Union[BehaviorSettings, _Mapping]] = ..., anti_detection: _Optional[_Union[AntiDetectionSettings, _Mapping]] = ..., proxy: _Optional[_Union[ProxySettings, _Mapping]] = ..., extra_headers: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class FingerprintSettings(_message.Message):
     __slots__ = ()
@@ -96,7 +108,12 @@ class AntiDetectionSettings(_message.Message):
     PATCH_NAVIGATOR_LANGUAGES_FIELD_NUMBER: _ClassVar[int]
     PATCH_WEBGL_FIELD_NUMBER: _ClassVar[int]
     PATCH_CANVAS_FIELD_NUMBER: _ClassVar[int]
+    PATCH_AUDIO_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     HEADLESS_DETECTION_BYPASS_FIELD_NUMBER: _ClassVar[int]
+    PATCH_FONTS_FIELD_NUMBER: _ClassVar[int]
+    PATCH_SCREEN_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    PATCH_BATTERY_API_FIELD_NUMBER: _ClassVar[int]
+    PATCH_CONNECTION_API_FIELD_NUMBER: _ClassVar[int]
     AD_BLOCKING_MODE_FIELD_NUMBER: _ClassVar[int]
     disable_automation_controlled: bool
     disable_webrtc: bool
@@ -105,6 +122,25 @@ class AntiDetectionSettings(_message.Message):
     patch_navigator_languages: bool
     patch_webgl: bool
     patch_canvas: bool
+    patch_audio_context: bool
     headless_detection_bypass: bool
+    patch_fonts: bool
+    patch_screen_properties: bool
+    patch_battery_api: bool
+    patch_connection_api: bool
     ad_blocking_mode: str
-    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ...) -> None: ...
+    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., patch_audio_context: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., patch_fonts: _Optional[bool] = ..., patch_screen_properties: _Optional[bool] = ..., patch_battery_api: _Optional[bool] = ..., patch_connection_api: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ...) -> None: ...
+
+class ProxySettings(_message.Message):
+    __slots__ = ()
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    SERVER_FIELD_NUMBER: _ClassVar[int]
+    BYPASS_FIELD_NUMBER: _ClassVar[int]
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    enabled: bool
+    server: str
+    bypass: str
+    username: str
+    password: str
+    def __init__(self, enabled: _Optional[bool] = ..., server: _Optional[str] = ..., bypass: _Optional[str] = ..., username: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...

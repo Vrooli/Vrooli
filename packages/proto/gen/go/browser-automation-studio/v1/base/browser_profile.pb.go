@@ -32,6 +32,11 @@ type BrowserProfile struct {
 	Behavior *BehaviorSettings `protobuf:"bytes,3,opt,name=behavior,proto3,oneof" json:"behavior,omitempty"`
 	// Bot detection bypass settings.
 	AntiDetection *AntiDetectionSettings `protobuf:"bytes,4,opt,name=anti_detection,json=antiDetection,proto3,oneof" json:"anti_detection,omitempty"`
+	// Proxy configuration.
+	Proxy *ProxySettings `protobuf:"bytes,5,opt,name=proxy,proto3,oneof" json:"proxy,omitempty"`
+	// Custom HTTP headers sent with every request.
+	// Keys like "Host", "Content-Length", and "Cookie" are blocked.
+	ExtraHeaders  map[string]string `protobuf:"bytes,6,rep,name=extra_headers,json=extraHeaders,proto3" json:"extra_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +95,20 @@ func (x *BrowserProfile) GetBehavior() *BehaviorSettings {
 func (x *BrowserProfile) GetAntiDetection() *AntiDetectionSettings {
 	if x != nil {
 		return x.AntiDetection
+	}
+	return nil
+}
+
+func (x *BrowserProfile) GetProxy() *ProxySettings {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+func (x *BrowserProfile) GetExtraHeaders() map[string]string {
+	if x != nil {
+		return x.ExtraHeaders
 	}
 	return nil
 }
@@ -444,7 +463,13 @@ type AntiDetectionSettings struct {
 	PatchNavigatorLanguages *bool `protobuf:"varint,5,opt,name=patch_navigator_languages,json=patchNavigatorLanguages,proto3,oneof" json:"patch_navigator_languages,omitempty"` // Ensure consistent languages
 	PatchWebgl              *bool `protobuf:"varint,6,opt,name=patch_webgl,json=patchWebgl,proto3,oneof" json:"patch_webgl,omitempty"`                                          // Spoof WebGL renderer/vendor
 	PatchCanvas             *bool `protobuf:"varint,7,opt,name=patch_canvas,json=patchCanvas,proto3,oneof" json:"patch_canvas,omitempty"`                                       // Add noise to canvas fingerprint
+	PatchAudioContext       *bool `protobuf:"varint,10,opt,name=patch_audio_context,json=patchAudioContext,proto3,oneof" json:"patch_audio_context,omitempty"`                  // Add noise to AudioContext to prevent audio fingerprinting
 	HeadlessDetectionBypass *bool `protobuf:"varint,8,opt,name=headless_detection_bypass,json=headlessDetectionBypass,proto3,oneof" json:"headless_detection_bypass,omitempty"` // Bypass headless detection
+	// Additional fingerprinting protection
+	PatchFonts            *bool `protobuf:"varint,11,opt,name=patch_fonts,json=patchFonts,proto3,oneof" json:"patch_fonts,omitempty"`                                    // Spoof font enumeration to return common fonts only
+	PatchScreenProperties *bool `protobuf:"varint,12,opt,name=patch_screen_properties,json=patchScreenProperties,proto3,oneof" json:"patch_screen_properties,omitempty"` // Spoof screen dimensions to match viewport
+	PatchBatteryApi       *bool `protobuf:"varint,13,opt,name=patch_battery_api,json=patchBatteryApi,proto3,oneof" json:"patch_battery_api,omitempty"`                   // Return consistent battery status
+	PatchConnectionApi    *bool `protobuf:"varint,14,opt,name=patch_connection_api,json=patchConnectionApi,proto3,oneof" json:"patch_connection_api,omitempty"`          // Spoof network connection type
 	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
 	// - none: No ad blocking
 	// - ads_only: Block advertisements only (EasyList + uBlock filters)
@@ -533,9 +558,44 @@ func (x *AntiDetectionSettings) GetPatchCanvas() bool {
 	return false
 }
 
+func (x *AntiDetectionSettings) GetPatchAudioContext() bool {
+	if x != nil && x.PatchAudioContext != nil {
+		return *x.PatchAudioContext
+	}
+	return false
+}
+
 func (x *AntiDetectionSettings) GetHeadlessDetectionBypass() bool {
 	if x != nil && x.HeadlessDetectionBypass != nil {
 		return *x.HeadlessDetectionBypass
+	}
+	return false
+}
+
+func (x *AntiDetectionSettings) GetPatchFonts() bool {
+	if x != nil && x.PatchFonts != nil {
+		return *x.PatchFonts
+	}
+	return false
+}
+
+func (x *AntiDetectionSettings) GetPatchScreenProperties() bool {
+	if x != nil && x.PatchScreenProperties != nil {
+		return *x.PatchScreenProperties
+	}
+	return false
+}
+
+func (x *AntiDetectionSettings) GetPatchBatteryApi() bool {
+	if x != nil && x.PatchBatteryApi != nil {
+		return *x.PatchBatteryApi
+	}
+	return false
+}
+
+func (x *AntiDetectionSettings) GetPatchConnectionApi() bool {
+	if x != nil && x.PatchConnectionApi != nil {
+		return *x.PatchConnectionApi
 	}
 	return false
 }
@@ -547,20 +607,109 @@ func (x *AntiDetectionSettings) GetAdBlockingMode() string {
 	return ""
 }
 
+// ProxySettings controls routing browser traffic through a proxy server.
+// Supports HTTP, HTTPS, and SOCKS5 proxies.
+type ProxySettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether proxy is enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080").
+	Server *string `protobuf:"bytes,2,opt,name=server,proto3,oneof" json:"server,omitempty"`
+	// Comma-separated domains to bypass proxy (e.g., "localhost,.internal.com").
+	Bypass *string `protobuf:"bytes,3,opt,name=bypass,proto3,oneof" json:"bypass,omitempty"`
+	// Proxy authentication username.
+	Username *string `protobuf:"bytes,4,opt,name=username,proto3,oneof" json:"username,omitempty"`
+	// Proxy authentication password.
+	Password      *string `protobuf:"bytes,5,opt,name=password,proto3,oneof" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProxySettings) Reset() {
+	*x = ProxySettings{}
+	mi := &file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProxySettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProxySettings) ProtoMessage() {}
+
+func (x *ProxySettings) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProxySettings.ProtoReflect.Descriptor instead.
+func (*ProxySettings) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_base_browser_profile_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ProxySettings) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *ProxySettings) GetServer() string {
+	if x != nil && x.Server != nil {
+		return *x.Server
+	}
+	return ""
+}
+
+func (x *ProxySettings) GetBypass() string {
+	if x != nil && x.Bypass != nil {
+		return *x.Bypass
+	}
+	return ""
+}
+
+func (x *ProxySettings) GetUsername() string {
+	if x != nil && x.Username != nil {
+		return *x.Username
+	}
+	return ""
+}
+
+func (x *ProxySettings) GetPassword() string {
+	if x != nil && x.Password != nil {
+		return *x.Password
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_base_browser_profile_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" +
 	"\n" +
-	"7browser-automation-studio/v1/base/browser_profile.proto\x12\x1cbrowser_automation_studio.v1\"\xf4\x02\n" +
+	"7browser-automation-studio/v1/base/browser_profile.proto\x12\x1cbrowser_automation_studio.v1\"\xec\x04\n" +
 	"\x0eBrowserProfile\x12\x1b\n" +
 	"\x06preset\x18\x01 \x01(\tH\x00R\x06preset\x88\x01\x01\x12X\n" +
 	"\vfingerprint\x18\x02 \x01(\v21.browser_automation_studio.v1.FingerprintSettingsH\x01R\vfingerprint\x88\x01\x01\x12O\n" +
 	"\bbehavior\x18\x03 \x01(\v2..browser_automation_studio.v1.BehaviorSettingsH\x02R\bbehavior\x88\x01\x01\x12_\n" +
-	"\x0eanti_detection\x18\x04 \x01(\v23.browser_automation_studio.v1.AntiDetectionSettingsH\x03R\rantiDetection\x88\x01\x01B\t\n" +
+	"\x0eanti_detection\x18\x04 \x01(\v23.browser_automation_studio.v1.AntiDetectionSettingsH\x03R\rantiDetection\x88\x01\x01\x12F\n" +
+	"\x05proxy\x18\x05 \x01(\v2+.browser_automation_studio.v1.ProxySettingsH\x04R\x05proxy\x88\x01\x01\x12c\n" +
+	"\rextra_headers\x18\x06 \x03(\v2>.browser_automation_studio.v1.BrowserProfile.ExtraHeadersEntryR\fextraHeaders\x1a?\n" +
+	"\x11ExtraHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
 	"\a_presetB\x0e\n" +
 	"\f_fingerprintB\v\n" +
 	"\t_behaviorB\x11\n" +
-	"\x0f_anti_detection\"\xdc\x06\n" +
+	"\x0f_anti_detectionB\b\n" +
+	"\x06_proxy\"\xdc\x06\n" +
 	"\x13FingerprintSettings\x12*\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05H\x00R\rviewportWidth\x88\x01\x01\x12,\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05H\x01R\x0eviewportHeight\x88\x01\x01\x123\n" +
@@ -632,7 +781,7 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\x14_micro_pause_enabledB\x15\n" +
 	"\x13_micro_pause_min_msB\x15\n" +
 	"\x13_micro_pause_max_msB\x18\n" +
-	"\x16_micro_pause_frequency\"\xea\x05\n" +
+	"\x16_micro_pause_frequency\"\xdd\b\n" +
 	"\x15AntiDetectionSettings\x12G\n" +
 	"\x1ddisable_automation_controlled\x18\x01 \x01(\bH\x00R\x1bdisableAutomationControlled\x88\x01\x01\x12*\n" +
 	"\x0edisable_webrtc\x18\x02 \x01(\bH\x01R\rdisableWebrtc\x88\x01\x01\x12?\n" +
@@ -641,18 +790,43 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\x19patch_navigator_languages\x18\x05 \x01(\bH\x04R\x17patchNavigatorLanguages\x88\x01\x01\x12$\n" +
 	"\vpatch_webgl\x18\x06 \x01(\bH\x05R\n" +
 	"patchWebgl\x88\x01\x01\x12&\n" +
-	"\fpatch_canvas\x18\a \x01(\bH\x06R\vpatchCanvas\x88\x01\x01\x12?\n" +
-	"\x19headless_detection_bypass\x18\b \x01(\bH\aR\x17headlessDetectionBypass\x88\x01\x01\x12-\n" +
-	"\x10ad_blocking_mode\x18\t \x01(\tH\bR\x0eadBlockingMode\x88\x01\x01B \n" +
+	"\fpatch_canvas\x18\a \x01(\bH\x06R\vpatchCanvas\x88\x01\x01\x123\n" +
+	"\x13patch_audio_context\x18\n" +
+	" \x01(\bH\aR\x11patchAudioContext\x88\x01\x01\x12?\n" +
+	"\x19headless_detection_bypass\x18\b \x01(\bH\bR\x17headlessDetectionBypass\x88\x01\x01\x12$\n" +
+	"\vpatch_fonts\x18\v \x01(\bH\tR\n" +
+	"patchFonts\x88\x01\x01\x12;\n" +
+	"\x17patch_screen_properties\x18\f \x01(\bH\n" +
+	"R\x15patchScreenProperties\x88\x01\x01\x12/\n" +
+	"\x11patch_battery_api\x18\r \x01(\bH\vR\x0fpatchBatteryApi\x88\x01\x01\x125\n" +
+	"\x14patch_connection_api\x18\x0e \x01(\bH\fR\x12patchConnectionApi\x88\x01\x01\x12-\n" +
+	"\x10ad_blocking_mode\x18\t \x01(\tH\rR\x0eadBlockingMode\x88\x01\x01B \n" +
 	"\x1e_disable_automation_controlledB\x11\n" +
 	"\x0f_disable_webrtcB\x1c\n" +
 	"\x1a_patch_navigator_webdriverB\x1a\n" +
 	"\x18_patch_navigator_pluginsB\x1c\n" +
 	"\x1a_patch_navigator_languagesB\x0e\n" +
 	"\f_patch_webglB\x0f\n" +
-	"\r_patch_canvasB\x1c\n" +
-	"\x1a_headless_detection_bypassB\x13\n" +
-	"\x11_ad_blocking_modeBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;baseb\x06proto3"
+	"\r_patch_canvasB\x16\n" +
+	"\x14_patch_audio_contextB\x1c\n" +
+	"\x1a_headless_detection_bypassB\x0e\n" +
+	"\f_patch_fontsB\x1a\n" +
+	"\x18_patch_screen_propertiesB\x14\n" +
+	"\x12_patch_battery_apiB\x17\n" +
+	"\x15_patch_connection_apiB\x13\n" +
+	"\x11_ad_blocking_mode\"\xe6\x01\n" +
+	"\rProxySettings\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\x1b\n" +
+	"\x06server\x18\x02 \x01(\tH\x01R\x06server\x88\x01\x01\x12\x1b\n" +
+	"\x06bypass\x18\x03 \x01(\tH\x02R\x06bypass\x88\x01\x01\x12\x1f\n" +
+	"\busername\x18\x04 \x01(\tH\x03R\busername\x88\x01\x01\x12\x1f\n" +
+	"\bpassword\x18\x05 \x01(\tH\x04R\bpassword\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\t\n" +
+	"\a_serverB\t\n" +
+	"\a_bypassB\v\n" +
+	"\t_usernameB\v\n" +
+	"\t_passwordBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;baseb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_base_browser_profile_proto_rawDescOnce sync.Once
@@ -666,22 +840,26 @@ func file_browser_automation_studio_v1_base_browser_profile_proto_rawDescGZIP() 
 	return file_browser_automation_studio_v1_base_browser_profile_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_browser_automation_studio_v1_base_browser_profile_proto_goTypes = []any{
 	(*BrowserProfile)(nil),        // 0: browser_automation_studio.v1.BrowserProfile
 	(*FingerprintSettings)(nil),   // 1: browser_automation_studio.v1.FingerprintSettings
 	(*BehaviorSettings)(nil),      // 2: browser_automation_studio.v1.BehaviorSettings
 	(*AntiDetectionSettings)(nil), // 3: browser_automation_studio.v1.AntiDetectionSettings
+	(*ProxySettings)(nil),         // 4: browser_automation_studio.v1.ProxySettings
+	nil,                           // 5: browser_automation_studio.v1.BrowserProfile.ExtraHeadersEntry
 }
 var file_browser_automation_studio_v1_base_browser_profile_proto_depIdxs = []int32{
 	1, // 0: browser_automation_studio.v1.BrowserProfile.fingerprint:type_name -> browser_automation_studio.v1.FingerprintSettings
 	2, // 1: browser_automation_studio.v1.BrowserProfile.behavior:type_name -> browser_automation_studio.v1.BehaviorSettings
 	3, // 2: browser_automation_studio.v1.BrowserProfile.anti_detection:type_name -> browser_automation_studio.v1.AntiDetectionSettings
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: browser_automation_studio.v1.BrowserProfile.proxy:type_name -> browser_automation_studio.v1.ProxySettings
+	5, // 4: browser_automation_studio.v1.BrowserProfile.extra_headers:type_name -> browser_automation_studio.v1.BrowserProfile.ExtraHeadersEntry
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_base_browser_profile_proto_init() }
@@ -693,13 +871,14 @@ func file_browser_automation_studio_v1_base_browser_profile_proto_init() {
 	file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[1].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[2].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_base_browser_profile_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc), len(file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

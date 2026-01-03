@@ -11,8 +11,8 @@ const AD_BLOCKING_OPTIONS: { value: AdBlockingMode; label: string; description: 
   { value: 'ads_and_tracking', label: 'Ads & Tracking', description: 'Block ads and tracking scripts (recommended)' },
 ];
 
-// Boolean-only keys from AntiDetectionSettings (excludes ad_blocking_mode which is a string)
-type BooleanAntiDetectionKey = Exclude<keyof AntiDetectionSettings, 'ad_blocking_mode'>;
+// Boolean-only keys from AntiDetectionSettings (excludes non-boolean fields)
+type BooleanAntiDetectionKey = Exclude<keyof AntiDetectionSettings, 'ad_blocking_mode' | 'ad_blocking_whitelist'>;
 
 const TOGGLES: { key: BooleanAntiDetectionKey; label: string; description: string }[] = [
   {
@@ -112,6 +112,32 @@ export function AntiDetectionSection({ antiDetection, onChange }: AntiDetectionS
             </label>
           ))}
         </div>
+
+        {/* Ad Blocking Whitelist - only show when ad blocking is enabled */}
+        {(antiDetection.ad_blocking_mode ?? 'ads_only') !== 'none' && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Domain Whitelist
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Domains to exclude from ad blocking (e.g., google.com). Enter domains separated by commas.
+              Use *.domain.com for wildcards.
+            </p>
+            <input
+              type="text"
+              value={(antiDetection.ad_blocking_whitelist ?? []).join(', ')}
+              onChange={(e) => {
+                const domains = e.target.value
+                  .split(',')
+                  .map((d) => d.trim())
+                  .filter(Boolean);
+                onChange('ad_blocking_whitelist', domains);
+              }}
+              placeholder="google.com, *.gstatic.com"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        )}
       </div>
 
       {/* Bot Detection Bypass Section */}

@@ -132,6 +132,7 @@ export interface AntiDetectionSettings {
 
   // Ad blocking
   ad_blocking_mode?: AdBlockingMode; // Block ads and/or tracking
+  ad_blocking_whitelist?: string[]; // Domains to exclude from ad blocking
 }
 
 /**

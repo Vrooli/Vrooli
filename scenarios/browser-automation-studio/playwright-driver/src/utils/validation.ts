@@ -8,7 +8,7 @@
  * @module utils/validation
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import { logger } from './logger';
 
 // UUID v4 regex pattern

@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import {

@@ -14,7 +14,7 @@
  * @module frame-streaming/strategies/cdp-screencast
  */
 
-import type { CDPSession, Page } from 'playwright';
+import type { CDPSession, Page } from 'rebrowser-playwright';
 import { logger, scopedLog, LogContext, metrics } from '../../utils';
 import type {
   FrameStreamingStrategy,

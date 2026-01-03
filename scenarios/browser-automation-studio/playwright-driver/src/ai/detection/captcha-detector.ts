@@ -13,7 +13,7 @@
  * - Generic verification text patterns
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 
 /**
  * Result of CAPTCHA detection.

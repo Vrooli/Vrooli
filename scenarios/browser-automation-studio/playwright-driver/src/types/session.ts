@@ -1,4 +1,4 @@
-import { Page, BrowserContext, Browser, Frame } from 'playwright';
+import type { Page, BrowserContext, Browser, Frame } from 'rebrowser-playwright';
 import type { RecordModeController } from '../recording/controller';
 import type { BrowserProfile } from './browser-profile';
 

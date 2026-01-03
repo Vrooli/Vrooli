@@ -173,7 +173,7 @@ export class DownloadHandler extends BaseHandler {
    * @param downloadKey - Cache key for storing successful result
    */
   private async executeDownload(
-    page: import('playwright').Page,
+    page: import('rebrowser-playwright').Page,
     selector: string | undefined,
     targetURL: string | undefined,
     timeout: number,

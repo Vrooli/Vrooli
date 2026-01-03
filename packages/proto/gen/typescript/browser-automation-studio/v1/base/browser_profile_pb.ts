@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/base/browser_profile.proto.
  */
 export const file_browser_automation_studio_v1_base_browser_profile: GenFile = /*@__PURE__*/
-  fileDesc("Cjdicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2Jhc2UvYnJvd3Nlcl9wcm9maWxlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIsYCCg5Ccm93c2VyUHJvZmlsZRITCgZwcmVzZXQYASABKAlIAIgBARJLCgtmaW5nZXJwcmludBgCIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRmluZ2VycHJpbnRTZXR0aW5nc0gBiAEBEkUKCGJlaGF2aW9yGAMgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5CZWhhdmlvclNldHRpbmdzSAKIAQESUAoOYW50aV9kZXRlY3Rpb24YBCABKAsyMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFudGlEZXRlY3Rpb25TZXR0aW5nc0gDiAEBQgkKB19wcmVzZXRCDgoMX2ZpbmdlcnByaW50QgsKCV9iZWhhdmlvckIRCg9fYW50aV9kZXRlY3Rpb24ilwUKE0ZpbmdlcnByaW50U2V0dGluZ3MSGwoOdmlld3BvcnRfd2lkdGgYASABKAVIAIgBARIcCg92aWV3cG9ydF9oZWlnaHQYAiABKAVIAYgBARIgChNkZXZpY2Vfc2NhbGVfZmFjdG9yGAMgASgBSAKIAQESIQoUaGFyZHdhcmVfY29uY3VycmVuY3kYBCABKAVIA4gBARIaCg1kZXZpY2VfbWVtb3J5GAUgASgFSASIAQESFwoKdXNlcl9hZ2VudBgGIAEoCUgFiAEBEh4KEXVzZXJfYWdlbnRfcHJlc2V0GAcgASgJSAaIAQESEwoGbG9jYWxlGAggASgJSAeIAQESGAoLdGltZXpvbmVfaWQYCSABKAlICIgBARIgChNnZW9sb2NhdGlvbl9lbmFibGVkGAogASgISAmIAQESFQoIbGF0aXR1ZGUYCyABKAFICogBARIWCglsb25naXR1ZGUYDCABKAFIC4gBARIVCghhY2N1cmFjeRgNIAEoAUgMiAEBEhkKDGNvbG9yX3NjaGVtZRgOIAEoCUgNiAEBQhEKD192aWV3cG9ydF93aWR0aEISChBfdmlld3BvcnRfaGVpZ2h0QhYKFF9kZXZpY2Vfc2NhbGVfZmFjdG9yQhcKFV9oYXJkd2FyZV9jb25jdXJyZW5jeUIQCg5fZGV2aWNlX21lbW9yeUINCgtfdXNlcl9hZ2VudEIUChJfdXNlcl9hZ2VudF9wcmVzZXRCCQoHX2xvY2FsZUIOCgxfdGltZXpvbmVfaWRCFgoUX2dlb2xvY2F0aW9uX2VuYWJsZWRCCwoJX2xhdGl0dWRlQgwKCl9sb25naXR1ZGVCCwoJX2FjY3VyYWN5Qg8KDV9jb2xvcl9zY2hlbWUi0gcKEEJlaGF2aW9yU2V0dGluZ3MSHQoQdHlwaW5nX2RlbGF5X21pbhgBIAEoBUgAiAEBEh0KEHR5cGluZ19kZWxheV9tYXgYAiABKAVIAYgBARIjChZ0eXBpbmdfc3RhcnRfZGVsYXlfbWluGA4gASgFSAKIAQESIwoWdHlwaW5nX3N0YXJ0X2RlbGF5X21heBgPIAEoBUgDiAEBEiMKFnR5cGluZ19wYXN0ZV90aHJlc2hvbGQYECABKAVIBIgBARIkChd0eXBpbmdfdmFyaWFuY2VfZW5hYmxlZBgRIAEoCEgFiAEBEiEKFG1vdXNlX21vdmVtZW50X3N0eWxlGAMgASgJSAaIAQESIAoTbW91c2Vfaml0dGVyX2Ftb3VudBgEIAEoAUgHiAEBEhwKD2NsaWNrX2RlbGF5X21pbhgFIAEoBUgIiAEBEhwKD2NsaWNrX2RlbGF5X21heBgGIAEoBUgJiAEBEhkKDHNjcm9sbF9zdHlsZRgHIAEoCUgKiAEBEh0KEHNjcm9sbF9zcGVlZF9taW4YCCABKAVIC4gBARIdChBzY3JvbGxfc3BlZWRfbWF4GAkgASgFSAyIAQESIAoTbWljcm9fcGF1c2VfZW5hYmxlZBgKIAEoCEgNiAEBEh8KEm1pY3JvX3BhdXNlX21pbl9tcxgLIAEoBUgOiAEBEh8KEm1pY3JvX3BhdXNlX21heF9tcxgMIAEoBUgPiAEBEiIKFW1pY3JvX3BhdXNlX2ZyZXF1ZW5jeRgNIAEoAUgQiAEBQhMKEV90eXBpbmdfZGVsYXlfbWluQhMKEV90eXBpbmdfZGVsYXlfbWF4QhkKF190eXBpbmdfc3RhcnRfZGVsYXlfbWluQhkKF190eXBpbmdfc3RhcnRfZGVsYXlfbWF4QhkKF190eXBpbmdfcGFzdGVfdGhyZXNob2xkQhoKGF90eXBpbmdfdmFyaWFuY2VfZW5hYmxlZEIXChVfbW91c2VfbW92ZW1lbnRfc3R5bGVCFgoUX21vdXNlX2ppdHRlcl9hbW91bnRCEgoQX2NsaWNrX2RlbGF5X21pbkISChBfY2xpY2tfZGVsYXlfbWF4Qg8KDV9zY3JvbGxfc3R5bGVCEwoRX3Njcm9sbF9zcGVlZF9taW5CEwoRX3Njcm9sbF9zcGVlZF9tYXhCFgoUX21pY3JvX3BhdXNlX2VuYWJsZWRCFQoTX21pY3JvX3BhdXNlX21pbl9tc0IVChNfbWljcm9fcGF1c2VfbWF4X21zQhgKFl9taWNyb19wYXVzZV9mcmVxdWVuY3kiswQKFUFudGlEZXRlY3Rpb25TZXR0aW5ncxIqCh1kaXNhYmxlX2F1dG9tYXRpb25fY29udHJvbGxlZBgBIAEoCEgAiAEBEhsKDmRpc2FibGVfd2VicnRjGAIgASgISAGIAQESJgoZcGF0Y2hfbmF2aWdhdG9yX3dlYmRyaXZlchgDIAEoCEgCiAEBEiQKF3BhdGNoX25hdmlnYXRvcl9wbHVnaW5zGAQgASgISAOIAQESJgoZcGF0Y2hfbmF2aWdhdG9yX2xhbmd1YWdlcxgFIAEoCEgEiAEBEhgKC3BhdGNoX3dlYmdsGAYgASgISAWIAQESGQoMcGF0Y2hfY2FudmFzGAcgASgISAaIAQESJgoZaGVhZGxlc3NfZGV0ZWN0aW9uX2J5cGFzcxgIIAEoCEgHiAEBEh0KEGFkX2Jsb2NraW5nX21vZGUYCSABKAlICIgBAUIgCh5fZGlzYWJsZV9hdXRvbWF0aW9uX2NvbnRyb2xsZWRCEQoPX2Rpc2FibGVfd2VicnRjQhwKGl9wYXRjaF9uYXZpZ2F0b3Jfd2ViZHJpdmVyQhoKGF9wYXRjaF9uYXZpZ2F0b3JfcGx1Z2luc0IcChpfcGF0Y2hfbmF2aWdhdG9yX2xhbmd1YWdlc0IOCgxfcGF0Y2hfd2ViZ2xCDwoNX3BhdGNoX2NhbnZhc0IcChpfaGVhZGxlc3NfZGV0ZWN0aW9uX2J5cGFzc0ITChFfYWRfYmxvY2tpbmdfbW9kZUJXWlVnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjEvYmFzZTtiYXNlYgZwcm90bzM");
+  fileDesc("Cjdicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2Jhc2UvYnJvd3Nlcl9wcm9maWxlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIp0ECg5Ccm93c2VyUHJvZmlsZRITCgZwcmVzZXQYASABKAlIAIgBARJLCgtmaW5nZXJwcmludBgCIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRmluZ2VycHJpbnRTZXR0aW5nc0gBiAEBEkUKCGJlaGF2aW9yGAMgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5CZWhhdmlvclNldHRpbmdzSAKIAQESUAoOYW50aV9kZXRlY3Rpb24YBCABKAsyMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFudGlEZXRlY3Rpb25TZXR0aW5nc0gDiAEBEj8KBXByb3h5GAUgASgLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qcm94eVNldHRpbmdzSASIAQESVQoNZXh0cmFfaGVhZGVycxgGIAMoCzI+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQnJvd3NlclByb2ZpbGUuRXh0cmFIZWFkZXJzRW50cnkaMwoRRXh0cmFIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfcHJlc2V0Qg4KDF9maW5nZXJwcmludEILCglfYmVoYXZpb3JCEQoPX2FudGlfZGV0ZWN0aW9uQggKBl9wcm94eSKXBQoTRmluZ2VycHJpbnRTZXR0aW5ncxIbCg52aWV3cG9ydF93aWR0aBgBIAEoBUgAiAEBEhwKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBUgBiAEBEiAKE2RldmljZV9zY2FsZV9mYWN0b3IYAyABKAFIAogBARIhChRoYXJkd2FyZV9jb25jdXJyZW5jeRgEIAEoBUgDiAEBEhoKDWRldmljZV9tZW1vcnkYBSABKAVIBIgBARIXCgp1c2VyX2FnZW50GAYgASgJSAWIAQESHgoRdXNlcl9hZ2VudF9wcmVzZXQYByABKAlIBogBARITCgZsb2NhbGUYCCABKAlIB4gBARIYCgt0aW1lem9uZV9pZBgJIAEoCUgIiAEBEiAKE2dlb2xvY2F0aW9uX2VuYWJsZWQYCiABKAhICYgBARIVCghsYXRpdHVkZRgLIAEoAUgKiAEBEhYKCWxvbmdpdHVkZRgMIAEoAUgLiAEBEhUKCGFjY3VyYWN5GA0gASgBSAyIAQESGQoMY29sb3Jfc2NoZW1lGA4gASgJSA2IAQFCEQoPX3ZpZXdwb3J0X3dpZHRoQhIKEF92aWV3cG9ydF9oZWlnaHRCFgoUX2RldmljZV9zY2FsZV9mYWN0b3JCFwoVX2hhcmR3YXJlX2NvbmN1cnJlbmN5QhAKDl9kZXZpY2VfbWVtb3J5Qg0KC191c2VyX2FnZW50QhQKEl91c2VyX2FnZW50X3ByZXNldEIJCgdfbG9jYWxlQg4KDF90aW1lem9uZV9pZEIWChRfZ2VvbG9jYXRpb25fZW5hYmxlZEILCglfbGF0aXR1ZGVCDAoKX2xvbmdpdHVkZUILCglfYWNjdXJhY3lCDwoNX2NvbG9yX3NjaGVtZSLSBwoQQmVoYXZpb3JTZXR0aW5ncxIdChB0eXBpbmdfZGVsYXlfbWluGAEgASgFSACIAQESHQoQdHlwaW5nX2RlbGF5X21heBgCIAEoBUgBiAEBEiMKFnR5cGluZ19zdGFydF9kZWxheV9taW4YDiABKAVIAogBARIjChZ0eXBpbmdfc3RhcnRfZGVsYXlfbWF4GA8gASgFSAOIAQESIwoWdHlwaW5nX3Bhc3RlX3RocmVzaG9sZBgQIAEoBUgEiAEBEiQKF3R5cGluZ192YXJpYW5jZV9lbmFibGVkGBEgASgISAWIAQESIQoUbW91c2VfbW92ZW1lbnRfc3R5bGUYAyABKAlIBogBARIgChNtb3VzZV9qaXR0ZXJfYW1vdW50GAQgASgBSAeIAQESHAoPY2xpY2tfZGVsYXlfbWluGAUgASgFSAiIAQESHAoPY2xpY2tfZGVsYXlfbWF4GAYgASgFSAmIAQESGQoMc2Nyb2xsX3N0eWxlGAcgASgJSAqIAQESHQoQc2Nyb2xsX3NwZWVkX21pbhgIIAEoBUgLiAEBEh0KEHNjcm9sbF9zcGVlZF9tYXgYCSABKAVIDIgBARIgChNtaWNyb19wYXVzZV9lbmFibGVkGAogASgISA2IAQESHwoSbWljcm9fcGF1c2VfbWluX21zGAsgASgFSA6IAQESHwoSbWljcm9fcGF1c2VfbWF4X21zGAwgASgFSA+IAQESIgoVbWljcm9fcGF1c2VfZnJlcXVlbmN5GA0gASgBSBCIAQFCEwoRX3R5cGluZ19kZWxheV9taW5CEwoRX3R5cGluZ19kZWxheV9tYXhCGQoXX3R5cGluZ19zdGFydF9kZWxheV9taW5CGQoXX3R5cGluZ19zdGFydF9kZWxheV9tYXhCGQoXX3R5cGluZ19wYXN0ZV90aHJlc2hvbGRCGgoYX3R5cGluZ192YXJpYW5jZV9lbmFibGVkQhcKFV9tb3VzZV9tb3ZlbWVudF9zdHlsZUIWChRfbW91c2Vfaml0dGVyX2Ftb3VudEISChBfY2xpY2tfZGVsYXlfbWluQhIKEF9jbGlja19kZWxheV9tYXhCDwoNX3Njcm9sbF9zdHlsZUITChFfc2Nyb2xsX3NwZWVkX21pbkITChFfc2Nyb2xsX3NwZWVkX21heEIWChRfbWljcm9fcGF1c2VfZW5hYmxlZEIVChNfbWljcm9fcGF1c2VfbWluX21zQhUKE19taWNyb19wYXVzZV9tYXhfbXNCGAoWX21pY3JvX3BhdXNlX2ZyZXF1ZW5jeSLLBgoVQW50aURldGVjdGlvblNldHRpbmdzEioKHWRpc2FibGVfYXV0b21hdGlvbl9jb250cm9sbGVkGAEgASgISACIAQESGwoOZGlzYWJsZV93ZWJydGMYAiABKAhIAYgBARImChlwYXRjaF9uYXZpZ2F0b3Jfd2ViZHJpdmVyGAMgASgISAKIAQESJAoXcGF0Y2hfbmF2aWdhdG9yX3BsdWdpbnMYBCABKAhIA4gBARImChlwYXRjaF9uYXZpZ2F0b3JfbGFuZ3VhZ2VzGAUgASgISASIAQESGAoLcGF0Y2hfd2ViZ2wYBiABKAhIBYgBARIZCgxwYXRjaF9jYW52YXMYByABKAhIBogBARIgChNwYXRjaF9hdWRpb19jb250ZXh0GAogASgISAeIAQESJgoZaGVhZGxlc3NfZGV0ZWN0aW9uX2J5cGFzcxgIIAEoCEgIiAEBEhgKC3BhdGNoX2ZvbnRzGAsgASgISAmIAQESJAoXcGF0Y2hfc2NyZWVuX3Byb3BlcnRpZXMYDCABKAhICogBARIeChFwYXRjaF9iYXR0ZXJ5X2FwaRgNIAEoCEgLiAEBEiEKFHBhdGNoX2Nvbm5lY3Rpb25fYXBpGA4gASgISAyIAQESHQoQYWRfYmxvY2tpbmdfbW9kZRgJIAEoCUgNiAEBQiAKHl9kaXNhYmxlX2F1dG9tYXRpb25fY29udHJvbGxlZEIRCg9fZGlzYWJsZV93ZWJydGNCHAoaX3BhdGNoX25hdmlnYXRvcl93ZWJkcml2ZXJCGgoYX3BhdGNoX25hdmlnYXRvcl9wbHVnaW5zQhwKGl9wYXRjaF9uYXZpZ2F0b3JfbGFuZ3VhZ2VzQg4KDF9wYXRjaF93ZWJnbEIPCg1fcGF0Y2hfY2FudmFzQhYKFF9wYXRjaF9hdWRpb19jb250ZXh0QhwKGl9oZWFkbGVzc19kZXRlY3Rpb25fYnlwYXNzQg4KDF9wYXRjaF9mb250c0IaChhfcGF0Y2hfc2NyZWVuX3Byb3BlcnRpZXNCFAoSX3BhdGNoX2JhdHRlcnlfYXBpQhcKFV9wYXRjaF9jb25uZWN0aW9uX2FwaUITChFfYWRfYmxvY2tpbmdfbW9kZSK5AQoNUHJveHlTZXR0aW5ncxIUCgdlbmFibGVkGAEgASgISACIAQESEwoGc2VydmVyGAIgASgJSAGIAQESEwoGYnlwYXNzGAMgASgJSAKIAQESFQoIdXNlcm5hbWUYBCABKAlIA4gBARIVCghwYXNzd29yZBgFIAEoCUgEiAEBQgoKCF9lbmFibGVkQgkKB19zZXJ2ZXJCCQoHX2J5cGFzc0ILCglfdXNlcm5hbWVCCwoJX3Bhc3N3b3JkQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9iYXNlO2Jhc2ViBnByb3RvMw");
 
 /**
  * BrowserProfile contains anti-detection and human-like behavior settings.
@@ -45,6 +45,21 @@ export type BrowserProfile = Message<"browser_automation_studio.v1.BrowserProfil
    * @generated from field: optional browser_automation_studio.v1.AntiDetectionSettings anti_detection = 4;
    */
   antiDetection?: AntiDetectionSettings;
+
+  /**
+   * Proxy configuration.
+   *
+   * @generated from field: optional browser_automation_studio.v1.ProxySettings proxy = 5;
+   */
+  proxy?: ProxySettings;
+
+  /**
+   * Custom HTTP headers sent with every request.
+   * Keys like "Host", "Content-Length", and "Cookie" are blocked.
+   *
+   * @generated from field: map<string, string> extra_headers = 6;
+   */
+  extraHeaders: { [key: string]: string };
 };
 
 /**
@@ -353,11 +368,48 @@ export type AntiDetectionSettings = Message<"browser_automation_studio.v1.AntiDe
   patchCanvas?: boolean;
 
   /**
+   * Add noise to AudioContext to prevent audio fingerprinting
+   *
+   * @generated from field: optional bool patch_audio_context = 10;
+   */
+  patchAudioContext?: boolean;
+
+  /**
    * Bypass headless detection
    *
    * @generated from field: optional bool headless_detection_bypass = 8;
    */
   headlessDetectionBypass?: boolean;
+
+  /**
+   * Additional fingerprinting protection
+   *
+   * Spoof font enumeration to return common fonts only
+   *
+   * @generated from field: optional bool patch_fonts = 11;
+   */
+  patchFonts?: boolean;
+
+  /**
+   * Spoof screen dimensions to match viewport
+   *
+   * @generated from field: optional bool patch_screen_properties = 12;
+   */
+  patchScreenProperties?: boolean;
+
+  /**
+   * Return consistent battery status
+   *
+   * @generated from field: optional bool patch_battery_api = 13;
+   */
+  patchBatteryApi?: boolean;
+
+  /**
+   * Spoof network connection type
+   *
+   * @generated from field: optional bool patch_connection_api = 14;
+   */
+  patchConnectionApi?: boolean;
 
   /**
    * Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
@@ -376,4 +428,54 @@ export type AntiDetectionSettings = Message<"browser_automation_studio.v1.AntiDe
  */
 export const AntiDetectionSettingsSchema: GenMessage<AntiDetectionSettings> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_base_browser_profile, 3);
+
+/**
+ * ProxySettings controls routing browser traffic through a proxy server.
+ * Supports HTTP, HTTPS, and SOCKS5 proxies.
+ *
+ * @generated from message browser_automation_studio.v1.ProxySettings
+ */
+export type ProxySettings = Message<"browser_automation_studio.v1.ProxySettings"> & {
+  /**
+   * Whether proxy is enabled.
+   *
+   * @generated from field: optional bool enabled = 1;
+   */
+  enabled?: boolean;
+
+  /**
+   * Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080").
+   *
+   * @generated from field: optional string server = 2;
+   */
+  server?: string;
+
+  /**
+   * Comma-separated domains to bypass proxy (e.g., "localhost,.internal.com").
+   *
+   * @generated from field: optional string bypass = 3;
+   */
+  bypass?: string;
+
+  /**
+   * Proxy authentication username.
+   *
+   * @generated from field: optional string username = 4;
+   */
+  username?: string;
+
+  /**
+   * Proxy authentication password.
+   *
+   * @generated from field: optional string password = 5;
+   */
+  password?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ProxySettings.
+ * Use `create(ProxySettingsSchema)` to create a new message.
+ */
+export const ProxySettingsSchema: GenMessage<ProxySettings> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_base_browser_profile, 4);
 

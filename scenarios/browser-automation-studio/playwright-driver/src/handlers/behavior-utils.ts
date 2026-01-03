@@ -5,7 +5,7 @@
  * Centralizes behavior extraction and application logic.
  */
 
-import type { BrowserContext } from 'playwright';
+import type { BrowserContext } from 'rebrowser-playwright';
 import type { BehaviorSettings } from '../types';
 import { HumanBehavior, sleep } from '../browser-profile';
 import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
@@ -87,7 +87,7 @@ export async function applyPostActionPause(behavior: HumanBehavior | null): Prom
  * @param options - Additional scroll options
  */
 export async function executeHumanScroll(
-  page: import('playwright').Page,
+  page: import('rebrowser-playwright').Page,
   targetX: number,
   targetY: number,
   behavior: HumanBehavior | null,
@@ -182,7 +182,7 @@ export async function executeHumanScroll(
  * @param behavior - HumanBehavior instance for micro-pauses
  */
 export async function executeSmoothScroll(
-  page: import('playwright').Page,
+  page: import('rebrowser-playwright').Page,
   targetX: number,
   targetY: number,
   behavior: HumanBehavior | null
@@ -234,7 +234,7 @@ export async function executeSmoothScroll(
  * @param options - Movement options
  */
 export async function moveMouseNaturally(
-  page: import('playwright').Page,
+  page: import('rebrowser-playwright').Page,
   targetX: number,
   targetY: number,
   behavior: HumanBehavior | null,
@@ -291,7 +291,7 @@ export async function moveMouseNaturally(
  * @returns Center coordinates or null if element not found
  */
 export async function getElementCenter(
-  page: import('playwright').Page,
+  page: import('rebrowser-playwright').Page,
   selector: string,
   timeout?: number
 ): Promise<{ x: number; y: number } | null> {

@@ -15,7 +15,7 @@
  * that implements InstructionHandler. Do NOT modify this file.
  */
 
-import type { Page, BrowserContext, Frame } from 'playwright';
+import type { Page, BrowserContext, Frame } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';

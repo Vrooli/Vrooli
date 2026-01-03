@@ -142,7 +142,7 @@ export class UploadHandler extends BaseHandler {
    * Separated from execute() to enable idempotency tracking.
    */
   private async executeUpload(
-    page: import('playwright').Page,
+    page: import('rebrowser-playwright').Page,
     selector: string,
     filePath: string | string[],
     timeout: number,

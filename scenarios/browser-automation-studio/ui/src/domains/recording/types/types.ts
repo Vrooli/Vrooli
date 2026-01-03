@@ -333,6 +333,7 @@ export interface AntiDetectionSettings {
   patch_battery_api?: boolean;
   patch_connection_api?: boolean;
   ad_blocking_mode?: AdBlockingMode;
+  ad_blocking_whitelist?: string[]; // Domains to exclude from ad blocking
 }
 
 /**

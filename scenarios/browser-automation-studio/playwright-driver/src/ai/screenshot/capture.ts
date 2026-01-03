@@ -7,7 +7,7 @@
  * It wraps Playwright's screenshot capabilities with size management.
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { ScreenshotCaptureInterface, ScreenshotOptions } from '../vision-agent/types';
 import type { ScreenshotResult, CaptureOptions } from './types';
 

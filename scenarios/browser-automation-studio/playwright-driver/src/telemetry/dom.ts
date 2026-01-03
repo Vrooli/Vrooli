@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { DOMSnapshot } from '../types';
 import type { Config } from '../config';
 import { logger, metrics } from '../utils';

@@ -23,7 +23,7 @@
  * 3. The executor will automatically delegate to the handler
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { TimelineEntry } from '../proto';
 import { ActionType } from '../proto';
 

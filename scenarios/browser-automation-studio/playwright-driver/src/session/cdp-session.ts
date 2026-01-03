@@ -9,7 +9,7 @@
  * available through Playwright's standard API.
  */
 
-import type { CDPSession, Page } from 'playwright';
+import type { CDPSession, Page } from 'rebrowser-playwright';
 
 /**
  * Create a CDP session for a Playwright page.

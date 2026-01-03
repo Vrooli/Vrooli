@@ -1,4 +1,4 @@
-import { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getTabSwitchParams } from '../types';

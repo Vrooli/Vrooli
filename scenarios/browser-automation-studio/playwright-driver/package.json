@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && mkdir -p dist/browser-scripts && cp -r src/recording/browser-scripts/*.js dist/browser-scripts/",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && mkdir -p dist/browser-scripts && cp -r src/recording/browser-scripts/*.js dist/browser-scripts/",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "ts-node src/server.ts",
     "start": "node dist/server.js",
@@ -28,7 +28,7 @@
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@ghostery/adblocker-playwright": "^2.13.2",
-    "playwright": "^1.40.0",
+    "rebrowser-playwright": "^1.52.0",
     "prom-client": "^15.1.0",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",

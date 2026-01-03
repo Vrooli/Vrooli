@@ -33,7 +33,7 @@
  * @module recording/selector-service
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import {
   CONFIDENCE_SCORES,

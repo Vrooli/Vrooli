@@ -7,7 +7,7 @@
  * the observe-decide-act loop for AI-driven browser navigation.
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { BrowserAction } from '../action/types';
 import type { TokenUsage, ElementLabel } from '../vision-client/types';
 

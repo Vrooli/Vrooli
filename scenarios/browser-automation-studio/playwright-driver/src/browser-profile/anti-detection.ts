@@ -4,7 +4,7 @@
  * Provides browser launch args and init scripts for bypassing bot detection.
  */
 
-import type { BrowserContext } from 'playwright';
+import type { BrowserContext } from 'rebrowser-playwright';
 import type { AntiDetectionSettings, FingerprintSettings } from '../types/browser-profile';
 
 /**

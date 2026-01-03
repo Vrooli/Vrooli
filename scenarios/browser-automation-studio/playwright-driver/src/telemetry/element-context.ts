@@ -17,7 +17,7 @@
  * @see docs/plans/enrich-execution-with-element-context.md
  */
 
-import type { Page, Locator } from 'playwright';
+import type { Page, Locator } from 'rebrowser-playwright';
 import { create } from '@bufbuild/protobuf';
 import {
   ElementMetaSchema,

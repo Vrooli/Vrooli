@@ -17,7 +17,7 @@
  *   - Previously "unsupported" actions now work through handlers
  */
 
-import type { Page, BrowserContext } from 'playwright';
+import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type { TimelineEntry } from '../proto';
 import type { HandlerInstruction } from '../proto';
 import type { HandlerContext } from '../handlers/base';

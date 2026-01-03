@@ -27,7 +27,7 @@
  * @module telemetry/orchestrator
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../outcome';
 import { ConsoleLogCollector, NetworkCollector } from './collector';

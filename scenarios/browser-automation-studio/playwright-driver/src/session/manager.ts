@@ -1,5 +1,5 @@
 import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult } from '../types';
-import type { Video } from 'playwright';
+import type { Video } from 'rebrowser-playwright';
 import { rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config';

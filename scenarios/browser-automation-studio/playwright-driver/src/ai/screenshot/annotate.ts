@@ -14,7 +14,7 @@
  * - Elements are prioritized by visibility and interactivity
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { ElementAnnotatorInterface, AnnotatedScreenshot } from '../vision-agent/types';
 import type { ElementLabel } from '../vision-client/types';
 

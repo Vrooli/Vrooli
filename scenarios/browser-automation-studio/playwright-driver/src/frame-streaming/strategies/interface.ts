@@ -7,7 +7,7 @@
  * @module frame-streaming/strategies/interface
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { FrameWebSocket } from '../types';
 
 /**

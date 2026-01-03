@@ -37,7 +37,7 @@
  * @see replay-service.ts - Extracted replay execution logic
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import { getRecordingScript, getCleanupScript } from './injector';
 import {
   rawBrowserEventToTimelineEntry,
@@ -56,6 +56,9 @@ import type { RecordingState } from './types';
 import {
   INJECTION_RETRY_MAX_ATTEMPTS,
   INJECTION_RETRY_BASE_DELAY_MS,
+  LOOP_DETECTION_WINDOW_MS,
+  LOOP_DETECTION_MAX_NAVIGATIONS,
+  LOOP_DETECTION_HISTORY_SIZE,
 } from '../constants';
 
 // Re-export for backwards compatibility
@@ -113,6 +116,8 @@ export class RecordModeController {
   private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
   private lastUrl: string | null = null;
   private recordingGeneration = 0;
+  /** Navigation history for redirect loop detection */
+  private navigationHistory: Array<{ url: string; timestamp: number }> = [];
 
   /** Replay service for executing timeline entries (delegated) */
   private readonly replayService: ReplayPreviewService;
@@ -175,6 +180,7 @@ export class RecordModeController {
     this.entryCallback = options.onEntry;
     this.errorCallback = options.onError || null;
     this.sequenceNum = 0;
+    this.navigationHistory = [];
 
     try {
       // Expose callback function to page context if not already exposed
@@ -277,6 +283,16 @@ export class RecordModeController {
   }
 
   /**
+   * Check if an error is a transient context destruction that can be retried.
+   * This happens when the page navigates during script injection.
+   */
+  private isContextDestroyedError(message: string): boolean {
+    return message.includes('Execution context was destroyed') ||
+           message.includes('context was destroyed') ||
+           message.includes('Cannot find context');
+  }
+
+  /**
    * Stop recording and cleanup.
    */
   async stopRecording(): Promise<{ recordingId: string; actionCount: number }> {
@@ -315,6 +331,7 @@ export class RecordModeController {
       };
       this.entryCallback = null;
       this.errorCallback = null;
+      this.navigationHistory = [];
     }
 
     return result;
@@ -351,6 +368,59 @@ export class RecordModeController {
   }
 
   /**
+   * Check if we're in a redirect loop.
+   * Detects rapid repeated navigations to the same domain.
+   *
+   * @param newUrl - The URL being navigated to
+   * @returns True if a redirect loop is detected
+   */
+  private isRedirectLoop(newUrl: string): boolean {
+    const now = Date.now();
+
+    // Add to history
+    this.navigationHistory.push({ url: newUrl, timestamp: now });
+
+    // Trim old entries outside the detection window
+    this.navigationHistory = this.navigationHistory.filter(
+      (entry) => now - entry.timestamp < LOOP_DETECTION_WINDOW_MS
+    );
+
+    // Keep history bounded to prevent unbounded memory growth
+    if (this.navigationHistory.length > LOOP_DETECTION_HISTORY_SIZE) {
+      this.navigationHistory = this.navigationHistory.slice(-LOOP_DETECTION_HISTORY_SIZE);
+    }
+
+    // Detect loop: N+ navigations to same domain in window
+    if (this.navigationHistory.length >= LOOP_DETECTION_MAX_NAVIGATIONS) {
+      try {
+        const newHostname = new URL(newUrl).hostname;
+        const domains = this.navigationHistory.map((e) => {
+          try {
+            return new URL(e.url).hostname;
+          } catch {
+            return '';
+          }
+        });
+        const sameDomainCount = domains.filter((d) => d === newHostname).length;
+
+        if (sameDomainCount >= LOOP_DETECTION_MAX_NAVIGATIONS) {
+          console.warn('[RecordModeController] Redirect loop detected', {
+            url: newUrl,
+            hostname: newHostname,
+            count: sameDomainCount,
+            windowMs: LOOP_DETECTION_WINDOW_MS,
+          });
+          return true;
+        }
+      } catch {
+        // Invalid URL, not a loop
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Capture a navigation action when URL changes during recording.
    */
   private captureNavigation(url: string): void {
@@ -360,6 +430,23 @@ export class RecordModeController {
 
     if (url === this.lastUrl || url === 'about:blank') {
       return;
+    }
+
+    // Check for redirect loop before capturing
+    if (this.isRedirectLoop(url)) {
+      let hostname = 'unknown';
+      try {
+        hostname = new URL(url).hostname;
+      } catch {
+        // Invalid URL
+      }
+      this.handleError(
+        new Error(
+          `Redirect loop detected on ${hostname}. ` +
+            `This may be caused by ad blocking - try adding the domain to the whitelist.`
+        )
+      );
+      return; // Don't capture this navigation
     }
 
     this.lastUrl = url;
@@ -409,9 +496,46 @@ export class RecordModeController {
 
   /**
    * Inject the recording script into the current page.
+   * Includes retry logic to handle transient "Execution context was destroyed"
+   * errors that occur when the page navigates during injection.
    */
   private async injectRecordingScript(): Promise<void> {
-    await this.page.evaluate(getRecordingScript());
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < INJECTION_RETRY_MAX_ATTEMPTS; attempt++) {
+      try {
+        // Wait for the page to be in a stable state before injecting
+        try {
+          await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+        } catch {
+          // Ignore timeout - page might be a blank page or slow loading
+        }
+
+        await this.page.evaluate(getRecordingScript());
+        return; // Success - exit the retry loop
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        lastError = err instanceof Error ? err : new Error(message);
+
+        // If page is gone (closed/detached), don't retry
+        if (this.isPageGoneError(message)) {
+          throw lastError;
+        }
+
+        // If context was destroyed (navigation), retry with backoff
+        if (this.isContextDestroyedError(message) && attempt < INJECTION_RETRY_MAX_ATTEMPTS - 1) {
+          const delay = INJECTION_RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Unknown error or max retries reached
+        throw lastError;
+      }
+    }
+
+    // Should not reach here, but just in case
+    throw lastError || new Error('Failed to inject recording script');
   }
 
   /**

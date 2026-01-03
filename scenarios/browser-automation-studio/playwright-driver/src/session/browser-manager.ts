@@ -15,7 +15,7 @@
  * @module session/browser-manager
  */
 
-import { chromium, Browser } from 'playwright';
+import { chromium, Browser } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import { logger, metrics } from '../utils';
 

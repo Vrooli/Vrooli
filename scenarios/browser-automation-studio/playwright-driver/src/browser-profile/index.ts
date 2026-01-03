@@ -52,3 +52,12 @@ export {
 
 // Export ad blocking utilities
 export { applyAdBlocking, isAdBlockingEnabled } from './ad-blocker';
+
+// Export Client Hints utilities
+export {
+  generateClientHints,
+  mergeClientHintsWithHeaders,
+  parseUserAgent,
+  type ClientHintsHeaders,
+  type ParsedUserAgent,
+} from './client-hints';

@@ -52,3 +52,22 @@ export const INJECTION_RETRY_BASE_DELAY_MS = 100;
 export const DEFAULT_DRAG_ANIMATION_STEPS = 10;
 
 export const VERSION = '2.0.0';
+
+// Loop detection configuration
+/**
+ * Time window (ms) for detecting redirect loops.
+ * Navigations within this window are counted together.
+ */
+export const LOOP_DETECTION_WINDOW_MS = 5000;
+
+/**
+ * Maximum navigations to same domain within window before triggering loop detection.
+ * 4+ navigations to the same domain in 5 seconds = redirect loop.
+ */
+export const LOOP_DETECTION_MAX_NAVIGATIONS = 4;
+
+/**
+ * Number of recent navigations to track for loop detection.
+ * Older entries are dropped to prevent unbounded memory growth.
+ */
+export const LOOP_DETECTION_HISTORY_SIZE = 10;

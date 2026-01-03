@@ -19,7 +19,7 @@
  * - Comprehensive step tracking and emission
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type {
   VisionAgent,
   VisionAgentDeps,

@@ -40,6 +40,11 @@ message BrowserProfile {
   optional BehaviorSettings behavior = 3;
   // Bot detection bypass settings.
   optional AntiDetectionSettings anti_detection = 4;
+  // Proxy configuration.
+  optional ProxySettings proxy = 5;
+  // Custom HTTP headers sent with every request.
+  // Keys like "Host", "Content-Length", and "Cookie" are blocked.
+  map<string, string> extra_headers = 6;
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -121,11 +126,37 @@ message AntiDetectionSettings {
   optional bool patch_navigator_languages = 5;      // Ensure consistent languages
   optional bool patch_webgl = 6;                    // Spoof WebGL renderer/vendor
   optional bool patch_canvas = 7;                   // Add noise to canvas fingerprint
+  optional bool patch_audio_context = 10;           // Add noise to AudioContext to prevent audio fingerprinting
   optional bool headless_detection_bypass = 8;      // Bypass headless detection
+
+  // Additional fingerprinting protection
+  optional bool patch_fonts = 11;                   // Spoof font enumeration to return common fonts only
+  optional bool patch_screen_properties = 12;       // Spoof screen dimensions to match viewport
+  optional bool patch_battery_api = 13;             // Return consistent battery status
+  optional bool patch_connection_api = 14;          // Spoof network connection type
 
   // Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
   // - none: No ad blocking
   // - ads_only: Block advertisements only (EasyList + uBlock filters)
   // - ads_and_tracking: Block ads + tracking scripts (includes privacy lists)
   optional string ad_blocking_mode = 9;
+
+  // Domains to exclude from ad blocking (e.g., "google.com", "gstatic.com").
+  // Wildcards supported: "*.google.com" matches all subdomains.
+  repeated string ad_blocking_whitelist = 15;
+}
+
+// ProxySettings controls routing browser traffic through a proxy server.
+// Supports HTTP, HTTPS, and SOCKS5 proxies.
+message ProxySettings {
+  // Whether proxy is enabled.
+  optional bool enabled = 1;
+  // Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080").
+  optional string server = 2;
+  // Comma-separated domains to bypass proxy (e.g., "localhost,.internal.com").
+  optional string bypass = 3;
+  // Proxy authentication username.
+  optional string username = 4;
+  // Proxy authentication password.
+  optional string password = 5;
 }

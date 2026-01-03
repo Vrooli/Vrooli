@@ -14,7 +14,7 @@
  * @module frame-streaming/strategies/polling
  */
 
-import type { Page, CDPSession } from 'playwright';
+import type { Page, CDPSession } from 'rebrowser-playwright';
 import { logger, scopedLog, LogContext, metrics } from '../../utils';
 import {
   createFpsController,

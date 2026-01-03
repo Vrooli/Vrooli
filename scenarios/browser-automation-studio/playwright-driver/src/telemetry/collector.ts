@@ -1,4 +1,4 @@
-import type { Page, ConsoleMessage, Request, Response } from 'playwright';
+import type { Page, ConsoleMessage, Request, Response } from 'rebrowser-playwright';
 import type { ConsoleLogEntry, NetworkEvent } from '../types';
 import { MAX_CONSOLE_ENTRIES, MAX_NETWORK_EVENTS } from '../constants';
 import { logger, normalizeConsoleLogType } from '../utils';

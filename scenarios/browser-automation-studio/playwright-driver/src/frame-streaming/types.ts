@@ -6,7 +6,7 @@
  * @module frame-streaming/types
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 
 // =============================================================================
 // WebSocket Types

@@ -1,6 +1,6 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
-import { Browser, BrowserContext } from 'playwright';
+import type { Browser, BrowserContext } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
@@ -10,13 +10,15 @@ import {
   applyAntiDetection,
   applyAdBlocking,
   isAdBlockingEnabled,
+  generateClientHints,
+  mergeClientHintsWithHeaders,
 } from '../browser-profile';
 
 // Symbol to store behavior settings on context for handler access
 export const BEHAVIOR_SETTINGS_KEY = Symbol('behaviorSettings');
 
 // Extend BrowserContext type to include behavior settings
-declare module 'playwright' {
+declare module 'rebrowser-playwright' {
   interface BrowserContext {
     [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings;
   }
@@ -60,6 +62,12 @@ export async function buildContext(
   // Resolve user agent: profile > spec > default
   const userAgent = spec.user_agent || resolveUserAgent(fingerprint);
 
+  // Generate Client Hints headers for Chromium browsers
+  const clientHints = generateClientHints(userAgent);
+
+  // Merge Client Hints with user-provided headers (user headers take precedence)
+  const finalHeaders = mergeClientHintsWithHeaders(clientHints, spec.browser_profile?.extra_headers);
+
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     viewport: {
       width: viewportWidth,
@@ -72,7 +80,7 @@ export async function buildContext(
     locale: spec.locale || fingerprint.locale || undefined,
     timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
     colorScheme: fingerprint.color_scheme || undefined,
-    extraHTTPHeaders: spec.browser_profile?.extra_headers,
+    extraHTTPHeaders: Object.keys(finalHeaders).length > 0 ? finalHeaders : undefined,
   };
 
   // Geolocation: spec overrides profile
@@ -168,10 +176,15 @@ export async function buildContext(
 
   // Apply ad blocking if configured
   if (isAdBlockingEnabled(antiDetection.ad_blocking_mode)) {
-    await applyAdBlocking(context, antiDetection.ad_blocking_mode as 'ads_only' | 'ads_and_tracking');
+    await applyAdBlocking(
+      context,
+      antiDetection.ad_blocking_mode as 'ads_only' | 'ads_and_tracking',
+      antiDetection.ad_blocking_whitelist
+    );
     logger.debug('Ad blocking enabled', {
       executionId: spec.execution_id,
       mode: antiDetection.ad_blocking_mode,
+      whitelistDomains: antiDetection.ad_blocking_whitelist?.length ?? 0,
     });
   }
 
@@ -217,7 +230,8 @@ export async function buildContext(
     hasAntiDetection,
     adBlocking: antiDetection.ad_blocking_mode || 'none',
     proxy: proxy.enabled ? 'enabled' : 'disabled',
-    extraHeaders: spec.browser_profile?.extra_headers ? Object.keys(spec.browser_profile.extra_headers).length : 0,
+    clientHints: clientHints ? 'enabled' : 'none',
+    extraHeaders: Object.keys(finalHeaders).length,
   });
 
   return {

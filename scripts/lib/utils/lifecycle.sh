@@ -534,7 +534,8 @@ lifecycle::execute_phase() {
             export_commands=$(echo "$env_result" | jq -r '.env_vars | to_entries[] | "export " + .key + "=" + (.value | @sh)')
             
             if [[ -n "$export_commands" ]]; then
-                eval "$export_commands"
+                # Suppress "readonly variable" warnings for env vars already set (e.g., POSTGRES_*)
+                eval "$export_commands" 2>/dev/null || true
                 log::info "Environment setup complete for scenario: $SCENARIO_NAME"
                 
                 # Optional: Log if scenario was already running

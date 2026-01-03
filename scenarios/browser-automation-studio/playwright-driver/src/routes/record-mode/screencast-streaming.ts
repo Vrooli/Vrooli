@@ -12,7 +12,7 @@
  * Expected performance improvement: 10-15 FPS -> 30-60 FPS
  */
 
-import type { CDPSession, Page } from 'playwright';
+import type { CDPSession, Page } from 'rebrowser-playwright';
 import { logger, scopedLog, LogContext, metrics } from '../../utils';
 
 /** Configuration for CDP screencast */
