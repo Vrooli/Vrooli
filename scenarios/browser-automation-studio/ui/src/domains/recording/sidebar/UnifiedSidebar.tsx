@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { X } from 'lucide-react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
 import { ArtifactsTab, type ArtifactsTabProps } from './ArtifactsTab';
@@ -280,6 +281,11 @@ export function UnifiedSidebar({
     }
   }, [timelineActivity, autoActivity, artifactsActivity, historyActivity]);
 
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    onOpenChange?.(false);
+  }, [setIsOpen, onOpenChange]);
+
   if (!isOpen) {
     return null;
   }
@@ -289,20 +295,30 @@ export function UnifiedSidebar({
       className={`relative flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${className}`}
       style={{ width: `${width}px`, minWidth: `${width}px` }}
     >
-      {/* Tab Header - dynamically render visible tabs */}
-      <div className="flex items-center border-b border-gray-200 dark:border-gray-700" role="tablist">
-        {visibleTabs.map((tab) => (
-          <TabButton
-            key={tab.id}
-            label={tab.label}
-            tabId={tab.id}
-            isActive={activeTab === tab.id}
-            hasActivity={getActivityForTab(tab.id)}
-            onClick={handleTabClick}
-            shortcut={`${modifierKey}${tab.shortcutKey}`}
-            tooltip={tab.tooltip}
-          />
-        ))}
+      {/* Header with close button - matches BrowserChrome height */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 min-h-[52px]">
+        <div className="flex items-center gap-1" role="tablist">
+          {visibleTabs.map((tab) => (
+            <TabButton
+              key={tab.id}
+              label={tab.label}
+              tabId={tab.id}
+              isActive={activeTab === tab.id}
+              hasActivity={getActivityForTab(tab.id)}
+              onClick={handleTabClick}
+              shortcut={`${modifierKey}${tab.shortcutKey}`}
+              tooltip={tab.tooltip}
+            />
+          ))}
+        </div>
+        <button
+          onClick={handleClose}
+          className="flex-shrink-0 p-1.5 text-gray-300 hover:text-white bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
+          title="Close sidebar"
+          aria-label="Close sidebar"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -367,10 +383,10 @@ function TabButton({
     <button
       data-testid={`sidebar-${tabId}-tab`}
       onClick={() => onClick(tabId)}
-      className={`relative flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+      className={`relative px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
         isActive
-          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'
-          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+          ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30'
+          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
       role="tab"
       aria-selected={isActive}
@@ -381,7 +397,7 @@ function TabButton({
       {/* Activity indicator dot */}
       {hasActivity && !isActive && (
         <span
-          className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse"
+          className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full animate-pulse"
           aria-label="New activity"
         />
       )}

@@ -1258,6 +1258,7 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSettingsPanelOpen={showPreviewSettings}
                   isSidebarOpen={isSidebarOpen}
                   onToggleSidebar={handleSidebarToggle}
                   actionCount={timelineItemCount}
@@ -1290,6 +1291,7 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSettingsPanelOpen={showPreviewSettings}
                   isSidebarOpen={isSidebarOpen}
                   onToggleSidebar={handleSidebarToggle}
                   actionCount={timelineItemCount}
@@ -1312,6 +1314,7 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSettingsPanelOpen={showPreviewSettings}
                   isSidebarOpen={isSidebarOpen}
                   onToggleSidebar={handleSidebarToggle}
                   actionCount={timelineItemCount}

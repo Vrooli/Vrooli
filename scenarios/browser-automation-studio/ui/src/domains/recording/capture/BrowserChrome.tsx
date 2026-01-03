@@ -42,8 +42,10 @@ interface BrowserChromeProps {
   showReplayStyle?: boolean;
   onReplayStyleToggle?: () => void;
 
-  // Settings (always visible)
+  // Settings panel
   onSettingsClick?: () => void;
+  /** Whether the settings panel is open (hides the settings button when true) */
+  isSettingsPanelOpen?: boolean;
 
   // Mode context (for URL bar behavior)
   mode?: 'recording' | 'execution';
@@ -74,6 +76,7 @@ export function BrowserChrome({
   showReplayStyle = false,
   onReplayStyleToggle,
   onSettingsClick,
+  isSettingsPanelOpen = false,
   readOnly = false,
   className,
 }: BrowserChromeProps) {
@@ -88,20 +91,15 @@ export function BrowserChrome({
 
   return (
     <div className={clsx(
-      'border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-2',
+      'border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-2 min-h-[52px]',
       className
     )}>
-      {/* Left sidebar toggle */}
-      {onToggleSidebar && (
+      {/* Left sidebar toggle - hidden when sidebar is open (sidebar has its own close button) */}
+      {onToggleSidebar && !isSidebarOpen && (
         <button
           onClick={onToggleSidebar}
-          className={clsx(
-            'relative flex-shrink-0 p-1.5 rounded-lg border transition-colors',
-            isSidebarOpen
-              ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-              : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:text-white'
-          )}
-          title={isSidebarOpen ? 'Hide timeline' : 'Show timeline'}
+          className="relative flex-shrink-0 p-1.5 rounded-lg border border-gray-700 bg-gray-800/70 text-gray-300 hover:text-white transition-colors"
+          title="Show timeline"
         >
           <PanelLeft size={16} />
           {actionCount > 0 && (
@@ -153,8 +151,8 @@ export function BrowserChrome({
         </button>
       )}
 
-      {/* Settings button */}
-      {onSettingsClick && (
+      {/* Settings button - hidden when settings panel is open (panel has its own close button) */}
+      {onSettingsClick && !isSettingsPanelOpen && (
         <button
           type="button"
           aria-label="Preview settings"

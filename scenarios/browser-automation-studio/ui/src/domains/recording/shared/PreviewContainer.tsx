@@ -30,6 +30,8 @@ export interface PreviewContainerProps {
   showReplayStyle: boolean;
   onReplayStyleToggle: () => void;
   onSettingsClick: () => void;
+  /** Whether the settings panel is open (hides settings button) */
+  isSettingsPanelOpen?: boolean;
 
   // Left sidebar toggle (passed through to BrowserChrome)
   isSidebarOpen?: boolean;
@@ -81,6 +83,7 @@ export function PreviewContainer({
   showReplayStyle,
   onReplayStyleToggle,
   onSettingsClick,
+  isSettingsPanelOpen,
   isSidebarOpen,
   onToggleSidebar,
   actionCount,
@@ -250,6 +253,7 @@ export function PreviewContainer({
         showReplayStyle={showReplayStyle}
         onReplayStyleToggle={onReplayStyleToggle}
         onSettingsClick={onSettingsClick}
+        isSettingsPanelOpen={isSettingsPanelOpen}
         mode={mode}
         readOnly={readOnly}
       />
