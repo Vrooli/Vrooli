@@ -802,6 +802,46 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 		out.ElementSnapshot = resp.ElementSnapshot
 	}
 
+	// Convert wire format console logs to contracts format.
+	// The driver sends camelCase "consoleLogs" but contracts.StepOutcome expects snake_case "console_logs".
+	if len(resp.ConsoleLogsWire) > 0 {
+		out.ConsoleLogs = make([]contracts.ConsoleLogEntry, len(resp.ConsoleLogsWire))
+		for i, wire := range resp.ConsoleLogsWire {
+			ts, _ := time.Parse(time.RFC3339Nano, wire.Timestamp)
+			out.ConsoleLogs[i] = contracts.ConsoleLogEntry{
+				Type:      wire.Type,
+				Text:      wire.Text,
+				Timestamp: ts,
+				Stack:     wire.Stack,
+				Location:  wire.Location,
+			}
+		}
+	}
+
+	// Convert wire format network events to contracts format.
+	// The driver sends camelCase "networkEvents" but contracts.StepOutcome expects snake_case "network".
+	if len(resp.NetworkEventsWire) > 0 {
+		out.Network = make([]contracts.NetworkEvent, len(resp.NetworkEventsWire))
+		for i, wire := range resp.NetworkEventsWire {
+			ts, _ := time.Parse(time.RFC3339Nano, wire.Timestamp)
+			out.Network[i] = contracts.NetworkEvent{
+				Type:                wire.Type,
+				URL:                 wire.URL,
+				Method:              wire.Method,
+				ResourceType:        wire.ResourceType,
+				Status:              wire.Status,
+				OK:                  wire.OK,
+				Failure:             wire.Failure,
+				Timestamp:           ts,
+				RequestHeaders:      wire.RequestHeaders,
+				ResponseHeaders:     wire.ResponseHeaders,
+				RequestBodyPreview:  wire.RequestBodyPreview,
+				ResponseBodyPreview: wire.ResponseBodyPreview,
+				Truncated:           wire.Truncated,
+			}
+		}
+	}
+
 	return out, nil
 }
 

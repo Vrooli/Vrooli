@@ -394,7 +394,7 @@ export function toDriverOutcome(
   screenshotData?: { base64?: string; media_type?: string; width?: number; height?: number },
   domSnapshot?: DOMSnapshot
 ): DriverOutcome {
-  // Serialize proto to JSON (produces snake_case)
+  // Serialize proto to JSON (produces camelCase field names per proto3 canonical JSON)
   const json = toJson(StepOutcomeSchema, outcome) as Record<string, unknown>;
 
   // For backward compatibility, add flat screenshot fields

@@ -26,6 +26,7 @@ import type {
   TimelineArtifact as ProtoTimelineArtifact,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import type { TelemetryArtifact as ProtoTelemetryArtifact } from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
+import type { JsonValue as ProtoJsonValue } from '@vrooli/proto-types/common/v1/types_pb';
 import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { create } from 'zustand';
@@ -60,6 +61,46 @@ const coerceDate = (value: unknown): Date | undefined => {
 const toNumber = (value?: number | bigint | null): number | undefined => {
   if (value == null) return undefined;
   return typeof value === 'bigint' ? Number(value) : value;
+};
+
+/**
+ * Unwrap a proto JsonValue to a plain JavaScript value.
+ * JsonValue is a oneof with different typed cases that need to be extracted.
+ */
+const unwrapJsonValue = (jv: ProtoJsonValue | undefined): unknown => {
+  if (!jv) return undefined;
+  const kind = jv.kind;
+  if (!kind || kind.case === undefined) return undefined;
+
+  // Use explicit type guards to help TypeScript narrow the discriminated union
+  if (kind.case === 'boolValue' || kind.case === 'doubleValue' || kind.case === 'stringValue' || kind.case === 'bytesValue') {
+    return kind.value;
+  }
+  if (kind.case === 'intValue') {
+    // bigint -> number for JSON compatibility
+    const intVal = kind.value;
+    return typeof intVal === 'bigint' ? Number(intVal) : intVal;
+  }
+  if (kind.case === 'objectValue') {
+    // Recursively unwrap object fields
+    const objValue = kind.value;
+    if (!objValue?.fields) return {};
+    const obj: Record<string, unknown> = {};
+    for (const [key, nestedJv] of Object.entries(objValue.fields)) {
+      obj[key] = unwrapJsonValue(nestedJv);
+    }
+    return obj;
+  }
+  if (kind.case === 'listValue') {
+    // Recursively unwrap array values
+    const listValue = kind.value;
+    if (!listValue?.values) return [];
+    return listValue.values.map((v) => unwrapJsonValue(v));
+  }
+  if (kind.case === 'nullValue') {
+    return null;
+  }
+  return undefined;
 };
 
 const mapAssertionMode = (mode?: AssertionMode | null): string | undefined => {
@@ -327,11 +368,11 @@ const mapBoundingBoxFromProto = (bbox?: { x?: number; y?: number; width?: number
 const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineArtifact): TimelineArtifact | undefined => {
   if (!artifact) return undefined;
   const stepIndex = artifact.stepIndex ?? undefined;
-  // Convert payload map to Record<string, unknown>
+  // Convert payload map to Record<string, unknown>, unwrapping JsonValue proto messages
   const payload: Record<string, unknown> = {};
   if (artifact.payload) {
     for (const [key, value] of Object.entries(artifact.payload)) {
-      payload[key] = value;
+      payload[key] = unwrapJsonValue(value);
     }
   }
   return {
@@ -382,8 +423,8 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
   const artifacts = aggregates?.artifacts?.map((a) => mapTimelineArtifactFromProto(a)!).filter(Boolean) ?? [];
   const telemetryArtifacts = [
     mapTelemetryArtifactFromProto('dom_snapshot', telemetry?.domSnapshot),
-    mapTelemetryArtifactFromProto('console', telemetry?.consoleLogArtifact),
-    mapTelemetryArtifactFromProto('network', telemetry?.networkEventArtifact),
+    mapTelemetryArtifactFromProto('console_log', telemetry?.consoleLogArtifact),
+    mapTelemetryArtifactFromProto('network_event', telemetry?.networkEventArtifact),
   ].filter(Boolean) as TimelineArtifact[];
 
   // Map screenshot from telemetry

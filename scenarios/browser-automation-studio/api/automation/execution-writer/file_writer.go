@@ -471,7 +471,33 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	var networkArtifact *telemetryArtifactRef
 
 	// Console logs - controlled by CollectConsoleLogs
+	// Add as TimelineArtifact with inline payload for UI access, and also persist to storage
 	if cfg.CollectConsoleLogs && len(outcome.ConsoleLogs) > 0 {
+		// Add each console log as a TimelineArtifact with inline payload
+		for i, log := range outcome.ConsoleLogs {
+			id := uuid.New()
+			artifact := ArtifactData{
+				ArtifactID:   id.String(),
+				StepID:       stepID.String(),
+				StepIndex:    &outcome.StepIndex,
+				ArtifactType: "console",
+				Label:        fmt.Sprintf("Console %d", i+1),
+				Payload: map[string]any{
+					"level":     log.Type,
+					"text":      log.Text,
+					"timestamp": log.Timestamp.Format(time.RFC3339Nano),
+					"stack":     log.Stack,
+					"location":  log.Location,
+				},
+			}
+			result.mu.Lock()
+			result.Artifacts = append(result.Artifacts, artifact)
+			result.mu.Unlock()
+			artifactIDs = append(artifactIDs, id)
+			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+		}
+
+		// Also persist to storage for TelemetryArtifact reference
 		payload, err := json.Marshal(outcome.ConsoleLogs)
 		if err != nil && r.log != nil {
 			r.log.WithError(err).Warn("Failed to serialize console logs")
@@ -486,7 +512,36 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 
 	// Network events - controlled by CollectNetworkEvents
+	// Add as TimelineArtifact with inline payload for UI access, and also persist to storage
 	if cfg.CollectNetworkEvents && len(outcome.Network) > 0 {
+		// Add each network event as a TimelineArtifact with inline payload
+		for i, event := range outcome.Network {
+			id := uuid.New()
+			artifact := ArtifactData{
+				ArtifactID:   id.String(),
+				StepID:       stepID.String(),
+				StepIndex:    &outcome.StepIndex,
+				ArtifactType: "network",
+				Label:        fmt.Sprintf("Network %d", i+1),
+				Payload: map[string]any{
+					"type":         event.Type,
+					"url":          event.URL,
+					"method":       event.Method,
+					"resourceType": event.ResourceType,
+					"status":       event.Status,
+					"ok":           event.OK,
+					"failure":      event.Failure,
+					"timestamp":    event.Timestamp.Format(time.RFC3339Nano),
+				},
+			}
+			result.mu.Lock()
+			result.Artifacts = append(result.Artifacts, artifact)
+			result.mu.Unlock()
+			artifactIDs = append(artifactIDs, id)
+			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
+		}
+
+		// Also persist to storage for TelemetryArtifact reference
 		payload, err := json.Marshal(outcome.Network)
 		if err != nil && r.log != nil {
 			r.log.WithError(err).Warn("Failed to serialize network events")

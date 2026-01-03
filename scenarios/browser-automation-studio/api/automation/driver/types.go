@@ -326,6 +326,13 @@ type StepOutcomeResponse struct {
 	// This enables execution debugging with the same element info available in recordings.
 	// Uses contracts.ElementMeta (proto type) for type compatibility with StepOutcome.
 	ElementSnapshot *contracts.ElementMeta `json:"element_snapshot,omitempty"`
+
+	// Wire format fields for proto JSON compatibility.
+	// The playwright-driver uses proto3 canonical JSON encoding which produces camelCase
+	// field names, but the embedded contracts.StepOutcome expects snake_case. These fields
+	// capture the camelCase wire format so we can convert them in decodeStepOutcome().
+	ConsoleLogsWire   []ConsoleLogEntryWire `json:"consoleLogs,omitempty"`
+	NetworkEventsWire []NetworkEventWire    `json:"networkEvents,omitempty"`
 }
 
 // CloseSessionResponse is returned when a session is closed.
@@ -341,4 +348,37 @@ type ArtifactDownload struct {
 	Reader      io.ReadCloser
 	ContentType string
 	Size        int64
+}
+
+// =============================================================================
+// WIRE FORMAT TYPES (Proto JSON Compatibility)
+// =============================================================================
+// The playwright-driver uses @bufbuild/protobuf's toJson() which produces camelCase
+// field names per proto3 canonical JSON encoding. These wire types match that format
+// so we can unmarshal from the driver and then convert to contracts types.
+
+// ConsoleLogEntryWire matches the proto JSON format for DriverConsoleLogEntry.
+type ConsoleLogEntryWire struct {
+	Type      string `json:"type"`
+	Text      string `json:"text"`
+	Timestamp string `json:"timestamp"` // RFC 3339 format from proto Timestamp
+	Stack     string `json:"stack,omitempty"`
+	Location  string `json:"location,omitempty"`
+}
+
+// NetworkEventWire matches the proto JSON format for DriverNetworkEvent.
+type NetworkEventWire struct {
+	Type                string            `json:"type"`
+	URL                 string            `json:"url"`
+	Method              string            `json:"method,omitempty"`
+	ResourceType        string            `json:"resourceType,omitempty"` // camelCase from proto
+	Status              int               `json:"status,omitempty"`
+	OK                  bool              `json:"ok,omitempty"`
+	Failure             string            `json:"failure,omitempty"`
+	Timestamp           string            `json:"timestamp,omitempty"` // RFC 3339 format
+	RequestHeaders      map[string]string `json:"requestHeaders,omitempty"`
+	ResponseHeaders     map[string]string `json:"responseHeaders,omitempty"`
+	RequestBodyPreview  string            `json:"requestBodyPreview,omitempty"`
+	ResponseBodyPreview string            `json:"responseBodyPreview,omitempty"`
+	Truncated           bool              `json:"truncated,omitempty"`
 }

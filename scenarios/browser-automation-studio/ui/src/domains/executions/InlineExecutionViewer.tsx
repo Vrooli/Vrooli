@@ -56,7 +56,7 @@ function extractConsoleLogs(timeline: TimelineFrame[]): ConsoleLogEntry[] {
   for (const frame of timeline) {
     if (!frame.artifacts) continue;
     for (const artifact of frame.artifacts) {
-      if (artifact.type === 'console' && artifact.payload) {
+      if (artifact.type === 'console_log' && artifact.payload) {
         const payload = artifact.payload as {
           level?: string;
           text?: string;
@@ -83,7 +83,7 @@ function extractNetworkEvents(timeline: TimelineFrame[]): NetworkEventEntry[] {
   for (const frame of timeline) {
     if (!frame.artifacts) continue;
     for (const artifact of frame.artifacts) {
-      if (artifact.type === 'network' && artifact.payload) {
+      if (artifact.type === 'network_event' && artifact.payload) {
         const payload = artifact.payload as {
           type?: string;
           url?: string;
