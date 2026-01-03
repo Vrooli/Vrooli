@@ -52,10 +52,10 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate cleanup level if action is cleanup
-	if req.Action == "cleanup" && (req.CleanupLevel < 1 || req.CleanupLevel > 4) {
+	if req.Action == "cleanup" && (req.CleanupLevel < 1 || req.CleanupLevel > 5) {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "invalid_cleanup_level",
-			Message: "Cleanup level must be between 1 and 4",
+			Message: "Cleanup level must be between 1 and 5",
 		})
 		return
 	}
@@ -179,7 +179,11 @@ func validateVPSConfirmation(action string, level int, confirmation, deploymentN
 			return fmt.Errorf("type the deployment name '%s' to confirm stopping all Vrooli processes", deploymentName)
 		}
 	case "cleanup":
-		if level >= 3 {
+		if level == 3 {
+			if confirmation != "DOCKER-RESET" {
+				return fmt.Errorf("type DOCKER-RESET to confirm Docker system prune")
+			}
+		} else if level >= 4 {
 			if confirmation != "RESET" && confirmation != "DELETE-VROOLI" {
 				return fmt.Errorf("type RESET or DELETE-VROOLI to confirm level %d cleanup", level)
 			}
@@ -227,6 +231,27 @@ func buildStopAllCommand(workdir string, manifest CloudManifest) string {
 	return result
 }
 
+// buildDockerPruneCommand builds commands to stop and prune all Docker resources.
+// This is useful for resetting databases and other stateful containers.
+func buildDockerPruneCommand() string {
+	// Stop all running containers, remove all containers, images, volumes, and networks
+	// Using || true to continue even if some commands fail (e.g., no containers running)
+	// NOTE: docker system prune --volumes only removes ANONYMOUS volumes, not named ones.
+	// We explicitly remove all volumes with: docker volume rm $(docker volume ls -q)
+	commands := []string{
+		"docker stop $(docker ps -aq) 2>/dev/null || true",
+		"docker rm $(docker ps -aq) 2>/dev/null || true",
+		"docker volume rm $(docker volume ls -q) 2>/dev/null || true",
+		"docker system prune -af 2>/dev/null || true",
+		"echo 'Docker system pruned'",
+	}
+	result := commands[0]
+	for i := 1; i < len(commands); i++ {
+		result += " && " + commands[i]
+	}
+	return result
+}
+
 // buildCleanupCommand builds a command for the specified cleanup level.
 func buildCleanupCommand(workdir string, manifest CloudManifest, level int) (string, string) {
 	switch level {
@@ -242,20 +267,25 @@ func buildCleanupCommand(workdir string, manifest CloudManifest, level int) (str
 		return stopCmd + " && " + cleanCmd + " && echo 'Stopped processes and removed builds'", "All Vrooli processes stopped and builds removed"
 
 	case 3:
-		// Level 3: Remove entire Vrooli installation
+		// Level 3: Docker prune - useful for resetting databases without removing Vrooli
+		stopCmd := buildStopAllCommand(workdir, manifest)
+		dockerPrune := buildDockerPruneCommand()
+		return stopCmd + " && " + dockerPrune, "All Docker containers, images, and volumes removed"
+
+	case 4:
+		// Level 4: Remove entire Vrooli installation
 		stopCmd := buildStopAllCommand(workdir, manifest)
 		removeCmd := fmt.Sprintf("rm -rf %s && echo 'Vrooli installation removed'", shellQuoteSingle(workdir))
 		return stopCmd + " && " + removeCmd, "Vrooli installation removed"
 
-	case 4:
-		// Level 4: Full reset - remove Vrooli + cleanup system packages installed by setup
+	case 5:
+		// Level 5: Full reset - remove Vrooli + Docker prune + cleanup system packages
 		stopCmd := buildStopAllCommand(workdir, manifest)
 		removeCmd := fmt.Sprintf("rm -rf %s", shellQuoteSingle(workdir))
-		// Note: We don't remove Docker or system packages as they may be used by other services
-		// This just does a clean Vrooli removal
+		dockerPrune := buildDockerPruneCommand()
 		aptClean := "apt-get autoremove -y 2>/dev/null || true"
 		journalClean := "journalctl --vacuum-time=1d 2>/dev/null || true"
-		return stopCmd + " && " + removeCmd + " && " + aptClean + " && " + journalClean + " && echo 'Full reset completed'", "Full VPS reset completed (Vrooli removed, system cleaned)"
+		return stopCmd + " && " + removeCmd + " && " + dockerPrune + " && " + aptClean + " && " + journalClean + " && echo 'Full reset completed'", "Full VPS reset completed (Vrooli removed, Docker pruned, system cleaned)"
 	}
 
 	return "echo 'Invalid cleanup level'", "Invalid cleanup level"

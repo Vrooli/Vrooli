@@ -40,13 +40,18 @@ const CLEANUP_LEVELS: { level: CleanupLevel; title: string; description: string 
   },
   {
     level: 3,
+    title: "Docker Reset",
+    description: "Stop and prune all Docker containers, images, and volumes. Resets databases.",
+  },
+  {
+    level: 4,
     title: "Remove Vrooli Installation",
     description: "Completely remove the Vrooli installation directory.",
   },
   {
-    level: 4,
+    level: 5,
     title: "Full VPS Reset",
-    description: "Remove Vrooli and clean up system packages.",
+    description: "Remove Vrooli, prune Docker, and clean up system packages.",
   },
 ];
 
@@ -100,12 +105,18 @@ export function VPSManagement({ deploymentId, deploymentName }: VPSManagementPro
   const openCleanupDialog = (level: CleanupLevel) => {
     setResult(null);
     const levelInfo = CLEANUP_LEVELS.find((l) => l.level === level)!;
+    let confirmText = deploymentName;
+    if (level === 3) {
+      confirmText = "DOCKER-RESET";
+    } else if (level >= 4) {
+      confirmText = "RESET";
+    }
     setConfirmDialog({
       action: "cleanup",
       level,
       title: levelInfo.title,
       description: levelInfo.description + " This action cannot be undone.",
-      confirmText: level >= 3 ? "RESET" : deploymentName,
+      confirmText,
       isDestructive: true,
     });
   };
@@ -172,48 +183,51 @@ export function VPSManagement({ deploymentId, deploymentName }: VPSManagementPro
           Cleanup Options
         </h3>
         <div className="grid gap-3">
-          {CLEANUP_LEVELS.map(({ level, title, description }) => (
-            <button
-              key={level}
-              onClick={() => openCleanupDialog(level)}
-              disabled={vpsAction.isPending}
-              className={cn(
-                "flex items-start gap-4 p-4 rounded-lg border text-left transition-colors",
-                "border-white/10 hover:border-red-500/30 hover:bg-red-500/5",
-                vpsAction.isPending && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <div
+          {CLEANUP_LEVELS.map(({ level, title, description }) => {
+            const isHighRisk = level >= 3;
+            return (
+              <button
+                key={level}
+                onClick={() => openCleanupDialog(level)}
+                disabled={vpsAction.isPending}
                 className={cn(
-                  "p-2 rounded-lg",
-                  level >= 3 ? "bg-red-500/20" : "bg-amber-500/20"
+                  "flex items-start gap-4 p-4 rounded-lg border text-left transition-colors",
+                  "border-white/10 hover:border-red-500/30 hover:bg-red-500/5",
+                  vpsAction.isPending && "opacity-50 cursor-not-allowed"
                 )}
               >
-                <Trash2
+                <div
                   className={cn(
-                    "h-5 w-5",
-                    level >= 3 ? "text-red-400" : "text-amber-400"
+                    "p-2 rounded-lg",
+                    isHighRisk ? "bg-red-500/20" : "bg-amber-500/20"
                   )}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-white">{title}</h4>
-                  <span
+                >
+                  <Trash2
                     className={cn(
-                      "px-1.5 py-0.5 rounded text-xs font-medium",
-                      level >= 3
-                        ? "bg-red-500/20 text-red-400"
-                        : "bg-amber-500/20 text-amber-400"
+                      "h-5 w-5",
+                      isHighRisk ? "text-red-400" : "text-amber-400"
                     )}
-                  >
-                    Level {level}
-                  </span>
+                  />
                 </div>
-                <p className="text-sm text-slate-400 mt-1">{description}</p>
-              </div>
-            </button>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-white">{title}</h4>
+                    <span
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-xs font-medium",
+                        isHighRisk
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      )}
+                    >
+                      Level {level}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">{description}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -34,8 +34,47 @@ func (p SecretsJSONPayload) MarshalJSON() ([]byte, error) {
 	return json.MarshalIndent(m, "", "  ")
 }
 
+// ReadSecretsFromVPS reads existing secrets.json from the VPS if it exists.
+// Returns nil map if file doesn't exist (not an error - just means fresh install).
+func ReadSecretsFromVPS(
+	ctx context.Context,
+	sshRunner SSHRunner,
+	cfg SSHConfig,
+	workdir string,
+) (map[string]string, error) {
+	secretsPath := safeRemoteJoin(workdir, ".vrooli", "secrets.json")
+
+	// Try to read existing secrets file
+	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellQuoteSingle(secretsPath))
+	result, err := sshRunner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return nil, fmt.Errorf("read secrets.json: %w", err)
+	}
+
+	// Parse the JSON to extract existing secrets
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
+		// If we can't parse it, treat as empty (fresh install)
+		return make(map[string]string), nil
+	}
+
+	// Extract string values (skip _metadata)
+	existing := make(map[string]string)
+	for k, v := range rawJSON {
+		if k == "_metadata" {
+			continue
+		}
+		if strVal, ok := v.(string); ok {
+			existing[k] = strVal
+		}
+	}
+
+	return existing, nil
+}
+
 // WriteSecretsToVPS writes secrets.json to the VPS via SSH.
 // This creates .vrooli/secrets.json with generated credentials BEFORE resource startup.
+// IMPORTANT: Preserves existing secrets to avoid breaking database connections on redeploy.
 func WriteSecretsToVPS(
 	ctx context.Context,
 	sshRunner SSHRunner,
@@ -48,10 +87,25 @@ func WriteSecretsToVPS(
 		return nil // Nothing to write
 	}
 
-	// Build secrets map
+	// CRITICAL: Read existing secrets first to preserve them across redeployments
+	// This prevents "password authentication failed" errors when redeploying
+	existingSecrets, err := ReadSecretsFromVPS(ctx, sshRunner, cfg, workdir)
+	if err != nil {
+		// Log but don't fail - treat as fresh install
+		existingSecrets = make(map[string]string)
+	}
+
+	// Build secrets map, preserving existing values for per_install_generated secrets
 	secretsMap := make(map[string]string)
 	for _, s := range secrets {
-		secretsMap[s.Key] = s.Value
+		if existing, ok := existingSecrets[s.Key]; ok && existing != "" {
+			// PRESERVE existing secret - don't regenerate!
+			// This is critical for database passwords, API keys, etc.
+			secretsMap[s.Key] = existing
+		} else {
+			// New secret or empty - use generated value
+			secretsMap[s.Key] = s.Value
+		}
 	}
 
 	payload := SecretsJSONPayload{

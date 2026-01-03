@@ -1163,7 +1163,7 @@ export type ProcessControlResponse = {
 };
 
 export type VPSAction = "reboot" | "stop_vrooli" | "cleanup";
-export type CleanupLevel = 1 | 2 | 3 | 4;
+export type CleanupLevel = 1 | 2 | 3 | 4 | 5;
 
 export type VPSActionRequest = {
   action: VPSAction;
