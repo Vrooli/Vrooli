@@ -15,10 +15,12 @@ import {
 import { useScheduleStore, formatNextRun, describeCron } from '@stores/scheduleStore';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
 import { useWorkflowStore } from '@stores/workflowStore';
+import { useProjectStore } from '@/domains/projects';
 import { ScheduleModal } from './ScheduleModal';
 
 export function SchedulesTab() {
   const { workflows, loadWorkflows } = useWorkflowStore();
+  const { projects, fetchProjects } = useProjectStore();
   const {
     schedules,
     isLoading,
@@ -38,11 +40,12 @@ export function SchedulesTab() {
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Load schedules and workflows on mount
+  // Load schedules, workflows, and projects on mount
   useEffect(() => {
     void fetchSchedules();
     void loadWorkflows();
-  }, [fetchSchedules, loadWorkflows]);
+    void fetchProjects();
+  }, [fetchSchedules, loadWorkflows, fetchProjects]);
 
   const sortedSchedules = useMemo(() => {
     return [...schedules].sort((a, b) => {
@@ -112,6 +115,12 @@ export function SchedulesTab() {
     const workflow = workflows.find(w => w.id === workflowId);
     return workflow?.name ?? 'Unknown Workflow';
   }, [workflows]);
+
+  const getProjectForWorkflow = useCallback((workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (!workflow?.projectId) return null;
+    return projects.find(p => p.id === workflow.projectId) ?? null;
+  }, [workflows, projects]);
 
   const formatLastRun = useCallback((lastRunAt?: string, lastRunStatus?: string) => {
     if (!lastRunAt) return 'Never';
@@ -308,7 +317,10 @@ export function SchedulesTab() {
         schedule={editingSchedule}
         workflowId={selectedWorkflowId ?? undefined}
         workflowName={selectedWorkflowId ? getWorkflowName(selectedWorkflowId) : undefined}
-        workflows={workflows.map(w => ({ id: w.id, name: w.name }))}
+        projectId={selectedWorkflowId ? getProjectForWorkflow(selectedWorkflowId)?.id : undefined}
+        projectName={selectedWorkflowId ? getProjectForWorkflow(selectedWorkflowId)?.name : undefined}
+        workflows={workflows.map(w => ({ id: w.id, name: w.name, projectId: w.projectId }))}
+        projects={projects}
       />
     </div>
   );

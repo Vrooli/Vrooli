@@ -37,6 +37,7 @@ import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
 import { useScheduleStore, type WorkflowSchedule, type CreateScheduleInput, type UpdateScheduleInput, describeCron, formatNextRun } from "@stores/scheduleStore";
 import { useExecutionStore, useStartWorkflow, type Execution } from "@/domains/executions";
 import { useWorkflowStore } from "@stores/workflowStore";
+import { useProjectStore } from "@/domains/projects";
 import { ScheduleModal } from "@/views/SettingsView/sections/schedules/ScheduleModal";
 import { PromptDialog } from "@shared/ui/PromptDialog";
 import { logger } from "@utils/logger";
@@ -363,6 +364,14 @@ export function WorkflowPreviewPane({
   const executions = useExecutionStore((s) => s.executions);
   const loadExecutions = useExecutionStore((s) => s.loadExecutions);
   const loadExecution = useExecutionStore((s) => s.loadExecution);
+
+  // Project store - get project info for the workflow
+  const projects = useProjectStore((s) => s.projects);
+  const workflowProject = useMemo(() => {
+    const projectId = workflow.project_id ?? workflow.projectId;
+    if (!projectId) return null;
+    return projects.find((p) => p.id === projectId) ?? null;
+  }, [workflow.project_id, workflow.projectId, projects]);
 
   // Local state
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -784,6 +793,8 @@ export function WorkflowPreviewPane({
         schedule={editingSchedule}
         workflowId={workflow.id}
         workflowName={workflow.name}
+        projectId={workflowProject?.id}
+        projectName={workflowProject?.name}
       />
 
       {/* Start URL prompt for workflows without navigate step */}

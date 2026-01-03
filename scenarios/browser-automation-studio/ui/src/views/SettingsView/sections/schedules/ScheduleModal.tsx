@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { X, Clock, Globe, AlertCircle, ChevronDown, Workflow, Link } from 'lucide-react';
+import { X, Clock, Globe, AlertCircle, ChevronDown, Workflow, Link, FolderTree } from 'lucide-react';
 import { ResponsiveDialog } from '@shared/layout';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
 import { CRON_PRESETS, COMMON_TIMEZONES, describeCron } from '@stores/scheduleStore';
+import { useWorkflowStore } from '@stores/workflowStore';
+import { ProjectSelector } from '@/domains/recording/conversion/ProjectSelector';
+import { useProjectStore, type Project } from '@/domains/projects';
 
 interface WorkflowOption {
   id: string;
   name: string;
+  projectId?: string;
 }
 
 interface ScheduleModalProps {
@@ -14,13 +18,23 @@ interface ScheduleModalProps {
   onClose: () => void;
   onSave: (input: CreateScheduleInput | UpdateScheduleInput, workflowId: string) => Promise<void>;
   schedule?: WorkflowSchedule | null;
+  /** Pre-selected workflow ID (when opened from workflow details) */
   workflowId?: string;
+  /** Display name of pre-selected workflow */
   workflowName?: string;
+  /** Pre-selected project ID (when opened from workflow details) */
+  projectId?: string;
+  /** Display name of pre-selected project */
+  projectName?: string;
+  /** Available workflows for selection (when opened from schedules tab) */
   workflows?: WorkflowOption[];
+  /** Available projects for selection (when opened from schedules tab) */
+  projects?: Project[];
 }
 
-// Stable empty array for default workflows prop
+// Stable empty arrays for default props
 const EMPTY_WORKFLOWS: WorkflowOption[] = [];
+const EMPTY_PROJECTS: Project[] = [];
 
 export function ScheduleModal({
   isOpen,
@@ -29,12 +43,25 @@ export function ScheduleModal({
   schedule,
   workflowId: initialWorkflowId,
   workflowName,
+  projectId: initialProjectId,
+  projectName,
   workflows = EMPTY_WORKFLOWS,
+  projects = EMPTY_PROJECTS,
 }: ScheduleModalProps) {
   const isEditing = Boolean(schedule);
+  // Determine if workflow is pre-selected (opened from workflow details panel)
+  const isWorkflowPreSelected = Boolean(initialWorkflowId);
+
+  // Get projects from store for reliable selection display
+  const storeProjects = useProjectStore((s) => s.projects);
+
+  // Get workflows from store - these will be loaded per-project
+  const storeWorkflows = useWorkflowStore((s) => s.workflows);
+  const loadWorkflows = useWorkflowStore((s) => s.loadWorkflows);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjectId ?? '');
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>(initialWorkflowId ?? '');
   const [cronExpression, setCronExpression] = useState('0 9 * * *');
   const [timezone, setTimezone] = useState('UTC');
@@ -48,6 +75,20 @@ export function ScheduleModal({
   // Track if we've initialized the form for the current open state
   const wasOpenRef = useRef(false);
 
+  // Load workflows when project changes (only when not pre-selected)
+  useEffect(() => {
+    if (!isWorkflowPreSelected && selectedProjectId && isOpen) {
+      void loadWorkflows(selectedProjectId);
+    }
+  }, [selectedProjectId, isWorkflowPreSelected, loadWorkflows, isOpen]);
+
+  // Use store workflows when a project is selected, otherwise use prop workflows
+  const filteredWorkflows = useMemo(() => {
+    if (!selectedProjectId) return [];
+    // When a project is selected, use workflows from store (loaded for that project)
+    return storeWorkflows.map(w => ({ id: w.id, name: w.name, projectId: w.projectId }));
+  }, [selectedProjectId, storeWorkflows]);
+
   // Reset form only when modal first opens (transition from closed to open)
   useEffect(() => {
     // Only reset when transitioning from closed to open
@@ -57,6 +98,9 @@ export function ScheduleModal({
         setName(schedule.name);
         setDescription(schedule.description ?? '');
         setSelectedWorkflowId(schedule.workflow_id);
+        // Set project from the workflow
+        const wf = workflows.find(w => w.id === schedule.workflow_id);
+        setSelectedProjectId(wf?.projectId ?? initialProjectId ?? '');
         setCronExpression(schedule.cron_expression);
         setTimezone(schedule.timezone);
         setIsActive(schedule.is_active);
@@ -75,7 +119,18 @@ export function ScheduleModal({
         // New schedule defaults
         setName('');
         setDescription('');
-        setSelectedWorkflowId(initialWorkflowId ?? (workflows.length === 1 ? workflows[0].id : ''));
+        // Set project: use initial if provided, otherwise default to first project
+        const defaultProjectId = initialProjectId ?? (projects.length === 1 ? projects[0].id : '');
+        setSelectedProjectId(defaultProjectId);
+        // Set workflow: use initial if provided, otherwise auto-select if only one in project
+        if (initialWorkflowId) {
+          setSelectedWorkflowId(initialWorkflowId);
+        } else {
+          const projectWorkflows = defaultProjectId
+            ? workflows.filter(w => w.projectId === defaultProjectId)
+            : workflows;
+          setSelectedWorkflowId(projectWorkflows.length === 1 ? projectWorkflows[0].id : '');
+        }
         setCronExpression('0 9 * * *');
         setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
         setIsActive(true);
@@ -88,7 +143,7 @@ export function ScheduleModal({
       // Reset the ref when modal closes so we reinitialize next time
       wasOpenRef.current = false;
     }
-  }, [isOpen, schedule, initialWorkflowId, workflows]);
+  }, [isOpen, schedule, initialWorkflowId, initialProjectId, workflows, projects]);
 
   const handlePresetChange = useCallback((presetValue: string) => {
     setSelectedPreset(presetValue);
@@ -99,6 +154,14 @@ export function ScheduleModal({
   const handleCustomCronChange = useCallback((value: string) => {
     setCronExpression(value);
     setSelectedPreset(null);
+    setError(null);
+  }, []);
+
+  // Handle project selection change - reset workflow when project changes
+  const handleProjectSelect = useCallback((project: Project) => {
+    setSelectedProjectId(project.id);
+    // Clear workflow selection when project changes
+    setSelectedWorkflowId('');
     setError(null);
   }, []);
 
@@ -164,10 +227,23 @@ export function ScheduleModal({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {isEditing ? 'Edit Schedule' : 'Create Schedule'}
             </h2>
-            {workflowName && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                For workflow: {workflowName}
-              </p>
+            {/* Show project and workflow context when pre-selected */}
+            {isWorkflowPreSelected && (projectName || workflowName) && (
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {projectName && (
+                  <span className="flex items-center gap-1">
+                    <FolderTree size={12} />
+                    {projectName}
+                  </span>
+                )}
+                {projectName && workflowName && <span>→</span>}
+                {workflowName && (
+                  <span className="flex items-center gap-1">
+                    <Workflow size={12} />
+                    {workflowName}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <button
@@ -187,31 +263,60 @@ export function ScheduleModal({
             </div>
           )}
 
-          {/* Workflow Selector - only show when creating and no workflow pre-selected */}
-          {!isEditing && workflows.length > 0 && !initialWorkflowId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                <span className="flex items-center gap-1.5">
-                  <Workflow size={14} />
-                  Workflow *
-                </span>
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedWorkflowId}
-                  onChange={(e) => setSelectedWorkflowId(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
-                >
-                  <option value="">Select a workflow...</option>
-                  {workflows.map((wf) => (
-                    <option key={wf.id} value={wf.id}>
-                      {wf.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          {/* Project & Workflow Selectors - only show when creating and no workflow pre-selected */}
+          {!isEditing && !isWorkflowPreSelected && (
+            <>
+              {/* Project Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <FolderTree size={14} />
+                    Project *
+                  </span>
+                </label>
+                <ProjectSelector
+                  selectedProject={storeProjects.find(p => p.id === selectedProjectId) ?? null}
+                  onSelectProject={handleProjectSelect}
+                  variant="dropdown"
+                  placeholder="Select a project..."
+                />
               </div>
-            </div>
+
+              {/* Workflow Selector - filtered by selected project */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Workflow size={14} />
+                    Workflow *
+                  </span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedWorkflowId}
+                    onChange={(e) => setSelectedWorkflowId(e.target.value)}
+                    disabled={!selectedProjectId}
+                    className="w-full px-3 py-2 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!selectedProjectId
+                        ? 'Select a project first...'
+                        : 'Select a workflow...'}
+                    </option>
+                    {filteredWorkflows.map((wf) => (
+                      <option key={wf.id} value={wf.id}>
+                        {wf.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+                {filteredWorkflows.length === 0 && selectedProjectId && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    No workflows in this project. Create a workflow first.
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Name */}
