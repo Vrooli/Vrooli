@@ -32,7 +32,7 @@ Provide an orchestration UI + API that turns "I want scenario X on platform Y" i
 
 ### Bundle Schema
 
-- Desktop bundle exports must validate against `docs/deployment/bundle-schema.desktop.v0.1.json` before they are handed to packagers.
+- Desktop bundle exports must validate against `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` before they are handed to packagers.
 - Reference manifests (baseline SQLite + API, Playwright-enabled) live in `docs/deployment/examples/manifests/` and should be used in tests/fixtures until deployment-manager emits its own.
 
 ## Roadmap

@@ -145,7 +145,7 @@ func loadDesktopBundleSchema() (*jsonschema.Schema, error) {
 			desktopSchemaErr = fmt.Errorf("unable to resolve schema path from caller")
 			return
 		}
-		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..", "docs", "deployment", "bundle-schema.desktop.v0.1.json"))
+		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "docs", "schemas", "bundle-schema.desktop.v0.1.json"))
 		schemaBytes, readErr := os.ReadFile(schemaPath)
 		if readErr != nil {
 			desktopSchemaErr = fmt.Errorf("failed to read bundle schema: %w", readErr)

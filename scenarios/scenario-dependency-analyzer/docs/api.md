@@ -525,7 +525,7 @@ curl "http://localhost:20400/api/v1/scenarios/my-scenario/dag/export?recursive=t
 jq '.metadata_gaps.recommendations' deployment-bundle.json
 
 # Validate against the desktop bundle schema
-ajv validate -s ../../docs/deployment/bundle-schema.desktop.v0.1.json -d deployment-bundle.json
+ajv validate -s ../../scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json -d deployment-bundle.json
 ```
 
 ### Integration with deployment-manager

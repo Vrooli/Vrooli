@@ -85,5 +85,8 @@ func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		return nil, fmt.Errorf("decode manifest: %w", err)
 	}
+	if manifest.Ports != nil && manifest.Ports.Reserved == nil {
+		manifest.Ports.Reserved = []int{}
+	}
 	return &manifest, nil
 }

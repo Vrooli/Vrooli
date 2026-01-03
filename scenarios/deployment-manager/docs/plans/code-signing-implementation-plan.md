@@ -335,7 +335,7 @@ type ElectronBuilderMacSigning struct {
    - Configuration loading helpers
    - Environment variable resolution (via interface)
 
-3. **Update JSON Schema** (`docs/deployment/bundle-schema.desktop.v0.1.json`)
+3. **Update JSON Schema** (`scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json`)
    - Add `code_signing` object to schema
    - Define all nested platform schemas
    - Add validation constraints (patterns, enums)
@@ -355,7 +355,7 @@ api/codesigning/types_test.go     # NEW
 api/codesigning/config.go         # NEW
 api/codesigning/config_test.go    # NEW
 api/bundles/types.go              # MODIFIED
-docs/deployment/bundle-schema.desktop.v0.1.json  # MODIFIED
+scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json  # MODIFIED
 ```
 
 ---
@@ -1160,4 +1160,4 @@ docs/README.md                         # Add to table of contents
 - `api/bundles/handler.go` - Bundle assembly
 - `api/bundles/validation.go` - Manifest validation
 - `api/profiles/` - Profile management
-- `docs/deployment/bundle-schema.desktop.v0.1.json` - JSON Schema
+- `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` - JSON Schema

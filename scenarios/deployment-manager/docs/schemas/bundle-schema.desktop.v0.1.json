@@ -1,0 +1,347 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "bundle-schema.desktop.v0.1.json",
+  "title": "Vrooli Desktop Bundle Manifest v0.1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "target",
+    "app",
+    "ipc",
+    "telemetry",
+    "services"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["v0.1"]
+    },
+    "target": {
+      "type": "string",
+      "enum": ["desktop"]
+    },
+    "app": { "$ref": "#/definitions/app" },
+    "ipc": { "$ref": "#/definitions/ipc" },
+    "telemetry": { "$ref": "#/definitions/telemetry" },
+    "ports": { "$ref": "#/definitions/ports" },
+    "swaps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/swap" }
+    },
+    "secrets": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/secret" }
+    },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/service" }
+    },
+    "code_signing": { "$ref": "#/definitions/code_signing" }
+  },
+  "definitions": {
+    "app": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "ipc": {
+      "type": "object",
+      "required": ["mode", "host", "port", "auth_token_path"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["loopback-http"] },
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1 },
+        "auth_token_path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "upload_url": { "type": "string" }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "properties": {
+        "default_range": { "$ref": "#/definitions/port_range" },
+        "reserved": {
+          "type": ["array", "null"],
+          "items": { "type": "integer" }
+        }
+      }
+    },
+    "port_range": {
+      "type": "object",
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer" },
+        "max": { "type": "integer" }
+      }
+    },
+    "swap": {
+      "type": "object",
+      "required": ["original", "replacement"],
+      "properties": {
+        "original": { "type": "string", "minLength": 1 },
+        "replacement": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" },
+        "limitations": { "type": "string" }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "required": ["id", "class", "target"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "class": {
+          "type": "string",
+          "enum": [
+            "infrastructure",
+            "per_install_generated",
+            "user_prompt",
+            "remote_fetch"
+          ]
+        },
+        "description": { "type": "string" },
+        "format": { "type": "string" },
+        "required": { "type": "boolean" },
+        "prompt": { "$ref": "#/definitions/secret_prompt" },
+        "generator": { "type": "object" },
+        "target": { "$ref": "#/definitions/secret_target" }
+      }
+    },
+    "secret_prompt": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "hint": { "type": "string" }
+      }
+    },
+    "secret_target": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "type": "string", "enum": ["env", "file"] },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "service": {
+      "type": "object",
+      "required": ["id", "type", "binaries", "health", "readiness"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["ui-bundle", "api-binary", "worker", "resource"]
+        },
+        "description": { "type": "string" },
+        "binaries": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/definitions/binary" }
+        },
+        "build": { "$ref": "#/definitions/build" },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "secrets": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "data_dirs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "log_dir": { "type": "string" },
+        "ports": { "$ref": "#/definitions/service_ports" },
+        "health": { "$ref": "#/definitions/health" },
+        "readiness": { "$ref": "#/definitions/readiness" },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "migrations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/migration" }
+        },
+        "assets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/asset" }
+        },
+        "gpu": { "$ref": "#/definitions/gpu" },
+        "critical": { "type": "boolean" },
+        "metadata": { "type": "object" }
+      }
+    },
+    "binary": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "cwd": { "type": "string" }
+      }
+    },
+    "build": {
+      "type": "object",
+      "required": ["type", "source_dir"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["go", "rust", "npm", "python", "custom"]
+        },
+        "source_dir": { "type": "string", "minLength": 1 },
+        "entry_point": { "type": "string" },
+        "output_pattern": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "service_ports": {
+      "type": "object",
+      "required": ["requested"],
+      "properties": {
+        "requested": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/port_request" }
+        }
+      }
+    },
+    "port_request": {
+      "type": "object",
+      "required": ["name", "range"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "range": { "$ref": "#/definitions/port_range" },
+        "requires_socket": { "type": "boolean" }
+      }
+    },
+    "health": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http", "tcp", "command", "log_match"]
+        },
+        "path": { "type": "string" },
+        "port_name": { "type": "string" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "interval_ms": { "type": "integer", "minimum": 0 },
+        "timeout_ms": { "type": "integer", "minimum": 0 },
+        "retries": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["health_success", "port_open", "log_match", "dependencies_ready"]
+        },
+        "port_name": { "type": "string" },
+        "pattern": { "type": "string" },
+        "timeout_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "required": ["version", "command"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1 },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "run_on": { "type": "string" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string" },
+        "size_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gpu": {
+      "type": "object",
+      "properties": {
+        "requirement": { "type": "string" }
+      }
+    },
+    "code_signing": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "windows": { "$ref": "#/definitions/signing_windows" },
+        "macos": { "$ref": "#/definitions/signing_macos" },
+        "linux": { "$ref": "#/definitions/signing_linux" }
+      }
+    },
+    "signing_windows": {
+      "type": "object",
+      "required": ["certificate_source"],
+      "properties": {
+        "certificate_source": {
+          "type": "string",
+          "enum": ["file", "store", "azure_keyvault", "aws_kms"]
+        },
+        "certificate_file": { "type": "string" },
+        "certificate_password_env": { "type": "string" },
+        "certificate_thumbprint": { "type": "string" },
+        "timestamp_server": { "type": "string" },
+        "sign_algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha384", "sha512"]
+        },
+        "dual_sign": { "type": "boolean" }
+      }
+    },
+    "signing_macos": {
+      "type": "object",
+      "required": ["identity", "team_id", "hardened_runtime", "notarize"],
+      "properties": {
+        "identity": { "type": "string", "minLength": 1 },
+        "team_id": { "type": "string", "minLength": 1 },
+        "hardened_runtime": { "type": "boolean" },
+        "notarize": { "type": "boolean" },
+        "entitlements_file": { "type": "string" },
+        "provisioning_profile": { "type": "string" },
+        "apple_id_env": { "type": "string" },
+        "apple_id_password_env": { "type": "string" },
+        "apple_api_key_id": { "type": "string" },
+        "apple_api_key_file": { "type": "string" },
+        "apple_api_issuer_id": { "type": "string" }
+      }
+    },
+    "signing_linux": {
+      "type": "object",
+      "properties": {
+        "gpg_key_id": { "type": "string" },
+        "gpg_passphrase_env": { "type": "string" },
+        "gpg_homedir": { "type": "string" }
+      }
+    }
+  }
+}
