@@ -245,19 +245,21 @@ function Dashboard({
         );
       case 'executions':
         return (
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
-              </div>
-            }
-          >
-            <ExecutionsTab
-              onViewExecution={handleViewExecution}
-              onNavigateToHome={() => handleTabChange('home')}
-              onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
-            />
-          </Suspense>
+          <div className="flex-1 min-h-0 relative">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+                </div>
+              }
+            >
+              <ExecutionsTab
+                onViewExecution={handleViewExecution}
+                onNavigateToHome={() => handleTabChange('home')}
+                onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
+              />
+            </Suspense>
+          </div>
         );
       case 'exports':
         return (
@@ -441,7 +443,11 @@ function Dashboard({
       {/* Content */}
       <div
         id="dashboard-content"
-        className="flex-1 min-h-0 overflow-auto px-4 py-6 sm:px-6"
+        className={`flex-1 min-h-0 ${
+          activeTab === 'executions'
+            ? 'overflow-hidden flex flex-col'
+            : 'overflow-auto px-4 py-6 sm:px-6'
+        }`}
         role="region"
         aria-label="Dashboard content"
       >

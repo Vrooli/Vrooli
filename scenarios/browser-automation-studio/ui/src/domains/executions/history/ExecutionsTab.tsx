@@ -147,10 +147,10 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
   const failedCount = statusCounts.failed;
 
   return (
-    <div className="flex h-full min-h-[500px]">
+    <div className="absolute inset-0 flex">
       {/* Left side: Execution list */}
       <div className={`flex flex-col ${isViewerOpen ? 'w-1/2 border-r border-gray-800' : 'w-full'} transition-all duration-200`}>
-        <div className="flex-1 overflow-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Pulse strip */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-gray-900/80 via-gray-900 to-blue-900/10 border border-gray-800/80 rounded-2xl p-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -288,7 +288,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
 
       {/* Right side: Execution viewer */}
       {isViewerOpen && currentExecution && (
-        <div className="w-1/2 flex flex-col bg-gray-900 relative">
+        <div className="w-1/2 flex flex-col bg-gray-900 relative overflow-hidden">
           {/* Close button for mobile */}
           <button
             onClick={handleCloseViewer}

@@ -253,7 +253,7 @@ export default function ProjectDetailView() {
   }
 
   return (
-    <div data-testid={selectors.app.shell.ready}>
+    <div data-testid={selectors.app.shell.ready} className="flex-1 flex flex-col min-h-0">
       <Suspense
         fallback={
           <div className="h-screen flex items-center justify-center bg-flow-bg">

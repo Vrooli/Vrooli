@@ -233,7 +233,7 @@ function ProjectDetail({
         <StatusBar />
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden min-h-0">
+        <div className={`flex-1 overflow-hidden min-h-0 ${activeTab === "executions" ? "relative" : ""}`}>
           {activeTab === "executions" ? (
             <ExecutionPanel />
           ) : viewMode === "tree" ? (

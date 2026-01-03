@@ -54,21 +54,21 @@ export function ExecutionPanel() {
   }, [currentExecution, projectId, navigate]);
 
   return (
-    <div className="h-full flex flex-col md:flex-row min-h-0">
+    <div className="absolute inset-0 flex">
       {/* Execution History List */}
       <div
         className={`${
           isExecutionViewerOpen
             ? "hidden md:block md:w-1/2 md:border-r md:border-gray-800"
-            : "block md:w-full"
-        } flex-1 min-h-0`}
+            : "block w-full"
+        } h-full relative`}
       >
-        <ExecutionHistory projectId={projectId ?? undefined} onSelectExecution={handleSelectExecution} />
+        <ExecutionHistory onSelectExecution={handleSelectExecution} />
       </div>
 
       {/* Inline Execution Viewer (side panel on desktop) */}
       {isExecutionViewerOpen && currentExecution && projectId && (
-        <div className="w-full md:w-1/2 flex-1 flex flex-col min-h-0">
+        <div className="w-1/2 h-full flex flex-col overflow-hidden">
           <InlineExecutionViewer
             executionId={currentExecution.id}
             workflowId={currentExecution.workflowId}

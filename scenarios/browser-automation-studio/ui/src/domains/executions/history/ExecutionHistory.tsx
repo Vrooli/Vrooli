@@ -174,11 +174,11 @@ function ExecutionHistory({
 
   return (
     <div
-      className="flex flex-col h-full"
+      className="absolute inset-0 flex flex-col"
       data-testid={selectors.executions.list.root}
     >
       {/* Header with filters */}
-      <div className="p-4 border-b border-gray-800">
+      <div className="flex-shrink-0 p-4 border-b border-gray-800">
         <ExecutionFilters
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
@@ -192,7 +192,7 @@ function ExecutionHistory({
 
       {/* Execution list */}
       <div
-        className="flex-1 overflow-auto"
+        className="flex-1 min-h-0 overflow-y-auto"
         data-testid={selectors.executions.list.list}
       >
         {filteredExecutions.length === 0 ? (
