@@ -213,9 +213,18 @@ func TestManifestBuilder_Build_NoSecrets(t *testing.T) {
 	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
 
 	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
-	_, err := builder.Build(context.Background(), req)
-	if err == nil {
-		t.Error("Build() error = nil, want error for no secrets")
+	manifest, err := builder.Build(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Build() error = %v, want nil", err)
+	}
+	if len(manifest.Secrets) != 0 {
+		t.Errorf("expected 0 secrets, got %d", len(manifest.Secrets))
+	}
+	if len(manifest.BundleSecrets) != 0 {
+		t.Errorf("expected 0 bundle secrets, got %d", len(manifest.BundleSecrets))
+	}
+	if len(manifest.Resources) == 0 || manifest.Resources[0] != "postgres" {
+		t.Errorf("expected resources to include postgres, got %v", manifest.Resources)
 	}
 }
 

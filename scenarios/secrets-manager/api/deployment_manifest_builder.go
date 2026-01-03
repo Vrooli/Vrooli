@@ -108,14 +108,17 @@ func (b *ManifestBuilder) Build(ctx context.Context, req DeploymentManifestReque
 	if err != nil {
 		return nil, fmt.Errorf("fetch secrets: %w", err)
 	}
-	if len(entries) == 0 {
-		return nil, fmt.Errorf("no secrets discovered for manifest request")
-	}
 
 	// Build resource list from fetched entries
 	resourceSet := make(map[string]struct{})
-	for _, entry := range entries {
-		resourceSet[entry.ResourceName] = struct{}{}
+	if len(entries) == 0 {
+		for _, resource := range resolved.Effective {
+			resourceSet[resource] = struct{}{}
+		}
+	} else {
+		for _, entry := range entries {
+			resourceSet[entry.ResourceName] = struct{}{}
+		}
 	}
 	resourcesList := make([]string, 0, len(resourceSet))
 	for resource := range resourceSet {

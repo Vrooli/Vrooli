@@ -5,7 +5,6 @@ import {
   fetchProxyHints,
   fetchScenarioDesktopStatus,
   generateDesktop,
-  fetchScenarioPort,
   fetchSigningConfig,
   checkSigningReadiness,
   probeEndpoints,
@@ -700,24 +699,21 @@ function DeploymentManagerBundleHelper({
   scenarioName: string;
   onBundleManifestChange: (value: string) => void;
 }) {
-  const [deploymentManagerUrl, setDeploymentManagerUrl] = useState("");
   const [tier, setTier] = useState("tier-2-desktop");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState<string | null>(null);
   const [exportMeta, setExportMeta] = useState<{ checksum?: string; generated_at?: string } | null>(null);
-  const [resolvingPort, setResolvingPort] = useState(false);
+  const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
+  const [manifestPath, setManifestPath] = useState<string | null>(null);
 
   const handleExport = async () => {
     setExportError(null);
     setExportMeta(null);
     setDownloadUrl(null);
     setDownloadName(null);
-    if (!deploymentManagerUrl.trim()) {
-      setExportError("Add the deployment-manager URL first (e.g., http://localhost:32022).");
-      return;
-    }
+    setManifestPath(null);
     if (!scenarioName.trim()) {
       setExportError("Enter a scenario name above before exporting the bundle.");
       return;
@@ -725,7 +721,6 @@ function DeploymentManagerBundleHelper({
     setExporting(true);
     try {
       const response = await exportBundleFromDeploymentManager({
-        baseUrl: deploymentManagerUrl,
         scenario: scenarioName,
         tier
       });
@@ -735,6 +730,11 @@ function DeploymentManagerBundleHelper({
       setDownloadUrl(url);
       setDownloadName(filename);
       setExportMeta({ checksum: response.checksum, generated_at: response.generated_at });
+      setDeploymentManagerUrl(response.deployment_manager_url ?? null);
+      if (response.manifest_path) {
+        setManifestPath(response.manifest_path);
+        onBundleManifestChange(response.manifest_path);
+      }
     } catch (error) {
       setExportError((error as Error).message);
     } finally {
@@ -742,60 +742,32 @@ function DeploymentManagerBundleHelper({
     }
   };
 
-  const handleResolvePort = async () => {
-    setExportError(null);
-    setResolvingPort(true);
-    try {
-      if (!scenarioName.trim()) {
-        setExportError("Enter a scenario name above before resolving deployment-manager.");
-        return;
-      }
-      const res = await fetchScenarioPort("deployment-manager", "UI_PORT");
-      setDeploymentManagerUrl(res.url);
-    } catch (error) {
-      setExportError((error as Error).message);
-    } finally {
-      setResolvingPort(false);
-    }
-  };
-
   return (
     <div className="rounded-md border border-emerald-800/60 bg-emerald-900/30 p-3 space-y-3 text-xs text-emerald-100">
       <div className="flex items-center justify-between gap-2">
         <p className="font-semibold text-emerald-100">Get bundle.json from deployment-manager</p>
-        <Button
-          asChild
-          size="xs"
-          variant="ghost"
-        >
-          <a href={deploymentManagerUrl || "about:blank"} target="_blank" rel="noreferrer">
-            Open UI
-          </a>
-        </Button>
+        {deploymentManagerUrl && (
+          <Button
+            asChild
+            size="xs"
+            variant="ghost"
+          >
+            <a href={deploymentManagerUrl} target="_blank" rel="noreferrer">
+              Open UI
+            </a>
+          </Button>
+        )}
       </div>
-      <div className="grid gap-2 md:grid-cols-[2fr,1fr]">
-        <div className="space-y-1">
-          <Label className="text-[11px] uppercase tracking-wide text-emerald-200/70">Deployment-manager URL</Label>
-          <Input
-            value={deploymentManagerUrl}
-            onChange={(e) => setDeploymentManagerUrl(e.target.value)}
-            placeholder="http://localhost:32022"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[11px] uppercase tracking-wide text-emerald-200/70">Tier</Label>
-          <Select value={tier} onChange={(e) => setTier(e.target.value)} className="mt-0.5">
-            <option value="tier-2-desktop">tier-2-desktop</option>
-            <option value="tier-3-mobile" disabled>
-              tier-3-mobile (desktop export only)
-            </option>
-          </Select>
-        </div>
+      <div className="space-y-1">
+        <Label className="text-[11px] uppercase tracking-wide text-emerald-200/70">Tier</Label>
+        <Select value={tier} onChange={(e) => setTier(e.target.value)} className="mt-0.5">
+          <option value="tier-2-desktop">tier-2-desktop</option>
+          <option value="tier-3-mobile" disabled>
+            tier-3-mobile (desktop export only)
+          </option>
+        </Select>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={handleResolvePort} disabled={resolvingPort}>
-          {resolvingPort ? "Resolving..." : "Detect URL (vrooli scenario port)"}
-        </Button>
         <Button size="sm" variant="secondary" onClick={handleExport} disabled={exporting}>
           {exporting ? "Exporting..." : "Export bundle.json"}
         </Button>
@@ -820,6 +792,11 @@ function DeploymentManagerBundleHelper({
           {exportMeta.checksum ? ` · checksum ${exportMeta.checksum.slice(0, 8)}…` : ""}
         </p>
       )}
+      {manifestPath && (
+        <p className="text-[11px] text-emerald-100/80">
+          Saved to {manifestPath}
+        </p>
+      )}
       {exportError && (
         <p className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-100">
           {exportError}
@@ -827,8 +804,8 @@ function DeploymentManagerBundleHelper({
       )}
       {!exportError && !downloadUrl && (
         <p className="text-[11px] text-emerald-100/70">
-          Start deployment-manager (`vrooli scenario start deployment-manager`), then click Export. Save the downloaded
-          file inside this repo and paste its path above so the packager can stage it.
+          Start deployment-manager (`vrooli scenario start deployment-manager`), then click Export. The manifest will be
+          saved into the scenario bundle folder and the path above will be filled automatically.
         </p>
       )}
     </div>

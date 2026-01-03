@@ -624,18 +624,18 @@ export interface BundleExportResponse {
   manifest: unknown;
   checksum?: string;
   generated_at?: string;
+  deployment_manager_url?: string;
+  manifest_path?: string;
 }
 
 export async function exportBundleFromDeploymentManager(opts: {
-  baseUrl: string;
   scenario: string;
   tier?: string;
   includeSecrets?: boolean;
 }): Promise<BundleExportResponse> {
   const tier = opts.tier || "tier-2-desktop";
   const includeSecrets = opts.includeSecrets ?? true;
-  const base = opts.baseUrl.replace(/\/+$/, "");
-  const response = await fetch(`${base}/api/v1/bundles/export`, {
+  const response = await fetch(buildUrl("/deployment-manager/bundles/export"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

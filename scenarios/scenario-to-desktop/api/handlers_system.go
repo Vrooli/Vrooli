@@ -58,6 +58,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 			{"method": "GET", "path": "/api/v1/templates", "description": "List templates"},
 			{"method": "POST", "path": "/api/v1/desktop/generate", "description": "Generate desktop app"},
 			{"method": "POST", "path": "/api/v1/desktop/preflight", "description": "Dry-run bundled runtime validation"},
+			{"method": "POST", "path": "/api/v1/deployment-manager/bundles/export", "description": "Export bundle.json via deployment-manager"},
 			{"method": "GET", "path": "/api/v1/desktop/status/{build_id}", "description": "Get build status"},
 		},
 	}

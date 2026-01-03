@@ -952,4 +952,4 @@ cd ui && npm install && npm start
 
 *scenario-to-desktop is part of Vrooli's recursive intelligence system, where every capability built becomes a permanent tool for building even more advanced capabilities. Each desktop app generated contributes to the ever-expanding intelligence of the platform.*
 
-**Version**: 1.0.0 | **Status**: Thin-client only (bundled/cloud modes stubbed) | **License**: MIT
+**Version**: 1.0.0 | **Status**: Thin-client + bundled (deployment-manager pipeline); cloud mode stubbed | **License**: MIT

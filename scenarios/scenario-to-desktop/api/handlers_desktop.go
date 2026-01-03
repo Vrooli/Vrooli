@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 	bundleruntime "scenario-to-desktop-runtime"
 	runtimeapi "scenario-to-desktop-runtime/api"
 	bundlemanifest "scenario-to-desktop-runtime/manifest"
@@ -1308,4 +1309,129 @@ func collectLogTails(client *http.Client, baseURL, token string, manifest *bundl
 	}
 
 	return tails
+}
+
+type bundleExportRequest struct {
+	Scenario       string `json:"scenario"`
+	Tier           string `json:"tier,omitempty"`
+	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
+}
+
+type bundleExportResponse struct {
+	Status               string      `json:"status"`
+	Schema               string      `json:"schema"`
+	Manifest             interface{} `json:"manifest"`
+	Checksum             string      `json:"checksum,omitempty"`
+	GeneratedAt          string      `json:"generated_at,omitempty"`
+	DeploymentManagerURL string      `json:"deployment_manager_url,omitempty"`
+	ManifestPath         string      `json:"manifest_path,omitempty"`
+}
+
+func (s *Server) exportBundleHandler(w http.ResponseWriter, r *http.Request) {
+	var req bundleExportRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Scenario == "" {
+		http.Error(w, "scenario is required", http.StatusBadRequest)
+		return
+	}
+	if containsParentRef(req.Scenario) || strings.ContainsAny(req.Scenario, `/\`) {
+		http.Error(w, "invalid scenario name", http.StatusBadRequest)
+		return
+	}
+
+	deploymentManagerURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "deployment-manager")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to resolve deployment-manager: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	if req.Tier == "" {
+		req.Tier = "tier-2-desktop"
+	}
+	if req.IncludeSecrets == nil {
+		include := true
+		req.IncludeSecrets = &include
+	}
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"scenario":        req.Scenario,
+		"tier":            req.Tier,
+		"include_secrets": req.IncludeSecrets,
+	})
+	if err != nil {
+		http.Error(w, "failed to marshal request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(
+		fmt.Sprintf("%s/api/v1/bundles/export", deploymentManagerURL),
+		"application/json",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("deployment-manager export failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "failed to read deployment-manager response", http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(body)
+		return
+	}
+
+	var exportResp bundleExportResponse
+	if err := json.Unmarshal(body, &exportResp); err != nil {
+		http.Error(w, "failed to parse deployment-manager response", http.StatusBadGateway)
+		return
+	}
+	exportResp.DeploymentManagerURL = deploymentManagerURL
+
+	manifestPath, err := writeBundleManifest(req.Scenario, exportResp.Manifest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to write bundle manifest: %v", err), http.StatusBadGateway)
+		return
+	}
+	exportResp.ManifestPath = manifestPath
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(exportResp)
+}
+
+func writeBundleManifest(scenario string, manifest interface{}) (string, error) {
+	if manifest == nil {
+		return "", fmt.Errorf("manifest missing from deployment-manager response")
+	}
+	root := detectVrooliRoot()
+	scenarioDir := filepath.Join(root, "scenarios", scenario)
+	if _, err := os.Stat(scenarioDir); err != nil {
+		return "", fmt.Errorf("scenario directory not found: %w", err)
+	}
+
+	outDir := filepath.Join(scenarioDir, "platforms", "electron", "bundle")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return "", fmt.Errorf("create bundle directory: %w", err)
+	}
+
+	payload, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("serialize manifest: %w", err)
+	}
+
+	outPath := filepath.Join(outDir, "bundle.json")
+	if err := os.WriteFile(outPath, payload, 0o644); err != nil {
+		return "", fmt.Errorf("write bundle.json: %w", err)
+	}
+	return outPath, nil
 }

@@ -118,6 +118,9 @@ func (s *Server) setupRoutes() {
 	// Resolve scenario ports via vrooli CLI (dynamic per lifecycle)
 	s.router.HandleFunc("/api/v1/ports/{scenario}/{port_name}", s.getScenarioPortHandler).Methods("GET")
 
+	// Deployment-manager bundle exports (resolved via api-core discovery)
+	s.router.HandleFunc("/api/v1/deployment-manager/bundles/export", s.exportBundleHandler).Methods("POST")
+
 	// Desktop records
 	s.router.HandleFunc("/api/v1/desktop/records", s.listDesktopRecordsHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/records/{record_id}/move", s.moveDesktopRecordHandler).Methods("POST")
