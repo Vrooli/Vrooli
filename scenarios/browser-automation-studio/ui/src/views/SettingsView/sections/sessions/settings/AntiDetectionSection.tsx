@@ -60,6 +60,26 @@ const TOGGLES: { key: BooleanAntiDetectionKey; label: string; description: strin
     label: 'Disable WebRTC',
     description: 'Prevents WebRTC from leaking real IP address',
   },
+  {
+    key: 'patch_fonts',
+    label: 'Patch Font Fingerprinting',
+    description: 'Returns only common system fonts to prevent font enumeration tracking',
+  },
+  {
+    key: 'patch_screen_properties',
+    label: 'Patch Screen Properties',
+    description: 'Spoofs screen dimensions and color depth to match viewport settings',
+  },
+  {
+    key: 'patch_battery_api',
+    label: 'Patch Battery API',
+    description: 'Returns consistent battery status to prevent power-based fingerprinting',
+  },
+  {
+    key: 'patch_connection_api',
+    label: 'Patch Connection API',
+    description: 'Spoofs network type to appear as typical residential WiFi connection',
+  },
 ];
 
 export function AntiDetectionSection({ antiDetection, onChange }: AntiDetectionSectionProps) {

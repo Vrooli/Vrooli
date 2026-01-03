@@ -69,6 +69,10 @@ export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   patch_canvas: false,
   patch_audio_context: false,
   headless_detection_bypass: false,
+  patch_fonts: false,
+  patch_screen_properties: false,
+  patch_battery_api: false,
+  patch_connection_api: false,
   ad_blocking_mode: 'ads_and_tracking',
 };
 
@@ -122,6 +126,10 @@ export const PRESET_STEALTH: BrowserProfile = {
     patch_canvas: true,
     patch_audio_context: true,
     headless_detection_bypass: true,
+    patch_fonts: true,
+    patch_screen_properties: true,
+    patch_battery_api: true,
+    patch_connection_api: true,
   },
 };
 
@@ -150,6 +158,8 @@ export const PRESET_BALANCED: BrowserProfile = {
     disable_automation_controlled: true,
     patch_navigator_webdriver: true,
     patch_audio_context: true,
+    patch_fonts: true,
+    patch_screen_properties: true,
   },
 };
 

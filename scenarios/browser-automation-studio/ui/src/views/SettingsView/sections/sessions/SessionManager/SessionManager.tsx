@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
 import { useSessionManager } from './useSessionManager';
-import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection } from '../settings';
+import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection, ExtraHeadersSection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
 
@@ -32,11 +32,15 @@ export function SessionManager({
     behavior,
     antiDetection,
     proxy,
+    extraHeaders,
     applyPreset,
     updateFingerprint,
     updateBehavior,
     updateAntiDetection,
     updateProxy,
+    addExtraHeader,
+    updateExtraHeader,
+    removeExtraHeader,
     storageState,
     storageLoading,
     storageError,
@@ -135,6 +139,15 @@ export function SessionManager({
             )}
 
             {activeSection === 'proxy' && <ProxySection proxy={proxy} onChange={updateProxy} />}
+
+            {activeSection === 'extra-headers' && (
+              <ExtraHeadersSection
+                headers={extraHeaders}
+                onAdd={addExtraHeader}
+                onUpdate={updateExtraHeader}
+                onRemove={removeExtraHeader}
+              />
+            )}
 
             {/* Storage sections */}
             {activeSection === 'cookies' && (

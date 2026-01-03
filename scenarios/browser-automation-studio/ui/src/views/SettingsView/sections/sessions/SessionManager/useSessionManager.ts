@@ -32,6 +32,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
   const [behavior, setBehavior] = useState<BehaviorSettings>(initialProfile?.behavior ?? {});
   const [antiDetection, setAntiDetection] = useState<AntiDetectionSettings>(initialProfile?.anti_detection ?? {});
   const [proxy, setProxy] = useState<ProxySettings>(initialProfile?.proxy ?? {});
+  const [extraHeaders, setExtraHeaders] = useState<Record<string, string>>(initialProfile?.extra_headers ?? {});
 
   // Storage state with delete operations
   const {
@@ -69,6 +70,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
       setBehavior(initialProfile.behavior ?? {});
       setAntiDetection(initialProfile.anti_detection ?? {});
       setProxy(initialProfile.proxy ?? {});
+      setExtraHeaders(initialProfile.extra_headers ?? {});
       setIsDirty(false);
     }
   }, [initialProfile]);
@@ -103,6 +105,28 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     setIsDirty(true);
   }, []);
 
+  // Extra headers handlers
+  const addExtraHeader = useCallback((key: string, value: string) => {
+    setExtraHeaders((prev) => ({ ...prev, [key]: value }));
+    setIsDirty(true);
+  }, []);
+
+  const updateExtraHeader = useCallback((oldKey: string, newKey: string, value: string) => {
+    setExtraHeaders((prev) => {
+      const { [oldKey]: _, ...rest } = prev;
+      return { ...rest, [newKey]: value };
+    });
+    setIsDirty(true);
+  }, []);
+
+  const removeExtraHeader = useCallback((key: string) => {
+    setExtraHeaders((prev) => {
+      const { [key]: _, ...rest } = prev;
+      return rest;
+    });
+    setIsDirty(true);
+  }, []);
+
   // Save handler
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -114,6 +138,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
         behavior: Object.keys(behavior).length > 0 ? behavior : undefined,
         anti_detection: Object.keys(antiDetection).length > 0 ? antiDetection : undefined,
         proxy: Object.keys(proxy).length > 0 ? proxy : undefined,
+        extra_headers: Object.keys(extraHeaders).length > 0 ? extraHeaders : undefined,
       };
       await onSave(profile);
       setIsDirty(false);
@@ -124,7 +149,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     } finally {
       setSaving(false);
     }
-  }, [preset, fingerprint, behavior, antiDetection, proxy, onSave]);
+  }, [preset, fingerprint, behavior, antiDetection, proxy, extraHeaders, onSave]);
 
   // Reset to initial values
   const reset = useCallback(() => {
@@ -133,6 +158,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     setBehavior(initialProfile?.behavior ?? {});
     setAntiDetection(initialProfile?.anti_detection ?? {});
     setProxy(initialProfile?.proxy ?? {});
+    setExtraHeaders(initialProfile?.extra_headers ?? {});
     setIsDirty(false);
     setError(null);
   }, [initialProfile]);
@@ -173,6 +199,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     behavior,
     antiDetection,
     proxy,
+    extraHeaders,
 
     // Settings actions
     applyPreset,
@@ -180,6 +207,9 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     updateBehavior,
     updateAntiDetection,
     updateProxy,
+    addExtraHeader,
+    updateExtraHeader,
+    removeExtraHeader,
 
     // Storage state
     storageState,

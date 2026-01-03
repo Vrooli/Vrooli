@@ -170,6 +170,28 @@ export function BehaviorSection({ behavior, onChange }: BehaviorSectionProps) {
             <option value="stepped">Stepped (Human-like)</option>
           </select>
         </div>
+        <div className="grid grid-cols-2 gap-4 mt-3">
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Speed (px/step)</label>
+            <input
+              type="number"
+              value={behavior.scroll_speed_min ?? ''}
+              onChange={(e) => onChange('scroll_speed_min', e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="50"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Speed (px/step)</label>
+            <input
+              type="number"
+              value={behavior.scroll_speed_max ?? ''}
+              onChange={(e) => onChange('scroll_speed_max', e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="200"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Micro-pauses */}

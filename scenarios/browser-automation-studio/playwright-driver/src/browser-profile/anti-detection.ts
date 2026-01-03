@@ -309,6 +309,95 @@ export function generateAntiDetectionScript(
     `);
   }
 
+  // Spoof font fingerprinting
+  if (antiDetection.patch_fonts) {
+    patches.push(`
+      // Override font detection to return common fonts only
+      const commonFonts = new Set([
+        'Arial', 'Arial Black', 'Comic Sans MS', 'Courier New', 'Georgia',
+        'Helvetica', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
+        'Palatino Linotype', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'
+      ]);
+
+      // Patch document.fonts.check to only confirm common fonts
+      if (document.fonts && document.fonts.check) {
+        const originalCheck = document.fonts.check.bind(document.fonts);
+        document.fonts.check = function(font, text) {
+          const match = font.match(/(?:^|\\s)([\\w\\s-]+)(?:,|$)/);
+          if (match) {
+            const fontName = match[1].trim().replace(/['"]/g, '');
+            if (!commonFonts.has(fontName)) {
+              return false;
+            }
+          }
+          return originalCheck(font, text);
+        };
+      }
+    `);
+  }
+
+  // Spoof screen properties
+  if (antiDetection.patch_screen_properties) {
+    const width = fingerprint.viewport_width || 1920;
+    const height = fingerprint.viewport_height || 1080;
+    patches.push(`
+      // Spoof screen dimensions to match viewport
+      Object.defineProperty(screen, 'width', { get: () => ${width}, configurable: true });
+      Object.defineProperty(screen, 'height', { get: () => ${height}, configurable: true });
+      Object.defineProperty(screen, 'availWidth', { get: () => ${width}, configurable: true });
+      Object.defineProperty(screen, 'availHeight', { get: () => ${height - 40}, configurable: true });
+      Object.defineProperty(screen, 'colorDepth', { get: () => 24, configurable: true });
+      Object.defineProperty(screen, 'pixelDepth', { get: () => 24, configurable: true });
+    `);
+  }
+
+  // Spoof battery API
+  if (antiDetection.patch_battery_api) {
+    patches.push(`
+      // Return realistic battery status (fully charged, plugged in)
+      if (navigator.getBattery) {
+        navigator.getBattery = function() {
+          return Promise.resolve({
+            charging: true,
+            chargingTime: 0,
+            dischargingTime: Infinity,
+            level: 1.0,
+            onchargingchange: null,
+            onchargingtimechange: null,
+            ondischargingtimechange: null,
+            onlevelchange: null,
+            addEventListener: function() {},
+            removeEventListener: function() {},
+            dispatchEvent: function() { return true; }
+          });
+        };
+      }
+    `);
+  }
+
+  // Spoof connection API
+  if (antiDetection.patch_connection_api) {
+    patches.push(`
+      // Spoof network connection to appear as typical residential WiFi
+      if (navigator.connection) {
+        Object.defineProperty(navigator, 'connection', {
+          get: () => ({
+            effectiveType: '4g',
+            type: 'wifi',
+            downlink: 10,
+            rtt: 50,
+            saveData: false,
+            onchange: null,
+            addEventListener: function() {},
+            removeEventListener: function() {},
+            dispatchEvent: function() { return true; }
+          }),
+          configurable: true
+        });
+      }
+    `);
+  }
+
   if (patches.length === 0) {
     return '';
   }

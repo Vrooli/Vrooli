@@ -29,6 +29,9 @@ func BrowserProfileFromProto(p *basbase.BrowserProfile) *BrowserProfile {
 	if p.Proxy != nil {
 		bp.Proxy = proxyFromProto(p.Proxy)
 	}
+	if len(p.ExtraHeaders) > 0 {
+		bp.ExtraHeaders = p.ExtraHeaders
+	}
 
 	return bp
 }
@@ -94,6 +97,10 @@ func antiDetectionFromProto(p *basbase.AntiDetectionSettings) *AntiDetectionSett
 		PatchCanvas:                 p.GetPatchCanvas(),
 		PatchAudioContext:           p.GetPatchAudioContext(),
 		HeadlessDetectionBypass:     p.GetHeadlessDetectionBypass(),
+		PatchFonts:                  p.GetPatchFonts(),
+		PatchScreenProperties:       p.GetPatchScreenProperties(),
+		PatchBatteryAPI:             p.GetPatchBatteryApi(),
+		PatchConnectionAPI:          p.GetPatchConnectionApi(),
 		AdBlockingMode:              p.GetAdBlockingMode(),
 	}
 }
@@ -134,6 +141,9 @@ func BrowserProfileToProto(bp *BrowserProfile) *basbase.BrowserProfile {
 	}
 	if bp.Proxy != nil {
 		p.Proxy = proxyToProto(bp.Proxy)
+	}
+	if len(bp.ExtraHeaders) > 0 {
+		p.ExtraHeaders = bp.ExtraHeaders
 	}
 
 	return p
@@ -285,6 +295,18 @@ func antiDetectionToProto(ad *AntiDetectionSettings) *basbase.AntiDetectionSetti
 	if ad.HeadlessDetectionBypass {
 		p.HeadlessDetectionBypass = proto.Bool(ad.HeadlessDetectionBypass)
 	}
+	if ad.PatchFonts {
+		p.PatchFonts = proto.Bool(ad.PatchFonts)
+	}
+	if ad.PatchScreenProperties {
+		p.PatchScreenProperties = proto.Bool(ad.PatchScreenProperties)
+	}
+	if ad.PatchBatteryAPI {
+		p.PatchBatteryApi = proto.Bool(ad.PatchBatteryAPI)
+	}
+	if ad.PatchConnectionAPI {
+		p.PatchConnectionApi = proto.Bool(ad.PatchConnectionAPI)
+	}
 	if ad.AdBlockingMode != "" {
 		p.AdBlockingMode = proto.String(ad.AdBlockingMode)
 	}
@@ -352,6 +374,13 @@ func MergeBrowserProfiles(base, override *BrowserProfile) *BrowserProfile {
 
 	// Merge proxy settings
 	result.Proxy = mergeProxySettings(base.Proxy, override.Proxy)
+
+	// Merge extra headers (override replaces base entirely if set)
+	if len(override.ExtraHeaders) > 0 {
+		result.ExtraHeaders = override.ExtraHeaders
+	} else if len(base.ExtraHeaders) > 0 {
+		result.ExtraHeaders = base.ExtraHeaders
+	}
 
 	return result
 }
@@ -523,6 +552,18 @@ func mergeAntiDetectionSettings(base, override *AntiDetectionSettings) *AntiDete
 	}
 	if override.HeadlessDetectionBypass {
 		result.HeadlessDetectionBypass = override.HeadlessDetectionBypass
+	}
+	if override.PatchFonts {
+		result.PatchFonts = override.PatchFonts
+	}
+	if override.PatchScreenProperties {
+		result.PatchScreenProperties = override.PatchScreenProperties
+	}
+	if override.PatchBatteryAPI {
+		result.PatchBatteryAPI = override.PatchBatteryAPI
+	}
+	if override.PatchConnectionAPI {
+		result.PatchConnectionAPI = override.PatchConnectionAPI
 	}
 	if override.AdBlockingMode != "" {
 		result.AdBlockingMode = override.AdBlockingMode

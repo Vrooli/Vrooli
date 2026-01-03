@@ -1,6 +1,6 @@
-import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe } from 'lucide-react';
+import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe, FileText } from 'lucide-react';
 
-export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'cookies' | 'local-storage';
+export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage';
 
 interface SectionGroup {
   label: string;
@@ -20,6 +20,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'behavior', label: 'Behavior', icon: <Zap size={16} /> },
       { id: 'anti-detection', label: 'Anti-Detection', icon: <ShieldCheck size={16} /> },
       { id: 'proxy', label: 'Proxy', icon: <Globe size={16} /> },
+      { id: 'extra-headers', label: 'HTTP Headers', icon: <FileText size={16} /> },
     ],
   },
   {
@@ -105,5 +106,5 @@ export function SessionSidebar({
 
 /** Check if a section is a settings section (editable) */
 export function isSettingsSection(section: SectionId): boolean {
-  return ['presets', 'fingerprint', 'behavior', 'anti-detection', 'proxy'].includes(section);
+  return ['presets', 'fingerprint', 'behavior', 'anti-detection', 'proxy', 'extra-headers'].includes(section);
 }

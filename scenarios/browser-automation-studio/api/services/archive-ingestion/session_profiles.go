@@ -33,6 +33,7 @@ type BrowserProfile struct {
 	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`       // Human-like behavior settings
 	AntiDetection *AntiDetectionSettings `json:"anti_detection,omitempty"` // Bot detection bypass settings
 	Proxy         *ProxySettings         `json:"proxy,omitempty"`          // Proxy configuration
+	ExtraHeaders  map[string]string      `json:"extra_headers,omitempty"`  // Custom HTTP headers sent with every request
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -115,6 +116,12 @@ type AntiDetectionSettings struct {
 	PatchAudioContext       bool `json:"patch_audio_context,omitempty"`       // Add noise to AudioContext to prevent audio fingerprinting
 	HeadlessDetectionBypass bool `json:"headless_detection_bypass,omitempty"` // Bypass headless detection
 
+	// Additional fingerprinting protection
+	PatchFonts            bool `json:"patch_fonts,omitempty"`             // Spoof font enumeration to return common fonts only
+	PatchScreenProperties bool `json:"patch_screen_properties,omitempty"` // Spoof screen dimensions to match viewport
+	PatchBatteryAPI       bool `json:"patch_battery_api,omitempty"`       // Return consistent battery status
+	PatchConnectionAPI    bool `json:"patch_connection_api,omitempty"`    // Spoof network connection type
+
 	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
 	AdBlockingMode string `json:"ad_blocking_mode,omitempty"`
 }
@@ -175,6 +182,10 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 				PatchCanvas:                 true,
 				PatchAudioContext:           true,
 				HeadlessDetectionBypass:     true,
+				PatchFonts:                  true,
+				PatchScreenProperties:       true,
+				PatchBatteryAPI:             true,
+				PatchConnectionAPI:          true,
 				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
@@ -200,6 +211,8 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 				DisableAutomationControlled: true,
 				PatchNavigatorWebdriver:     true,
 				PatchAudioContext:           true,
+				PatchFonts:                  true,
+				PatchScreenProperties:       true,
 				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
@@ -497,6 +510,29 @@ func ValidateBrowserProfile(bp *BrowserProfile) error {
 		}
 	}
 
+	// Validate extra headers
+	if err := validateExtraHeaders(bp.ExtraHeaders); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// blockedHeaders contains HTTP headers that cannot be set via extra_headers
+// because they may break routing or conflict with other browser features.
+var blockedHeaders = map[string]bool{
+	"host":           true, // Can break routing
+	"content-length": true, // Managed by browser
+	"cookie":         true, // Use storage_state instead
+}
+
+// validateExtraHeaders checks that no blocked headers are included.
+func validateExtraHeaders(headers map[string]string) error {
+	for k := range headers {
+		if blockedHeaders[strings.ToLower(k)] {
+			return fmt.Errorf("header %q cannot be set via extra_headers", k)
+		}
+	}
 	return nil
 }
 

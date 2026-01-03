@@ -72,6 +72,7 @@ export async function buildContext(
     locale: spec.locale || fingerprint.locale || undefined,
     timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
     colorScheme: fingerprint.color_scheme || undefined,
+    extraHTTPHeaders: spec.browser_profile?.extra_headers,
   };
 
   // Geolocation: spec overrides profile
@@ -216,6 +217,7 @@ export async function buildContext(
     hasAntiDetection,
     adBlocking: antiDetection.ad_blocking_mode || 'none',
     proxy: proxy.enabled ? 'enabled' : 'disabled',
+    extraHeaders: spec.browser_profile?.extra_headers ? Object.keys(spec.browser_profile.extra_headers).length : 0,
   });
 
   return {

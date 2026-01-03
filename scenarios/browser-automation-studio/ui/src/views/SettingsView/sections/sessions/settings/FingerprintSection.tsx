@@ -109,31 +109,65 @@ export function FingerprintSection({ fingerprint, onChange }: FingerprintSection
           <span className="text-sm text-gray-700 dark:text-gray-300">Enable geolocation spoofing</span>
         </label>
         {fingerprint.geolocation_enabled && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Latitude</label>
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Latitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={fingerprint.latitude ?? ''}
+                  onChange={(e) => onChange('latitude', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  placeholder="40.7128"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Longitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={fingerprint.longitude ?? ''}
+                  onChange={(e) => onChange('longitude', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  placeholder="-74.0060"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Accuracy (meters)</label>
               <input
                 type="number"
-                step="0.000001"
-                value={fingerprint.latitude ?? ''}
-                onChange={(e) => onChange('latitude', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder="40.7128"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                step="1"
+                min="1"
+                value={fingerprint.accuracy ?? ''}
+                onChange={(e) => onChange('accuracy', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder="10"
+                className="w-32 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
             </div>
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Longitude</label>
-              <input
-                type="number"
-                step="0.000001"
-                value={fingerprint.longitude ?? ''}
-                onChange={(e) => onChange('longitude', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder="-74.0060"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
+          </>
         )}
+      </div>
+
+      {/* Appearance */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Appearance</h4>
+        <div>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Color Scheme</label>
+          <select
+            value={fingerprint.color_scheme ?? 'no-preference'}
+            onChange={(e) => onChange('color_scheme', e.target.value as 'light' | 'dark' | 'no-preference')}
+            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+          >
+            <option value="no-preference">No Preference (System Default)</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Sets the prefers-color-scheme media query value
+          </p>
+        </div>
       </div>
 
       {/* Device Properties */}

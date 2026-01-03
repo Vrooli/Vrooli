@@ -124,6 +124,12 @@ export interface AntiDetectionSettings {
   patch_audio_context?: boolean; // Add noise to AudioContext to prevent audio fingerprinting
   headless_detection_bypass?: boolean; // Bypass headless detection
 
+  // Additional fingerprinting protection
+  patch_fonts?: boolean; // Spoof font enumeration to return common fonts only
+  patch_screen_properties?: boolean; // Spoof screen dimensions to match viewport
+  patch_battery_api?: boolean; // Return consistent battery status
+  patch_connection_api?: boolean; // Spoof network connection type
+
   // Ad blocking
   ad_blocking_mode?: AdBlockingMode; // Block ads and/or tracking
 }
@@ -142,6 +148,7 @@ export interface BrowserProfile {
   behavior?: BehaviorSettings;
   anti_detection?: AntiDetectionSettings;
   proxy?: ProxySettings;
+  extra_headers?: Record<string, string>; // Custom HTTP headers sent with every request
 }
 
 /**

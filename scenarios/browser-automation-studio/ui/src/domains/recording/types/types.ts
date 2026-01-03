@@ -328,6 +328,10 @@ export interface AntiDetectionSettings {
   patch_canvas?: boolean;
   patch_audio_context?: boolean;
   headless_detection_bypass?: boolean;
+  patch_fonts?: boolean;
+  patch_screen_properties?: boolean;
+  patch_battery_api?: boolean;
+  patch_connection_api?: boolean;
   ad_blocking_mode?: AdBlockingMode;
 }
 
@@ -352,6 +356,7 @@ export interface BrowserProfile {
   behavior?: BehaviorSettings;
   anti_detection?: AntiDetectionSettings;
   proxy?: ProxySettings;
+  extra_headers?: Record<string, string>; // Custom HTTP headers sent with every request
 }
 
 /**
