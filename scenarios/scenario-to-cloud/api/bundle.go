@@ -866,6 +866,8 @@ func isExcluded(path string, patterns []string) bool {
 	p := filepath.ToSlash(filepath.Clean(path))
 	for _, pat := range patterns {
 		pat = filepath.ToSlash(filepath.Clean(pat))
+
+		// Case 1: **/segment/** - match if segment appears anywhere as a path component
 		if strings.HasPrefix(pat, "**/") && strings.HasSuffix(pat, "/**") {
 			segment := strings.TrimSuffix(strings.TrimPrefix(pat, "**/"), "/**")
 			if segment != "" && containsPathSegment(p, segment) {
@@ -873,13 +875,73 @@ func isExcluded(path string, patterns []string) bool {
 			}
 			continue
 		}
-		if strings.HasSuffix(pat, "/**") && !strings.Contains(pat, "**") {
+
+		// Case 2: **/filename - match filename anywhere in path
+		// Example: **/.DS_Store matches any/.DS_Store or .DS_Store
+		if strings.HasPrefix(pat, "**/") && !strings.HasSuffix(pat, "/**") {
+			suffix := strings.TrimPrefix(pat, "**/")
+			if p == suffix || strings.HasSuffix(p, "/"+suffix) {
+				return true
+			}
+			continue
+		}
+
+		// Case 3: prefix/** (no ** in middle) - match prefix exactly
+		if strings.HasSuffix(pat, "/**") && !strings.Contains(pat[:len(pat)-3], "**") {
 			prefix := strings.TrimSuffix(pat, "/**")
 			if p == prefix || strings.HasPrefix(p, prefix+"/") {
 				return true
 			}
 			continue
 		}
+
+		// Case 4: prefix/**/segment/** - match prefix, then segment anywhere after
+		// Example: scenarios/**/dist/** matches scenarios/foo/bar/dist/file.js
+		if strings.Contains(pat, "/**/") {
+			parts := strings.Split(pat, "/**/")
+			if len(parts) >= 2 {
+				prefix := parts[0]
+				// Path must start with prefix
+				if !strings.HasPrefix(p, prefix+"/") && p != prefix {
+					continue
+				}
+
+				// Check remaining parts - each must appear as a path segment after the previous
+				remainder := strings.TrimPrefix(p, prefix+"/")
+				matched := true
+				for i := 1; i < len(parts); i++ {
+					segment := parts[i]
+					// Handle trailing /** on last segment
+					if strings.HasSuffix(segment, "/**") {
+						segment = strings.TrimSuffix(segment, "/**")
+					}
+					if segment == "" {
+						continue
+					}
+					// Check if segment appears as a path component in remainder
+					if !containsPathSegment(remainder, segment) {
+						matched = false
+						break
+					}
+					// Move remainder past this segment for next iteration
+					idx := strings.Index("/"+remainder+"/", "/"+segment+"/")
+					if idx >= 0 {
+						afterSegment := idx + len(segment) + 1
+						if afterSegment < len(remainder)+1 {
+							remainder = remainder[afterSegment:]
+						} else {
+							remainder = ""
+						}
+					}
+				}
+				if matched {
+					return true
+				}
+			}
+			continue
+		}
+
+		// Case 5: Simple glob patterns (no **) - use filepath.Match
 		ok, err := filepath.Match(pat, p)
 		if err == nil && ok {
 			return true

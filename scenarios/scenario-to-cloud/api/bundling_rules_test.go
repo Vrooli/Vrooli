@@ -455,3 +455,103 @@ func writeFile(t *testing.T, root, rel, contents string) {
 		t.Fatalf("write %s: %v", rel, err)
 	}
 }
+
+func TestIsExcluded(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		patterns []string
+		want     bool
+	}{
+		// Case 1: **/segment/** patterns
+		{
+			name:     "node_modules anywhere",
+			path:     "scenarios/app/ui/node_modules/react/index.js",
+			patterns: []string{"**/node_modules/**"},
+			want:     true,
+		},
+		{
+			name:     "git anywhere",
+			path:     "scenarios/app/.git/config",
+			patterns: []string{"**/.git/**"},
+			want:     true,
+		},
+
+		// Case 2: prefix/** patterns (no ** in middle)
+		{
+			name:     "coverage dir",
+			path:     "coverage/report.html",
+			patterns: []string{"coverage/**"},
+			want:     true,
+		},
+		{
+			name:     "logs dir",
+			path:     "scenarios/app/logs/app.log",
+			patterns: []string{"scenarios/app/logs/**"},
+			want:     true,
+		},
+
+		// Case 3: prefix/**/segment/** patterns - THE KEY FIX
+		{
+			name:     "scenario dist folder",
+			path:     "scenarios/landing-page-business-suite/ui/dist/index.html",
+			patterns: []string{"scenarios/**/dist/**"},
+			want:     true,
+		},
+		{
+			name:     "scenario dist nested",
+			path:     "scenarios/foo/bar/baz/dist/assets/main.js",
+			patterns: []string{"scenarios/**/dist/**"},
+			want:     true,
+		},
+		{
+			name:     "resource dist folder",
+			path:     "resources/postgres/ui/dist/bundle.js",
+			patterns: []string{"resources/**/dist/**"},
+			want:     true,
+		},
+		{
+			name:     "packages dist NOT excluded by scenario pattern",
+			path:     "packages/api-base/dist/index.js",
+			patterns: []string{"scenarios/**/dist/**"},
+			want:     false,
+		},
+		{
+			name:     "scenario source NOT excluded",
+			path:     "scenarios/app/ui/src/App.tsx",
+			patterns: []string{"scenarios/**/dist/**"},
+			want:     false,
+		},
+
+		// Case 4: Simple glob patterns
+		{
+			name:     "DS_Store",
+			path:     "scenarios/app/.DS_Store",
+			patterns: []string{"**/.DS_Store"},
+			want:     true,
+		},
+
+		// Edge cases
+		{
+			name:     "empty patterns",
+			path:     "any/path/file.txt",
+			patterns: []string{},
+			want:     false,
+		},
+		{
+			name:     "no match",
+			path:     "packages/api-base/src/index.ts",
+			patterns: []string{"scenarios/**/dist/**", "node_modules/**"},
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isExcluded(tt.path, tt.patterns)
+			if got != tt.want {
+				t.Errorf("isExcluded(%q, %v) = %v, want %v", tt.path, tt.patterns, got, tt.want)
+			}
+		})
+	}
+}

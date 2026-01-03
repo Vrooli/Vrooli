@@ -667,7 +667,8 @@ _load_resource_environment() {
                     # Export all variables that match common patterns
                     env | grep -E "^(${resource_name^^}_|$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_)" | while IFS='=' read -r key value; do
                         # Escape value for JSON (handle empty values correctly)
-                        local escaped_value
+                        # Note: Cannot use 'local' here - we're in a subshell, not a function
+                        escaped_value=""
                         if [[ -z "$value" ]]; then
                             escaped_value='""'  # Empty string in JSON
                         else
