@@ -314,6 +314,14 @@ func RunVPSPreflight(
 		pass("apt_access", "apt accessible", "apt-get is accessible", nil)
 	}
 
+	// Check: stale scenario processes that might have outdated credentials
+	checkStaleScenarioProcesses(ctx, cfg, sshRunner, manifest, warn, pass)
+
+	// Check: credential validation for required resources (postgres, redis, etc.)
+	workdir := manifest.Target.VPS.Workdir
+	credentialChecks := RunCredentialValidation(ctx, cfg, sshRunner, manifest, workdir)
+	checks = append(checks, credentialChecks...)
+
 	ok := true
 	for _, c := range checks {
 		if c.Status == PreflightFail {
@@ -409,4 +417,88 @@ func formatBytes(kb int64) string {
 		return fmt.Sprintf("%.1f MB", float64(kb)/1024)
 	}
 	return fmt.Sprintf("%d KB", kb)
+}
+
+// checkStaleScenarioProcesses detects running processes for the target scenario.
+// This catches cases where old processes are still running, which would prevent
+// the newly deployed version from starting correctly.
+func checkStaleScenarioProcesses(
+	ctx context.Context,
+	cfg SSHConfig,
+	sshRunner SSHRunner,
+	manifest CloudManifest,
+	warn func(id, title, details, hint string, data map[string]string),
+	pass func(id, title, details string, data map[string]string),
+) {
+	scenarioID := manifest.Scenario.ID
+	if scenarioID == "" {
+		return // Skip if no scenario specified
+	}
+
+	// Find processes matching scenario name
+	// Look for actual runtime processes (node, python, go, java, pm2) that contain the scenario ID
+	// Exclude: grep itself, editors, log viewers, shell sessions
+	cmd := fmt.Sprintf(
+		`ps aux --no-headers | grep -E '%s' | grep -v -E '(grep|vim|nano|less|tail|cat|ssh|sshd)' || true`,
+		scenarioID,
+	)
+	result, err := sshRunner.Run(ctx, cfg, cmd)
+	if err != nil {
+		warn("stale_processes", "Stale process check",
+			"Unable to check for running processes",
+			"SSH command failed - check connectivity",
+			nil)
+		return
+	}
+
+	// Parse the process output
+	stdout := strings.TrimSpace(result.Stdout)
+	if stdout == "" {
+		pass("stale_processes", "Stale process check",
+			"No existing scenario processes found",
+			nil)
+		return
+	}
+
+	// Count and describe processes
+	lines := strings.Split(stdout, "\n")
+	var processInfos []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Extract PID and command from ps aux output
+		// Format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+		fields := strings.Fields(line)
+		if len(fields) >= 11 {
+			pid := fields[1]
+			// Command is everything from field 10 onwards
+			command := strings.Join(fields[10:], " ")
+			// Truncate long commands
+			if len(command) > 80 {
+				command = command[:80] + "..."
+			}
+			processInfos = append(processInfos, fmt.Sprintf("PID %s: %s", pid, command))
+		}
+	}
+
+	if len(processInfos) == 0 {
+		pass("stale_processes", "Stale process check",
+			"No existing scenario processes found",
+			nil)
+		return
+	}
+
+	// Include process details in the visible message
+	detailsMsg := fmt.Sprintf("Found %d running process(es) for %s: %s",
+		len(processInfos), scenarioID, strings.Join(processInfos, " | "))
+
+	warn("stale_processes", "Stale process check",
+		detailsMsg,
+		"Stop existing processes to ensure the updated version deploys correctly",
+		map[string]string{
+			"count":   fmt.Sprintf("%d", len(processInfos)),
+			"details": strings.Join(processInfos, "; "),
+		})
 }

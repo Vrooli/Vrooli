@@ -918,6 +918,44 @@ export async function runDiskCleanup(
   return res.json() as Promise<DiskCleanupResponse>;
 }
 
+export interface StopScenarioProcessesRequest {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+  workdir: string;
+  scenario_id?: string; // If empty, stops all vrooli processes
+}
+
+export interface StopScenarioProcessesResponse {
+  ok: boolean;
+  action: string; // "stop_scenario" or "stop_all"
+  message: string;
+  output?: string;
+  timestamp: string;
+}
+
+/**
+ * Stop scenario processes on VPS (for clearing stale processes before deployment)
+ * If scenario_id is provided, stops that specific scenario.
+ * If scenario_id is empty/undefined, stops all vrooli processes.
+ */
+export async function stopScenarioProcesses(
+  request: StopScenarioProcessesRequest
+): Promise<StopScenarioProcessesResponse> {
+  const url = buildApiUrl("/preflight/fix/stop-processes", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop scenario processes: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<StopScenarioProcessesResponse>;
+}
+
 // ============================================================================
 // Live State Types & Functions (Ground Truth Redesign)
 // ============================================================================

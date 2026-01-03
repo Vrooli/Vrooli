@@ -172,6 +172,7 @@ func (s *Server) setupRoutes() {
 
 	// Preflight fix actions
 	api.HandleFunc("/preflight/fix/ports", s.handleStopPortServices).Methods("POST")
+	api.HandleFunc("/preflight/fix/stop-processes", s.handleStopScenarioProcesses).Methods("POST")
 	api.HandleFunc("/preflight/disk/usage", s.handleDiskUsage).Methods("POST")
 	api.HandleFunc("/preflight/disk/cleanup", s.handleDiskCleanup).Methods("POST")
 

@@ -11,6 +11,10 @@ type ValidationIssueSeverity string
 const (
 	SeverityError ValidationIssueSeverity = "error"
 	SeverityWarn  ValidationIssueSeverity = "warn"
+
+	// DefaultVPSWorkdir is the default directory where Vrooli is installed on the VPS.
+	// This is the single source of truth for this value - do not hardcode "/root/Vrooli" elsewhere.
+	DefaultVPSWorkdir = "/root/Vrooli"
 )
 
 type ValidationIssue struct {
@@ -192,7 +196,7 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 				out.Target.VPS.User = "root"
 			}
 			if strings.TrimSpace(out.Target.VPS.Workdir) == "" {
-				out.Target.VPS.Workdir = "/root/Vrooli"
+				out.Target.VPS.Workdir = DefaultVPSWorkdir
 			}
 		}
 	}

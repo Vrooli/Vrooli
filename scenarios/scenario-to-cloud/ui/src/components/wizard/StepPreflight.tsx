@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package } from "lucide-react";
+import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
 import type { PreflightCheck, PreflightCheckStatus, DiskUsageResponse, DiskUsageEntry } from "../../lib/api";
-import { stopPortServices, getDiskUsage, runDiskCleanup } from "../../lib/api";
+import { stopPortServices, getDiskUsage, runDiskCleanup, stopScenarioProcesses } from "../../lib/api";
+import { DEFAULT_VPS_WORKDIR } from "../../lib/constants";
 
 interface StepPreflightProps {
   deployment: ReturnType<typeof useDeployment>;
@@ -28,6 +29,11 @@ const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   cmd_tar: Package,
   cmd_jq: Package,
   apt_access: Package,
+  // Stale process and credential checks
+  stale_processes: Activity,
+  secrets_read: Key,
+  postgres_credentials: Database,
+  redis_credentials: Database,
 };
 
 // Check definitions - used for preview and running states
@@ -48,6 +54,10 @@ const CHECK_DEFINITIONS = [
   { id: "cmd_tar", title: "tar available", description: "Check tar is installed" },
   { id: "cmd_jq", title: "jq available", description: "Check jq is installed" },
   { id: "apt_access", title: "apt accessible", description: "Verify apt-get can be run" },
+  // Stale process and credential checks
+  { id: "stale_processes", title: "Stale process check", description: "Check for existing scenario processes" },
+  { id: "secrets_read", title: "Secrets file", description: "Verify secrets.json is readable" },
+  { id: "postgres_credentials", title: "PostgreSQL credentials", description: "Verify database credentials" },
 ];
 
 type CheckState = "pending" | "running" | PreflightCheckStatus;
@@ -304,6 +314,7 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
   const hasPortsAction = id === "ports_80_443" && state === "fail" && data?.processes;
   const hasDiskAction = id === "disk_free" && (state === "fail" || state === "warn");
   const hasDNSInstructions = id === "dns_points_to_vps" && state === "fail" && hint && hint.includes("\n");
+  const hasStaleProcessesAction = id === "stale_processes" && state === "warn";
 
   // Check if hint is multi-line (for expandable display)
   const isMultiLineHint = hint && hint.includes("\n");
@@ -342,6 +353,25 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
             >
               Details
             </ActionButton>
+          )}
+          {hasStaleProcessesAction && onAction && (
+            <>
+              <ActionButton
+                onClick={() => onAction("stop_scenario")}
+                loading={actionLoading}
+                icon={Square}
+              >
+                Stop Scenario
+              </ActionButton>
+              <ActionButton
+                onClick={() => onAction("stop_all")}
+                loading={actionLoading}
+                icon={Square}
+                variant="secondary"
+              >
+                Stop All
+              </ActionButton>
+            </>
           )}
           {StatusIcon ? (
             <StatusIcon className={`h-5 w-5 ${colors.text} ${state === "running" ? "animate-spin" : ""}`} />
@@ -413,12 +443,14 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     setPreflightOverride,
     runPreflight,
     parsedManifest,
+    sshKeyPath,
   } = deployment;
 
   // Get manifest from parsed result
   const manifest = parsedManifest.ok ? parsedManifest.value : null;
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [diskUsage, setDiskUsage] = useState<DiskUsageResponse | null>(null);
   const [showDiskModal, setShowDiskModal] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -426,21 +458,22 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
   const failCount = preflightChecks?.filter(c => c.status === "fail").length ?? 0;
   const warnCount = preflightChecks?.filter(c => c.status === "warn").length ?? 0;
 
-  // Get SSH config from manifest
+  // Get SSH config from manifest (use sshKeyPath state as fallback for key_path)
   const getSSHConfig = () => {
     const vps = manifest?.target?.vps;
     return {
       host: vps?.host || "",
       port: vps?.port || 22,
       user: vps?.user || "root",
-      key_path: vps?.key_path || "",
+      key_path: vps?.key_path || sshKeyPath || "",
     };
   };
 
   const handleAction = async (checkId: string, action: string) => {
+    setActionError(null);
     const sshConfig = getSSHConfig();
     if (!sshConfig.host || !sshConfig.key_path) {
-      console.error("Missing SSH configuration");
+      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
       return;
     }
 
@@ -457,9 +490,26 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
         const usage = await getDiskUsage(sshConfig);
         setDiskUsage(usage);
         setShowDiskModal(true);
+      } else if (action === "stop_scenario" || action === "stop_all") {
+        const vps = manifest?.target?.vps;
+        const workdir = vps?.workdir || DEFAULT_VPS_WORKDIR;
+        const scenarioId = action === "stop_scenario" ? manifest?.scenario?.id : undefined;
+        const result = await stopScenarioProcesses({
+          ...sshConfig,
+          workdir,
+          scenario_id: scenarioId,
+        });
+        if (result.ok) {
+          // Re-run preflight to verify
+          runPreflight();
+        } else {
+          // Server includes SSH details in the error message
+          setActionError(result.message || "Failed to stop processes");
+        }
       }
     } catch (error) {
-      console.error(`Action ${action} failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setActionError(`Action failed: ${errorMessage}`);
     } finally {
       setActionLoading(null);
     }
@@ -534,6 +584,13 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
       {preflightError && (
         <Alert variant="error" title="Preflight Failed">
           {preflightError}
+        </Alert>
+      )}
+
+      {/* Error from action buttons (stop processes, etc.) */}
+      {actionError && (
+        <Alert variant="error" title="Action Failed">
+          {actionError}
         </Alert>
       )}
 
