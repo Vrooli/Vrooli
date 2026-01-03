@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
 import { useSessionManager } from './useSessionManager';
-import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection } from '../settings';
+import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
 
@@ -31,10 +31,12 @@ export function SessionManager({
     fingerprint,
     behavior,
     antiDetection,
+    proxy,
     applyPreset,
     updateFingerprint,
     updateBehavior,
     updateAntiDetection,
+    updateProxy,
     storageState,
     storageLoading,
     storageError,
@@ -131,6 +133,8 @@ export function SessionManager({
             {activeSection === 'anti-detection' && (
               <AntiDetectionSection antiDetection={antiDetection} onChange={updateAntiDetection} />
             )}
+
+            {activeSection === 'proxy' && <ProxySection proxy={proxy} onChange={updateProxy} />}
 
             {/* Storage sections */}
             {activeSection === 'cookies' && (

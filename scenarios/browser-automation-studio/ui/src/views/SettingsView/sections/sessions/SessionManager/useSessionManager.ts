@@ -5,6 +5,7 @@ import type {
   FingerprintSettings,
   BehaviorSettings,
   AntiDetectionSettings,
+  ProxySettings,
 } from '@/domains/recording/types/types';
 import { useStorageState } from '@/domains/recording';
 import { PRESET_CONFIGS } from '../settings';
@@ -30,6 +31,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
   const [fingerprint, setFingerprint] = useState<FingerprintSettings>(initialProfile?.fingerprint ?? {});
   const [behavior, setBehavior] = useState<BehaviorSettings>(initialProfile?.behavior ?? {});
   const [antiDetection, setAntiDetection] = useState<AntiDetectionSettings>(initialProfile?.anti_detection ?? {});
+  const [proxy, setProxy] = useState<ProxySettings>(initialProfile?.proxy ?? {});
 
   // Storage state with delete operations
   const {
@@ -66,6 +68,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
       setFingerprint(initialProfile.fingerprint ?? {});
       setBehavior(initialProfile.behavior ?? {});
       setAntiDetection(initialProfile.anti_detection ?? {});
+      setProxy(initialProfile.proxy ?? {});
       setIsDirty(false);
     }
   }, [initialProfile]);
@@ -95,6 +98,11 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     setIsDirty(true);
   }, []);
 
+  const updateProxy = useCallback(<K extends keyof ProxySettings>(key: K, value: ProxySettings[K]) => {
+    setProxy((prev) => ({ ...prev, [key]: value }));
+    setIsDirty(true);
+  }, []);
+
   // Save handler
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -105,6 +113,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
         fingerprint: Object.keys(fingerprint).length > 0 ? fingerprint : undefined,
         behavior: Object.keys(behavior).length > 0 ? behavior : undefined,
         anti_detection: Object.keys(antiDetection).length > 0 ? antiDetection : undefined,
+        proxy: Object.keys(proxy).length > 0 ? proxy : undefined,
       };
       await onSave(profile);
       setIsDirty(false);
@@ -115,7 +124,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     } finally {
       setSaving(false);
     }
-  }, [preset, fingerprint, behavior, antiDetection, onSave]);
+  }, [preset, fingerprint, behavior, antiDetection, proxy, onSave]);
 
   // Reset to initial values
   const reset = useCallback(() => {
@@ -123,6 +132,7 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     setFingerprint(initialProfile?.fingerprint ?? {});
     setBehavior(initialProfile?.behavior ?? {});
     setAntiDetection(initialProfile?.anti_detection ?? {});
+    setProxy(initialProfile?.proxy ?? {});
     setIsDirty(false);
     setError(null);
   }, [initialProfile]);
@@ -162,12 +172,14 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     fingerprint,
     behavior,
     antiDetection,
+    proxy,
 
     // Settings actions
     applyPreset,
     updateFingerprint,
     updateBehavior,
     updateAntiDetection,
+    updateProxy,
 
     // Storage state
     storageState,

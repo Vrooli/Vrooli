@@ -46,6 +46,11 @@ const TOGGLES: { key: BooleanAntiDetectionKey; label: string; description: strin
     description: 'Adds noise to canvas fingerprinting attempts',
   },
   {
+    key: 'patch_audio_context',
+    label: 'Patch AudioContext',
+    description: 'Adds noise to audio processing output to prevent audio fingerprinting',
+  },
+  {
     key: 'headless_detection_bypass',
     label: 'Headless Detection Bypass',
     description: 'Bypasses checks for headless browser mode',

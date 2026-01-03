@@ -10,7 +10,7 @@ import type {
   FingerprintSettings,
   BehaviorSettings,
   AntiDetectionSettings,
-  AdBlockingMode,
+  ProxySettings,
 } from '../types/browser-profile';
 
 /**
@@ -67,8 +67,21 @@ export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   patch_navigator_languages: false,
   patch_webgl: false,
   patch_canvas: false,
+  patch_audio_context: false,
   headless_detection_bypass: false,
   ad_blocking_mode: 'ads_and_tracking',
+};
+
+/**
+ * Default proxy settings (disabled by default).
+ * Proxy configuration is environment-specific and not preset-driven.
+ */
+export const DEFAULT_PROXY: Required<ProxySettings> = {
+  enabled: false,
+  server: '',
+  bypass: '',
+  username: '',
+  password: '',
 };
 
 /**
@@ -107,6 +120,7 @@ export const PRESET_STEALTH: BrowserProfile = {
     patch_navigator_languages: true,
     patch_webgl: true,
     patch_canvas: true,
+    patch_audio_context: true,
     headless_detection_bypass: true,
   },
 };
@@ -135,6 +149,7 @@ export const PRESET_BALANCED: BrowserProfile = {
   anti_detection: {
     disable_automation_controlled: true,
     patch_navigator_webdriver: true,
+    patch_audio_context: true,
   },
 };
 
@@ -198,14 +213,16 @@ export function mergeWithPreset(profile?: BrowserProfile): {
   fingerprint: Required<FingerprintSettings>;
   behavior: Required<BehaviorSettings>;
   antiDetection: Required<AntiDetectionSettings>;
+  proxy: Required<ProxySettings>;
 } {
   // Start with defaults
   const fingerprint = { ...DEFAULT_FINGERPRINT };
   const behavior = { ...DEFAULT_BEHAVIOR };
   const antiDetection = { ...DEFAULT_ANTI_DETECTION };
+  const proxy = { ...DEFAULT_PROXY };
 
   if (!profile) {
-    return { fingerprint, behavior, antiDetection };
+    return { fingerprint, behavior, antiDetection, proxy };
   }
 
   // Apply preset if specified
@@ -220,6 +237,9 @@ export function mergeWithPreset(profile?: BrowserProfile): {
     if (preset.anti_detection) {
       Object.assign(antiDetection, preset.anti_detection);
     }
+    if (preset.proxy) {
+      Object.assign(proxy, preset.proxy);
+    }
   }
 
   // Apply custom overrides
@@ -232,8 +252,11 @@ export function mergeWithPreset(profile?: BrowserProfile): {
   if (profile.anti_detection) {
     Object.assign(antiDetection, profile.anti_detection);
   }
+  if (profile.proxy) {
+    Object.assign(proxy, profile.proxy);
+  }
 
-  return { fingerprint, behavior, antiDetection };
+  return { fingerprint, behavior, antiDetection, proxy };
 }
 
 /**

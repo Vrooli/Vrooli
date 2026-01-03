@@ -326,8 +326,21 @@ export interface AntiDetectionSettings {
   patch_navigator_languages?: boolean;
   patch_webgl?: boolean;
   patch_canvas?: boolean;
+  patch_audio_context?: boolean;
   headless_detection_bypass?: boolean;
   ad_blocking_mode?: AdBlockingMode;
+}
+
+/**
+ * Proxy settings for routing browser traffic through a proxy server.
+ * Supports HTTP, HTTPS, and SOCKS5 proxies.
+ */
+export interface ProxySettings {
+  enabled?: boolean;
+  server?: string;
+  bypass?: string;
+  username?: string;
+  password?: string;
 }
 
 /**
@@ -338,6 +351,7 @@ export interface BrowserProfile {
   fingerprint?: FingerprintSettings;
   behavior?: BehaviorSettings;
   anti_detection?: AntiDetectionSettings;
+  proxy?: ProxySettings;
 }
 
 /**

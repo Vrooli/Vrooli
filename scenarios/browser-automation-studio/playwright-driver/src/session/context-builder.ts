@@ -48,7 +48,7 @@ export async function buildContext(
   const artifactRoot = (artifactPaths.root ?? '').trim();
 
   // Merge browser profile with preset defaults
-  const { fingerprint, behavior, antiDetection } = mergeWithPreset(spec.browser_profile);
+  const { fingerprint, behavior, antiDetection, proxy } = mergeWithPreset(spec.browser_profile);
 
   // Determine viewport: browser profile overrides spec if set
   const viewportWidth = fingerprint.viewport_width || spec.viewport.width;
@@ -91,6 +91,22 @@ export async function buildContext(
 
   if (spec.storage_state) {
     contextOptions.storageState = spec.storage_state;
+  }
+
+  // Proxy configuration
+  if (proxy.enabled && proxy.server) {
+    contextOptions.proxy = {
+      server: proxy.server,
+      ...(proxy.bypass && { bypass: proxy.bypass }),
+      ...(proxy.username && { username: proxy.username }),
+      ...(proxy.password && { password: proxy.password }),
+    };
+    logger.debug('Proxy configured', {
+      executionId: spec.execution_id,
+      server: proxy.server,
+      hasBypass: !!proxy.bypass,
+      hasAuth: !!proxy.username,
+    });
   }
 
   // HAR recording
@@ -199,6 +215,7 @@ export async function buildContext(
     browserProfile: spec.browser_profile?.preset || 'none',
     hasAntiDetection,
     adBlocking: antiDetection.ad_blocking_mode || 'none',
+    proxy: proxy.enabled ? 'enabled' : 'disabled',
   });
 
   return {

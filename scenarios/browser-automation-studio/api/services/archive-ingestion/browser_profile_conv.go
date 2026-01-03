@@ -26,6 +26,9 @@ func BrowserProfileFromProto(p *basbase.BrowserProfile) *BrowserProfile {
 	if p.AntiDetection != nil {
 		bp.AntiDetection = antiDetectionFromProto(p.AntiDetection)
 	}
+	if p.Proxy != nil {
+		bp.Proxy = proxyFromProto(p.Proxy)
+	}
 
 	return bp
 }
@@ -89,8 +92,22 @@ func antiDetectionFromProto(p *basbase.AntiDetectionSettings) *AntiDetectionSett
 		PatchNavigatorLanguages:     p.GetPatchNavigatorLanguages(),
 		PatchWebGL:                  p.GetPatchWebgl(),
 		PatchCanvas:                 p.GetPatchCanvas(),
+		PatchAudioContext:           p.GetPatchAudioContext(),
 		HeadlessDetectionBypass:     p.GetHeadlessDetectionBypass(),
 		AdBlockingMode:              p.GetAdBlockingMode(),
+	}
+}
+
+func proxyFromProto(p *basbase.ProxySettings) *ProxySettings {
+	if p == nil {
+		return nil
+	}
+	return &ProxySettings{
+		Enabled:  p.GetEnabled(),
+		Server:   p.GetServer(),
+		Bypass:   p.GetBypass(),
+		Username: p.GetUsername(),
+		Password: p.GetPassword(),
 	}
 }
 
@@ -114,6 +131,9 @@ func BrowserProfileToProto(bp *BrowserProfile) *basbase.BrowserProfile {
 	}
 	if bp.AntiDetection != nil {
 		p.AntiDetection = antiDetectionToProto(bp.AntiDetection)
+	}
+	if bp.Proxy != nil {
+		p.Proxy = proxyToProto(bp.Proxy)
 	}
 
 	return p
@@ -259,11 +279,39 @@ func antiDetectionToProto(ad *AntiDetectionSettings) *basbase.AntiDetectionSetti
 	if ad.PatchCanvas {
 		p.PatchCanvas = proto.Bool(ad.PatchCanvas)
 	}
+	if ad.PatchAudioContext {
+		p.PatchAudioContext = proto.Bool(ad.PatchAudioContext)
+	}
 	if ad.HeadlessDetectionBypass {
 		p.HeadlessDetectionBypass = proto.Bool(ad.HeadlessDetectionBypass)
 	}
 	if ad.AdBlockingMode != "" {
 		p.AdBlockingMode = proto.String(ad.AdBlockingMode)
+	}
+
+	return p
+}
+
+func proxyToProto(proxy *ProxySettings) *basbase.ProxySettings {
+	if proxy == nil {
+		return nil
+	}
+	p := &basbase.ProxySettings{}
+
+	if proxy.Enabled {
+		p.Enabled = proto.Bool(proxy.Enabled)
+	}
+	if proxy.Server != "" {
+		p.Server = proto.String(proxy.Server)
+	}
+	if proxy.Bypass != "" {
+		p.Bypass = proto.String(proxy.Bypass)
+	}
+	if proxy.Username != "" {
+		p.Username = proto.String(proxy.Username)
+	}
+	if proxy.Password != "" {
+		p.Password = proto.String(proxy.Password)
 	}
 
 	return p
@@ -301,6 +349,9 @@ func MergeBrowserProfiles(base, override *BrowserProfile) *BrowserProfile {
 
 	// Merge anti-detection settings
 	result.AntiDetection = mergeAntiDetectionSettings(base.AntiDetection, override.AntiDetection)
+
+	// Merge proxy settings
+	result.Proxy = mergeProxySettings(base.Proxy, override.Proxy)
 
 	return result
 }
@@ -467,11 +518,47 @@ func mergeAntiDetectionSettings(base, override *AntiDetectionSettings) *AntiDete
 	if override.PatchCanvas {
 		result.PatchCanvas = override.PatchCanvas
 	}
+	if override.PatchAudioContext {
+		result.PatchAudioContext = override.PatchAudioContext
+	}
 	if override.HeadlessDetectionBypass {
 		result.HeadlessDetectionBypass = override.HeadlessDetectionBypass
 	}
 	if override.AdBlockingMode != "" {
 		result.AdBlockingMode = override.AdBlockingMode
+	}
+
+	return &result
+}
+
+func mergeProxySettings(base, override *ProxySettings) *ProxySettings {
+	if base == nil && override == nil {
+		return nil
+	}
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := *base // Copy base
+
+	// For booleans, override if true
+	if override.Enabled {
+		result.Enabled = override.Enabled
+	}
+	if override.Server != "" {
+		result.Server = override.Server
+	}
+	if override.Bypass != "" {
+		result.Bypass = override.Bypass
+	}
+	if override.Username != "" {
+		result.Username = override.Username
+	}
+	if override.Password != "" {
+		result.Password = override.Password
 	}
 
 	return &result

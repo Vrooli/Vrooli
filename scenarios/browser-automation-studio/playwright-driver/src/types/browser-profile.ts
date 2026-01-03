@@ -96,6 +96,18 @@ export interface BehaviorSettings {
 export type AdBlockingMode = 'none' | 'ads_only' | 'ads_and_tracking';
 
 /**
+ * Proxy settings for routing browser traffic through a proxy server.
+ * Supports HTTP, HTTPS, and SOCKS5 proxies.
+ */
+export interface ProxySettings {
+  enabled?: boolean; // Whether proxy is enabled
+  server?: string; // Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080")
+  bypass?: string; // Comma-separated domains to bypass proxy (e.g., "localhost,.internal.com")
+  username?: string; // Proxy authentication username
+  password?: string; // Proxy authentication password
+}
+
+/**
  * Anti-detection settings control bot detection bypass techniques.
  */
 export interface AntiDetectionSettings {
@@ -109,6 +121,7 @@ export interface AntiDetectionSettings {
   patch_navigator_languages?: boolean; // Ensure consistent languages
   patch_webgl?: boolean; // Spoof WebGL renderer/vendor
   patch_canvas?: boolean; // Add noise to canvas fingerprint
+  patch_audio_context?: boolean; // Add noise to AudioContext to prevent audio fingerprinting
   headless_detection_bypass?: boolean; // Bypass headless detection
 
   // Ad blocking
@@ -128,6 +141,7 @@ export interface BrowserProfile {
   fingerprint?: FingerprintSettings;
   behavior?: BehaviorSettings;
   anti_detection?: AntiDetectionSettings;
+  proxy?: ProxySettings;
 }
 
 /**
@@ -137,4 +151,5 @@ export interface ResolvedBrowserProfile {
   fingerprint: Required<FingerprintSettings>;
   behavior: Required<BehaviorSettings>;
   antiDetection: Required<AntiDetectionSettings>;
+  proxy: Required<ProxySettings>;
 }

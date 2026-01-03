@@ -28,10 +28,11 @@ type SessionProfile struct {
 
 // BrowserProfile contains anti-detection and fingerprint settings for browser automation.
 type BrowserProfile struct {
-	Preset        string                 `json:"preset,omitempty"`        // stealth, balanced, fast, none
-	Fingerprint   *FingerprintSettings   `json:"fingerprint,omitempty"`   // Browser identity settings
-	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`      // Human-like behavior settings
+	Preset        string                 `json:"preset,omitempty"`         // stealth, balanced, fast, none
+	Fingerprint   *FingerprintSettings   `json:"fingerprint,omitempty"`    // Browser identity settings
+	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`       // Human-like behavior settings
 	AntiDetection *AntiDetectionSettings `json:"anti_detection,omitempty"` // Bot detection bypass settings
+	Proxy         *ProxySettings         `json:"proxy,omitempty"`          // Proxy configuration
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -111,10 +112,20 @@ type AntiDetectionSettings struct {
 	PatchNavigatorLanguages bool `json:"patch_navigator_languages,omitempty"` // Ensure consistent languages
 	PatchWebGL              bool `json:"patch_webgl,omitempty"`               // Spoof WebGL renderer/vendor
 	PatchCanvas             bool `json:"patch_canvas,omitempty"`              // Add noise to canvas fingerprint
+	PatchAudioContext       bool `json:"patch_audio_context,omitempty"`       // Add noise to AudioContext to prevent audio fingerprinting
 	HeadlessDetectionBypass bool `json:"headless_detection_bypass,omitempty"` // Bypass headless detection
 
 	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
 	AdBlockingMode string `json:"ad_blocking_mode,omitempty"`
+}
+
+// ProxySettings controls routing browser traffic through a proxy server.
+type ProxySettings struct {
+	Enabled  bool   `json:"enabled,omitempty"`  // Whether proxy is enabled
+	Server   string `json:"server,omitempty"`   // Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080")
+	Bypass   string `json:"bypass,omitempty"`   // Comma-separated domains to bypass proxy
+	Username string `json:"username,omitempty"` // Proxy authentication username
+	Password string `json:"password,omitempty"` // Proxy authentication password
 }
 
 // Preset names for browser profiles
@@ -162,6 +173,7 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 				PatchNavigatorLanguages:     true,
 				PatchWebGL:                  true,
 				PatchCanvas:                 true,
+				PatchAudioContext:           true,
 				HeadlessDetectionBypass:     true,
 				AdBlockingMode:              "ads_and_tracking",
 			},
@@ -187,6 +199,7 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
 				PatchNavigatorWebdriver:     true,
+				PatchAudioContext:           true,
 				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
@@ -463,6 +476,24 @@ func ValidateBrowserProfile(bp *BrowserProfile) error {
 		validAdBlockingModes := map[string]bool{"": true, "none": true, "ads_only": true, "ads_and_tracking": true}
 		if !validAdBlockingModes[ad.AdBlockingMode] {
 			return fmt.Errorf("ad_blocking_mode must be none, ads_only, or ads_and_tracking")
+		}
+	}
+
+	// Validate proxy settings
+	if proxy := bp.Proxy; proxy != nil {
+		if proxy.Enabled && proxy.Server == "" {
+			return fmt.Errorf("proxy server is required when proxy is enabled")
+		}
+		if proxy.Server != "" {
+			if !strings.HasPrefix(proxy.Server, "http://") &&
+				!strings.HasPrefix(proxy.Server, "https://") &&
+				!strings.HasPrefix(proxy.Server, "socks5://") {
+				return fmt.Errorf("proxy server must start with http://, https://, or socks5://")
+			}
+		}
+		// If password is set, username should also be set
+		if proxy.Password != "" && proxy.Username == "" {
+			return fmt.Errorf("proxy username is required when password is set")
 		}
 	}
 

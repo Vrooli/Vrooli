@@ -198,6 +198,70 @@ export function generateAntiDetectionScript(
     `);
   }
 
+  // Spoof AudioContext to prevent audio fingerprinting
+  if (antiDetection.patch_audio_context) {
+    patches.push(`
+      // Add noise to AnalyserNode frequency data
+      const originalGetByteFrequencyData = AnalyserNode.prototype.getByteFrequencyData;
+      AnalyserNode.prototype.getByteFrequencyData = function(array) {
+        originalGetByteFrequencyData.call(this, array);
+        // Add small noise to ~5% of values
+        for (let i = 0; i < array.length; i++) {
+          if (Math.random() < 0.05) {
+            array[i] = Math.max(0, Math.min(255, array[i] + Math.floor(Math.random() * 3) - 1));
+          }
+        }
+      };
+
+      const originalGetFloatFrequencyData = AnalyserNode.prototype.getFloatFrequencyData;
+      AnalyserNode.prototype.getFloatFrequencyData = function(array) {
+        originalGetFloatFrequencyData.call(this, array);
+        for (let i = 0; i < array.length; i++) {
+          if (Math.random() < 0.05) {
+            array[i] += (Math.random() - 0.5) * 0.1;
+          }
+        }
+      };
+
+      // Add noise to time domain data
+      const originalGetByteTimeDomainData = AnalyserNode.prototype.getByteTimeDomainData;
+      AnalyserNode.prototype.getByteTimeDomainData = function(array) {
+        originalGetByteTimeDomainData.call(this, array);
+        for (let i = 0; i < array.length; i++) {
+          if (Math.random() < 0.05) {
+            array[i] = Math.max(0, Math.min(255, array[i] + Math.floor(Math.random() * 3) - 1));
+          }
+        }
+      };
+
+      const originalGetFloatTimeDomainData = AnalyserNode.prototype.getFloatTimeDomainData;
+      AnalyserNode.prototype.getFloatTimeDomainData = function(array) {
+        originalGetFloatTimeDomainData.call(this, array);
+        for (let i = 0; i < array.length; i++) {
+          if (Math.random() < 0.05) {
+            array[i] += (Math.random() - 0.5) * 0.0001;
+          }
+        }
+      };
+
+      // Add noise to AudioBuffer channel data reads
+      const originalGetChannelData = AudioBuffer.prototype.getChannelData;
+      AudioBuffer.prototype.getChannelData = function(channel) {
+        const data = originalGetChannelData.call(this, channel);
+        // Only modify on first access per buffer
+        if (!this._noised) {
+          this._noised = true;
+          for (let i = 0; i < data.length; i++) {
+            if (Math.random() < 0.001) { // Very sparse noise for audio buffers
+              data[i] += (Math.random() - 0.5) * 0.0001;
+            }
+          }
+        }
+        return data;
+      };
+    `);
+  }
+
   // Bypass headless detection
   if (antiDetection.headless_detection_bypass) {
     const hardwareConcurrency = fingerprint.hardware_concurrency || 4;
