@@ -248,6 +248,34 @@ runtimectl logs --service api --lines 100
 runtimectl shutdown
 ```
 
+## Supervisor Validation Loop (Dry-Run)
+
+Use the fixture bundle to validate the supervisor without packaging or installing:
+
+```bash
+runtime --manifest testdata/fixture-bundle/bundle.json \
+  --app-data /tmp/vrooli-runtime-fixture \
+  --dry-run
+```
+
+In another shell:
+
+```bash
+runtimectl --app-data /tmp/vrooli-runtime-fixture health
+runtimectl --app-data /tmp/vrooli-runtime-fixture ready
+curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-token)" \
+  http://127.0.0.1:47710/validate
+```
+
+The fixture requires `API_KEY`, so readiness stays false until secrets are posted:
+
+```bash
+curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"secrets":{"API_KEY":"fixture"}}' \
+  http://127.0.0.1:47710/secrets
+```
+
 ## Control API Endpoints
 
 | Endpoint | Method | Auth | Description |
@@ -259,6 +287,7 @@ runtimectl shutdown
 | `/secrets` | GET | Yes | List secrets with has_value status |
 | `/secrets` | POST | Yes | Submit secret values |
 | `/telemetry` | GET | Yes | Get telemetry file path and upload URL |
+| `/validate` | GET | Yes | Validate manifest, binaries, and assets (no launches) |
 | `/shutdown` | GET | Yes | Initiate graceful shutdown |
 
 **Authentication:** Bearer token from `{app_data}/runtime/auth-token`
@@ -267,6 +296,14 @@ runtimectl shutdown
 curl -H "Authorization: Bearer $(cat ~/.config/myapp/runtime/auth-token)" \
      http://127.0.0.1:47710/readyz
 ```
+
+## Validation FAQ
+
+- Why does `/readyz` show `ready=false` in dry-run? Required secrets (like `API_KEY`) are missing, so the supervisor waits.
+- What does `/healthz` mean? The control API is up and the supervisor initialized.
+- What does `/validate` check? Manifest shape plus bundle files (binaries/assets) on disk; it does not run services.
+- Where are the auth token and IPC port? `{app_data}/runtime/auth-token` and `{app_data}/runtime/ipc_port`.
+- How do I reset the loop? Stop the runtime and delete the app data directory.
 
 ## Manifest Schema
 

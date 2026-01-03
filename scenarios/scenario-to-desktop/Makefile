@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate
+.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate runtime-validate
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -138,6 +138,10 @@ build-windows: ## Build for Windows (amd64)
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
+
+runtime-validate: ## Run supervisor dry-run validation loop (fixture bundle)
+	@echo "$(BLUE)🧪 Running runtime dry-run validation...$(RESET)"
+	@cd runtime && go run ./cmd/runtime --manifest testdata/fixture-bundle/bundle.json --app-data /tmp/vrooli-runtime-fixture --dry-run
 
 deps: ## Install/update dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"

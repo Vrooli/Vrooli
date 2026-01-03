@@ -95,6 +95,101 @@ export interface DesktopConfig {
   code_signing?: SigningConfig;
 }
 
+export interface BundleValidationError {
+  code: string;
+  service?: string;
+  path?: string;
+  message: string;
+}
+
+export interface BundleValidationWarning {
+  code: string;
+  service?: string;
+  path?: string;
+  message: string;
+}
+
+export interface BundleMissingBinary {
+  service_id: string;
+  platform: string;
+  path: string;
+}
+
+export interface BundleMissingAsset {
+  service_id: string;
+  path: string;
+}
+
+export interface BundleInvalidChecksum {
+  service_id: string;
+  path: string;
+  expected: string;
+  actual: string;
+}
+
+export interface BundleValidationResult {
+  valid: boolean;
+  errors?: BundleValidationError[];
+  warnings?: BundleValidationWarning[];
+  missing_binaries?: BundleMissingBinary[];
+  missing_assets?: BundleMissingAsset[];
+  invalid_checksums?: BundleInvalidChecksum[];
+}
+
+export interface BundlePreflightRequest {
+  bundle_manifest_path: string;
+  bundle_root?: string;
+  secrets?: Record<string, string>;
+  timeout_seconds?: number;
+  start_services?: boolean;
+  log_tail_lines?: number;
+  log_tail_services?: string[];
+}
+
+export interface BundlePreflightSecret {
+  id: string;
+  class: string;
+  required: boolean;
+  has_value: boolean;
+  description?: string;
+  format?: string;
+  prompt?: Record<string, string>;
+}
+
+export interface BundlePreflightReady {
+  ready: boolean;
+  details: Record<string, { ready: boolean; message?: string; exit_code?: number }>;
+  gpu?: {
+    available: boolean;
+    method?: string;
+    reason?: string;
+    requirements?: Record<string, string>;
+  };
+}
+
+export interface BundlePreflightTelemetry {
+  path: string;
+  upload_url?: string;
+}
+
+export interface BundlePreflightLogTail {
+  service_id: string;
+  lines: number;
+  content?: string;
+  error?: string;
+}
+
+export interface BundlePreflightResponse {
+  status: string;
+  validation?: BundleValidationResult;
+  ready?: BundlePreflightReady;
+  secrets?: BundlePreflightSecret[];
+  ports?: Record<string, Record<string, number>>;
+  telemetry?: BundlePreflightTelemetry;
+  log_tails?: BundlePreflightLogTail[];
+  errors?: string[];
+}
+
 export interface PlatformBuildResult {
   platform: string;
   status: "pending" | "building" | "ready" | "failed" | "skipped";
@@ -389,6 +484,20 @@ export async function probeEndpoints(payload: {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || "Failed to probe URLs");
+  }
+
+  return response.json();
+}
+
+export async function runBundlePreflight(payload: BundlePreflightRequest): Promise<BundlePreflightResponse> {
+  const response = await fetch(buildUrl("/desktop/preflight"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
   }
 
   return response.json();

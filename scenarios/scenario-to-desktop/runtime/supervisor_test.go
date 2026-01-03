@@ -1,13 +1,19 @@
 package bundleruntime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -614,6 +620,107 @@ func TestStart_WaitsForMissingSecrets(t *testing.T) {
 	}
 }
 
+func TestStart_PersistsAuthTokenAndIpcPort(t *testing.T) {
+	tmp := t.TempDir()
+	appDataDir := filepath.Join(tmp, "appdata")
+	mockFS := testutil.NewMockFileSystem()
+	mockClock := testutil.NewMockClock(time.Now())
+	mockSecretStore := testutil.NewMockSecretStore(nil)
+	mockPortAllocator := testutil.NewMockPortAllocator()
+	mockHealthChecker := testutil.NewMockHealthChecker()
+
+	m := &manifest.Manifest{
+		App:       manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry: manifest.Telemetry{File: "telemetry.jsonl"},
+	}
+
+	s, err := NewSupervisor(Options{
+		Manifest:      m,
+		BundlePath:    tmp,
+		AppDataDir:    appDataDir,
+		Clock:         mockClock,
+		FileSystem:    mockFS,
+		SecretStore:   mockSecretStore,
+		PortAllocator: mockPortAllocator,
+		HealthChecker: mockHealthChecker,
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := s.Start(ctx); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = s.Shutdown(context.Background())
+	})
+
+	tokenPath := filepath.Join(appDataDir, "runtime", "auth-token")
+	tokenData, ok := mockFS.Files[tokenPath]
+	if !ok || strings.TrimSpace(string(tokenData)) == "" {
+		t.Fatalf("Start() should persist auth token at %s", tokenPath)
+	}
+
+	portPath := filepath.Join(appDataDir, "runtime", "ipc_port")
+	portData, ok := mockFS.Files[portPath]
+	if !ok || strings.TrimSpace(string(portData)) == "" {
+		t.Fatalf("Start() should persist IPC port at %s", portPath)
+	}
+	gotPort, err := strconv.Atoi(strings.TrimSpace(string(portData)))
+	if err != nil {
+		t.Fatalf("ipc_port should contain integer, got %q", string(portData))
+	}
+	if gotPort != s.opts.Manifest.IPC.Port {
+		t.Fatalf("ipc_port = %d, want %d", gotPort, s.opts.Manifest.IPC.Port)
+	}
+}
+
+func TestStart_FailsOnMigrationStateError(t *testing.T) {
+	tmp := t.TempDir()
+	appDataDir := filepath.Join(tmp, "appdata")
+	mockFS := testutil.NewMockFileSystem()
+	mockClock := testutil.NewMockClock(time.Now())
+	mockSecretStore := testutil.NewMockSecretStore(nil)
+	mockPortAllocator := testutil.NewMockPortAllocator()
+	mockHealthChecker := testutil.NewMockHealthChecker()
+
+	migrationsPath := filepath.Join(appDataDir, "migrations.json")
+	mockFS.Files[migrationsPath] = []byte("{invalid-json")
+
+	m := &manifest.Manifest{
+		App:       manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry: manifest.Telemetry{File: "telemetry.jsonl"},
+	}
+
+	s, err := NewSupervisor(Options{
+		Manifest:      m,
+		BundlePath:    tmp,
+		AppDataDir:    appDataDir,
+		Clock:         mockClock,
+		FileSystem:    mockFS,
+		SecretStore:   mockSecretStore,
+		PortAllocator: mockPortAllocator,
+		HealthChecker: mockHealthChecker,
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx := context.Background()
+	err = s.Start(ctx)
+	if err == nil {
+		t.Fatal("Start() expected error on migrations load failure")
+	}
+	if !strings.Contains(err.Error(), "load migrations") {
+		t.Errorf("Start() error = %q, want 'load migrations'", err)
+	}
+}
+
 // =============================================================================
 // Shutdown Tests
 // =============================================================================
@@ -1082,4 +1189,315 @@ func TestRecordTelemetry(t *testing.T) {
 			t.Error("recordTelemetry() should write to telemetry file")
 		}
 	})
+}
+
+func TestSupervisorIntegration_LaunchesServicesAndControlAPI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	bundleDir := t.TempDir()
+	appData := t.TempDir()
+	binRel := buildFixtureService(t, bundleDir)
+
+	m := integrationManifest(binRel)
+	s, err := NewSupervisor(Options{
+		Manifest:   m,
+		BundlePath: bundleDir,
+		AppDataDir: appData,
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := s.Start(ctx); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	t.Cleanup(func() { _ = s.Shutdown(context.Background()) })
+
+	token := readAuthToken(t, appData, m)
+	port := readIPCPort(t, appData)
+	baseURL := "http://" + m.IPC.Host + ":" + strconv.Itoa(port)
+
+	ready := waitForReady(t, baseURL, token, 10*time.Second)
+	if !ready.Ready {
+		t.Fatalf("expected ready=true, got false")
+	}
+	if st, ok := ready.Details["api"]; !ok || !st.Ready {
+		t.Fatalf("expected api ready status, got %+v", ready.Details["api"])
+	}
+	if st, ok := ready.Details["worker"]; !ok || !st.Ready {
+		t.Fatalf("expected worker ready status, got %+v", ready.Details["worker"])
+	}
+
+	var portsResp struct {
+		Services map[string]map[string]int `json:"services"`
+	}
+	if err := fetchJSON(baseURL, token, "/ports", &portsResp); err != nil {
+		t.Fatalf("fetch /ports: %v", err)
+	}
+	if portsResp.Services["api"]["http"] == 0 {
+		t.Fatalf("expected allocated api.http port, got %+v", portsResp.Services["api"])
+	}
+
+	logs, err := fetchText(baseURL, token, "/logs/tail?serviceId=worker&lines=50")
+	if err != nil {
+		t.Fatalf("fetch logs: %v", err)
+	}
+	if !strings.Contains(logs, "READY") {
+		t.Fatalf("expected worker logs to contain READY, got %q", logs)
+	}
+
+	telemetryPath := filepath.Join(appData, "runtime", "telemetry.jsonl")
+	if data, err := os.ReadFile(telemetryPath); err != nil {
+		t.Fatalf("read telemetry: %v", err)
+	} else if !bytes.Contains(data, []byte(`"event":"service_ready"`)) {
+		t.Errorf("expected telemetry to include service_ready events")
+	}
+
+	if _, err := fetchJSON(baseURL, token, "/shutdown", &map[string]string{}); err != nil {
+		t.Fatalf("shutdown: %v", err)
+	}
+
+	waitForShutdown(t, baseURL, 5*time.Second)
+}
+
+type readyResponse struct {
+	Ready   bool                     `json:"ready"`
+	Details map[string]health.Status `json:"details"`
+}
+
+func waitForReady(t *testing.T, baseURL, token string, timeout time.Duration) readyResponse {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		var resp readyResponse
+		if err := fetchJSON(baseURL, token, "/readyz", &resp); err == nil {
+			if resp.Ready {
+				return resp
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for ready")
+	return readyResponse{}
+}
+
+func waitForShutdown(t *testing.T, baseURL string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 300 * time.Millisecond}
+	for time.Now().Before(deadline) {
+		req, _ := http.NewRequest(http.MethodGet, baseURL+"/healthz", nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			return
+		}
+		resp.Body.Close()
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for shutdown")
+}
+
+func fetchJSON(baseURL, token, path string, out interface{}) error {
+	client := &http.Client{Timeout: 1 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+func fetchText(baseURL, token, path string) (string, error) {
+	client := &http.Client{Timeout: 1 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return "", err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+func readAuthToken(t *testing.T, appData string, m *manifest.Manifest) string {
+	t.Helper()
+	tokenPath := manifest.ResolvePath(appData, m.IPC.AuthTokenRel)
+	data, err := os.ReadFile(tokenPath)
+	if err != nil {
+		t.Fatalf("read auth token: %v", err)
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func readIPCPort(t *testing.T, appData string) int {
+	t.Helper()
+	portPath := filepath.Join(appData, "runtime", "ipc_port")
+	data, err := os.ReadFile(portPath)
+	if err != nil {
+		t.Fatalf("read ipc_port: %v", err)
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatalf("parse ipc_port: %v", err)
+	}
+	return port
+}
+
+func integrationManifest(binRel string) *manifest.Manifest {
+	key := manifest.PlatformKey(runtime.GOOS, runtime.GOARCH)
+	return &manifest.Manifest{
+		SchemaVersion: "0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "fixture-app", Version: "0.1.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry:     manifest.Telemetry{File: "runtime/telemetry.jsonl"},
+		Ports:         &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 48000, Max: 48100}},
+		Services: []manifest.Service{
+			{
+				ID:   "api",
+				Type: "backend",
+				Binaries: map[string]manifest.Binary{
+					key: {
+						Path: binRel,
+						Args: []string{"--mode", "api", "--port", "${api.http}"},
+					},
+				},
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "http", Range: manifest.PortRange{Min: 48000, Max: 48100}},
+					},
+				},
+				Health:    manifest.HealthCheck{Type: "http", Path: "/health", PortName: "http", IntervalMs: 200, TimeoutMs: 1000, Retries: 5},
+				Readiness: manifest.ReadinessCheck{Type: "health_success", TimeoutMs: 5000},
+				LogDir:    "logs/api.log",
+			},
+			{
+				ID:   "worker",
+				Type: "worker",
+				Binaries: map[string]manifest.Binary{
+					key: {
+						Path: binRel,
+						Args: []string{"--mode", "worker"},
+					},
+				},
+				Health:       manifest.HealthCheck{Type: "log_match", Path: "READY", IntervalMs: 200, TimeoutMs: 1000, Retries: 5},
+				Readiness:    manifest.ReadinessCheck{Type: "log_match", Pattern: "READY", TimeoutMs: 5000},
+				LogDir:       "logs/worker.log",
+				Dependencies: []string{"api"},
+			},
+		},
+	}
+}
+
+func buildFixtureService(t *testing.T, bundleDir string) string {
+	t.Helper()
+	binDir := filepath.Join(bundleDir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir bin: %v", err)
+	}
+	srcPath := filepath.Join(binDir, "fixture-service.go")
+	source := `package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+)
+
+func main() {
+	mode := flag.String("mode", "api", "mode")
+	port := flag.Int("port", 0, "port")
+	flag.Parse()
+
+	switch *mode {
+	case "api":
+		if *port == 0 {
+			fmt.Fprintln(os.Stderr, "missing --port")
+			os.Exit(2)
+		}
+		mux := http.NewServeMux()
+		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		})
+		addr := fmt.Sprintf("127.0.0.1:%d", *port)
+		log.Printf("READY api on %s", addr)
+		server := &http.Server{Addr: addr, Handler: mux}
+		log.Fatal(server.ListenAndServe())
+	case "worker":
+		log.Printf("READY worker")
+		if *port > 0 {
+			ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", *port))
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer ln.Close()
+			for {
+				conn, err := ln.Accept()
+				if err == nil {
+					conn.Close()
+				}
+			}
+		}
+		select {}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown mode: %s\n", *mode)
+		os.Exit(2)
+	}
+}
+`
+	if err := os.WriteFile(srcPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write fixture source: %v", err)
+	}
+
+	exeName := "fixture-service"
+	if runtime.GOOS == "windows" {
+		exeName += ".exe"
+	}
+	outPath := filepath.Join(binDir, exeName)
+	cmd := exec.Command("go", "build", "-o", outPath, srcPath)
+	cmd.Dir = binDir
+	cmd.Env = append(os.Environ(), "GO111MODULE=off")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build fixture service: %v\n%s", err, strings.TrimSpace(string(output)))
+	}
+
+	return filepath.Join("bin", exeName)
 }

@@ -1283,6 +1283,76 @@ func TestConcurrentRequests(t *testing.T) {
 	})
 }
 
+func TestPreflightBundleHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	cwd, err := os.Getwd()
+	requireNoError(t, err)
+	repoRoot := filepath.Clean(filepath.Join(cwd, "..", "..", ".."))
+	manifestPath := filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "runtime", "testdata", "fixture-bundle", "bundle.json")
+	if _, err := os.Stat(manifestPath); err != nil {
+		t.Skipf("fixture bundle not available: %v", err)
+	}
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("MissingBundlePath", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		assertErrorResponse(t, w, http.StatusBadRequest, "bundle_manifest_path")
+	})
+
+	t.Run("MissingSecrets", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{
+			"bundle_manifest_path": manifestPath,
+		})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp BundlePreflightResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if resp.Validation == nil || !resp.Validation.Valid {
+			t.Fatalf("expected validation valid, got %+v", resp.Validation)
+		}
+		if resp.Ready == nil || resp.Ready.Ready {
+			t.Fatalf("expected ready=false when secrets missing, got %+v", resp.Ready)
+		}
+		if len(resp.Secrets) == 0 {
+			t.Fatalf("expected secrets in response")
+		}
+	})
+
+	t.Run("WithSecrets", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{
+			"bundle_manifest_path": manifestPath,
+			"secrets": map[string]string{
+				"API_KEY": "fixture-value",
+			},
+		})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp BundlePreflightResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if resp.Ready == nil || !resp.Ready.Ready {
+			t.Fatalf("expected ready=true when secrets provided, got %+v", resp.Ready)
+		}
+	})
+}
+
 // TestPerformDesktopGeneration tests async generation
 func TestPerformDesktopGeneration(t *testing.T) {
 	cleanup := setupTestLogger()

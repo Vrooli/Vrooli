@@ -1,9 +1,11 @@
 package main
 
 import (
+	"scenario-to-desktop-runtime/health"
 	"time"
 
 	signingtypes "scenario-to-desktop-api/signing/types"
+	runtimeapi "scenario-to-desktop-runtime/api"
 )
 
 // DesktopConfig represents the configuration for generating a desktop application
@@ -110,6 +112,69 @@ type BundleIPCConfig struct {
 	Host         string `json:"host,omitempty"`
 	Port         int    `json:"port,omitempty"`
 	AuthTokenRel string `json:"auth_token_path,omitempty"`
+}
+
+// BundlePreflightRequest asks the API to dry-run the bundle runtime.
+type BundlePreflightRequest struct {
+	BundleManifestPath string            `json:"bundle_manifest_path"`
+	BundleRoot         string            `json:"bundle_root,omitempty"`
+	Secrets            map[string]string `json:"secrets,omitempty"`
+	TimeoutSeconds     int               `json:"timeout_seconds,omitempty"`
+	StartServices      bool              `json:"start_services,omitempty"`
+	LogTailLines       int               `json:"log_tail_lines,omitempty"`
+	LogTailServices    []string          `json:"log_tail_services,omitempty"`
+}
+
+// BundlePreflightResponse reports the dry-run validation results.
+type BundlePreflightResponse struct {
+	Status     string                             `json:"status"`
+	Validation *runtimeapi.BundleValidationResult `json:"validation,omitempty"`
+	Ready      *BundlePreflightReady              `json:"ready,omitempty"`
+	Secrets    []BundlePreflightSecret            `json:"secrets,omitempty"`
+	Ports      map[string]map[string]int          `json:"ports,omitempty"`
+	Telemetry  *BundlePreflightTelemetry          `json:"telemetry,omitempty"`
+	LogTails   []BundlePreflightLogTail           `json:"log_tails,omitempty"`
+	Errors     []string                           `json:"errors,omitempty"`
+}
+
+// BundlePreflightReady captures readiness results from the runtime control API.
+type BundlePreflightReady struct {
+	Ready   bool                     `json:"ready"`
+	Details map[string]health.Status `json:"details"`
+	GPU     BundlePreflightGPU       `json:"gpu,omitempty"`
+}
+
+// BundlePreflightGPU surfaces GPU detection info from the runtime.
+type BundlePreflightGPU struct {
+	Available    bool              `json:"available"`
+	Method       string            `json:"method,omitempty"`
+	Reason       string            `json:"reason,omitempty"`
+	Requirements map[string]string `json:"requirements,omitempty"`
+}
+
+// BundlePreflightSecret mirrors the runtime /secrets view.
+type BundlePreflightSecret struct {
+	ID          string            `json:"id"`
+	Class       string            `json:"class"`
+	Required    bool              `json:"required"`
+	HasValue    bool              `json:"has_value"`
+	Description string            `json:"description,omitempty"`
+	Format      string            `json:"format,omitempty"`
+	Prompt      map[string]string `json:"prompt,omitempty"`
+}
+
+// BundlePreflightTelemetry provides telemetry file details for diagnostics.
+type BundlePreflightTelemetry struct {
+	Path      string `json:"path"`
+	UploadURL string `json:"upload_url,omitempty"`
+}
+
+// BundlePreflightLogTail captures optional log tail diagnostics.
+type BundlePreflightLogTail struct {
+	ServiceID string `json:"service_id"`
+	Lines     int    `json:"lines"`
+	Content   string `json:"content,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // PlatformBuildResult represents the result of building for a specific platform

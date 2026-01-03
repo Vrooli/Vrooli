@@ -113,11 +113,14 @@ export class RecordModeController {
   private exposedFunctionName = '__recordAction';
   private isExposed = false;
   private navigationHandler: (() => void) | null = null;
+  private loopDetectionRouteHandler: ((route: import('rebrowser-playwright').Route, request: import('rebrowser-playwright').Request) => Promise<void>) | null = null;
   private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
   private lastUrl: string | null = null;
   private recordingGeneration = 0;
   /** Navigation history for redirect loop detection */
   private navigationHistory: Array<{ url: string; timestamp: number }> = [];
+  /** Domain currently in a detected redirect loop - requests to this domain will be blocked */
+  private blockedLoopDomain: string | null = null;
 
   /** Replay service for executing timeline entries (delegated) */
   private readonly replayService: ReplayPreviewService;
@@ -181,6 +184,7 @@ export class RecordModeController {
     this.errorCallback = options.onError || null;
     this.sequenceNum = 0;
     this.navigationHistory = [];
+    this.blockedLoopDomain = null;
 
     try {
       // Expose callback function to page context if not already exposed
@@ -200,6 +204,14 @@ export class RecordModeController {
       // Setup navigation handler to re-inject script after page loads
       this.navigationHandler = this.createNavigationHandler(currentGeneration);
       this.page.on('load', this.navigationHandler);
+
+      // Setup route handler for redirect loop detection AND blocking
+      // Using context.route() allows us to ABORT requests when a loop is detected
+      // Register on CONTEXT level to catch requests from ALL pages (including new tabs)
+      this.loopDetectionRouteHandler = this.createLoopDetectionRouteHandler(currentGeneration);
+      const context = this.page.context();
+      await context.route('**/*', this.loopDetectionRouteHandler);
+      console.log('[LoopDetection] Route handler registered on context for redirect loop detection');
 
       return recordingId;
     } catch (error) {
@@ -226,6 +238,147 @@ export class RecordModeController {
       // Schedule injection with retry support
       this.scheduleInjectionWithRetry(generation);
     };
+  }
+
+  /**
+   * Create a route handler for redirect loop detection AND blocking.
+   * Using context.route() allows us to ABORT requests when a loop is detected,
+   * actually stopping the redirect loop instead of just detecting it.
+   */
+  private createLoopDetectionRouteHandler(
+    generation: number
+  ): (route: import('rebrowser-playwright').Route, request: import('rebrowser-playwright').Request) => Promise<void> {
+    return async (route, request): Promise<void> => {
+      try {
+        const url = request.url();
+
+        // Only process navigation requests for loop detection
+        if (!request.isNavigationRequest()) {
+          await route.continue();
+          return;
+        }
+
+        // Only handle main frame navigations
+        const frame = request.frame();
+        if (!frame || frame.parentFrame() !== null) {
+          await route.continue();
+          return;
+        }
+
+        // If we've already detected a loop on this domain, BLOCK the request
+        if (this.blockedLoopDomain) {
+          try {
+            const hostname = new URL(url).hostname;
+            if (hostname === this.blockedLoopDomain) {
+              console.log('[LoopDetection] BLOCKING request to looping domain:', hostname);
+              await route.abort('blockedbyclient');
+              return;
+            }
+          } catch {
+            // Invalid URL, continue
+          }
+        }
+
+        // Skip loop detection if not recording
+        if (!this.state.isRecording || this.recordingGeneration !== generation) {
+          await route.continue();
+          return;
+        }
+
+        if (!url || url === 'about:blank') {
+          await route.continue();
+          return;
+        }
+
+        console.log('[LoopDetection] Checking navigation:', url, 'History size:', this.navigationHistory.length);
+
+        // Check for redirect loop
+        if (this.checkForRedirectLoop(url)) {
+          let hostname = 'unknown';
+          try {
+            hostname = new URL(url).hostname;
+          } catch {
+            // Invalid URL
+          }
+
+          // Set the blocked domain to prevent further requests
+          this.blockedLoopDomain = hostname;
+
+          console.error('[LoopDetection] REDIRECT LOOP DETECTED - BLOCKING:', hostname);
+          this.handleError(
+            new Error(
+              `Redirect loop detected on ${hostname}. ` +
+                `This may be caused by ad blocking - try adding the domain to the whitelist.`
+            )
+          );
+
+          // ABORT this request to break the loop
+          await route.abort('blockedbyclient');
+          return;
+        }
+
+        // Allow the request to continue
+        await route.continue();
+      } catch (err) {
+        console.error('[LoopDetection] Error in route handler:', err);
+        // On error, try to continue the request
+        try {
+          await route.continue();
+        } catch {
+          // Route may have already been handled
+        }
+      }
+    };
+  }
+
+  /**
+   * Check for redirect loop without capturing the navigation.
+   * Used by request handler for early detection.
+   */
+  private checkForRedirectLoop(newUrl: string): boolean {
+    const now = Date.now();
+
+    // Add to history
+    this.navigationHistory.push({ url: newUrl, timestamp: now });
+
+    // Trim old entries outside the detection window
+    this.navigationHistory = this.navigationHistory.filter(
+      (entry) => now - entry.timestamp < LOOP_DETECTION_WINDOW_MS
+    );
+
+    // Keep history bounded to prevent unbounded memory growth
+    if (this.navigationHistory.length > LOOP_DETECTION_HISTORY_SIZE) {
+      this.navigationHistory = this.navigationHistory.slice(-LOOP_DETECTION_HISTORY_SIZE);
+    }
+
+    // Detect loop: N+ navigations to same domain in window
+    if (this.navigationHistory.length >= LOOP_DETECTION_MAX_NAVIGATIONS) {
+      try {
+        const newHostname = new URL(newUrl).hostname;
+        const domains = this.navigationHistory.map((e) => {
+          try {
+            return new URL(e.url).hostname;
+          } catch {
+            return '';
+          }
+        });
+        const sameDomainCount = domains.filter((d) => d === newHostname).length;
+
+        if (sameDomainCount >= LOOP_DETECTION_MAX_NAVIGATIONS) {
+          console.warn('[RecordModeController] Redirect loop detected (early)', {
+            url: newUrl,
+            hostname: newHostname,
+            count: sameDomainCount,
+            windowMs: LOOP_DETECTION_WINDOW_MS,
+          });
+          return true;
+        }
+      } catch {
+        // Invalid URL, not a loop
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -312,11 +465,17 @@ export class RecordModeController {
       }
       this.pendingInjectionTimeouts.clear();
 
-      // Remove navigation handler
+      // Remove navigation handlers
       if (this.navigationHandler) {
         this.page.off('load', this.navigationHandler);
         this.navigationHandler = null;
       }
+      if (this.loopDetectionRouteHandler) {
+        const context = this.page.context();
+        await context.unroute('**/*', this.loopDetectionRouteHandler);
+        this.loopDetectionRouteHandler = null;
+      }
+      this.blockedLoopDomain = null;
 
       // Inject cleanup script
       await this.page.evaluate(getCleanupScript()).catch(() => {
@@ -368,60 +527,8 @@ export class RecordModeController {
   }
 
   /**
-   * Check if we're in a redirect loop.
-   * Detects rapid repeated navigations to the same domain.
-   *
-   * @param newUrl - The URL being navigated to
-   * @returns True if a redirect loop is detected
-   */
-  private isRedirectLoop(newUrl: string): boolean {
-    const now = Date.now();
-
-    // Add to history
-    this.navigationHistory.push({ url: newUrl, timestamp: now });
-
-    // Trim old entries outside the detection window
-    this.navigationHistory = this.navigationHistory.filter(
-      (entry) => now - entry.timestamp < LOOP_DETECTION_WINDOW_MS
-    );
-
-    // Keep history bounded to prevent unbounded memory growth
-    if (this.navigationHistory.length > LOOP_DETECTION_HISTORY_SIZE) {
-      this.navigationHistory = this.navigationHistory.slice(-LOOP_DETECTION_HISTORY_SIZE);
-    }
-
-    // Detect loop: N+ navigations to same domain in window
-    if (this.navigationHistory.length >= LOOP_DETECTION_MAX_NAVIGATIONS) {
-      try {
-        const newHostname = new URL(newUrl).hostname;
-        const domains = this.navigationHistory.map((e) => {
-          try {
-            return new URL(e.url).hostname;
-          } catch {
-            return '';
-          }
-        });
-        const sameDomainCount = domains.filter((d) => d === newHostname).length;
-
-        if (sameDomainCount >= LOOP_DETECTION_MAX_NAVIGATIONS) {
-          console.warn('[RecordModeController] Redirect loop detected', {
-            url: newUrl,
-            hostname: newHostname,
-            count: sameDomainCount,
-            windowMs: LOOP_DETECTION_WINDOW_MS,
-          });
-          return true;
-        }
-      } catch {
-        // Invalid URL, not a loop
-      }
-    }
-
-    return false;
-  }
-
-  /**
    * Capture a navigation action when URL changes during recording.
+   * Note: Redirect loop detection is handled earlier in framenavigated handler.
    */
   private captureNavigation(url: string): void {
     if (!this.state.isRecording || !this.entryCallback || !this.state.recordingId) {
@@ -430,23 +537,6 @@ export class RecordModeController {
 
     if (url === this.lastUrl || url === 'about:blank') {
       return;
-    }
-
-    // Check for redirect loop before capturing
-    if (this.isRedirectLoop(url)) {
-      let hostname = 'unknown';
-      try {
-        hostname = new URL(url).hostname;
-      } catch {
-        // Invalid URL
-      }
-      this.handleError(
-        new Error(
-          `Redirect loop detected on ${hostname}. ` +
-            `This may be caused by ad blocking - try adding the domain to the whitelist.`
-        )
-      );
-      return; // Don't capture this navigation
     }
 
     this.lastUrl = url;

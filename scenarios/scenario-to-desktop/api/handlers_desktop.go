@@ -1,19 +1,25 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	bundleruntime "scenario-to-desktop-runtime"
+	runtimeapi "scenario-to-desktop-runtime/api"
 	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
@@ -291,6 +297,29 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
+}
+
+// Dry-run bundled runtime validation handler.
+func (s *Server) preflightBundleHandler(w http.ResponseWriter, r *http.Request) {
+	var request BundlePreflightRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	result, err := runBundlePreflight(request)
+	if err != nil {
+		status := http.StatusInternalServerError
+		var statusErr *preflightStatusError
+		if errors.As(err, &statusErr) {
+			status = statusErr.Status
+		}
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 func mergeQuickGenerateConfig(config *DesktopConfig, request quickGenerateRequest, savedConfig *DesktopConnectionConfig, defaultOutputPath string) *DesktopConfig {
@@ -948,4 +977,335 @@ func detectPackageContentType(packageFile string) string {
 
 func isSafeScenarioName(name string) bool {
 	return !strings.Contains(name, "..") && !strings.Contains(name, "/") && !strings.Contains(name, "\\")
+}
+
+type preflightStatusError struct {
+	Status int
+	Err    error
+}
+
+func (e *preflightStatusError) Error() string {
+	return e.Err.Error()
+}
+
+func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightResponse, error) {
+	if strings.TrimSpace(request.BundleManifestPath) == "" {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: errors.New("bundle_manifest_path is required")}
+	}
+
+	manifestPath, err := filepath.Abs(request.BundleManifestPath)
+	if err != nil {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: fmt.Errorf("resolve bundle_manifest_path: %w", err)}
+	}
+	if _, err := os.Stat(manifestPath); err != nil {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: fmt.Errorf("bundle manifest not found: %w", err)}
+	}
+
+	m, err := bundlemanifest.LoadManifest(manifestPath)
+	if err != nil {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: fmt.Errorf("load bundle manifest: %w", err)}
+	}
+	if err := m.Validate(runtime.GOOS, runtime.GOARCH); err != nil {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: fmt.Errorf("validate bundle manifest: %w", err)}
+	}
+
+	bundleRoot := strings.TrimSpace(request.BundleRoot)
+	if bundleRoot == "" {
+		bundleRoot = filepath.Dir(manifestPath)
+	}
+	bundleRoot, err = filepath.Abs(bundleRoot)
+	if err != nil {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: fmt.Errorf("resolve bundle_root: %w", err)}
+	}
+
+	timeout := time.Duration(request.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 15 * time.Second
+	}
+	if timeout > 2*time.Minute {
+		timeout = 2 * time.Minute
+	}
+
+	appData, err := os.MkdirTemp("", "s2d-preflight-*")
+	if err != nil {
+		return nil, fmt.Errorf("create preflight app data: %w", err)
+	}
+	defer os.RemoveAll(appData)
+
+	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
+		Manifest:   m,
+		BundlePath: bundleRoot,
+		AppDataDir: appData,
+		DryRun:     !request.StartServices,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("init runtime: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := supervisor.Start(ctx); err != nil {
+		return nil, fmt.Errorf("start runtime: %w", err)
+	}
+	defer func() {
+		_ = supervisor.Shutdown(context.Background())
+	}()
+
+	fileTimeout := timeout / 3
+	if fileTimeout < 500*time.Millisecond {
+		fileTimeout = 500 * time.Millisecond
+	}
+
+	tokenPath := bundlemanifest.ResolvePath(appData, m.IPC.AuthTokenRel)
+	tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("read auth token: %w", err)
+	}
+	token := strings.TrimSpace(string(tokenBytes))
+
+	portPath := filepath.Join(appData, "runtime", "ipc_port")
+	port, err := readPortFileWithRetry(portPath, fileTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("read ipc_port: %w", err)
+	}
+
+	baseURL := fmt.Sprintf("http://%s:%d", m.IPC.Host, port)
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	if err := waitForRuntimeHealth(client, baseURL, timeout); err != nil {
+		return nil, err
+	}
+
+	if len(request.Secrets) > 0 {
+		filtered := map[string]string{}
+		for key, value := range request.Secrets {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+			filtered[key] = value
+		}
+		payload := map[string]map[string]string{"secrets": filtered}
+		if len(filtered) == 0 {
+			payload = nil
+		}
+		if payload == nil {
+			// No secrets to apply after filtering.
+		} else if _, err := fetchJSON(client, baseURL, token, "/secrets", http.MethodPost, payload, nil, nil); err != nil {
+			return nil, fmt.Errorf("apply secrets: %w", err)
+		}
+	}
+
+	var validation runtimeapi.BundleValidationResult
+	allowStatus := map[int]bool{http.StatusUnprocessableEntity: true}
+	if _, err := fetchJSON(client, baseURL, token, "/validate", http.MethodGet, nil, &validation, allowStatus); err != nil {
+		return nil, fmt.Errorf("validate bundle: %w", err)
+	}
+
+	var secretsResp struct {
+		Secrets []BundlePreflightSecret `json:"secrets"`
+	}
+	if _, err := fetchJSON(client, baseURL, token, "/secrets", http.MethodGet, nil, &secretsResp, nil); err != nil {
+		return nil, fmt.Errorf("fetch secrets: %w", err)
+	}
+
+	var ready BundlePreflightReady
+	if _, err := fetchJSON(client, baseURL, token, "/readyz", http.MethodGet, nil, &ready, nil); err != nil {
+		return nil, fmt.Errorf("fetch readiness: %w", err)
+	}
+
+	var portsResp struct {
+		Services map[string]map[string]int `json:"services"`
+	}
+	if _, err := fetchJSON(client, baseURL, token, "/ports", http.MethodGet, nil, &portsResp, nil); err != nil {
+		return nil, fmt.Errorf("fetch ports: %w", err)
+	}
+
+	var telemetryResp BundlePreflightTelemetry
+	if _, err := fetchJSON(client, baseURL, token, "/telemetry", http.MethodGet, nil, &telemetryResp, nil); err != nil {
+		return nil, fmt.Errorf("fetch telemetry: %w", err)
+	}
+
+	logTails := collectLogTails(client, baseURL, token, m, request)
+
+	return &BundlePreflightResponse{
+		Status:     "ok",
+		Validation: &validation,
+		Ready:      &ready,
+		Secrets:    secretsResp.Secrets,
+		Ports:      portsResp.Services,
+		Telemetry:  &telemetryResp,
+		LogTails:   logTails,
+	}, nil
+}
+
+func readFileWithRetry(path string, timeout time.Duration) ([]byte, error) {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			return data, nil
+		}
+		lastErr = err
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil, lastErr
+}
+
+func readPortFileWithRetry(path string, timeout time.Duration) (int, error) {
+	data, err := readFileWithRetry(path, timeout)
+	if err != nil {
+		return 0, err
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0, err
+	}
+	return port, nil
+}
+
+func waitForRuntimeHealth(client *http.Client, baseURL string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		req, _ := http.NewRequest(http.MethodGet, baseURL+"/healthz", nil)
+		resp, err := client.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("runtime control API not responding within %s", timeout)
+}
+
+func fetchJSON(client *http.Client, baseURL, token, path, method string, payload interface{}, out interface{}, allow map[int]bool) (int, error) {
+	var body io.Reader
+	if payload != nil {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return 0, err
+		}
+		body = bytes.NewReader(data)
+	}
+
+	req, err := http.NewRequest(method, baseURL+path, body)
+	if err != nil {
+		return 0, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if allow != nil && allow[resp.StatusCode] {
+			if out != nil {
+				if decodeErr := json.NewDecoder(resp.Body).Decode(out); decodeErr != nil {
+					return resp.StatusCode, decodeErr
+				}
+			}
+			return resp.StatusCode, nil
+		}
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+	}
+
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return resp.StatusCode, err
+		}
+	}
+	return resp.StatusCode, nil
+}
+
+func fetchText(client *http.Client, baseURL, token, path string) (string, int, error) {
+	req, err := http.NewRequest(http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", resp.StatusCode, err
+	}
+	bodyText := strings.TrimSpace(string(bodyBytes))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if bodyText == "" {
+			bodyText = resp.Status
+		}
+		return bodyText, resp.StatusCode, fmt.Errorf("status %d: %s", resp.StatusCode, bodyText)
+	}
+
+	return bodyText, resp.StatusCode, nil
+}
+
+func collectLogTails(client *http.Client, baseURL, token string, manifest *bundlemanifest.Manifest, request BundlePreflightRequest) []BundlePreflightLogTail {
+	if request.LogTailLines <= 0 {
+		return nil
+	}
+
+	lines := request.LogTailLines
+	if lines > 200 {
+		lines = 200
+	}
+
+	serviceIDs := request.LogTailServices
+	if len(serviceIDs) == 0 {
+		for _, svc := range manifest.Services {
+			if strings.TrimSpace(svc.LogDir) != "" {
+				serviceIDs = append(serviceIDs, svc.ID)
+			}
+		}
+	}
+
+	if len(serviceIDs) == 0 {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var tails []BundlePreflightLogTail
+	for _, serviceID := range serviceIDs {
+		id := strings.TrimSpace(serviceID)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+
+		path := fmt.Sprintf("/logs/tail?serviceId=%s&lines=%d", url.QueryEscape(id), lines)
+		content, _, err := fetchText(client, baseURL, token, path)
+		tail := BundlePreflightLogTail{
+			ServiceID: id,
+			Lines:     lines,
+		}
+		if err != nil {
+			tail.Error = err.Error()
+		} else {
+			tail.Content = content
+		}
+		if tail.Content == "" && tail.Error == "" {
+			continue
+		}
+		tails = append(tails, tail)
+	}
+
+	return tails
 }

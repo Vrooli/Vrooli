@@ -9,6 +9,10 @@ import {
   fetchSigningConfig,
   checkSigningReadiness,
   probeEndpoints,
+  runBundlePreflight,
+  type BundlePreflightLogTail,
+  type BundlePreflightResponse,
+  type BundlePreflightSecret,
   type DesktopConfig,
   type ProbeResponse,
   type ProxyHintsResponse,
@@ -434,6 +438,257 @@ function BundledRuntimeSection({ bundleManifestPath, onBundleManifestChange, sce
         scenarioName={scenarioName}
         onBundleManifestChange={onBundleManifestChange}
       />
+    </div>
+  );
+}
+
+interface PreflightStatusProps {
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+function PreflightStatus({ label, ok, detail }: PreflightStatusProps) {
+  return (
+    <div className={`rounded-md border px-3 py-2 ${ok ? "border-emerald-700/70 bg-emerald-950/40" : "border-amber-700/70 bg-amber-950/40"}`}>
+      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-sm font-semibold ${ok ? "text-emerald-200" : "text-amber-200"}`}>
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+interface BundledPreflightSectionProps {
+  bundleManifestPath: string;
+  preflightResult: BundlePreflightResponse | null;
+  preflightPending: boolean;
+  preflightError: string | null;
+  missingSecrets: BundlePreflightSecret[];
+  secretInputs: Record<string, string>;
+  preflightOk: boolean;
+  preflightOverride: boolean;
+  preflightStartServices: boolean;
+  preflightLogTails?: BundlePreflightLogTail[];
+  onOverrideChange: (value: boolean) => void;
+  onStartServicesChange: (value: boolean) => void;
+  onSecretChange: (id: string, value: string) => void;
+  onRun: (secretsOverride?: Record<string, string>) => void;
+}
+
+function BundledPreflightSection({
+  bundleManifestPath,
+  preflightResult,
+  preflightPending,
+  preflightError,
+  missingSecrets,
+  secretInputs,
+  preflightOk,
+  preflightOverride,
+  preflightStartServices,
+  preflightLogTails,
+  onOverrideChange,
+  onStartServicesChange,
+  onSecretChange,
+  onRun
+}: BundledPreflightSectionProps) {
+  const validation = preflightResult?.validation;
+  const readiness = preflightResult?.ready;
+  const secretsReady = missingSecrets.length === 0;
+  const ports = preflightResult?.ports;
+  const telemetry = preflightResult?.telemetry;
+  const logTails = preflightLogTails ?? preflightResult?.log_tails;
+  const portSummary = ports
+    ? Object.entries(ports)
+        .map(([svc, portMap]) => {
+          const pairs = Object.entries(portMap)
+            .map(([name, port]) => `${name}:${port}`)
+            .join(", ");
+          return `${svc}(${pairs})`;
+        })
+        .join(" · ")
+    : "";
+
+  return (
+    <div className="rounded-lg border border-emerald-900 bg-emerald-950/10 p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-emerald-100">Preflight validation</p>
+          <p className="text-xs text-emerald-200/80">
+            Runs the bundled runtime to validate manifests, secrets, and readiness before packaging.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onRun()}
+          disabled={preflightPending || !bundleManifestPath.trim()}
+          className="gap-2"
+        >
+          {preflightPending ? "Running..." : "Run preflight"}
+        </Button>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-emerald-200/80">
+        <Checkbox
+          checked={preflightStartServices}
+          onChange={(e) => onStartServicesChange(e.target.checked)}
+          label="Start services to capture log tails (slower)"
+        />
+      </div>
+
+      {!bundleManifestPath.trim() && (
+        <p className="text-xs text-amber-200">Add a bundle_manifest_path to enable preflight checks.</p>
+      )}
+
+      {preflightError && (
+        <div className="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-200">
+          {preflightError}
+        </div>
+      )}
+
+      {preflightResult && (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <PreflightStatus
+              label="Bundle validation"
+              ok={validation?.valid === true}
+              detail={validation?.valid ? "Valid" : "Needs attention"}
+            />
+            <PreflightStatus
+              label="Secrets"
+              ok={secretsReady}
+              detail={secretsReady ? "All required present" : `${missingSecrets.length} missing`}
+            />
+            <PreflightStatus
+              label="Runtime readiness"
+              ok={readiness?.ready === true}
+              detail={readiness?.ready ? "Ready" : "Waiting"}
+            />
+          </div>
+
+          {!preflightOk && (
+            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100">
+              Preflight is not green yet. Resolve the items below or enable override before generating.
+            </div>
+          )}
+
+          {validation && !validation.valid && (
+            <div className="rounded-md border border-red-900/70 bg-red-950/40 p-3 text-xs text-red-200 space-y-2">
+              <p className="font-semibold text-red-100">Bundle validation issues</p>
+              {validation.errors && validation.errors.length > 0 && (
+                <ul className="space-y-1">
+                  {validation.errors.map((err, idx) => (
+                    <li key={`${err.code}-${idx}`}>
+                      {err.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {validation.missing_binaries && validation.missing_binaries.length > 0 && (
+                <p>Missing binaries: {validation.missing_binaries.map((item) => item.path).join(", ")}</p>
+              )}
+              {validation.missing_assets && validation.missing_assets.length > 0 && (
+                <p>Missing assets: {validation.missing_assets.map((item) => item.path).join(", ")}</p>
+              )}
+              {validation.invalid_checksums && validation.invalid_checksums.length > 0 && (
+                <p>Invalid checksums: {validation.invalid_checksums.map((item) => item.path).join(", ")}</p>
+              )}
+            </div>
+          )}
+
+          {validation?.warnings && validation.warnings.length > 0 && (
+            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100 space-y-1">
+              <p className="font-semibold">Warnings</p>
+              <ul className="space-y-1">
+                {validation.warnings.map((warn, idx) => (
+                  <li key={`${warn.code}-${idx}`}>{warn.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {missingSecrets.length > 0 && (
+            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100 space-y-3">
+              <p className="font-semibold text-amber-100">Missing required secrets</p>
+              <p className="text-amber-100/80">
+                Enter temporary values to validate readiness. Values are used only for this preflight run.
+              </p>
+              <div className="space-y-2">
+                {missingSecrets.map((secret) => (
+                  <div key={secret.id} className="space-y-1">
+                    <Label htmlFor={`preflight-${secret.id}`}>
+                      {secret.prompt?.label || secret.id}
+                    </Label>
+                    <Input
+                      id={`preflight-${secret.id}`}
+                      type="password"
+                      value={secretInputs[secret.id] || ""}
+                      onChange={(e) => onSecretChange(secret.id, e.target.value)}
+                      placeholder={secret.prompt?.hint || "Enter value"}
+                    />
+                    {secret.class && (
+                      <p className="text-[11px] text-amber-200/80">
+                        {secret.class.replace(/_/g, " ")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onRun(secretInputs)}
+                disabled={preflightPending}
+              >
+                Apply secrets and re-run
+              </Button>
+            </div>
+          )}
+
+          {(portSummary || telemetry?.path) && (
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
+              <p className="font-semibold text-slate-100">Diagnostics</p>
+              {portSummary && <p>Ports: {portSummary}</p>}
+              {telemetry?.path && <p>Telemetry: {telemetry.path}</p>}
+            </div>
+          )}
+
+          {logTails && logTails.length > 0 && (
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
+              <p className="font-semibold text-slate-100">Service log tails</p>
+              <div className="space-y-2">
+                {logTails.map((tail, idx) => (
+                  <div key={`${tail.service_id}-${idx}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                      {tail.service_id} · {tail.lines} lines
+                    </p>
+                    {tail.error ? (
+                      <p className="text-amber-200">{tail.error}</p>
+                    ) : (
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
+                        {tail.content || "No log output yet."}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!preflightOk && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-800 bg-amber-950/20 p-3 text-xs text-amber-100">
+              <span>Override preflight and allow generation anyway.</span>
+              <Checkbox
+                checked={preflightOverride}
+                onChange={(e) => onOverrideChange(e.target.checked)}
+                label="Override"
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1045,6 +1300,12 @@ export function GeneratorForm({
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [preflightResult, setPreflightResult] = useState<BundlePreflightResponse | null>(null);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [preflightPending, setPreflightPending] = useState(false);
+  const [preflightOverride, setPreflightOverride] = useState(false);
+  const [preflightSecrets, setPreflightSecrets] = useState<Record<string, string>>({});
+  const [preflightStartServices, setPreflightStartServices] = useState(false);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [signingEnabledForBuild, setSigningEnabledForBuild] = useState(false);
   const isUpdateMode = selectionSource === "inventory";
@@ -1080,6 +1341,16 @@ export function GeneratorForm({
       }),
     [connectionDecision, proxyUrl, localServerPath, localApiEndpoint]
   );
+  const missingPreflightSecrets = useMemo(() => {
+    if (!preflightResult?.secrets) {
+      return [];
+    }
+    return preflightResult.secrets.filter((secret) => secret.required && !secret.has_value);
+  }, [preflightResult]);
+  const preflightValidationOk = Boolean(preflightResult?.validation?.valid);
+  const preflightReady = Boolean(preflightResult?.ready?.ready);
+  const preflightSecretsReady = missingPreflightSecrets.length === 0;
+  const preflightOk = Boolean(preflightResult) && preflightValidationOk && preflightReady && preflightSecretsReady;
 
   const selectedDeployment = useMemo(
     () => findDeploymentOption(deploymentMode),
@@ -1090,6 +1361,20 @@ export function GeneratorForm({
     [serverType]
   );
   const isCustomLocation = locationMode === "custom";
+
+  useEffect(() => {
+    if (!isBundled) {
+      setPreflightResult(null);
+      setPreflightError(null);
+      setPreflightOverride(false);
+      setPreflightSecrets({});
+      return;
+    }
+    setPreflightResult(null);
+    setPreflightError(null);
+    setPreflightOverride(false);
+    setPreflightSecrets({});
+  }, [bundleManifestPath, isBundled]);
 
   useEffect(() => {
     setScenarioLocked(selectionSource === "inventory");
@@ -1140,6 +1425,37 @@ export function GeneratorForm({
       setConnectionResult(null);
     }
   });
+
+  const runPreflight = async (overrideSecrets?: Record<string, string>) => {
+    if (!bundleManifestPath.trim()) {
+      setPreflightError("Provide bundle_manifest_path before running preflight.");
+      return;
+    }
+    setPreflightPending(true);
+    setPreflightError(null);
+    try {
+      const baseSecrets = overrideSecrets ?? preflightSecrets;
+      const filteredSecrets = Object.entries(baseSecrets)
+        .filter(([, value]) => value.trim())
+        .reduce<Record<string, string>>((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
+      const result = await runBundlePreflight({
+        bundle_manifest_path: bundleManifestPath,
+        secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+        start_services: preflightStartServices,
+        log_tail_lines: preflightStartServices ? 80 : undefined
+      });
+      setPreflightResult(result);
+      setPreflightOverride(false);
+    } catch (error) {
+      setPreflightResult(null);
+      setPreflightError((error as Error).message);
+    } finally {
+      setPreflightPending(false);
+    }
+  };
 
   const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
 
@@ -1252,6 +1568,17 @@ export function GeneratorForm({
     if (validationMessage) {
       alert(validationMessage);
       return;
+    }
+
+    if (isBundled) {
+      if (!preflightResult) {
+        alert("Run preflight validation before generating a bundled desktop app.");
+        return;
+      }
+      if (!preflightOk && !preflightOverride) {
+        alert("Preflight is not green. Fix the issues or enable override to continue.");
+        return;
+      }
     }
 
     const signingConfig = signingConfigResp?.config;
@@ -1435,6 +1762,27 @@ export function GeneratorForm({
           />
 
           {connectionSection}
+
+          {isBundled && (
+            <BundledPreflightSection
+              bundleManifestPath={bundleManifestPath}
+              preflightResult={preflightResult}
+              preflightPending={preflightPending}
+              preflightError={preflightError}
+              missingSecrets={missingPreflightSecrets}
+              secretInputs={preflightSecrets}
+              preflightOk={preflightOk}
+              preflightOverride={preflightOverride}
+              preflightStartServices={preflightStartServices}
+              preflightLogTails={preflightResult?.log_tails}
+              onOverrideChange={setPreflightOverride}
+              onStartServicesChange={setPreflightStartServices}
+              onSecretChange={(id, value) => {
+                setPreflightSecrets((prev) => ({ ...prev, [id]: value }));
+              }}
+              onRun={runPreflight}
+            />
+          )}
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
 

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -58,6 +57,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 			{"method": "GET", "path": "/api/v1/status", "description": "System status"},
 			{"method": "GET", "path": "/api/v1/templates", "description": "List templates"},
 			{"method": "POST", "path": "/api/v1/desktop/generate", "description": "Generate desktop app"},
+			{"method": "POST", "path": "/api/v1/desktop/preflight", "description": "Dry-run bundled runtime validation"},
 			{"method": "GET", "path": "/api/v1/desktop/status/{build_id}", "description": "Get build status"},
 		},
 	}
