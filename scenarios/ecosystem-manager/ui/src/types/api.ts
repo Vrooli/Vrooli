@@ -132,6 +132,7 @@ export interface AgentSettings {
   skip_permissions: boolean;
   task_timeout_minutes: number;
   idle_timeout_cap_minutes: number;
+  runner_type: 'claude-code' | 'codex' | 'opencode';
 }
 
 export interface DisplaySettings {

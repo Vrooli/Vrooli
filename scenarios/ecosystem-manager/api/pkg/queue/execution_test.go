@@ -23,21 +23,21 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 	tmpDir := t.TempDir()
 	queueDir := filepath.Join(tmpDir, "queue")
 	for _, dir := range []string{"pending", "in-progress", "completed", "failed"} {
-		if err := os.MkdirAll(filepath.Join(queueDir, dir), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(queueDir, dir), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// Create minimal prompts structure
 	promptsDir := filepath.Join(tmpDir, "prompts")
-	if err := os.MkdirAll(filepath.Join(promptsDir, "sections"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(promptsDir, "sections"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// Create minimal sections.yaml
 	sectionsYAML := `sections:
   - name: test
     content: "Test section"`
-	if err := os.WriteFile(filepath.Join(promptsDir, "sections.yaml"), []byte(sectionsYAML), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(promptsDir, "sections.yaml"), []byte(sectionsYAML), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -505,9 +505,9 @@ func TestCompleteTaskCleanupExplicit_Success(t *testing.T) {
 	}
 }
 
-// TestExecutionCleanup_EnsuresAgentRemoval tests that ensureAgentRemoved is called
-// This is the key function that prevents the "stuck active forever" bug
-func TestExecutionCleanup_EnsuresAgentRemoval(t *testing.T) {
+// TestExecutionCleanup_UnregistersExecution tests that cleanup properly unregisters execution.
+// With agent-manager integration, cleanup calls agentSvc.StopRun() via the closure.
+func TestExecutionCleanup_UnregistersExecution(t *testing.T) {
 	processor, _, _ := setupExecutionTestProcessor(t)
 
 	taskID := "test-ensure-removal"
@@ -516,12 +516,11 @@ func TestExecutionCleanup_EnsuresAgentRemoval(t *testing.T) {
 	// Register execution
 	processor.reserveExecution(taskID, agentTag, time.Now())
 
-	// Cleanup that simulates agent still existing after first cleanup attempt
+	// Cleanup simulates calling agentSvc.StopRun()
 	cleanupAttempts := 0
 	cleanup := func() {
 		cleanupAttempts++
-		// First attempt: agent might still be in registry (simulated)
-		// Second attempt: agent removed (ensureAgentRemoved retry)
+		// In real code, this calls agentSvc.StopRun(runID)
 	}
 
 	// Run cleanup

@@ -144,7 +144,7 @@ func (qp *Processor) SaveInsightReport(report InsightReport) error {
 
 	// Create report directory
 	reportDir := qp.getInsightReportDir(report.TaskID, report.ID)
-	if err := os.MkdirAll(reportDir, 0755); err != nil {
+	if err := os.MkdirAll(reportDir, 0o755); err != nil {
 		return fmt.Errorf("create insight report directory: %w", err)
 	}
 
@@ -155,14 +155,14 @@ func (qp *Processor) SaveInsightReport(report InsightReport) error {
 		return fmt.Errorf("marshal insight report: %w", err)
 	}
 
-	if err := os.WriteFile(reportPath, data, 0644); err != nil {
+	if err := os.WriteFile(reportPath, data, 0o644); err != nil {
 		return fmt.Errorf("write insight report: %w", err)
 	}
 
 	// Generate and save summary.md
 	summaryPath := filepath.Join(reportDir, "summary.md")
 	summary := generateInsightSummary(report)
-	if err := os.WriteFile(summaryPath, []byte(summary), 0644); err != nil {
+	if err := os.WriteFile(summaryPath, []byte(summary), 0o644); err != nil {
 		log.Printf("Warning: failed to write insight summary: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func (qp *Processor) SaveInsightReport(report InsightReport) error {
 		"generated_by":     report.GeneratedBy,
 	}
 	metadataData, _ := json.MarshalIndent(metadata, "", "  ")
-	os.WriteFile(metadataPath, metadataData, 0644)
+	os.WriteFile(metadataPath, metadataData, 0o644)
 
 	log.Printf("Saved insight report %s for task %s (%d patterns, %d suggestions)",
 		report.ID, report.TaskID, len(report.Patterns), len(report.Suggestions))

@@ -115,24 +115,8 @@ func (qp *Processor) ResetForResume() ResumeResetSummary {
 		summary.ActionsTaken++
 	}
 
-	externalActive := qp.getExternalActiveTaskIDs()
-	if len(externalActive) > 0 {
-		agentTags := make([]string, 0, len(externalActive))
-		for _, taskID := range slices.SortedKeys(externalActive) {
-			agentTag := makeAgentTag(taskID)
-			agentTags = append(agentTags, agentTag)
-			if err := qp.stopClaudeAgent(agentTag, 0); err != nil {
-				log.Printf("Warning: failed to stop agent %s during resume: %v", agentTag, err)
-			}
-		}
-		if err := qp.cleanupClaudeAgentRegistry(); err != nil {
-			log.Printf("Warning: cleanup failed during resume: %v", err)
-		}
-		summary.AgentsStopped = append(summary.AgentsStopped, agentTags...)
-		summary.ActionsTaken++
-	}
-
-	// After terminating agents/processes, reconcile any in-progress tasks back to pending
+	// With agent-manager integration, agent cleanup is handled by agent-manager.
+	// Just reconcile in-progress tasks back to pending.
 	externalAfter := qp.getExternalActiveTaskIDs()
 	moved := qp.reconcileInProgressTasks(externalAfter, make(map[string]struct{}))
 	if len(moved) > 0 {

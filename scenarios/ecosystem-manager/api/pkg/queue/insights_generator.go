@@ -2,16 +2,16 @@ package queue
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/agentmanager"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
@@ -330,106 +330,37 @@ func buildExecutionDetails(details []executionDetailData) string {
 	return buf.String()
 }
 
-// callClaudeCodeForInsight calls Claude Code via the resource API
+// callClaudeCodeForInsight executes insight generation via agent-manager.
 func (qp *Processor) callClaudeCodeForInsight(prompt string, taskID string) (*tasks.ClaudeCodeResponse, error) {
-	// Find claude-code resource port
-	claudeCodePort, err := qp.getResourcePort("claude-code")
+	log.Printf("Calling agent-manager for insight generation (task: %s)", taskID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// Check agent-manager availability
+	if !qp.agentSvc.IsAvailable(ctx) {
+		return nil, fmt.Errorf("agent-manager is not available")
+	}
+
+	// Execute via agent-manager insights profile
+	result, err := qp.agentSvc.ExecuteInsight(ctx, agentmanager.InsightRequest{
+		TaskID:  taskID,
+		Prompt:  prompt,
+		Timeout: 5 * time.Minute,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("get claude-code port: %w", err)
+		return nil, fmt.Errorf("agent-manager execute insight: %w", err)
 	}
 
-	// Prepare request
-	request := tasks.ClaudeCodeRequest{
-		Prompt: prompt,
-		Context: map[string]any{
-			"task_id":   taskID,
-			"operation": "insight-generation",
-		},
-	}
-
-	requestBody, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	// Call claude-code via HTTP (similar to how other resources are called)
-	url := fmt.Sprintf("http://localhost:%d/execute", claudeCodePort)
-
-	log.Printf("Calling Claude Code for insight generation (task: %s)", taskID)
-
-	// Use a simple HTTP POST (you may need to adjust based on actual claude-code API)
-	response, err := qp.httpPost(url, requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP POST to claude-code: %w", err)
-	}
-
-	// Parse response
-	var claudeResp tasks.ClaudeCodeResponse
-	if err := json.Unmarshal(response, &claudeResp); err != nil {
-		return nil, fmt.Errorf("parse claude-code response: %w", err)
-	}
-
-	return &claudeResp, nil
-}
-
-// httpPost performs an HTTP POST request
-func (qp *Processor) httpPost(url string, body []byte) ([]byte, error) {
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("HTTP POST: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	return io.ReadAll(resp.Body)
-}
-
-// getResourcePort looks up the port for a resource from the port registry
-func (qp *Processor) getResourcePort(resourceName string) (int, error) {
-	// Read the port registry file
-	portRegistryPath := os.Getenv("VROOLI_PORT_REGISTRY")
-	if portRegistryPath == "" {
-		// Default location
-		vrooliRoot := os.Getenv("VROOLI_ROOT")
-		if vrooliRoot == "" {
-			vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-		}
-		portRegistryPath = filepath.Join(vrooliRoot, "scripts", "resources", "port-registry.json")
-	}
-
-	data, err := os.ReadFile(portRegistryPath)
-	if err != nil {
-		// Fallback to known defaults if registry is unavailable
-		log.Printf("Warning: Could not read port registry (%s), using defaults: %v", portRegistryPath, err)
-		switch resourceName {
-		case "claude-code":
-			return 8100, nil
-		case "ollama":
-			return 11434, nil
-		case "postgres":
-			return 5432, nil
-		default:
-			return 0, fmt.Errorf("resource %s not found (port registry unavailable)", resourceName)
-		}
-	}
-
-	var registry map[string]any
-	if err := json.Unmarshal(data, &registry); err != nil {
-		return 0, fmt.Errorf("parse port registry: %w", err)
-	}
-
-	// Look for the resource in the registry
-	if resourceData, ok := registry[resourceName].(map[string]any); ok {
-		if port, ok := resourceData["port"].(float64); ok {
-			return int(port), nil
-		}
-	}
-
-	return 0, fmt.Errorf("resource %s not found in port registry", resourceName)
+	// Map result to ClaudeCodeResponse
+	return &tasks.ClaudeCodeResponse{
+		Success:          result.Success,
+		Message:          result.Output,
+		Output:           result.Output,
+		Error:            result.ErrorMessage,
+		RateLimited:      result.RateLimited,
+		MaxTurnsExceeded: result.MaxTurnsExceeded,
+	}, nil
 }
 
 // parseInsightResponse parses the LLM response into an InsightReport

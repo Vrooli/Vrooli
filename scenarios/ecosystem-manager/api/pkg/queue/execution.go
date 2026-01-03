@@ -6,58 +6,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/agentmanager"
 	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/internal/paths"
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/ratelimit"
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-// cleanupTaskWithVerifiedAgentRemoval is the unified cleanup handler used after task finalization
-// CRITICAL: This ensures agent is terminated AND verified removed before unregistering execution
-// to prevent the "stuck active forever" bug when MAX_TURNS or finalization fails
-//
-// keepTracking: if true and cleanup fails, execution remains tracked for reconciliation
-func (qp *Processor) cleanupTaskWithVerifiedAgentRemoval(taskID string, cleanupFunc func(), context string, keepTracking bool) {
-	if context != "" {
-		log.Printf("Task %s cleanup (%s)", taskID, context)
+// cleanupTaskWithVerifiedAgentRemoval is the unified cleanup handler used after task finalization.
+// With agent-manager integration, cleanup is simplified: the cleanup function calls agentSvc.StopRun()
+// which handles all termination logic. We just call cleanup and unregister.
+func (qp *Processor) cleanupTaskWithVerifiedAgentRemoval(taskID string, cleanupFunc func(), ctx string, keepTracking bool) {
+	if ctx != "" {
+		log.Printf("Task %s cleanup (%s)", taskID, ctx)
 	}
 
-	// Step 1: Call the cleanup function (terminates agent process)
+	// Call the cleanup function (calls agentSvc.StopRun via closure)
 	cleanupFunc()
 
-	// Step 2: CRITICAL - Verify agent was actually removed from registry
-	// This prevents race condition where reconciliation sees:
-	// - Agent still in external registry (cleanup failed)
-	// - No internal execution tracking (already unregistered)
-	// - Task file not in in-progress (finalized to completed/failed)
-	// Result: Reconciliation does nothing, agent appears stuck forever
-	agentTag := makeAgentTag(taskID)
-	if err := qp.ensureAgentRemoved(agentTag, 0, context); err != nil {
-		// Log severe warning regardless of keepTracking so we can correlate with UI state
-		systemlog.Errorf("CRITICAL: Agent %s stuck after %s - cleanup attempted: %v", agentTag, context, err)
-		log.Printf("ERROR: Agent %s stuck in registry - cleanup attempted: %v", agentTag, err)
-		if keepTracking {
-			// Keep reconciliation informed but allow the execution record to be unregistered
-			systemlog.Warnf("Execution %s flagged as cleanup-critical after %s; reconciliation may still run", taskID, context)
-		}
-	}
-
-	// Step 3: Only after cleanup is verified, unregister from execution tracking
+	// Unregister from execution tracking
 	qp.unregisterExecution(taskID)
 }
 
@@ -496,14 +472,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 				systemlog.Warnf("Metadata save failed for execution %s/%s: %v", task.ID, executionID, err)
 			}
 
-			// For MAX_TURNS, add extra verification to catch zombie agents
+			// For MAX_TURNS, give agent extra time to fully exit
 			if result.MaxTurnsExceeded {
-				agentTag := makeAgentTag(task.ID)
-				// Give agent extra time to fully exit after MAX_TURNS
 				time.Sleep(scaleDuration(MaxTurnsCleanupDelay))
-				// Double-check agent was removed - MAX_TURNS often leaves zombies
-				_ = qp.ensureAgentRemoved(agentTag, 0, "MAX_TURNS success cleanup")
 			}
+			// Cleanup via agent-manager (cleanup func calls agentSvc.StopRun)
 			qp.completeTaskCleanupExplicit(task.ID, cleanup)
 		}
 	}
@@ -572,431 +545,11 @@ func (qp *Processor) handleTaskFailureWithTiming(task *tasks.TaskItem, errorMsg 
 	return nil
 }
 
-// callClaudeCode executes Claude Code while streaming logs for real-time monitoring
+// callClaudeCode executes Claude Code via agent-manager for centralized agent orchestration.
+// This function delegates to callClaudeCodeViaAgentManager which handles all agent lifecycle management.
 func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, executionID string, startTime time.Time, timeoutDuration time.Duration, history *ExecutionHistory) (*tasks.ClaudeCodeResponse, func(), error) {
-	cleanup := func() {}
-	log.Printf("Executing Claude Code for task %s (prompt length: %d characters, timeout: %v)", task.ID, len(prompt), timeoutDuration)
-
-	// Resolve Vrooli root to ensure resource CLI works no matter where binary runs
-	vrooliRoot := qp.vrooliRoot
-	if vrooliRoot == "" {
-		vrooliRoot = paths.DetectVrooliRoot()
-	}
-
-	if err := qp.ensureValidClaudeConfig(); err != nil {
-		msg := fmt.Sprintf("Claude configuration validation failed: %v", err)
-		log.Print(msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg}, cleanup, nil
-	}
-
-	timeoutSeconds := int(timeoutDuration.Seconds())
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
-	defer cancel()
-
-	agentTag := makeAgentTag(task.ID)
-	if err := qp.ensureAgentInactive(agentTag); err != nil {
-		msg := fmt.Sprintf("Unable to start Claude agent %s: %v", agentTag, err)
-		log.Print(msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg}, cleanup, nil
-	}
-
-	execDir := qp.getExecutionDir(task.ID, executionID)
-	if err := os.MkdirAll(execDir, 0o755); err != nil {
-		log.Printf("Warning: failed to ensure execution directory %s: %v", execDir, err)
-	}
-	transcriptFile, lastMessageFile := createTranscriptPaths(execDir, agentTag, time.Now)
-
-	cmd := exec.CommandContext(ctx, ClaudeCodeResourceCommand, "run", "--tag", agentTag, "-")
-	cmd.Dir = vrooliRoot
-
-	currentSettings := settings.GetSettings()
-	skipPermissionsValue := "no"
-	if currentSettings.SkipPermissions {
-		skipPermissionsValue = "yes"
-	}
-	codexSkipValue := "false"
-	codexSkipConfirm := "false"
-	if currentSettings.SkipPermissions {
-		codexSkipValue = "true"
-		codexSkipConfirm = "true"
-	}
-
-	cmd.Env = append(os.Environ(),
-		"MAX_TURNS="+strconv.Itoa(currentSettings.MaxTurns),
-		"ALLOWED_TOOLS="+currentSettings.AllowedTools,
-		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
-		"SKIP_PERMISSIONS="+skipPermissionsValue,
-		"AGENT_TAG="+agentTag,
-		"CODEX_MAX_TURNS="+strconv.Itoa(currentSettings.MaxTurns),
-		"CODEX_ALLOWED_TOOLS="+currentSettings.AllowedTools,
-		"CODEX_TIMEOUT="+strconv.Itoa(timeoutSeconds),
-		"CODEX_SKIP_PERMISSIONS="+codexSkipValue,
-		"CODEX_SKIP_CONFIRMATIONS="+codexSkipConfirm,
-		"CODEX_AGENT_TAG="+agentTag,
-		"CODEX_TRANSCRIPT_FILE="+transcriptFile,
-		"CODEX_LAST_MESSAGE_FILE="+lastMessageFile,
-	)
-
-	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds (%dm)",
-		currentSettings.MaxTurns, currentSettings.AllowedTools, currentSettings.SkipPermissions, timeoutSeconds, currentSettings.TaskTimeout)
-	log.Printf("Working directory: %s", cmd.Dir)
-
-	cmd.Stdin = strings.NewReader(prompt)
-
-	// Ensure the agent runs in its own process group so we can terminate it cleanly
-	SetProcessGroup(cmd)
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Printf("Failed to obtain stdout pipe for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stdout pipe: %v", err)}, cleanup, nil
-	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		log.Printf("Failed to obtain stderr pipe for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stderr pipe: %v", err)}, cleanup, nil
-	}
-
-	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to start Claude Code for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code: %v", err)}, cleanup, nil
-	}
-
-	qp.registerExecution(task.ID, agentTag, cmd, startTime)
-
-	// Cleanup function handles agent termination for error/timeout cases
-	// Delegates to terminateAgent which provides comprehensive cleanup including:
-	// - Stop via CLI, registry cleanup, process termination, shutdown wait, verification
-	cleanup = func() {
-		// Safely extract PID - handle case where cmd.Process might be nil
-		pid := 0
-		if cmd != nil && cmd.Process != nil {
-			pid = cmd.Process.Pid
-		}
-
-		// Use canonical termination function for all cleanup
-		// terminateAgent handles both alive and dead processes comprehensively
-		if err := qp.terminateAgent(task.ID, agentTag, pid); err != nil {
-			// terminateAgent already does full cleanup + verification
-			// If it returns an error, the agent is stuck in registry
-			// ensureAgentRemoved provides retry logic with exponential backoff
-			systemlog.Warnf("Agent termination failed for task %s, attempting forced removal: %v", task.ID, err)
-			log.Printf("Warning: terminateAgent failed for task %s, using ensureAgentRemoved for retry: %v", task.ID, err)
-			if retryErr := qp.ensureAgentRemoved(agentTag, pid, "terminateAgent failure - forced retry"); retryErr != nil {
-				// Final failure - log critically as this means agent is stuck
-				systemlog.Errorf("CRITICAL: Failed to remove agent %s after all cleanup attempts: %v", agentTag, retryErr)
-				log.Printf("ERROR: Agent %s remains stuck after all cleanup attempts - manual intervention may be required", agentTag)
-			}
-		}
-	}
-
-	// Safe PID access for logging/tracking
-	pid := 0
-	if cmd.Process != nil {
-		pid = cmd.Process.Pid
-	}
-
-	// Update execution history with agent and process info
-	if history != nil {
-		history.AgentTag = agentTag
-		history.ProcessID = pid
-	}
-
-	qp.initTaskLogBuffer(task.ID, agentTag, pid)
-	completed := false
-	defer func() {
-		qp.finalizeTaskLogs(task.ID, completed)
-	}()
-
-	qp.appendTaskLog(task.ID, agentTag, "stdout", fmt.Sprintf("▶ Claude Code agent %s started (pid %d)", agentTag, pid))
-	qp.broadcastUpdate("task_started", map[string]any{
-		"task_id":    task.ID,
-		"agent_id":   agentTag,
-		"process_id": pid,
-		"start_time": timeutil.NowRFC3339(),
-	})
-
-	task.CurrentPhase = "executing_claude"
-	task.StartedAt = startTime.Format(time.RFC3339)
-	// Use SkipCleanup for intermediate phase update (performance optimization)
-	if err := qp.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
-		log.Printf("Warning: failed to persist in-progress task %s: %v", task.ID, err)
-	}
-	qp.broadcastUpdate("task_executing", task)
-
-	var stdoutBuilder, stderrBuilder, combinedBuilder strings.Builder
-	var combinedMu sync.Mutex
-	var lastActivity int64
-	atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
-
-	idleCap := time.Duration(currentSettings.IdleTimeoutCap) * time.Minute
-	if idleCap <= 0 {
-		idleCap = timeoutDuration
-	}
-	idleLimit := time.Duration(math.Min(float64(timeoutDuration)*MaxIdleTimeoutFactor, float64(idleCap)))
-	if idleLimit > timeoutDuration {
-		idleLimit = timeoutDuration
-	}
-	if idleLimit < MinIdleTimeout {
-		idleLimit = MinIdleTimeout
-	}
-	idleLimitRounded := idleLimit.Round(time.Second)
-	idleCapRounded := idleCap.Round(time.Second)
-	if idleCapRounded == 0 {
-		idleCapRounded = idleCap
-	}
-	var idleTriggered int32
-
-	readsDone := make(chan struct{})
-	stopWatch := make(chan struct{})
-	var stopWatchOnce sync.Once
-	defer stopWatchOnce.Do(func() {
-		close(stopWatch)
-	})
-
-	go func() {
-		ticker := time.NewTicker(IdleCheckInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-readsDone:
-				return
-			case <-stopWatch:
-				return
-			case <-ticker.C:
-				last := time.Unix(0, atomic.LoadInt64(&lastActivity))
-				if time.Since(last) > idleLimit {
-					atomic.StoreInt32(&idleTriggered, 1)
-					message := fmt.Sprintf("⚠️  No Claude output for %v (idle cap %v). Cancelling execution.", idleLimitRounded, idleCapRounded)
-					qp.appendTaskLog(task.ID, agentTag, "stderr", message)
-					cancel()
-					return
-				}
-			}
-		}
-	}()
-
-	streamPipe := func(stream string, reader io.ReadCloser) {
-		defer reader.Close()
-		scanner := bufio.NewScanner(reader)
-		buf := make([]byte, ScannerBufferSize)
-		scanner.Buffer(buf, ScannerMaxTokenSize)
-		for scanner.Scan() {
-			line := scanner.Text()
-			qp.appendTaskLog(task.ID, agentTag, stream, line)
-			atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
-			combinedMu.Lock()
-			if stream == "stderr" {
-				stderrBuilder.WriteString(line)
-				stderrBuilder.WriteByte('\n')
-			} else {
-				stdoutBuilder.WriteString(line)
-				stdoutBuilder.WriteByte('\n')
-			}
-			combinedBuilder.WriteString(line)
-			combinedBuilder.WriteByte('\n')
-			combinedMu.Unlock()
-		}
-		if scanErr := scanner.Err(); scanErr != nil && scanErr != io.EOF {
-			log.Printf("Error reading %s for task %s: %v", stream, task.ID, scanErr)
-		}
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() { defer wg.Done(); streamPipe("stdout", stdoutPipe) }()
-	go func() { defer wg.Done(); streamPipe("stderr", stderrPipe) }()
-
-	go func() {
-		wg.Wait()
-		close(readsDone)
-	}()
-
-	// Wait for pipes to finish reading before calling Wait()
-	// This prevents "file already closed" races
-	// CRITICAL FIX: Add timeout protection to prevent hanging when pipes don't close cleanly
-	waitErrChan := make(chan error, 1)
-	pipesDoneChan := make(chan struct{})
-
-	go func() {
-		<-readsDone
-		waitErrChan <- cmd.Wait()
-		close(waitErrChan)
-	}()
-
-	go func() {
-		wg.Wait() // Wait for pipes to finish reading
-		close(pipesDoneChan)
-	}()
-
-	// Wait for cmd.Wait() to complete first
-	var waitErr error
-	select {
-	case waitErr = <-waitErrChan:
-		// Process exited, now wait for pipes with safety timeout
-		select {
-		case <-pipesDoneChan:
-			// Pipes finished cleanly
-		case <-time.After(PipeClosureTimeout):
-			// Pipes hung - force continue to prevent indefinite hang
-			log.Printf("⚠️  Pipe readers hung for task %s after %v, forcing continue", task.ID, PipeClosureTimeout)
-			systemlog.Warnf("Pipe readers hung for task %s - forcing execution completion", task.ID)
-		}
-	case <-ctx.Done():
-		// Timeout or cancellation occurred before process exit
-		waitErr = ctx.Err()
-		// Still wait briefly for pipes to drain
-		select {
-		case <-pipesDoneChan:
-		case <-time.After(time.Second):
-		}
-	}
-
-	stdoutOutput := stdoutBuilder.String()
-	stderrOutput := stderrBuilder.String()
-	combinedOutput := combinedBuilder.String()
-	if strings.TrimSpace(combinedOutput) == "" && strings.TrimSpace(stdoutOutput) == "" && strings.TrimSpace(stderrOutput) == "" {
-		combinedOutput = "(no output captured from Claude Code)"
-	}
-	stopWatchOnce.Do(func() {
-		close(stopWatch)
-	})
-
-	finalMessage := extractFinalAgentMessage(combinedOutput)
-	if msg := readLastMessageFile(lastMessageFile); msg != "" {
-		finalMessage = msg
-	}
-	persistArtifacts := func(res *tasks.ClaudeCodeResponse) *tasks.ClaudeCodeResponse {
-		cleanRel, lastRel, transcriptRel := qp.saveCleanOutputs(task.ID, executionID, execDir, prompt, combinedOutput, finalMessage, transcriptFile, lastMessageFile)
-		if history != nil {
-			history.LastMessagePath = lastRel
-			history.TranscriptPath = transcriptRel
-			history.CleanOutputPath = cleanRel
-		}
-		res.FinalMessage = finalMessage
-		res.LastMessagePath = lastRel
-		res.TranscriptPath = transcriptRel
-		res.CleanOutputPath = cleanRel
-		return res
-	}
-
-	ctxErr := ctx.Err()
-
-	// Timeout takes precedence regardless of wait error
-	if ctxErr == context.DeadlineExceeded {
-		// Mark execution as timed out for observability
-		qp.executionsMu.Lock()
-		if execState, exists := qp.executions[task.ID]; exists {
-			execState.timedOut = true
-		}
-		qp.executionsMu.Unlock()
-
-		actualRuntime := time.Since(startTime).Round(time.Second)
-		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
-		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}), cleanup, nil
-	}
-
-	if waitErr != nil {
-		if ctxErr == context.Canceled {
-			if strings.Contains(combinedOutput, "## Task Completion Summary") || strings.Contains(combinedOutput, "## Summary") {
-				qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Idle watchdog cancelled context, but Claude returned a summary. Treating as success.")
-				waitErr = nil
-				// Let execution continue as a success path below
-			}
-		}
-
-		if waitErr != nil && atomic.LoadInt32(&idleTriggered) == 1 {
-			idleMsg := fmt.Sprintf("IDLE TIMEOUT: No Claude output for %v (idle cap %v). The watchdog cancelled execution. Increase the Idle Timeout Cap in Settings or emit periodic heartbeats during long operations.", idleLimitRounded, idleCapRounded)
-			qp.appendTaskLog(task.ID, agentTag, "stderr", idleMsg)
-			return persistArtifacts(&tasks.ClaudeCodeResponse{
-				Success:     false,
-				Error:       idleMsg,
-				Output:      combinedOutput,
-				IdleTimeout: true,
-			}), cleanup, nil
-		}
-
-		if waitErr != nil {
-			if detectMaxTurnsExceeded(combinedOutput) {
-				maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
-				qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
-				return persistArtifacts(&tasks.ClaudeCodeResponse{
-					Success:          false,
-					Error:            maxTurnsMsg,
-					Output:           combinedOutput,
-					MaxTurnsExceeded: true,
-				}), cleanup, nil
-			}
-
-			if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns, time.Since(startTime)); handled {
-				return persistArtifacts(response), cleanup, nil
-			}
-
-			log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
-			return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}), cleanup, nil
-		}
-	}
-
-	if ctxErr == context.Canceled {
-		if atomic.LoadInt32(&idleTriggered) == 1 {
-			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("INFO: Claude process completed after idle watchdog cancellation (limit %v, cap %v)", idleLimitRounded, idleCapRounded))
-		} else {
-			qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Claude process completed after cancellation signal")
-		}
-	}
-
-	elapsed := time.Since(startTime)
-	detection := ratelimit.DetectFromError(waitErr, combinedOutput, elapsed)
-	if detection.IsRateLimited {
-		// Only trigger rate limit handling if within detection window OR exit code was 429
-		if !detection.CheckWindow || elapsed <= ratelimit.DetectionWindow {
-			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", detection.RetryAfter))
-			return persistArtifacts(&tasks.ClaudeCodeResponse{
-				Success:     false,
-				Error:       "RATE_LIMIT: API rate limit reached",
-				RateLimited: true,
-				RetryAfter:  detection.RetryAfter,
-				Output:      combinedOutput,
-			}), cleanup, nil
-		}
-	}
-
-	if detectMaxTurnsExceeded(combinedOutput) {
-		maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
-		qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
-		return persistArtifacts(&tasks.ClaudeCodeResponse{
-			Success:          false,
-			Error:            maxTurnsMsg,
-			Output:           combinedOutput,
-			MaxTurnsExceeded: true,
-		}), cleanup, nil
-	}
-
-	if strings.Contains(strings.ToLower(combinedOutput), "error:") {
-		msg := "Claude execution reported an error – review output for details."
-		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return persistArtifacts(&tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}), cleanup, nil
-	}
-
-	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(combinedOutput))
-	qp.appendTaskLog(task.ID, agentTag, "stdout", "✅ Claude Code execution finished")
-
-	task.CurrentPhase = "claude_completed"
-	// Use SkipCleanup for intermediate phase update (performance optimization)
-	if err := qp.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
-		log.Printf("Warning: failed to persist claude completion for task %s: %v", task.ID, err)
-	}
-	qp.broadcastUpdate("claude_execution_complete", task)
-
-	completed = true
-	return persistArtifacts(&tasks.ClaudeCodeResponse{
-		Success: true,
-		Message: "Task completed successfully",
-		Output:  combinedOutput,
-	}), cleanup, nil
+	// Delegate to agent-manager for execution
+	return qp.callClaudeCodeViaAgentManager(prompt, task, executionID, startTime, timeoutDuration, history)
 }
 
 func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int, elapsed time.Duration) (*tasks.ClaudeCodeResponse, bool) {
@@ -1038,6 +591,266 @@ func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, tas
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
+}
+
+// callClaudeCodeViaAgentManager executes a task using the agent-manager service.
+// This is the preferred execution path that delegates agent lifecycle management to agent-manager.
+func (qp *Processor) callClaudeCodeViaAgentManager(prompt string, task tasks.TaskItem, executionID string, startTime time.Time, timeoutDuration time.Duration, history *ExecutionHistory) (*tasks.ClaudeCodeResponse, func(), error) {
+	cleanup := func() {}
+	agentTag := makeAgentTag(task.ID)
+
+	log.Printf("Executing task %s via agent-manager (prompt length: %d characters, timeout: %v)", task.ID, len(prompt), timeoutDuration)
+
+	// Check agent-manager availability
+	ctx := context.Background()
+	if !qp.agentSvc.IsAvailable(ctx) {
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   "agent-manager is not available",
+		}, cleanup, fmt.Errorf("agent-manager not available")
+	}
+
+	// Create execution directory for artifacts
+	execDir := qp.getExecutionDir(task.ID, executionID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		log.Printf("Warning: failed to ensure execution directory %s: %v", execDir, err)
+	}
+
+	// Broadcast task started
+	qp.broadcastUpdate("task_started", map[string]any{
+		"task_id":    task.ID,
+		"agent_id":   agentTag,
+		"start_time": timeutil.NowRFC3339(),
+	})
+
+	// Update task phase
+	task.CurrentPhase = "executing_claude"
+	task.StartedAt = startTime.Format(time.RFC3339)
+	if err := qp.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
+		log.Printf("Warning: failed to persist in-progress task %s: %v", task.ID, err)
+	}
+	qp.broadcastUpdate("task_executing", task)
+
+	// Start async execution via agent-manager
+	runID, err := qp.agentSvc.ExecuteTaskAsync(ctx, agentmanager.ExecuteRequest{
+		Task:    task,
+		Prompt:  prompt,
+		Timeout: timeoutDuration,
+		Tag:     agentTag,
+	})
+	if err != nil {
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to start agent-manager run: %v", err),
+		}, cleanup, nil
+	}
+
+	// Register execution for tracking
+	qp.registerExecutionByRunID(task.ID, agentTag, runID, startTime)
+	qp.initTaskLogBuffer(task.ID, agentTag, 0)
+
+	// Cleanup function stops the run via agent-manager
+	cleanup = func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := qp.agentSvc.StopRun(stopCtx, runID); err != nil {
+			log.Printf("Warning: failed to stop agent-manager run %s: %v", runID, err)
+		}
+		qp.unregisterExecution(task.ID)
+	}
+
+	// Stream events in background
+	var outputBuilder strings.Builder
+	eventsDone := make(chan struct{})
+	go qp.streamAgentManagerEvents(ctx, runID, task.ID, agentTag, &outputBuilder, eventsDone)
+
+	// Wait for run to complete
+	waitCtx, waitCancel := context.WithTimeout(ctx, timeoutDuration+30*time.Second)
+	defer waitCancel()
+
+	completedRun, err := qp.agentSvc.WaitForRun(waitCtx, runID)
+	close(eventsDone) // Signal event streaming to stop
+
+	if err != nil {
+		if waitCtx.Err() == context.DeadlineExceeded {
+			msg := fmt.Sprintf("TIMEOUT: Task execution exceeded %v limit", timeoutDuration)
+			qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
+			return &tasks.ClaudeCodeResponse{
+				Success: false,
+				Error:   msg,
+				Output:  outputBuilder.String(),
+			}, cleanup, nil
+		}
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed waiting for agent-manager run: %v", err),
+			Output:  outputBuilder.String(),
+		}, cleanup, nil
+	}
+
+	// Map agent-manager result to ClaudeCodeResponse
+	response := qp.mapAgentManagerResult(completedRun, task, agentTag, outputBuilder.String(), history)
+
+	// Finalize logs
+	qp.finalizeTaskLogs(task.ID, response.Success)
+
+	// Update task phase
+	if response.Success {
+		task.CurrentPhase = "claude_completed"
+		qp.broadcastUpdate("claude_execution_complete", task)
+	}
+
+	return response, cleanup, nil
+}
+
+// registerExecutionByRunID registers a task execution using agent-manager run ID instead of exec.Cmd.
+func (qp *Processor) registerExecutionByRunID(taskID, agentTag, runID string, started time.Time) {
+	qp.executionsMu.Lock()
+	defer qp.executionsMu.Unlock()
+
+	currentSettings := settings.GetSettings()
+	timeout := time.Duration(currentSettings.TaskTimeout) * time.Minute
+
+	qp.executions[taskID] = &taskExecution{
+		taskID:    taskID,
+		agentTag:  agentTag,
+		runID:     runID, // Store for StopRun calls
+		cmd:       nil,   // No local process - managed by agent-manager
+		started:   started,
+		timeoutAt: started.Add(timeout),
+	}
+}
+
+// streamAgentManagerEvents polls for agent-manager events and forwards them to the log system.
+func (qp *Processor) streamAgentManagerEvents(ctx context.Context, runID, taskID, agentTag string, outputBuilder *strings.Builder, done <-chan struct{}) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastSeq int64
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-done:
+			return
+		case <-ticker.C:
+			events, err := qp.agentSvc.GetRunEvents(ctx, runID, lastSeq)
+			if err != nil {
+				continue
+			}
+
+			for _, evt := range events {
+				qp.handleAgentManagerEvent(taskID, agentTag, evt, outputBuilder)
+				if evt.Sequence > lastSeq {
+					lastSeq = evt.Sequence
+				}
+			}
+		}
+	}
+}
+
+// handleAgentManagerEvent processes a single agent-manager event.
+func (qp *Processor) handleAgentManagerEvent(taskID, agentTag string, evt *domainpb.RunEvent, outputBuilder *strings.Builder) {
+	switch evt.EventType {
+	case domainpb.RunEventType_RUN_EVENT_TYPE_LOG:
+		if evt.GetLog() != nil {
+			msg := evt.GetLog().Message
+			qp.appendTaskLog(taskID, agentTag, "stdout", msg)
+			outputBuilder.WriteString(msg)
+			outputBuilder.WriteByte('\n')
+		}
+
+	case domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE:
+		if evt.GetMessage() != nil {
+			msg := evt.GetMessage().Content
+			qp.appendTaskLog(taskID, agentTag, "stdout", msg)
+			outputBuilder.WriteString(msg)
+			outputBuilder.WriteByte('\n')
+		}
+
+	case domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL:
+		if evt.GetToolCall() != nil {
+			tc := evt.GetToolCall()
+			msg := fmt.Sprintf("[Tool: %s]", tc.ToolName)
+			qp.appendTaskLog(taskID, agentTag, "stdout", msg)
+			qp.broadcastUpdate("tool_call", map[string]any{
+				"task_id": taskID,
+				"tool":    tc.ToolName,
+			})
+		}
+
+	case domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT:
+		if evt.GetToolResult() != nil {
+			tr := evt.GetToolResult()
+			if !tr.Success && tr.Error != "" {
+				qp.appendTaskLog(taskID, agentTag, "stderr", tr.Error)
+			}
+		}
+
+	case domainpb.RunEventType_RUN_EVENT_TYPE_ERROR:
+		if evt.GetError() != nil {
+			qp.appendTaskLog(taskID, agentTag, "stderr", evt.GetError().Message)
+		}
+
+	case domainpb.RunEventType_RUN_EVENT_TYPE_STATUS:
+		if evt.GetStatus() != nil {
+			s := evt.GetStatus()
+			msg := fmt.Sprintf("Status: %s -> %s", s.OldStatus, s.NewStatus)
+			qp.appendTaskLog(taskID, agentTag, "stdout", msg)
+		}
+	}
+}
+
+// mapAgentManagerResult converts agent-manager Run result to ClaudeCodeResponse.
+func (qp *Processor) mapAgentManagerResult(run *domainpb.Run, task tasks.TaskItem, agentTag, output string, history *ExecutionHistory) *tasks.ClaudeCodeResponse {
+	currentSettings := settings.GetSettings()
+
+	response := &tasks.ClaudeCodeResponse{
+		Success: run.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		Output:  output,
+	}
+
+	if run.Summary != nil {
+		response.Message = run.Summary.Description
+		if run.Summary.Description != "" {
+			response.FinalMessage = run.Summary.Description
+		}
+	}
+
+	if run.ErrorMsg != "" {
+		response.Error = run.ErrorMsg
+		lowerErr := strings.ToLower(run.ErrorMsg)
+
+		// Detect rate limiting
+		if strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "429") {
+			response.RateLimited = true
+			response.RetryAfter = DefaultRateLimitRetry
+		}
+
+		// Detect timeout
+		if strings.Contains(lowerErr, "timeout") {
+			response.Error = fmt.Sprintf("TIMEOUT: Task execution exceeded limit. %s", run.ErrorMsg)
+		}
+	}
+
+	// Detect MAX_TURNS from error message or output
+	if detectMaxTurnsExceeded(run.ErrorMsg) || detectMaxTurnsExceeded(output) {
+		response.MaxTurnsExceeded = true
+		response.Success = false
+		response.Error = fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", response.Error)
+	}
+
+	// Update history if provided
+	if history != nil {
+		if run.StartedAt != nil && run.EndedAt != nil {
+			duration := run.EndedAt.AsTime().Sub(run.StartedAt.AsTime())
+			history.Duration = duration.String()
+		}
+	}
+
+	return response
 }
 
 func createTranscriptPaths(execDir, agentTag string, now func() time.Time) (string, string) {

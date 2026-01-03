@@ -24,7 +24,7 @@ func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	}
 
 	queueDir := filepath.Join(tmpDir, "queue")
-	if err := os.MkdirAll(queueDir, 0755); err != nil {
+	if err := os.MkdirAll(queueDir, 0o755); err != nil {
 		t.Fatalf("Failed to create queue dir: %v", err)
 	}
 
@@ -94,11 +94,11 @@ func TestSaveOutputToHistory(t *testing.T) {
 
 	// Create a fake log file in the old location (simulating finalizeTaskLogs)
 	oldLogPath := filepath.Join(processor.taskLogsDir, taskID+".log")
-	if err := os.MkdirAll(filepath.Dir(oldLogPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(oldLogPath), 0o755); err != nil {
 		t.Fatalf("Failed to create log dir: %v", err)
 	}
 	logContent := "Task execution output\nLine 2\nLine 3"
-	if err := os.WriteFile(oldLogPath, []byte(logContent), 0644); err != nil {
+	if err := os.WriteFile(oldLogPath, []byte(logContent), 0o644); err != nil {
 		t.Fatalf("Failed to create fake log: %v", err)
 	}
 

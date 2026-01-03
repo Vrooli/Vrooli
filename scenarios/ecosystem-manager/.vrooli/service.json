@@ -268,6 +268,12 @@
       }
     },
     "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Centralized agent orchestration for task execution"
+      },
       "scenario-completeness-scoring": {
         "type": "scenario",
         "enabled": true,

@@ -51,6 +51,9 @@ const (
 	MaxRecyclerFailureThreshold    = 10
 )
 
+// Valid runner types
+var ValidRunnerTypes = []string{"claude-code", "codex", "opencode"}
+
 // Default settings values
 const (
 	DefaultSlots           = 1
@@ -62,6 +65,7 @@ const (
 	DefaultSkipPermissions = true
 	DefaultActive          = false
 	DefaultCondensedMode   = false
+	DefaultRunnerType      = "claude-code"
 
 	// Recycler defaults
 	DefaultRecyclerEnabledFor          = "off"

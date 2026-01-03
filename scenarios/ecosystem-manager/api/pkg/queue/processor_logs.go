@@ -137,7 +137,7 @@ func (qp *Processor) writeTaskLogsToFile(taskID string, buffer *TaskLogBuffer) e
 		return nil
 	}
 
-	if err := os.MkdirAll(qp.taskLogsDir, 0755); err != nil {
+	if err := os.MkdirAll(qp.taskLogsDir, 0o755); err != nil {
 		return err
 	}
 

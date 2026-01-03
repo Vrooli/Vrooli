@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/agentmanager"
 	"github.com/ecosystem-manager/api/pkg/internal/paths"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/recycler"
@@ -22,7 +23,8 @@ import (
 type taskExecution struct {
 	taskID    string
 	agentTag  string
-	cmd       *exec.Cmd
+	runID     string    // agent-manager run ID for StopRun calls
+	cmd       *exec.Cmd // Deprecated: only used for legacy fallback, nil when using agent-manager
 	started   time.Time
 	timeoutAt time.Time // When this execution will timeout
 	timedOut  bool      // Whether timeout has already occurred
@@ -33,6 +35,41 @@ func (te *taskExecution) pid() int {
 		return 0
 	}
 	return te.cmd.Process.Pid
+}
+
+// getRunID returns the agent-manager run ID, empty if not set
+func (te *taskExecution) getRunID() string {
+	if te == nil {
+		return ""
+	}
+	return te.runID
+}
+
+// getRunIDForTask returns the agent-manager run ID for a task, empty if not found
+func (qp *Processor) getRunIDForTask(taskID string) string {
+	qp.executionsMu.RLock()
+	defer qp.executionsMu.RUnlock()
+	if exec, ok := qp.executions[taskID]; ok {
+		return exec.getRunID()
+	}
+	return ""
+}
+
+// stopRunViaAgentManager stops a run using agent-manager by task ID
+// Returns nil if run was successfully stopped or wasn't tracked
+func (qp *Processor) stopRunViaAgentManager(taskID string) error {
+	runID := qp.getRunIDForTask(taskID)
+	if runID == "" {
+		return nil // No run tracked, nothing to stop
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := qp.agentSvc.StopRun(ctx, runID); err != nil {
+		return fmt.Errorf("stop run %s: %w", runID, err)
+	}
+	return nil
 }
 
 // isTimedOut returns true if the execution has exceeded its timeout
@@ -102,6 +139,9 @@ type Processor struct {
 	// Centralized task coordinator for lifecycle + side effects orchestration.
 	coord *tasks.Coordinator
 
+	// Agent manager service for delegating agent execution
+	agentSvc *agentmanager.AgentService
+
 	// Lifecycle control for background workers
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -133,9 +173,26 @@ func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcas
 	processor.vrooliRoot = paths.DetectVrooliRoot()
 	processor.scenarioRoot = filepath.Dir(storage.QueueDir)
 	processor.taskLogsDir = filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
-	if err := os.MkdirAll(processor.taskLogsDir, 0755); err != nil {
+	if err := os.MkdirAll(processor.taskLogsDir, 0o755); err != nil {
 		log.Printf("Warning: unable to create task logs directory %s: %v", processor.taskLogsDir, err)
 	}
+
+	// Initialize agent-manager service
+	processor.agentSvc = agentmanager.NewAgentService(agentmanager.Config{
+		TaskProfileKey:     "ecosystem-manager-tasks",
+		InsightsProfileKey: "ecosystem-manager-insights",
+		Timeout:            30 * time.Second,
+		VrooliRoot:         processor.vrooliRoot,
+	})
+
+	// Initialize agent profiles (non-blocking, log warnings)
+	go func() {
+		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := processor.agentSvc.Initialize(initCtx); err != nil {
+			log.Printf("[agent-manager] Warning: failed to initialize profiles: %v", err)
+		}
+	}()
 
 	// Clean up orphaned processes
 	processor.cleanupOrphanedProcesses()
@@ -196,15 +253,8 @@ func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus stri
 	}
 
 	agentIdentifier := makeAgentTag(task.ID)
-	if externalActive != nil {
-		if _, active := externalActive[task.ID]; active {
-			log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", task.ID)
-			if err := qp.stopClaudeAgent(agentIdentifier, 0); err != nil {
-				log.Printf("Warning: failed to stop lingering agent %s: %v", agentIdentifier, err)
-			}
-			delete(externalActive, task.ID)
-		}
-	}
+	// Note: Lingering agent cleanup is handled by agent-manager.
+	// If a task was previously running, agent-manager will handle the duplicate tag.
 
 	// Reserve execution slot immediately so reconciliation won't recycle the task
 	qp.reserveExecution(task.ID, agentIdentifier, time.Now())
@@ -729,30 +779,26 @@ func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[str
 // forceTerminateTimedOutTask forcibly terminates a task that exceeded its timeout
 // This is called by the watchdog when it detects a task stuck in executions after timeout
 func (qp *Processor) forceTerminateTimedOutTask(taskID, agentTag string, pid int) {
-	log.Printf("⏰ WATCHDOG: Force terminating timed-out task %s (agent: %s, pid: %d)", taskID, agentTag, pid)
+	log.Printf("WATCHDOG: Force terminating timed-out task %s (agent: %s)", taskID, agentTag)
 	systemlog.Warnf("Timeout watchdog forcing termination of task %s", taskID)
 
-	// Resolve agent tag if not available
-	if agentTag == "" {
-		agentTag = makeAgentTag(taskID)
+	// Stop via agent-manager (primary path)
+	if err := qp.stopRunViaAgentManager(taskID); err != nil {
+		log.Printf("WARNING: Watchdog agent-manager stop failed for task %s: %v", taskID, err)
+		systemlog.Warnf("Watchdog agent-manager stop failed for %s: %v", taskID, err)
 	}
 
-	// Terminate agent using canonical termination function
-	if err := qp.terminateAgent(taskID, agentTag, pid); err != nil {
-		log.Printf("WARNING: Watchdog termination failed for task %s: %v", taskID, err)
-		systemlog.Errorf("Watchdog failed to terminate agent %s: %v", agentTag, err)
-	}
-
-	// Verify agent removed, retry if needed
-	if err := qp.ensureAgentRemoved(agentTag, pid, "watchdog timeout enforcement"); err != nil {
-		// Keep execution tracked if removal failed - reconciliation might help later
-		systemlog.Errorf("CRITICAL: Watchdog failed to remove agent %s after timeout - keeping tracked: %v", agentTag, err)
-		log.Printf("ERROR: Watchdog unable to remove timed-out agent %s - execution remains tracked: %v", agentTag, err)
-		return
-	}
-
-	// Successfully cleaned up, safe to unregister
+	// Unregister execution
 	qp.unregisterExecution(taskID)
-	log.Printf("✅ WATCHDOG: Successfully terminated and cleaned up timed-out task %s", taskID)
+	log.Printf("WATCHDOG: Terminated and unregistered timed-out task %s", taskID)
 	systemlog.Infof("Watchdog successfully terminated timed-out task %s", taskID)
+}
+
+// UpdateAgentProfiles propagates current settings to agent-manager profiles.
+// This should be called when agent-related settings change (runner_type, max_turns, etc.)
+func (qp *Processor) UpdateAgentProfiles(ctx context.Context) error {
+	if qp.agentSvc == nil {
+		return nil
+	}
+	return qp.agentSvc.UpdateProfiles(ctx)
 }

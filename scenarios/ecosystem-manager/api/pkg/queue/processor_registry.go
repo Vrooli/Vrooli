@@ -27,11 +27,11 @@ var (
 type ProcessInfo struct {
 	TaskID          string `json:"task_id"`
 	ProcessID       int    `json:"process_id"`
-	ProcessType     string `json:"process_type"`             // "task" or "insight"
-	TaskTitle       string `json:"task_title,omitempty"`     // Optional task title for UI display
-	StartTime       string `json:"start_time"`               // RFC3339 timestamp
-	Duration        string `json:"duration"`                 // Human-readable (e.g., "5m30s")
-	DurationSeconds int64  `json:"duration_seconds"`         // Machine-readable seconds
+	ProcessType     string `json:"process_type"`         // "task" or "insight"
+	TaskTitle       string `json:"task_title,omitempty"` // Optional task title for UI display
+	StartTime       string `json:"start_time"`           // RFC3339 timestamp
+	Duration        string `json:"duration"`             // Human-readable (e.g., "5m30s")
+	DurationSeconds int64  `json:"duration_seconds"`     // Machine-readable seconds
 	AgentID         string `json:"agent_id,omitempty"`
 	TimeoutAt       string `json:"timeout_at,omitempty"`     // RFC3339 timestamp when timeout occurs
 	TimedOut        bool   `json:"timed_out"`                // Whether task has exceeded timeout
@@ -232,35 +232,16 @@ func (qp *Processor) IsTaskRunning(taskID string) bool {
 	return exists
 }
 
-// getInternalRunningTaskIDs returns task IDs tracked in the internal execution registry
-func (qp *Processor) getInternalRunningTaskIDs() map[string]struct{} {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-
-	ids := make(map[string]struct{}, len(qp.executions))
-	for taskID := range qp.executions {
-		ids[taskID] = struct{}{}
-	}
-	return ids
-}
-
-// TerminateRunningProcess terminates a running task process
+// TerminateRunningProcess terminates a running task process via agent-manager
 func (qp *Processor) TerminateRunningProcess(taskID string) error {
-	exec, exists := qp.getExecution(taskID)
+	_, exists := qp.getExecution(taskID)
 	if !exists {
 		return fmt.Errorf("no running process found for task %s", taskID)
 	}
 
-	agentIdentifier := exec.agentTag
-	if agentIdentifier == "" {
-		agentIdentifier = makeAgentTag(taskID)
-	}
-
-	pid := exec.pid()
-
-	// Use canonical termination function for consistency
-	if err := qp.terminateAgent(taskID, agentIdentifier, pid); err != nil {
-		log.Printf("Warning: agent termination reported error for task %s: %v", taskID, err)
+	// Stop via agent-manager
+	if err := qp.stopRunViaAgentManager(taskID); err != nil {
+		log.Printf("Warning: agent-manager stop reported error for task %s: %v", taskID, err)
 		// Continue with cleanup even if termination had issues
 	}
 

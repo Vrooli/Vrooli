@@ -68,12 +68,12 @@ func createExecutionID() string {
 // savePromptToHistory stores the assembled prompt in execution history
 func (qp *Processor) savePromptToHistory(taskID, executionID, prompt string) (string, error) {
 	execDir := qp.getExecutionDir(taskID, executionID)
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return "", fmt.Errorf("create execution directory: %w", err)
 	}
 
 	promptPath := filepath.Join(execDir, "prompt.txt")
-	if err := os.WriteFile(promptPath, []byte(prompt), 0644); err != nil {
+	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
 		return "", fmt.Errorf("write prompt file: %w", err)
 	}
 
@@ -85,7 +85,7 @@ func (qp *Processor) savePromptToHistory(taskID, executionID, prompt string) (st
 // saveExecutionMetadata persists execution metadata to disk
 func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
 	execDir := qp.getExecutionDir(history.TaskID, history.ExecutionID)
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return fmt.Errorf("create execution directory: %w", err)
 	}
 
@@ -95,7 +95,7 @@ func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
 		return fmt.Errorf("marshal metadata: %w", err)
 	}
 
-	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
+	if err := os.WriteFile(metadataPath, data, 0o644); err != nil {
 		return fmt.Errorf("write metadata file: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
 // saveOutputToHistory moves the execution log to the history directory
 func (qp *Processor) saveOutputToHistory(taskID, executionID string) (string, error) {
 	execDir := qp.getExecutionDir(taskID, executionID)
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return "", fmt.Errorf("create execution directory: %w", err)
 	}
 
@@ -125,7 +125,7 @@ func (qp *Processor) saveOutputToHistory(taskID, executionID string) (string, er
 		// Read and rewrite to new location (can't rename across directories safely)
 		data, readErr := os.ReadFile(oldLogPath)
 		if readErr == nil {
-			if writeErr := os.WriteFile(newLogPath, data, 0644); writeErr != nil {
+			if writeErr := os.WriteFile(newLogPath, data, 0o644); writeErr != nil {
 				return "", fmt.Errorf("write output to history: %w", writeErr)
 			}
 			// Remove old log after successful copy

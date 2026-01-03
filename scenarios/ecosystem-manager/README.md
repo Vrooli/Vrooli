@@ -284,6 +284,40 @@ func validateTaskRequest(task TaskItem) error {
 }
 ```
 
+## 📦 **Dependencies**
+
+### **Required Scenarios**
+
+Ecosystem Manager requires the following scenarios to be running:
+
+| Scenario | Purpose |
+|----------|---------|
+| **agent-manager** | Centralized agent orchestration for task execution |
+| **scenario-completeness-scoring** | PRD completion scoring for scenario improvement |
+
+### **Agent Manager Integration**
+
+Ecosystem Manager delegates all agent execution to the **agent-manager** service, which provides:
+
+- **Multi-runner support**: Switch between Claude Code, OpenAI Codex, or OpenCode via settings
+- **Profile-based configuration**: Separate profiles for tasks and insights with different settings
+- **Simplified cleanup**: Single API call to stop runs instead of complex process management
+- **Event streaming**: Real-time task progress via event API
+
+**Configuration**: Agent settings (runner type, max turns, timeouts, allowed tools) are configured in the Settings modal under the "Agent" tab. Changes are automatically propagated to agent-manager profiles.
+
+### **Database Requirements**
+
+PostgreSQL database `vrooli_ecosystem_manager` is automatically created during setup. The schema includes:
+- Task execution history for analytics
+- Auto-steer profiles and execution state
+- Performance metrics aggregation
+
+To manually initialize the schema:
+```bash
+docker exec -i vrooli-postgres-main psql -U vrooli -d vrooli_ecosystem_manager < initialization/postgres/schema.sql
+```
+
 ## 🎉 **Success Metrics**
 
 ### **Consolidation Benefits**

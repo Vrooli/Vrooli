@@ -41,30 +41,6 @@ const (
 	RateLimitDetectionWindow = 1 * time.Minute
 )
 
-// Process cleanup constants
-const (
-	// AgentShutdownTimeout is how long to wait for an agent to shut down
-	AgentShutdownTimeout = 5 * time.Second
-
-	// AgentShutdownPollInterval is how often to check if an agent has shut down
-	AgentShutdownPollInterval = 200 * time.Millisecond
-
-	// ProcessTermRetryDelay is how long to wait before retrying process termination
-	ProcessTermRetryDelay = 200 * time.Millisecond
-
-	// ProcessCleanupDelay is how long to wait after killing a process
-	ProcessCleanupDelay = 100 * time.Millisecond
-
-	// AgentCleanupRetryDelay is how long to wait before retrying agent cleanup
-	AgentCleanupRetryDelay = 500 * time.Millisecond
-
-	// AgentRegistryTimeout is the timeout for agent registry operations (list, stop, cleanup)
-	AgentRegistryTimeout = 10 * time.Second
-
-	// AgentStopTimeout is the timeout for stopping a single agent
-	AgentStopTimeout = 5 * time.Second
-)
-
 // Task reconciliation constants
 const (
 	// InitialReconcileDelay is how long to wait before initial in-progress reconciliation
@@ -78,15 +54,6 @@ const (
 
 	// MaxTurnsCleanupDelay is the additional wait after MAX_TURNS before cleanup
 	MaxTurnsCleanupDelay = 500 * time.Millisecond
-)
-
-// Retry and backoff constants
-const (
-	// MaxAgentCleanupRetries is the maximum number of retry attempts for agent cleanup
-	MaxAgentCleanupRetries = 3
-
-	// AgentCleanupBackoffBase is the base delay for exponential backoff in agent cleanup retries
-	AgentCleanupBackoffBase = 500 * time.Millisecond
 )
 
 // Cache and history constants
@@ -117,7 +84,7 @@ const (
 // File and size calculation constants
 const (
 	// PromptFilePermissions is the file permission mode for saved prompt files
-	PromptFilePermissions = 0644
+	PromptFilePermissions = 0o644
 
 	// BytesPerKilobyte is the number of bytes in a kilobyte
 	BytesPerKilobyte = 1024.0
@@ -130,12 +97,6 @@ const (
 const (
 	// HTTPStatusTooManyRequests indicates a rate limit error (HTTP 429)
 	HTTPStatusTooManyRequests = 429
-)
-
-// External CLI commands
-const (
-	// ClaudeCodeResourceCommand is the command to invoke the Claude Code resource
-	ClaudeCodeResourceCommand = "resource-claude-code"
 )
 
 // Agent naming

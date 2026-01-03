@@ -40,6 +40,7 @@ type Settings struct {
 	SkipPermissions bool   `json:"skip_permissions"`
 	TaskTimeout     int    `json:"task_timeout"`     // Task execution timeout in minutes
 	IdleTimeoutCap  int    `json:"idle_timeout_cap"` // Max idle time allowed before watchdog cancellation (minutes)
+	RunnerType      string `json:"runner_type"`      // AI runner type: claude-code, codex, opencode
 
 	// Recycler automation settings
 	Recycler RecyclerSettings `json:"recycler"`
@@ -62,6 +63,7 @@ func newDefaultSettings() Settings {
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
 		IdleTimeoutCap:  DefaultIdleTimeoutCap,
+		RunnerType:      DefaultRunnerType,
 		Recycler: RecyclerSettings{
 			EnabledFor:          DefaultRecyclerEnabledFor,
 			IntervalSeconds:     DefaultRecyclerInterval,
@@ -151,6 +153,25 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 		return previous, fmt.Errorf("Idle timeout cap must be between %d and %d minutes", MinIdleTimeoutCap, MaxIdleTimeoutCap)
 	}
 
+	// Validate runner type
+	if s.RunnerType == "" {
+		s.RunnerType = previous.RunnerType
+	}
+	if s.RunnerType == "" {
+		s.RunnerType = DefaultRunnerType
+	}
+	s.RunnerType = strings.ToLower(strings.TrimSpace(s.RunnerType))
+	validRunner := false
+	for _, valid := range ValidRunnerTypes {
+		if s.RunnerType == valid {
+			validRunner = true
+			break
+		}
+	}
+	if !validRunner {
+		return previous, fmt.Errorf("Runner type must be one of: %s", strings.Join(ValidRunnerTypes, ", "))
+	}
+
 	recycler := s.Recycler
 	if recycler.EnabledFor == "" {
 		recycler.EnabledFor = previous.Recycler.EnabledFor
@@ -224,7 +245,7 @@ func SaveToDisk() error {
 	settings := GetSettings()
 	settings.Active = false
 
-	if err := os.MkdirAll(filepath.Dir(persistencePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(persistencePath), 0o755); err != nil {
 		return fmt.Errorf("failed creating persistence directory: %w", err)
 	}
 
@@ -234,7 +255,7 @@ func SaveToDisk() error {
 	}
 
 	tmpPath := persistencePath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed writing temp settings file: %w", err)
 	}
 
