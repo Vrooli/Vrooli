@@ -10,6 +10,7 @@ import type {
   FingerprintSettings,
   BehaviorSettings,
   AntiDetectionSettings,
+  AdBlockingMode,
 } from '../types/browser-profile';
 
 /**
@@ -56,7 +57,7 @@ export const DEFAULT_BEHAVIOR: Required<BehaviorSettings> = {
 };
 
 /**
- * Default anti-detection settings (all disabled).
+ * Default anti-detection settings (ad blocking enabled by default).
  */
 export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   disable_automation_controlled: false,
@@ -67,6 +68,7 @@ export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   patch_webgl: false,
   patch_canvas: false,
   headless_detection_bypass: false,
+  ad_blocking_mode: 'ads_and_tracking',
 };
 
 /**
@@ -166,6 +168,9 @@ export const PRESET_FAST: BrowserProfile = {
  */
 export const PRESET_NONE: BrowserProfile = {
   preset: 'none',
+  anti_detection: {
+    ad_blocking_mode: 'none',
+  },
 };
 
 /**

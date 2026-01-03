@@ -37,6 +37,7 @@ export const PRESET_CONFIGS: Record<
       patch_canvas: true,
       headless_detection_bypass: true,
       disable_webrtc: true,
+      ad_blocking_mode: 'ads_and_tracking',
     },
   },
   balanced: {
@@ -66,6 +67,7 @@ export const PRESET_CONFIGS: Record<
       patch_canvas: false,
       headless_detection_bypass: true,
       disable_webrtc: false,
+      ad_blocking_mode: 'ads_and_tracking',
     },
   },
   fast: {
@@ -95,6 +97,7 @@ export const PRESET_CONFIGS: Record<
       patch_canvas: false,
       headless_detection_bypass: false,
       disable_webrtc: false,
+      ad_blocking_mode: 'ads_and_tracking',
     },
   },
   none: {
@@ -124,6 +127,7 @@ export const PRESET_CONFIGS: Record<
       patch_canvas: false,
       headless_detection_bypass: false,
       disable_webrtc: false,
+      ad_blocking_mode: 'none',
     },
   },
 };

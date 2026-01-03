@@ -90,6 +90,7 @@ func antiDetectionFromProto(p *basbase.AntiDetectionSettings) *AntiDetectionSett
 		PatchWebGL:                  p.GetPatchWebgl(),
 		PatchCanvas:                 p.GetPatchCanvas(),
 		HeadlessDetectionBypass:     p.GetHeadlessDetectionBypass(),
+		AdBlockingMode:              p.GetAdBlockingMode(),
 	}
 }
 
@@ -260,6 +261,9 @@ func antiDetectionToProto(ad *AntiDetectionSettings) *basbase.AntiDetectionSetti
 	}
 	if ad.HeadlessDetectionBypass {
 		p.HeadlessDetectionBypass = proto.Bool(ad.HeadlessDetectionBypass)
+	}
+	if ad.AdBlockingMode != "" {
+		p.AdBlockingMode = proto.String(ad.AdBlockingMode)
 	}
 
 	return p
@@ -465,6 +469,9 @@ func mergeAntiDetectionSettings(base, override *AntiDetectionSettings) *AntiDete
 	}
 	if override.HeadlessDetectionBypass {
 		result.HeadlessDetectionBypass = override.HeadlessDetectionBypass
+	}
+	if override.AdBlockingMode != "" {
+		result.AdBlockingMode = override.AdBlockingMode
 	}
 
 	return &result

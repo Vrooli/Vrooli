@@ -106,12 +106,15 @@ type AntiDetectionSettings struct {
 	DisableWebRTC               bool `json:"disable_webrtc,omitempty"`                // Prevent IP leak via WebRTC
 
 	// Navigator property patches
-	PatchNavigatorWebdriver  bool `json:"patch_navigator_webdriver,omitempty"`  // Remove navigator.webdriver
-	PatchNavigatorPlugins    bool `json:"patch_navigator_plugins,omitempty"`    // Spoof plugins array
-	PatchNavigatorLanguages  bool `json:"patch_navigator_languages,omitempty"`  // Ensure consistent languages
-	PatchWebGL               bool `json:"patch_webgl,omitempty"`                // Spoof WebGL renderer/vendor
-	PatchCanvas              bool `json:"patch_canvas,omitempty"`               // Add noise to canvas fingerprint
-	HeadlessDetectionBypass  bool `json:"headless_detection_bypass,omitempty"`  // Bypass headless detection
+	PatchNavigatorWebdriver bool `json:"patch_navigator_webdriver,omitempty"` // Remove navigator.webdriver
+	PatchNavigatorPlugins   bool `json:"patch_navigator_plugins,omitempty"`   // Spoof plugins array
+	PatchNavigatorLanguages bool `json:"patch_navigator_languages,omitempty"` // Ensure consistent languages
+	PatchWebGL              bool `json:"patch_webgl,omitempty"`               // Spoof WebGL renderer/vendor
+	PatchCanvas             bool `json:"patch_canvas,omitempty"`              // Add noise to canvas fingerprint
+	HeadlessDetectionBypass bool `json:"headless_detection_bypass,omitempty"` // Bypass headless detection
+
+	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
+	AdBlockingMode string `json:"ad_blocking_mode,omitempty"`
 }
 
 // Preset names for browser profiles
@@ -160,6 +163,7 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 				PatchWebGL:                  true,
 				PatchCanvas:                 true,
 				HeadlessDetectionBypass:     true,
+				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
 	case PresetBalanced:
@@ -183,6 +187,7 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
 				PatchNavigatorWebdriver:     true,
+				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
 	case PresetFast:
@@ -203,11 +208,15 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
 				PatchNavigatorWebdriver:     true,
+				AdBlockingMode:              "ads_and_tracking",
 			},
 		}
 	case PresetNone:
 		return &BrowserProfile{
 			Preset: PresetNone,
+			AntiDetection: &AntiDetectionSettings{
+				AdBlockingMode: "none",
+			},
 		}
 	default:
 		return nil
@@ -446,6 +455,14 @@ func ValidateBrowserProfile(bp *BrowserProfile) error {
 		}
 		if bh.MicroPauseMaxMs < 0 || bh.MicroPauseMaxMs > 10000 {
 			return fmt.Errorf("micro_pause_max_ms must be between 0 and 10000")
+		}
+	}
+
+	// Validate anti-detection settings
+	if ad := bp.AntiDetection; ad != nil {
+		validAdBlockingModes := map[string]bool{"": true, "none": true, "ads_only": true, "ads_and_tracking": true}
+		if !validAdBlockingModes[ad.AdBlockingMode] {
+			return fmt.Errorf("ad_blocking_mode must be none, ads_only, or ads_and_tracking")
 		}
 	}
 

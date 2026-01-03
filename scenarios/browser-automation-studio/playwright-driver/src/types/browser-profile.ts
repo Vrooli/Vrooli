@@ -88,6 +88,14 @@ export interface BehaviorSettings {
 }
 
 /**
+ * Ad blocking mode options.
+ * - 'none': No ad blocking
+ * - 'ads_only': Block advertisements only (EasyList + uBlock filters)
+ * - 'ads_and_tracking': Block ads + tracking scripts (includes privacy lists)
+ */
+export type AdBlockingMode = 'none' | 'ads_only' | 'ads_and_tracking';
+
+/**
  * Anti-detection settings control bot detection bypass techniques.
  */
 export interface AntiDetectionSettings {
@@ -102,6 +110,9 @@ export interface AntiDetectionSettings {
   patch_webgl?: boolean; // Spoof WebGL renderer/vendor
   patch_canvas?: boolean; // Add noise to canvas fingerprint
   headless_detection_bypass?: boolean; // Bypass headless detection
+
+  // Ad blocking
+  ad_blocking_mode?: AdBlockingMode; // Block ads and/or tracking
 }
 
 /**

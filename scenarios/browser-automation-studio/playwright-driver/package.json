@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
+    "@ghostery/adblocker-playwright": "^2.13.2",
     "playwright": "^1.40.0",
     "prom-client": "^15.1.0",
     "uuid": "^9.0.1",

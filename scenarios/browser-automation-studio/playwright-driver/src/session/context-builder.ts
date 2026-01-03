@@ -8,6 +8,8 @@ import {
   mergeWithPreset,
   resolveUserAgent,
   applyAntiDetection,
+  applyAdBlocking,
+  isAdBlockingEnabled,
 } from '../browser-profile';
 
 // Symbol to store behavior settings on context for handler access
@@ -147,6 +149,15 @@ export async function buildContext(
     });
   }
 
+  // Apply ad blocking if configured
+  if (isAdBlockingEnabled(antiDetection.ad_blocking_mode)) {
+    await applyAdBlocking(context, antiDetection.ad_blocking_mode as 'ads_only' | 'ads_and_tracking');
+    logger.debug('Ad blocking enabled', {
+      executionId: spec.execution_id,
+      mode: antiDetection.ad_blocking_mode,
+    });
+  }
+
   // Store behavior settings on context for handler access
   const behaviorSettings: BehaviorSettings = {
     typing_delay_min: behavior.typing_delay_min,
@@ -187,6 +198,7 @@ export async function buildContext(
     tracing: !!tracePath,
     browserProfile: spec.browser_profile?.preset || 'none',
     hasAntiDetection,
+    adBlocking: antiDetection.ad_blocking_mode || 'none',
   });
 
   return {

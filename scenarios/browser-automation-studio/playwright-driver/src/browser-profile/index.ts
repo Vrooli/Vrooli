@@ -10,6 +10,7 @@ export type {
   FingerprintSettings,
   BehaviorSettings,
   AntiDetectionSettings,
+  AdBlockingMode,
   ProfilePreset,
   UserAgentPreset,
   ResolvedBrowserProfile,
@@ -46,3 +47,6 @@ export {
   moveMouseAlongPath,
   type Point,
 } from './human-behavior';
+
+// Export ad blocking utilities
+export { applyAdBlocking, isAdBlockingEnabled } from './ad-blocker';

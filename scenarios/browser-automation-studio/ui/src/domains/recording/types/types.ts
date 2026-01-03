@@ -311,6 +311,11 @@ export interface BehaviorSettings {
 }
 
 /**
+ * Ad blocking mode options.
+ */
+export type AdBlockingMode = 'none' | 'ads_only' | 'ads_and_tracking';
+
+/**
  * Anti-detection settings for bypassing bot detection.
  */
 export interface AntiDetectionSettings {
@@ -322,6 +327,7 @@ export interface AntiDetectionSettings {
   patch_webgl?: boolean;
   patch_canvas?: boolean;
   headless_detection_bypass?: boolean;
+  ad_blocking_mode?: AdBlockingMode;
 }
 
 /**
