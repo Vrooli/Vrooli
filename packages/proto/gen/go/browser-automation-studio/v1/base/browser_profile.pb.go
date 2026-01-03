@@ -445,8 +445,13 @@ type AntiDetectionSettings struct {
 	PatchWebgl              *bool `protobuf:"varint,6,opt,name=patch_webgl,json=patchWebgl,proto3,oneof" json:"patch_webgl,omitempty"`                                          // Spoof WebGL renderer/vendor
 	PatchCanvas             *bool `protobuf:"varint,7,opt,name=patch_canvas,json=patchCanvas,proto3,oneof" json:"patch_canvas,omitempty"`                                       // Add noise to canvas fingerprint
 	HeadlessDetectionBypass *bool `protobuf:"varint,8,opt,name=headless_detection_bypass,json=headlessDetectionBypass,proto3,oneof" json:"headless_detection_bypass,omitempty"` // Bypass headless detection
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
+	// - none: No ad blocking
+	// - ads_only: Block advertisements only (EasyList + uBlock filters)
+	// - ads_and_tracking: Block ads + tracking scripts (includes privacy lists)
+	AdBlockingMode *string `protobuf:"bytes,9,opt,name=ad_blocking_mode,json=adBlockingMode,proto3,oneof" json:"ad_blocking_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AntiDetectionSettings) Reset() {
@@ -535,6 +540,13 @@ func (x *AntiDetectionSettings) GetHeadlessDetectionBypass() bool {
 	return false
 }
 
+func (x *AntiDetectionSettings) GetAdBlockingMode() string {
+	if x != nil && x.AdBlockingMode != nil {
+		return *x.AdBlockingMode
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_base_browser_profile_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" +
@@ -620,7 +632,7 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\x14_micro_pause_enabledB\x15\n" +
 	"\x13_micro_pause_min_msB\x15\n" +
 	"\x13_micro_pause_max_msB\x18\n" +
-	"\x16_micro_pause_frequency\"\xa6\x05\n" +
+	"\x16_micro_pause_frequency\"\xea\x05\n" +
 	"\x15AntiDetectionSettings\x12G\n" +
 	"\x1ddisable_automation_controlled\x18\x01 \x01(\bH\x00R\x1bdisableAutomationControlled\x88\x01\x01\x12*\n" +
 	"\x0edisable_webrtc\x18\x02 \x01(\bH\x01R\rdisableWebrtc\x88\x01\x01\x12?\n" +
@@ -630,7 +642,8 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\vpatch_webgl\x18\x06 \x01(\bH\x05R\n" +
 	"patchWebgl\x88\x01\x01\x12&\n" +
 	"\fpatch_canvas\x18\a \x01(\bH\x06R\vpatchCanvas\x88\x01\x01\x12?\n" +
-	"\x19headless_detection_bypass\x18\b \x01(\bH\aR\x17headlessDetectionBypass\x88\x01\x01B \n" +
+	"\x19headless_detection_bypass\x18\b \x01(\bH\aR\x17headlessDetectionBypass\x88\x01\x01\x12-\n" +
+	"\x10ad_blocking_mode\x18\t \x01(\tH\bR\x0eadBlockingMode\x88\x01\x01B \n" +
 	"\x1e_disable_automation_controlledB\x11\n" +
 	"\x0f_disable_webrtcB\x1c\n" +
 	"\x1a_patch_navigator_webdriverB\x1a\n" +
@@ -638,7 +651,8 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\x1a_patch_navigator_languagesB\x0e\n" +
 	"\f_patch_webglB\x0f\n" +
 	"\r_patch_canvasB\x1c\n" +
-	"\x1a_headless_detection_bypassBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;baseb\x06proto3"
+	"\x1a_headless_detection_bypassB\x13\n" +
+	"\x11_ad_blocking_modeBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;baseb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_base_browser_profile_proto_rawDescOnce sync.Once

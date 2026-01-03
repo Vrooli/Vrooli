@@ -97,6 +97,7 @@ class AntiDetectionSettings(_message.Message):
     PATCH_WEBGL_FIELD_NUMBER: _ClassVar[int]
     PATCH_CANVAS_FIELD_NUMBER: _ClassVar[int]
     HEADLESS_DETECTION_BYPASS_FIELD_NUMBER: _ClassVar[int]
+    AD_BLOCKING_MODE_FIELD_NUMBER: _ClassVar[int]
     disable_automation_controlled: bool
     disable_webrtc: bool
     patch_navigator_webdriver: bool
@@ -105,4 +106,5 @@ class AntiDetectionSettings(_message.Message):
     patch_webgl: bool
     patch_canvas: bool
     headless_detection_bypass: bool
-    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ...) -> None: ...
+    ad_blocking_mode: str
+    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ...) -> None: ...
