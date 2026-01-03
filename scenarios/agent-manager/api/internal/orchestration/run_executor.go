@@ -30,6 +30,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -63,13 +64,15 @@ type ExecutorConfig struct {
 }
 
 // DefaultExecutorConfig returns sensible defaults for execution.
+// HeartbeatInterval is set to 15s to ensure multiple heartbeats before stale threshold.
+// StaleThreshold is 5 minutes to allow for slow database updates or long tool calls.
 func DefaultExecutorConfig() ExecutorConfig {
 	return ExecutorConfig{
 		Timeout:            30 * time.Minute,
-		HeartbeatInterval:  30 * time.Second,
+		HeartbeatInterval:  15 * time.Second, // More frequent heartbeats for reliability
 		CheckpointInterval: 1 * time.Minute,
 		MaxRetries:         3,
-		StaleThreshold:     2 * time.Minute,
+		StaleThreshold:     5 * time.Minute, // More forgiving threshold
 	}
 }
 
@@ -404,16 +407,28 @@ func (e *RunExecutor) saveCheckpoint(ctx context.Context) {
 func (e *RunExecutor) heartbeatLoop(ctx context.Context) {
 	defer close(e.heartbeatDone)
 
+	log.Printf("[heartbeat] Starting heartbeat loop for run %s (tag=%s, interval=%v)",
+		e.run.ID, e.run.GetTag(), e.config.HeartbeatInterval)
+
+	// Send initial heartbeat immediately
+	e.sendHeartbeat(ctx)
+
 	ticker := time.NewTicker(e.config.HeartbeatInterval)
 	defer ticker.Stop()
 
+	heartbeatCount := 1
 	for {
 		select {
 		case <-e.heartbeatStop:
+			log.Printf("[heartbeat] Stopping heartbeat loop for run %s (sent %d heartbeats)",
+				e.run.ID, heartbeatCount)
 			return
 		case <-ctx.Done():
+			log.Printf("[heartbeat] Context cancelled for run %s (sent %d heartbeats)",
+				e.run.ID, heartbeatCount)
 			return
 		case <-ticker.C:
+			heartbeatCount++
 			e.sendHeartbeat(ctx)
 		}
 	}
@@ -425,11 +440,18 @@ func (e *RunExecutor) sendHeartbeat(ctx context.Context) {
 	now := time.Now()
 	e.run.LastHeartbeat = &now
 	e.checkpoint.LastHeartbeat = now
+	runID := e.run.ID
+	tag := e.run.GetTag()
 	e.mu.Unlock()
 
 	// Update run in database (best-effort)
 	if err := e.runs.Update(ctx, e.run); err != nil {
+		log.Printf("[heartbeat] ERROR: Failed to update heartbeat for run %s (tag=%s): %v",
+			runID, tag, err)
 		e.emitSystemEvent(ctx, "warn", "heartbeat update failed: "+err.Error())
+	} else {
+		log.Printf("[heartbeat] DEBUG: Updated heartbeat for run %s (tag=%s) at %v",
+			runID, tag, now.Format(time.RFC3339))
 	}
 
 	// Update checkpoint in database (best-effort)

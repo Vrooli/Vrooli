@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -151,6 +152,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	// Set environment using buildEnv (handles all configuration via env vars)
 	cmd.Env = r.buildEnv(req)
 
+	// Create a new process group so we can kill the entire subprocess tree
+	// This is needed because resource-claude-code is a bash wrapper that may have
+	// child processes (tee, cleanup handlers) that outlive the main Claude process
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	// Track the running command for cancellation
 	r.mu.Lock()
 	r.runs[req.RunID] = cmd
@@ -234,7 +240,12 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	}()
 
 	// Parse streaming JSON output
+	// Use a larger buffer for the scanner - Claude's stream-json can output very long lines
+	// when reading large files or returning tool results (default is 64KB, we use 10MB)
+	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
 	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -273,8 +284,56 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Wait for command to complete
-	err = cmd.Wait()
+	// Check if scanner exited due to an error (vs clean EOF)
+	scannerErr := scanner.Err()
+	if scannerErr != nil {
+		// Scanner hit an error - log it but continue to wait for process
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID,
+				"warn",
+				fmt.Sprintf("Scanner error (possible buffer overflow or I/O error): %v", scannerErr),
+			))
+		}
+	}
+
+	// Wait for command to complete with timeout
+	// The bash wrapper script may hang after Claude exits (cleanup handlers, tee, etc.)
+	// so we wait with a timeout and kill the process group if it doesn't exit cleanly
+	const wrapperCleanupTimeout = 30 * time.Second
+
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+
+	select {
+	case err = <-waitDone:
+		// Normal completion - wrapper script exited cleanly
+	case <-time.After(wrapperCleanupTimeout):
+		// Wrapper script is stuck - kill the entire process group
+		if cmd.Process != nil {
+			// Kill the process group (negative PID kills the group)
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		// Wait for the killed process to be reaped
+		err = <-waitDone
+		// Log that we had to force kill
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID,
+				"warn",
+				"Wrapper script did not exit cleanly after stdout closed; killed process group",
+			))
+		}
+	case <-ctx.Done():
+		// Context cancelled - kill the process group
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		err = <-waitDone
+	}
+
 	duration := time.Since(startTime)
 
 	// Determine result
@@ -328,6 +387,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 }
 
 // Stop attempts to gracefully stop a running Claude Code instance.
+// Uses process group signals to ensure the entire subprocess tree is stopped.
 func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
 	cmd, exists := r.runs[runID]
@@ -337,12 +397,15 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
-	// Try graceful termination first (SIGTERM)
-	if cmd.Process != nil {
-		if err := cmd.Process.Signal(os.Interrupt); err != nil {
-			// If SIGTERM fails, force kill
-			return cmd.Process.Kill()
-		}
+	if cmd.Process == nil {
+		return nil
+	}
+
+	// Try graceful termination first (SIGTERM to process group)
+	// Negative PID sends signal to the entire process group
+	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
+		// If SIGTERM fails, force kill the process group
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 
 	return nil

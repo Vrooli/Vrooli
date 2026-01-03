@@ -55,11 +55,13 @@ type ReconcilerConfig struct {
 }
 
 // DefaultReconcilerConfig returns sensible defaults.
+// StaleThreshold is 5 minutes to match executor config and allow for slow operations.
+// OrphanGracePeriod is 10 minutes to avoid killing newly started processes.
 func DefaultReconcilerConfig() ReconcilerConfig {
 	return ReconcilerConfig{
 		Interval:          30 * time.Second,
-		StaleThreshold:    2 * time.Minute,
-		OrphanGracePeriod: 5 * time.Minute,
+		StaleThreshold:    5 * time.Minute,  // More forgiving - allows for slow DB updates
+		OrphanGracePeriod: 10 * time.Minute, // Longer grace period for safety
 		MaxStaleRuns:      10,
 		KillOrphans:       true, // Always kill orphan processes
 		AutoRecover:       true, // Auto-recover stale runs if process is alive
@@ -288,13 +290,26 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 
 // handleStaleRun handles a run that appears to have stalled.
 func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats *ReconcileStats) {
+	tag := run.GetTag()
+	var heartbeatAge time.Duration
+	if run.LastHeartbeat != nil {
+		heartbeatAge = time.Since(*run.LastHeartbeat)
+	} else {
+		heartbeatAge = time.Since(run.CreatedAt)
+	}
+
+	log.Printf("[reconciler] DEBUG: Checking stale run %s (tag=%s, status=%s, heartbeat_age=%v, stale_threshold=%v)",
+		run.ID, tag, run.Status, heartbeatAge.Round(time.Second), r.config.StaleThreshold)
+
 	// First, check if the process is actually still running
 	processAlive := r.isProcessAlive(ctx, run)
 
 	if !processAlive {
 		// Process died but DB wasn't updated - mark as failed
-		log.Printf("[reconciler] Run %s process not found, marking as failed", run.ID)
-		r.markRunFailed(ctx, run, "process terminated unexpectedly (detected by reconciler)")
+		log.Printf("[reconciler] Run %s (tag=%s) process not found after %v without heartbeat, marking as failed",
+			run.ID, tag, heartbeatAge.Round(time.Second))
+		r.markRunFailed(ctx, run, fmt.Sprintf("process terminated unexpectedly (detected by reconciler after %v without heartbeat, tag=%s)",
+			heartbeatAge.Round(time.Second), tag))
 		return
 	}
 
@@ -336,6 +351,13 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 // isProcessAlive checks if the process for a run is still running.
 func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 	tag := run.GetTag()
+	runnerType := "unknown"
+	if run.ResolvedConfig != nil {
+		runnerType = string(run.ResolvedConfig.RunnerType)
+	}
+
+	log.Printf("[reconciler] DEBUG: isProcessAlive check for run %s (tag=%s, runner=%s)",
+		run.ID, tag, runnerType)
 
 	// Method 1: Check via runner if available
 	if r.runners != nil && run.ResolvedConfig != nil {
@@ -348,7 +370,9 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 	}
 
 	// Method 2: Scan /proc for the process
-	return r.scanForProcess(tag)
+	alive := r.scanForProcess(tag)
+	log.Printf("[reconciler] DEBUG: isProcessAlive result for run %s (tag=%s): %v", run.ID, tag, alive)
+	return alive
 }
 
 // scanForProcess scans the process list for a process with the given tag.
@@ -358,11 +382,21 @@ func (r *Reconciler) scanForProcess(tag string) bool {
 	output, err := cmd.Output()
 	if err != nil {
 		// pgrep returns exit code 1 if no processes found
-		return r.scanForProcessByEnvTag(tag)
+		log.Printf("[reconciler] DEBUG: pgrep -f '%s' returned no matches, trying env tag scan", tag)
+		found := r.scanForProcessByEnvTag(tag)
+		if found {
+			log.Printf("[reconciler] DEBUG: Found process via env tag scan for '%s'", tag)
+		} else {
+			log.Printf("[reconciler] DEBUG: No process found via env tag scan for '%s'", tag)
+		}
+		return found
 	}
-	if strings.TrimSpace(string(output)) != "" {
+	pids := strings.TrimSpace(string(output))
+	if pids != "" {
+		log.Printf("[reconciler] DEBUG: pgrep -f '%s' found PIDs: %s", tag, pids)
 		return true
 	}
+	log.Printf("[reconciler] DEBUG: pgrep -f '%s' returned empty, trying env tag scan", tag)
 	return r.scanForProcessByEnvTag(tag)
 }
 
