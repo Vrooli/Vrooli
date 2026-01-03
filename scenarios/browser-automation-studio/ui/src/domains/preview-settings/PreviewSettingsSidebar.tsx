@@ -22,6 +22,9 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
 ];
 
+/** Flat list of all sections for the horizontal tabs */
+const ALL_SECTIONS = SECTION_GROUPS.flatMap((group) => group.sections);
+
 interface PreviewSettingsSidebarProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
@@ -32,44 +35,33 @@ export function PreviewSettingsSidebar({
   onSectionChange,
 }: PreviewSettingsSidebarProps) {
   return (
-    <nav className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-y-auto">
-      {SECTION_GROUPS.map((group) => (
-        <div key={group.id} className="py-3">
-          <div className="px-4 mb-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-              {group.label}
-            </span>
-          </div>
-          <ul className="space-y-0.5">
-            {group.sections.map((section) => {
-              const isActive = activeSection === section.id;
+    <nav
+      className="flex items-center border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600"
+      role="tablist"
+    >
+      {ALL_SECTIONS.map((section) => {
+        const isActive = activeSection === section.id;
 
-              return (
-                <li key={section.id}>
-                  <button
-                    onClick={() => onSectionChange(section.id)}
-                    className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
-                      isActive
-                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <span className={isActive ? 'text-blue-600 dark:text-blue-400' : ''}>
-                      {section.icon}
-                    </span>
-                    <span className="flex-1">{section.label}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+        return (
+          <button
+            key={section.id}
+            onClick={() => onSectionChange(section.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors shrink-0 ${
+              isActive
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`${section.id}-panel`}
+          >
+            <span className={isActive ? 'text-blue-600 dark:text-blue-400' : ''}>
+              {section.icon}
+            </span>
+            <span>{section.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
-}
-
-/** Get all section IDs for validation */
-export function getAllSectionIds(): SectionId[] {
-  return SECTION_GROUPS.flatMap((group) => group.sections.map((s) => s.id));
 }

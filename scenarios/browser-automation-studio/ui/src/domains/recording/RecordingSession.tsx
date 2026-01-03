@@ -42,7 +42,7 @@ import { usePages } from './hooks/usePages';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
-import { PreviewSettingsDialog } from '@/domains/preview-settings';
+import { PreviewSettingsPanel } from '@/domains/preview-settings';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
@@ -1143,9 +1143,6 @@ export function RecordModePage({
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={mode === 'recording' && isRecording}
-        actionCount={timelineItemCount}
-        isSidebarOpen={isSidebarOpen}
-        onToggleTimeline={handleSidebarToggle}
         onClose={onClose}
         mode={mode}
         onModeChange={handleModeChange}
@@ -1252,7 +1249,7 @@ export function RecordModePage({
           } : undefined}
         />
 
-        <div className="flex-1 h-full">
+        <div className="flex-1 h-full transition-all duration-300">
           {rightPanelView === 'preview' && (
             <div className="relative h-full">
               {mode === 'execution' && localExecutionId && executionStatus ? (
@@ -1261,6 +1258,9 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSidebarOpen={isSidebarOpen}
+                  onToggleSidebar={handleSidebarToggle}
+                  actionCount={timelineItemCount}
                   previewUrl={executionCurrentUrl}
                   onPreviewUrlChange={() => {}}
                   pageTitle={executionWorkflowName ?? undefined}
@@ -1290,6 +1290,9 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSidebarOpen={isSidebarOpen}
+                  onToggleSidebar={handleSidebarToggle}
+                  actionCount={timelineItemCount}
                   previewUrl=""
                   onPreviewUrlChange={() => {}}
                   pageTitle={selectedWorkflowName ?? 'Workflow'}
@@ -1309,6 +1312,9 @@ export function RecordModePage({
                   showReplayStyle={showReplayStyle}
                   onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
                   onSettingsClick={() => setShowPreviewSettings(true)}
+                  isSidebarOpen={isSidebarOpen}
+                  onToggleSidebar={handleSidebarToggle}
+                  actionCount={timelineItemCount}
                   previewUrl={previewUrl}
                   onPreviewUrlChange={setPreviewUrl}
                   onNavigate={setPreviewUrl}
@@ -1359,6 +1365,13 @@ export function RecordModePage({
             />
           )}
         </div>
+
+        {/* Preview settings panel (inline, pushes content) */}
+        <PreviewSettingsPanel
+          isOpen={showPreviewSettings}
+          onClose={() => setShowPreviewSettings(false)}
+          sessionId={sessionId}
+        />
       </div>
 
       {/* Clear confirmation modal */}
@@ -1387,13 +1400,6 @@ export function RecordModePage({
         onClose={() => setShowWorkflowPicker(false)}
         onSelect={handleWorkflowSelect}
         initialProjectId={selectedProjectId}
-      />
-
-      {/* Preview settings dialog (unified for all preview panels) */}
-      <PreviewSettingsDialog
-        isOpen={showPreviewSettings}
-        onClose={() => setShowPreviewSettings(false)}
-        sessionId={sessionId}
       />
 
       {/* Export Dialog */}

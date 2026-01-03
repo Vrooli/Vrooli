@@ -31,6 +31,11 @@ export interface PreviewContainerProps {
   onReplayStyleToggle: () => void;
   onSettingsClick: () => void;
 
+  // Left sidebar toggle (passed through to BrowserChrome)
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  actionCount?: number;
+
   // BrowserChrome props
   previewUrl: string;
   onPreviewUrlChange: (url: string) => void;
@@ -76,6 +81,9 @@ export function PreviewContainer({
   showReplayStyle,
   onReplayStyleToggle,
   onSettingsClick,
+  isSidebarOpen,
+  onToggleSidebar,
+  actionCount,
   previewUrl,
   onPreviewUrlChange,
   onNavigate,
@@ -231,6 +239,9 @@ export function PreviewContainer({
         onRefresh={onRefresh}
         placeholder={placeholder}
         pageTitle={pageTitle}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={onToggleSidebar}
+        actionCount={actionCount}
         frameStats={frameStats ?? undefined}
         targetFps={targetFps}
         debugStats={debugStats ?? undefined}

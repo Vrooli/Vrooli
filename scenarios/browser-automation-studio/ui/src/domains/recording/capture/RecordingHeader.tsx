@@ -8,9 +8,6 @@ type WorkflowTypeParam = 'action' | 'flow' | 'case';
 
 interface RecordingHeaderProps {
   isRecording: boolean;
-  actionCount: number;
-  isSidebarOpen: boolean;
-  onToggleTimeline: () => void;
   onClose?: () => void;
   /** Current mode: 'recording' or 'execution' */
   mode?: TimelineMode;
@@ -57,9 +54,6 @@ const WORKFLOW_TYPE_CONFIG: Record<WorkflowTypeParam, { label: string; color: st
 
 export function RecordingHeader({
   isRecording,
-  actionCount,
-  isSidebarOpen,
-  onToggleTimeline,
   onClose,
   mode = 'recording',
   onModeChange,
@@ -137,20 +131,6 @@ export function RecordingHeader({
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center gap-3">
-        {/* Timeline toggle - on the left, controls left sidebar */}
-        <button
-          onClick={onToggleTimeline}
-          className="relative p-2 text-subtle hover:text-surface"
-          title={isSidebarOpen ? 'Hide timeline' : 'Show timeline'}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h7" />
-          </svg>
-          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold text-white bg-blue-500 rounded-full">
-            {actionCount}
-          </span>
-        </button>
-
         {/* Mode toggle buttons */}
         {showModeToggle && (
           <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
