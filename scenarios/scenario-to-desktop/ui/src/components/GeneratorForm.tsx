@@ -4,6 +4,7 @@ import {
   exportBundleFromDeploymentManager,
   fetchProxyHints,
   fetchScenarioDesktopStatus,
+  getIconPreviewUrl,
   generateDesktop,
   fetchSigningConfig,
   checkSigningReadiness,
@@ -154,8 +155,8 @@ function resolveEndpoints(input: {
 function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
   return {
     app_name: options.scenarioName,
-    app_display_name: options.appDisplayName || `${options.scenarioName} Desktop`,
-    app_description: options.appDescription || `Desktop application for ${options.scenarioName} scenario`,
+    app_display_name: options.appDisplayName,
+    app_description: options.appDescription,
     version: "1.0.0",
     author: "Vrooli Platform",
     license: "MIT",
@@ -1229,15 +1230,13 @@ export function GeneratorForm({
   onOpenSigningTab
 }: GeneratorFormProps) {
   const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
-  const [appDisplayName, setAppDisplayName] = useState(
-    scenarioName ? `${scenarioName} Desktop` : ""
-  );
-  const [appDescription, setAppDescription] = useState(
-    scenarioName ? `Desktop application for ${scenarioName} scenario` : ""
-  );
+  const [appDisplayName, setAppDisplayName] = useState("");
+  const [appDescription, setAppDescription] = useState("");
   const [iconPath, setIconPath] = useState("");
   const [displayNameEdited, setDisplayNameEdited] = useState(false);
   const [descriptionEdited, setDescriptionEdited] = useState(false);
+  const [iconPathEdited, setIconPathEdited] = useState(false);
+  const [iconPreviewError, setIconPreviewError] = useState(false);
   const [framework, setFramework] = useState("electron");
   const [frameworkModalOpen, setFrameworkModalOpen] = useState(false);
   const [serverType, setServerType] = useState<ServerType>(DEFAULT_SERVER_TYPE);
@@ -1348,22 +1347,6 @@ export function GeneratorForm({
     setScenarioLocked(selectionSource === "inventory");
   }, [selectionSource]);
 
-  useEffect(() => {
-    if (!scenarioName) {
-      return;
-    }
-    const derivedName = `${scenarioName} Desktop`;
-    const derivedDescription = `Desktop application for ${scenarioName} scenario`;
-
-    if (!displayNameEdited) {
-      setAppDisplayName(derivedName);
-    }
-
-    if (!descriptionEdited) {
-      setAppDescription(derivedDescription);
-    }
-  }, [scenarioName, displayNameEdited, descriptionEdited]);
-
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
     queryKey: ['scenarios-desktop-status'],
@@ -1426,6 +1409,47 @@ export function GeneratorForm({
   };
 
   const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
+  const iconPreviewUrl = useMemo(
+    () => (iconPath ? getIconPreviewUrl(iconPath) : ""),
+    [iconPath]
+  );
+
+  useEffect(() => {
+    setIconPreviewError(false);
+  }, [iconPreviewUrl]);
+
+  useEffect(() => {
+    if (!scenarioName) {
+      if (!displayNameEdited) {
+        setAppDisplayName("");
+      }
+      if (!descriptionEdited) {
+        setAppDescription("");
+      }
+      if (!iconPathEdited) {
+        setIconPath("");
+      }
+      return;
+    }
+    if (!selectedScenario) {
+      return;
+    }
+    if (!displayNameEdited) {
+      setAppDisplayName(selectedScenario.service_display_name || "");
+    }
+    if (!descriptionEdited) {
+      setAppDescription(selectedScenario.service_description || "");
+    }
+    if (!iconPathEdited) {
+      setIconPath(selectedScenario.service_icon_path || "");
+    }
+  }, [
+    scenarioName,
+    selectedScenario,
+    displayNameEdited,
+    descriptionEdited,
+    iconPathEdited
+  ]);
 
   const { data: proxyHints } = useQuery<ProxyHintsResponse | null>({
     queryKey: ['proxy-hints', scenarioName],
@@ -1479,6 +1503,7 @@ export function GeneratorForm({
     }
     if (config.icon) {
       setIconPath(config.icon);
+      setIconPathEdited(true);
     }
     if (config.server_type) {
       setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
@@ -1692,13 +1717,35 @@ export function GeneratorForm({
                 <Input
                   id="iconPath"
                   value={iconPath}
-                  onChange={(e) => setIconPath(e.target.value)}
+                  onChange={(e) => {
+                    setIconPath(e.target.value);
+                    setIconPathEdited(true);
+                  }}
                   placeholder="/home/you/Vrooli/scenarios/picker-wheel/icon.png"
                   className="mt-1.5"
                 />
                 <p className="mt-1 text-xs text-slate-400">
                   Optional 256px+ PNG; it will be copied into <code>assets/icon.png</code> for the build.
                 </p>
+                <div className="mt-3 flex items-center gap-3 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-md border border-slate-700 bg-slate-900">
+                    {iconPreviewUrl && !iconPreviewError ? (
+                      <img
+                        src={iconPreviewUrl}
+                        alt="Icon preview"
+                        className="h-10 w-10 rounded object-contain"
+                        onError={() => setIconPreviewError(true)}
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-500">No icon</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {iconPreviewUrl && !iconPreviewError
+                      ? "Previewing selected icon."
+                      : "Preview will appear once a valid PNG path is set."}
+                  </div>
+                </div>
               </div>
             </div>
             <div>

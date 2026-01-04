@@ -29,6 +29,9 @@ export interface DesktopBuildArtifact {
 export interface ScenarioDesktopStatus {
   name: string;
   display_name?: string;
+  service_display_name?: string;
+  service_description?: string;
+  service_icon_path?: string;
   has_desktop: boolean;
   desktop_path?: string;
   version?: string;

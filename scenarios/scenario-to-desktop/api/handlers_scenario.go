@@ -22,6 +22,9 @@ type DesktopBuildArtifact struct {
 type ScenarioDesktopStatus struct {
 	Name             string                   `json:"name"`
 	DisplayName      string                   `json:"display_name,omitempty"`
+	ServiceDisplay   string                   `json:"service_display_name,omitempty"`
+	ServiceDesc      string                   `json:"service_description,omitempty"`
+	ServiceIconPath  string                   `json:"service_icon_path,omitempty"`
 	HasDesktop       bool                     `json:"has_desktop"`
 	DesktopPath      string                   `json:"desktop_path,omitempty"`
 	Version          string                   `json:"version,omitempty"`
@@ -67,6 +70,12 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 		status := ScenarioDesktopStatus{
 			Name: scenarioName,
 		}
+
+		if info, err := loadScenarioServiceInfo(scenarioRoot); err == nil && info != nil {
+			status.ServiceDisplay = strings.TrimSpace(info.DisplayName)
+			status.ServiceDesc = strings.TrimSpace(info.Description)
+		}
+		status.ServiceIconPath = findScenarioIcon(scenarioRoot)
 
 		// Check if platforms/electron exists
 		if electronInfo, err := os.Stat(electronPath); err == nil && electronInfo.IsDir() {
@@ -161,6 +170,54 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 			"web_only":     len(scenarios) - withDesktop,
 		},
 	})
+}
+
+type scenarioServiceInfo struct {
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+}
+
+func loadScenarioServiceInfo(scenarioRoot string) (*scenarioServiceInfo, error) {
+	servicePath := filepath.Join(scenarioRoot, ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Service scenarioServiceInfo `json:"service"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, err
+	}
+	return &payload.Service, nil
+}
+
+func findScenarioIcon(scenarioRoot string) string {
+	candidates := []string{
+		filepath.Join("ui", "dist", "manifest-icon-512.maskable.png"),
+		filepath.Join("ui", "dist", "manifest-icon-192.maskable.png"),
+		filepath.Join("ui", "dist", "apple-icon-180.png"),
+		filepath.Join("ui", "dist", "favicon-196.png"),
+		filepath.Join("ui", "public", "manifest-icon-512.maskable.png"),
+		filepath.Join("ui", "public", "manifest-icon-192.maskable.png"),
+		filepath.Join("ui", "public", "apple-icon-180.png"),
+		filepath.Join("ui", "public", "favicon-196.png"),
+		filepath.Join("ui", "public", "favicon-32x32.png"),
+		filepath.Join("ui", "public", "favicon-16x16.png"),
+		filepath.Join("ui", "public", "icon.png"),
+		filepath.Join("ui", "assets", "icon.png"),
+		filepath.Join("ui", "src", "assets", "icon.png"),
+		filepath.Join("ui", "electron", "assets", "icon.png"),
+		filepath.Join("ui", "electron", "assets", "tray-icon.png"),
+	}
+
+	for _, candidate := range candidates {
+		path := filepath.Join(scenarioRoot, candidate)
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path
+		}
+	}
+	return ""
 }
 
 // detectPlatformFromFilename tries to infer a platform from an artifact filename

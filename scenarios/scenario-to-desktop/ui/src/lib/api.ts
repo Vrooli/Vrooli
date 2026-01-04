@@ -3,6 +3,8 @@ import type { ScenariosResponse } from "../components/scenario-inventory/types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+export const getIconPreviewUrl = (path: string): string =>
+  buildUrl(`/icons/preview?path=${encodeURIComponent(path)}`);
 
 export interface DocsDocument {
   path: string;

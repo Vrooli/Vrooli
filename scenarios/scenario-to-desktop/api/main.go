@@ -102,6 +102,7 @@ func (s *Server) setupRoutes() {
 
 	// Scenario discovery
 	s.router.HandleFunc("/api/v1/scenarios/desktop-status", s.getScenarioDesktopStatusHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/icons/preview", s.iconPreviewHandler).Methods("GET")
 
 	// Deployment telemetry ingestion
 	s.router.HandleFunc("/api/v1/deployment/telemetry", s.telemetryIngestHandler).Methods("POST")
