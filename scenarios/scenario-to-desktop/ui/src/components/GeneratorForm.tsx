@@ -27,11 +27,11 @@ import { Button } from "./ui/button";
 import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
 import { FrameworkModal } from "./FrameworkModal";
+import { DeploymentModal } from "./DeploymentModal";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus, ScenariosResponse } from "./scenario-inventory/types";
 import {
   DEFAULT_DEPLOYMENT_MODE,
   DEFAULT_SERVER_TYPE,
-  DEPLOYMENT_OPTIONS,
   SERVER_TYPE_OPTIONS,
   decideConnection,
   findDeploymentOption,
@@ -367,81 +367,38 @@ function FrameworkTemplateSection({
   );
 }
 
-interface DeploymentServerSectionProps {
+interface DeploymentSummarySectionProps {
   deploymentMode: DeploymentMode;
-  selectedDeployment: { description: string; docs?: string };
-  onDeploymentModeChange: (mode: DeploymentMode) => void;
   serverType: ServerType;
-  selectedServerType: { description: string; docs?: string };
-  onServerTypeChange: (serverType: ServerType) => void;
+  onOpenDeploymentModal: () => void;
 }
 
-function DeploymentServerSection({
+function DeploymentSummarySection({
   deploymentMode,
-  selectedDeployment,
-  onDeploymentModeChange,
   serverType,
-  selectedServerType,
-  onServerTypeChange
-}: DeploymentServerSectionProps) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div>
-        <Label htmlFor="deploymentMode">Deployment intent</Label>
-        <Select
-          id="deploymentMode"
-          value={deploymentMode}
-          onChange={(e) => onDeploymentModeChange(e.target.value as DeploymentMode)}
-          className="mt-1.5"
-        >
-          {DEPLOYMENT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <p className="mt-1.5 text-xs text-slate-400">
-          {selectedDeployment.description}{" "}
-          {selectedDeployment.docs && (
-            <a
-              href={selectedDeployment.docs}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-300 underline"
-            >
-              Learn more
-            </a>
-          )}
-        </p>
-      </div>
+  onOpenDeploymentModal
+}: DeploymentSummarySectionProps) {
+  const deployment = findDeploymentOption(deploymentMode);
+  const server = findServerTypeOption(serverType);
 
-      <div>
-        <Label htmlFor="serverType">Where should this desktop build get its data?</Label>
-        <Select
-          id="serverType"
-          value={serverType}
-          onChange={(e) => onServerTypeChange(e.target.value as ServerType)}
-          className="mt-1.5"
-        >
-          {SERVER_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <p className="mt-1.5 text-xs text-slate-400">
-          {selectedServerType.description}{" "}
-          {selectedServerType.docs && (
-            <a
-              href={selectedServerType.docs}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-300 underline"
-            >
-              Learn more
-            </a>
-          )}
-        </p>
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Deployment intent</p>
+            <p className="text-sm font-semibold text-slate-100">{deployment.label}</p>
+            <p className="text-xs text-slate-400">{deployment.description}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Data source</p>
+            <p className="text-sm font-semibold text-slate-100">{server.label}</p>
+            <p className="text-xs text-slate-400">{server.description}</p>
+          </div>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onOpenDeploymentModal}>
+          Choose deployment
+        </Button>
       </div>
     </div>
   );
@@ -1310,6 +1267,7 @@ export function GeneratorForm({
   const [autoManageTier1, setAutoManageTier1] = useState(false);
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [preflightResult, setPreflightResult] = useState<BundlePreflightResponse | null>(null);
@@ -1364,15 +1322,22 @@ export function GeneratorForm({
   const preflightSecretsReady = missingPreflightSecrets.length === 0;
   const preflightOk = Boolean(preflightResult) && preflightValidationOk && preflightReady && preflightSecretsReady;
 
-  const selectedDeployment = useMemo(
-    () => findDeploymentOption(deploymentMode),
-    [deploymentMode]
-  );
-  const selectedServerType = useMemo(
-    () => findServerTypeOption(serverType),
-    [serverType]
-  );
   const isCustomLocation = locationMode === "custom";
+  const allowedServerTypes = useMemo<ServerType[]>(() => {
+    if (deploymentMode === "bundled") {
+      return ["external"];
+    }
+    if (deploymentMode === "cloud-api") {
+      return ["external"];
+    }
+    return SERVER_TYPE_OPTIONS.map((option) => option.value);
+  }, [deploymentMode]);
+
+  useEffect(() => {
+    if (!allowedServerTypes.includes(serverType)) {
+      setServerType(allowedServerTypes[0] ?? DEFAULT_SERVER_TYPE);
+    }
+  }, [allowedServerTypes, serverType]);
 
   useEffect(() => {
     if (!isBundled) {
@@ -1637,6 +1602,16 @@ export function GeneratorForm({
     setPlatforms((prev) => ({ ...prev, [platform]: checked }));
   };
 
+  const handleDeploymentChange = (nextMode: DeploymentMode) => {
+    setDeploymentMode(nextMode);
+    const nextAllowed = nextMode === "bundled" || nextMode === "cloud-api"
+      ? ["external"]
+      : SERVER_TYPE_OPTIONS.map((option) => option.value);
+    if (!nextAllowed.includes(serverType)) {
+      setServerType(nextAllowed[0] ?? DEFAULT_SERVER_TYPE);
+    }
+  };
+
   const connectionSection =
     connectionDecision.kind === "bundled-runtime" ? (
       <BundledRuntimeSection
@@ -1765,13 +1740,10 @@ export function GeneratorForm({
             onOpenTemplateModal={() => setTemplateModalOpen(true)}
           />
 
-          <DeploymentServerSection
+          <DeploymentSummarySection
             deploymentMode={deploymentMode}
-            selectedDeployment={selectedDeployment}
-            onDeploymentModeChange={setDeploymentMode}
             serverType={serverType}
-            selectedServerType={selectedServerType}
-            onServerTypeChange={setServerType}
+            onOpenDeploymentModal={() => setDeploymentModalOpen(true)}
           />
 
           {connectionSection}
@@ -1871,6 +1843,19 @@ export function GeneratorForm({
           onSelect={(nextFramework) => {
             onFrameworkChange(nextFramework);
             setFrameworkModalOpen(false);
+          }}
+        />
+        <DeploymentModal
+          open={deploymentModalOpen}
+          deploymentMode={deploymentMode}
+          serverType={serverType}
+          allowedServerTypes={allowedServerTypes}
+          onClose={() => setDeploymentModalOpen(false)}
+          onChange={(nextMode, nextServerType) => {
+            handleDeploymentChange(nextMode);
+            if (nextServerType) {
+              setServerType(nextServerType);
+            }
           }}
         />
       </CardContent>
