@@ -14,9 +14,15 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
 import type { SessionCleanup } from '../session/cleanup';
 import type { Config } from '../config';
-import { getObservabilityConfigSummary } from '../config';
+import { getObservabilityConfigSummary, CONFIG_TIER_METADATA } from '../config';
 import { sendJson } from '../middleware';
 import { logger, scopedLog, LogContext, metrics } from '../utils';
+import {
+  setRuntimeValue,
+  resetRuntimeValue,
+  getRuntimeConfigState,
+  type SetConfigResult,
+} from '../runtime-config';
 import { createObservabilityCollector, getObservabilityCache } from './index';
 import type {
   ObservabilityDepth,
@@ -652,6 +658,142 @@ export async function handleMetrics(
 
     sendJson(res, 500, {
       error: 'Failed to fetch metrics',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * PUT /observability/config/:env_var
+ *
+ * Update a runtime configuration value.
+ * Only works for options marked as `editable: true` in CONFIG_TIER_METADATA.
+ *
+ * Request body: { value: string }
+ * Response: SetConfigResult
+ */
+export async function handleConfigUpdate(
+  req: IncomingMessage,
+  res: ServerResponse,
+  envVar: string
+): Promise<void> {
+  // Read request body
+  let body = '';
+  req.on('data', (chunk) => {
+    body += chunk.toString();
+  });
+
+  req.on('end', () => {
+    try {
+      const request = JSON.parse(body || '{}');
+      const { value } = request;
+
+      if (value === undefined) {
+        sendJson(res, 400, {
+          success: false,
+          error: 'Missing required field: value',
+        });
+        return;
+      }
+
+      logger.info(scopedLog(LogContext.CONFIG, 'config update requested'), {
+        envVar,
+        newValue: value,
+      });
+
+      const result = setRuntimeValue(envVar, String(value));
+
+      // Invalidate observability cache since config changed
+      if (result.success) {
+        const cache = getObservabilityCache();
+        cache.invalidateAll();
+      }
+
+      sendJson(res, result.success ? 200 : 400, result);
+    } catch (error) {
+      logger.error(scopedLog(LogContext.CONFIG, 'config update failed'), {
+        envVar,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      sendJson(res, 500, {
+        success: false,
+        error: 'Failed to update configuration',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+}
+
+/**
+ * DELETE /observability/config/:env_var
+ *
+ * Reset a runtime configuration value back to its environment/default value.
+ *
+ * Response: { success: boolean, env_var: string, reset: boolean, current_value: string }
+ */
+export async function handleConfigReset(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  envVar: string
+): Promise<void> {
+  try {
+    logger.info(scopedLog(LogContext.CONFIG, 'config reset requested'), { envVar });
+
+    const wasReset = resetRuntimeValue(envVar);
+
+    // Get the new effective value
+    const meta = CONFIG_TIER_METADATA[envVar];
+    const envValue = process.env[envVar];
+    const currentValue = envValue ?? (meta?.defaultValue !== undefined ? String(meta.defaultValue) : '');
+
+    // Invalidate observability cache
+    if (wasReset) {
+      const cache = getObservabilityCache();
+      cache.invalidateAll();
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      env_var: envVar,
+      reset: wasReset,
+      current_value: currentValue,
+    });
+  } catch (error) {
+    logger.error(scopedLog(LogContext.CONFIG, 'config reset failed'), {
+      envVar,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    sendJson(res, 500, {
+      success: false,
+      error: 'Failed to reset configuration',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * GET /observability/config/runtime
+ *
+ * Get the current state of all runtime configuration overrides.
+ *
+ * Response: RuntimeConfigState
+ */
+export async function handleConfigRuntime(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  try {
+    const state = getRuntimeConfigState();
+    sendJson(res, 200, state);
+  } catch (error) {
+    logger.error(scopedLog(LogContext.CONFIG, 'failed to get runtime config state'), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    sendJson(res, 500, {
+      error: 'Failed to get runtime config state',
       message: error instanceof Error ? error.message : String(error),
     });
   }

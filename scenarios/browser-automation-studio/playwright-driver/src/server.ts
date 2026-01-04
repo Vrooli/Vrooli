@@ -309,6 +309,16 @@ function setupRoutes(
   router.post('/observability/cleanup/run', async (req, res) => {
     await observability.handleCleanupRun(req, res, observabilityDeps);
   });
+  // Runtime configuration management
+  router.get('/observability/config/runtime', async (req, res) => {
+    await observability.handleConfigRuntime(req, res);
+  });
+  router.put('/observability/config/:env_var', async (req, res, params) => {
+    await observability.handleConfigUpdate(req, res, params.env_var);
+  });
+  router.delete('/observability/config/:env_var', async (req, res, params) => {
+    await observability.handleConfigReset(req, res, params.env_var);
+  });
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);

@@ -36,9 +36,13 @@ export type {
   MetricsComponent,
   ObservabilityComponents,
   ConfigTier,
+  ConfigDataType,
   ModifiedConfigOption,
   ConfigOption,
   ConfigComponent,
+  ConfigUpdateResult,
+  ConfigUpdateRequest,
+  RuntimeConfigState,
   RecordingDiagnostics,
   DeepDiagnostics,
   ObservabilitySummary,
@@ -62,3 +66,4 @@ export {
   type SessionListResponse,
 } from './hooks/useRefreshDiagnostics';
 export { useMetrics } from './hooks/useMetrics';
+export { useConfigUpdate } from './hooks/useConfigUpdate';

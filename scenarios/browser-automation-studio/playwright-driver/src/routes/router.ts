@@ -55,6 +55,13 @@ export class Router {
   }
 
   /**
+   * Register a PUT route.
+   */
+  put(path: string, handler: RouteHandler): void {
+    this.addRoute('PUT', path, handler);
+  }
+
+  /**
    * Register a DELETE route.
    */
   delete(path: string, handler: RouteHandler): void {

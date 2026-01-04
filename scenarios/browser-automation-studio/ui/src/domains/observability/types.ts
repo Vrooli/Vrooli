@@ -74,6 +74,7 @@ export interface ObservabilityComponents {
 }
 
 export type ConfigTier = 'essential' | 'advanced' | 'internal';
+export type ConfigDataType = 'boolean' | 'integer' | 'float' | 'string' | 'enum';
 
 export interface ModifiedConfigOption {
   env_var: string;
@@ -90,6 +91,47 @@ export interface ConfigOption {
   current_value: string;
   default_value: string;
   is_modified: boolean;
+  /** Data type for UI rendering and validation */
+  data_type: ConfigDataType;
+  /** For numeric types: minimum allowed value */
+  min?: number;
+  /** For numeric types: maximum allowed value */
+  max?: number;
+  /** For enum types: allowed values */
+  enum_values?: string[];
+  /** Whether this option can be changed at runtime without restart */
+  editable: boolean;
+}
+
+/** Result of a config update request */
+export interface ConfigUpdateResult {
+  success: boolean;
+  env_var?: string;
+  new_value?: string;
+  previous_value?: string;
+  error?: string;
+  validation?: {
+    data_type: ConfigDataType;
+    min?: number;
+    max?: number;
+    enum_values?: string[];
+  };
+}
+
+/** Request to update a config value */
+export interface ConfigUpdateRequest {
+  value: string;
+}
+
+/** Runtime config state */
+export interface RuntimeConfigState {
+  overrides: Record<string, {
+    value: string;
+    setAt: string;
+    previousValue?: string;
+  }>;
+  last_updated_at: string | null;
+  total_overrides: number;
 }
 
 export interface ConfigComponent {

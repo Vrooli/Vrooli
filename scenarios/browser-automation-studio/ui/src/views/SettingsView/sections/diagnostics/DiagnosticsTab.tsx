@@ -31,9 +31,13 @@ import {
   Check,
   ArrowLeft,
   ExternalLink,
+  Pencil,
+  RotateCcw,
+  X,
+  Save,
 } from 'lucide-react';
-import { useObservability, useRefreshDiagnostics, useRefreshCache, useMetrics, useRunCleanup, useSessionList, type SessionInfo } from '@/domains/observability';
-import type { ComponentStatus, BrowserComponent, SessionsComponent, RecordingComponent, CleanupComponent, MetricsComponent, MetricsResponse, MetricData, MetricValue, ConfigOption, ConfigTier } from '@/domains/observability';
+import { useObservability, useRefreshDiagnostics, useRefreshCache, useMetrics, useRunCleanup, useSessionList, useConfigUpdate, type SessionInfo } from '@/domains/observability';
+import type { ComponentStatus, BrowserComponent, SessionsComponent, RecordingComponent, CleanupComponent, MetricsComponent, MetricsResponse, MetricData, MetricValue, ConfigOption, ConfigTier, ConfigUpdateResult } from '@/domains/observability';
 import { SettingSection } from '../shared';
 
 type ViewMode = 'dashboard' | 'json' | 'metrics';
@@ -548,50 +552,213 @@ function JsonViewer({ data, onBack, title = 'JSON Data' }: JsonViewerProps) {
 }
 
 // Configuration Panel Component
-interface ConfigurationPanelProps {
-  config: {
-    summary: string;
-    modified_count: number;
-    total_count?: number;
-    by_tier?: { essential: number; advanced: number; internal: number };
-    modified_options?: Array<{ env_var: string; tier: ConfigTier; description?: string; current_value: string; default_value?: string }>;
-    all_options?: { essential: ConfigOption[]; advanced: ConfigOption[]; internal: ConfigOption[] };
-  };
-}
-
 const TIER_COLORS: Record<ConfigTier, { bg: string; text: string; label: string }> = {
   essential: { bg: 'bg-emerald-500/20', text: 'text-emerald-300', label: 'Essential' },
   advanced: { bg: 'bg-amber-500/20', text: 'text-amber-300', label: 'Advanced' },
   internal: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Internal' },
 };
 
-function ConfigOptionRow({ option }: { option: ConfigOption }) {
+interface ConfigOptionRowProps {
+  option: ConfigOption;
+  onUpdate?: (envVar: string, value: string) => Promise<ConfigUpdateResult>;
+  onReset?: (envVar: string) => Promise<void>;
+  isUpdating?: boolean;
+}
+
+function ConfigOptionRow({ option, onUpdate, onReset, isUpdating }: ConfigOptionRowProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(option.current_value);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleStartEdit = useCallback(() => {
+    setIsEditing(true);
+    setEditValue(option.current_value);
+    setError(null);
+  }, [option.current_value]);
+
+  const handleCancel = useCallback(() => {
+    setIsEditing(false);
+    setEditValue(option.current_value);
+    setError(null);
+  }, [option.current_value]);
+
+  const handleSave = useCallback(async () => {
+    if (!onUpdate) return;
+    setError(null);
+    try {
+      const result = await onUpdate(option.env_var, editValue);
+      if (result.success) {
+        setIsEditing(false);
+      } else {
+        setError(result.error || 'Update failed');
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed');
+    }
+  }, [onUpdate, option.env_var, editValue]);
+
+  const handleReset = useCallback(async () => {
+    if (!onReset) return;
+    try {
+      await onReset(option.env_var);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Reset failed');
+    }
+  }, [onReset, option.env_var]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  }, [handleSave, handleCancel]);
+
+  // Render input based on data type
+  const renderInput = () => {
+    if (option.data_type === 'boolean') {
+      return (
+        <select
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-surface focus:ring-2 focus:ring-flow-accent focus:border-transparent"
+        >
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      );
+    }
+
+    if (option.data_type === 'enum' && option.enum_values) {
+      return (
+        <select
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-surface focus:ring-2 focus:ring-flow-accent focus:border-transparent"
+        >
+          {option.enum_values.map((val) => (
+            <option key={val} value={val}>{val}</option>
+          ))}
+        </select>
+      );
+    }
+
+    // Default: text input with type hint
+    return (
+      <input
+        type={option.data_type === 'integer' || option.data_type === 'float' ? 'number' : 'text'}
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        min={option.min}
+        max={option.max}
+        step={option.data_type === 'float' ? 0.01 : 1}
+        className="w-32 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs font-mono text-surface focus:ring-2 focus:ring-flow-accent focus:border-transparent"
+        autoFocus
+      />
+    );
+  };
+
+  const hasRuntimeOverride = option.is_modified && option.current_value !== option.default_value;
+
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center justify-between text-sm rounded px-3 py-2 gap-2 ${option.is_modified ? 'bg-gray-800 border border-amber-500/30' : 'bg-gray-800/50'}`}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-gray-300 truncate">{option.env_var}</span>
-          {option.is_modified && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">modified</span>
+    <div className={`flex flex-col gap-2 text-sm rounded px-3 py-2 ${option.is_modified ? 'bg-gray-800 border border-amber-500/30' : 'bg-gray-800/50'}`}>
+      {/* Main row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-xs text-gray-300">{option.env_var}</span>
+            {option.is_modified && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">modified</span>
+            )}
+            {!option.editable && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-gray-600 text-gray-400" title="Requires restart to change">
+                restart required
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">{option.description}</p>
+          {option.min !== undefined && option.max !== undefined && (
+            <p className="text-xs text-gray-600 mt-0.5">Range: {option.min} - {option.max}</p>
           )}
         </div>
-        <p className="text-xs text-gray-500 mt-0.5 truncate">{option.description}</p>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isEditing ? (
+            <>
+              {renderInput()}
+              <button
+                onClick={() => void handleSave()}
+                disabled={isUpdating}
+                className="p-1 text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
+                title="Save"
+              >
+                {isUpdating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              </button>
+              <button
+                onClick={handleCancel}
+                className="p-1 text-gray-400 hover:text-gray-300"
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-gray-400 font-mono">{option.current_value || '(empty)'}</span>
+              {option.is_modified && option.default_value !== option.current_value && (
+                <span className="text-xs text-gray-600" title={`Default: ${option.default_value}`}>
+                  ← {option.default_value || '(empty)'}
+                </span>
+              )}
+              {option.editable && onUpdate && (
+                <button
+                  onClick={handleStartEdit}
+                  className="p-1 text-gray-400 hover:text-flow-accent transition-colors"
+                  title="Edit"
+                >
+                  <Pencil size={14} />
+                </button>
+              )}
+              {hasRuntimeOverride && onReset && (
+                <button
+                  onClick={() => void handleReset()}
+                  className="p-1 text-gray-400 hover:text-amber-400 transition-colors"
+                  title="Reset to default"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-xs text-gray-400 font-mono">{option.current_value || '(empty)'}</span>
-        {option.is_modified && option.default_value !== option.current_value && (
-          <span className="text-xs text-gray-600" title={`Default: ${option.default_value}`}>
-            ← {option.default_value || '(empty)'}
-          </span>
-        )}
-      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 rounded px-2 py-1">
+          <AlertCircle size={12} />
+          {error}
+        </div>
+      )}
     </div>
   );
 }
 
-function ConfigTierSection({ tier, options, defaultOpen = false }: { tier: ConfigTier; options: ConfigOption[]; defaultOpen?: boolean }) {
+interface ConfigTierSectionProps {
+  tier: ConfigTier;
+  options: ConfigOption[];
+  defaultOpen?: boolean;
+  onUpdate?: (envVar: string, value: string) => Promise<ConfigUpdateResult>;
+  onReset?: (envVar: string) => Promise<void>;
+  isUpdating?: boolean;
+}
+
+function ConfigTierSection({ tier, options, defaultOpen = false, onUpdate, onReset, isUpdating }: ConfigTierSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultOpen);
   const modifiedCount = options.filter(o => o.is_modified).length;
+  const editableCount = options.filter(o => o.editable).length;
   const tierStyle = TIER_COLORS[tier];
 
   return (
@@ -606,6 +773,9 @@ function ConfigTierSection({ tier, options, defaultOpen = false }: { tier: Confi
             {tierStyle.label}
           </span>
           <span className="text-sm text-surface">{options.length} options</span>
+          {editableCount > 0 && (
+            <span className="text-xs text-emerald-400">({editableCount} editable)</span>
+          )}
           {modifiedCount > 0 && (
             <span className="text-xs text-amber-400">({modifiedCount} modified)</span>
           )}
@@ -615,7 +785,13 @@ function ConfigTierSection({ tier, options, defaultOpen = false }: { tier: Confi
       {isExpanded && (
         <div className="p-3 bg-gray-900/50 border-t border-gray-700 space-y-2">
           {options.map((option) => (
-            <ConfigOptionRow key={option.env_var} option={option} />
+            <ConfigOptionRow
+              key={option.env_var}
+              option={option}
+              onUpdate={onUpdate}
+              onReset={onReset}
+              isUpdating={isUpdating}
+            />
           ))}
         </div>
       )}
@@ -623,8 +799,29 @@ function ConfigTierSection({ tier, options, defaultOpen = false }: { tier: Confi
   );
 }
 
-function ConfigurationPanel({ config }: ConfigurationPanelProps) {
+interface ConfigurationPanelProps {
+  config: {
+    summary: string;
+    modified_count: number;
+    total_count?: number;
+    by_tier?: { essential: number; advanced: number; internal: number };
+    modified_options?: Array<{ env_var: string; tier: ConfigTier; description?: string; current_value: string; default_value?: string }>;
+    all_options?: { essential: ConfigOption[]; advanced: ConfigOption[]; internal: ConfigOption[] };
+  };
+  onUpdate?: (envVar: string, value: string) => Promise<ConfigUpdateResult>;
+  onReset?: (envVar: string) => Promise<void>;
+  isUpdating?: boolean;
+}
+
+function ConfigurationPanel({ config, onUpdate, onReset, isUpdating }: ConfigurationPanelProps) {
   const [showOnlyModified, setShowOnlyModified] = useState(true);
+
+  // Count total editable options
+  const totalEditableCount = config.all_options
+    ? config.all_options.essential.filter(o => o.editable).length +
+      config.all_options.advanced.filter(o => o.editable).length +
+      config.all_options.internal.filter(o => o.editable).length
+    : 0;
 
   return (
     <SettingSection title="Configuration" tooltip="Current configuration status and all options" defaultOpen={false}>
@@ -634,6 +831,11 @@ function ConfigurationPanel({ config }: ConfigurationPanelProps) {
           <div className="flex items-center gap-2 text-sm">
             <Settings2 size={16} className="text-gray-400" />
             <span className="text-surface">{config.summary}</span>
+            {totalEditableCount > 0 && (
+              <span className="text-xs text-emerald-400">
+                ({totalEditableCount} editable at runtime)
+              </span>
+            )}
           </div>
           {config.all_options && (
             <button
@@ -681,9 +883,28 @@ function ConfigurationPanel({ config }: ConfigurationPanelProps) {
         {/* All options view */}
         {!showOnlyModified && config.all_options && (
           <div className="space-y-3">
-            <ConfigTierSection tier="essential" options={config.all_options.essential} defaultOpen={true} />
-            <ConfigTierSection tier="advanced" options={config.all_options.advanced} />
-            <ConfigTierSection tier="internal" options={config.all_options.internal} />
+            <ConfigTierSection
+              tier="essential"
+              options={config.all_options.essential}
+              defaultOpen={true}
+              onUpdate={onUpdate}
+              onReset={onReset}
+              isUpdating={isUpdating}
+            />
+            <ConfigTierSection
+              tier="advanced"
+              options={config.all_options.advanced}
+              onUpdate={onUpdate}
+              onReset={onReset}
+              isUpdating={isUpdating}
+            />
+            <ConfigTierSection
+              tier="internal"
+              options={config.all_options.internal}
+              onUpdate={onUpdate}
+              onReset={onReset}
+              isUpdating={isUpdating}
+            />
           </div>
         )}
       </div>
@@ -1055,6 +1276,12 @@ export function DiagnosticsTab() {
   const { data: sessionListData, isFetching: isFetchingSessionList, refetch: refetchSessionList } = useSessionList({
     enabled: false, // Only fetch when explicitly requested
   });
+  const { updateConfig, resetConfig, isUpdating: isConfigUpdating } = useConfigUpdate({
+    onSuccess: () => {
+      // Refetch observability data to get updated config values
+      void refetch();
+    },
+  });
 
   const handleRefresh = useCallback(async () => {
     refreshCache();
@@ -1082,6 +1309,14 @@ export function DiagnosticsTab() {
   const handleBackToDashboard = useCallback(() => {
     setViewMode('dashboard');
   }, []);
+
+  const handleConfigUpdate = useCallback(async (envVar: string, value: string) => {
+    return updateConfig(envVar, value);
+  }, [updateConfig]);
+
+  const handleConfigReset = useCallback(async (envVar: string) => {
+    await resetConfig(envVar);
+  }, [resetConfig]);
 
   const overallStatus = useMemo((): StatusColorKey => {
     if (isLoading) return 'loading';
@@ -1279,17 +1514,48 @@ export function DiagnosticsTab() {
 
       {/* Configuration */}
       {data?.config && (
-        <ConfigurationPanel config={data.config} />
+        <ConfigurationPanel
+          config={data.config}
+          onUpdate={handleConfigUpdate}
+          onReset={handleConfigReset}
+          isUpdating={isConfigUpdating}
+        />
       )}
 
       {/* Deep Diagnostics */}
       <SettingSection title="Deep Diagnostics" tooltip="Run comprehensive diagnostic scans" defaultOpen={false}>
         <div className="space-y-4">
-          <p className="text-sm text-gray-400">
-            Run full diagnostic scans to check script injection, event flow, and other subsystems.
-            These scans may take up to 5 seconds.
-          </p>
-          <div className="flex flex-wrap gap-3">
+          {/* Description */}
+          <div className="space-y-2">
+            <p className="text-sm text-gray-400">
+              Deep diagnostics run comprehensive tests on system subsystems to verify they're working correctly.
+            </p>
+            <div className="text-xs text-gray-500 space-y-1">
+              <p><strong>What's tested:</strong></p>
+              <ul className="list-disc list-inside ml-2 space-y-0.5">
+                <li>Recording script injection into browser pages</li>
+                <li>Event flow from browser to server (console events, clicks)</li>
+                <li>Browser context and session state</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Prerequisites notice */}
+          {data?.summary && data.summary.sessions === 0 && (
+            <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="text-amber-300 font-medium">No active sessions</p>
+                <p className="text-amber-200/80 text-xs mt-1">
+                  Recording diagnostics require at least one browser session with a page loaded.
+                  Start a recording or navigate to a URL in the browser panel to enable full diagnostics.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleRunDiagnostics}
               disabled={isDiagnosticsRunning}
@@ -1307,6 +1573,12 @@ export function DiagnosticsTab() {
                 </>
               )}
             </button>
+            {data?.summary && (
+              <span className="text-xs text-gray-500">
+                {data.summary.sessions} session{data.summary.sessions !== 1 ? 's' : ''} available
+                {data.summary.recordings > 0 && ` (${data.summary.recordings} recording)`}
+              </span>
+            )}
           </div>
 
           {/* Diagnostics Results */}
@@ -1327,9 +1599,35 @@ export function DiagnosticsTab() {
                           : 'degraded'
                     } />
                     <span className="text-sm text-gray-300">Recording Diagnostics</span>
+                    {diagnosticsResult.results.recording.provider && (
+                      <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded">
+                        {diagnosticsResult.results.recording.provider.name}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Show specific capability info */}
+                  {diagnosticsResult.results.recording.provider && (
+                    <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                      <span className={`px-2 py-0.5 rounded ${
+                        diagnosticsResult.results.recording.provider.evaluateIsolated
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-amber-500/20 text-amber-300'
+                      }`}>
+                        evaluateIsolated: {diagnosticsResult.results.recording.provider.evaluateIsolated ? 'Yes' : 'No'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded ${
+                        diagnosticsResult.results.recording.provider.exposeBindingIsolated
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-amber-500/20 text-amber-300'
+                      }`}>
+                        exposeBindingIsolated: {diagnosticsResult.results.recording.provider.exposeBindingIsolated ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  )}
+
                   {diagnosticsResult.results.recording.issues.length > 0 ? (
-                    <div className="space-y-2 mt-2">
+                    <div className="space-y-2 mt-3">
                       {diagnosticsResult.results.recording.issues.map((issue, idx) => (
                         <div
                           key={idx}
@@ -1343,10 +1641,25 @@ export function DiagnosticsTab() {
                             {issue.severity === 'error' ? <AlertCircle size={14} className="flex-shrink-0 mt-0.5" /> :
                              issue.severity === 'warning' ? <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> :
                              <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" />}
-                            <div>
-                              <span className="font-medium">[{issue.category}]</span> {issue.message}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs px-1.5 py-0.5 bg-gray-800 rounded">{issue.category}</span>
+                                <span>{issue.message}</span>
+                              </div>
                               {issue.suggestion && (
-                                <p className="text-xs mt-1 opacity-80">Suggestion: {issue.suggestion}</p>
+                                <p className="text-xs mt-2 opacity-80 bg-black/20 p-2 rounded">
+                                  <strong>Suggestion:</strong> {issue.suggestion}
+                                </p>
+                              )}
+                              {issue.docs_link && (
+                                <a
+                                  href={issue.docs_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-flow-accent hover:underline mt-1 inline-flex items-center gap-1"
+                                >
+                                  Learn more <ExternalLink size={10} />
+                                </a>
                               )}
                             </div>
                           </div>
@@ -1354,7 +1667,10 @@ export function DiagnosticsTab() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-emerald-400">No issues found</p>
+                    <div className="flex items-center gap-2 mt-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded">
+                      <CheckCircle2 size={16} className="text-emerald-400" />
+                      <span className="text-sm text-emerald-300">All diagnostics passed - no issues found</span>
+                    </div>
                   )}
                 </div>
               )}

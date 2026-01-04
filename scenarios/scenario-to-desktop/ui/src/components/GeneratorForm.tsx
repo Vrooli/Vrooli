@@ -603,19 +603,44 @@ function BundledRuntimeSection({
   );
 }
 
-interface PreflightStatusProps {
+type PreflightStepState = "pending" | "testing" | "pass" | "fail" | "warning" | "skipped";
+
+type PreflightStepStatus = {
+  state: PreflightStepState;
   label: string;
-  ok: boolean;
-  detail: string;
+};
+
+const PREFLIGHT_STEP_STYLES: Record<PreflightStepState, string> = {
+  pending: "border-slate-800/70 bg-slate-950/70 text-slate-200",
+  testing: "border-blue-800/70 bg-blue-950/60 text-blue-200",
+  pass: "border-emerald-800/70 bg-emerald-950/40 text-emerald-200",
+  fail: "border-red-800/70 bg-red-950/60 text-red-200",
+  warning: "border-amber-800/70 bg-amber-950/60 text-amber-200",
+  skipped: "border-slate-800/70 bg-slate-950/60 text-slate-300"
+};
+
+interface PreflightStepHeaderProps {
+  index: number;
+  title: string;
+  status: PreflightStepStatus;
+  subtitle?: string;
 }
 
-function PreflightStatus({ label, ok, detail }: PreflightStatusProps) {
+function PreflightStepHeader({ index, title, status, subtitle }: PreflightStepHeaderProps) {
   return (
-    <div className={`rounded-md border px-3 py-2 ${ok ? "border-emerald-700/70 bg-emerald-950/40" : "border-amber-700/70 bg-amber-950/40"}`}>
-      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`text-sm font-semibold ${ok ? "text-emerald-200" : "text-amber-200"}`}>
-        {detail}
-      </p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-xs font-semibold text-slate-200">
+          {index}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-slate-100">{title}</p>
+          {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
+        </div>
+      </div>
+      <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${PREFLIGHT_STEP_STYLES[status.state]}`}>
+        {status.label}
+      </span>
     </div>
   );
 }
@@ -758,7 +783,6 @@ function BundledPreflightSection({
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
-  const secretsReady = missingSecrets.length === 0;
   const ports = preflightResult?.ports;
   const telemetry = preflightResult?.telemetry;
   const logTails = preflightLogTails ?? preflightResult?.log_tails;
@@ -786,6 +810,7 @@ function BundledPreflightSection({
     }),
     [bundleManifestPath, preflightStartServices, preflightResult, preflightError, missingSecrets]
   );
+  const hasRun = Boolean(preflightResult || preflightError);
   const portSummary = ports
     ? Object.entries(ports)
         .map(([svc, portMap]) => {
@@ -796,6 +821,104 @@ function BundledPreflightSection({
         })
         .join(" · ")
     : "";
+  const diagnosticsAvailable = Boolean(
+    portSummary || telemetry?.path || (logTails && logTails.length > 0)
+  );
+
+  const stepValidationStatus: PreflightStepStatus = (() => {
+    if (preflightPending) {
+      return { state: "testing", label: "Testing" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    if (!hasRun) {
+      return { state: "pending", label: "Pending" };
+    }
+    if (validation?.valid === true) {
+      return { state: "pass", label: "Pass" };
+    }
+    if (validation?.valid === false) {
+      return { state: "fail", label: "Fail" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Fail" };
+    }
+    return { state: "warning", label: "Review" };
+  })();
+
+  const stepSecretsStatus: PreflightStepStatus = (() => {
+    if (preflightPending) {
+      return { state: "testing", label: "Checking" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    if (!hasRun) {
+      return { state: "pending", label: "Pending" };
+    }
+    if (missingSecrets.length > 0) {
+      return { state: "warning", label: "Missing" };
+    }
+    return { state: "pass", label: "Ready" };
+  })();
+
+  const stepRuntimeStatus: PreflightStepStatus = (() => {
+    if (preflightPending) {
+      return { state: "testing", label: "Starting" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    if (preflightResult) {
+      return { state: "pass", label: "Running" };
+    }
+    if (!hasRun) {
+      return { state: "pending", label: "Pending" };
+    }
+    return { state: "warning", label: "Unknown" };
+  })();
+
+  const stepServicesStatus: PreflightStepStatus = (() => {
+    if (!preflightStartServices) {
+      return { state: "skipped", label: "Skipped" };
+    }
+    if (preflightPending) {
+      return { state: "testing", label: "Starting" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    if (!hasRun) {
+      return { state: "pending", label: "Pending" };
+    }
+    if (readiness?.ready === true) {
+      return { state: "pass", label: "Ready" };
+    }
+    if (readiness?.ready === false) {
+      return { state: "warning", label: "Waiting" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    return { state: "warning", label: "Unknown" };
+  })();
+
+  const stepDiagnosticsStatus: PreflightStepStatus = (() => {
+    if (preflightPending) {
+      return { state: "testing", label: "Collecting" };
+    }
+    if (preflightError) {
+      return { state: "fail", label: "Failed" };
+    }
+    if (!hasRun) {
+      return { state: "pending", label: "Pending" };
+    }
+    if (diagnosticsAvailable) {
+      return { state: "pass", label: "Available" };
+    }
+    return { state: "warning", label: "Empty" };
+  })();
 
   const copyJson = async () => {
     if (!preflightResult && !preflightError) {
@@ -813,16 +936,16 @@ function BundledPreflightSection({
   };
 
   return (
-    <div className="rounded-lg border border-emerald-900 bg-emerald-950/10 p-4 space-y-3">
+    <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-emerald-100">Preflight validation</p>
-          <p className="text-xs text-emerald-200/80">
+          <p className="text-sm font-semibold text-slate-100">Preflight validation</p>
+          <p className="text-xs text-slate-400">
             Validates the bundle manifest + staged assets by running the bundled runtime (no desktop wrapper needed).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full border border-emerald-900/70 bg-emerald-950/40 p-1 text-[11px]">
+          <div className="flex items-center gap-1 rounded-full border border-slate-800/70 bg-slate-950/60 p-1 text-[11px]">
             <Button
               type="button"
               size="sm"
@@ -856,7 +979,7 @@ function BundledPreflightSection({
           </Button>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-xs text-emerald-200/80">
+      <div className="flex items-center gap-2 text-xs text-slate-400">
         <Checkbox
           checked={preflightStartServices}
           onChange={(e) => onStartServicesChange(e.target.checked)}
@@ -874,11 +997,11 @@ function BundledPreflightSection({
         </div>
       )}
 
-      {preflightResult && viewMode === "summary" && (
-        <div className="space-y-3">
-          <div className="rounded-md border border-emerald-900/80 bg-emerald-950/30 p-3 text-xs text-emerald-100 space-y-2">
+      {(preflightResult || preflightError) && viewMode === "summary" && (
+        <div className="space-y-4">
+          <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold text-emerald-50">Bundle source</p>
+              <p className="font-semibold text-slate-100">Bundle context</p>
               <div className="flex flex-wrap items-center gap-2">
                 {onReexportBundle && (
                   <Button type="button" size="xs" variant="outline" onClick={onReexportBundle}>
@@ -894,240 +1017,330 @@ function BundledPreflightSection({
                 )}
               </div>
             </div>
-            <p className="text-[11px] text-emerald-100/80">
-              Bundle root is derived from the manifest directory.
-            </p>
-            <p className="text-[11px] text-emerald-100">
-              {bundleRootPreview || "Unknown (add bundle_manifest_path)"}
-            </p>
+            <div className="space-y-1 text-[11px] text-slate-300">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-slate-400">Manifest</span>
+                <span className="text-slate-200">{bundleManifestPath.trim() || "Not set"}</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-slate-400">Bundle root</span>
+                <span className="text-slate-200">{bundleRootPreview || "Unknown"}</span>
+              </div>
+            </div>
             {likelyRootMismatch && (
-              <p className="text-[11px] text-amber-100">
+              <p className="text-[11px] text-amber-200">
                 Missing artifacts detected. If your bundle assets live elsewhere, re-export the bundle so the manifest
                 and staged files sit in the same directory.
               </p>
             )}
           </div>
 
-          <div className="rounded-md border border-emerald-900/80 bg-emerald-950/30 p-3 text-xs text-emerald-100 space-y-2">
-            <p className="font-semibold text-emerald-50">What this checks</p>
-            <ul className="space-y-1 text-emerald-100/90">
-              <li>Bundle manifest structure + platform targets</li>
-              <li>Staged binaries/assets in the bundle root (existence + checksums)</li>
-              <li>Runtime readiness + secrets + diagnostics via control API</li>
-            </ul>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <PreflightStatus
-              label="Bundle validation"
-              ok={validation?.valid === true}
-              detail={validation?.valid ? "Valid" : "Needs attention"}
-            />
-            <PreflightStatus
-              label="Secrets"
-              ok={secretsReady}
-              detail={secretsReady ? "All required present" : `${missingSecrets.length} missing`}
-            />
-            <PreflightStatus
-              label="Runtime readiness"
-              ok={readiness?.ready === true}
-              detail={readiness?.ready ? "Ready" : "Waiting"}
-            />
-          </div>
-
-          {!preflightOk && (
-            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100">
-              Preflight is not green yet. Resolve the items below or enable override before generating.
-            </div>
-          )}
-
-          {validation && !validation.valid && (
-            <div className="rounded-md border border-red-900/70 bg-red-950/40 p-3 text-xs text-red-200 space-y-3">
-              <p className="font-semibold text-red-100">Bundle validation issues</p>
-              {validation.errors && validation.errors.length > 0 && (
-                <div className="space-y-2">
-                  {validation.errors.map((err, idx) => {
-                    const guidance = PREFLIGHT_ISSUE_GUIDANCE[err.code];
-                    return (
-                      <div key={`${err.code}-${idx}`} className="rounded-md border border-red-900/50 bg-red-950/50 p-2 space-y-1">
-                        <p className="font-semibold text-red-100">
-                          {guidance?.title || err.code}
+          <div className="space-y-3">
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+              <PreflightStepHeader
+                index={1}
+                title="Load bundle + validate"
+                subtitle="Manifest structure and staged binaries/assets"
+                status={stepValidationStatus}
+              />
+              <p className="text-[11px] text-slate-400">
+                Confirms the manifest is valid and staged files exist with matching checksums.
+              </p>
+              {validation?.valid && !preflightError && (
+                <p className="text-[11px] text-slate-300">No validation issues detected.</p>
+              )}
+              {preflightError && !validation && (
+                <p className="text-[11px] text-red-200">
+                  Validation did not complete. Review the error above and re-run preflight.
+                </p>
+              )}
+              {validation && !validation.valid && (
+                <details className="rounded-md border border-red-900/50 bg-red-950/20 p-3 text-[11px] text-red-200" open>
+                  <summary className="cursor-pointer text-xs font-semibold text-red-100">Validation issues</summary>
+                  <div className="mt-2 space-y-3">
+                    {validation.errors && validation.errors.length > 0 && (
+                      <div className="space-y-2">
+                        {validation.errors.map((err, idx) => {
+                          const guidance = PREFLIGHT_ISSUE_GUIDANCE[err.code];
+                          return (
+                            <div key={`${err.code}-${idx}`} className="rounded-md border border-red-900/50 bg-red-950/40 p-2 space-y-1">
+                              <p className="font-semibold text-red-100">
+                                {guidance?.title || err.code}
+                              </p>
+                              <p>{err.message}</p>
+                              {(err.service || err.path) && (
+                                <p className="text-[11px] text-red-200/80">
+                                  {err.service ? `Service: ${err.service}` : ""}{err.service && err.path ? " · " : ""}{err.path ? `Path: ${err.path}` : ""}
+                                </p>
+                              )}
+                              {guidance && (
+                                <>
+                                  <p className="text-[11px] text-red-200/80">{guidance.meaning}</p>
+                                  <ul className="space-y-1 text-[11px] text-red-100">
+                                    {guidance.remediation.map((step, stepIdx) => (
+                                      <li key={`${err.code}-remedy-${stepIdx}`}>• {step}</li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {validation.missing_binaries && validation.missing_binaries.length > 0 && (
+                      <div className="space-y-1 text-[11px] text-red-100">
+                        <p className="font-semibold text-red-100">Missing binaries</p>
+                        <ul className="space-y-1">
+                          {validation.missing_binaries.map((item, idx) => (
+                            <li key={`${item.service_id}-${item.path}-${idx}`}>
+                              {item.service_id}: {item.path} ({item.platform})
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-red-200/80">
+                          Rebuild the service binaries and re-export the bundle to update manifest paths.
                         </p>
-                        <p>{err.message}</p>
-                        {(err.service || err.path) && (
-                          <p className="text-[11px] text-red-200/80">
-                            {err.service ? `Service: ${err.service}` : ""}{err.service && err.path ? " · " : ""}{err.path ? `Path: ${err.path}` : ""}
+                      </div>
+                    )}
+                    {validation.missing_assets && validation.missing_assets.length > 0 && (
+                      <div className="space-y-1 text-[11px] text-red-100">
+                        <p className="font-semibold text-red-100">Missing assets</p>
+                        <ul className="space-y-1">
+                          {validation.missing_assets.map((item, idx) => (
+                            <li key={`${item.service_id}-${item.path}-${idx}`}>
+                              {item.service_id}: {item.path}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-red-200/80">
+                          Rebuild UI/assets and re-export the bundle so the staged paths exist.
+                        </p>
+                      </div>
+                    )}
+                    {validation.invalid_checksums && validation.invalid_checksums.length > 0 && (
+                      <div className="space-y-1 text-[11px] text-red-100">
+                        <p className="font-semibold text-red-100">Invalid checksums</p>
+                        <ul className="space-y-1">
+                          {validation.invalid_checksums.map((item, idx) => (
+                            <li key={`${item.service_id}-${item.path}-${idx}`}>
+                              {item.service_id}: {item.path}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-red-200/80">
+                          Re-export the bundle after rebuilding assets so checksums match.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )}
+              {validation?.warnings && validation.warnings.length > 0 && (
+                <details className="rounded-md border border-amber-800/50 bg-amber-950/20 p-3 text-[11px] text-amber-200">
+                  <summary className="cursor-pointer text-xs font-semibold">Warnings</summary>
+                  <ul className="mt-2 space-y-1">
+                    {validation.warnings.map((warn, idx) => (
+                      <li key={`${warn.code}-${idx}`}>{warn.message}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+              <PreflightStepHeader
+                index={2}
+                title="Apply secrets"
+                subtitle="Required secrets must be present for readiness"
+                status={stepSecretsStatus}
+              />
+              {!hasRun && (
+                <p className="text-[11px] text-slate-400">
+                  Run preflight to detect required secrets.
+                </p>
+              )}
+              {preflightError && (
+                <p className="text-[11px] text-red-200">
+                  Secrets were not checked because preflight failed.
+                </p>
+              )}
+              {hasRun && !preflightError && missingSecrets.length === 0 && (
+                <p className="text-[11px] text-slate-300">All required secrets are present for this run.</p>
+              )}
+              {missingSecrets.length > 0 && (
+                <div className="rounded-md border border-amber-800/60 bg-amber-950/20 p-3 text-xs text-amber-100 space-y-3">
+                  <p className="font-semibold text-amber-100">Missing required secrets</p>
+                  <p className="text-amber-100/80">
+                    Enter temporary values to validate readiness. Values are used only for this preflight run.
+                  </p>
+                  <div className="space-y-2">
+                    {missingSecrets.map((secret) => (
+                      <div key={secret.id} className="space-y-1">
+                        <Label htmlFor={`preflight-${secret.id}`}>
+                          {secret.prompt?.label || secret.id}
+                        </Label>
+                        <Input
+                          id={`preflight-${secret.id}`}
+                          type="password"
+                          value={secretInputs[secret.id] || ""}
+                          onChange={(e) => onSecretChange(secret.id, e.target.value)}
+                          placeholder={secret.prompt?.hint || "Enter value"}
+                        />
+                        {secret.class && (
+                          <p className="text-[11px] text-amber-200/80">
+                            {secret.class.replace(/_/g, " ")}
                           </p>
                         )}
-                        {guidance && (
-                          <>
-                            <p className="text-[11px] text-red-200/80">{guidance.meaning}</p>
-                            <ul className="space-y-1 text-[11px] text-red-100">
-                              {guidance.remediation.map((step, stepIdx) => (
-                                <li key={`${err.code}-remedy-${stepIdx}`}>• {step}</li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-              {validation.missing_binaries && validation.missing_binaries.length > 0 && (
-                <div className="space-y-1 text-[11px] text-red-100">
-                  <p className="font-semibold text-red-100">Missing binaries</p>
-                  <ul className="space-y-1">
-                    {validation.missing_binaries.map((item, idx) => (
-                      <li key={`${item.service_id}-${item.path}-${idx}`}>
-                        {item.service_id}: {item.path} ({item.platform})
-                      </li>
                     ))}
-                  </ul>
-                  <p className="text-red-200/80">
-                    Rebuild the service binaries and re-export the bundle to update manifest paths.
-                  </p>
-                </div>
-              )}
-              {validation.missing_assets && validation.missing_assets.length > 0 && (
-                <div className="space-y-1 text-[11px] text-red-100">
-                  <p className="font-semibold text-red-100">Missing assets</p>
-                  <ul className="space-y-1">
-                    {validation.missing_assets.map((item, idx) => (
-                      <li key={`${item.service_id}-${item.path}-${idx}`}>
-                        {item.service_id}: {item.path}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-red-200/80">
-                    Rebuild UI/assets and re-export the bundle so the staged paths exist.
-                  </p>
-                </div>
-              )}
-              {validation.invalid_checksums && validation.invalid_checksums.length > 0 && (
-                <div className="space-y-1 text-[11px] text-red-100">
-                  <p className="font-semibold text-red-100">Invalid checksums</p>
-                  <ul className="space-y-1">
-                    {validation.invalid_checksums.map((item, idx) => (
-                      <li key={`${item.service_id}-${item.path}-${idx}`}>
-                        {item.service_id}: {item.path}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-red-200/80">
-                    Re-export the bundle after rebuilding assets so checksums match.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {validation?.warnings && validation.warnings.length > 0 && (
-            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100 space-y-1">
-              <p className="font-semibold">Warnings</p>
-              <ul className="space-y-1">
-                {validation.warnings.map((warn, idx) => (
-                  <li key={`${warn.code}-${idx}`}>{warn.message}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {missingSecrets.length > 0 && (
-            <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-100 space-y-3">
-              <p className="font-semibold text-amber-100">Missing required secrets</p>
-              <p className="text-amber-100/80">
-                Enter temporary values to validate readiness. Values are used only for this preflight run.
-              </p>
-              <div className="space-y-2">
-                {missingSecrets.map((secret) => (
-                  <div key={secret.id} className="space-y-1">
-                    <Label htmlFor={`preflight-${secret.id}`}>
-                      {secret.prompt?.label || secret.id}
-                    </Label>
-                    <Input
-                      id={`preflight-${secret.id}`}
-                      type="password"
-                      value={secretInputs[secret.id] || ""}
-                      onChange={(e) => onSecretChange(secret.id, e.target.value)}
-                      placeholder={secret.prompt?.hint || "Enter value"}
-                    />
-                    {secret.class && (
-                      <p className="text-[11px] text-amber-200/80">
-                        {secret.class.replace(/_/g, " ")}
-                      </p>
-                    )}
                   </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onRun(secretInputs)}
-                disabled={preflightPending}
-              >
-                Apply secrets and re-run
-              </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onRun(secretInputs)}
+                    disabled={preflightPending}
+                  >
+                    Apply secrets and re-run
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
 
-          {readiness && readinessDetails.length > 0 && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
-              <p className="font-semibold text-slate-100">Readiness details</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {readinessDetails.map(([serviceId, status]) => (
-                  <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
-                    <p className={`text-xs ${status.ready ? "text-emerald-200" : "text-amber-200"}`}>
-                      {status.ready ? "Ready" : "Waiting"}
-                    </p>
-                    {status.message && (
-                      <p className="text-[11px] text-slate-300">{status.message}</p>
-                    )}
-                    {typeof status.exit_code === "number" && (
-                      <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {!readiness.ready && (
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+              <PreflightStepHeader
+                index={3}
+                title="Start runtime control API"
+                subtitle="IPC auth token + control API readiness"
+                status={stepRuntimeStatus}
+              />
+              {preflightPending && (
+                <p className="text-[11px] text-slate-400">
+                  Starting the runtime supervisor and waiting for the control API.
+                </p>
+              )}
+              {!preflightPending && preflightResult && (
                 <p className="text-[11px] text-slate-300">
-                  If readiness stays waiting, review log tails and confirm services can start with supplied secrets.
+                  Control API is responding. Runtime supervisor initialized.
+                </p>
+              )}
+              {!preflightPending && !preflightResult && !preflightError && (
+                <p className="text-[11px] text-slate-400">
+                  Run preflight to boot the runtime supervisor.
+                </p>
+              )}
+              {preflightError && (
+                <p className="text-[11px] text-red-200">
+                  Control API failed to start. Review the error above.
                 </p>
               )}
             </div>
-          )}
 
-          {(portSummary || telemetry?.path) && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
-              <p className="font-semibold text-slate-100">Diagnostics</p>
-              {portSummary && <p>Ports: {portSummary}</p>}
-              {telemetry?.path && <p>Telemetry: {telemetry.path}</p>}
-            </div>
-          )}
-
-          {logTails && logTails.length > 0 && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
-              <p className="font-semibold text-slate-100">Service log tails</p>
-              <div className="space-y-2">
-                {logTails.map((tail, idx) => (
-                  <div key={`${tail.service_id}-${idx}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                      {tail.service_id} · {tail.lines} lines
-                    </p>
-                    {tail.error ? (
-                      <p className="text-amber-200">{tail.error}</p>
-                    ) : (
-                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
-                        {tail.content || "No log output yet."}
-                      </pre>
-                    )}
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+              <PreflightStepHeader
+                index={4}
+                title="Services ready"
+                subtitle="Optional service startup + readiness checks"
+                status={stepServicesStatus}
+              />
+              {!preflightStartServices && (
+                <p className="text-[11px] text-slate-400">
+                  Skipped in dry run. Enable "Start services" to test readiness and capture log tails.
+                </p>
+              )}
+              {preflightStartServices && readiness && readinessDetails.length > 0 && (
+                <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200" open={!readiness.ready}>
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+                    Readiness details
+                  </summary>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {readinessDetails.map(([serviceId, status]) => (
+                      <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
+                        <p className={`text-xs ${status.ready ? "text-emerald-200" : "text-amber-200"}`}>
+                          {status.ready ? "Ready" : "Waiting"}
+                        </p>
+                        {status.message && (
+                          <p className="text-[11px] text-slate-300">{status.message}</p>
+                        )}
+                        {typeof status.exit_code === "number" && (
+                          <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  {!readiness.ready && (
+                    <p className="mt-2 text-[11px] text-slate-300">
+                      If readiness stays waiting, review log tails and confirm services can start with supplied secrets.
+                    </p>
+                  )}
+                </details>
+              )}
+              {preflightStartServices && (!readiness || readinessDetails.length === 0) && (
+                <p className="text-[11px] text-slate-400">
+                  Run preflight to fetch service readiness details.
+                </p>
+              )}
             </div>
-          )}
+
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
+              <PreflightStepHeader
+                index={5}
+                title="Diagnostics"
+                subtitle="Ports, telemetry, and optional log tails"
+                status={stepDiagnosticsStatus}
+              />
+              {!hasRun && (
+                <p className="text-[11px] text-slate-400">
+                  Run preflight to collect diagnostics.
+                </p>
+              )}
+              {hasRun && !diagnosticsAvailable && (
+                <p className="text-[11px] text-slate-400">
+                  No diagnostics reported yet.
+                </p>
+              )}
+              {(portSummary || telemetry?.path) && (
+                <div className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200 space-y-2">
+                  {portSummary && <p>Ports: {portSummary}</p>}
+                  {telemetry?.path && <p>Telemetry: {telemetry.path}</p>}
+                </div>
+              )}
+              {logTails && logTails.length > 0 && (
+                <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+                    Service log tails
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {logTails.map((tail, idx) => (
+                      <div key={`${tail.service_id}-${idx}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                          {tail.service_id} · {tail.lines} lines
+                        </p>
+                        {tail.error ? (
+                          <p className="text-amber-200">{tail.error}</p>
+                        ) : (
+                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
+                            {tail.content || "No log output yet."}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+
+          <details className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-100">Coverage map</summary>
+            <p className="mt-2 text-[11px] text-slate-400">
+              Dry run starts the runtime supervisor, validates bundle files, and checks secrets without starting services.
+              Start services adds service startup, readiness checks, and log tails. The Electron UI is not started during
+              preflight.
+            </p>
+          </details>
 
           {!preflightOk && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-800 bg-amber-950/20 p-3 text-xs text-amber-100">

@@ -309,7 +309,30 @@ export class RecordingContextInitializer {
       }
 
       try {
-        const response = await route.fetch();
+        // IMPORTANT: Don't follow redirects! If we follow redirects, the browser's URL
+        // won't match the final content URL. JavaScript checking location.href would see
+        // the original URL, not the redirect destination, which can cause redirect loops.
+        // Let the browser handle redirects naturally - we'll inject on the final destination.
+        const response = await route.fetch({
+          maxRedirects: 0,
+          timeout: 30000, // 30s timeout to prevent hanging
+        });
+
+        // If it's a redirect, pass it through without modification
+        const status = response.status();
+        if (status >= 300 && status < 400) {
+          this.injectionStats.skipped++;
+          if (this.diagnosticsEnabled) {
+            this.logger.debug(scopedLog(LogContext.INJECTION, 'passing redirect through'), {
+              url: url.slice(0, 80),
+              status,
+              location: response.headers()['location']?.slice(0, 80),
+            });
+          }
+          await route.fulfill({ response });
+          return;
+        }
+
         const contentType = response.headers()['content-type'] || '';
 
         // Only inject into HTML responses

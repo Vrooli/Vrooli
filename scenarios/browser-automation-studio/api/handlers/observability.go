@@ -199,3 +199,101 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
+
+// GetConfigRuntime proxies GET /observability/config/runtime requests to the playwright-driver.
+// Returns the current state of all runtime configuration overrides.
+func (h *Handler) GetConfigRuntime(w http.ResponseWriter, r *http.Request) {
+	driverURL := getPlaywrightDriverURL()
+	targetURL := driverURL + "/observability/config/runtime"
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
+// UpdateConfig proxies PUT /observability/config/{env_var} requests to the playwright-driver.
+// Updates a runtime configuration value.
+func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request, envVar string) {
+	driverURL := getPlaywrightDriverURL()
+	targetURL := driverURL + "/observability/config/" + envVar
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPut, targetURL, r.Body)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	// Copy content-type header
+	if ct := r.Header.Get("Content-Type"); ct != "" {
+		req.Header.Set("Content-Type", ct)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
+// ResetConfig proxies DELETE /observability/config/{env_var} requests to the playwright-driver.
+// Resets a runtime configuration value back to its environment/default value.
+func (h *Handler) ResetConfig(w http.ResponseWriter, r *http.Request, envVar string) {
+	driverURL := getPlaywrightDriverURL()
+	targetURL := driverURL + "/observability/config/" + envVar
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodDelete, targetURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}

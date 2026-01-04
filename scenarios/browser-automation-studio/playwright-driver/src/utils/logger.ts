@@ -26,6 +26,11 @@ export const LogContext = {
    * Use for debugging event communication issues.
    */
   EVENT_FLOW: 'event-flow',
+  /**
+   * Configuration changes.
+   * Logs related to runtime configuration updates.
+   */
+  CONFIG: 'config',
 } as const;
 
 export type LogContextType = (typeof LogContext)[keyof typeof LogContext];

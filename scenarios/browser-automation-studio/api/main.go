@@ -417,6 +417,16 @@ func main() {
 		r.Get("/observability/sessions", handler.GetSessionList)
 		r.Post("/observability/cleanup/run", handler.RunCleanup)
 		r.Get("/observability/metrics", handler.GetMetrics)
+		// Runtime configuration management
+		r.Get("/observability/config/runtime", handler.GetConfigRuntime)
+		r.Put("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
+			envVar := chi.URLParam(req, "envVar")
+			handler.UpdateConfig(w, req, envVar)
+		})
+		r.Delete("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {
+			envVar := chi.URLParam(req, "envVar")
+			handler.ResetConfig(w, req, envVar)
+		})
 	})
 
 	// Initialize and start the workflow scheduler

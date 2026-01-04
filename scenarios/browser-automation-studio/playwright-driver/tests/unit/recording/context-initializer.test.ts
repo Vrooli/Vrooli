@@ -29,7 +29,7 @@ const mockLogger = {
 // Helper to create mock route
 function createMockRoute(
   requestOverrides?: Partial<Request>,
-  fetchResult?: { text: () => Promise<string>; headers: () => Record<string, string> }
+  fetchResult?: { text: () => Promise<string>; headers: () => Record<string, string>; status?: () => number }
 ): { route: jest.Mocked<Route>; request: jest.Mocked<Request> } {
   const mockRequest = {
     url: jest.fn().mockReturnValue('https://example.com'),
@@ -42,12 +42,19 @@ function createMockRoute(
   const mockFetchResult = fetchResult ?? {
     text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
     headers: () => ({ 'content-type': 'text/html' }),
+    status: () => 200,
   };
+
+  // Ensure status is defined
+  if (!mockFetchResult.status) {
+    mockFetchResult.status = () => 200;
+  }
 
   const mockRoute = {
     request: jest.fn().mockReturnValue(mockRequest),
     continue: jest.fn().mockResolvedValue(undefined),
     fulfill: jest.fn().mockResolvedValue(undefined),
+    fallback: jest.fn().mockResolvedValue(undefined),
     fetch: jest.fn().mockResolvedValue(mockFetchResult as unknown as APIResponse),
   } as unknown as jest.Mocked<Route>;
 
@@ -477,6 +484,189 @@ describe('RecordingContextInitializer', () => {
     it('should return default binding name when not specified', () => {
       expect(initializer.getBindingName()).toBeDefined();
       expect(typeof initializer.getBindingName()).toBe('string');
+    });
+  });
+
+  describe('redirect handling', () => {
+    /**
+     * CRITICAL: These tests verify the fix for navigation loops.
+     *
+     * When route.fetch() follows redirects, the browser's URL doesn't match
+     * the final content URL. JavaScript checking location.href would see
+     * the original URL, not the redirect destination, causing redirect loops.
+     *
+     * The fix: Don't follow redirects (maxRedirects: 0). Let the browser
+     * handle redirects naturally - we inject on the final destination.
+     */
+
+    it('should call route.fetch() with maxRedirects: 0 to prevent URL mismatch loops', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
+          headers: () => ({ 'content-type': 'text/html' }),
+          status: () => 200,
+        }
+      );
+
+      await handler!(route);
+
+      // Verify fetch was called with maxRedirects: 0
+      expect(route.fetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxRedirects: 0,
+        })
+      );
+    });
+
+    it('should pass 301 redirect responses through without modification', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve(''),
+          headers: () => ({ 'location': 'https://example.com/new-path' }),
+          status: () => 301,
+        }
+      );
+
+      await handler!(route);
+
+      // Should fulfill with original response (no body modification)
+      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
+
+      // Body should NOT be modified (no script injection)
+      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
+      expect(fulfillCall.body).toBeUndefined();
+    });
+
+    it('should pass 302 redirect responses through without modification', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve(''),
+          headers: () => ({ 'location': 'https://example.com/redirected' }),
+          status: () => 302,
+        }
+      );
+
+      await handler!(route);
+
+      // Should fulfill with original response
+      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
+      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
+      expect(fulfillCall.body).toBeUndefined();
+    });
+
+    it('should pass 307 redirect responses through without modification', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve(''),
+          headers: () => ({ 'location': 'https://example.com/temp-redirect' }),
+          status: () => 307,
+        }
+      );
+
+      await handler!(route);
+
+      // Should fulfill with original response
+      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
+      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
+      expect(fulfillCall.body).toBeUndefined();
+    });
+
+    it('should track redirects as skipped in injection stats', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve(''),
+          headers: () => ({ 'location': 'https://example.com/redirect' }),
+          status: () => 301,
+        }
+      );
+
+      await handler!(route);
+
+      const stats = initializer.getInjectionStats();
+      expect(stats.skipped).toBe(1);
+      expect(stats.successful).toBe(0);
+    });
+
+    it('should still inject script into 200 OK responses', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve('<html><head></head><body>Success</body></html>'),
+          headers: () => ({ 'content-type': 'text/html' }),
+          status: () => 200,
+        }
+      );
+
+      await handler!(route);
+
+      // Should have injected script
+      expect(route.fulfill).toHaveBeenCalled();
+      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
+      expect(fulfillCall.body).toContain('<script>');
+    });
+
+    it('should call route.fetch() with a timeout to prevent hanging', async () => {
+      const { context, routeHandlers } = createMockContext();
+
+      await initializer.initialize(context);
+
+      const handler = routeHandlers.get('**/*');
+      const { route } = createMockRoute(
+        { resourceType: jest.fn().mockReturnValue('document') as any },
+        {
+          text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
+          headers: () => ({ 'content-type': 'text/html' }),
+          status: () => 200,
+        }
+      );
+
+      await handler!(route);
+
+      // Verify fetch was called with a timeout
+      expect(route.fetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: expect.any(Number),
+        })
+      );
+
+      // Timeout should be reasonable (> 10s to handle slow servers)
+      const fetchCall = (route.fetch as jest.Mock).mock.calls[0][0];
+      expect(fetchCall.timeout).toBeGreaterThanOrEqual(10000);
     });
   });
 });
