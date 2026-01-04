@@ -53,6 +53,8 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData
 	env["BUNDLE_ROOT"] = r.BundlePath
+	// Bundled services should skip api-core staleness checks (no source modules in bundle).
+	env["VROOLI_API_SKIP_STALE_CHECK"] = "true"
 
 	// Prepend bundle-local bins to PATH so staged CLIs are discoverable.
 	pathSep := string(os.PathListSeparator)

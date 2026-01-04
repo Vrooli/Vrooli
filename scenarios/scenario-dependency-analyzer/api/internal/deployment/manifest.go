@@ -232,20 +232,16 @@ func buildSkeletonServices(scenarioName, scenarioPath string, cfg *types.Service
 }
 
 func buildAPISkeletonService(scenarioName, scenarioPath string, cfg *types.ServiceConfig) types.BundleSkeletonService {
-	defaultPath := filepath.ToSlash(filepath.Join("api", fmt.Sprintf("%s-api", scenarioName)))
-	apiBinary := defaultPath
-	if _, err := os.Stat(filepath.Join(scenarioPath, defaultPath)); err != nil {
-		apiBinary = filepath.ToSlash(filepath.Join("api", "server"))
-	}
+	binaryBase := fmt.Sprintf("%s-api", scenarioName)
 
 	service := types.BundleSkeletonService{
 		ID:          fmt.Sprintf("%s-api", scenarioName),
 		Type:        "api-binary",
 		Description: fmt.Sprintf("Bundled API process for %s", scenarioName),
 		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: apiBinary},
-			"linux-x64":  {Path: apiBinary},
-			"win-x64":    {Path: apiBinary + ".exe"},
+			"darwin-x64": {Path: platformBinaryPath("api", "darwin-x64", binaryBase)},
+			"linux-x64":  {Path: platformBinaryPath("api", "linux-x64", binaryBase)},
+			"win-x64":    {Path: platformBinaryPath("api", "win-x64", binaryBase)},
 		},
 		Env: map[string]string{},
 		DataDirs: []string{
@@ -294,7 +290,7 @@ func buildAPISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 			Type:          "go",
 			SourceDir:     "api",
 			EntryPoint:    ".",
-			OutputPattern: filepath.ToSlash(filepath.Join("bin", "{{platform}}", fmt.Sprintf("%s-api{{ext}}", scenarioName))),
+			OutputPattern: filepath.ToSlash(filepath.Join("bin", "api", "{{platform}}", fmt.Sprintf("%s-api{{ext}}", scenarioName))),
 			Env: map[string]string{
 				"CGO_ENABLED": "0",
 			},
@@ -312,18 +308,15 @@ func buildCLISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 		return nil
 	}
 
-	cliBinary := filepath.ToSlash(filepath.Join("cli", scenarioName))
+	binaryBase := scenarioName
 	service := types.BundleSkeletonService{
 		ID:          fmt.Sprintf("%s-cli", scenarioName),
 		Type:        "resource",
 		Description: fmt.Sprintf("CLI for %s scenario", scenarioName),
 		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: cliBinary},
-			"linux-x64":  {Path: cliBinary},
-			"win-x64":    {Path: cliBinary + ".exe"},
-		},
-		Assets: []types.BundleSkeletonAsset{
-			{Path: cliBinary, SHA256: "pending"},
+			"darwin-x64": {Path: platformBinaryPath("cli", "darwin-x64", binaryBase)},
+			"linux-x64":  {Path: platformBinaryPath("cli", "linux-x64", binaryBase)},
+			"win-x64":    {Path: platformBinaryPath("cli", "win-x64", binaryBase)},
 		},
 		Health: types.BundleSkeletonHealth{
 			Type:     "command",
@@ -357,7 +350,7 @@ func buildCLISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 			Type:          "go",
 			SourceDir:     "cli",
 			EntryPoint:    ".",
-			OutputPattern: filepath.ToSlash(filepath.Join("bin", "{{platform}}", fmt.Sprintf("%s{{ext}}", scenarioName))),
+			OutputPattern: filepath.ToSlash(filepath.Join("bin", "cli", "{{platform}}", fmt.Sprintf("%s{{ext}}", scenarioName))),
 			Env: map[string]string{
 				"CGO_ENABLED": "0",
 			},
@@ -370,6 +363,14 @@ func buildCLISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 	}
 
 	return &service
+}
+
+func platformBinaryPath(folder, platform, base string) string {
+	ext := ""
+	if strings.HasPrefix(platform, "win") {
+		ext = ".exe"
+	}
+	return filepath.ToSlash(filepath.Join("bin", folder, platform, base+ext))
 }
 
 func buildUISkeletonService(scenarioName, scenarioPath string, cfg *types.ServiceConfig) types.BundleSkeletonService {
