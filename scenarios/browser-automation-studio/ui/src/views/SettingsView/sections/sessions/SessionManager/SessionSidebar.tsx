@@ -1,6 +1,6 @@
-import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe, FileText } from 'lucide-react';
+import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe, FileText, Cog } from 'lucide-react';
 
-export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage';
+export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers';
 
 interface SectionGroup {
   label: string;
@@ -28,6 +28,7 @@ const SECTION_GROUPS: SectionGroup[] = [
     sections: [
       { id: 'cookies', label: 'Cookies', icon: <Cookie size={16} /> },
       { id: 'local-storage', label: 'LocalStorage', icon: <Database size={16} /> },
+      { id: 'service-workers', label: 'Service Workers', icon: <Cog size={16} /> },
     ],
   },
 ];
@@ -38,6 +39,8 @@ interface SessionSidebarProps {
   hasStorageState?: boolean;
   cookieCount?: number;
   localStorageCount?: number;
+  serviceWorkerCount?: number;
+  hasActiveSession?: boolean;
 }
 
 export function SessionSidebar({
@@ -46,6 +49,8 @@ export function SessionSidebar({
   hasStorageState,
   cookieCount,
   localStorageCount,
+  serviceWorkerCount,
+  hasActiveSession,
 }: SessionSidebarProps) {
   return (
     <nav className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-y-auto">
@@ -68,7 +73,14 @@ export function SessionSidebar({
             {group.sections.map((section) => {
               const isActive = activeSection === section.id;
               const count =
-                section.id === 'cookies' ? cookieCount : section.id === 'local-storage' ? localStorageCount : undefined;
+                section.id === 'cookies'
+                  ? cookieCount
+                  : section.id === 'local-storage'
+                    ? localStorageCount
+                    : section.id === 'service-workers'
+                      ? serviceWorkerCount
+                      : undefined;
+              const showDot = section.id === 'service-workers' && hasActiveSession;
 
               return (
                 <li key={section.id}>
@@ -92,6 +104,9 @@ export function SessionSidebar({
                       >
                         {count}
                       </span>
+                    )}
+                    {showDot && (
+                      <span className="w-2 h-2 rounded-full bg-green-500" title="Active session" />
                     )}
                   </button>
                 </li>

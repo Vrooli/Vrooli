@@ -73,6 +73,11 @@ type RecordModeService interface {
 	AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID)
 	AddTimelinePageEvent(sessionID string, event *domain.PageEvent)
 	GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error)
+
+	// Service worker management
+	GetServiceWorkers(ctx context.Context, sessionID string) (*autodriver.GetServiceWorkersResponse, error)
+	UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*autodriver.UnregisterServiceWorkersResponse, error)
+	UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*autodriver.UnregisterServiceWorkerResponse, error)
 }
 
 // Handler contains all HTTP handlers

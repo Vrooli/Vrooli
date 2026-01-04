@@ -186,6 +186,30 @@ func (s *Session) GetStorageState(ctx context.Context) (json.RawMessage, error) 
 	return s.client.GetStorageState(ctx, s.id)
 }
 
+// GetServiceWorkers retrieves the service workers for this session.
+func (s *Session) GetServiceWorkers(ctx context.Context) (*driver.GetServiceWorkersResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.GetServiceWorkers(ctx, s.id)
+}
+
+// UnregisterAllServiceWorkers unregisters all service workers for this session.
+func (s *Session) UnregisterAllServiceWorkers(ctx context.Context) (*driver.UnregisterServiceWorkersResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.UnregisterAllServiceWorkers(ctx, s.id)
+}
+
+// UnregisterServiceWorker unregisters a specific service worker by scope URL.
+func (s *Session) UnregisterServiceWorker(ctx context.Context, scopeURL string) (*driver.UnregisterServiceWorkerResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.UnregisterServiceWorker(ctx, s.id, scopeURL)
+}
+
 // DownloadArtifact streams a driver-managed artifact by path.
 // This intentionally allows closed sessions to fetch artifacts captured at teardown.
 func (s *Session) DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error) {

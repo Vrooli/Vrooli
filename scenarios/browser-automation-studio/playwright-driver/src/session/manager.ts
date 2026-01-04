@@ -17,6 +17,7 @@ import {
   makeReuseDecision,
   findIdleSessions,
 } from './session-decisions';
+import { setupDiagnosticLogging } from './diagnostic-logger';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -222,7 +223,7 @@ export class SessionManager {
     const browser = await this.browserManager.getBrowser();
 
     // Build context
-    const { context, harPath, tracePath, videoDir } = await buildContext(
+    const { context, harPath, tracePath, videoDir, serviceWorkerController } = await buildContext(
       browser,
       spec,
       this.config
@@ -277,6 +278,8 @@ export class SessionManager {
       activeMocks: new Map(),
       // Idempotency: Track executed instructions for replay safety
       executedInstructions: new Map(),
+      // Service worker control
+      serviceWorkerController,
     };
 
     // Assign an ID to the initial page and track it
@@ -285,6 +288,23 @@ export class SessionManager {
     session.pageToIdMap.set(page, initialPageId);
 
     this.sessions.set(sessionId, session);
+
+    // Setup diagnostic logging for redirect loop debugging
+    // Enable with DIAGNOSTIC_LOGGING=true environment variable
+    setupDiagnosticLogging(context, sessionId);
+
+    // Enable service worker monitoring and handle unregisterOnStart
+    await serviceWorkerController.enable(page);
+    const swControl = spec.service_worker_control;
+    if (swControl?.unregisterOnStart || swControl?.mode === 'unregister-all') {
+      const unregisteredCount = await serviceWorkerController.unregisterAll();
+      if (unregisteredCount > 0) {
+        logger.debug(scopedLog(LogContext.SESSION, 'SWs unregistered on start'), {
+          sessionId,
+          count: unregisteredCount,
+        });
+      }
+    }
 
     logger.info(scopedLog(LogContext.SESSION, 'ready'), {
       sessionId,
@@ -576,6 +596,16 @@ export class SessionManager {
 
       // Clean up recording buffer
       removeRecordingBuffer(sessionId);
+
+      // Disable service worker monitoring
+      if (session.serviceWorkerController) {
+        await session.serviceWorkerController.disable().catch((err) => {
+          logger.warn(scopedLog(LogContext.CLEANUP, 'SW controller disable failed'), {
+            sessionId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
 
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {

@@ -37,5 +37,6 @@ export * from './session-run';
 export * from './session-reset';
 export * from './session-close';
 export * from './session-storage';
+export * from './session-service-workers';
 export * from './record-mode/index';
 export * from './session-ai-navigate';

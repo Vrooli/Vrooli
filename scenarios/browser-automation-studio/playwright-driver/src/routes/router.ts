@@ -55,6 +55,13 @@ export class Router {
   }
 
   /**
+   * Register a DELETE route.
+   */
+  delete(path: string, handler: RouteHandler): void {
+    this.addRoute('DELETE', path, handler);
+  }
+
+  /**
    * Add a route with the given method and path.
    */
   private addRoute(method: string, path: string, handler: RouteHandler): void {

@@ -568,6 +568,33 @@ func (c *Client) GetStorageState(ctx context.Context, sessionID string) (json.Ra
 	return resp.StorageState, nil
 }
 
+// GetServiceWorkers retrieves the service workers for a session.
+func (c *Client) GetServiceWorkers(ctx context.Context, sessionID string) (*GetServiceWorkersResponse, error) {
+	var resp GetServiceWorkersResponse
+	if err := c.get(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UnregisterAllServiceWorkers unregisters all service workers for a session.
+func (c *Client) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*UnregisterServiceWorkersResponse, error) {
+	var resp UnregisterServiceWorkersResponse
+	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UnregisterServiceWorker unregisters a specific service worker by scope URL.
+func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*UnregisterServiceWorkerResponse, error) {
+	var resp UnregisterServiceWorkerResponse
+	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers/%s", url.PathEscape(sessionID), url.PathEscape(scopeURL)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // RunInstructions runs simple instructions in a session (e.g., initial navigation).
 // This is a convenience method for recording mode that doesn't need full step outcomes.
 func (c *Client) RunInstructions(ctx context.Context, sessionID string, instructions []map[string]interface{}) error {
@@ -902,6 +929,14 @@ func (c *Client) postRaw(ctx context.Context, path string, body []byte, response
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return c.doRequest(req, response, "POST "+path)
+}
+
+func (c *Client) delete(ctx context.Context, path string, response interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	return c.doRequest(req, response, "DELETE "+path)
 }
 
 func (c *Client) doRequest(req *http.Request, response interface{}, operation string) error {

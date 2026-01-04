@@ -115,14 +115,16 @@ export class RecordModeController {
   private exposedFunctionName = '__recordAction';
   private isExposed = false;
   private navigationHandler: (() => void) | null = null;
-  private loopDetectionRouteHandler: ((route: import('rebrowser-playwright').Route, request: import('rebrowser-playwright').Request) => Promise<void>) | null = null;
+  private loopDetectionInterval: ReturnType<typeof setInterval> | null = null;
   private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
   private lastUrl: string | null = null;
   private recordingGeneration = 0;
-  /** Navigation history for redirect loop detection */
+  /** Navigation history for redirect loop detection (tracks URL changes with timestamps) */
   private navigationHistory: Array<{ url: string; timestamp: number }> = [];
-  /** Domain currently in a detected redirect loop - requests to this domain will be blocked */
-  private blockedLoopDomain: string | null = null;
+  /** Flag to prevent multiple loop break attempts */
+  private isBreakingLoop = false;
+  /** Last URL seen by loop detector (for change detection) */
+  private loopDetectorLastUrl: string | null = null;
 
   /** Replay service for executing timeline entries (delegated) */
   private readonly replayService: ReplayPreviewService;
@@ -190,7 +192,8 @@ export class RecordModeController {
     this.errorCallback = options.onError || null;
     this.sequenceNum = 0;
     this.navigationHistory = [];
-    this.blockedLoopDomain = null;
+    this.isBreakingLoop = false;
+    this.loopDetectorLastUrl = null;
 
     try {
       // Expose callback function to page context if not already exposed
@@ -211,13 +214,12 @@ export class RecordModeController {
       this.navigationHandler = this.createNavigationHandler(currentGeneration);
       this.page.on('load', this.navigationHandler);
 
-      // Setup route handler for redirect loop detection AND blocking
-      // Using context.route() allows us to ABORT requests when a loop is detected
-      // Register on CONTEXT level to catch requests from ALL pages (including new tabs)
-      this.loopDetectionRouteHandler = this.createLoopDetectionRouteHandler(currentGeneration);
-      const context = this.page.context();
-      await context.route('**/*', this.loopDetectionRouteHandler);
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'loop detection route handler registered'));
+      // Setup polling-based redirect loop detection
+      // NOTE: We intentionally do NOT use context.route() here because route interception
+      // conflicts with service workers, causing redirect loops on sites like Google.
+      // Polling is more reliable than framenavigated events for detecting rapid redirects.
+      this.startLoopDetection(currentGeneration);
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'loop detection started (polling-based)'));
 
       return recordingId;
     } catch (error) {
@@ -247,96 +249,104 @@ export class RecordModeController {
   }
 
   /**
-   * Create a route handler for redirect loop detection AND blocking.
-   * Using context.route() allows us to ABORT requests when a loop is detected,
-   * actually stopping the redirect loop instead of just detecting it.
+   * Start polling-based redirect loop detection.
+   *
+   * Polls the page URL every 200ms and tracks rapid URL changes to the same domain.
+   * This approach is more reliable than event-based detection because:
+   * - Doesn't rely on framenavigated events which may not fire reliably during rapid redirects
+   * - Doesn't use route interception which conflicts with service workers
+   * - Can detect loops even when events are delayed or batched
    */
-  private createLoopDetectionRouteHandler(
-    generation: number
-  ): (route: import('rebrowser-playwright').Route, request: import('rebrowser-playwright').Request) => Promise<void> {
-    return async (route, request): Promise<void> => {
-      try {
-        const url = request.url();
-
-        // Only process navigation requests for loop detection
-        if (!request.isNavigationRequest()) {
-          await route.continue();
-          return;
-        }
-
-        // Only handle main frame navigations
-        const frame = request.frame();
-        if (!frame || frame.parentFrame() !== null) {
-          await route.continue();
-          return;
-        }
-
-        // If we've already detected a loop on this domain, BLOCK the request
-        if (this.blockedLoopDomain) {
-          try {
-            const hostname = new URL(url).hostname;
-            if (hostname === this.blockedLoopDomain) {
-              this.logger.debug(scopedLog(LogContext.RECORDING, 'blocking request to looping domain'), { hostname });
-              await route.abort('blockedbyclient');
-              return;
-            }
-          } catch {
-            // Invalid URL, continue
-          }
-        }
-
-        // Skip loop detection if not recording
-        if (!this.state.isRecording || this.recordingGeneration !== generation) {
-          await route.continue();
-          return;
-        }
-
-        if (!url || url === 'about:blank') {
-          await route.continue();
-          return;
-        }
-
-        this.logger.debug(scopedLog(LogContext.RECORDING, 'checking navigation for loop'), { url, historySize: this.navigationHistory.length });
-
-        // Check for redirect loop
-        if (this.checkForRedirectLoop(url)) {
-          let hostname = 'unknown';
-          try {
-            hostname = new URL(url).hostname;
-          } catch {
-            // Invalid URL
-          }
-
-          // Set the blocked domain to prevent further requests
-          this.blockedLoopDomain = hostname;
-
-          this.logger.error(scopedLog(LogContext.RECORDING, 'redirect loop detected - blocking'), { hostname });
-          this.handleError(
-            new Error(
-              `Redirect loop detected on ${hostname}. ` +
-                `This may be caused by ad blocking - try adding the domain to the whitelist.`
-            )
-          );
-
-          // ABORT this request to break the loop
-          await route.abort('blockedbyclient');
-          return;
-        }
-
-        // Allow the request to continue
-        await route.continue();
-      } catch (err) {
-        this.logger.error(scopedLog(LogContext.RECORDING, 'error in route handler'), {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        // On error, try to continue the request
-        try {
-          await route.continue();
-        } catch {
-          // Route may have already been handled
-        }
+  private startLoopDetection(generation: number): void {
+    // Poll every 200ms - fast enough to catch redirect loops
+    this.loopDetectionInterval = setInterval(() => {
+      // Skip if not recording or generation mismatch
+      if (!this.state.isRecording || this.recordingGeneration !== generation) {
+        return;
       }
-    };
+
+      // Skip if already breaking a loop
+      if (this.isBreakingLoop) {
+        return;
+      }
+
+      let currentUrl: string;
+      try {
+        currentUrl = this.page.url();
+      } catch {
+        // Page might be closed
+        return;
+      }
+
+      // Skip special pages
+      if (!currentUrl || currentUrl === 'about:blank' || currentUrl.startsWith('chrome:')) {
+        return;
+      }
+
+      // Only process if URL changed since last check
+      if (currentUrl === this.loopDetectorLastUrl) {
+        return;
+      }
+
+      this.loopDetectorLastUrl = currentUrl;
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'URL change detected'), {
+        url: currentUrl,
+        historySize: this.navigationHistory.length,
+      });
+
+      // Check for redirect loop
+      if (this.checkForRedirectLoop(currentUrl)) {
+        let hostname = 'unknown';
+        try {
+          hostname = new URL(currentUrl).hostname;
+        } catch {
+          // Invalid URL
+        }
+
+        this.logger.error(scopedLog(LogContext.RECORDING, 'redirect loop detected - breaking loop'), {
+          hostname,
+          historySize: this.navigationHistory.length,
+        });
+        this.handleError(
+          new Error(
+            `Redirect loop detected on ${hostname}. ` +
+              `Navigating away to break the loop.`
+          )
+        );
+
+        // Set flag to prevent re-entry
+        this.isBreakingLoop = true;
+
+        // Break the loop by navigating to about:blank
+        this.page.goto('about:blank', { timeout: 5000 })
+          .then(() => {
+            this.logger.info(scopedLog(LogContext.RECORDING, 'successfully broke redirect loop'));
+          })
+          .catch((err) => {
+            this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to navigate away from loop'), {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          })
+          .finally(() => {
+            // Reset after a delay to allow re-detection if user navigates back
+            setTimeout(() => {
+              this.isBreakingLoop = false;
+              this.navigationHistory = [];
+              this.loopDetectorLastUrl = null;
+            }, 2000);
+          });
+      }
+    }, 200);
+  }
+
+  /**
+   * Stop the loop detection polling.
+   */
+  private stopLoopDetection(): void {
+    if (this.loopDetectionInterval) {
+      clearInterval(this.loopDetectionInterval);
+      this.loopDetectionInterval = null;
+    }
   }
 
   /**
@@ -478,12 +488,11 @@ export class RecordModeController {
         this.page.off('load', this.navigationHandler);
         this.navigationHandler = null;
       }
-      if (this.loopDetectionRouteHandler) {
-        const context = this.page.context();
-        await context.unroute('**/*', this.loopDetectionRouteHandler);
-        this.loopDetectionRouteHandler = null;
-      }
-      this.blockedLoopDomain = null;
+
+      // Stop loop detection
+      this.stopLoopDetection();
+      this.isBreakingLoop = false;
+      this.loopDetectorLastUrl = null;
 
       // Inject cleanup script
       await this.page.evaluate(getCleanupScript()).catch(() => {

@@ -623,3 +623,193 @@ func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, mod
 		"status": "deleted",
 	})
 }
+
+// ========================================================================
+// Service Worker Management (Live Session)
+// ========================================================================
+
+// serviceWorkerResponse is the API response for service worker endpoints.
+type serviceWorkerResponse struct {
+	SessionID string                    `json:"session_id"`
+	Workers   []serviceWorkerInfo       `json:"workers"`
+	Control   serviceWorkerControl      `json:"control"`
+	Message   string                    `json:"message,omitempty"`
+}
+
+// serviceWorkerInfo represents a registered service worker.
+type serviceWorkerInfo struct {
+	RegistrationID string `json:"registrationId"`
+	ScopeURL       string `json:"scopeURL"`
+	ScriptURL      string `json:"scriptURL"`
+	Status         string `json:"status"`
+	VersionID      string `json:"versionId,omitempty"`
+}
+
+// serviceWorkerControl represents the service worker control settings.
+type serviceWorkerControl struct {
+	Mode            string                          `json:"mode"`
+	DomainOverrides []serviceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
+	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
+}
+
+// serviceWorkerDomainOverride represents per-domain service worker control.
+type serviceWorkerDomainOverride struct {
+	Domain string `json:"domain"`
+	Mode   string `json:"mode"`
+}
+
+// GetServiceWorkers returns the service workers for an active session.
+// GET /recordings/sessions/{profileId}/service-workers
+func (h *Handler) GetServiceWorkers(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	// Look up active session for this profile
+	sessionID := h.getSessionForProfile(profileID)
+	if sessionID == "" {
+		h.respondSuccess(w, http.StatusOK, serviceWorkerResponse{
+			SessionID: "",
+			Workers:   []serviceWorkerInfo{},
+			Control:   serviceWorkerControl{Mode: "allow"},
+			Message:   "No active session for this profile",
+		})
+		return
+	}
+
+	// Fetch from playwright-driver
+	swResp, err := h.recordModeService.GetServiceWorkers(r.Context(), sessionID)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Convert to response format
+	workers := make([]serviceWorkerInfo, len(swResp.Workers))
+	for i, w := range swResp.Workers {
+		workers[i] = serviceWorkerInfo{
+			RegistrationID: w.RegistrationID,
+			ScopeURL:       w.ScopeURL,
+			ScriptURL:      w.ScriptURL,
+			Status:         w.Status,
+			VersionID:      w.VersionID,
+		}
+	}
+
+	overrides := make([]serviceWorkerDomainOverride, len(swResp.Control.DomainOverrides))
+	for i, o := range swResp.Control.DomainOverrides {
+		overrides[i] = serviceWorkerDomainOverride{
+			Domain: o.Domain,
+			Mode:   o.Mode,
+		}
+	}
+
+	h.respondSuccess(w, http.StatusOK, serviceWorkerResponse{
+		SessionID: swResp.SessionID,
+		Workers:   workers,
+		Control: serviceWorkerControl{
+			Mode:            swResp.Control.Mode,
+			DomainOverrides: overrides,
+			BlockedDomains:  swResp.Control.BlockedDomains,
+		},
+		Message: swResp.Message,
+	})
+}
+
+// ClearAllServiceWorkers unregisters all service workers for an active session.
+// DELETE /recordings/sessions/{profileId}/service-workers
+func (h *Handler) ClearAllServiceWorkers(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	// Look up active session for this profile
+	sessionID := h.getSessionForProfile(profileID)
+	if sessionID == "" {
+		h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+			"session_id":         "",
+			"unregistered_count": 0,
+			"message":            "No active session for this profile",
+		})
+		return
+	}
+
+	// Call playwright-driver to unregister all
+	resp, err := h.recordModeService.UnregisterAllServiceWorkers(r.Context(), sessionID)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"session_id":         resp.SessionID,
+		"unregistered_count": resp.UnregisteredCount,
+		"message":            resp.Message,
+	})
+}
+
+// DeleteServiceWorker unregisters a specific service worker by scope URL.
+// DELETE /recordings/sessions/{profileId}/service-workers/{scopeURL}
+func (h *Handler) DeleteServiceWorker(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	scopeURL := chi.URLParam(r, "scopeURL")
+
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+	if strings.TrimSpace(scopeURL) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "scopeURL",
+		}))
+		return
+	}
+
+	// Look up active session for this profile
+	sessionID := h.getSessionForProfile(profileID)
+	if sessionID == "" {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("No active session for this profile"))
+		return
+	}
+
+	// Call playwright-driver to unregister specific SW
+	resp, err := h.recordModeService.UnregisterServiceWorker(r.Context(), sessionID, scopeURL)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	if resp.Error != "" {
+		h.respondError(w, ErrExecutionNotFound.WithMessage(resp.Error))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"session_id":   resp.SessionID,
+		"unregistered": resp.Unregistered,
+	})
+}
+
+// getSessionForProfile returns the active playwright session ID for a profile.
+func (h *Handler) getSessionForProfile(profileID string) string {
+	if h.sessionProfiles == nil {
+		return ""
+	}
+	return h.sessionProfiles.GetSessionForProfile(profileID)
+}

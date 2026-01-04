@@ -3,6 +3,7 @@ import type { Browser, BrowserContext } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
+import { ServiceWorkerController } from '../service-worker';
 import {
   mergeWithPreset,
   resolveUserAgent,
@@ -17,6 +18,12 @@ import {
   resolveArtifactPaths,
   getArtifactDir,
 } from './artifact-paths';
+import {
+  logContextOptions,
+  logClientHints,
+  logAntiDetectionApplied,
+  logAdBlockerConfig,
+} from './diagnostic-logger';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
@@ -48,6 +55,7 @@ export async function buildContext(
   harPath?: string;
   tracePath?: string;
   videoDir?: string;
+  serviceWorkerController: ServiceWorkerController;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
   const resolvedArtifacts = resolveArtifactPaths(
@@ -156,29 +164,67 @@ export async function buildContext(
   // Create context
   const context = await browser.newContext(contextOptions);
 
+  // Log context options for diagnostic debugging
+  logContextOptions(spec.execution_id, {
+    viewport: contextOptions.viewport,
+    userAgent: userAgent.slice(0, 100),
+    locale: contextOptions.locale,
+    timezoneId: contextOptions.timezoneId,
+    colorScheme: contextOptions.colorScheme,
+    extraHTTPHeaders: finalHeaders,
+    hasProxy: !!contextOptions.proxy,
+    hasGeolocation: !!contextOptions.geolocation,
+  });
+
+  // Log Client Hints configuration
+  logClientHints(spec.execution_id, userAgent, clientHints);
+
   // Apply anti-detection patches
   const hasAntiDetection = Object.values(antiDetection).some(Boolean);
   if (hasAntiDetection) {
+    const enabledPatches = Object.entries(antiDetection)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
     await applyAntiDetection(context, antiDetection, fingerprint);
     logger.debug('Anti-detection patches applied', {
       executionId: spec.execution_id,
-      patches: Object.entries(antiDetection)
-        .filter(([, v]) => v)
-        .map(([k]) => k),
+      patches: enabledPatches,
     });
+    // Log for diagnostic debugging
+    logAntiDetectionApplied(spec.execution_id, enabledPatches);
   }
 
   // Apply ad blocking if configured (uses script injection, not route interception)
   if (isAdBlockingEnabled(antiDetection.ad_blocking_mode)) {
+    const adBlockWhitelist = antiDetection.ad_blocking_whitelist ?? [];
     await applyAdBlocking(
       context,
       antiDetection.ad_blocking_mode as 'ads_only' | 'ads_and_tracking',
-      antiDetection.ad_blocking_whitelist
+      adBlockWhitelist
     );
     logger.debug('Ad blocking enabled', {
       executionId: spec.execution_id,
       mode: antiDetection.ad_blocking_mode,
-      whitelistDomains: antiDetection.ad_blocking_whitelist?.length ?? 0,
+      whitelistDomains: adBlockWhitelist.length,
+    });
+    // Log for diagnostic debugging
+    logAdBlockerConfig(spec.execution_id, antiDetection.ad_blocking_mode as string, adBlockWhitelist);
+  }
+
+  // Initialize service worker controller
+  const swControl = spec.service_worker_control || { mode: 'allow' as const };
+  const serviceWorkerController = new ServiceWorkerController(spec.execution_id, swControl);
+
+  // Setup blocking scripts if mode requires it
+  await serviceWorkerController.setupBlockingForContext(context);
+
+  if (swControl.mode !== 'allow' || swControl.domainOverrides?.length) {
+    logger.debug('Service worker control configured', {
+      executionId: spec.execution_id,
+      mode: swControl.mode,
+      blockedDomains: swControl.blockedDomains?.length || 0,
+      domainOverrides: swControl.domainOverrides?.length || 0,
+      unregisterOnStart: swControl.unregisterOnStart || false,
     });
   }
 
@@ -233,6 +279,7 @@ export async function buildContext(
     harPath,
     tracePath,
     videoDir,
+    serviceWorkerController,
   };
 }
 

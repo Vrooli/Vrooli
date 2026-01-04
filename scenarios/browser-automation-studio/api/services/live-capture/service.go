@@ -172,6 +172,33 @@ func (s *Service) GetStorageState(ctx context.Context, sessionID string) (json.R
 	return sess.GetStorageState(ctx)
 }
 
+// GetServiceWorkers retrieves service workers for a session.
+func (s *Service) GetServiceWorkers(ctx context.Context, sessionID string) (*driver.GetServiceWorkersResponse, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return sess.GetServiceWorkers(ctx)
+}
+
+// UnregisterAllServiceWorkers unregisters all service workers for a session.
+func (s *Service) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*driver.UnregisterServiceWorkersResponse, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return sess.UnregisterAllServiceWorkers(ctx)
+}
+
+// UnregisterServiceWorker unregisters a specific service worker by scope URL.
+func (s *Service) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*driver.UnregisterServiceWorkerResponse, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return sess.UnregisterServiceWorker(ctx, scopeURL)
+}
+
 // RecordingConfig configures recording start.
 type RecordingConfig struct {
 	APIHost string

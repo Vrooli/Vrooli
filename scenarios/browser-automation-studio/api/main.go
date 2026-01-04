@@ -308,6 +308,11 @@ func main() {
 		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}", handler.DeleteLocalStorageByOrigin)
 		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}/{name}", handler.DeleteLocalStorageItem)
 
+		// Service worker management (live session)
+		r.Get("/recordings/sessions/{profileId}/service-workers", handler.GetServiceWorkers)
+		r.Delete("/recordings/sessions/{profileId}/service-workers", handler.ClearAllServiceWorkers)
+		r.Delete("/recordings/sessions/{profileId}/service-workers/{scopeURL}", handler.DeleteServiceWorker)
+
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)

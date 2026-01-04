@@ -721,3 +721,17 @@ func (s *SessionProfileStore) ClearSessionsForProfile(profileID string) {
 		}
 	}
 }
+
+// GetSessionForProfile returns the browser session ID associated with a profile.
+// Returns empty string if no active session exists for this profile.
+// This is the reverse lookup of GetActiveSession.
+func (s *SessionProfileStore) GetSessionForProfile(profileID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for sessionID, pid := range s.activeSessions {
+		if pid == profileID {
+			return sessionID
+		}
+	}
+	return ""
+}

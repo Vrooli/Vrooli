@@ -7,7 +7,7 @@ import type {
   AntiDetectionSettings,
   ProxySettings,
 } from '@/domains/recording/types/types';
-import { useStorageState } from '@/domains/recording';
+import { useStorageState, useServiceWorkers } from '@/domains/recording';
 import { PRESET_CONFIGS } from '../settings';
 import type { SectionId } from './SessionSidebar';
 
@@ -50,17 +50,35 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     deleteLocalStorageItem,
   } = useStorageState();
 
+  // Service workers state
+  const {
+    serviceWorkers,
+    loading: swLoading,
+    error: swError,
+    deleting: swDeleting,
+    fetchServiceWorkers,
+    clear: clearServiceWorkers,
+    unregisterAll: unregisterAllServiceWorkers,
+    unregisterWorker: unregisterServiceWorker,
+  } = useServiceWorkers();
+
   // Fetch storage when switching to storage sections
   useEffect(() => {
     if (activeSection === 'cookies' || activeSection === 'local-storage') {
       void fetchStorageState(profileId);
     }
+    if (activeSection === 'service-workers') {
+      void fetchServiceWorkers(profileId);
+    }
     return () => {
       if (activeSection === 'cookies' || activeSection === 'local-storage') {
         clearStorage();
       }
+      if (activeSection === 'service-workers') {
+        clearServiceWorkers();
+      }
     };
-  }, [activeSection, profileId, fetchStorageState, clearStorage]);
+  }, [activeSection, profileId, fetchStorageState, clearStorage, fetchServiceWorkers, clearServiceWorkers]);
 
   // Initialize from initialProfile
   useEffect(() => {
@@ -188,6 +206,15 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     return deleteLocalStorageItem(profileId, origin, name);
   }, [deleteLocalStorageItem, profileId]);
 
+  // Service worker handlers
+  const handleUnregisterAllServiceWorkers = useCallback(async () => {
+    return unregisterAllServiceWorkers(profileId);
+  }, [unregisterAllServiceWorkers, profileId]);
+
+  const handleUnregisterServiceWorker = useCallback(async (scopeURL: string) => {
+    return unregisterServiceWorker(profileId, scopeURL);
+  }, [unregisterServiceWorker, profileId]);
+
   return {
     // Section navigation
     activeSection,
@@ -224,6 +251,16 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     clearAllLocalStorage: handleClearAllLocalStorage,
     deleteLocalStorageByOrigin: handleDeleteLocalStorageByOrigin,
     deleteLocalStorageItem: handleDeleteLocalStorageItem,
+
+    // Service workers state
+    serviceWorkers,
+    swLoading,
+    swError,
+    swDeleting,
+
+    // Service worker actions
+    unregisterAllServiceWorkers: handleUnregisterAllServiceWorkers,
+    unregisterServiceWorker: handleUnregisterServiceWorker,
 
     // Save state
     saving,

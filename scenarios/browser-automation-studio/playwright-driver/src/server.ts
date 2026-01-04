@@ -246,6 +246,7 @@ const INSTRUCTION_HANDLERS = [
   new handlers.SelectHandler(),
   new handlers.KeyboardHandler(),
   new handlers.CookieStorageHandler(),
+  new handlers.ServiceWorkerHandler(),
   new handlers.GestureHandler(),
   new handlers.TabHandler(),
   // Network & device
@@ -295,6 +296,18 @@ function setupRoutes(
   router.get('/session/:id/storage-state', async (req, res, params) => {
     await routes.handleSessionStorageState(req, res, params.id, sessionManager);
   });
+
+  // Service worker management
+  router.get('/session/:id/service-workers', async (req, res, params) => {
+    await routes.handleSessionServiceWorkers(req, res, params.id, sessionManager);
+  });
+  router.delete('/session/:id/service-workers', async (req, res, params) => {
+    await routes.handleSessionServiceWorkersDelete(req, res, params.id, sessionManager);
+  });
+  router.delete('/session/:id/service-workers/:scopeURL', async (req, res, params) => {
+    await routes.handleSessionServiceWorkerDelete(req, res, params.id, params.scopeURL, sessionManager);
+  });
+
   router.post('/session/:id/reset', async (req, res, params) => {
     await routes.handleSessionReset(req, res, params.id, sessionManager);
   });

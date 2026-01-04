@@ -1,4 +1,4 @@
-import { X, Loader2, AlertCircle, Cookie, Database, Trash2 } from 'lucide-react';
+import { X, Loader2, AlertCircle, Cookie, Database, Trash2, Cog } from 'lucide-react';
 import { useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
@@ -6,6 +6,7 @@ import { useSessionManager } from './useSessionManager';
 import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection, ExtraHeadersSection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
+import { ServiceWorkersTable } from '../storage/ServiceWorkersTable';
 
 interface SessionManagerProps {
   profileId: string;
@@ -51,11 +52,20 @@ export function SessionManager({
     clearAllLocalStorage,
     deleteLocalStorageByOrigin,
     deleteLocalStorageItem,
+    serviceWorkers,
+    swLoading,
+    swError,
+    swDeleting,
+    unregisterAllServiceWorkers,
+    unregisterServiceWorker,
     saving,
     error,
     isDirty,
     handleSave,
   } = useSessionManager({ profileId, initialProfile, onSave });
+
+  // Determine if there's an active session (service workers data has a non-empty session_id)
+  const hasActiveSession = !!serviceWorkers?.session_id;
 
   // Confirmation modal state for clear all operations
   const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | null>(null);
@@ -115,6 +125,8 @@ export function SessionManager({
             hasStorageState={hasStorageState}
             cookieCount={storageState?.stats.cookieCount}
             localStorageCount={storageState?.stats.localStorageCount}
+            serviceWorkerCount={serviceWorkers?.workers?.length}
+            hasActiveSession={hasActiveSession}
           />
 
           <div className="flex-1 overflow-y-auto p-6">
@@ -220,13 +232,47 @@ export function SessionManager({
                 </StorageContent>
               </div>
             )}
+
+            {activeSection === 'service-workers' && (
+              <div className="space-y-4">
+                {/* Header with Clear All button */}
+                {hasActiveSession && serviceWorkers && serviceWorkers.workers.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {serviceWorkers.workers.length} service worker{serviceWorkers.workers.length !== 1 ? 's' : ''}
+                    </h3>
+                    <button
+                      onClick={unregisterAllServiceWorkers}
+                      disabled={swDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      Unregister All
+                    </button>
+                  </div>
+                )}
+                <StorageContent
+                  loading={swLoading}
+                  error={swError}
+                  emptyMessage="No service workers registered."
+                >
+                  <ServiceWorkersTable
+                    workers={serviceWorkers?.workers ?? []}
+                    controlMode={serviceWorkers?.control?.mode}
+                    hasActiveSession={hasActiveSession}
+                    deleting={swDeleting}
+                    onUnregister={unregisterServiceWorker}
+                  />
+                </StorageContent>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50">
           {/* Storage stats when in storage view */}
-          {!isSettingsView && storageState && (
+          {!isSettingsView && (activeSection === 'cookies' || activeSection === 'local-storage') && storageState && (
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
               <span className="flex items-center gap-1">
                 <Cookie size={12} />
@@ -239,6 +285,22 @@ export function SessionManager({
               <span className="text-gray-400 dark:text-gray-500">
                 across {storageState.stats.originCount} origin{storageState.stats.originCount !== 1 ? 's' : ''}
               </span>
+            </div>
+          )}
+          {!isSettingsView && activeSection === 'service-workers' && (
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <Cog size={12} />
+                {serviceWorkers?.workers?.length ?? 0} service worker{(serviceWorkers?.workers?.length ?? 0) !== 1 ? 's' : ''}
+              </span>
+              {hasActiveSession ? (
+                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  Active session
+                </span>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500">No active session</span>
+              )}
             </div>
           )}
           {isSettingsView && <div />}

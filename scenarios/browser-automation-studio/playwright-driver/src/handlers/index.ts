@@ -61,6 +61,7 @@ export * from './assertion';
 export * from './extraction';
 export * from './screenshot';
 export * from './cookie-storage';
+export * from './service-worker';
 
 // IO
 export * from './upload';

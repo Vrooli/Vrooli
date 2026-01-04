@@ -382,3 +382,52 @@ type NetworkEventWire struct {
 	ResponseBodyPreview string            `json:"responseBodyPreview,omitempty"`
 	Truncated           bool              `json:"truncated,omitempty"`
 }
+
+// =============================================================================
+// SERVICE WORKER TYPES
+// =============================================================================
+
+// ServiceWorkerInfo represents a registered service worker.
+type ServiceWorkerInfo struct {
+	RegistrationID string `json:"registrationId"`
+	ScopeURL       string `json:"scopeURL"`
+	ScriptURL      string `json:"scriptURL"`
+	Status         string `json:"status"` // stopped, running, activating, installed
+	VersionID      string `json:"versionId,omitempty"`
+}
+
+// ServiceWorkerControl represents the service worker control settings for a session.
+type ServiceWorkerControl struct {
+	Mode            string                         `json:"mode"` // allow, block, block-on-domain, unregister-all
+	DomainOverrides []ServiceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
+	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
+	UnregisterOnStart bool                         `json:"unregisterOnStart,omitempty"`
+}
+
+// ServiceWorkerDomainOverride represents per-domain service worker control.
+type ServiceWorkerDomainOverride struct {
+	Domain string `json:"domain"`
+	Mode   string `json:"mode"` // allow, block
+}
+
+// GetServiceWorkersResponse is the response from getting service workers.
+type GetServiceWorkersResponse struct {
+	SessionID string              `json:"session_id"`
+	Workers   []ServiceWorkerInfo `json:"workers"`
+	Control   ServiceWorkerControl `json:"control"`
+	Message   string              `json:"message,omitempty"`
+}
+
+// UnregisterServiceWorkersResponse is the response from unregistering service workers.
+type UnregisterServiceWorkersResponse struct {
+	SessionID         string `json:"session_id"`
+	UnregisteredCount int    `json:"unregistered_count"`
+	Message           string `json:"message,omitempty"`
+}
+
+// UnregisterServiceWorkerResponse is the response from unregistering a specific service worker.
+type UnregisterServiceWorkerResponse struct {
+	SessionID    string `json:"session_id"`
+	Unregistered string `json:"unregistered,omitempty"`
+	Error        string `json:"error,omitempty"`
+}

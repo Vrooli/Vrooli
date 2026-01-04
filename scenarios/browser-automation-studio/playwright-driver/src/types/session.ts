@@ -1,6 +1,8 @@
 import type { Page, BrowserContext, Browser, Frame } from 'rebrowser-playwright';
 import type { RecordModeController } from '../recording/controller';
 import type { BrowserProfile } from './browser-profile';
+import type { ServiceWorkerControl } from './service-worker';
+import type { ServiceWorkerController } from '../service-worker';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -57,6 +59,12 @@ export interface SessionSpec {
       localStorage: Array<{ name: string; value: string }>;
     }>;
   };
+  /**
+   * Service worker control configuration.
+   * Controls how service workers are managed during the session.
+   * Defaults to 'allow' mode if not specified.
+   */
+  service_worker_control?: ServiceWorkerControl;
   // Anti-detection and human-like behavior configuration
   browser_profile?: BrowserProfile;
 }
@@ -208,6 +216,12 @@ export interface SessionState {
    * Enables replay-safe instruction execution.
    */
   executedInstructions?: Map<string, ExecutedInstructionRecord>;
+
+  /**
+   * Service worker controller for this session.
+   * Manages CDP-based service worker monitoring and control.
+   */
+  serviceWorkerController?: ServiceWorkerController;
 }
 
 export interface SessionCloseResult {

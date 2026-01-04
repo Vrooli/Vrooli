@@ -83,7 +83,7 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host' },
   REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout' },
   MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size' },
-  HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Headless browser mode' },
+  HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = use regular Chromium with --headless=new)' },
   BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path' },
   BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments' },
   IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS errors' },
@@ -135,9 +135,24 @@ const ConfigSchema = z.object({
     maxRequestSize: z.number().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
   }),
   browser: z.object({
-    headless: z.boolean().default(true),
+    /**
+     * Headless mode configuration.
+     *
+     * IMPORTANT: We use headless: false + --headless=new arg to get the "new headless" mode.
+     * This makes Playwright use the regular Chromium binary (not headless_shell) with
+     * the --headless=new flag, which has full service worker support.
+     *
+     * - headless: true  → Uses chromium_headless_shell (broken SW, causes Google loops)
+     * - headless: false + --headless=new → Uses regular Chromium in new headless mode (CORRECT)
+     */
+    headless: z.boolean().default(false),
     executablePath: z.string().optional(),
-    args: z.array(z.string()).default([]),
+    /**
+     * Additional browser arguments.
+     *
+     * Default includes --headless=new for new headless mode with full SW support.
+     */
+    args: z.array(z.string()).default(['--headless=new']),
     ignoreHTTPSErrors: z.boolean().default(false),
   }),
   session: z.object({
@@ -416,18 +431,28 @@ export function loadConfig(): Config {
       maxRequestSize: parseEnvInt(process.env.MAX_REQUEST_SIZE, 5242880),
     },
     browser: {
-      headless: process.env.HEADLESS !== 'false',
+      // Default to false to use regular Chromium with --headless=new (not headless_shell)
+      headless: process.env.HEADLESS === 'true',
       executablePath: process.env.BROWSER_EXECUTABLE_PATH,
       // Hardened: Simple comma-split can break args containing commas (rare but possible)
       // Browser args that contain commas are uncommon, but for robustness we trim each arg
       // and filter out empty strings that might result from trailing/leading commas
       // Note: If you need args with commas, use a different delimiter in the env var
       // e.g., BROWSER_ARGS="--arg1;;--arg2=value" with split(';;')
-      args: process.env.BROWSER_ARGS
-        ? process.env.BROWSER_ARGS.split(',')
-            .map((arg) => arg.trim())
-            .filter((arg) => arg.length > 0)
-        : [],
+      //
+      // Default includes:
+      // - --headless=new: Uses new headless mode with full service worker support
+      // - --disable-blink-features=AutomationControlled: Hides automation detection signals
+      // These fix Google redirect loop issues caused by bot detection
+      args: [
+        '--headless=new',
+        '--disable-blink-features=AutomationControlled',
+        ...(process.env.BROWSER_ARGS
+          ? process.env.BROWSER_ARGS.split(',')
+              .map((arg) => arg.trim())
+              .filter((arg) => arg.length > 0)
+          : []),
+      ],
       ignoreHTTPSErrors: process.env.IGNORE_HTTPS_ERRORS === 'true',
     },
     session: {
