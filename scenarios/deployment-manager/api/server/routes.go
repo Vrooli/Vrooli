@@ -69,5 +69,7 @@ func (s *Server) setupRoutes() {
 
 	// Build endpoints (cross-compilation)
 	s.Router.HandleFunc("/api/v1/build", s.BuildHandler.Build).Methods("POST")
+	s.Router.HandleFunc("/api/v1/build/auto", s.BuildHandler.AutoBuild).Methods("POST")
+	s.Router.HandleFunc("/api/v1/build/auto/{build_id}", s.BuildHandler.AutoBuildStatus).Methods("GET")
 	s.Router.HandleFunc("/api/v1/build/{build_id}", s.BuildHandler.BuildStatus).Methods("GET")
 }

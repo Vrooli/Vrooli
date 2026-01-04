@@ -1397,17 +1397,20 @@ func (s *Server) exportBundleHandler(w http.ResponseWriter, r *http.Request) {
 		req.IncludeSecrets = &include
 	}
 
+	client := &http.Client{Timeout: 5 * time.Minute}
+
 	payload, err := json.Marshal(map[string]interface{}{
 		"scenario":        req.Scenario,
 		"tier":            req.Tier,
 		"include_secrets": req.IncludeSecrets,
+		"output_dir":      filepath.Join(detectVrooliRoot(), "scenarios", req.Scenario, "platforms", "electron", "bundle"),
+		"stage_bundle":    true,
 	})
 	if err != nil {
 		http.Error(w, "failed to marshal request", http.StatusInternalServerError)
 		return
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Post(
 		fmt.Sprintf("%s/api/v1/bundles/export", deploymentManagerURL),
 		"application/json",
@@ -1439,15 +1442,124 @@ func (s *Server) exportBundleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	exportResp.DeploymentManagerURL = deploymentManagerURL
 
-	manifestPath, err := writeBundleManifest(req.Scenario, exportResp.Manifest)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to write bundle manifest: %v", err), http.StatusBadGateway)
-		return
+	manifestPath := exportResp.ManifestPath
+	if manifestPath == "" {
+		var err error
+		manifestPath, err = writeBundleManifest(req.Scenario, exportResp.Manifest)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to write bundle manifest: %v", err), http.StatusBadGateway)
+			return
+		}
 	}
 	exportResp.ManifestPath = manifestPath
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(exportResp)
+}
+
+type autoBuildProxyRequest struct {
+	Scenario  string   `json:"scenario"`
+	Platforms []string `json:"platforms,omitempty"`
+	Targets   []string `json:"targets,omitempty"`
+	DryRun    bool     `json:"dry_run,omitempty"`
+}
+
+func (s *Server) deploymentManagerAutoBuildHandler(w http.ResponseWriter, r *http.Request) {
+	var req autoBuildProxyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Scenario == "" {
+		http.Error(w, "scenario is required", http.StatusBadRequest)
+		return
+	}
+	if containsParentRef(req.Scenario) || strings.ContainsAny(req.Scenario, `/\`) {
+		http.Error(w, "invalid scenario name", http.StatusBadRequest)
+		return
+	}
+
+	deploymentManagerURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "deployment-manager")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to resolve deployment-manager: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		http.Error(w, "failed to marshal build request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(
+		fmt.Sprintf("%s/api/v1/build/auto", deploymentManagerURL),
+		"application/json",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("deployment-manager build failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "failed to read deployment-manager response", http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(body)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(body)
+}
+
+func (s *Server) deploymentManagerAutoBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
+	buildID := mux.Vars(r)["build_id"]
+	if buildID == "" {
+		http.Error(w, "build_id is required", http.StatusBadRequest)
+		return
+	}
+
+	deploymentManagerURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "deployment-manager")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to resolve deployment-manager: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(
+		fmt.Sprintf("%s/api/v1/build/auto/%s", deploymentManagerURL, buildID),
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("deployment-manager status failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "failed to read deployment-manager response", http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(body)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = w.Write(body)
 }
 
 func writeBundleManifest(scenario string, manifest interface{}) (string, error) {

@@ -649,6 +649,81 @@ export interface BundleExportResponse {
   manifest_path?: string;
 }
 
+export interface AutoBuildPlatformStatus {
+  name: string;
+  status: string;
+  output_path?: string;
+  error?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface AutoBuildTargetStatus {
+  id: string;
+  folder: string;
+  platforms: AutoBuildPlatformStatus[];
+}
+
+export interface AutoBuildStatusResponse {
+  build_id: string;
+  scenario: string;
+  status: string;
+  message?: string;
+  created_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  targets?: AutoBuildTargetStatus[];
+  build_log?: string[];
+  error_log?: string[];
+  status_url?: string;
+  check_command?: string;
+  poll_after_ms?: number;
+}
+
+export async function startDeploymentManagerAutoBuild(opts: {
+  scenario: string;
+  platforms?: string[];
+  targets?: string[];
+  dryRun?: boolean;
+}): Promise<AutoBuildStatusResponse> {
+  const response = await fetch(buildUrl("/deployment-manager/build/auto"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scenario: opts.scenario,
+      platforms: opts.platforms,
+      targets: opts.targets,
+      dry_run: opts.dryRun
+    })
+  });
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      detail = body.details || body.error || body.message || detail;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(`deployment-manager build failed: ${detail}`);
+  }
+  return response.json();
+}
+
+export async function fetchDeploymentManagerAutoBuildStatus(buildId: string): Promise<AutoBuildStatusResponse> {
+  const response = await fetch(buildUrl(`/deployment-manager/build/auto/${encodeURIComponent(buildId)}`));
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      detail = body.details || body.error || body.message || detail;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(`deployment-manager build status failed: ${detail}`);
+  }
+  return response.json();
+}
+
 export async function exportBundleFromDeploymentManager(opts: {
   scenario: string;
   tier?: string;

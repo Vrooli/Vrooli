@@ -41,17 +41,26 @@ type ExportBundleRequest struct {
 	Tier           string `json:"tier"`
 	ProfileID      string `json:"profile_id,omitempty"`
 	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
+	OutputDir      string `json:"output_dir,omitempty"`
+	StageBundle    *bool  `json:"stage_bundle,omitempty"`
 }
 
 // ExportBundleResponse is the response for bundle export endpoint.
 type ExportBundleResponse struct {
-	Status      string   `json:"status"`
-	Schema      string   `json:"schema"`
-	Scenario    string   `json:"scenario"`
-	Tier        string   `json:"tier"`
-	Manifest    Manifest `json:"manifest"`
-	Checksum    string   `json:"checksum"`
-	GeneratedAt string   `json:"generated_at"`
+	Status       string   `json:"status"`
+	Schema       string   `json:"schema"`
+	Scenario     string   `json:"scenario"`
+	Tier         string   `json:"tier"`
+	Manifest     Manifest `json:"manifest"`
+	Checksum     string   `json:"checksum"`
+	GeneratedAt  string   `json:"generated_at"`
+	ManifestPath string   `json:"manifest_path,omitempty"`
+	OutputDir    string   `json:"output_dir,omitempty"`
+}
+
+type stageBundleResult struct {
+	ManifestPath string
+	Missing      []string
 }
 
 // Handler handles bundle-related requests.
@@ -264,7 +273,7 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 		includeSecrets = *req.IncludeSecrets
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 
 	manifest, err := FetchSkeletonBundle(ctx, req.Scenario)
@@ -337,6 +346,33 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 		Manifest:    *manifest,
 		Checksum:    checksum,
 		GeneratedAt: generatedAt,
+	}
+
+	stageBundle := false
+	if req.StageBundle != nil {
+		stageBundle = *req.StageBundle
+	}
+	if req.OutputDir != "" && req.StageBundle == nil {
+		stageBundle = true
+	}
+
+	if stageBundle {
+		scenarioRoot := resolveScenarioRoot(req.Scenario)
+		if scenarioRoot == "" {
+			http.Error(w, `{"error":"scenario root not found"}`, http.StatusBadRequest)
+			return
+		}
+		stageResult, err := stageBundleArtifacts(manifest, scenarioRoot, req.OutputDir)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to stage bundle","details":"%s"}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+		if len(stageResult.Missing) > 0 {
+			http.Error(w, fmt.Sprintf(`{"error":"bundle staging missing artifacts","details":"%s"}`, strings.Join(stageResult.Missing, ", ")), http.StatusUnprocessableEntity)
+			return
+		}
+		response.ManifestPath = stageResult.ManifestPath
+		response.OutputDir = req.OutputDir
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -491,6 +527,9 @@ func populateAssetMetadata(manifest *Manifest, scenarioRoot string) error {
 	if manifest == nil {
 		return nil
 	}
+	// Expand ui-bundle assets to include file entries instead of directories.
+	_ = expandUIAssets(manifest, scenarioRoot)
+
 	for svcIdx, svc := range manifest.Services {
 		for assetIdx, asset := range svc.Assets {
 			if asset.SHA256 != "" && asset.SHA256 != "pending" && asset.SizeBytes > 0 {
@@ -524,4 +563,186 @@ func hashFile(path string) (string, int64, error) {
 		return "", 0, err
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+func expandUIAssets(manifest *Manifest, scenarioRoot string) error {
+	if manifest == nil {
+		return nil
+	}
+	var firstErr error
+	for svcIdx, svc := range manifest.Services {
+		if !strings.EqualFold(svc.Type, "ui-bundle") {
+			continue
+		}
+		uiRoot := filepath.Join(scenarioRoot, "ui", "dist")
+		entries, err := os.ReadDir(uiRoot)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("read ui dist: %w", err)
+			}
+			continue
+		}
+		var assets []Asset
+		for _, entry := range entries {
+			err := filepath.WalkDir(filepath.Join(uiRoot, entry.Name()), func(path string, d os.DirEntry, werr error) error {
+				if werr != nil {
+					return werr
+				}
+				if d.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(scenarioRoot, path)
+				hash, size, herr := hashFile(path)
+				if herr != nil {
+					if firstErr == nil {
+						firstErr = herr
+					}
+					return nil
+				}
+				assets = append(assets, Asset{
+					Path:      filepath.ToSlash(rel),
+					SHA256:    hash,
+					SizeBytes: size,
+				})
+				return nil
+			})
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		if len(assets) > 0 {
+			manifest.Services[svcIdx].Assets = assets
+		}
+	}
+	return firstErr
+}
+
+func stageBundleArtifacts(manifest *Manifest, scenarioRoot, outputDir string) (stageBundleResult, error) {
+	if manifest == nil {
+		return stageBundleResult{}, fmt.Errorf("manifest is nil")
+	}
+	if strings.TrimSpace(outputDir) == "" {
+		return stageBundleResult{}, fmt.Errorf("output_dir is required for bundle staging")
+	}
+
+	absOutput, err := filepath.Abs(outputDir)
+	if err != nil {
+		return stageBundleResult{}, fmt.Errorf("resolve output_dir: %w", err)
+	}
+	if err := os.MkdirAll(absOutput, 0o755); err != nil {
+		return stageBundleResult{}, fmt.Errorf("create output_dir: %w", err)
+	}
+
+	var missing []string
+	seen := make(map[string]bool)
+
+	copyEntry := func(relPath string, isBinary bool) error {
+		cleanRel, err := sanitizeRelPath(relPath)
+		if err != nil {
+			return err
+		}
+		if seen[cleanRel] {
+			return nil
+		}
+		seen[cleanRel] = true
+		src := filepath.Join(scenarioRoot, cleanRel)
+		info, err := os.Stat(src)
+		if err != nil {
+			missing = append(missing, cleanRel)
+			return nil
+		}
+		dest := filepath.Join(absOutput, cleanRel)
+		if info.IsDir() {
+			if isBinary {
+				return fmt.Errorf("binary path is a directory: %s", cleanRel)
+			}
+			if err := copyDir(src, dest); err != nil {
+				return err
+			}
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		return copyFilePreserveMode(src, dest)
+	}
+
+	for _, svc := range manifest.Services {
+		for _, bin := range svc.Binaries {
+			if bin.Path == "" {
+				continue
+			}
+			if err := copyEntry(bin.Path, true); err != nil {
+				return stageBundleResult{}, err
+			}
+		}
+		for _, asset := range svc.Assets {
+			if asset.Path == "" {
+				continue
+			}
+			if err := copyEntry(asset.Path, false); err != nil {
+				return stageBundleResult{}, err
+			}
+		}
+	}
+
+	manifestPath := filepath.Join(absOutput, "bundle.json")
+	payload, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return stageBundleResult{}, fmt.Errorf("serialize manifest: %w", err)
+	}
+	if err := os.WriteFile(manifestPath, payload, 0o644); err != nil {
+		return stageBundleResult{}, fmt.Errorf("write bundle.json: %w", err)
+	}
+
+	return stageBundleResult{
+		ManifestPath: manifestPath,
+		Missing:      missing,
+	}, nil
+}
+
+func sanitizeRelPath(relPath string) (string, error) {
+	if filepath.IsAbs(relPath) {
+		return "", fmt.Errorf("path must be relative: %s", relPath)
+	}
+	clean := filepath.Clean(filepath.FromSlash(relPath))
+	if clean == "." || clean == "" {
+		return "", fmt.Errorf("invalid path: %s", relPath)
+	}
+	if strings.HasPrefix(clean, "..") {
+		return "", fmt.Errorf("path escapes root: %s", relPath)
+	}
+	return clean, nil
+}
+
+func copyDir(src, dest string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dest, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		return copyFilePreserveMode(path, target)
+	})
+}
+
+func copyFilePreserveMode(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(src); err == nil {
+		mode = info.Mode().Perm()
+	}
+	return os.WriteFile(dst, data, mode)
 }

@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"scenario-to-desktop-runtime/health"
 	"time"
 
 	signingtypes "scenario-to-desktop-api/signing/types"
 	runtimeapi "scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/health"
 )
 
 // DesktopConfig represents the configuration for generating a desktop application

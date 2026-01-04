@@ -122,6 +122,8 @@ func (s *Server) setupRoutes() {
 
 	// Deployment-manager bundle exports (resolved via api-core discovery)
 	s.router.HandleFunc("/api/v1/deployment-manager/bundles/export", s.exportBundleHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/deployment-manager/build/auto", s.deploymentManagerAutoBuildHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/deployment-manager/build/auto/{build_id}", s.deploymentManagerAutoBuildStatusHandler).Methods("GET")
 
 	// Desktop records
 	s.router.HandleFunc("/api/v1/desktop/records", s.listDesktopRecordsHandler).Methods("GET")
