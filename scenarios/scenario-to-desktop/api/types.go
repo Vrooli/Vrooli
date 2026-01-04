@@ -135,7 +135,17 @@ type BundlePreflightResponse struct {
 	Ports      map[string]map[string]int          `json:"ports,omitempty"`
 	Telemetry  *BundlePreflightTelemetry          `json:"telemetry,omitempty"`
 	LogTails   []BundlePreflightLogTail           `json:"log_tails,omitempty"`
+	Checks     []BundlePreflightCheck             `json:"checks,omitempty"`
 	Errors     []string                           `json:"errors,omitempty"`
+}
+
+// BundlePreflightCheck enumerates a single preflight test case and outcome.
+type BundlePreflightCheck struct {
+	ID     string `json:"id"`
+	Step   string `json:"step"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // BundlePreflightReady captures readiness results from the runtime control API.

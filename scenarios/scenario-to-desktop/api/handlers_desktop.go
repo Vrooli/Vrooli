@@ -1030,6 +1030,199 @@ func (e *preflightStatusError) Error() string {
 	return e.Err.Error()
 }
 
+type preflightIssue struct {
+	status string
+	detail string
+}
+
+func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtimeapi.BundleValidationResult, ready *BundlePreflightReady, secrets []BundlePreflightSecret, ports map[string]map[string]int, telemetry *BundlePreflightTelemetry, logTails []BundlePreflightLogTail, request BundlePreflightRequest) []BundlePreflightCheck {
+	checks := []BundlePreflightCheck{}
+	if manifest == nil {
+		return checks
+	}
+
+	addCheck := func(id, step, name, status, detail string) {
+		checks = append(checks, BundlePreflightCheck{
+			ID:     id,
+			Step:   step,
+			Name:   name,
+			Status: status,
+			Detail: detail,
+		})
+	}
+
+	manifestStatus := "pass"
+	manifestDetail := fmt.Sprintf("validated for %s/%s", runtime.GOOS, runtime.GOARCH)
+	if validation == nil {
+		manifestStatus = "fail"
+		manifestDetail = "validation result missing"
+	} else {
+		for _, err := range validation.Errors {
+			if err.Code == "manifest_invalid" {
+				manifestStatus = "fail"
+				manifestDetail = err.Message
+				break
+			}
+		}
+	}
+	addCheck("validation.manifest", "validation", "Manifest schema", manifestStatus, manifestDetail)
+
+	binaryErrors := map[string][]string{}
+	missingBinaries := map[string]runtimeapi.MissingBinary{}
+	assetIssues := map[string]preflightIssue{}
+	if validation != nil {
+		for _, err := range validation.Errors {
+			if err.Service == "" {
+				continue
+			}
+			if strings.HasPrefix(err.Code, "binary_") {
+				binaryErrors[err.Service] = append(binaryErrors[err.Service], err.Message)
+			}
+			if err.Path != "" && (strings.HasPrefix(err.Code, "asset_") || err.Code == "checksum_mismatch") {
+				key := err.Service + "|" + err.Path
+				assetIssues[key] = preflightIssue{status: "fail", detail: err.Message}
+			}
+		}
+		for _, missing := range validation.MissingBinaries {
+			missingBinaries[missing.ServiceID] = missing
+		}
+		for _, missing := range validation.MissingAssets {
+			key := missing.ServiceID + "|" + missing.Path
+			assetIssues[key] = preflightIssue{status: "fail", detail: "missing asset"}
+		}
+		for _, invalid := range validation.InvalidChecksums {
+			key := invalid.ServiceID + "|" + invalid.Path
+			assetIssues[key] = preflightIssue{
+				status: "fail",
+				detail: fmt.Sprintf("checksum mismatch (expected %s)", invalid.Expected),
+			}
+		}
+		for _, warn := range validation.Warnings {
+			if warn.Service == "" || warn.Path == "" {
+				continue
+			}
+			if warn.Code == "asset_size_warning" {
+				key := warn.Service + "|" + warn.Path
+				if existing, ok := assetIssues[key]; !ok || existing.status != "fail" {
+					assetIssues[key] = preflightIssue{status: "warning", detail: warn.Message}
+				}
+			}
+		}
+	}
+
+	for _, svc := range manifest.Services {
+		status := "pass"
+		detail := ""
+		if missing, ok := missingBinaries[svc.ID]; ok {
+			status = "fail"
+			detail = fmt.Sprintf("missing binary: %s (%s)", missing.Path, missing.Platform)
+		}
+		if errs, ok := binaryErrors[svc.ID]; ok {
+			status = "fail"
+			if detail == "" {
+				detail = strings.Join(errs, "; ")
+			} else {
+				detail = detail + "; " + strings.Join(errs, "; ")
+			}
+		}
+		addCheck("validation.binary."+svc.ID, "validation", "Binary present: "+svc.ID, status, detail)
+
+		for _, asset := range svc.Assets {
+			key := svc.ID + "|" + asset.Path
+			issue, ok := assetIssues[key]
+			assetStatus := "pass"
+			assetDetail := ""
+			if ok {
+				assetStatus = issue.status
+				assetDetail = issue.detail
+			}
+			addCheck("validation.asset."+svc.ID+"."+asset.Path, "validation", "Asset "+asset.Path+" ("+svc.ID+")", assetStatus, assetDetail)
+		}
+	}
+
+	for _, secret := range secrets {
+		status := "pass"
+		detail := ""
+		if secret.Required {
+			if secret.HasValue {
+				detail = "required secret provided"
+			} else {
+				status = "fail"
+				detail = "required secret missing"
+			}
+		} else if secret.HasValue {
+			detail = "optional secret provided"
+		} else {
+			status = "skipped"
+			detail = "optional secret not provided"
+		}
+		addCheck("secrets."+secret.ID, "secrets", "Secret "+secret.ID, status, detail)
+	}
+
+	addCheck("runtime.control_api", "runtime", "Runtime control API online", "pass", "control API responded")
+
+	if !request.StartServices {
+		addCheck("services.start", "services", "Start services", "skipped", "start_services=false")
+	} else if ready == nil {
+		addCheck("services.ready", "services", "Overall readiness", "warning", "readiness not reported")
+	} else {
+		overall := "pass"
+		if !ready.Ready {
+			overall = "fail"
+		}
+		addCheck("services.ready", "services", "Overall readiness", overall, "")
+		for serviceID, status := range ready.Details {
+			checkStatus := "pass"
+			detail := status.Message
+			if !status.Ready {
+				checkStatus = "fail"
+				if detail == "" {
+					detail = "service not ready"
+				}
+			}
+			if status.ExitCode != nil {
+				if detail != "" {
+					detail = detail + "; "
+				}
+				detail = fmt.Sprintf("%sexit code %d", detail, *status.ExitCode)
+			}
+			addCheck("services."+serviceID, "services", "Service readiness: "+serviceID, checkStatus, detail)
+		}
+	}
+
+	if len(ports) > 0 {
+		addCheck("diagnostics.ports", "diagnostics", "Ports reported", "pass", "")
+	} else {
+		addCheck("diagnostics.ports", "diagnostics", "Ports reported", "warning", "no ports reported")
+	}
+
+	if telemetry != nil && telemetry.Path != "" {
+		addCheck("diagnostics.telemetry", "diagnostics", "Telemetry configured", "pass", telemetry.Path)
+	} else {
+		addCheck("diagnostics.telemetry", "diagnostics", "Telemetry configured", "warning", "no telemetry path")
+	}
+
+	if request.StartServices {
+		if len(logTails) == 0 {
+			addCheck("diagnostics.log_tails", "diagnostics", "Log tails captured", "warning", "no log tails captured")
+		} else {
+			for _, tail := range logTails {
+				status := "pass"
+				detail := ""
+				if tail.Error != "" {
+					status = "warning"
+					detail = tail.Error
+				}
+				addCheck("diagnostics.log_tails."+tail.ServiceID, "diagnostics", "Log tail: "+tail.ServiceID, status, detail)
+			}
+		}
+	} else {
+		addCheck("diagnostics.log_tails", "diagnostics", "Log tails captured", "skipped", "start_services=false")
+	}
+
+	return checks
+}
+
 func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightResponse, error) {
 	if strings.TrimSpace(request.BundleManifestPath) == "" {
 		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: errors.New("bundle_manifest_path is required")}
@@ -1168,6 +1361,7 @@ func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightRespons
 	}
 
 	logTails := collectLogTails(client, baseURL, token, m, request)
+	checks := buildPreflightChecks(m, &validation, &ready, secretsResp.Secrets, portsResp.Services, &telemetryResp, logTails, request)
 
 	return &BundlePreflightResponse{
 		Status:     "ok",
@@ -1177,6 +1371,7 @@ func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightRespons
 		Ports:      portsResp.Services,
 		Telemetry:  &telemetryResp,
 		LogTails:   logTails,
+		Checks:     checks,
 	}, nil
 }
 

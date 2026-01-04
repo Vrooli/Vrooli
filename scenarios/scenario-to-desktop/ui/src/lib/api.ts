@@ -181,6 +181,14 @@ export interface BundlePreflightLogTail {
   error?: string;
 }
 
+export interface BundlePreflightCheck {
+  id: string;
+  step: string;
+  name: string;
+  status: "pass" | "fail" | "warning" | "skipped";
+  detail?: string;
+}
+
 export interface BundlePreflightResponse {
   status: string;
   validation?: BundleValidationResult;
@@ -189,6 +197,7 @@ export interface BundlePreflightResponse {
   ports?: Record<string, Record<string, number>>;
   telemetry?: BundlePreflightTelemetry;
   log_tails?: BundlePreflightLogTail[];
+  checks?: BundlePreflightCheck[];
   errors?: string[];
 }
 

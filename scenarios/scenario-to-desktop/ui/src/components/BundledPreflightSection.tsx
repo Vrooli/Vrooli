@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
-import type { BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
+import type { BundlePreflightCheck, BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
@@ -95,6 +95,20 @@ const PREFLIGHT_STEP_STYLES: Record<PreflightStepState, string> = {
   skipped: "border-slate-800/70 bg-slate-950/60 text-slate-300"
 };
 
+const PREFLIGHT_CHECK_STYLES: Record<BundlePreflightCheck["status"], string> = {
+  pass: "border-emerald-800/70 text-emerald-200",
+  fail: "border-red-800/70 text-red-200",
+  warning: "border-amber-800/70 text-amber-200",
+  skipped: "border-slate-800/70 text-slate-300"
+};
+
+const PREFLIGHT_CHECK_LABELS: Record<BundlePreflightCheck["status"], string> = {
+  pass: "PASS",
+  fail: "FAIL",
+  warning: "WARN",
+  skipped: "SKIP"
+};
+
 interface PreflightStepHeaderProps {
   index: number;
   title: string;
@@ -121,6 +135,32 @@ function PreflightStepHeader({ index, title, status, subtitle }: PreflightStepHe
   );
 }
 
+function PreflightCheckList({ checks }: { checks: BundlePreflightCheck[] }) {
+  if (checks.length === 0) {
+    return null;
+  }
+
+  return (
+    <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-[11px] text-slate-200">
+      <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+        Test cases ({checks.length})
+      </summary>
+      <ul className="mt-2 space-y-2">
+        {checks.map((check) => (
+          <li key={check.id} className="rounded-md border border-slate-800/70 bg-slate-950/70 px-3 py-2 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${PREFLIGHT_CHECK_STYLES[check.status]}`}>
+                {PREFLIGHT_CHECK_LABELS[check.status]}
+              </span>
+              <span className="text-slate-200">{check.name}</span>
+            </div>
+            {check.detail && <p className="text-slate-400">{check.detail}</p>}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 type CoverageCell = {
   label: string;
   active: boolean;
@@ -221,6 +261,7 @@ export function BundledPreflightSection({
   const ports = preflightResult?.ports;
   const telemetry = preflightResult?.telemetry;
   const logTails = preflightLogTails ?? preflightResult?.log_tails;
+  const checks = preflightResult?.checks ?? [];
   const bundleRootPreview = bundleManifestPath.trim()
     ? bundleManifestPath.trim().replace(/[/\\][^/\\]+$/, "")
     : "";
@@ -259,6 +300,11 @@ export function BundledPreflightSection({
   const diagnosticsAvailable = Boolean(
     portSummary || telemetry?.path || (logTails && logTails.length > 0)
   );
+  const validationChecks = checks.filter((check) => check.step === "validation");
+  const secretChecks = checks.filter((check) => check.step === "secrets");
+  const runtimeChecks = checks.filter((check) => check.step === "runtime");
+  const serviceChecks = checks.filter((check) => check.step === "services");
+  const diagnosticsChecks = checks.filter((check) => check.step === "diagnostics");
 
   const stepValidationStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
@@ -575,6 +621,7 @@ export function BundledPreflightSection({
                   </ul>
                 </details>
               )}
+              <PreflightCheckList checks={validationChecks} />
             </div>
 
             <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
@@ -635,6 +682,7 @@ export function BundledPreflightSection({
                   </Button>
                 </div>
               )}
+              <PreflightCheckList checks={secretChecks} />
             </div>
 
             <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
@@ -664,6 +712,7 @@ export function BundledPreflightSection({
                   Control API failed to start. Review the error above.
                 </p>
               )}
+              <PreflightCheckList checks={runtimeChecks} />
             </div>
 
             <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
@@ -711,6 +760,7 @@ export function BundledPreflightSection({
                   Run preflight to fetch service readiness details.
                 </p>
               )}
+              <PreflightCheckList checks={serviceChecks} />
             </div>
 
             <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
@@ -759,6 +809,7 @@ export function BundledPreflightSection({
                   </div>
                 </details>
               )}
+              <PreflightCheckList checks={diagnosticsChecks} />
             </div>
           </div>
 
