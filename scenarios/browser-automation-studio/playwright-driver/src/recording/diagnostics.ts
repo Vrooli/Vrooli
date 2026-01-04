@@ -381,8 +381,13 @@ function checkScriptVerification(
 /**
  * Test the event flow from browser to Node.js.
  *
- * Note: context and logger are reserved for future enhancements
- * where we might set up a temporary route or add more logging.
+ * This test verifies that:
+ * 1. The recording script is active and can execute code
+ * 2. The __VROOLI_RECORDER__ global is accessible
+ * 3. Console messages are being captured by Playwright
+ *
+ * Note: This is a basic connectivity test, not a full event flow verification.
+ * The script verification (verifyScriptInjection) is the primary check for recording readiness.
  */
 async function testEventFlow(
   page: Page,
@@ -390,45 +395,57 @@ async function testEventFlow(
   timeoutMs: number,
   _logger: winston.Logger
 ): Promise<RecordingDiagnosticResult['eventFlowTest']> {
-  const testEventId = `diag-${Date.now()}`;
+  const testEventId = `diag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let eventReceived = false;
   let receiveTime = 0;
+  let consoleHandler: ((msg: import('rebrowser-playwright').ConsoleMessage) => void) | null = null;
 
-  // Create a temporary route to capture the test event
-  const testPromise = new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, timeoutMs);
-
-    // We can't easily add a temporary route, so we'll use the page's console
-    // to verify the event was at least sent
-    page.on('console', (msg) => {
+  // Set up the console listener BEFORE sending the event to avoid race condition
+  const consolePromise = new Promise<void>((resolve) => {
+    consoleHandler = (msg) => {
       if (msg.text().includes(testEventId)) {
         receiveTime = Date.now();
         eventReceived = true;
-        clearTimeout(timeout);
         resolve();
       }
-    });
+    };
+    page.on('console', consoleHandler);
+  });
+
+  // Create a timeout promise
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(resolve, timeoutMs);
   });
 
   // Send a test event from the browser
   const sendTime = Date.now();
   let eventSent = false;
+  let recorderAccessible = false;
 
   try {
-    await page.evaluate((eventId: string) => {
+    // Test both console messaging and recorder global access
+    const result = await page.evaluate((eventId: string) => {
+      // Log the test event
       console.log(`[DiagnosticTest] ${eventId}`);
-      // Also try sending via the recording event URL
-      fetch('/__vrooli_recording_event__', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actionType: 'diagnostic', testId: eventId }),
-        keepalive: true,
-      }).catch(() => {
-        // Expected to fail if route not set up
-      });
+
+      // Check if the recorder global is accessible
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const recorder = (window as any).__VROOLI_RECORDER__;
+      const hasRecorder = typeof recorder === 'object' && recorder !== null;
+
+      return {
+        hasRecorder,
+        isReady: hasRecorder && typeof recorder.isReady === 'function' ? recorder.isReady() : false,
+      };
     }, testEventId);
+
     eventSent = true;
+    recorderAccessible = result.hasRecorder;
   } catch (error) {
+    // Clean up listener before returning
+    if (consoleHandler) {
+      page.off('console', consoleHandler);
+    }
     return {
       passed: false,
       eventSent: false,
@@ -437,16 +454,29 @@ async function testEventFlow(
     };
   }
 
-  // Wait for the event
-  await testPromise;
+  // Wait for either the console event or timeout
+  await Promise.race([consolePromise, timeoutPromise]);
+
+  // Clean up listener
+  if (consoleHandler) {
+    page.off('console', consoleHandler);
+  }
 
   const latencyMs = eventReceived ? receiveTime - sendTime : undefined;
 
+  // The test passes if:
+  // 1. We could send the event (page.evaluate worked)
+  // 2. Either the console event was received OR the recorder global is accessible
+  // Console capture can be unreliable in some contexts, so we don't fail just on that
+  const passed = eventSent && (eventReceived || recorderAccessible);
+
   return {
-    passed: eventSent && eventReceived,
+    passed,
     eventSent,
     eventReceived,
     latencyMs,
+    // Include recorder accessibility in the result for debugging
+    ...(recorderAccessible && { recorderAccessible: true }),
   };
 }
 
@@ -464,31 +494,37 @@ function checkEventFlowTest(
       code: DIAGNOSTIC_CODES.EVENT_SEND_FAILED,
       message: 'Failed to send test event from browser',
       severity: DiagnosticSeverity.ERROR,
-      suggestion: 'page.evaluate() may have failed',
+      suggestion: 'page.evaluate() may have failed. Check that the page is loaded and accessible.',
       details: { error: test.error },
     });
     return;
   }
 
-  if (!test.eventReceived) {
-    issues.push({
-      code: DIAGNOSTIC_CODES.EVENT_NOT_RECEIVED,
-      message: 'Test event sent but not received by Node.js',
-      severity: DiagnosticSeverity.WARNING,
-      suggestion:
-        'Event route may not be set up, or console message was not captured. ' +
-        'This may be a false positive in the diagnostic.',
-    });
+  // If test passed (either console received or recorder accessible), no issues
+  if (test.passed) {
+    // Only warn about latency if we have timing data
+    if (test.latencyMs && test.latencyMs > 1000) {
+      issues.push({
+        code: DIAGNOSTIC_CODES.EVENT_HIGH_LATENCY,
+        message: `High event latency: ${test.latencyMs}ms`,
+        severity: DiagnosticSeverity.WARNING,
+        suggestion: 'Events may be delayed. Check route handler performance.',
+        details: { latencyMs: test.latencyMs },
+      });
+    }
     return;
   }
 
-  if (test.latencyMs && test.latencyMs > 1000) {
+  // Test failed - no console received AND no recorder accessible
+  if (!test.eventReceived) {
     issues.push({
-      code: DIAGNOSTIC_CODES.EVENT_HIGH_LATENCY,
-      message: `High event latency: ${test.latencyMs}ms`,
+      code: DIAGNOSTIC_CODES.EVENT_NOT_RECEIVED,
+      message: 'Recording subsystem connectivity test failed',
       severity: DiagnosticSeverity.WARNING,
-      suggestion: 'Events may be delayed. Check route handler performance.',
-      details: { latencyMs: test.latencyMs },
+      suggestion:
+        'The recording script may not be loaded on this page. ' +
+        'Navigate to an HTTP(S) page to enable recording. ' +
+        'Pages like about:blank or chrome:// URLs do not support recording.',
     });
   }
 }

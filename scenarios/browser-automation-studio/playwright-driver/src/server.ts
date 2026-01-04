@@ -303,6 +303,12 @@ function setupRoutes(
   router.get('/observability/metrics', async (req, res) => {
     await observability.handleMetrics(req, res, observabilityDeps);
   });
+  router.get('/observability/sessions', async (req, res) => {
+    await observability.handleSessionList(req, res, observabilityDeps);
+  });
+  router.post('/observability/cleanup/run', async (req, res) => {
+    await observability.handleCleanupRun(req, res, observabilityDeps);
+  });
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);

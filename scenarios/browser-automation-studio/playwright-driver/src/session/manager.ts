@@ -774,6 +774,66 @@ export class SessionManager {
   }
 
   /**
+   * Get detailed list of all sessions for observability/diagnostics.
+   * Returns non-sensitive session metadata.
+   */
+  getSessionList(): Array<{
+    id: string;
+    phase: SessionPhase;
+    created_at: string;
+    last_used_at: string;
+    idle_time_ms: number;
+    is_idle: boolean;
+    is_recording: boolean;
+    instruction_count: number;
+    workflow_id?: string;
+    current_url?: string;
+    page_count: number;
+  }> {
+    const now = Date.now();
+    const list: Array<{
+      id: string;
+      phase: SessionPhase;
+      created_at: string;
+      last_used_at: string;
+      idle_time_ms: number;
+      is_idle: boolean;
+      is_recording: boolean;
+      instruction_count: number;
+      workflow_id?: string;
+      current_url?: string;
+      page_count: number;
+    }> = [];
+
+    for (const session of this.sessions.values()) {
+      const idleTimeMs = now - session.lastUsedAt.getTime();
+      let currentUrl: string | undefined;
+      try {
+        currentUrl = session.page?.url();
+      } catch {
+        // Page may be closed
+      }
+
+      list.push({
+        id: session.id,
+        phase: session.phase,
+        created_at: session.createdAt.toISOString(),
+        last_used_at: session.lastUsedAt.toISOString(),
+        idle_time_ms: idleTimeMs,
+        is_idle: idleTimeMs >= this.config.session.idleTimeoutMs,
+        is_recording: session.recordingController?.isRecording() ?? false,
+        instruction_count: session.instructionCount,
+        workflow_id: session.spec.workflow_id,
+        current_url: currentUrl,
+        page_count: session.pages.length,
+      });
+    }
+
+    // Sort by last used (most recent first)
+    return list.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
+  }
+
+  /**
    * Shutdown manager and cleanup all sessions
    */
   async shutdown(): Promise<void> {

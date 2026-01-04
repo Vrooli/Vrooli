@@ -28,6 +28,74 @@ import type {
   RecordingStats,
 } from './types';
 import { VERSION } from '../constants';
+import type { RecordingDiagnosticResult, DiagnosticIssue, DiagnosticSeverity } from '../recording/diagnostics';
+
+// =============================================================================
+// UI-Compatible Types
+// =============================================================================
+
+/** Issue format expected by the UI */
+interface UIDiagnosticIssue {
+  severity: 'error' | 'warning' | 'info';
+  category: string;
+  message: string;
+  suggestion?: string;
+  docs_link?: string;
+}
+
+/** Recording diagnostics result formatted for UI consumption */
+interface UIRecordingDiagnostics {
+  ready: boolean;
+  timestamp: string;
+  durationMs: number;
+  level: 'quick' | 'standard' | 'full';
+  issues: UIDiagnosticIssue[];
+  provider?: {
+    name: string;
+    evaluateIsolated: boolean;
+    exposeBindingIsolated: boolean;
+  };
+}
+
+/**
+ * Extract category from diagnostic code.
+ * Maps DIAGNOSTIC_CODES prefixes to user-friendly categories.
+ */
+function codeToCategory(code: string): string {
+  if (code.startsWith('SCRIPT_')) return 'script';
+  if (code.startsWith('INJECTION_')) return 'injection';
+  if (code.startsWith('EVENT_')) return 'event';
+  if (code.startsWith('PROVIDER_')) return 'provider';
+  if (code.startsWith('CDP_')) return 'cdp';
+  return 'general';
+}
+
+/**
+ * Map DiagnosticSeverity enum to string literal.
+ */
+function severityToString(severity: DiagnosticSeverity): 'error' | 'warning' | 'info' {
+  // DiagnosticSeverity enum values are 'error', 'warning', 'info'
+  return severity as unknown as 'error' | 'warning' | 'info';
+}
+
+/**
+ * Transform backend diagnostic result to UI-compatible format.
+ */
+function transformDiagnosticsForUI(result: RecordingDiagnosticResult): UIRecordingDiagnostics {
+  return {
+    ready: result.ready,
+    timestamp: result.timestamp,
+    durationMs: result.durationMs,
+    level: result.level,
+    issues: result.issues.map((issue: DiagnosticIssue) => ({
+      severity: severityToString(issue.severity),
+      category: codeToCategory(issue.code),
+      message: issue.message,
+      suggestion: issue.suggestion,
+    })),
+    provider: result.provider,
+  };
+}
 
 // =============================================================================
 // Types
@@ -336,11 +404,15 @@ export async function handleDiagnosticsRun(
                 ? RecordingDiagnosticLevel.STANDARD
                 : RecordingDiagnosticLevel.QUICK;
 
-            results.recording = await runRecordingDiagnostics(session.page, session.context, {
+            const rawResult = await runRecordingDiagnostics(session.page, session.context, {
               level,
               timeoutMs: options?.timeout_ms ?? 5000,
               contextInitializer: session.recordingInitializer,
             });
+
+            // Transform to UI-compatible format with category instead of code
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            results.recording = transformDiagnosticsForUI(rawResult) as any;
           } catch (error) {
             logger.warn(scopedLog(LogContext.HEALTH, 'recording diagnostics failed'), {
               sessionId: targetSessionId,
@@ -399,6 +471,92 @@ export async function handleDiagnosticsRun(
       });
     }
   });
+}
+
+/**
+ * GET /observability/sessions
+ *
+ * Get detailed list of all active browser sessions.
+ * Returns session metadata for diagnostics and monitoring.
+ */
+export async function handleSessionList(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  deps: ObservabilityRouteDependencies
+): Promise<void> {
+  try {
+    const sessions = deps.sessionManager.getSessionList();
+    const summary = deps.sessionManager.getSessionSummary();
+
+    sendJson(res, 200, {
+      sessions,
+      summary: {
+        total: summary.total,
+        active: summary.active,
+        idle: summary.idle,
+        active_recordings: summary.active_recordings,
+        capacity: summary.capacity,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error(scopedLog(LogContext.HEALTH, 'session list failed'), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    sendJson(res, 500, {
+      error: 'Failed to get session list',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * POST /observability/cleanup/run
+ *
+ * Trigger manual cleanup of idle sessions.
+ * Returns the number of sessions cleaned up.
+ */
+export async function handleCleanupRun(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  deps: ObservabilityRouteDependencies
+): Promise<void> {
+  const startedAt = new Date();
+
+  logger.info(scopedLog(LogContext.HEALTH, 'manual cleanup triggered'));
+
+  try {
+    // Get session count before cleanup
+    const beforeCount = deps.sessionManager.getSessionCount();
+
+    // Run cleanup
+    await deps.sessionManager.cleanupIdleSessions();
+
+    // Get session count after cleanup
+    const afterCount = deps.sessionManager.getSessionCount();
+    const cleanedUp = beforeCount - afterCount;
+
+    const completedAt = new Date();
+
+    sendJson(res, 200, {
+      success: true,
+      cleaned_up: cleanedUp,
+      remaining_sessions: afterCount,
+      started_at: startedAt.toISOString(),
+      completed_at: completedAt.toISOString(),
+      duration_ms: completedAt.getTime() - startedAt.getTime(),
+    });
+  } catch (error) {
+    logger.error(scopedLog(LogContext.HEALTH, 'manual cleanup failed'), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    sendJson(res, 500, {
+      error: 'Failed to run cleanup',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 /**

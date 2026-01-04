@@ -52,5 +52,13 @@ export type {
 
 // Hooks
 export { useObservability } from './hooks/useObservability';
-export { useRefreshDiagnostics, useRefreshCache } from './hooks/useRefreshDiagnostics';
+export {
+  useRefreshDiagnostics,
+  useRefreshCache,
+  useRunCleanup,
+  useSessionList,
+  type CleanupRunResponse,
+  type SessionInfo,
+  type SessionListResponse,
+} from './hooks/useRefreshDiagnostics';
 export { useMetrics } from './hooks/useMetrics';

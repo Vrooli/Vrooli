@@ -32,7 +32,7 @@ import {
   ArrowLeft,
   ExternalLink,
 } from 'lucide-react';
-import { useObservability, useRefreshDiagnostics, useRefreshCache, useMetrics } from '@/domains/observability';
+import { useObservability, useRefreshDiagnostics, useRefreshCache, useMetrics, useRunCleanup, useSessionList, type SessionInfo } from '@/domains/observability';
 import type { ComponentStatus, BrowserComponent, SessionsComponent, RecordingComponent, CleanupComponent, MetricsComponent, MetricsResponse, MetricData, MetricValue, ConfigOption, ConfigTier } from '@/domains/observability';
 import { SettingSection } from '../shared';
 
@@ -188,7 +188,15 @@ function BrowserDetails({ browser }: { browser: BrowserComponent }) {
   );
 }
 
-function SessionsDetails({ sessions }: { sessions: SessionsComponent }) {
+interface SessionsDetailsProps {
+  sessions: SessionsComponent;
+  sessionList?: SessionInfo[];
+  isLoadingList?: boolean;
+  onRefreshList?: () => void;
+}
+
+function SessionsDetails({ sessions, sessionList, isLoadingList, onRefreshList }: SessionsDetailsProps) {
+  const [showList, setShowList] = useState(false);
   const utilizationPercent = sessions.capacity > 0 ? Math.round((sessions.total / sessions.capacity) * 100) : 0;
 
   return (
@@ -224,6 +232,79 @@ function SessionsDetails({ sessions }: { sessions: SessionsComponent }) {
       <div className="text-xs text-gray-400">
         Idle timeout: {Math.round(sessions.idle_timeout_ms / 1000 / 60)}m
       </div>
+
+      {/* Session List Toggle */}
+      {sessions.total > 0 && (
+        <div className="pt-2 border-t border-gray-700">
+          <button
+            onClick={() => {
+              if (!showList && onRefreshList) {
+                onRefreshList();
+              }
+              setShowList(!showList);
+            }}
+            className="flex items-center gap-2 text-xs text-gray-400 hover:text-surface transition-colors"
+          >
+            {showList ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span>{showList ? 'Hide' : 'Show'} session details</span>
+            {isLoadingList && <Loader2 size={12} className="animate-spin ml-2" />}
+          </button>
+
+          {showList && sessionList && (
+            <div className="mt-3 space-y-2">
+              {sessionList.map((session) => (
+                <div
+                  key={session.id}
+                  className={`p-2 rounded text-xs ${
+                    session.is_recording
+                      ? 'bg-rose-500/10 border border-rose-500/30'
+                      : session.is_idle
+                        ? 'bg-gray-800/50 border border-gray-700'
+                        : 'bg-emerald-500/10 border border-emerald-500/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-gray-300">{session.id.slice(0, 8)}</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          session.phase === 'recording'
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : session.phase === 'executing'
+                              ? 'bg-amber-500/20 text-amber-300'
+                              : session.phase === 'ready'
+                                ? 'bg-emerald-500/20 text-emerald-300'
+                                : 'bg-gray-700 text-gray-400'
+                        }`}
+                      >
+                        {session.phase}
+                      </span>
+                      {session.is_recording && (
+                        <span className="flex items-center gap-1 text-rose-400">
+                          <Video size={10} />
+                          Recording
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-gray-500">{session.page_count} page{session.page_count !== 1 ? 's' : ''}</span>
+                  </div>
+                  {session.current_url && (
+                    <div className="text-gray-500 truncate mt-1" title={session.current_url}>
+                      {session.current_url.length > 50
+                        ? session.current_url.slice(0, 50) + '...'
+                        : session.current_url}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mt-1 text-gray-500">
+                    <span>Last used: {formatRelativeTime(session.last_used_at)}</span>
+                    <span>{session.instruction_count} instructions</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -289,29 +370,68 @@ function RecordingDetails({ recording }: { recording: RecordingComponent }) {
   );
 }
 
-function CleanupDetails({ cleanup }: { cleanup: CleanupComponent }) {
+interface CleanupDetailsProps {
+  cleanup: CleanupComponent;
+  onCleanNow?: () => void;
+  isCleaningUp?: boolean;
+  cleanupResult?: { cleaned_up: number } | null;
+}
+
+function CleanupDetails({ cleanup, onCleanNow, isCleaningUp, cleanupResult }: CleanupDetailsProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 text-sm">
-      <div>
-        <span className="text-gray-500">Status:</span>
-        <span className={`ml-2 ${cleanup.is_running ? 'text-amber-400' : 'text-surface'}`}>
-          {cleanup.is_running ? 'Running' : 'Idle'}
-        </span>
-      </div>
-      <div>
-        <span className="text-gray-500">Interval:</span>
-        <span className="ml-2 text-surface">{Math.round(cleanup.interval_ms / 1000)}s</span>
-      </div>
-      <div>
-        <span className="text-gray-500">Last Run:</span>
-        <span className="ml-2 text-surface">{formatRelativeTime(cleanup.last_run_at)}</span>
-      </div>
-      {cleanup.next_run_in_ms !== undefined && (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <span className="text-gray-500">Next Run:</span>
-          <span className="ml-2 text-surface">{Math.round(cleanup.next_run_in_ms / 1000)}s</span>
+          <span className="text-gray-500">Status:</span>
+          <span className={`ml-2 ${cleanup.is_running ? 'text-amber-400' : 'text-surface'}`}>
+            {cleanup.is_running ? 'Running' : 'Idle'}
+          </span>
         </div>
-      )}
+        <div>
+          <span className="text-gray-500">Interval:</span>
+          <span className="ml-2 text-surface">{Math.round(cleanup.interval_ms / 1000)}s</span>
+        </div>
+        <div>
+          <span className="text-gray-500">Last Run:</span>
+          <span className="ml-2 text-surface">{formatRelativeTime(cleanup.last_run_at)}</span>
+        </div>
+        {cleanup.next_run_in_ms !== undefined && (
+          <div>
+            <span className="text-gray-500">Next Run:</span>
+            <span className="ml-2 text-surface">{Math.round(cleanup.next_run_in_ms / 1000)}s</span>
+          </div>
+        )}
+      </div>
+
+      {/* Clean Now button and result */}
+      <div className="flex items-center gap-3 pt-2 border-t border-gray-700">
+        {onCleanNow && (
+          <button
+            onClick={onCleanNow}
+            disabled={isCleaningUp || cleanup.is_running}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-surface rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCleaningUp ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Cleaning...
+              </>
+            ) : (
+              <>
+                <Trash2 size={14} />
+                Clean Now
+              </>
+            )}
+          </button>
+        )}
+        {cleanupResult && (
+          <span className="text-xs text-gray-400">
+            {cleanupResult.cleaned_up === 0
+              ? 'No idle sessions to clean'
+              : `Cleaned ${cleanupResult.cleaned_up} idle session${cleanupResult.cleaned_up !== 1 ? 's' : ''}`}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -577,6 +697,176 @@ interface MetricsViewerProps {
   onBack: () => void;
 }
 
+/**
+ * Histogram visualization component
+ * Shows bucket distribution as a bar chart
+ */
+interface HistogramChartProps {
+  values: MetricValue[];
+}
+
+function HistogramChart({ values }: HistogramChartProps) {
+  // Extract bucket values and compute per-bucket counts
+  const bucketData = useMemo(() => {
+    // Filter to only _bucket values and sort by le (bucket boundary)
+    const buckets = values
+      .filter((v) => v.labels._suffix === '_bucket')
+      .map((v) => ({
+        le: v.labels.le || '+Inf',
+        cumulative: v.value,
+      }))
+      .sort((a, b) => {
+        if (a.le === '+Inf') return 1;
+        if (b.le === '+Inf') return -1;
+        return parseFloat(a.le) - parseFloat(b.le);
+      });
+
+    if (buckets.length === 0) return [];
+
+    // Calculate per-bucket counts (non-cumulative)
+    const perBucket: Array<{ le: string; count: number }> = [];
+    let prev = 0;
+    for (const bucket of buckets) {
+      const count = bucket.cumulative - prev;
+      perBucket.push({ le: bucket.le, count });
+      prev = bucket.cumulative;
+    }
+
+    return perBucket;
+  }, [values]);
+
+  // Get count and sum for summary
+  const count = values.find((v) => v.labels._suffix === '_count');
+  const sum = values.find((v) => v.labels._suffix === '_sum');
+  const avg = count && count.value > 0 ? sum ? (sum.value / count.value) : 0 : 0;
+
+  // Find max for scaling bars
+  const maxCount = Math.max(...bucketData.map((b) => b.count), 1);
+
+  if (bucketData.length === 0) {
+    return <div className="text-gray-500 text-sm">No bucket data available</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Summary stats */}
+      <div className="flex items-center gap-4 text-xs text-gray-400">
+        {count && <span>Total: <strong className="text-surface">{count.value}</strong></span>}
+        {sum && <span>Sum: <strong className="text-surface">{sum.value.toFixed(2)}</strong></span>}
+        {avg > 0 && <span>Avg: <strong className="text-surface">{avg.toFixed(3)}</strong></span>}
+      </div>
+
+      {/* Bar chart */}
+      <div className="space-y-1">
+        {bucketData.map((bucket, idx) => {
+          const widthPercent = (bucket.count / maxCount) * 100;
+          return (
+            <div key={idx} className="flex items-center gap-2 text-xs">
+              <span className="w-16 text-right font-mono text-gray-500 flex-shrink-0">
+                ≤{bucket.le === '+Inf' ? '∞' : bucket.le}
+              </span>
+              <div className="flex-1 h-5 bg-gray-700 rounded overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-flow-accent/70 to-flow-accent rounded transition-all duration-300"
+                  style={{ width: `${widthPercent}%` }}
+                />
+              </div>
+              <span className="w-12 text-right font-mono text-gray-400 flex-shrink-0">
+                {bucket.count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Metric detail view with optional graph/table toggle
+ */
+interface MetricDetailViewProps {
+  metric: MetricData;
+}
+
+function MetricDetailView({ metric }: MetricDetailViewProps) {
+  const [viewMode, setViewMode] = useState<'table' | 'graph'>('graph');
+  const isHistogram = metric.type === 'histogram';
+
+  return (
+    <div className="p-4">
+      {/* Toggle for histograms */}
+      {isHistogram && (
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setViewMode('graph')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+              viewMode === 'graph'
+                ? 'bg-flow-accent/20 text-flow-accent'
+                : 'bg-gray-700 text-gray-400 hover:text-surface'
+            }`}
+          >
+            <BarChart3 size={12} />
+            Graph
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+              viewMode === 'table'
+                ? 'bg-flow-accent/20 text-flow-accent'
+                : 'bg-gray-700 text-gray-400 hover:text-surface'
+            }`}
+          >
+            <Settings2 size={12} />
+            Raw
+          </button>
+        </div>
+      )}
+
+      {/* Graph view for histograms */}
+      {isHistogram && viewMode === 'graph' ? (
+        <HistogramChart values={metric.values} />
+      ) : (
+        /* Table view (default for non-histograms) */
+        <>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500">
+                <th className="pb-2 font-normal">Labels</th>
+                <th className="pb-2 font-normal text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-300">
+              {metric.values.slice(0, 10).map((v: MetricValue, idx: number) => (
+                <tr key={idx} className="border-t border-gray-700/50">
+                  <td className="py-2 pr-4">
+                    <span className="font-mono text-xs">
+                      {Object.entries(v.labels)
+                        .filter(([k]) => k !== '_suffix')
+                        .map(([k, val]) => `${k}="${val}"`)
+                        .join(', ') || (v.labels._suffix ? v.labels._suffix.replace(/^_/, '') : 'value')}
+                    </span>
+                  </td>
+                  <td className="py-2 text-right font-mono">
+                    {typeof v.value === 'number' && !Number.isInteger(v.value)
+                      ? v.value.toFixed(4)
+                      : v.value}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {metric.values.length > 10 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Showing 10 of {metric.values.length} values
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // Check if a metric has any meaningful data
 function hasMetricData(metric: MetricData): boolean {
   if (metric.values.length === 0) return false;
@@ -700,40 +990,7 @@ function MetricsViewer({ data, onBack }: MetricsViewerProps) {
                   <p className="text-xs text-gray-500 mt-1">{metric.help}</p>
                 )}
               </div>
-              <div className="p-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500">
-                      <th className="pb-2 font-normal">Labels</th>
-                      <th className="pb-2 font-normal text-right">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-300">
-                    {metric.values.slice(0, 10).map((v: MetricValue, idx: number) => (
-                      <tr key={idx} className="border-t border-gray-700/50">
-                        <td className="py-2 pr-4">
-                          <span className="font-mono text-xs">
-                            {Object.entries(v.labels)
-                              .filter(([k]) => k !== '_suffix')
-                              .map(([k, val]) => `${k}="${val}"`)
-                              .join(', ') || (v.labels._suffix ? v.labels._suffix.replace(/^_/, '') : 'value')}
-                          </span>
-                        </td>
-                        <td className="py-2 text-right font-mono">
-                          {typeof v.value === 'number' && !Number.isInteger(v.value)
-                            ? v.value.toFixed(4)
-                            : v.value}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {metric.values.length > 10 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Showing 10 of {metric.values.length} values
-                  </p>
-                )}
-              </div>
+              <MetricDetailView metric={metric} />
             </div>
           ))}
         </div>
@@ -794,6 +1051,10 @@ export function DiagnosticsTab() {
 
   const { runDiagnostics, isRunning: isDiagnosticsRunning, result: diagnosticsResult } = useRefreshDiagnostics();
   const { refresh: refreshCache, isRefreshing: isRefreshingCache } = useRefreshCache();
+  const { runCleanup, isRunning: isCleaningUp, result: cleanupResult } = useRunCleanup();
+  const { data: sessionListData, isFetching: isFetchingSessionList, refetch: refetchSessionList } = useSessionList({
+    enabled: false, // Only fetch when explicitly requested
+  });
 
   const handleRefresh = useCallback(async () => {
     refreshCache();
@@ -803,6 +1064,11 @@ export function DiagnosticsTab() {
   const handleRunDiagnostics = useCallback(async () => {
     await runDiagnostics({ type: 'all', options: { level: 'full' } });
   }, [runDiagnostics]);
+
+  const handleCleanNow = useCallback(async () => {
+    await runCleanup();
+    await refetch(); // Refresh to get updated session counts
+  }, [runCleanup, refetch]);
 
   const handleViewJson = useCallback(() => {
     setViewMode('json');
@@ -967,7 +1233,14 @@ export function DiagnosticsTab() {
               title="Sessions"
               status={data.components.sessions.status}
               summary={`${data.components.sessions.total}/${data.components.sessions.capacity} sessions, ${data.components.sessions.active_recordings} recording`}
-              details={<SessionsDetails sessions={data.components.sessions} />}
+              details={
+                <SessionsDetails
+                  sessions={data.components.sessions}
+                  sessionList={sessionListData?.sessions}
+                  isLoadingList={isFetchingSessionList}
+                  onRefreshList={() => void refetchSessionList()}
+                />
+              }
               hint={data.components.sessions.hint}
             />
             <ComponentRow
@@ -983,7 +1256,15 @@ export function DiagnosticsTab() {
               title="Cleanup"
               status="healthy"
               summary={`Interval: ${Math.round(data.components.cleanup.interval_ms / 1000)}s, Last: ${formatRelativeTime(data.components.cleanup.last_run_at)}`}
-              details={<CleanupDetails cleanup={data.components.cleanup} />}
+              hint="Automatically removes browser sessions that have been idle longer than the configured timeout to free up system resources."
+              details={
+                <CleanupDetails
+                  cleanup={data.components.cleanup}
+                  onCleanNow={handleCleanNow}
+                  isCleaningUp={isCleaningUp}
+                  cleanupResult={cleanupResult}
+                />
+              }
             />
             <ComponentRow
               icon={<BarChart3 size={18} />}

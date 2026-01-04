@@ -414,6 +414,8 @@ func main() {
 		r.Get("/observability", handler.GetObservability)
 		r.Post("/observability/refresh", handler.RefreshObservability)
 		r.Post("/observability/diagnostics/run", handler.RunDiagnostics)
+		r.Get("/observability/sessions", handler.GetSessionList)
+		r.Post("/observability/cleanup/run", handler.RunCleanup)
 		r.Get("/observability/metrics", handler.GetMetrics)
 	})
 

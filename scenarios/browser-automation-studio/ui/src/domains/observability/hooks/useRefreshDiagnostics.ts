@@ -5,7 +5,7 @@
  * Used for deep diagnostic scans that are too expensive to run continuously.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
@@ -122,6 +122,125 @@ export function useRefreshCache() {
     refresh: mutation.mutate,
     isRefreshing: mutation.isPending,
     error: mutation.error,
+  };
+}
+
+/**
+ * Response from the cleanup run endpoint
+ */
+export interface CleanupRunResponse {
+  success: boolean;
+  cleaned_up: number;
+  remaining_sessions: number;
+  started_at: string;
+  completed_at: string;
+  duration_ms: number;
+}
+
+async function runCleanupRequest(): Promise<CleanupRunResponse> {
+  const config = await getConfig();
+
+  const response = await fetch(`${config.API_URL}/observability/cleanup/run`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to run cleanup: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Hook to trigger manual cleanup of idle sessions
+ */
+export function useRunCleanup() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: runCleanupRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [OBSERVABILITY_QUERY_KEY] });
+    },
+    onError: (error: Error) => {
+      logger.error('Cleanup run failed', { component: 'useRunCleanup', action: 'runCleanup' }, error);
+    },
+  });
+
+  return {
+    runCleanup: mutation.mutateAsync,
+    isRunning: mutation.isPending,
+    result: mutation.data,
+    error: mutation.error,
+    reset: mutation.reset,
+  };
+}
+
+/**
+ * Session info from the observability endpoint
+ */
+export interface SessionInfo {
+  id: string;
+  phase: string;
+  created_at: string;
+  last_used_at: string;
+  idle_time_ms: number;
+  is_idle: boolean;
+  is_recording: boolean;
+  instruction_count: number;
+  workflow_id?: string;
+  current_url?: string;
+  page_count: number;
+}
+
+export interface SessionListResponse {
+  sessions: SessionInfo[];
+  summary: {
+    total: number;
+    active: number;
+    idle: number;
+    active_recordings: number;
+    capacity: number;
+  };
+  timestamp: string;
+}
+
+async function fetchSessionList(): Promise<SessionListResponse> {
+  const config = await getConfig();
+
+  const response = await fetch(`${config.API_URL}/observability/sessions`);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to fetch sessions: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Hook to fetch the list of active browser sessions
+ */
+export function useSessionList(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+
+  const query = useQuery({
+    queryKey: ['observability-sessions'],
+    queryFn: fetchSessionList,
+    enabled,
+    staleTime: 5000,
+    gcTime: 30000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error,
+    refetch: query.refetch,
   };
 }
 
