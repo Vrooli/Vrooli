@@ -44,6 +44,11 @@ const visuals: Record<
     icon: ShieldCheck,
     gradient: "from-amber-700/80 via-orange-600/80 to-red-600/80",
     tagline: "Locked-down fullscreen kiosk"
+  },
+  universal: {
+    icon: LayoutTemplate,
+    gradient: "from-slate-700/80 via-slate-600/70 to-blue-700/70",
+    tagline: "All-purpose desktop wrapper"
   }
 };
 
@@ -206,10 +211,10 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
     <button
       type="button"
       onClick={onSelect}
-      className={`rounded-lg border p-4 text-left transition-all hover:scale-[1.02] ${
+      className={`rounded-lg border border-white/10 p-4 text-left transition-all hover:scale-[1.02] ${
         selected
-          ? "border-blue-500 bg-blue-900/20 shadow-lg shadow-blue-900/40"
-          : "border-white/10 bg-white/5 hover:border-white/30"
+          ? "bg-blue-900/20 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.9)] shadow-blue-900/40"
+          : "bg-white/5 hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]"
       }`}
     >
       <div className={`mb-3 flex items-center gap-3 rounded-md bg-gradient-to-r ${visual.gradient} p-3`}>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Info, Shield } from "lucide-react";
+import { Book, List, Monitor, Zap, Folder, Shield } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
@@ -10,7 +10,6 @@ import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
 import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
 import { StatsPanel } from "./components/StatsPanel";
-import { TemplateGrid } from "./components/TemplateGrid";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchScenarioDesktopStatus } from "./lib/api";
 import { cn } from "./lib/utils";
@@ -359,7 +358,7 @@ function AppContent() {
               </div>
 
               {/* Step 2 */}
-              <div className="grid gap-6 lg:grid-cols-2" ref={configureRef}>
+              <div className="space-y-6" ref={configureRef}>
                 <Card className="border-blue-800/70 bg-slate-900/70">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
@@ -382,28 +381,6 @@ function AppContent() {
                       }}
                       selectionSource={selectionSource}
                       onOpenSigningTab={openSigningTab}
-                    />
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-800/80 bg-slate-900/70">
-                  <CardHeader>
-                    <CardTitle>Available Templates</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-slate-800/80 bg-slate-950/50 p-3 text-sm text-slate-200">
-                      <Info className="mt-0.5 h-5 w-5 text-blue-300" />
-                      <div className="space-y-1">
-                        <p className="font-semibold text-slate-100">All templates share the same Electron base.</p>
-                        <p className="text-slate-300">
-                          Pick the wrapper that matches today&apos;s needs; you can switch templates later from this form
-                          or from the Generated Apps tab. Your scenario logic stays the same.
-                        </p>
-                      </div>
-                    </div>
-                    <TemplateGrid
-                      selectedTemplate={selectedTemplate}
-                      onSelect={setSelectedTemplate}
                     />
                   </CardContent>
                 </Card>

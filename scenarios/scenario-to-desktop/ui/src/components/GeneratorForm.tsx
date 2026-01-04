@@ -25,6 +25,8 @@ import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
 import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
+import { TemplateModal } from "./TemplateModal";
+import { FrameworkModal } from "./FrameworkModal";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus, ScenariosResponse } from "./scenario-inventory/types";
 import {
   DEFAULT_DEPLOYMENT_MODE,
@@ -75,6 +77,20 @@ interface BuildDesktopConfigOptions {
   includeSigning: boolean;
   codeSigning?: SigningConfig;
 }
+
+const TEMPLATE_SUMMARIES: Record<string, { name: string; description: string }> = {
+  basic: { name: "Basic", description: "Balanced single window wrapper" },
+  advanced: { name: "Advanced", description: "Tray, shortcuts, deep OS touches" },
+  multi_window: { name: "Multi-Window", description: "Multiple coordinated windows" },
+  kiosk: { name: "Kiosk Mode", description: "Locked-down fullscreen kiosk" },
+  universal: { name: "Universal Desktop App", description: "All-purpose desktop wrapper" }
+};
+
+const FRAMEWORK_SUMMARIES: Record<string, { name: string; description: string }> = {
+  electron: { name: "Electron", description: "Most compatible and battle-tested for desktop web apps" },
+  tauri: { name: "Tauri", description: "Rust + system webview for smaller, more secure apps" },
+  neutralino: { name: "Neutralino", description: "Ultra-lightweight desktop wrapper with minimal runtime" }
+};
 
 function getSelectedPlatforms(platforms: PlatformSelection): string[] {
   return Object.entries(platforms)
@@ -286,45 +302,62 @@ function ScenarioSelector({
 interface FrameworkTemplateSectionProps {
   framework: string;
   onFrameworkChange: (framework: string) => void;
+  onOpenFrameworkModal: () => void;
   selectedTemplate: string;
-  onTemplateChange: (template: string) => void;
+  onOpenTemplateModal: () => void;
 }
 
 function FrameworkTemplateSection({
   framework,
   onFrameworkChange,
+  onOpenFrameworkModal,
   selectedTemplate,
-  onTemplateChange
+  onOpenTemplateModal
 }: FrameworkTemplateSectionProps) {
+  const frameworkSummary = FRAMEWORK_SUMMARIES[framework] ?? {
+    name: framework,
+    description: "Desktop framework"
+  };
+  const summary =
+    TEMPLATE_SUMMARIES[selectedTemplate] ?? {
+      name: selectedTemplate.replace(/_/g, " "),
+      description: "Custom template"
+    };
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
-        <Label htmlFor="framework">Framework</Label>
-        <Select
-          id="framework"
-          value={framework}
-          onChange={(e) => onFrameworkChange(e.target.value)}
-          className="mt-1.5"
-        >
-          <option value="electron">Electron</option>
-          <option value="tauri">Tauri</option>
-          <option value="neutralino">Neutralino</option>
-        </Select>
+        <Label>Framework</Label>
+        <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-100">{frameworkSummary.name}</p>
+              <p className="text-xs text-slate-400">{frameworkSummary.description}</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenFrameworkModal}>
+              Browse frameworks
+            </Button>
+          </div>
+        </div>
+        <p className="mt-1.5 text-xs text-slate-400">
+          Electron is fully supported today. Tauri and Neutralino are planned but not yet available.
+        </p>
       </div>
 
       <div>
-        <Label htmlFor="template">Template</Label>
-        <Select
-          id="template"
-          value={selectedTemplate}
-          onChange={(e) => onTemplateChange(e.target.value)}
-          className="mt-1.5"
-        >
-          <option value="basic">Basic</option>
-          <option value="advanced">Advanced</option>
-          <option value="multi_window">Multi-Window</option>
-          <option value="kiosk">Kiosk Mode</option>
-        </Select>
+        <Label>Template</Label>
+        <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-100">{summary?.name ?? "Select template"}</p>
+              <p className="text-xs text-slate-400">
+                {summary?.description ?? "Browse templates to choose the best fit."}
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenTemplateModal}>
+              Browse templates
+            </Button>
+          </div>
+        </div>
         <p className="mt-1.5 text-xs text-slate-400">
           All templates share the same codebase. If you change your mind later, switch templates here or from the
           Generated Apps tab - your scenario stays intact.
@@ -1259,6 +1292,7 @@ export function GeneratorForm({
   const [displayNameEdited, setDisplayNameEdited] = useState(false);
   const [descriptionEdited, setDescriptionEdited] = useState(false);
   const [framework, setFramework] = useState("electron");
+  const [frameworkModalOpen, setFrameworkModalOpen] = useState(false);
   const [serverType, setServerType] = useState<ServerType>(DEFAULT_SERVER_TYPE);
   const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>(DEFAULT_DEPLOYMENT_MODE);
   const [platforms, setPlatforms] = useState<PlatformSelection>({
@@ -1275,6 +1309,7 @@ export function GeneratorForm({
   const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
   const [autoManageTier1, setAutoManageTier1] = useState(false);
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [preflightResult, setPreflightResult] = useState<BundlePreflightResponse | null>(null);
@@ -1725,8 +1760,9 @@ export function GeneratorForm({
           <FrameworkTemplateSection
             framework={framework}
             onFrameworkChange={setFramework}
+            onOpenFrameworkModal={() => setFrameworkModalOpen(true)}
             selectedTemplate={selectedTemplate}
-            onTemplateChange={onTemplateChange}
+            onOpenTemplateModal={() => setTemplateModalOpen(true)}
           />
 
           <DeploymentServerSection
@@ -1819,6 +1855,24 @@ export function GeneratorForm({
             </div>
           )}
         </form>
+        <TemplateModal
+          open={templateModalOpen}
+          selectedTemplate={selectedTemplate}
+          onClose={() => setTemplateModalOpen(false)}
+          onSelect={(template) => {
+            onTemplateChange(template);
+            setTemplateModalOpen(false);
+          }}
+        />
+        <FrameworkModal
+          open={frameworkModalOpen}
+          selectedFramework={framework}
+          onClose={() => setFrameworkModalOpen(false)}
+          onSelect={(nextFramework) => {
+            onFrameworkChange(nextFramework);
+            setFrameworkModalOpen(false);
+          }}
+        />
       </CardContent>
     </Card>
   );
