@@ -10,9 +10,11 @@
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │                                                                         │
  * │ UNDERSTANDING THE SYSTEM:                                               │
- * │   controller.ts          - Main orchestrator (start/stop, replay)       │
- * │   action-executor.ts     - Proto-native action execution                │
- * │   ../proto/recording.ts  - Proto conversion (RawBrowserEvent→Timeline)  │
+ * │   controller.ts           - Main orchestrator (start/stop, replay)      │
+ * │   context-initializer.ts  - Context-level setup (binding + init script) │
+ * │   init-script-generator.ts- Generates init script for addInitScript()   │
+ * │   action-executor.ts      - Proto-native action execution               │
+ * │   ../proto/recording.ts   - Proto conversion (RawBrowserEvent→Timeline) │
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
  * │   1. packages/proto/schemas/.../action.proto - Add to ActionType enum   │
@@ -21,30 +23,32 @@
  * │      OR action-executor.ts - Add executor (if handler not suitable)     │
  * │                                                                         │
  * │ MODIFYING SELECTOR GENERATION:                                          │
- * │   1. selector-config.ts - Configuration (scores, patterns) - EDIT THIS  │
- * │   2. injector.ts        - Runtime code injected into browser - EDIT THIS│
- * │   3. selectors.ts       - Documentation only, not executable            │
+ * │   1. selector-config.ts      - Configuration (scores, patterns)         │
+ * │   2. browser-scripts/recording-script.js - Browser-side selector logic  │
+ * │   3. selectors.ts            - Documentation only, not executable       │
  * │                                                                         │
  * │ MODIFYING ACTION BUFFERING:                                             │
  * │   buffer.ts        - In-memory TimelineEntry storage                    │
  * │                                                                         │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
- * ARCHITECTURE OVERVIEW (PROTO-FIRST):
+ * ARCHITECTURE OVERVIEW (PROTO-FIRST + MAIN CONTEXT):
  *
- * Browser Page                    Node.js Driver
- * ┌─────────────┐                ┌─────────────────────────────────────┐
- * │  injector   │  ─────────────▶│  RecordModeController               │
- * │  (JS code)  │  page.expose   │  ├─ handleRawEvent()                │
- * │             │  Function()    │  │   └─ rawBrowserEventToTimeline() │
- * └─────────────┘                │  ├─ replayPreview()                 │
- *       │                        │  │   └─ executeTimelineEntry()      │
- *       │ Captures events        │  └─ validateSelector                │
- *       ▼                        └───────────────┬─────────────────────┘
- * ┌─────────────┐                                │
- * │ DOM Events  │                ┌─────────────────────────────────────┐
- * │ click, type │                │  buffer.ts (TimelineEntry storage)  │
- * └─────────────┘                └─────────────────────────────────────┘
+ * Context Setup (once per context)    Recording Sessions (per session)
+ * ┌───────────────────────────────┐   ┌─────────────────────────────────────┐
+ * │  RecordingContextInitializer  │   │  RecordModeController               │
+ * │  ├─ context.exposeBinding()   │   │  ├─ activateRecordingOnPage()       │
+ * │  └─ context.addInitScript()   │   │  │   └─ postMessage(start)          │
+ * └───────────────────────────────┘   │  ├─ handleRawEvent()                │
+ *                                      │  │   └─ rawBrowserEventToTimeline() │
+ * Browser Page (MAIN context)         │  └─ deactivateRecordingOnAllPages() │
+ * ┌─────────────────────────────┐     └───────────────┬─────────────────────┘
+ * │ recording-script.js         │                     │
+ * │ ├─ Listens for activation   │     ┌─────────────────────────────────────┐
+ * │ ├─ Captures DOM events      │────▶│  buffer.ts (TimelineEntry storage)  │
+ * │ ├─ Wraps History API        │     └─────────────────────────────────────┘
+ * │ └─ Sends via exposeBinding  │
+ * └─────────────────────────────┘
  */
 
 // =============================================================================
@@ -126,14 +130,30 @@ export { calculateActionConfidence } from './action-types';
 export * from './selector-config';
 export * from './selector-service';
 
-// NOTE: The selector generation runtime implementation is in injector.ts (stringified JavaScript).
-// This is injected into browser pages via page.evaluate() since browser context requires plain JS.
-
 // =============================================================================
-// BROWSER SCRIPT INJECTION
+// CONTEXT INITIALIZATION (Recording Infrastructure)
 // =============================================================================
 
-export * from './injector';
+// Context-level setup for recording (binding + init script)
+export {
+  RecordingContextInitializer,
+  createRecordingContextInitializer,
+} from './context-initializer';
+
+export type {
+  RecordingEventHandler,
+  RecordingContextOptions,
+} from './context-initializer';
+
+// Init script generation for context.addInitScript()
+export {
+  generateRecordingInitScript,
+  generateActivationScript,
+  generateDeactivationScript,
+  RECORDING_CONTROL_MESSAGE_TYPE,
+  DEFAULT_RECORDING_BINDING_NAME,
+  clearScriptCache,
+} from './init-script-generator';
 
 // =============================================================================
 // CONTROLLER
@@ -194,3 +214,37 @@ export type {
   ReplayContext,
   HandlerAdapterResult,
 } from './handler-adapter';
+
+// =============================================================================
+// DIAGNOSTICS
+// =============================================================================
+
+export {
+  runRecordingDiagnostics,
+  isRecordingReady,
+  waitForRecordingReady,
+  formatDiagnosticReport,
+  RecordingDiagnosticLevel,
+  DiagnosticSeverity,
+  DIAGNOSTIC_CODES,
+} from './diagnostics';
+
+export type {
+  RecordingDiagnosticResult,
+  DiagnosticIssue,
+  DiagnosticOptions,
+} from './diagnostics';
+
+// =============================================================================
+// VERIFICATION
+// =============================================================================
+
+export {
+  verifyScriptInjection,
+  assertScriptInjected,
+  waitForScriptReady,
+} from './verification';
+
+export type {
+  InjectionVerification,
+} from './verification';

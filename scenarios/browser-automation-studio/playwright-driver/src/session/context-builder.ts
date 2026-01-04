@@ -5,6 +5,10 @@ import type { Config } from '../config';
 import { logger } from '../utils';
 import { ServiceWorkerController } from '../service-worker';
 import {
+  RecordingContextInitializer,
+  createRecordingContextInitializer,
+} from '../recording/context-initializer';
+import {
   mergeWithPreset,
   resolveUserAgent,
   applyAntiDetection,
@@ -56,6 +60,7 @@ export async function buildContext(
   tracePath?: string;
   videoDir?: string;
   serviceWorkerController: ServiceWorkerController;
+  recordingInitializer: RecordingContextInitializer;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
   const resolvedArtifacts = resolveArtifactPaths(
@@ -228,6 +233,15 @@ export async function buildContext(
     });
   }
 
+  // Initialize recording context (binding and init script)
+  // This sets up the recording infrastructure that runs in MAIN context
+  // The actual recording is activated/deactivated per-session via messages
+  const recordingInitializer = createRecordingContextInitializer({ logger });
+  await recordingInitializer.initialize(context);
+  logger.debug('Recording context initialized', {
+    executionId: spec.execution_id,
+  });
+
   // Store behavior settings on context for handler access
   const behaviorSettings: BehaviorSettings = {
     typing_delay_min: behavior.typing_delay_min,
@@ -280,6 +294,7 @@ export async function buildContext(
     tracePath,
     videoDir,
     serviceWorkerController,
+    recordingInitializer,
   };
 }
 

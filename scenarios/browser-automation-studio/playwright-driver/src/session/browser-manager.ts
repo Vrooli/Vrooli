@@ -12,10 +12,16 @@
  * - Multiple concurrent calls to getBrowser() await the same launch promise
  * - Safe to call from multiple sessions simultaneously
  *
+ * PLAYWRIGHT PROVIDER:
+ * - Uses playwrightProvider for browser launch (see src/playwright/)
+ * - Allows future switching between rebrowser-playwright and playwright
+ * - Provider capabilities inform recording architecture decisions
+ *
  * @module session/browser-manager
  */
 
-import { chromium, Browser } from 'rebrowser-playwright';
+import type { Browser } from 'rebrowser-playwright';
+import { playwrightProvider } from '../playwright';
 import type { Config } from '../config';
 import { logger, metrics } from '../utils';
 
@@ -177,20 +183,29 @@ export class BrowserManager {
   /**
    * Internal browser launch implementation.
    * Separated from getBrowser() to make the locking logic clearer.
+   *
+   * Uses playwrightProvider.chromium for browser launch.
+   * This allows switching between rebrowser-playwright (anti-detection)
+   * and standard playwright in the future. See src/playwright/ for details.
    */
   private async launchBrowserInternal(): Promise<Browser> {
     logger.info('browser: launching', {
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || 'auto',
+      provider: playwrightProvider.name,
+      capabilities: playwrightProvider.capabilities,
     });
 
-    const browser = await chromium.launch({
+    const browser = await playwrightProvider.chromium.launch({
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || undefined,
       args: this.config.browser.args,
     });
 
-    logger.info('browser: launched', { version: browser.version() });
+    logger.info('browser: launched', {
+      version: browser.version(),
+      provider: playwrightProvider.name,
+    });
     return browser;
   }
 

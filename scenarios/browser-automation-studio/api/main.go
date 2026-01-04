@@ -409,6 +409,11 @@ func main() {
 		r.Delete("/schedules/{scheduleID}", handler.DeleteSchedule)
 		r.Post("/schedules/{scheduleID}/trigger", handler.TriggerSchedule)
 		r.Post("/schedules/{scheduleID}/toggle", handler.ToggleSchedule)
+
+		// Observability routes (proxied to playwright-driver)
+		r.Get("/observability", handler.GetObservability)
+		r.Post("/observability/refresh", handler.RefreshObservability)
+		r.Post("/observability/diagnostics/run", handler.RunDiagnostics)
 	})
 
 	// Initialize and start the workflow scheduler

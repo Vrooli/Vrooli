@@ -18,6 +18,7 @@ import {
   CalendarClock,
   Play,
   Pause,
+  Activity,
 } from 'lucide-react';
 import { useSettingsStore, type IntroCardSettings, type OutroCardSettings, type WatermarkSettings } from '@stores/settingsStore';
 import { BrandingTab } from './sections/branding';
@@ -33,10 +34,11 @@ import {
   DataSection,
   createDemoFrames,
 } from './sections';
+import { DiagnosticsTab } from './sections/diagnostics';
 
 const ReplayPlayer = lazy(() => import('@/domains/exports/replay/ReplayPlayer'));
 
-type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data' | 'sessions' | 'subscription' | 'schedules';
+type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data' | 'sessions' | 'subscription' | 'schedules' | 'diagnostics';
 
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNode; description: string }> = [
   { id: 'display', label: 'Display', icon: <Monitor size={18} />, description: 'Appearance and accessibility' },
@@ -48,6 +50,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNo
   { id: 'sessions', label: 'Sessions', icon: <Clock size={18} />, description: 'Persist Playwright sessions' },
   { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={18} />, description: 'Automate workflow runs' },
   { id: 'data', label: 'Data', icon: <Database size={18} />, description: 'Manage and clear data' },
+  { id: 'diagnostics', label: 'Diagnostics', icon: <Activity size={18} />, description: 'System health and troubleshooting' },
 ];
 
 interface SettingsViewProps {
@@ -476,6 +479,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
           {activeTab === 'sessions' && <SessionProfilesTab />}
           {activeTab === 'schedules' && <SchedulesTab />}
           {activeTab === 'data' && <DataSection />}
+          {activeTab === 'diagnostics' && <DiagnosticsTab />}
         </div>
 
         {/* Live Preview - Only show for replay tab */}

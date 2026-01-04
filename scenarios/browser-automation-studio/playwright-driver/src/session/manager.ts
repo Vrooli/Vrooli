@@ -223,7 +223,7 @@ export class SessionManager {
     const browser = await this.browserManager.getBrowser();
 
     // Build context
-    const { context, harPath, tracePath, videoDir, serviceWorkerController } = await buildContext(
+    const { context, harPath, tracePath, videoDir, serviceWorkerController, recordingInitializer } = await buildContext(
       browser,
       spec,
       this.config
@@ -280,6 +280,8 @@ export class SessionManager {
       executedInstructions: new Map(),
       // Service worker control
       serviceWorkerController,
+      // Recording context initializer (binding + init script)
+      recordingInitializer,
     };
 
     // Assign an ID to the initial page and track it
@@ -729,6 +731,46 @@ export class SessionManager {
    */
   getSessionCount(): number {
     return this.sessions.size;
+  }
+
+  /**
+   * Get a summary of session statistics for observability.
+   * Used by the /observability endpoint.
+   */
+  getSessionSummary(): {
+    total: number;
+    active: number;
+    idle: number;
+    active_recordings: number;
+    idle_timeout_ms: number;
+    capacity: number;
+  } {
+    const now = Date.now();
+    let active = 0;
+    let idle = 0;
+    let activeRecordings = 0;
+
+    for (const session of this.sessions.values()) {
+      const idleTimeMs = now - session.lastUsedAt.getTime();
+      if (idleTimeMs < this.config.session.idleTimeoutMs) {
+        active++;
+      } else {
+        idle++;
+      }
+
+      if (session.recordingController?.isRecording()) {
+        activeRecordings++;
+      }
+    }
+
+    return {
+      total: this.sessions.size,
+      active,
+      idle,
+      active_recordings: activeRecordings,
+      idle_timeout_ms: this.config.session.idleTimeoutMs,
+      capacity: this.config.session.maxConcurrent,
+    };
   }
 
   /**

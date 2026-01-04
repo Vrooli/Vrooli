@@ -3,6 +3,7 @@ import { loadConfig, logConfigTierWarnings, getConfigSummary, type Config } from
 import { SessionManager, SessionCleanup } from './session';
 import * as handlers from './handlers';
 import * as routes from './routes';
+import * as observability from './observability';
 import { sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
@@ -75,7 +76,7 @@ async function main() {
   }
 
   // Setup router with all routes
-  const router = setupRoutes(sessionManager, config, appLogger);
+  const router = setupRoutes(sessionManager, cleanup, config, appLogger);
 
   // Create main HTTP server
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -273,6 +274,7 @@ function registerInstructionHandlers(): void {
  */
 function setupRoutes(
   sessionManager: SessionManager,
+  sessionCleanup: SessionCleanup,
   config: Config,
   appLogger: typeof logger
 ): routes.Router {
@@ -282,6 +284,23 @@ function setupRoutes(
   router.get('/health', async (req, res) => {
     await routes.handleHealth(req, res, sessionManager);
   });
+
+  // Observability (unified health, monitoring, diagnostics)
+  const observabilityDeps: observability.ObservabilityRouteDependencies = {
+    sessionManager,
+    sessionCleanup,
+    config,
+  };
+  router.get('/observability', async (req, res) => {
+    await observability.handleObservability(req, res, observabilityDeps);
+  });
+  router.post('/observability/refresh', async (req, res) => {
+    await observability.handleObservabilityRefresh(req, res);
+  });
+  router.post('/observability/diagnostics/run', async (req, res) => {
+    await observability.handleDiagnosticsRun(req, res, observabilityDeps);
+  });
+
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);
   });

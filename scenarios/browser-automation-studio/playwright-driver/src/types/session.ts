@@ -1,5 +1,6 @@
 import type { Page, BrowserContext, Browser, Frame } from 'rebrowser-playwright';
 import type { RecordModeController } from '../recording/controller';
+import type { RecordingContextInitializer } from '../recording/context-initializer';
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
@@ -222,6 +223,13 @@ export interface SessionState {
    * Manages CDP-based service worker monitoring and control.
    */
   serviceWorkerController?: ServiceWorkerController;
+
+  /**
+   * Recording context initializer for this session.
+   * Handles context-level binding and init script for recording.
+   * Shared across all recording sessions in this browser context.
+   */
+  recordingInitializer?: RecordingContextInitializer;
 }
 
 export interface SessionCloseResult {

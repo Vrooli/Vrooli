@@ -328,7 +328,73 @@ export const RECORDING_DEBOUNCE = {
 
   /** Debounce for resize events */
   resize: 200,
+
+  /** Debounce for hover events (when enabled) */
+  hover: 200,
 } as const;
+
+/**
+ * Event categories for recording.
+ *
+ * Each category can be enabled/disabled independently. Categories allow
+ * fine-grained control over which events are captured during recording.
+ *
+ * - core: Essential events (click, input, scroll, etc.) - always enabled
+ * - focus: Focus/blur events - disabled by default (can be noisy)
+ * - hover: Hover events - disabled by default (very noisy)
+ * - dragDrop: Drag and drop events - enabled by default
+ * - gesture: Touch gesture events - enabled by default
+ */
+export const RECORDING_EVENT_CATEGORIES = {
+  /**
+   * CORE: Essential events for recording.
+   * Always enabled - these are the fundamental user interactions.
+   */
+  core: {
+    enabled: true,
+    events: ['click', 'dblclick', 'contextmenu', 'input', 'select', 'keyboard', 'scroll', 'navigate'],
+  },
+
+  /**
+   * FOCUS: Focus and blur events.
+   * Disabled by default - can be noisy and input events work without them.
+   */
+  focus: {
+    enabled: false,
+    events: ['focus', 'blur'],
+  },
+
+  /**
+   * HOVER: Mouse hover events.
+   * Disabled by default - very noisy as users constantly move their mouse.
+   * Uses debouncing when enabled.
+   */
+  hover: {
+    enabled: false,
+    events: ['hover'],
+    debounceMs: 200,
+  },
+
+  /**
+   * DRAG_DROP: Drag and drop events.
+   * Enabled by default - specialized but not noisy.
+   */
+  dragDrop: {
+    enabled: true,
+    events: ['dragstart', 'drop'],
+  },
+
+  /**
+   * GESTURE: Touch gesture events (swipe, tap, pinch, etc.).
+   * Enabled by default - important for mobile/touch interfaces.
+   */
+  gesture: {
+    enabled: true,
+    events: ['touchstart', 'touchmove', 'touchend'],
+  },
+} as const;
+
+export type RecordingEventCategory = keyof typeof RECORDING_EVENT_CATEGORIES;
 
 /**
  * Convert string pattern definitions to RegExp objects.
@@ -381,6 +447,7 @@ export function serializeConfigForBrowser(): string {
   SELECTOR_DEFAULTS: ${JSON.stringify(SELECTOR_DEFAULTS)},
   CONFIDENCE_SCORES: ${JSON.stringify(CONFIDENCE_SCORES)},
   SPECIFICITY_SCORES: ${JSON.stringify(SPECIFICITY_SCORES)},
-  RECORDING_DEBOUNCE: ${JSON.stringify(RECORDING_DEBOUNCE)}
+  RECORDING_DEBOUNCE: ${JSON.stringify(RECORDING_DEBOUNCE)},
+  RECORDING_EVENT_CATEGORIES: ${JSON.stringify(RECORDING_EVENT_CATEGORIES)}
 }`;
 }

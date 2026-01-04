@@ -13,8 +13,20 @@ import {
   MouseButton,
 } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { TimelineEntrySchema, type TimelineEntry } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+
+// Mock handler-adapter before importing action-executor
+jest.mock('../../../src/recording/handler-adapter', () => {
+  const originalModule = jest.requireActual('../../../src/recording/handler-adapter');
+  return {
+    ...originalModule,
+    hasHandlerForActionType: jest.fn().mockReturnValue(true),
+    executeViaHandler: jest.fn(),
+  };
+});
+
 import { hasTimelineExecutor, getTimelineExecutor, getRegisteredActionTypes } from '../../../src/recording/action-executor';
 import type { ExecutorContext, SelectorValidation } from '../../../src/recording/action-executor';
+import { executeViaHandler } from '../../../src/recording/handler-adapter';
 
 const createMockPage = (): jest.Mocked<Page> =>
   ({
@@ -65,22 +77,32 @@ describe('Action Executor Registry', () => {
 });
 
 describe('Click Executor', () => {
+  const mockExecuteViaHandler = executeViaHandler as jest.MockedFunction<typeof executeViaHandler>;
+
+  beforeEach(() => {
+    mockExecuteViaHandler.mockReset();
+  });
+
   it('executes click successfully', async () => {
     const page = createMockPage();
     const entry = createBaseEntry();
     const context = createContext(page);
+
+    // Mock successful execution
+    mockExecuteViaHandler.mockResolvedValue({
+      success: true,
+      durationMs: 100,
+    });
 
     const executor = getTimelineExecutor(ActionType.CLICK);
     expect(executor).toBeDefined();
 
     const result = await executor!(entry, context);
     expect(result.success).toBe(true);
-    expect(page.click).toHaveBeenCalledWith('[data-testid="test-button"]', {
+    expect(mockExecuteViaHandler).toHaveBeenCalledWith(entry, expect.objectContaining({
+      page,
       timeout: 5000,
-      button: 'left',
-      clickCount: 1,
-      modifiers: [],
-    });
+    }));
   });
 
   it('returns MISSING_PARAMS when click params are missing', async () => {
@@ -89,6 +111,16 @@ describe('Click Executor', () => {
       action: create(ActionDefinitionSchema, { type: ActionType.CLICK }),
     });
     const context = createContext(page);
+
+    // Mock error response for missing params
+    mockExecuteViaHandler.mockResolvedValue({
+      success: false,
+      durationMs: 10,
+      error: {
+        message: 'Missing required click params',
+        code: 'MISSING_PARAMS',
+      },
+    });
 
     const executor = getTimelineExecutor(ActionType.CLICK)!;
     const result = await executor(entry, context);
@@ -100,6 +132,18 @@ describe('Click Executor', () => {
     const page = createMockPage();
     const entry = createBaseEntry();
     const context = createContext(page, { valid: false, matchCount: 0, selector: '[data-testid="test-button"]' });
+
+    // Mock error response for selector not found
+    mockExecuteViaHandler.mockResolvedValue({
+      success: false,
+      durationMs: 10,
+      error: {
+        message: 'Selector not found',
+        code: 'SELECTOR_NOT_FOUND',
+        matchCount: 0,
+        selector: '[data-testid="test-button"]',
+      },
+    });
 
     const executor = getTimelineExecutor(ActionType.CLICK)!;
     const result = await executor(entry, context);

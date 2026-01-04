@@ -107,6 +107,7 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   METRICS_PORT: { tier: ConfigTier.INTERNAL, defaultValue: 9090, description: 'Metrics server port' },
   CLEANUP_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 60000, description: 'Session cleanup interval' },
   SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Full page screenshots (can cause viewport oscillation during execution)' },
+  RECORDING_DIAGNOSTICS_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Enable verbose recording diagnostics (injection, event flow)' },
   SCREENSHOT_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 512000, description: 'Max screenshot size' },
   DOM_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 524288, description: 'Max DOM snapshot size' },
   CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries' },
@@ -200,6 +201,16 @@ const ConfigSchema = z.object({
     minSelectorConfidence: z.number().min(0).max(1).default(0.3),
     /** Default swipe gesture distance in pixels */
     defaultSwipeDistance: z.number().min(50).max(1000).default(300),
+    /**
+     * Enable verbose recording diagnostics.
+     * When true, logs detailed information about:
+     * - Script injection (success/failure, injection method)
+     * - Event flow (events received, parsed, converted)
+     * - Context isolation debugging
+     *
+     * Controlled by RECORDING_DIAGNOSTICS_ENABLED environment variable.
+     */
+    diagnosticsEnabled: z.boolean().default(false),
     /**
      * Debounce timings for event capture (ms).
      * Lower = more responsive, more events. Higher = more batching, fewer events.
@@ -474,6 +485,7 @@ export function loadConfig(): Config {
       maxBufferSize: parseEnvInt(process.env.RECORDING_MAX_BUFFER_SIZE, 10000),
       minSelectorConfidence: parseEnvFloat(process.env.RECORDING_MIN_SELECTOR_CONFIDENCE, 0.3),
       defaultSwipeDistance: parseEnvInt(process.env.RECORDING_DEFAULT_SWIPE_DISTANCE, 300),
+      diagnosticsEnabled: process.env.RECORDING_DIAGNOSTICS_ENABLED === 'true',
       debounce: {
         inputMs: parseEnvInt(process.env.RECORDING_INPUT_DEBOUNCE_MS, 500),
         scrollMs: parseEnvInt(process.env.RECORDING_SCROLL_DEBOUNCE_MS, 150),

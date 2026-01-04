@@ -47,7 +47,15 @@ export async function handleValidateSelector(
 
     // Create controller if needed for validation
     if (!session.recordingController) {
-      session.recordingController = createRecordModeController(session.page, sessionId);
+      if (!session.recordingInitializer) {
+        throw new Error('Recording initializer not set on session');
+      }
+      session.recordingController = createRecordModeController(
+        session.page,
+        session.context,
+        session.recordingInitializer,
+        sessionId
+      );
     }
 
     const validation = await session.recordingController.validateSelector(request.selector);
@@ -94,7 +102,15 @@ export async function handleReplayPreview(
 
     // Create controller if needed
     if (!session.recordingController) {
-      session.recordingController = createRecordModeController(session.page, sessionId);
+      if (!session.recordingInitializer) {
+        throw new Error('Recording initializer not set on session');
+      }
+      session.recordingController = createRecordModeController(
+        session.page,
+        session.context,
+        session.recordingInitializer,
+        sessionId
+      );
     }
 
     logger.info(scopedLog(LogContext.RECORDING, 'replay started'), {

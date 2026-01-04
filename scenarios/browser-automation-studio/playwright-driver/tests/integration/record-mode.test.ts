@@ -178,12 +178,36 @@ describe('Record Mode Routes', () => {
         exposeFunction: jest.fn().mockResolvedValue(undefined),
         evaluate: jest.fn().mockResolvedValue(undefined),
         on: jest.fn(),
+        off: jest.fn(),
+      };
+
+      const mockContext = {
+        on: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
+      };
+
+      // Mock recording initializer required for controller creation
+      const mockRecordingInitializer = {
+        setEventHandler: jest.fn(),
+        clearEventHandler: jest.fn(),
+        getBindingName: jest.fn().mockReturnValue('__vrooli_recordAction'),
+        initialize: jest.fn().mockResolvedValue(undefined),
+        getInjectionStats: jest.fn().mockReturnValue({
+          attempted: 0,
+          successful: 0,
+          failed: 0,
+          skipped: 0,
+          methods: { head: 0, HEAD: 0, doctype: 0, prepend: 0 },
+        }),
       };
 
       const mockSession = {
         page: mockPage,
+        context: mockContext,
         recordingController: null, // No controller yet
         recordingId: undefined,
+        recordingInitializer: mockRecordingInitializer,
       };
 
       const sessionManager = createMockSessionManager(mockSession);

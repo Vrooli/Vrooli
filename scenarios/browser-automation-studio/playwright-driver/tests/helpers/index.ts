@@ -4,6 +4,8 @@ export {
   createMockBrowser,
   createMockContext,
   createMockFrame,
+  createMockRecordingInitializer,
+  type MockRecordingInitializer,
 } from './playwright-mocks';
 
 // HTTP mocks - rename to avoid conflicts

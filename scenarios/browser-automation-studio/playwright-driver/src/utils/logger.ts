@@ -14,6 +14,18 @@ export const LogContext = {
   CLEANUP: 'cleanup',
   TELEMETRY: 'telemetry',
   HEALTH: 'health',
+  /**
+   * Script injection diagnostics.
+   * Logs related to injecting recording scripts into pages.
+   * Use for debugging injection failures or verification.
+   */
+  INJECTION: 'injection',
+  /**
+   * Event flow tracing.
+   * Logs related to events flowing from browser to Node.js.
+   * Use for debugging event communication issues.
+   */
+  EVENT_FLOW: 'event-flow',
 } as const;
 
 export type LogContextType = (typeof LogContext)[keyof typeof LogContext];

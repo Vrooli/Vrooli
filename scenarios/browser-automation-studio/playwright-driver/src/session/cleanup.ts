@@ -23,6 +23,8 @@ export class SessionCleanup {
   private isCleanupInProgress = false;
   /** Resolve function for waiting on in-flight cleanup during shutdown */
   private cleanupCompleteResolver: (() => void) | null = null;
+  /** Track when the last cleanup run completed */
+  private lastRunAt: Date | null = null;
 
   constructor(manager: SessionManager, config: Config) {
     this.manager = manager;
@@ -73,6 +75,7 @@ export class SessionCleanup {
         });
       } finally {
         this.isCleanupInProgress = false;
+        this.lastRunAt = new Date();
         // Signal any waiting stop() call that cleanup is complete
         if (this.cleanupCompleteResolver) {
           this.cleanupCompleteResolver();
@@ -125,5 +128,20 @@ export class SessionCleanup {
    */
   isRunningCleanup(): boolean {
     return this.isCleanupInProgress;
+  }
+
+  /**
+   * Get the timestamp of the last completed cleanup run.
+   * Returns null if cleanup has never run.
+   */
+  getLastRunAt(): Date | null {
+    return this.lastRunAt;
+  }
+
+  /**
+   * Get the cleanup interval in milliseconds.
+   */
+  getIntervalMs(): number {
+    return this.config.session.cleanupIntervalMs;
   }
 }

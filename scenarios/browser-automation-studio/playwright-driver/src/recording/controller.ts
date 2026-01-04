@@ -10,9 +10,9 @@
  * │ WHAT THIS CLASS DOES:                                                  │
  * │                                                                        │
  * │ 1. RECORDING LIFECYCLE (startRecording, stopRecording)                 │
- * │    - Injects event listener script into browser pages                  │
- * │    - Receives raw events via page.exposeFunction()                     │
- * │    - Re-injects script after navigation (pages lose injected JS)       │
+ * │    - Activates/deactivates the pre-injected recording script           │
+ * │    - Receives raw events via context.exposeBinding()                   │
+ * │    - Uses message-based activation (no script re-injection needed)     │
  * │                                                                        │
  * │ 2. EVENT CONVERSION (handleRawEvent)                                   │
  * │    - Converts RawBrowserEvent → TimelineEntry (proto)                  │
@@ -37,9 +37,13 @@
  * @see replay-service.ts - Extracted replay execution logic
  */
 
-import type { Page } from 'rebrowser-playwright';
+import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type winston from 'winston';
-import { getRecordingScript, getCleanupScript } from './injector';
+import {
+  generateActivationScript,
+  generateDeactivationScript,
+} from './init-script-generator';
+import type { RecordingContextInitializer } from './context-initializer';
 import {
   rawBrowserEventToTimelineEntry,
   createNavigateTimelineEntry,
@@ -55,8 +59,6 @@ import {
 } from './replay-service';
 import type { RecordingState } from './types';
 import {
-  INJECTION_RETRY_MAX_ATTEMPTS,
-  INJECTION_RETRY_BASE_DELAY_MS,
   LOOP_DETECTION_WINDOW_MS,
   LOOP_DETECTION_MAX_NAVIGATIONS,
   LOOP_DETECTION_HISTORY_SIZE,
@@ -108,15 +110,15 @@ export type { ActionReplayResult, SelectorValidation };
  */
 export class RecordModeController {
   private page: Page;
+  private context: BrowserContext;
+  private recordingInitializer: RecordingContextInitializer;
   private state: RecordingState;
   private entryCallback: RecordEntryCallback | null = null;
   private errorCallback: ((error: Error) => void) | null = null;
   private sequenceNum = 0;
-  private exposedFunctionName = '__recordAction';
-  private isExposed = false;
   private navigationHandler: (() => void) | null = null;
+  private newPageHandler: ((page: Page) => Promise<void>) | null = null;
   private loopDetectionInterval: ReturnType<typeof setInterval> | null = null;
-  private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
   private lastUrl: string | null = null;
   private recordingGeneration = 0;
   /** Navigation history for redirect loop detection (tracks URL changes with timestamps) */
@@ -132,8 +134,16 @@ export class RecordModeController {
   /** Logger instance for structured logging */
   private readonly logger: winston.Logger;
 
-  constructor(page: Page, sessionId: string, logger?: winston.Logger) {
+  constructor(
+    page: Page,
+    context: BrowserContext,
+    recordingInitializer: RecordingContextInitializer,
+    sessionId: string,
+    logger?: winston.Logger
+  ) {
     this.page = page;
+    this.context = context;
+    this.recordingInitializer = recordingInitializer;
     this.logger = logger ?? defaultLogger;
     this.state = {
       isRecording: false,
@@ -196,23 +206,45 @@ export class RecordModeController {
     this.loopDetectorLastUrl = null;
 
     try {
-      // Expose callback function to page context if not already exposed
-      if (!this.isExposed) {
-        await this.page.exposeFunction(this.exposedFunctionName, (rawEvent: RawBrowserEvent) => {
-          this.handleRawEvent(rawEvent);
-        });
-        this.isExposed = true;
-      }
+      // Set up event handler on the context initializer
+      // Events from all pages will flow through this handler
+      this.recordingInitializer.setEventHandler((rawEvent: RawBrowserEvent) => {
+        this.handleRawEvent(rawEvent);
+      });
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'event handler registered with context initializer'));
 
       // Capture initial navigation action with current URL
       await this.captureInitialNavigation();
 
-      // Inject recording script
-      await this.injectRecordingScript();
+      // Send activation message to the current page
+      // The recording script is already injected via context.addInitScript()
+      // and is dormant until activated
+      await this.activateRecordingOnPage(this.page, recordingId);
 
-      // Setup navigation handler to re-inject script after page loads
-      this.navigationHandler = this.createNavigationHandler(currentGeneration);
+      // Setup navigation handler to send activation after page loads
+      this.navigationHandler = this.createNavigationHandler(currentGeneration, recordingId);
       this.page.on('load', this.navigationHandler);
+
+      // Setup handler for new pages (tabs) in this context
+      this.newPageHandler = async (page: Page) => {
+        if (!this.state.isRecording || this.recordingGeneration !== currentGeneration) {
+          return;
+        }
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'new page detected, activating recording'), {
+          url: page.url()?.slice(0, 50),
+        });
+        // Wait for page to be ready, then activate recording
+        page.once('load', () => {
+          if (this.state.isRecording && this.recordingGeneration === currentGeneration) {
+            this.activateRecordingOnPage(page, recordingId).catch((err) => {
+              this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to activate recording on new page'), {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            });
+          }
+        });
+      };
+      this.context.on('page', this.newPageHandler);
 
       // Setup polling-based redirect loop detection
       // NOTE: We intentionally do NOT use context.route() here because route interception
@@ -224,14 +256,118 @@ export class RecordModeController {
       return recordingId;
     } catch (error) {
       this.state.isRecording = false;
+      this.recordingInitializer.clearEventHandler();
       throw error;
     }
   }
 
   /**
-   * Create a navigation handler that re-injects the recording script after page loads.
+   * Send activation message to a page to start recording.
+   * The recording init script is already present (via context.addInitScript)
+   * and listens for this activation message.
+   *
+   * NOTE: The recording script starts with isActive=true by default, so
+   * activation failures during navigation are acceptable - events are
+   * still being captured.
    */
-  private createNavigationHandler(generation: number): () => void {
+  private async activateRecordingOnPage(page: Page, recordingId: string): Promise<void> {
+    try {
+      // Wait for page to be in a stable state
+      try {
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      } catch {
+        // Ignore timeout - page might be a blank page or slow loading
+      }
+
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'sending activation message'), {
+        recordingId,
+        url: page.url()?.slice(0, 50),
+      });
+
+      // Try to send activation message, but don't fail if it doesn't work
+      // The recording script starts active by default, so this is optional
+      try {
+        await page.evaluate(generateActivationScript(recordingId, this.recordingInitializer.getBindingName()));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!this.isPageGoneError(message)) {
+          this.logger.warn(scopedLog(LogContext.RECORDING, 'activation script failed (non-fatal)'), {
+            recordingId,
+            error: message,
+          });
+        }
+        // Don't throw - script is already active by default
+        return;
+      }
+
+      // Diagnostic: Check if the init script ran (optional, non-fatal)
+      try {
+        const scriptStatus = await page.evaluate(() => {
+          return {
+            loaded: !!(window as any).__vrooli_recording_script_loaded,
+            loadTime: (window as any).__vrooli_recording_script_load_time,
+            diagnosticSent: !!(window as any).__vrooli_recording_diagnostic_sent,
+            diagnosticError: (window as any).__vrooli_recording_diagnostic_error,
+            bindingStatus: (window as any).__vrooli_recording_binding_status,
+            recordingActive: !!(window as any).__recordingActive,
+          };
+        });
+
+        this.logger.info(scopedLog(LogContext.RECORDING, 'init script status after activation'), {
+          recordingId,
+          url: page.url()?.slice(0, 50),
+          ...scriptStatus,
+        });
+      } catch {
+        // Diagnostic failed, but that's okay - script may still be working
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'diagnostic check failed (non-fatal)'), {
+          recordingId,
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Ignore errors for closed/navigating pages
+      if (!this.isPageGoneError(message)) {
+        throw err;
+      }
+    }
+  }
+
+  /**
+   * Send deactivation message to all pages in the context.
+   * Called when stopping recording to ensure all pages stop capturing events.
+   */
+  private async deactivateRecordingOnAllPages(): Promise<void> {
+    const pages = this.context.pages();
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'deactivating recording on all pages'), {
+      pageCount: pages.length,
+    });
+
+    const deactivationPromises = pages.map(async (page) => {
+      try {
+        await page.evaluate(generateDeactivationScript());
+      } catch (err) {
+        // Ignore errors - page may be closed or navigating
+        const message = err instanceof Error ? err.message : String(err);
+        if (!this.isPageGoneError(message)) {
+          this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to deactivate recording on page'), {
+            url: page.url()?.slice(0, 50),
+            error: message,
+          });
+        }
+      }
+    });
+
+    await Promise.all(deactivationPromises);
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'recording deactivated on all pages'));
+  }
+
+  /**
+   * Create a navigation handler that re-activates recording after page loads.
+   * The init script is already present via context.addInitScript(), so we just
+   * need to send the activation message again.
+   */
+  private createNavigationHandler(generation: number, recordingId: string): () => void {
     return (): void => {
       if (!this.state.isRecording || this.recordingGeneration !== generation) {
         return;
@@ -243,8 +379,13 @@ export class RecordModeController {
         this.captureNavigation(newUrl);
       }
 
-      // Schedule injection with retry support
-      this.scheduleInjectionWithRetry(generation);
+      // Re-activate recording on the new page
+      // The init script runs on every page load but starts dormant
+      this.activateRecordingOnPage(this.page, recordingId).catch((err) => {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-activate recording after navigation'), {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     };
   }
 
@@ -400,67 +541,16 @@ export class RecordModeController {
   }
 
   /**
-   * Schedule script injection with exponential backoff retry.
-   * Uses constants from ../constants.ts for retry configuration.
-   */
-  private scheduleInjectionWithRetry(
-    generation: number,
-    attempt = 0
-  ): void {
-    if (!this.state.isRecording || this.recordingGeneration !== generation) {
-      return;
-    }
-
-    const delay = attempt === 0
-      ? INJECTION_RETRY_BASE_DELAY_MS
-      : INJECTION_RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
-
-    const timeoutId = setTimeout(async () => {
-      this.pendingInjectionTimeouts.delete(timeoutId);
-
-      if (!this.state.isRecording || this.recordingGeneration !== generation) {
-        return;
-      }
-
-      try {
-        await this.injectRecordingScript();
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-
-        if (this.isPageGoneError(message)) {
-          return;
-        }
-
-        if (attempt < INJECTION_RETRY_MAX_ATTEMPTS - 1) {
-          this.scheduleInjectionWithRetry(generation, attempt + 1);
-        } else {
-          this.handleError(
-            new Error(`Failed to re-inject recording script after ${INJECTION_RETRY_MAX_ATTEMPTS} attempts: ${message}`)
-          );
-        }
-      }
-    }, delay);
-
-    this.pendingInjectionTimeouts.add(timeoutId);
-  }
-
-  /**
-   * Check if an error message indicates the page is gone.
+   * Check if an error message indicates the page is gone or context destroyed.
+   * These are expected during navigation and should be handled gracefully.
    */
   private isPageGoneError(message: string): boolean {
     return message.includes('closed') ||
            message.includes('navigating') ||
-           message.includes('detached');
-  }
-
-  /**
-   * Check if an error is a transient context destruction that can be retried.
-   * This happens when the page navigates during script injection.
-   */
-  private isContextDestroyedError(message: string): boolean {
-    return message.includes('Execution context was destroyed') ||
-           message.includes('context was destroyed') ||
-           message.includes('Cannot find context');
+           message.includes('detached') ||
+           message.includes('destroyed') ||
+           message.includes('Target closed') ||
+           message.includes('context was destroyed');
   }
 
   /**
@@ -476,17 +566,22 @@ export class RecordModeController {
       actionCount: this.state.actionCount,
     };
 
-    try {
-      // Cancel any pending injection timeouts
-      for (const timeoutId of this.pendingInjectionTimeouts) {
-        clearTimeout(timeoutId);
-      }
-      this.pendingInjectionTimeouts.clear();
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'stopping recording'), {
+      recordingId: result.recordingId,
+      actionCount: result.actionCount,
+    });
 
-      // Remove navigation handlers
+    try {
+      // Remove navigation handler
       if (this.navigationHandler) {
         this.page.off('load', this.navigationHandler);
         this.navigationHandler = null;
+      }
+
+      // Remove new page handler
+      if (this.newPageHandler) {
+        this.context.off('page', this.newPageHandler);
+        this.newPageHandler = null;
       }
 
       // Stop loop detection
@@ -494,10 +589,14 @@ export class RecordModeController {
       this.isBreakingLoop = false;
       this.loopDetectorLastUrl = null;
 
-      // Inject cleanup script
-      await this.page.evaluate(getCleanupScript()).catch(() => {
-        // Ignore errors during cleanup (page may have navigated)
-      });
+      // Clear event handler from context initializer
+      // This stops events from being processed even if they arrive
+      this.recordingInitializer.clearEventHandler();
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'event handler cleared from context initializer'));
+
+      // Send deactivation message to all pages in context
+      // This tells the recording script to stop capturing events
+      await this.deactivateRecordingOnAllPages();
     } finally {
       // Reset state
       this.state = {
@@ -604,54 +703,30 @@ export class RecordModeController {
   }
 
   /**
-   * Inject the recording script into the current page.
-   * Includes retry logic to handle transient "Execution context was destroyed"
-   * errors that occur when the page navigates during injection.
-   */
-  private async injectRecordingScript(): Promise<void> {
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt < INJECTION_RETRY_MAX_ATTEMPTS; attempt++) {
-      try {
-        // Wait for the page to be in a stable state before injecting
-        try {
-          await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-        } catch {
-          // Ignore timeout - page might be a blank page or slow loading
-        }
-
-        await this.page.evaluate(getRecordingScript());
-        return; // Success - exit the retry loop
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        lastError = err instanceof Error ? err : new Error(message);
-
-        // If page is gone (closed/detached), don't retry
-        if (this.isPageGoneError(message)) {
-          throw lastError;
-        }
-
-        // If context was destroyed (navigation), retry with backoff
-        if (this.isContextDestroyedError(message) && attempt < INJECTION_RETRY_MAX_ATTEMPTS - 1) {
-          const delay = INJECTION_RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-
-        // Unknown error or max retries reached
-        throw lastError;
-      }
-    }
-
-    // Should not reach here, but just in case
-    throw lastError || new Error('Failed to inject recording script');
-  }
-
-  /**
    * Handle a raw event from the page and convert to TimelineEntry.
+   *
+   * Event flow tracing is logged using LogContext.EVENT_FLOW for debugging.
    */
   private handleRawEvent(raw: RawBrowserEvent): void {
+    // Generate event ID for tracing
+    const eventId = `${raw.actionType}-${Date.now()}-${this.sequenceNum}`;
+
+    // Log event received
+    this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event received'), {
+      eventId,
+      actionType: raw.actionType,
+      url: raw.url?.slice(0, 50),
+      hasSelector: !!raw.selector?.primary,
+      timestamp: raw.timestamp,
+    });
+
     if (!this.state.isRecording || !this.entryCallback || !this.state.recordingId) {
+      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event dropped (not recording)'), {
+        eventId,
+        isRecording: this.state.isRecording,
+        hasCallback: !!this.entryCallback,
+        hasRecordingId: !!this.state.recordingId,
+      });
       return;
     }
 
@@ -669,6 +744,14 @@ export class RecordModeController {
 
       this.state.actionCount++;
 
+      // Log event converted
+      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event converted'), {
+        eventId,
+        entryType: entry.action?.type,
+        sequenceNum: entry.sequenceNum,
+        actionCount: this.state.actionCount,
+      });
+
       // Invoke callback
       const result = this.entryCallback(entry);
       if (result instanceof Promise) {
@@ -678,7 +761,54 @@ export class RecordModeController {
         });
       }
     } catch (error) {
+      this.logger.error(scopedLog(LogContext.EVENT_FLOW, 'conversion failed'), {
+        eventId,
+        error: error instanceof Error ? error.message : String(error),
+        rawEventType: raw.actionType,
+      });
       this.handleError(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Reset recording state on a page.
+   *
+   * Cleans up existing listeners and re-activates recording.
+   * Safe to call multiple times (idempotent).
+   * Uses the browser-side cleanup function to properly reset state.
+   *
+   * @param page - The page to reset (defaults to main page)
+   */
+  async resetRecordingOnPage(page?: Page): Promise<void> {
+    const targetPage = page || this.page;
+    const url = targetPage.url()?.slice(0, 50);
+
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'resetting page recording'), { url });
+
+    try {
+      // Trigger cleanup in browser - this removes all event listeners
+      // and resets state to allow fresh re-initialization
+      await targetPage.evaluate(() => {
+        if (typeof (window as any).__vrooli_recording_cleanup === 'function') {
+          (window as any).__vrooli_recording_cleanup();
+        }
+      });
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'browser cleanup executed'), { url });
+    } catch (e) {
+      // Ignore - cleanup function may not exist or page may be navigating
+      const error = e instanceof Error ? e.message : String(e);
+      if (!this.isPageGoneError(error)) {
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'cleanup failed (may be expected)'), {
+          url,
+          error,
+        });
+      }
+    }
+
+    // Re-activate if currently recording
+    if (this.state.isRecording && this.state.recordingId) {
+      await this.activateRecordingOnPage(targetPage, this.state.recordingId);
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'recording re-activated after reset'), { url });
     }
   }
 
@@ -696,11 +826,19 @@ export class RecordModeController {
 
 /**
  * Create a new RecordModeController for a page.
+ *
+ * @param page - The page to record on
+ * @param context - The browser context (for multi-tab support)
+ * @param recordingInitializer - The context initializer for event handling
+ * @param sessionId - The session ID
+ * @param logger - Optional logger instance
  */
 export function createRecordModeController(
   page: Page,
+  context: BrowserContext,
+  recordingInitializer: RecordingContextInitializer,
   sessionId: string,
   logger?: winston.Logger
 ): RecordModeController {
-  return new RecordModeController(page, sessionId, logger);
+  return new RecordModeController(page, context, recordingInitializer, sessionId, logger);
 }

@@ -16,7 +16,16 @@
 // Console statements are used for test reporting output.
 
 import { test, expect, Page } from '@playwright/test';
-import { getRecordingScript } from './injector';
+import { generateRecordingInitScript } from './init-script-generator';
+
+/**
+ * Get the recording script for test injection.
+ * This generates the init script that would normally be added via context.addInitScript().
+ * For tests, we inject it directly via page.evaluate().
+ */
+function getRecordingScript(): string {
+  return generateRecordingInitScript();
+}
 
 interface SelectorCandidate {
   type: string;
@@ -226,12 +235,20 @@ test.describe('Selector Generation - Phase 0 Validation', () => {
       await page.evaluate(getRecordingScript());
     }).not.toThrow();
 
-    // Verify the script set the recording flag
-    const isActive = await page.evaluate(() => {
-      // @ts-expect-error - __recordingActive is set by the script
-      return window.__recordingActive === true;
+    // Verify the script initialized (starts in dormant mode, not active)
+    // The script sets __recordingInitialized to prevent double-init
+    const isInitialized = await page.evaluate(() => {
+      // @ts-expect-error - __recordingInitialized is set by the script
+      return window.__recordingInitialized === true;
     });
-    expect(isActive).toBe(true);
+    expect(isInitialized).toBe(true);
+
+    // Verify generateSelectors is exposed
+    const hasGenerateSelectors = await page.evaluate(() => {
+      // @ts-expect-error - __generateSelectors is exposed by the recording script
+      return typeof window.__generateSelectors === 'function';
+    });
+    expect(hasGenerateSelectors).toBe(true);
   });
 
   test('selector validation works for CSS selectors', async ({ page }) => {

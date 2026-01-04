@@ -321,7 +321,15 @@ export async function handleRecordStart(
 
     // Create recording controller if not exists
     if (!session.recordingController) {
-      session.recordingController = createRecordModeController(session.page, sessionId);
+      if (!session.recordingInitializer) {
+        throw new Error('Recording initializer not set on session - context may not have been initialized properly');
+      }
+      session.recordingController = createRecordModeController(
+        session.page,
+        session.context,
+        session.recordingInitializer,
+        sessionId
+      );
     }
 
     // Initialize action buffer for this session

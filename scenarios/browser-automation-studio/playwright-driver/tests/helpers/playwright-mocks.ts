@@ -84,6 +84,10 @@ export function createMockContext(overrides?: Partial<BrowserContext>): jest.Moc
       start: jest.fn().mockResolvedValue(undefined),
       stop: jest.fn().mockResolvedValue(undefined),
     },
+    on: jest.fn(),
+    off: jest.fn(),
+    once: jest.fn(),
+    removeListener: jest.fn(),
     ...overrides,
   } as unknown as jest.Mocked<BrowserContext>;
 
@@ -167,4 +171,36 @@ export function setupPlaywrightMocks() {
       launch: jest.fn().mockResolvedValue(createMockBrowser()),
     },
   }));
+}
+
+/**
+ * Mock RecordingContextInitializer for controller tests
+ *
+ * The controller uses these methods:
+ * - setEventHandler(handler) - registers the event handler
+ * - clearEventHandler() - clears the event handler
+ * - getBindingName() - returns the binding name
+ */
+export interface MockRecordingInitializer {
+  setEventHandler: jest.Mock;
+  clearEventHandler: jest.Mock;
+  getBindingName: jest.Mock;
+  initialize: jest.Mock;
+  getInjectionStats: jest.Mock;
+}
+
+export function createMockRecordingInitializer(): MockRecordingInitializer {
+  return {
+    setEventHandler: jest.fn(),
+    clearEventHandler: jest.fn(),
+    getBindingName: jest.fn().mockReturnValue('__vrooli_recordAction'),
+    initialize: jest.fn().mockResolvedValue(undefined),
+    getInjectionStats: jest.fn().mockReturnValue({
+      attempted: 0,
+      successful: 0,
+      failed: 0,
+      skipped: 0,
+      methods: { head: 0, HEAD: 0, doctype: 0, prepend: 0 },
+    }),
+  };
 }

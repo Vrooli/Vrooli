@@ -6,14 +6,14 @@
  */
 import {
   SELECTOR_OPTIONAL_ACTIONS,
+  ActionType,
   actionTypeToString,
-  calculateActionConfidence,
   getSupportedActionTypes,
   isSelectorOptional,
   isValidActionType,
   normalizeToProtoActionType,
-} from '../../../src/recording/action-types';
-import { ActionType } from '../../../src/proto';
+} from '../../../src/proto/action-type-utils';
+import { calculateActionConfidence } from '../../../src/recording/action-types';
 
 describe('Recording Action Types (proto-first)', () => {
   describe('normalizeToProtoActionType', () => {
@@ -46,9 +46,10 @@ describe('Recording Action Types (proto-first)', () => {
 
   describe('actionTypeToString', () => {
     it('returns stable names for enums', () => {
-      expect(actionTypeToString(ActionType.CLICK)).toBe('CLICK');
-      expect(actionTypeToString(ActionType.INPUT)).toBe('INPUT');
-      expect(actionTypeToString(ActionType.NAVIGATE)).toBe('NAVIGATE');
+      // actionTypeToString returns lowercase names matching proto convention
+      expect(actionTypeToString(ActionType.CLICK)).toBe('click');
+      expect(actionTypeToString(ActionType.INPUT)).toBe('input');
+      expect(actionTypeToString(ActionType.NAVIGATE)).toBe('navigate');
     });
   });
 
