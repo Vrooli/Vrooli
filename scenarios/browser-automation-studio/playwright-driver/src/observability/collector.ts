@@ -212,12 +212,32 @@ export class ObservabilityCollector {
    */
   private collectRecordingComponent(): RecordingComponent {
     const sessionSummary = this.deps.getSessionSummary();
+    const recordingStats = this.deps.getRecordingStats?.();
+
+    // Calculate success rate if we have injection stats
+    let status: ComponentStatus = 'healthy';
+    let message = `${sessionSummary.active_recordings} active recording(s)`;
+
+    if (recordingStats?.injection_stats) {
+      const stats = recordingStats.injection_stats;
+      if (stats.attempted > 0) {
+        const successRate = (stats.successful / stats.attempted) * 100;
+        message = `${sessionSummary.active_recordings} recording(s), ${successRate.toFixed(0)}% injection success`;
+        if (successRate < 80) {
+          status = 'degraded';
+        } else if (successRate < 50) {
+          status = 'error';
+        }
+      }
+    }
 
     return {
-      status: 'healthy',
-      message: `${sessionSummary.active_recordings} active recording(s)`,
+      status,
+      message,
+      hint: status !== 'healthy' ? 'Check browser console for JavaScript errors or CSP issues' : undefined,
       active_count: sessionSummary.active_recordings,
-      // injection_stats and script_version are populated during deep diagnostics
+      injection_stats: recordingStats?.injection_stats,
+      script_version: recordingStats?.script_version,
     };
   }
 

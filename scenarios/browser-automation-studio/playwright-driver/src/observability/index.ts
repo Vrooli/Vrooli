@@ -85,5 +85,6 @@ export {
   handleObservability,
   handleObservabilityRefresh,
   handleDiagnosticsRun,
+  handleMetrics,
   type ObservabilityRouteDependencies,
 } from './route';

@@ -721,3 +721,41 @@ export function getConfigSummary(): string {
 
   return `${total} option(s) modified from defaults: ${parts.join(', ')}`;
 }
+
+/**
+ * Get configuration summary in the format needed for observability.
+ * Returns structured data for the diagnostics UI.
+ */
+export function getObservabilityConfigSummary(): {
+  summary: string;
+  modified_count: number;
+  by_tier: { essential: number; advanced: number; internal: number };
+  modified_options?: Array<{
+    env_var: string;
+    tier: 'essential' | 'advanced' | 'internal';
+    description: string;
+    current_value: string;
+    default_value: string;
+  }>;
+} {
+  const result = checkModifiedConfig();
+  const summary = getConfigSummary();
+
+  // Only include modified_options if there are any
+  const modified_options = result.modified.length > 0
+    ? result.modified.map((opt) => ({
+        env_var: opt.envVar,
+        tier: opt.tierName as 'essential' | 'advanced' | 'internal',
+        description: opt.description,
+        current_value: String(opt.currentValue),
+        default_value: String(opt.defaultValue),
+      }))
+    : undefined;
+
+  return {
+    summary,
+    modified_count: result.modified.length,
+    by_tier: result.byTier,
+    modified_options,
+  };
+}

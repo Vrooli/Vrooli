@@ -414,6 +414,7 @@ func main() {
 		r.Get("/observability", handler.GetObservability)
 		r.Post("/observability/refresh", handler.RefreshObservability)
 		r.Post("/observability/diagnostics/run", handler.RunDiagnostics)
+		r.Get("/observability/metrics", handler.GetMetrics)
 	})
 
 	// Initialize and start the workflow scheduler

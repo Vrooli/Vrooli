@@ -149,3 +149,29 @@ export interface DiagnosticRunResponse {
     recording?: RecordingDiagnostics;
   };
 }
+
+/**
+ * Metrics types for the JSON metrics endpoint.
+ */
+export interface MetricValue {
+  labels: Record<string, string>;
+  value: number;
+}
+
+export interface MetricData {
+  type: string;
+  help: string;
+  values: MetricValue[];
+}
+
+export interface MetricsResponse {
+  summary: {
+    total_metrics: number;
+    timestamp: string;
+    config: {
+      enabled: boolean;
+      port?: number;
+    };
+  };
+  metrics: Record<string, MetricData>;
+}

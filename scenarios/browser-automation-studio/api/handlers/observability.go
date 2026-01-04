@@ -108,3 +108,34 @@ func (h *Handler) RunDiagnostics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
+
+// GetMetrics proxies GET /observability/metrics requests to the playwright-driver.
+// Returns metrics in JSON format (parsed from Prometheus text format).
+func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
+	driverURL := getPlaywrightDriverURL()
+	targetURL := driverURL + "/observability/metrics"
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}

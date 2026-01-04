@@ -300,6 +300,9 @@ function setupRoutes(
   router.post('/observability/diagnostics/run', async (req, res) => {
     await observability.handleDiagnosticsRun(req, res, observabilityDeps);
   });
+  router.get('/observability/metrics', async (req, res) => {
+    await observability.handleMetrics(req, res, observabilityDeps);
+  });
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);

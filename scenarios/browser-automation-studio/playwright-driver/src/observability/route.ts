@@ -14,8 +14,9 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
 import type { SessionCleanup } from '../session/cleanup';
 import type { Config } from '../config';
+import { getObservabilityConfigSummary } from '../config';
 import { sendJson } from '../middleware';
-import { logger, scopedLog, LogContext } from '../utils';
+import { logger, scopedLog, LogContext, metrics } from '../utils';
 import { createObservabilityCollector, getObservabilityCache } from './index';
 import type {
   ObservabilityDepth,
@@ -24,7 +25,9 @@ import type {
   DiagnosticRunResponse,
   SessionSummary,
   CleanupStatus,
+  RecordingStats,
 } from './types';
+import { VERSION } from '../constants';
 
 // =============================================================================
 // Types
@@ -40,6 +43,62 @@ export interface ObservabilityRouteDependencies {
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/**
+ * Aggregate recording stats from all sessions.
+ * Combines injection stats from all active recording initializers.
+ */
+function aggregateRecordingStats(
+  sessionManager: SessionManager
+): RecordingStats | undefined {
+  const sessionIds = sessionManager.getAllSessionIds();
+  if (sessionIds.length === 0) {
+    return undefined;
+  }
+
+  const aggregated: RecordingStats = {
+    script_version: VERSION,
+    injection_stats: {
+      attempted: 0,
+      successful: 0,
+      failed: 0,
+      skipped: 0,
+      total: 0,
+      methods: {
+        head: 0,
+        HEAD: 0,
+        doctype: 0,
+        prepend: 0,
+      },
+    },
+  };
+
+  let foundAny = false;
+
+  for (const sessionId of sessionIds) {
+    try {
+      const session = sessionManager.getSession(sessionId);
+      if (session.recordingInitializer) {
+        const stats = session.recordingInitializer.getInjectionStats();
+        foundAny = true;
+
+        aggregated.injection_stats.attempted += stats.attempted;
+        aggregated.injection_stats.successful += stats.successful;
+        aggregated.injection_stats.failed += stats.failed;
+        aggregated.injection_stats.skipped += stats.skipped;
+        aggregated.injection_stats.total = aggregated.injection_stats.attempted;
+        aggregated.injection_stats.methods.head += stats.methods.head;
+        aggregated.injection_stats.methods.HEAD += stats.methods.HEAD;
+        aggregated.injection_stats.methods.doctype += stats.methods.doctype;
+        aggregated.injection_stats.methods.prepend += stats.methods.prepend;
+      }
+    } catch {
+      // Session may have been closed during iteration
+    }
+  }
+
+  return foundAny ? aggregated : undefined;
+}
 
 /**
  * Parse query string from URL.
@@ -112,9 +171,7 @@ function createCleanupStatus(
 ): CleanupStatus {
   return {
     is_running: sessionCleanup.isRunningCleanup(),
-    // Note: SessionCleanup doesn't currently track last_run_at
-    // This can be added in Phase 3
-    last_run_at: undefined,
+    last_run_at: sessionCleanup.getLastRunAt() ?? undefined,
     interval_ms: config.session.cleanupIntervalMs,
   };
 }
@@ -167,7 +224,8 @@ export async function handleObservability(
       enabled: config.metrics.enabled,
       port: config.metrics.port,
     }),
-    // getConfigSummary would need to be implemented if we want config details
+    getRecordingStats: () => aggregateRecordingStats(sessionManager),
+    getConfigSummary: () => getObservabilityConfigSummary(),
   };
 
   const collector = createObservabilityCollector(collectorDeps);
@@ -243,9 +301,33 @@ export async function handleDiagnosticsRun(
 
       if (type === 'recording' || type === 'all') {
         // Recording diagnostics require an active session with a page
-        if (session_id) {
+        // Auto-select a session if none is provided
+        let targetSessionId = session_id;
+        if (!targetSessionId) {
+          const allSessionIds = deps.sessionManager.getAllSessionIds();
+          if (allSessionIds.length > 0) {
+            // Prefer a session that's actively recording, otherwise pick first available
+            for (const sid of allSessionIds) {
+              try {
+                const session = deps.sessionManager.getSession(sid);
+                if (session.recordingController?.isRecording()) {
+                  targetSessionId = sid;
+                  break;
+                }
+              } catch {
+                // Session may have been closed
+              }
+            }
+            // If no recording session found, use the first available
+            if (!targetSessionId) {
+              targetSessionId = allSessionIds[0];
+            }
+          }
+        }
+
+        if (targetSessionId) {
           try {
-            const session = deps.sessionManager.getSession(session_id);
+            const session = deps.sessionManager.getSession(targetSessionId);
             const { runRecordingDiagnostics, RecordingDiagnosticLevel } = await import('../recording/diagnostics');
 
             const level = options?.level === 'full'
@@ -257,16 +339,17 @@ export async function handleDiagnosticsRun(
             results.recording = await runRecordingDiagnostics(session.page, session.context, {
               level,
               timeoutMs: options?.timeout_ms ?? 5000,
+              contextInitializer: session.recordingInitializer,
             });
           } catch (error) {
             logger.warn(scopedLog(LogContext.HEALTH, 'recording diagnostics failed'), {
-              sessionId: session_id,
+              sessionId: targetSessionId,
               error: error instanceof Error ? error.message : String(error),
             });
           }
         } else {
-          // No session specified - can't run recording diagnostics
-          logger.warn(scopedLog(LogContext.HEALTH, 'no session_id for recording diagnostics'));
+          // No sessions available
+          logger.warn(scopedLog(LogContext.HEALTH, 'no sessions available for recording diagnostics'));
         }
       }
 
@@ -291,4 +374,102 @@ export async function handleDiagnosticsRun(
       });
     }
   });
+}
+
+/**
+ * GET /observability/metrics
+ *
+ * Get metrics in JSON format (as opposed to Prometheus text format).
+ * Returns all registered metrics with their current values.
+ */
+export async function handleMetrics(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  deps: ObservabilityRouteDependencies
+): Promise<void> {
+  try {
+    // Get raw Prometheus metrics text
+    const metricsText = await metrics.getMetrics();
+
+    // Parse Prometheus format into JSON
+    const metricsJson: Record<string, { type: string; help: string; values: Array<{ labels: Record<string, string>; value: number }> }> = {};
+
+    let currentMetric = '';
+    let currentType = '';
+    let currentHelp = '';
+
+    for (const line of metricsText.split('\n')) {
+      if (line.startsWith('# HELP ')) {
+        const parts = line.slice(7).split(' ');
+        currentMetric = parts[0];
+        currentHelp = parts.slice(1).join(' ');
+        if (!metricsJson[currentMetric]) {
+          metricsJson[currentMetric] = { type: '', help: currentHelp, values: [] };
+        } else {
+          metricsJson[currentMetric].help = currentHelp;
+        }
+      } else if (line.startsWith('# TYPE ')) {
+        const parts = line.slice(7).split(' ');
+        currentMetric = parts[0];
+        currentType = parts[1];
+        if (!metricsJson[currentMetric]) {
+          metricsJson[currentMetric] = { type: currentType, help: '', values: [] };
+        } else {
+          metricsJson[currentMetric].type = currentType;
+        }
+      } else if (line && !line.startsWith('#')) {
+        // Parse metric value line
+        // Format: metric_name{label="value",label2="value2"} value
+        // or: metric_name value
+        const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+(.+)$/);
+        if (match) {
+          const name = match[1];
+          const labelsStr = match[2] || '';
+          const value = parseFloat(match[3]);
+
+          // Parse labels
+          const labels: Record<string, string> = {};
+          if (labelsStr) {
+            const labelMatches = labelsStr.matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)="([^"]*)"/g);
+            for (const labelMatch of labelMatches) {
+              labels[labelMatch[1]] = labelMatch[2];
+            }
+          }
+
+          // Get the base metric name (remove _bucket, _count, _sum suffixes)
+          const baseName = name.replace(/_bucket$|_count$|_sum$|_total$/, '');
+
+          if (!metricsJson[baseName]) {
+            metricsJson[baseName] = { type: '', help: '', values: [] };
+          }
+
+          metricsJson[baseName].values.push({
+            labels: { ...labels, _suffix: name.replace(baseName, '') || '_value' },
+            value,
+          });
+        }
+      }
+    }
+
+    // Add summary stats
+    const summary = {
+      total_metrics: Object.keys(metricsJson).length,
+      timestamp: new Date().toISOString(),
+      config: {
+        enabled: deps.config.metrics.enabled,
+        port: deps.config.metrics.port,
+      },
+    };
+
+    sendJson(res, 200, { summary, metrics: metricsJson });
+  } catch (error) {
+    logger.error(scopedLog(LogContext.HEALTH, 'metrics fetch failed'), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    sendJson(res, 500, {
+      error: 'Failed to fetch metrics',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

@@ -44,8 +44,12 @@ export type {
   ObservabilityResponse,
   DiagnosticRunRequest,
   DiagnosticRunResponse,
+  MetricValue,
+  MetricData,
+  MetricsResponse,
 } from './types';
 
 // Hooks
 export { useObservability } from './hooks/useObservability';
 export { useRefreshDiagnostics, useRefreshCache } from './hooks/useRefreshDiagnostics';
+export { useMetrics } from './hooks/useMetrics';

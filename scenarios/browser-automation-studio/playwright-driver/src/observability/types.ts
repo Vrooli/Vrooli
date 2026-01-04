@@ -317,6 +317,17 @@ export interface CleanupStatus {
 }
 
 /**
+ * Recording statistics for observability.
+ * Aggregated from all sessions with recording initializers.
+ */
+export interface RecordingStats {
+  /** Script version hash or identifier */
+  script_version: string;
+  /** Aggregated injection statistics */
+  injection_stats: InjectionStats;
+}
+
+/**
  * Dependencies for the observability collector.
  * Allows dependency injection for testing.
  */
@@ -329,6 +340,8 @@ export interface ObservabilityDependencies {
   getCleanupStatus: () => CleanupStatus;
   /** Get metrics config (optional) */
   getMetricsConfig?: () => { enabled: boolean; port?: number };
+  /** Get recording stats (optional) */
+  getRecordingStats?: () => RecordingStats | undefined;
   /** Run recording diagnostics (optional, for deep level) */
   runRecordingDiagnostics?: () => Promise<RecordingDiagnosticResult>;
   /** Get config summary */

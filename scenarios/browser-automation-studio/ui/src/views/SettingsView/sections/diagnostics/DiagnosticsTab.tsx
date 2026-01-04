@@ -26,10 +26,17 @@ import {
   Settings2,
   Zap,
   Play,
+  Code,
+  Copy,
+  Check,
+  ArrowLeft,
+  ExternalLink,
 } from 'lucide-react';
-import { useObservability, useRefreshDiagnostics, useRefreshCache } from '@/domains/observability';
-import type { ComponentStatus, BrowserComponent, SessionsComponent, RecordingComponent, CleanupComponent, MetricsComponent } from '@/domains/observability';
+import { useObservability, useRefreshDiagnostics, useRefreshCache, useMetrics } from '@/domains/observability';
+import type { ComponentStatus, BrowserComponent, SessionsComponent, RecordingComponent, CleanupComponent, MetricsComponent, MetricsResponse } from '@/domains/observability';
 import { SettingSection } from '../shared';
+
+type ViewMode = 'dashboard' | 'json' | 'metrics';
 
 // Status indicator colors
 // Note: API returns 'ok' | 'degraded' | 'error' for overall status,
@@ -280,35 +287,235 @@ function CleanupDetails({ cleanup }: { cleanup: CleanupComponent }) {
   );
 }
 
-function MetricsDetails({ metrics }: { metrics: MetricsComponent }) {
+function MetricsDetails({ metrics, onViewMetrics }: { metrics: MetricsComponent; onViewMetrics?: () => void }) {
   return (
-    <div className="grid grid-cols-2 gap-3 text-sm">
-      <div>
-        <span className="text-gray-500">Enabled:</span>
-        <span className={`ml-2 ${metrics.enabled ? 'text-emerald-400' : 'text-gray-400'}`}>
-          {metrics.enabled ? 'Yes' : 'No'}
-        </span>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span className="text-gray-500">Enabled:</span>
+          <span className={`ml-2 ${metrics.enabled ? 'text-emerald-400' : 'text-gray-400'}`}>
+            {metrics.enabled ? 'Yes' : 'No'}
+          </span>
+        </div>
+        {metrics.enabled && (
+          <>
+            <div>
+              <span className="text-gray-500">Port:</span>
+              <span className="ml-2 text-surface">{metrics.port}</span>
+            </div>
+            <div className="col-span-2">
+              <span className="text-gray-500">Endpoint:</span>
+              <span className="ml-2 text-surface font-mono text-xs">{metrics.endpoint}</span>
+            </div>
+          </>
+        )}
       </div>
-      {metrics.enabled && (
-        <>
-          <div>
-            <span className="text-gray-500">Port:</span>
-            <span className="ml-2 text-surface">{metrics.port}</span>
-          </div>
-          <div className="col-span-2">
-            <span className="text-gray-500">Endpoint:</span>
-            <span className="ml-2 text-surface font-mono text-xs">{metrics.endpoint}</span>
-          </div>
-        </>
+      {metrics.enabled && onViewMetrics && (
+        <button
+          onClick={onViewMetrics}
+          className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-surface rounded-lg transition-colors"
+        >
+          <BarChart3 size={14} />
+          View Metrics Data
+        </button>
       )}
     </div>
   );
 }
 
+// JSON Viewer Component
+interface JsonViewerProps {
+  data: unknown;
+  onBack: () => void;
+  title?: string;
+}
+
+function JsonViewer({ data, onBack, title = 'JSON Data' }: JsonViewerProps) {
+  const [copied, setCopied] = useState(false);
+  const jsonString = useMemo(() => JSON.stringify(data, null, 2), [data]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(jsonString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [jsonString]);
+
+  const handleDownload = useCallback(() => {
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [jsonString, title]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-gray-400 hover:text-surface transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <Code size={20} className="text-flow-accent" />
+            <h2 className="text-lg font-semibold text-surface">{title}</h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-surface bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            title="Copy to clipboard"
+          >
+            {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-surface bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            title="Download JSON"
+          >
+            <Download size={16} />
+            Download
+          </button>
+        </div>
+      </div>
+
+      {/* JSON Content */}
+      <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+        <pre className="p-4 text-sm font-mono text-gray-300 overflow-auto max-h-[70vh] whitespace-pre-wrap break-words">
+          {jsonString}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+// Metrics Viewer Component
+interface MetricsViewerProps {
+  data: MetricsResponse;
+  onBack: () => void;
+}
+
+function MetricsViewer({ data, onBack }: MetricsViewerProps) {
+  const [showJson, setShowJson] = useState(false);
+
+  if (showJson) {
+    return <JsonViewer data={data} onBack={() => setShowJson(false)} title="Metrics JSON" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-gray-400 hover:text-surface transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <BarChart3 size={20} className="text-flow-accent" />
+            <h2 className="text-lg font-semibold text-surface">Prometheus Metrics</h2>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowJson(true)}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-surface bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+        >
+          <Code size={16} />
+          View JSON
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+        <div className="flex items-center gap-4 text-sm text-gray-400">
+          <span><strong className="text-surface">{data.summary.total_metrics}</strong> metrics</span>
+          <span>Updated: {new Date(data.summary.timestamp).toLocaleTimeString()}</span>
+          {data.summary.config.port && (
+            <span className="flex items-center gap-1">
+              <ExternalLink size={12} />
+              Port {data.summary.config.port}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="space-y-4">
+        {Object.entries(data.metrics).map(([name, metric]) => (
+          <div key={name} className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-sm text-surface">{name}</span>
+                <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded">{metric.type}</span>
+              </div>
+              {metric.help && (
+                <p className="text-xs text-gray-500 mt-1">{metric.help}</p>
+              )}
+            </div>
+            {metric.values.length > 0 && (
+              <div className="p-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th className="pb-2 font-normal">Labels</th>
+                      <th className="pb-2 font-normal text-right">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-gray-300">
+                    {metric.values.slice(0, 10).map((v, idx) => (
+                      <tr key={idx} className="border-t border-gray-700/50">
+                        <td className="py-2 pr-4">
+                          <span className="font-mono text-xs">
+                            {Object.entries(v.labels)
+                              .filter(([k]) => k !== '_suffix')
+                              .map(([k, val]) => `${k}="${val}"`)
+                              .join(', ') || '(no labels)'}
+                          </span>
+                        </td>
+                        <td className="py-2 text-right font-mono">
+                          {typeof v.value === 'number' && !Number.isInteger(v.value)
+                            ? v.value.toFixed(4)
+                            : v.value}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {metric.values.length > 10 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Showing 10 of {metric.values.length} values
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DiagnosticsTab() {
+  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+
   const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useObservability({
     depth: 'standard',
     refetchInterval: 30000,
+  });
+
+  const { data: metricsData, isLoading: isLoadingMetrics, refetch: refetchMetrics } = useMetrics({
+    enabled: viewMode === 'metrics',
   });
 
   const { runDiagnostics, isRunning: isDiagnosticsRunning, result: diagnosticsResult } = useRefreshDiagnostics();
@@ -323,20 +530,18 @@ export function DiagnosticsTab() {
     await runDiagnostics({ type: 'all', options: { level: 'full' } });
   }, [runDiagnostics]);
 
-  const handleExportJson = useCallback(() => {
-    if (!data) return;
+  const handleViewJson = useCallback(() => {
+    setViewMode('json');
+  }, []);
 
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `diagnostics-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [data]);
+  const handleViewMetrics = useCallback(async () => {
+    setViewMode('metrics');
+    await refetchMetrics();
+  }, [refetchMetrics]);
+
+  const handleBackToDashboard = useCallback(() => {
+    setViewMode('dashboard');
+  }, []);
 
   const overallStatus = useMemo((): StatusColorKey => {
     if (isLoading) return 'loading';
@@ -348,6 +553,36 @@ export function DiagnosticsTab() {
     if (!dataUpdatedAt) return 'Never';
     return formatRelativeTime(new Date(dataUpdatedAt).toISOString());
   }, [dataUpdatedAt]);
+
+  // Render JSON View
+  if (viewMode === 'json' && data) {
+    return <JsonViewer data={data} onBack={handleBackToDashboard} title="Diagnostics JSON" />;
+  }
+
+  // Render Metrics View
+  if (viewMode === 'metrics') {
+    if (isLoadingMetrics) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 size={32} className="animate-spin text-gray-400" />
+        </div>
+      );
+    }
+    if (metricsData) {
+      return <MetricsViewer data={metricsData} onBack={handleBackToDashboard} />;
+    }
+    return (
+      <div className="space-y-4">
+        <button onClick={handleBackToDashboard} className="flex items-center gap-2 text-gray-400 hover:text-surface">
+          <ArrowLeft size={18} />
+          Back to Dashboard
+        </button>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <p className="text-red-300">Failed to load metrics data</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -361,13 +596,13 @@ export function DiagnosticsTab() {
           </div>
         </div>
         <button
-          onClick={handleExportJson}
+          onClick={handleViewJson}
           disabled={!data || isLoading}
           className="flex items-center gap-2 px-3 py-2 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Export diagnostics as JSON"
+          title="View diagnostics as JSON"
         >
-          <Download size={16} />
-          <span className="hidden sm:inline">JSON</span>
+          <Code size={16} />
+          <span className="hidden sm:inline">View JSON</span>
         </button>
       </div>
 
@@ -481,7 +716,7 @@ export function DiagnosticsTab() {
               title="Metrics"
               status={data.components.metrics.enabled ? 'healthy' : 'degraded'}
               summary={data.components.metrics.enabled ? `Port ${data.components.metrics.port}` : 'Disabled'}
-              details={<MetricsDetails metrics={data.components.metrics} />}
+              details={<MetricsDetails metrics={data.components.metrics} onViewMetrics={handleViewMetrics} />}
             />
           </div>
         </SettingSection>
