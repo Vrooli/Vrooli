@@ -94,6 +94,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/desktop/generate/quick", s.quickGenerateDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/probe", s.probeEndpointsHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/preflight", s.preflightBundleHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/bundle-manifest", s.bundleManifestHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/proxy-hints/{scenario_name}", s.proxyHintsHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/status/{build_id}", s.getBuildStatusHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")

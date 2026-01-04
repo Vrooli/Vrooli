@@ -192,6 +192,11 @@ export interface BundlePreflightResponse {
   errors?: string[];
 }
 
+export interface BundleManifestResponse {
+  path: string;
+  manifest: unknown;
+}
+
 export interface PlatformBuildResult {
   platform: string;
   status: "pending" | "building" | "ready" | "failed" | "skipped";
@@ -493,6 +498,20 @@ export async function probeEndpoints(payload: {
 
 export async function runBundlePreflight(payload: BundlePreflightRequest): Promise<BundlePreflightResponse> {
   const response = await fetch(buildUrl("/desktop/preflight"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+export async function fetchBundleManifest(payload: { bundle_manifest_path: string }): Promise<BundleManifestResponse> {
+  const response = await fetch(buildUrl("/desktop/bundle-manifest"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)

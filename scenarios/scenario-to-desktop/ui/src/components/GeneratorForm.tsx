@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type FormEvent, type Ref } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   exportBundleFromDeploymentManager,
   fetchProxyHints,
   fetchScenarioDesktopStatus,
+  fetchBundleManifest,
   getIconPreviewUrl,
   generateDesktop,
   fetchSigningConfig,
@@ -13,6 +14,7 @@ import {
   type BundlePreflightLogTail,
   type BundlePreflightResponse,
   type BundlePreflightSecret,
+  type BundleManifestResponse,
   type DesktopConfig,
   type ProbeResponse,
   type ProxyHintsResponse,
@@ -25,7 +27,7 @@ import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Braces, Copy, Download, ExternalLink, LayoutList, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
 import { ScenarioModal } from "./ScenarioModal";
 import { FrameworkModal } from "./FrameworkModal";
@@ -388,30 +390,210 @@ interface BundledRuntimeSectionProps {
   bundleManifestPath: string;
   onBundleManifestChange: (value: string) => void;
   scenarioName: string;
+  bundleHelperRef: Ref<DeploymentManagerBundleHelperHandle>;
+  onBundleExported?: (manifestPath: string) => void;
+  onDeploymentManagerUrlChange?: (url: string | null) => void;
 }
 
-function BundledRuntimeSection({ bundleManifestPath, onBundleManifestChange, scenarioName }: BundledRuntimeSectionProps) {
+function BundledRuntimeSection({
+  bundleManifestPath,
+  onBundleManifestChange,
+  scenarioName,
+  bundleHelperRef,
+  onBundleExported,
+  onDeploymentManagerUrlChange
+}: BundledRuntimeSectionProps) {
+  const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
+  const [manifestResult, setManifestResult] = useState<BundleManifestResponse | null>(null);
+  const [manifestError, setManifestError] = useState<string | null>(null);
+  const [manifestLoading, setManifestLoading] = useState(false);
+  const [manifestCopyStatus, setManifestCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+
+  const manifestName = bundleManifestPath.trim()
+    ? bundleManifestPath.trim().split(/[\\/]/).pop() || "bundle.json"
+    : "bundle.json";
+
+  useEffect(() => {
+    setManifestResult(null);
+    setManifestError(null);
+    setManifestLoading(false);
+  }, [bundleManifestPath]);
+
+  useEffect(() => {
+    if (viewMode !== "json") {
+      return;
+    }
+    if (!bundleManifestPath.trim()) {
+      setManifestResult(null);
+      setManifestError("Add a bundle manifest path to view the JSON.");
+      return;
+    }
+    let isActive = true;
+    setManifestLoading(true);
+    setManifestError(null);
+    fetchBundleManifest({ bundle_manifest_path: bundleManifestPath })
+      .then((result) => {
+        if (!isActive) return;
+        setManifestResult(result);
+        setManifestError(null);
+      })
+      .catch((error) => {
+        if (!isActive) return;
+        setManifestResult(null);
+        setManifestError((error as Error).message);
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setManifestLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [bundleManifestPath, viewMode]);
+
+  const manifestJson = manifestResult?.manifest ? JSON.stringify(manifestResult.manifest, null, 2) : "";
+
+  const copyManifestJson = async () => {
+    if (!manifestJson) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(manifestJson);
+      setManifestCopyStatus("copied");
+      setTimeout(() => setManifestCopyStatus("idle"), 1500);
+    } catch (error) {
+      console.warn("Failed to copy manifest JSON", error);
+      setManifestCopyStatus("error");
+      setTimeout(() => setManifestCopyStatus("idle"), 2000);
+    }
+  };
+
+  const downloadManifestJson = () => {
+    if (!manifestJson) {
+      return;
+    }
+    const blob = new Blob([manifestJson], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = manifestName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
-      <div>
-        <Label htmlFor="bundleManifest">bundle_manifest_path</Label>
-        <p className="text-xs text-slate-400 mb-2">
-          Paste the bundle manifest exported by deployment-manager. This tells the desktop runtime how to stage services
-          for offline use.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Label htmlFor="bundleManifest">Bundle manifest</Label>
+          <p className="text-xs text-slate-400 mt-1">
+            The bundle manifest defines which binaries, assets, and resources are staged for offline use.
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-full border border-slate-800/70 bg-slate-950/40 p-1 text-[11px]">
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "summary" ? "default" : "ghost"}
+            onClick={() => setViewMode("summary")}
+            aria-label="Show bundle manifest summary"
+            className="h-8 w-8 p-0"
+          >
+            <LayoutList className="h-3 w-3" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "json" ? "default" : "ghost"}
+            onClick={() => setViewMode("json")}
+            aria-label="Show bundle manifest JSON"
+            className="h-8 w-8 p-0"
+          >
+            <Braces className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
-      <Input
-        id="bundleManifest"
-        value={bundleManifestPath}
-        onChange={(e) => onBundleManifestChange(e.target.value)}
-        placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
-      />
-      <p className="text-xs text-slate-400">
-        Desktop builds use this file to bundle services and data alongside the app.
-      </p>
+
+      {viewMode === "summary" && (
+        <>
+          <Input
+            id="bundleManifest"
+            value={bundleManifestPath}
+            onChange={(e) => onBundleManifestChange(e.target.value)}
+            placeholder="/home/you/Vrooli/scenarios/my-scenario/platforms/electron/bundle/bundle.json"
+          />
+          <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
+            <p className="font-semibold text-slate-100">Current manifest</p>
+            {bundleManifestPath.trim() ? (
+              <>
+                <p className="text-[11px] text-slate-300">{bundleManifestPath}</p>
+                <p className="text-[11px] text-slate-400">
+                  Expect this file to live alongside staged binaries/assets.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                Paste a bundle.json path or export one from deployment-manager below.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {viewMode === "json" && (
+        <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-slate-200">Bundle manifest JSON</p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={copyManifestJson}
+                disabled={!manifestJson}
+                aria-label="Copy bundle manifest JSON"
+                className="h-8 w-8 p-0"
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={downloadManifestJson}
+                disabled={!manifestJson}
+                aria-label="Download bundle manifest JSON"
+                className="h-8 w-8 p-0"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          {manifestLoading && (
+            <p className="text-[11px] text-slate-400">Loading bundle manifest...</p>
+          )}
+          {manifestError && (
+            <p className="text-[11px] text-amber-200">{manifestError}</p>
+          )}
+          {!manifestLoading && !manifestError && (
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800/70 bg-slate-950/80 p-3 text-[11px] text-slate-200">
+              {manifestJson || "No manifest loaded."}
+            </pre>
+          )}
+          {manifestCopyStatus !== "idle" && (
+            <p className="text-[11px] text-slate-400">
+              {manifestCopyStatus === "copied" ? "Copied to clipboard." : "Copy failed."}
+            </p>
+          )}
+        </div>
+      )}
+
       <DeploymentManagerBundleHelper
+        ref={bundleHelperRef}
         scenarioName={scenarioName}
         onBundleManifestChange={onBundleManifestChange}
+        onBundleExported={onBundleExported}
+        onDeploymentManagerUrlChange={onDeploymentManagerUrlChange}
       />
     </div>
   );
@@ -434,6 +616,103 @@ function PreflightStatus({ label, ok, detail }: PreflightStatusProps) {
   );
 }
 
+type PreflightIssueGuidance = {
+  title: string;
+  meaning: string;
+  remediation: string[];
+};
+
+const PREFLIGHT_ISSUE_GUIDANCE: Record<string, PreflightIssueGuidance> = {
+  manifest_invalid: {
+    title: "Bundle manifest is invalid",
+    meaning: "The manifest structure does not pass schema or platform validation.",
+    remediation: [
+      "Re-export the bundle from deployment-manager for the current OS/arch.",
+      "Confirm the manifest points to assets that exist inside the bundle root."
+    ]
+  },
+  binary_not_defined: {
+    title: "Binary missing in manifest",
+    meaning: "The service has no binary entry for this platform in bundle.json.",
+    remediation: [
+      "Ensure the service is built for this OS/arch, then re-export the bundle.",
+      "Check deployment-manager export settings include service binaries."
+    ]
+  },
+  binary_missing: {
+    title: "Binary file not found",
+    meaning: "The manifest references a binary path that doesn't exist in the bundle root.",
+    remediation: [
+      "Rebuild the service binary and re-export the bundle.",
+      "Verify the binary path in bundle.json matches the staged file path."
+    ]
+  },
+  binary_is_directory: {
+    title: "Binary path is a directory",
+    meaning: "The manifest points at a directory, but an executable file is required.",
+    remediation: [
+      "Update the manifest to point to the executable file.",
+      "Re-export the bundle after rebuilding the service."
+    ]
+  },
+  asset_missing: {
+    title: "Asset not found",
+    meaning: "The manifest references an asset that doesn't exist in the bundle root.",
+    remediation: [
+      "Rebuild UI/assets (e.g., UI dist output) and re-export the bundle.",
+      "Confirm the manifest path matches the staged asset location."
+    ]
+  },
+  asset_is_directory: {
+    title: "Asset path is a directory",
+    meaning: "The manifest expects a file, but a directory exists at that path.",
+    remediation: [
+      "Update the manifest to point to a file (e.g., index.html).",
+      "Re-export the bundle after rebuilding assets."
+    ]
+  },
+  asset_unreadable: {
+    title: "Asset unreadable",
+    meaning: "The runtime cannot read the asset on disk.",
+    remediation: [
+      "Check permissions/ownership of the asset file.",
+      "Re-export the bundle to refresh asset staging."
+    ]
+  },
+  checksum_mismatch: {
+    title: "Checksum mismatch",
+    meaning: "The asset contents do not match the SHA256 checksum recorded in the manifest.",
+    remediation: [
+      "Re-export the bundle so checksums match rebuilt assets.",
+      "Avoid editing assets after bundle export."
+    ]
+  },
+  asset_size_exceeded: {
+    title: "Asset exceeds size budget",
+    meaning: "The asset is larger than the manifest's expected size + slack.",
+    remediation: [
+      "Re-export the bundle to update size metadata.",
+      "Confirm the build output hasn't unintentionally grown."
+    ]
+  },
+  asset_size_suspicious: {
+    title: "Asset size is suspiciously small",
+    meaning: "The asset is much smaller than expected, which often indicates a failed build.",
+    remediation: [
+      "Rebuild the asset and re-export the bundle.",
+      "Verify the build output is complete (not a stub file)."
+    ]
+  },
+  asset_size_warning: {
+    title: "Asset size warning",
+    meaning: "The asset is larger than expected but within the slack budget.",
+    remediation: [
+      "Re-export the bundle to update size metadata if this is expected.",
+      "Review build artifacts for unexpected growth."
+    ]
+  }
+};
+
 interface BundledPreflightSectionProps {
   bundleManifestPath: string;
   preflightResult: BundlePreflightResponse | null;
@@ -445,6 +724,8 @@ interface BundledPreflightSectionProps {
   preflightOverride: boolean;
   preflightStartServices: boolean;
   preflightLogTails?: BundlePreflightLogTail[];
+  deploymentManagerUrl?: string | null;
+  onReexportBundle?: () => void;
   onOverrideChange: (value: boolean) => void;
   onStartServicesChange: (value: boolean) => void;
   onSecretChange: (id: string, value: string) => void;
@@ -462,17 +743,45 @@ function BundledPreflightSection({
   preflightOverride,
   preflightStartServices,
   preflightLogTails,
+  deploymentManagerUrl,
+  onReexportBundle,
   onOverrideChange,
   onStartServicesChange,
   onSecretChange,
   onRun
 }: BundledPreflightSectionProps) {
+  const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
   const secretsReady = missingSecrets.length === 0;
   const ports = preflightResult?.ports;
   const telemetry = preflightResult?.telemetry;
   const logTails = preflightLogTails ?? preflightResult?.log_tails;
+  const bundleRootPreview = bundleManifestPath.trim()
+    ? bundleManifestPath.trim().replace(/[/\\][^/\\]+$/, "")
+    : "";
+  const readinessDetails = readiness?.details ? Object.entries(readiness.details) : [];
+  const hasMissingArtifacts = Boolean(
+    validation
+      && !validation.valid
+      && ((validation.missing_assets?.length ?? 0) > 0 || (validation.missing_binaries?.length ?? 0) > 0)
+  );
+  const likelyRootMismatch = Boolean(
+    hasMissingArtifacts
+      && bundleManifestPath.trim()
+      && !bundleManifestPath.includes("scenario-to-desktop/data/staging")
+  );
+  const preflightPayload = useMemo(
+    () => ({
+      bundle_manifest_path: bundleManifestPath,
+      start_services: preflightStartServices,
+      result: preflightResult,
+      error: preflightError || undefined,
+      missing_secrets: missingSecrets
+    }),
+    [bundleManifestPath, preflightStartServices, preflightResult, preflightError, missingSecrets]
+  );
   const portSummary = ports
     ? Object.entries(ports)
         .map(([svc, portMap]) => {
@@ -484,31 +793,70 @@ function BundledPreflightSection({
         .join(" · ")
     : "";
 
+  const copyJson = async () => {
+    if (!preflightResult && !preflightError) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(preflightPayload, null, 2));
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 1500);
+    } catch (error) {
+      console.warn("Failed to copy preflight JSON", error);
+      setCopyStatus("error");
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-emerald-900 bg-emerald-950/10 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-emerald-100">Preflight validation</p>
           <p className="text-xs text-emerald-200/80">
-            Runs the bundled runtime to validate manifests, secrets, and readiness before packaging.
+            Validates the bundle manifest + staged assets by running the bundled runtime (no desktop wrapper needed).
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => onRun()}
-          disabled={preflightPending || !bundleManifestPath.trim()}
-          className="gap-2"
-        >
-          {preflightPending ? "Running..." : "Run preflight"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-emerald-900/70 bg-emerald-950/40 p-1 text-[11px]">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "summary" ? "default" : "ghost"}
+              onClick={() => setViewMode("summary")}
+              aria-label="Show preflight summary"
+              className="h-8 w-8 p-0"
+            >
+              <LayoutList className="h-3 w-3" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "json" ? "default" : "ghost"}
+              onClick={() => setViewMode("json")}
+              aria-label="Show preflight JSON"
+              className="h-8 w-8 p-0"
+            >
+              <Braces className="h-3 w-3" />
+            </Button>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onRun()}
+            disabled={preflightPending || !bundleManifestPath.trim()}
+            className="gap-2"
+          >
+            {preflightPending ? "Running..." : "Run preflight"}
+          </Button>
+        </div>
       </div>
       <div className="flex items-center gap-2 text-xs text-emerald-200/80">
         <Checkbox
           checked={preflightStartServices}
           onChange={(e) => onStartServicesChange(e.target.checked)}
-          label="Start services to capture log tails (slower)"
+          label="Start services to capture log tails + readiness (slower)"
         />
       </div>
 
@@ -522,8 +870,49 @@ function BundledPreflightSection({
         </div>
       )}
 
-      {preflightResult && (
+      {preflightResult && viewMode === "summary" && (
         <div className="space-y-3">
+          <div className="rounded-md border border-emerald-900/80 bg-emerald-950/30 p-3 text-xs text-emerald-100 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-emerald-50">Bundle source</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {onReexportBundle && (
+                  <Button type="button" size="xs" variant="outline" onClick={onReexportBundle}>
+                    Re-export bundle.json
+                  </Button>
+                )}
+                {deploymentManagerUrl && (
+                  <Button type="button" size="xs" variant="outline" asChild>
+                    <a href={deploymentManagerUrl} target="_blank" rel="noreferrer">
+                      Open deployment-manager
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p className="text-[11px] text-emerald-100/80">
+              Bundle root is derived from the manifest directory.
+            </p>
+            <p className="text-[11px] text-emerald-100">
+              {bundleRootPreview || "Unknown (add bundle_manifest_path)"}
+            </p>
+            {likelyRootMismatch && (
+              <p className="text-[11px] text-amber-100">
+                Missing artifacts detected. If your bundle assets live elsewhere, re-export the bundle so the manifest
+                and staged files sit in the same directory.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-md border border-emerald-900/80 bg-emerald-950/30 p-3 text-xs text-emerald-100 space-y-2">
+            <p className="font-semibold text-emerald-50">What this checks</p>
+            <ul className="space-y-1 text-emerald-100/90">
+              <li>Bundle manifest structure + platform targets</li>
+              <li>Staged binaries/assets in the bundle root (existence + checksums)</li>
+              <li>Runtime readiness + secrets + diagnostics via control API</li>
+            </ul>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-3">
             <PreflightStatus
               label="Bundle validation"
@@ -549,25 +938,82 @@ function BundledPreflightSection({
           )}
 
           {validation && !validation.valid && (
-            <div className="rounded-md border border-red-900/70 bg-red-950/40 p-3 text-xs text-red-200 space-y-2">
+            <div className="rounded-md border border-red-900/70 bg-red-950/40 p-3 text-xs text-red-200 space-y-3">
               <p className="font-semibold text-red-100">Bundle validation issues</p>
               {validation.errors && validation.errors.length > 0 && (
-                <ul className="space-y-1">
-                  {validation.errors.map((err, idx) => (
-                    <li key={`${err.code}-${idx}`}>
-                      {err.message}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-2">
+                  {validation.errors.map((err, idx) => {
+                    const guidance = PREFLIGHT_ISSUE_GUIDANCE[err.code];
+                    return (
+                      <div key={`${err.code}-${idx}`} className="rounded-md border border-red-900/50 bg-red-950/50 p-2 space-y-1">
+                        <p className="font-semibold text-red-100">
+                          {guidance?.title || err.code}
+                        </p>
+                        <p>{err.message}</p>
+                        {(err.service || err.path) && (
+                          <p className="text-[11px] text-red-200/80">
+                            {err.service ? `Service: ${err.service}` : ""}{err.service && err.path ? " · " : ""}{err.path ? `Path: ${err.path}` : ""}
+                          </p>
+                        )}
+                        {guidance && (
+                          <>
+                            <p className="text-[11px] text-red-200/80">{guidance.meaning}</p>
+                            <ul className="space-y-1 text-[11px] text-red-100">
+                              {guidance.remediation.map((step, stepIdx) => (
+                                <li key={`${err.code}-remedy-${stepIdx}`}>• {step}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
               {validation.missing_binaries && validation.missing_binaries.length > 0 && (
-                <p>Missing binaries: {validation.missing_binaries.map((item) => item.path).join(", ")}</p>
+                <div className="space-y-1 text-[11px] text-red-100">
+                  <p className="font-semibold text-red-100">Missing binaries</p>
+                  <ul className="space-y-1">
+                    {validation.missing_binaries.map((item, idx) => (
+                      <li key={`${item.service_id}-${item.path}-${idx}`}>
+                        {item.service_id}: {item.path} ({item.platform})
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-red-200/80">
+                    Rebuild the service binaries and re-export the bundle to update manifest paths.
+                  </p>
+                </div>
               )}
               {validation.missing_assets && validation.missing_assets.length > 0 && (
-                <p>Missing assets: {validation.missing_assets.map((item) => item.path).join(", ")}</p>
+                <div className="space-y-1 text-[11px] text-red-100">
+                  <p className="font-semibold text-red-100">Missing assets</p>
+                  <ul className="space-y-1">
+                    {validation.missing_assets.map((item, idx) => (
+                      <li key={`${item.service_id}-${item.path}-${idx}`}>
+                        {item.service_id}: {item.path}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-red-200/80">
+                    Rebuild UI/assets and re-export the bundle so the staged paths exist.
+                  </p>
+                </div>
               )}
               {validation.invalid_checksums && validation.invalid_checksums.length > 0 && (
-                <p>Invalid checksums: {validation.invalid_checksums.map((item) => item.path).join(", ")}</p>
+                <div className="space-y-1 text-[11px] text-red-100">
+                  <p className="font-semibold text-red-100">Invalid checksums</p>
+                  <ul className="space-y-1">
+                    {validation.invalid_checksums.map((item, idx) => (
+                      <li key={`${item.service_id}-${item.path}-${idx}`}>
+                        {item.service_id}: {item.path}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-red-200/80">
+                    Re-export the bundle after rebuilding assets so checksums match.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -622,6 +1068,33 @@ function BundledPreflightSection({
             </div>
           )}
 
+          {readiness && readinessDetails.length > 0 && (
+            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
+              <p className="font-semibold text-slate-100">Readiness details</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {readinessDetails.map(([serviceId, status]) => (
+                  <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
+                    <p className={`text-xs ${status.ready ? "text-emerald-200" : "text-amber-200"}`}>
+                      {status.ready ? "Ready" : "Waiting"}
+                    </p>
+                    {status.message && (
+                      <p className="text-[11px] text-slate-300">{status.message}</p>
+                    )}
+                    {typeof status.exit_code === "number" && (
+                      <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {!readiness.ready && (
+                <p className="text-[11px] text-slate-300">
+                  If readiness stays waiting, review log tails and confirm services can start with supplied secrets.
+                </p>
+              )}
+            </div>
+          )}
+
           {(portSummary || telemetry?.path) && (
             <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-200 space-y-2">
               <p className="font-semibold text-slate-100">Diagnostics</p>
@@ -664,17 +1137,74 @@ function BundledPreflightSection({
           )}
         </div>
       )}
+
+      {viewMode === "json" && (
+        <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-slate-200">Preflight JSON</p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={copyJson}
+                disabled={!preflightResult && !preflightError}
+                aria-label="Copy preflight JSON"
+                className="h-8 w-8 p-0"
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(preflightPayload, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = "preflight.json";
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={!preflightResult && !preflightError}
+                aria-label="Download preflight JSON"
+                className="h-8 w-8 p-0"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-slate-800/70 bg-slate-950/80 p-3 text-[11px] text-slate-200">
+            {JSON.stringify(preflightPayload, null, 2)}
+          </pre>
+          {copyStatus !== "idle" && (
+            <p className="text-[11px] text-slate-400">
+              {copyStatus === "copied" ? "Copied to clipboard." : "Copy failed."}
+            </p>
+          )}
+          <p className="text-[11px] text-slate-400">
+            Use this view to share the full preflight snapshot with an agent or teammate.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function DeploymentManagerBundleHelper({
-  scenarioName,
-  onBundleManifestChange
-}: {
+type DeploymentManagerBundleHelperHandle = {
+  exportBundle: () => void;
+};
+
+type DeploymentManagerBundleHelperProps = {
   scenarioName: string;
   onBundleManifestChange: (value: string) => void;
-}) {
+  onBundleExported?: (manifestPath: string) => void;
+  onDeploymentManagerUrlChange?: (url: string | null) => void;
+};
+
+const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleHelperHandle, DeploymentManagerBundleHelperProps>(
+  ({ scenarioName, onBundleManifestChange, onBundleExported, onDeploymentManagerUrlChange }, ref) => {
   const [tier, setTier] = useState("tier-2-desktop");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -684,12 +1214,22 @@ function DeploymentManagerBundleHelper({
   const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [manifestPath, setManifestPath] = useState<string | null>(null);
 
+  useImperativeHandle(ref, () => ({
+    exportBundle: () => {
+      handleExport();
+    }
+  }));
+
   const handleExport = async () => {
     setExportError(null);
     setExportMeta(null);
     setDownloadUrl(null);
     setDownloadName(null);
     setManifestPath(null);
+    setDeploymentManagerUrl(null);
+    if (onDeploymentManagerUrlChange) {
+      onDeploymentManagerUrlChange(null);
+    }
     if (!scenarioName.trim()) {
       setExportError("Enter a scenario name above before exporting the bundle.");
       return;
@@ -707,9 +1247,13 @@ function DeploymentManagerBundleHelper({
       setDownloadName(filename);
       setExportMeta({ checksum: response.checksum, generated_at: response.generated_at });
       setDeploymentManagerUrl(response.deployment_manager_url ?? null);
+      if (onDeploymentManagerUrlChange) {
+        onDeploymentManagerUrlChange(response.deployment_manager_url ?? null);
+      }
       if (response.manifest_path) {
         setManifestPath(response.manifest_path);
         onBundleManifestChange(response.manifest_path);
+        onBundleExported?.(response.manifest_path);
       }
     } catch (error) {
       setExportError((error as Error).message);
@@ -725,17 +1269,6 @@ function DeploymentManagerBundleHelper({
           <p className="text-xs uppercase tracking-wide text-slate-400">Bundle helper</p>
           <p className="text-sm font-semibold text-slate-100">Get bundle.json from deployment-manager</p>
         </div>
-        {deploymentManagerUrl && (
-          <Button
-            asChild
-            size="xs"
-            variant="ghost"
-          >
-            <a href={deploymentManagerUrl} target="_blank" rel="noreferrer">
-              Open UI
-            </a>
-          </Button>
-        )}
       </div>
       <p className="text-xs text-slate-400">
         Export a bundle manifest so this desktop build can stage services for offline use.
@@ -792,7 +1325,8 @@ function DeploymentManagerBundleHelper({
       )}
     </div>
   );
-}
+  }
+);
 
 interface ConnectionTester {
   isPending: boolean;
@@ -1266,9 +1800,11 @@ export function GeneratorForm({
   const [preflightOverride, setPreflightOverride] = useState(false);
   const [preflightSecrets, setPreflightSecrets] = useState<Record<string, string>>({});
   const [preflightStartServices, setPreflightStartServices] = useState(false);
+  const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [signingEnabledForBuild, setSigningEnabledForBuild] = useState(false);
   const isUpdateMode = selectionSource === "inventory";
+  const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
 
   const connectionDecision = useMemo(
     () => decideConnection(deploymentMode, serverType),
@@ -1377,8 +1913,9 @@ export function GeneratorForm({
     }
   });
 
-  const runPreflight = async (overrideSecrets?: Record<string, string>) => {
-    if (!bundleManifestPath.trim()) {
+  const runPreflight = async (overrideSecrets?: Record<string, string>, manifestPathOverride?: string) => {
+    const manifestPath = (manifestPathOverride ?? bundleManifestPath).trim();
+    if (!manifestPath) {
       setPreflightError("Provide bundle_manifest_path before running preflight.");
       return;
     }
@@ -1393,7 +1930,7 @@ export function GeneratorForm({
           return acc;
         }, {});
       const result = await runBundlePreflight({
-        bundle_manifest_path: bundleManifestPath,
+        bundle_manifest_path: manifestPath,
         secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         start_services: preflightStartServices,
         log_tail_lines: preflightStartServices ? 80 : undefined
@@ -1634,6 +2171,11 @@ export function GeneratorForm({
         bundleManifestPath={bundleManifestPath}
         onBundleManifestChange={setBundleManifestPath}
         scenarioName={scenarioName}
+        bundleHelperRef={bundleHelperRef}
+        onDeploymentManagerUrlChange={setDeploymentManagerUrl}
+        onBundleExported={(manifestPath) => {
+          runPreflight(undefined, manifestPath);
+        }}
       />
     ) : connectionDecision.kind === "remote-server" ? (
       <ExternalServerSection
@@ -1795,6 +2337,8 @@ export function GeneratorForm({
               preflightOverride={preflightOverride}
               preflightStartServices={preflightStartServices}
               preflightLogTails={preflightResult?.log_tails}
+              deploymentManagerUrl={deploymentManagerUrl}
+              onReexportBundle={() => bundleHelperRef.current?.exportBundle()}
               onOverrideChange={setPreflightOverride}
               onStartServicesChange={setPreflightStartServices}
               onSecretChange={(id, value) => {

@@ -323,6 +323,47 @@ func (s *Server) preflightBundleHandler(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(result)
 }
 
+// Bundle manifest display handler.
+func (s *Server) bundleManifestHandler(w http.ResponseWriter, r *http.Request) {
+	var request BundleManifestRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(request.BundleManifestPath) == "" {
+		http.Error(w, "bundle_manifest_path is required", http.StatusBadRequest)
+		return
+	}
+
+	manifestPath, err := filepath.Abs(request.BundleManifestPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("resolve bundle_manifest_path: %v", err), http.StatusBadRequest)
+		return
+	}
+	if _, err := os.Stat(manifestPath); err != nil {
+		http.Error(w, fmt.Sprintf("bundle manifest not found: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("read bundle manifest: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var manifest json.RawMessage
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		http.Error(w, fmt.Sprintf("parse bundle manifest: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(BundleManifestResponse{
+		Path:     manifestPath,
+		Manifest: manifest,
+	})
+}
+
 func mergeQuickGenerateConfig(config *DesktopConfig, request quickGenerateRequest, savedConfig *DesktopConnectionConfig, defaultOutputPath string) *DesktopConfig {
 	if config == nil {
 		return nil

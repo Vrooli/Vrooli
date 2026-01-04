@@ -1,11 +1,12 @@
 package main
 
 import (
-	"scenario-to-desktop-runtime/health"
+	"encoding/json"
 	"time"
 
 	signingtypes "scenario-to-desktop-api/signing/types"
 	runtimeapi "scenario-to-desktop-runtime/api"
+	"scenario-to-desktop-runtime/health"
 )
 
 // DesktopConfig represents the configuration for generating a desktop application
@@ -175,6 +176,17 @@ type BundlePreflightLogTail struct {
 	Lines     int    `json:"lines"`
 	Content   string `json:"content,omitempty"`
 	Error     string `json:"error,omitempty"`
+}
+
+// BundleManifestRequest requests a manifest file to be loaded for display.
+type BundleManifestRequest struct {
+	BundleManifestPath string `json:"bundle_manifest_path"`
+}
+
+// BundleManifestResponse provides a parsed manifest payload for UI display.
+type BundleManifestResponse struct {
+	Path     string          `json:"path"`
+	Manifest json.RawMessage `json:"manifest"`
 }
 
 // PlatformBuildResult represents the result of building for a specific platform
