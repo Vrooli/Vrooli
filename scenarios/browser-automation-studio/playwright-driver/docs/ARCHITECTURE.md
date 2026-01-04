@@ -509,6 +509,122 @@ See [CONTROL-SURFACE.md](../CONTROL-SURFACE.md) for full reference.
 
 ---
 
+## Module Boundaries & Testing Seams
+
+This section documents the logical boundaries between modules and key testing seams
+established during the 2025-01 architecture audit.
+
+### Module Responsibility Map
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRESENTATION LAYER                                                          │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────────────────────┐ │
+│ │ routes/     │ │ middleware/ │ │ HTTP parsing, request routing,         │ │
+│ │             │ │             │ │ response serialization                 │ │
+│ └──────┬──────┘ └──────┬──────┘ └─────────────────────────────────────────┘ │
+└────────┼───────────────┼────────────────────────────────────────────────────┘
+         │               │
+┌────────▼───────────────▼────────────────────────────────────────────────────┐
+│ ORCHESTRATION LAYER                                                         │
+│ ┌─────────────────────┐ ┌─────────────────────────────────────────────────┐ │
+│ │ execution/          │ │ Instruction validation, handler dispatch,      │ │
+│ │ instruction-executor│ │ telemetry coordination, outcome building       │ │
+│ └──────────┬──────────┘ └─────────────────────────────────────────────────┘ │
+│            │ ┌─────────────────────┐                                        │
+│            │ │ recording/          │ Record mode lifecycle, replay         │
+│            │ │ controller          │ orchestration, timeline management    │
+│            │ └──────────┬──────────┘                                        │
+└────────────┼────────────┼───────────────────────────────────────────────────┘
+             │            │
+┌────────────▼────────────▼───────────────────────────────────────────────────┐
+│ DOMAIN LAYER                                                                │
+│ ┌───────────────────┐ ┌───────────────┐ ┌───────────────────────────────┐  │
+│ │ handlers/         │ │ session/      │ │ Instruction execution,        │  │
+│ │ (28 handlers)     │ │ manager       │ │ session lifecycle, browser    │  │
+│ └─────────┬─────────┘ └───────┬───────┘ │ context management            │  │
+│           │                   │         └───────────────────────────────┘  │
+│ ┌─────────▼─────────┐ ┌───────▼───────┐                                    │
+│ │ browser-profile/  │ │ telemetry/    │ Anti-detection, human behavior,   │
+│ │                   │ │ orchestrator  │ screenshot/DOM/console/network    │
+│ └───────────────────┘ └───────────────┘                                    │
+│                                                                             │
+│ ┌───────────────────┐ ┌───────────────┐                                    │
+│ │ ai/vision-agent/  │ │ ai/action/    │ AI-driven navigation, action      │
+│ │                   │ │ executor      │ execution for vision agent        │
+│ └───────────────────┘ └───────────────┘                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+             │
+┌────────────▼────────────────────────────────────────────────────────────────┐
+│ INFRASTRUCTURE LAYER                                                        │
+│ ┌───────────────────┐ ┌───────────────┐ ┌───────────────────────────────┐  │
+│ │ utils/            │ │ infra/        │ │ Cross-cutting concerns:       │  │
+│ │ - logger          │ │ - idempotency │ │ logging, metrics, errors,     │  │
+│ │ - metrics         │ │   cache       │ │ timing, caching               │  │
+│ │ - errors          │ │               │ │                               │  │
+│ │ - timing          │ │               │ │                               │  │
+│ └───────────────────┘ └───────────────┘ └───────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Testing Seams
+
+**Dependency Injection Points** (mocking/stubbing for tests):
+
+| Module | Seam | Interface | Purpose |
+|--------|------|-----------|---------|
+| `ai/vision-agent/` | `VisionAgentDeps` | Injected deps object | Mock vision client, screenshot, action executor |
+| `ai/action/` | `ActionExecutorInterface` | `createActionExecutor()` | Mock action execution for vision tests |
+| `handlers/` | `HandlerContext` | Passed to `execute()` | Mock page, config, logger, metrics |
+| `telemetry/` | `TelemetryOrchestrator` | Class instance | Mock collectors for handler tests |
+| `recording/` | `ReplayContext` | Minimal context type | Lightweight replay testing |
+
+**Pure Function Testing**:
+
+| Module | Functions | Notes |
+|--------|-----------|-------|
+| `proto/action-type-utils` | `actionTypeToString`, `stringToActionType` | Enum conversions |
+| `outcome/outcome-builder` | `buildStepOutcome`, `toDriverOutcome` | Result transformation |
+| `execution/instruction-executor` | `validateInstruction`, `createInstructionKey` | Validation logic |
+| `browser-profile/human-behavior` | `HumanBehavior` class methods | Timing/path calculations |
+
+### Cross-Cutting Concerns
+
+The following utilities are **owned by `utils/`** and used throughout:
+
+| Utility | Location | Used By |
+|---------|----------|---------|
+| `sleep()` | `utils/timing.ts` | handlers, browser-profile, ai/action |
+| `logger` | `utils/logger.ts` | All modules |
+| `Metrics` | `utils/metrics.ts` | routes, handlers, execution |
+| Errors | `utils/errors.ts` | All modules |
+
+The following are **owned by `browser-profile/`**:
+
+| Item | Location | Used By |
+|------|----------|---------|
+| `HumanBehavior` | `browser-profile/human-behavior.ts` | handlers, ai/action |
+| `BEHAVIOR_SETTINGS_KEY` | `browser-profile/context-integration.ts` | session, handlers, routes |
+| Anti-detection | `browser-profile/anti-detection.ts` | session/context-builder |
+
+### Import Direction Rules
+
+To maintain clean boundaries:
+
+1. **Routes → Execution → Handlers** (never reverse)
+2. **Handlers → browser-profile** (for behavior settings)
+3. **All modules → utils** (cross-cutting infrastructure)
+4. **Session ↔ browser-profile** (bidirectional for context building)
+5. **AI modules are self-contained** (only depend on utils, types)
+
+### Audit History
+
+| Date | Auditor | Changes |
+|------|---------|---------|
+| 2025-01 | Architecture Audit | Moved `sleep()` from browser-profile to utils, moved `BEHAVIOR_SETTINGS_KEY` from session to browser-profile |
+
+---
+
 ## References
 
 - [API Documentation](API.md)

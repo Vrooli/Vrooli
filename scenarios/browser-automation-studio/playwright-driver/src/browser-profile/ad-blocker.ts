@@ -6,13 +6,15 @@
  * - 'ads_only': Blocks advertisements only (EasyList + uBlock filters)
  * - 'ads_and_tracking': Blocks ads + tracking scripts (includes privacy lists)
  *
- * Uses context-level route interception to support domain whitelisting.
- * This approach allows blocking to be dynamically enabled/disabled based on
- * the current page URL, even during same-tab navigation.
+ * Uses Ghostery's native enableBlockingInPage() which injects blocking scripts
+ * directly into pages. This approach:
+ * - Does NOT use route interception (avoids conflicts with service workers)
+ * - Works like browser extension ad blockers
+ * - Supports domain whitelisting at the page level
  */
 
-import { PlaywrightBlocker, Request as AdblockerRequest } from '@ghostery/adblocker-playwright';
-import type { BrowserContext, Route, Request } from 'rebrowser-playwright';
+import { PlaywrightBlocker } from '@ghostery/adblocker-playwright';
+import type { BrowserContext, Page } from 'rebrowser-playwright';
 import type { AdBlockingMode } from '../types/browser-profile';
 import { logger } from '../utils';
 
@@ -98,36 +100,52 @@ function isUrlWhitelisted(url: string, whitelist: string[]): boolean {
 }
 
 /**
- * Map Playwright resource types to adblocker request types.
- * The adblocker library uses specific type strings for matching.
+ * Enable ad blocking on a single page if not whitelisted.
+ *
+ * @param blocker - The Ghostery blocker instance
+ * @param page - The page to enable blocking on
+ * @param whitelist - Domain patterns to exclude from blocking
  */
-function mapResourceType(
-  type: string
-): 'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'xhr' | 'fetch' | 'websocket' | 'other' {
-  const mapping: Record<
-    string,
-    'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'xhr' | 'fetch' | 'websocket' | 'other'
-  > = {
-    document: 'document',
-    stylesheet: 'stylesheet',
-    image: 'image',
-    media: 'media',
-    font: 'font',
-    script: 'script',
-    xhr: 'xhr',
-    fetch: 'fetch',
-    websocket: 'websocket',
-  };
-  return mapping[type] || 'other';
+async function enableBlockingOnPage(
+  blocker: PlaywrightBlocker,
+  page: Page,
+  whitelist: string[]
+): Promise<void> {
+  try {
+    const url = page.url();
+
+    // Skip blocking for whitelisted domains
+    if (whitelist.length > 0 && isUrlWhitelisted(url, whitelist)) {
+      logger.debug('Ad blocker: skipping whitelisted page', { url });
+      return;
+    }
+
+    // Skip about:blank and other special pages
+    if (!url || url === 'about:blank' || url.startsWith('chrome:') || url.startsWith('devtools:')) {
+      return;
+    }
+
+    // Enable blocking using Ghostery's native method (script injection, not route interception)
+    await blocker.enableBlockingInPage(page);
+
+    logger.debug('Ad blocker: enabled on page', { url });
+  } catch (error) {
+    // Log but don't fail - ad blocking is best-effort
+    logger.warn('Ad blocker: failed to enable on page', {
+      url: page.url(),
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 /**
- * Apply ad blocking to a browser context using route interception.
+ * Apply ad blocking to a browser context using Ghostery's native script injection.
  *
- * This implementation uses context-level route interception instead of
- * page-level script injection. This approach supports domain whitelisting
- * that works correctly during same-tab navigation (the page URL is checked
- * on every request, not just when the page is first created).
+ * This implementation uses Ghostery's enableBlockingInPage() which injects
+ * blocking scripts directly into pages. Unlike route interception:
+ * - Does NOT conflict with service workers
+ * - Does NOT intercept/delay network requests
+ * - Works like how browser extension ad blockers work
  *
  * @param context - The browser context to apply blocking to
  * @param mode - The blocking mode ('ads_only' or 'ads_and_tracking')
@@ -141,53 +159,27 @@ export async function applyAdBlocking(
   const blocker = await getBlocker(mode);
   const domainWhitelist = whitelist ?? [];
 
-  // Use context-level route interception for whitelist support
-  await context.route('**/*', async (route: Route, request: Request) => {
-    try {
-      // Get the page's current URL to check whitelist
-      const frame = request.frame();
-      const pageUrl = frame?.url() ?? '';
+  // Enable blocking on existing pages
+  for (const page of context.pages()) {
+    await enableBlockingOnPage(blocker, page, domainWhitelist);
+  }
 
-      // Allow all requests if page is on a whitelisted domain
-      if (domainWhitelist.length > 0 && pageUrl && isUrlWhitelisted(pageUrl, domainWhitelist)) {
-        return route.continue();
+  // Enable blocking on new pages as they're created
+  context.on('page', async (page: Page) => {
+    // Wait for page to have a URL before checking whitelist
+    // This handles the case where the page is created but not yet navigated
+    await enableBlockingOnPage(blocker, page, domainWhitelist);
+
+    // Also handle navigation to new domains
+    page.on('framenavigated', async (frame) => {
+      // Only handle main frame navigations
+      if (frame === page.mainFrame()) {
+        await enableBlockingOnPage(blocker, page, domainWhitelist);
       }
-
-      // Get request details for matching
-      const requestUrl = request.url();
-      const resourceType = mapResourceType(request.resourceType());
-
-      // Create adblocker request for matching
-      const adblockerRequest = AdblockerRequest.fromRawDetails({
-        url: requestUrl,
-        type: resourceType,
-        sourceUrl: pageUrl || undefined,
-      });
-
-      // Check if request should be blocked
-      const matchResult = blocker.match(adblockerRequest);
-
-      if (matchResult.match) {
-        logger.debug('Ad blocker: blocking request', {
-          url: requestUrl,
-          type: resourceType,
-          filter: matchResult.filter?.rawLine,
-        });
-        return route.abort();
-      }
-
-      return route.continue();
-    } catch (error) {
-      // On error, allow the request to proceed
-      logger.warn('Ad blocker: error processing request', {
-        url: request.url(),
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return route.continue();
-    }
+    });
   });
 
-  logger.debug('Ad blocking applied to context (route-based)', {
+  logger.debug('Ad blocking applied to context (script injection)', {
     mode,
     whitelistDomains: domainWhitelist.length,
     whitelist: domainWhitelist,

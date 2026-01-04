@@ -26,3 +26,19 @@ export {
   type CachedEntry,
   type CacheStats,
 } from './idempotency-cache';
+
+export {
+  registerSessionCleanup,
+  cleanupSession,
+  getRegistrationCount,
+  type SessionCleanupFn,
+} from './session-cleanup-registry';
+
+export {
+  createOperationTracker,
+  downloadTracker,
+  uploadTracker,
+  tabTracker,
+  type OperationTracker,
+  type OperationTrackerConfig,
+} from './operation-tracker';

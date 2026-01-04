@@ -1,5 +1,4 @@
 import { mkdir } from 'fs/promises';
-import path from 'path';
 import type { Browser, BrowserContext } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
@@ -12,20 +11,24 @@ import {
   isAdBlockingEnabled,
   generateClientHints,
   mergeClientHintsWithHeaders,
+  BEHAVIOR_SETTINGS_KEY,
 } from '../browser-profile';
+import {
+  resolveArtifactPaths,
+  getArtifactDir,
+} from './artifact-paths';
 
-// Symbol to store behavior settings on context for handler access
-export const BEHAVIOR_SETTINGS_KEY = Symbol('behaviorSettings');
-
-// Extend BrowserContext type to include behavior settings
-declare module 'rebrowser-playwright' {
-  interface BrowserContext {
-    [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings;
-  }
-}
+// Re-export for backward compatibility (canonical location is browser-profile)
+export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
 
 /**
  * Build BrowserContext from SessionSpec
+ *
+ * ARCHITECTURE:
+ * - Viewport: fingerprint overrides spec
+ * - User agent: profile > spec > default
+ * - Artifacts: resolved via artifact-paths.ts
+ * - Anti-detection: applied via browser-profile module
  *
  * Handles:
  * - Viewport configuration
@@ -46,8 +49,12 @@ export async function buildContext(
   tracePath?: string;
   videoDir?: string;
 }> {
-  const artifactPaths = spec.artifact_paths ?? {};
-  const artifactRoot = (artifactPaths.root ?? '').trim();
+  // Resolve artifact paths using dedicated module (explicit decision logic)
+  const resolvedArtifacts = resolveArtifactPaths(
+    spec.artifact_paths,
+    spec.required_capabilities,
+    spec.execution_id
+  );
 
   // Merge browser profile with preset defaults
   const { fingerprint, behavior, antiDetection, proxy } = mergeWithPreset(spec.browser_profile);
@@ -118,14 +125,10 @@ export async function buildContext(
     });
   }
 
-  // HAR recording
-  let harPath: string | undefined;
-  if (spec.required_capabilities?.har) {
-    harPath =
-      artifactPaths.har_path ||
-      (artifactRoot ? path.join(artifactRoot, 'har', `execution-${spec.execution_id}.har`) : undefined) ||
-      `/tmp/har-${spec.execution_id}-${Date.now()}.har`;
-    await ensureDir(path.dirname(harPath), 'har');
+  // HAR recording - path resolved via artifact-paths.ts
+  const harPath = resolvedArtifacts.harPath;
+  if (harPath) {
+    await ensureDir(getArtifactDir(harPath), 'har');
     contextOptions.recordHar = {
       path: harPath,
       mode: 'minimal',
@@ -133,13 +136,9 @@ export async function buildContext(
     logger.debug('HAR recording enabled', { harPath });
   }
 
-  // Video recording
-  let videoDir: string | undefined;
-  if (spec.required_capabilities?.video) {
-    videoDir =
-      artifactPaths.video_dir ||
-      (artifactRoot ? path.join(artifactRoot, 'videos') : undefined) ||
-      `/tmp/videos-${spec.execution_id}-${Date.now()}`;
+  // Video recording - path resolved via artifact-paths.ts
+  const videoDir = resolvedArtifacts.videoDir;
+  if (videoDir) {
     await ensureDir(videoDir, 'video');
     contextOptions.recordVideo = {
       dir: videoDir,
@@ -148,15 +147,10 @@ export async function buildContext(
     logger.debug('Video recording enabled', { videoDir });
   }
 
-  // Tracing (if enabled)
-  let tracePath: string | undefined;
-  const shouldTrace = Boolean(spec.required_capabilities?.tracing);
-  if (shouldTrace) {
-    tracePath =
-      artifactPaths.trace_path ||
-      (artifactRoot ? path.join(artifactRoot, 'traces', `execution-${spec.execution_id}.zip`) : undefined) ||
-      `/tmp/trace-${spec.execution_id}-${Date.now()}.zip`;
-    await ensureDir(path.dirname(tracePath), 'trace');
+  // Tracing - path resolved via artifact-paths.ts
+  const tracePath = resolvedArtifacts.tracePath;
+  if (tracePath) {
+    await ensureDir(getArtifactDir(tracePath), 'trace');
   }
 
   // Create context
@@ -174,7 +168,7 @@ export async function buildContext(
     });
   }
 
-  // Apply ad blocking if configured
+  // Apply ad blocking if configured (uses script injection, not route interception)
   if (isAdBlockingEnabled(antiDetection.ad_blocking_mode)) {
     await applyAdBlocking(
       context,
@@ -210,8 +204,8 @@ export async function buildContext(
   };
   (context as any)[BEHAVIOR_SETTINGS_KEY] = behaviorSettings;
 
-  // Start tracing if enabled
-  if (shouldTrace && tracePath) {
+  // Start tracing if enabled (tracePath only set when tracing is requested)
+  if (tracePath) {
     await context.tracing.start({
       screenshots: true,
       snapshots: true,

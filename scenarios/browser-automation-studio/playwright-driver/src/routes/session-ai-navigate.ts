@@ -47,7 +47,7 @@ import { createVisionClient, isModelSupported, getSupportedModelIds } from '../a
 import { createScreenshotCapture, createElementAnnotator } from '../ai/screenshot';
 import { createActionExecutor } from '../ai/action';
 import { createCallbackEmitter, emitNavigationComplete, type NavigationCompleteEvent } from '../ai/emitter';
-import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
+import { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
 import type { BehaviorSettings } from '../types/browser-profile';
 
 /**

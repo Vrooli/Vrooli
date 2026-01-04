@@ -3,6 +3,7 @@ import type { HandlerInstruction } from '../types';
 import { getNetworkMockParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
+import { registerSessionCleanup } from '../infra';
 
 /** Internal params type returned by getNetworkMockParams */
 interface NetworkMockParams {
@@ -90,11 +91,16 @@ function getSessionRouteMap(sessionId: string): Map<string, RouteMetadata> {
 
 /**
  * Clear all tracked routes for a session.
- * Exported for use by session reset operations.
+ *
+ * @internal This is now registered with the session cleanup registry.
+ * Direct calls are deprecated - prefer using the cleanup registry.
  */
 export function clearSessionRoutes(sessionId: string): void {
   sessionRoutes.delete(sessionId);
 }
+
+// Register cleanup with the session cleanup registry
+registerSessionCleanup('network-routes', clearSessionRoutes);
 
 /**
  * NetworkHandler implements request interception and response mocking

@@ -33,7 +33,8 @@ import type {
   ActionExecutionContext,
 } from '../vision-agent/types';
 import type { BehaviorSettings } from '../../types/browser-profile';
-import { HumanBehavior, sleep } from '../../browser-profile/human-behavior';
+import { HumanBehavior } from '../../browser-profile/human-behavior';
+import { sleep } from '../../utils';
 
 /**
  * Default timeout for actions in milliseconds.

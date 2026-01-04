@@ -74,6 +74,11 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool' },
   SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL' },
 
+  // === Tier 2: AI Navigation (Advanced) ===
+  AI_MAX_STEPS: { tier: ConfigTier.ADVANCED, defaultValue: 20, description: 'Vision agent max steps per navigation' },
+  AI_SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'AI screenshot JPEG quality' },
+  AI_ACTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'AI action execution timeout' },
+
   // === Tier 3: Internal ===
   PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host' },
   REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout' },
@@ -91,6 +96,10 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   RECORDING_DEFAULT_SWIPE_DISTANCE: { tier: ConfigTier.INTERNAL, defaultValue: 300, description: 'Default swipe distance' },
   FRAME_STREAMING_USE_SCREENCAST: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Use CDP screencast' },
   FRAME_STREAMING_FALLBACK: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Fall back to polling' },
+  FRAME_STREAMING_CDP_ACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 1000, description: 'CDP frame ACK timeout' },
+  FRAME_STREAMING_CDP_MAX_ACK_FAILURES: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'Max CDP ACK failures before error' },
+  FRAME_STREAMING_CDP_FRAME_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Log stats every N frames' },
+  FRAME_STREAMING_CDP_PAGE_CHECK_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Multi-tab check interval' },
   PLAYWRIGHT_DRIVER_PERF_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Performance debug mode' },
   PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include timing headers' },
   PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Performance log interval' },
@@ -105,6 +114,17 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   HAR_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'HAR recording' },
   TRACING_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Playwright tracing' },
   LOG_FORMAT: { tier: ConfigTier.INTERNAL, defaultValue: 'json', description: 'Log format (json/text)' },
+
+  // === Tier 3: AI Navigation Internal ===
+  AI_STEP_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 0, description: 'Delay between AI steps' },
+  AI_MAX_HISTORY_MESSAGES: { tier: ConfigTier.INTERNAL, defaultValue: 20, description: 'AI conversation history limit' },
+  AI_MAX_ELEMENT_LABELS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements in AI context' },
+  AI_POST_ACTION_SETTLE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Delay after AI action' },
+  AI_CALLBACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 5000, description: 'AI callback request timeout' },
+  AI_CALLBACK_MAX_RETRIES: { tier: ConfigTier.INTERNAL, defaultValue: 3, description: 'AI callback retry attempts' },
+  AI_CALLBACK_RETRY_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'AI callback retry delay' },
+  AI_MAX_ELEMENTS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements to extract per page' },
+  AI_MAX_TEXT_LENGTH: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max text length per element' },
 };
 
 const ConfigSchema = z.object({
@@ -228,12 +248,50 @@ const ConfigSchema = z.object({
    * with fallback to polling-based screenshot capture.
    *
    * CDP screencast provides 30-60 FPS vs 10-15 FPS with polling.
+   *
+   * CONTROL LEVERS:
+   * - useScreencast: Strategy selection (CDP push vs polling pull)
+   * - fallbackToPolling: Resilience strategy (auto-fallback on failure)
+   * - cdp.ackTimeoutMs: CDP responsiveness vs tolerance tradeoff
+   * - cdp.maxAckFailures: Failure tolerance before logging errors
+   * - cdp.frameLogInterval: Observability vs log noise tradeoff
+   * - cdp.pageCheckIntervalMs: Multi-tab responsiveness vs CPU tradeoff
    */
   frameStreaming: z.object({
     /** Use CDP screencast (true) or legacy polling (false) */
     useScreencast: z.boolean().default(true),
     /** Fall back to polling if screencast fails */
     fallbackToPolling: z.boolean().default(true),
+    /**
+     * CDP-specific tuning options.
+     * These control the behavior of the CDP screencast strategy.
+     */
+    cdp: z.object({
+      /**
+       * Timeout (ms) for acknowledging each screencast frame.
+       * Chrome stops sending frames if ACKs are not received.
+       * Trade-off: Lower = faster failure detection, but may cause spurious timeouts on slow systems.
+       * Higher = more tolerant of system load spikes, but delays error detection.
+       */
+      ackTimeoutMs: z.number().min(100).max(10000).default(1000),
+      /**
+       * Maximum consecutive ACK failures before logging an error.
+       * Trade-off: Lower = earlier warning, more noise. Higher = quieter logs, later detection.
+       */
+      maxAckFailures: z.number().min(1).max(100).default(5),
+      /**
+       * Log frame statistics every N frames.
+       * Trade-off: Lower = more visibility, more log volume. Higher = less noise, less observability.
+       * Set to 0 to disable periodic logging.
+       */
+      frameLogInterval: z.number().min(0).max(1000).default(60),
+      /**
+       * Interval (ms) for checking if the active page has changed (multi-tab support).
+       * Screencast must be restarted when tabs change.
+       * Trade-off: Lower = faster tab switch detection, more CPU. Higher = less overhead, slower detection.
+       */
+      pageCheckIntervalMs: z.number().min(50).max(5000).default(100),
+    }),
   }),
   /**
    * Performance Debug Mode
@@ -439,6 +497,12 @@ export function loadConfig(): Config {
     frameStreaming: {
       useScreencast: process.env.FRAME_STREAMING_USE_SCREENCAST !== 'false', // Default true
       fallbackToPolling: process.env.FRAME_STREAMING_FALLBACK !== 'false', // Default true
+      cdp: {
+        ackTimeoutMs: parseEnvInt(process.env.FRAME_STREAMING_CDP_ACK_TIMEOUT_MS, 1000),
+        maxAckFailures: parseEnvInt(process.env.FRAME_STREAMING_CDP_MAX_ACK_FAILURES, 5),
+        frameLogInterval: parseEnvInt(process.env.FRAME_STREAMING_CDP_FRAME_LOG_INTERVAL, 60),
+        pageCheckIntervalMs: parseEnvInt(process.env.FRAME_STREAMING_CDP_PAGE_CHECK_INTERVAL_MS, 100),
+      },
     },
     performance: {
       enabled: process.env.PLAYWRIGHT_DRIVER_PERF_ENABLED === 'true',

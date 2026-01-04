@@ -1,7 +1,7 @@
 {
   "app": {
     "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
-    "name": "browser-automation-studio",
+    "name": "Vrooli Ascension",
     "version": "1.0.0"
   },
   "ipc": {
@@ -15,7 +15,7 @@
       "max": 24000,
       "min": 20000
     },
-    "reserved": null
+    "reserved": []
   },
   "schema_version": "v0.1",
   "services": [
@@ -31,25 +31,10 @@
           "path": "api/browser-automation-studio-api.exe"
         }
       },
-      "build": {
-        "entry_point": ".",
-        "env": {
-          "CGO_ENABLED": "0"
-        },
-        "output_pattern": "bin/{{platform}}/browser-automation-studio-api{{ext}}",
-        "source_dir": "api",
-        "type": "go"
-      },
       "data_dirs": [
         "data/api"
       ],
       "description": "Bundled API process for browser-automation-studio",
-      "env": {
-        "API_PORT": "${browser-automation-studio-api.api}",
-        "BAS_DB_BACKEND": "sqlite",
-        "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
-        "VROOLI_LIFECYCLE_MANAGED": "true"
-      },
       "health": {
         "interval_ms": 2000,
         "path": "/health",
@@ -83,9 +68,14 @@
     {
       "assets": [
         {
+          "path": "ui/dist",
+          "sha256": "pending",
+          "size_bytes": 0
+        },
+        {
           "path": "ui/dist/index.html",
-          "sha256": "54965d6ec3c1f2b18a3485add916bee1c5f390fd17a53af4f448b3eed3301397",
-          "size_bytes": 3189
+          "sha256": "b13969b54fca202e3a13b008b98c01dba195d89318a1789a2f1c7db8cdbcc540",
+          "size_bytes": 2623
         }
       ],
       "binaries": {
@@ -101,10 +91,6 @@
       },
       "critical": true,
       "description": "Production UI bundle served locally",
-      "env": {
-        "UI_PORT": "${ui.ui}",
-        "VROOLI_LIFECYCLE_MANAGED": "true"
-      },
       "health": {
         "interval_ms": 2000,
         "path": "/",
@@ -134,59 +120,6 @@
         "type": "health_success"
       },
       "type": "ui-bundle"
-    },
-    {
-      "assets": [
-        {
-          "path": "cli/browser-automation-studio",
-          "sha256": "dfe1eaf77d16a9c8f2712dbd8f600546cb63150c960a7e08e1f06c5a6e8b6ee4",
-          "size_bytes": 78740
-        }
-      ],
-      "binaries": {
-        "darwin-x64": {
-          "path": "cli/browser-automation-studio"
-        },
-        "linux-x64": {
-          "path": "cli/browser-automation-studio"
-        },
-        "win-x64": {
-          "path": "cli/browser-automation-studio.exe"
-        }
-      },
-      "build": {
-        "entry_point": ".",
-        "env": {
-          "CGO_ENABLED": "0"
-        },
-        "output_pattern": "bin/{{platform}}/browser-automation-studio{{ext}}",
-        "source_dir": "cli",
-        "type": "go"
-      },
-      "description": "CLI for browser-automation-studio scenario",
-      "env": {
-        "VROOLI_LIFECYCLE_MANAGED": "true"
-      },
-      "health": {
-        "command": [
-          "echo",
-          "healthy"
-        ],
-        "interval_ms": 10000,
-        "path": "",
-        "port_name": "",
-        "retries": 1,
-        "timeout_ms": 5000,
-        "type": "command"
-      },
-      "id": "browser-automation-studio-cli",
-      "readiness": {
-        "pattern": "",
-        "port_name": "http",
-        "timeout_ms": 5000,
-        "type": "health_success"
-      },
-      "type": "resource"
     }
   ],
   "swaps": [

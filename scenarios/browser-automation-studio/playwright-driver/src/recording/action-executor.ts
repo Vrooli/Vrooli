@@ -33,6 +33,9 @@ import { type ActionErrorCode, type BaseExecutionResult, type SelectorError } fr
 // Import handler adapter for delegating execution to handlers
 import { executeViaHandler, hasHandlerForActionType, type ReplayContext } from './handler-adapter';
 
+// Import logger for structured logging
+import { logger, LogContext, scopedLog } from '../utils';
+
 // Re-export types for consumers of this module
 export type { ActionErrorCode, SelectorError };
 
@@ -105,7 +108,9 @@ const executorRegistry = new Map<ActionType, TimelineExecutor>();
 /** Register an executor for an action type */
 export function registerTimelineExecutor(actionType: ActionType, executor: TimelineExecutor): void {
   if (executorRegistry.has(actionType)) {
-    console.warn(`[ActionExecutor] Overwriting executor for action type: ${ActionType[actionType]}`);
+    logger.warn(scopedLog(LogContext.RECORDING, 'overwriting executor for action type'), {
+      actionType: ActionType[actionType],
+    });
   }
   executorRegistry.set(actionType, executor);
 }

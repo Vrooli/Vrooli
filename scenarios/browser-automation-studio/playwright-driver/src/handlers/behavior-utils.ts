@@ -3,13 +3,114 @@
  *
  * Common utilities for applying human-like behavior settings across handlers.
  * Centralizes behavior extraction and application logic.
+ *
+ * CONTROL SURFACE:
+ * - Timeout resolution: Priority-based resolution with clear fallback chain
+ * - Behavior settings: Human-like delays and pauses for anti-detection
+ * - Mouse movement: Natural paths for realistic interaction patterns
  */
 
 import type { BrowserContext } from 'rebrowser-playwright';
 import type { BehaviorSettings } from '../types';
-import { HumanBehavior, sleep } from '../browser-profile';
-import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
+import { HumanBehavior, BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
+import { sleep } from '../utils';
 import type { HandlerContext } from './base';
+import type { Config } from '../config';
+import {
+  SCROLL_CLOSE_ENOUGH_THRESHOLD_PX,
+  SCROLL_STEP_MIN_DELAY_MS,
+  SCROLL_STEP_MAX_DELAY_MS,
+  SMOOTH_SCROLL_BASE_DURATION_MS,
+  SMOOTH_SCROLL_DISTANCE_FACTOR,
+  SMOOTH_SCROLL_MAX_DURATION_MS,
+  MOUSE_PATH_DEFAULT_STEPS,
+  MOUSE_MOVEMENT_DEFAULT_DURATION_MS,
+} from '../constants';
+
+// =============================================================================
+// TIMEOUT RESOLUTION - Decision Boundary for Timeout Selection
+// =============================================================================
+
+/**
+ * Timeout resolution category.
+ *
+ * DECISION BOUNDARY: Different operations have different default timeouts
+ * based on their expected duration and failure characteristics.
+ *
+ * Categories:
+ * - default: General operations (click, type, hover) - 30s
+ * - navigation: Page loads, navigation - 45s (networks can be slow)
+ * - wait: Explicit waits, waitForSelector - 30s
+ * - assertion: Assertions, checks - 15s (faster feedback on failures)
+ * - replay: Replay mode actions - 10s (should be fast, user is watching)
+ */
+export type TimeoutCategory = 'default' | 'navigation' | 'wait' | 'assertion' | 'replay';
+
+/**
+ * Resolve timeout value using priority-based fallback chain.
+ *
+ * DECISION LOGIC (in priority order):
+ * 1. Explicit parameter value (caller-specified)
+ * 2. Config value for the category
+ * 3. Hardcoded constant default (last resort)
+ *
+ * This design allows:
+ * - Per-instruction override (params.timeoutMs)
+ * - Per-deployment tuning (config)
+ * - Sane defaults (constants)
+ *
+ * @param paramsTimeout - Timeout from instruction parameters (highest priority)
+ * @param config - Configuration object with execution timeouts
+ * @param category - The type of operation for category-based defaults
+ * @returns Resolved timeout in milliseconds
+ */
+export function resolveTimeout(
+  paramsTimeout: number | undefined,
+  config: Config,
+  category: TimeoutCategory = 'default'
+): number {
+  // Priority 1: Explicit parameter takes precedence
+  if (paramsTimeout !== undefined && paramsTimeout > 0) {
+    return paramsTimeout;
+  }
+
+  // Priority 2: Config value based on category
+  switch (category) {
+    case 'navigation':
+      return config.execution.navigationTimeoutMs;
+    case 'wait':
+      return config.execution.waitTimeoutMs;
+    case 'assertion':
+      return config.execution.assertionTimeoutMs;
+    case 'replay':
+      return config.execution.replayActionTimeoutMs;
+    case 'default':
+    default:
+      return config.execution.defaultTimeoutMs;
+  }
+}
+
+/**
+ * Resolve timeout from context with simplified signature.
+ *
+ * Convenience wrapper for handlers that have access to HandlerContext.
+ *
+ * @param paramsTimeout - Timeout from instruction parameters
+ * @param context - Handler context containing config
+ * @param category - The type of operation
+ * @returns Resolved timeout in milliseconds
+ */
+export function resolveTimeoutFromContext(
+  paramsTimeout: number | undefined,
+  context: HandlerContext,
+  category: TimeoutCategory = 'default'
+): number {
+  return resolveTimeout(paramsTimeout, context.config, category);
+}
+
+// =============================================================================
+// BEHAVIOR SETTINGS - Human-like Behavior Utilities
+// =============================================================================
 
 /**
  * Get human behavior settings from handler context.
@@ -122,8 +223,9 @@ export async function executeHumanScroll(
   const deltaY = targetY - currentPosition.y;
   const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-  // If already at target or very close, just scroll directly
-  if (totalDistance < 10) {
+  // DECISION: If already at target or very close, use instant scroll
+  // Threshold defined in constants.ts for tuning
+  if (totalDistance < SCROLL_CLOSE_ENOUGH_THRESHOLD_PX) {
     await page.evaluate(
       ([x, y]) => {
         // @ts-expect-error - window is available in browser context
@@ -140,9 +242,9 @@ export async function executeHumanScroll(
   const stepX = deltaX / steps;
   const stepY = deltaY / steps;
 
-  // Calculate step delay
-  const minDelay = options.minStepDelayMs ?? 10;
-  const maxDelay = options.maxStepDelayMs ?? 30;
+  // Calculate step delay using constants from constants.ts
+  const minDelay = options.minStepDelayMs ?? SCROLL_STEP_MIN_DELAY_MS;
+  const maxDelay = options.maxStepDelayMs ?? SCROLL_STEP_MAX_DELAY_MS;
 
   // Execute stepped scroll
   for (let i = 1; i <= steps; i++) {
@@ -217,8 +319,13 @@ export async function executeSmoothScroll(
     Math.pow(targetX - currentPosition.x, 2) + Math.pow(targetY - currentPosition.y, 2)
   );
 
-  // Estimate scroll duration: ~300ms base + 1ms per 10 pixels
-  const estimatedDuration = Math.min(1000, 300 + distance / 10);
+  // DECISION: Estimate scroll duration based on distance
+  // Formula: base + (distance / factor), capped at max
+  // Constants defined in constants.ts for tuning
+  const estimatedDuration = Math.min(
+    SMOOTH_SCROLL_MAX_DURATION_MS,
+    SMOOTH_SCROLL_BASE_DURATION_MS + distance / SMOOTH_SCROLL_DISTANCE_FACTOR
+  );
   await sleep(estimatedDuration);
 }
 
@@ -259,8 +366,8 @@ export async function moveMouseNaturally(
   const fromX = options.fromX ?? 0;
   const fromY = options.fromY ?? 0;
 
-  // Generate natural mouse path
-  const steps = options.steps ?? 15;
+  // Generate natural mouse path using constants from constants.ts
+  const steps = options.steps ?? MOUSE_PATH_DEFAULT_STEPS;
   const path = behavior.generateMousePath({ x: fromX, y: fromY }, { x: targetX, y: targetY }, steps);
 
   if (path.length <= 1) {
@@ -268,8 +375,8 @@ export async function moveMouseNaturally(
     return;
   }
 
-  // Calculate timing
-  const totalDuration = options.durationMs ?? 150;
+  // Calculate timing using constants from constants.ts
+  const totalDuration = options.durationMs ?? MOUSE_MOVEMENT_DEFAULT_DURATION_MS;
   const stepDuration = totalDuration / (path.length - 1);
 
   // Move along path
@@ -312,4 +419,4 @@ export async function getElementCenter(
 }
 
 // Re-export sleep for convenience
-export { sleep } from '../browser-profile';
+export { sleep } from '../utils';

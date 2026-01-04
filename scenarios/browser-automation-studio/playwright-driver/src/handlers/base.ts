@@ -43,29 +43,77 @@ export type CompiledInstruction = HandlerInstruction;
  * This is the UNIFIED context type used across the execution pipeline.
  * Both handlers and the instruction executor use this same type.
  *
+ * SEAM: Unified Execution Context
+ * This interface defines the contract between the execution layer and handlers.
+ * Adding new context fields should be done here, not in individual handlers.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ FIELD LIFECYCLE:                                                        │
+ * │                                                                         │
+ * │   REQUIRED (always populated):                                          │
+ * │     page, browserContext, config, logger, metrics, sessionId            │
+ * │                                                                         │
+ * │   OPTIONAL (populated when relevant):                                   │
+ * │     tabStack - when multi-tab operations are used                       │
+ * │     frameStack - when frame navigation is used                          │
+ * │                                                                         │
+ * │   OUTPUT (handlers may populate):                                       │
+ * │     screenshot, domSnapshot, consoleLogs, networkEvents                 │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
  * NOTE: Uses `browserContext` (not `context`) to avoid confusion with
  * the overloaded term "context" in other parts of the codebase.
  */
 export interface HandlerContext {
+  // -------------------------------------------------------------------------
+  // REQUIRED FIELDS - Always populated by execution layer
+  // -------------------------------------------------------------------------
+
+  /** The main Playwright page for browser interaction */
   page: Page;
-  /** The Playwright browser context (for cookies, permissions, etc.) */
+  /** The Playwright browser context (for cookies, permissions, storage) */
   browserContext: BrowserContext;
+  /** Application configuration */
   config: Config;
+  /** Scoped logger instance */
   logger: winston.Logger;
+  /** Metrics collector for observability */
   metrics: Metrics;
+  /** Session identifier for logging and tracking */
   sessionId: string;
 
-  // Multi-tab support (Phase 3)
+  // -------------------------------------------------------------------------
+  // OPTIONAL FIELDS - Populated when relevant features are used
+  // -------------------------------------------------------------------------
+
+  /**
+   * Multi-tab support - stack of open pages.
+   * Populated when new-tab instruction opens additional tabs.
+   * The current page is always at the top of the stack.
+   */
   tabStack?: Page[];
 
-  // Frame navigation support (Phase 3)
-  // Tracks frame hierarchy for enter/exit operations
+  /**
+   * Frame navigation support - stack of frame hierarchy.
+   * Populated when enter-frame instruction navigates into iframes.
+   * Used to track frame depth for exit-frame operations.
+   */
   frameStack?: Frame[];
 
-  // Telemetry collectors (optional, handler can add if needed)
+  // -------------------------------------------------------------------------
+  // OUTPUT FIELDS - Handlers may populate for telemetry
+  // -------------------------------------------------------------------------
+
+  /**
+   * Screenshot captured during handler execution.
+   * If populated, the orchestrator will use this instead of capturing.
+   */
   screenshot?: Screenshot;
+  /** DOM snapshot captured during handler execution */
   domSnapshot?: DOMSnapshot;
+  /** Console log entries observed during execution */
   consoleLogs?: ConsoleLogEntry[];
+  /** Network events observed during execution */
   networkEvents?: NetworkEvent[];
 }
 

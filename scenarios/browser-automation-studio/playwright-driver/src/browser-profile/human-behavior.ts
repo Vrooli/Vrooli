@@ -7,6 +7,7 @@
  */
 
 import type { BehaviorSettings } from '../types/browser-profile';
+import { sleep } from '../utils/timing';
 
 export interface Point {
   x: number;
@@ -378,13 +379,8 @@ export class HumanBehavior {
   }
 }
 
-/**
- * Sleep for specified milliseconds.
- */
-export function sleep(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Re-export sleep from utils for backward compatibility
+export { sleep } from '../utils/timing';
 
 /**
  * Type text character by character with random delays.

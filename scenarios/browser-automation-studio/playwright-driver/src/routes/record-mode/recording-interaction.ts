@@ -15,6 +15,7 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger } from '../../utils';
+import { RECORDING_FRAME_CACHE_TTL_MS } from '../../constants';
 import type {
   NavigateRequest,
   NavigateResponse,
@@ -58,8 +59,7 @@ interface FrameCacheEntry {
 /** Per-session frame cache */
 const frameCache = new Map<string, FrameCacheEntry>();
 
-/** Cache TTL in milliseconds - frames older than this are considered stale */
-const FRAME_CACHE_TTL_MS = 150;
+// Frame cache TTL is defined in constants.ts (RECORDING_FRAME_CACHE_TTL_MS)
 
 /**
  * Compute MD5 hash of a buffer.
@@ -82,8 +82,8 @@ function getCachedFrame(
 
   const age = Date.now() - cached.capturedAt;
 
-  // Cache miss if expired
-  if (age > FRAME_CACHE_TTL_MS) {
+  // Cache miss if expired (TTL from constants.ts)
+  if (age > RECORDING_FRAME_CACHE_TTL_MS) {
     return null;
   }
 

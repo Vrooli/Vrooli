@@ -39,7 +39,16 @@ export {
   buildAntiDetectionArgs,
   generateAntiDetectionScript,
   applyAntiDetection,
+  getEnabledPatches,
 } from './anti-detection';
+
+// Export patch registry for advanced use (testing, debugging, selective application)
+export {
+  PATCH_REGISTRY,
+  composePatches,
+  type PatchRegistryEntry,
+  type PatchGenerator,
+} from './patches';
 
 // Export human-like behavior utilities
 export {
@@ -61,3 +70,20 @@ export {
   type ClientHintsHeaders,
   type ParsedUserAgent,
 } from './client-hints';
+
+// Export context integration (behavior settings key)
+export { BEHAVIOR_SETTINGS_KEY } from './context-integration';
+
+// Export configuration defaults (anti-detection tunable levers)
+export {
+  HARDWARE_DEFAULTS,
+  WINDOW_CHROME,
+  CONNECTION_DEFAULTS,
+  COMMON_FONTS,
+  WEBGL_DEFAULTS,
+  CANVAS_NOISE,
+  AUDIO_NOISE,
+  DEFAULT_PLUGINS,
+  DEFAULT_MIME_TYPES,
+  BATTERY_DEFAULTS,
+} from './config';

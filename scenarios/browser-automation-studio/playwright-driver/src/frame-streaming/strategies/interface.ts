@@ -11,6 +11,50 @@ import type { Page } from 'rebrowser-playwright';
 import type { FrameWebSocket } from '../types';
 
 /**
+ * CDP-specific configuration options.
+ *
+ * CONTROL LEVERS for CDP screencast strategy:
+ * - ackTimeoutMs: Responsiveness vs tolerance tradeoff
+ * - maxAckFailures: Failure tolerance threshold
+ * - frameLogInterval: Observability vs log noise
+ * - pageCheckIntervalMs: Multi-tab responsiveness vs CPU
+ */
+export interface CdpStreamingConfig {
+  /**
+   * Timeout (ms) for acknowledging each screencast frame.
+   * Chrome stops sending frames if ACKs are not received.
+   * @default 1000
+   */
+  ackTimeoutMs: number;
+  /**
+   * Maximum consecutive ACK failures before logging an error.
+   * @default 5
+   */
+  maxAckFailures: number;
+  /**
+   * Log frame statistics every N frames. 0 = disabled.
+   * @default 60
+   */
+  frameLogInterval: number;
+  /**
+   * Interval (ms) for checking if the active page changed (multi-tab support).
+   * @default 100
+   */
+  pageCheckIntervalMs: number;
+}
+
+/**
+ * Default CDP configuration values.
+ * Used when no explicit config is provided.
+ */
+export const DEFAULT_CDP_CONFIG: CdpStreamingConfig = {
+  ackTimeoutMs: 1000,
+  maxAckFailures: 5,
+  frameLogInterval: 60,
+  pageCheckIntervalMs: 100,
+};
+
+/**
  * Configuration for starting a streaming strategy.
  */
 export interface StreamingStrategyConfig {
@@ -24,6 +68,11 @@ export interface StreamingStrategyConfig {
   scale: 'css' | 'device';
   /** Whether to include performance timing headers */
   includePerfHeaders: boolean;
+  /**
+   * CDP-specific configuration (optional).
+   * If not provided, DEFAULT_CDP_CONFIG is used.
+   */
+  cdp?: Partial<CdpStreamingConfig>;
 }
 
 /**

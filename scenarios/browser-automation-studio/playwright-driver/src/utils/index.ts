@@ -30,3 +30,4 @@ export * from './metrics';
 export * from './metrics-server';
 export * from './errors';
 export * from './validation';
+export * from './timing';

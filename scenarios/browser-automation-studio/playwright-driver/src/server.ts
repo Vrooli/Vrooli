@@ -5,6 +5,7 @@ import * as handlers from './handlers';
 import * as routes from './routes';
 import { sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
+import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
 
 /**
  * Main Playwright Driver Server
@@ -173,22 +174,21 @@ async function main() {
     }
 
     // Wait for in-flight requests to complete (with timeout)
-    const drainTimeout = 30_000; // 30 seconds max drain time
+    // Timeouts from constants.ts
     const drainStart = Date.now();
-    const drainInterval = 100; // Check every 100ms
 
-    while (activeRequests > 0 && Date.now() - drainStart < drainTimeout) {
+    while (activeRequests > 0 && Date.now() - drainStart < SERVER_DRAIN_TIMEOUT_MS) {
       logger.debug('server: draining active requests', {
         remaining: activeRequests,
         elapsedMs: Date.now() - drainStart,
       });
-      await new Promise((resolve) => setTimeout(resolve, drainInterval));
+      await new Promise((resolve) => setTimeout(resolve, SERVER_DRAIN_INTERVAL_MS));
     }
 
     if (activeRequests > 0) {
       logger.warn('server: drain timeout, proceeding with shutdown', {
         remainingRequests: activeRequests,
-        drainTimeoutMs: drainTimeout,
+        drainTimeoutMs: SERVER_DRAIN_TIMEOUT_MS,
       });
     } else {
       logger.info('server: all requests drained');

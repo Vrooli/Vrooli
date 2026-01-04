@@ -1,7 +1,15 @@
+import type { Page } from 'rebrowser-playwright';
+import type winston from 'winston';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getRotateParams } from '../types';
 import { normalizeError } from '../utils';
+
+/** Typed params for device rotation */
+interface RotateParams {
+  orientation: string;
+  angle?: number;
+}
 
 /**
  * DeviceHandler implements device emulation and orientation changes
@@ -63,9 +71,9 @@ export class DeviceHandler extends BaseHandler {
    * Changes viewport dimensions to match orientation
    */
   private async handleRotate(
-    params: Record<string, unknown>,
-    page: any,
-    logger: any
+    params: RotateParams,
+    page: Page,
+    logger: winston.Logger
   ): Promise<HandlerResult> {
     const currentViewport = page.viewportSize();
 
@@ -86,8 +94,8 @@ export class DeviceHandler extends BaseHandler {
     let targetHeight: number;
     let actualAngle: number;
 
-    const orientation = (params as any).orientation;
-    const angle = (params as any).angle;
+    const orientation = params.orientation;
+    const angle = params.angle;
 
     if (orientation) {
       // Use orientation to determine dimensions
@@ -169,25 +177,17 @@ export class DeviceHandler extends BaseHandler {
     // Apply CSS transform for visual rotation if angle is 180 or 270
     if (actualAngle === 180 || actualAngle === 270) {
       await page.evaluate((rotationAngle: number) => {
-        // @ts-expect-error - document is available in browser context
         document.body.style.transform = `rotate(${rotationAngle}deg)`;
-        // @ts-expect-error - document is available in browser context
         document.body.style.transformOrigin = 'center center';
-        // @ts-expect-error - document is available in browser context
         document.body.style.width = '100vw';
-        // @ts-expect-error - document is available in browser context
         document.body.style.height = '100vh';
       }, actualAngle);
     } else {
       // Remove any existing rotation
       await page.evaluate(() => {
-        // @ts-expect-error - document is available in browser context
         document.body.style.transform = '';
-        // @ts-expect-error - document is available in browser context
         document.body.style.transformOrigin = '';
-        // @ts-expect-error - document is available in browser context
         document.body.style.width = '';
-        // @ts-expect-error - document is available in browser context
         document.body.style.height = '';
       });
     }

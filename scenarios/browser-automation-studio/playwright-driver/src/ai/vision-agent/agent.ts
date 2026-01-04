@@ -45,8 +45,17 @@ import {
   type ActionContext,
 } from './loop-detection';
 
+import { AI_DEFAULTS } from '../config';
+import {
+  isScreenshotBlockedByCaptcha,
+  isGoalAchieved,
+  isHumanInterventionRequested,
+} from './decisions';
+
 /**
  * Configuration for VisionAgent behavior.
+ *
+ * CONTROL SURFACE: See ai/config.ts for default values and tradeoff documentation.
  */
 export interface VisionAgentConfig {
   /** Default max steps if not specified in NavigationConfig */
@@ -61,6 +70,8 @@ export interface VisionAgentConfig {
   maxHistoryMessages?: number;
   /** Maximum element labels to include in context (for token efficiency) */
   maxElementLabels?: number;
+  /** Delay after action execution to let page settle (ms) */
+  postActionSettleMs?: number;
   /**
    * Loop detection configuration.
    * Controls how the agent detects when it's stuck in a loop.
@@ -68,19 +79,6 @@ export interface VisionAgentConfig {
    */
   loopDetection?: Partial<LoopDetectionConfig>;
 }
-
-/**
- * Default configuration values.
- */
-const DEFAULTS: Omit<Required<VisionAgentConfig>, 'loopDetection'> = {
-  defaultMaxSteps: 20,
-  stepDelayMs: 0,
-  screenshotQuality: 80,
-  fullPageScreenshot: false,
-  maxHistoryMessages: 20, // Keep last 20 messages to prevent context overflow
-  maxElementLabels: 50, // Limit element labels to prevent token explosion
-  // Loop detection uses DEFAULT_LOOP_CONFIG from loop-detection.ts
-};
 
 /**
  * Create a VisionAgent instance.
@@ -95,14 +93,16 @@ export function createVisionAgent(
   deps: VisionAgentDeps,
   config: VisionAgentConfig = {}
 ): VisionAgent {
-  // Merge config with defaults, ensuring all required fields are present
+  // Merge config with defaults from centralized AI config
+  // See ai/config.ts for default values and tradeoff documentation
   const cfg = {
-    defaultMaxSteps: config.defaultMaxSteps ?? DEFAULTS.defaultMaxSteps,
-    stepDelayMs: config.stepDelayMs ?? DEFAULTS.stepDelayMs,
-    screenshotQuality: config.screenshotQuality ?? DEFAULTS.screenshotQuality,
-    fullPageScreenshot: config.fullPageScreenshot ?? DEFAULTS.fullPageScreenshot,
-    maxHistoryMessages: config.maxHistoryMessages ?? DEFAULTS.maxHistoryMessages,
-    maxElementLabels: config.maxElementLabels ?? DEFAULTS.maxElementLabels,
+    defaultMaxSteps: config.defaultMaxSteps ?? AI_DEFAULTS.visionAgent.maxSteps,
+    stepDelayMs: config.stepDelayMs ?? AI_DEFAULTS.visionAgent.stepDelayMs,
+    screenshotQuality: config.screenshotQuality ?? AI_DEFAULTS.screenshot.quality,
+    fullPageScreenshot: config.fullPageScreenshot ?? AI_DEFAULTS.screenshot.fullPage,
+    maxHistoryMessages: config.maxHistoryMessages ?? AI_DEFAULTS.visionAgent.maxHistoryMessages,
+    maxElementLabels: config.maxElementLabels ?? AI_DEFAULTS.visionAgent.maxElementLabels,
+    postActionSettleMs: config.postActionSettleMs ?? AI_DEFAULTS.visionAgent.postActionSettleMs,
   };
   const loopDetector = createLoopDetector(config.loopDetection);
   let abortController: AbortController | null = null;
@@ -266,13 +266,9 @@ export function createVisionAgent(
               error: errMsg,
             });
 
-            // Check if this might be a CAPTCHA we missed - some CAPTCHAs may not be
-            // detected by DOM inspection but still block screenshots
-            const isScreenshotProtocolError = errMsg.includes('captureScreenshot') ||
-              errMsg.includes('Unable to capture screenshot') ||
-              errMsg.includes('Protocol error');
-
-            if (isScreenshotProtocolError) {
+            // DECISION: Check if screenshot failure indicates CAPTCHA/verification
+            // See decisions.ts for the patterns that trigger this
+            if (isScreenshotBlockedByCaptcha(errMsg)) {
               deps.logger.info('Screenshot blocked - treating as potential CAPTCHA/verification', {
                 navigationId: navConfig.navigationId,
               });
@@ -408,8 +404,9 @@ export function createVisionAgent(
             confidence: analysisResult.confidence,
           });
 
-          // Check if goal achieved (done action) - no execution needed
-          if (analysisResult.goalAchieved || analysisResult.action.type === 'done') {
+          // DECISION: Check if goal achieved (done action) - no execution needed
+          // See decisions.ts for goal achievement conditions
+          if (isGoalAchieved(analysisResult.goalAchieved, analysisResult.action.type)) {
             const doneAction = analysisResult.action as DoneAction;
             summary = doneAction.type === 'done' ? doneAction.result : analysisResult.reasoning;
 
@@ -438,8 +435,9 @@ export function createVisionAgent(
             break;
           }
 
-          // AI-REQUESTED HUMAN INTERVENTION: Check if AI wants human help
-          if (analysisResult.action.type === 'request_human') {
+          // DECISION: Check if AI wants human help
+          // See decisions.ts for intervention request handling
+          if (isHumanInterventionRequested(analysisResult.action.type)) {
             const humanAction = analysisResult.action as RequestHumanAction;
 
             deps.logger.info('AI requested human intervention', {
@@ -573,8 +571,10 @@ export function createVisionAgent(
 
           await safeEmit(deps, step, navConfig.callbackUrl, navConfig.onStep);
 
-          // Small delay after action to let page settle
-          await delay(100);
+          // Delay after action to let page settle (configurable via postActionSettleMs)
+          if (cfg.postActionSettleMs > 0) {
+            await delay(cfg.postActionSettleMs);
+          }
         }
 
         // Check if we hit max steps

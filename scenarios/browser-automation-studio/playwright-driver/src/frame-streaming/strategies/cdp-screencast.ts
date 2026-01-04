@@ -23,7 +23,9 @@ import type {
   WebSocketProvider,
   FrameStatsReporter,
   PageProvider,
+  CdpStreamingConfig,
 } from './interface';
+import { DEFAULT_CDP_CONFIG } from './interface';
 
 /** Frame event from CDP */
 interface ScreencastFrameEvent {
@@ -43,14 +45,18 @@ interface ScreencastFrameEvent {
   sessionId: number;
 }
 
-/** ACK timeout - prevents hanging if CDP is slow */
-const ACK_TIMEOUT_MS = 1000;
-
-/** Max consecutive ACK failures before logging error */
-const MAX_ACK_FAILURES = 5;
-
-/** Frame logging interval (every N frames) */
-const FRAME_LOG_INTERVAL = 60;
+/**
+ * Resolve CDP config by merging provided values with defaults.
+ *
+ * DECISION: Merge strategy uses spread with defaults first.
+ * This ensures all values are present while allowing partial overrides.
+ */
+function resolveCdpConfig(partial?: Partial<CdpStreamingConfig>): CdpStreamingConfig {
+  return {
+    ...DEFAULT_CDP_CONFIG,
+    ...partial,
+  };
+}
 
 /**
  * CDP Screencast streaming strategy.
@@ -77,6 +83,9 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     wsProvider: WebSocketProvider,
     statsReporter: FrameStatsReporter
   ): Promise<StreamingHandle> {
+    // Resolve CDP config with defaults for any unspecified values
+    const cdpConfig = resolveCdpConfig(config.cdp);
+
     // Get initial page - CDP screencast is bound to a specific page
     let currentPage = pageProvider();
     let cdpSession = await currentPage.context().newCDPSession(currentPage);
@@ -120,14 +129,15 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       });
     };
 
-    // Check for page changes periodically (every 100ms)
+    // Check for page changes periodically
+    // Trade-off: Lower interval = faster tab detection, more CPU overhead
     pageCheckInterval = setInterval(() => {
       if (!isActive) return;
       const newPage = pageProvider();
       if (newPage !== currentPage && !newPage.isClosed()) {
         void restartScreencastOnPage(newPage);
       }
-    }, 100);
+    }, cdpConfig.pageCheckIntervalMs);
 
     // Setup frame handler (extracted so we can re-attach after page switch)
     const setupFrameHandler = () => {
@@ -140,8 +150,8 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
           // Check WebSocket before processing
           if (!wsProvider.isReady()) {
             statsReporter.onFrameSkipped('ws_not_ready');
-            // Still need to ACK the frame
-            await ackWithTimeout(cdpSession, event.sessionId, ACK_TIMEOUT_MS);
+            // Still need to ACK the frame to prevent Chrome from stopping
+            await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
             return;
           }
 
@@ -170,8 +180,9 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
             metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
             metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
 
-            // Log periodically
-            if (frameCount % FRAME_LOG_INTERVAL === 0) {
+            // Log periodically (if enabled)
+            // DECISION: frameLogInterval=0 disables periodic logging
+            if (cdpConfig.frameLogInterval > 0 && frameCount % cdpConfig.frameLogInterval === 0) {
               logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
                 sessionId,
                 frameCount,
@@ -184,7 +195,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
           }
 
           // CRITICAL: Acknowledge frame or Chrome stops sending!
-          await ackWithTimeout(cdpSession, event.sessionId, ACK_TIMEOUT_MS);
+          await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
           ackFailures = 0;
         } catch (error) {
           ackFailures++;
@@ -197,10 +208,13 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
             ackFailures,
           });
 
-          if (ackFailures >= MAX_ACK_FAILURES) {
+          // DECISION: Log error when consecutive failures exceed threshold
+          // This indicates a potentially unhealthy CDP session
+          if (ackFailures >= cdpConfig.maxAckFailures) {
             logger.error(scopedLog(LogContext.RECORDING, 'screencast ACK failures exceeded threshold'), {
               sessionId,
               ackFailures,
+              threshold: cdpConfig.maxAckFailures,
               hint: 'CDP session may be unhealthy, consider restarting screencast',
             });
           }

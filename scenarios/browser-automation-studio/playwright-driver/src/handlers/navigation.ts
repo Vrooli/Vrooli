@@ -1,62 +1,119 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getNavigateParams } from '../types';
-import { DEFAULT_NAVIGATION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
+import { resolveTimeoutFromContext } from './behavior-utils';
 
-// Allowed URL protocols for navigation (security hardening)
+// =============================================================================
+// URL VALIDATION - Decision Boundary for Navigation Security
+// =============================================================================
+
+/**
+ * CONTROL LEVER: Allowed URL protocols for navigation.
+ *
+ * SECURITY DECISION: Only these protocols are permitted.
+ * - http/https: Standard web navigation
+ * - about: Browser internal pages (about:blank)
+ * - data: Data URLs (with restrictions on dangerous types)
+ */
 const ALLOWED_PROTOCOLS = ['http:', 'https:', 'about:', 'data:'];
 
 /**
- * Validate and normalize URL for navigation
+ * CONTROL LEVER: Dangerous URL schemes that are always blocked.
  *
- * Hardened assumptions:
- * - URL may be relative (needs base URL context)
- * - URL may have invalid format
- * - URL may use dangerous protocols (file:, javascript:)
- * - URL may exceed reasonable length limits
+ * SECURITY DECISION: These schemes can execute code or access local files.
+ * They are blocked even for relative URLs (which bypass URL() parsing).
  */
-function validateNavigationUrl(url: string): { valid: boolean; error?: string; normalized?: string } {
-  // Check for empty or whitespace-only URL
+const DANGEROUS_SCHEMES = ['javascript:', 'file:', 'vbscript:', 'data:text/html'];
+
+/**
+ * CONTROL LEVER: Maximum URL length to prevent abuse.
+ *
+ * DECISION: 8KB is generous for legitimate URLs while preventing abuse.
+ * Most browsers limit URLs to ~2KB anyway for practical purposes.
+ */
+const MAX_URL_LENGTH = 8192;
+
+/**
+ * URL validation result with structured error information.
+ */
+export interface UrlValidationResult {
+  valid: boolean;
+  error?: string;
+  normalized?: string;
+  /** Which check failed (for debugging) */
+  failedCheck?: 'empty' | 'length' | 'protocol' | 'dangerous_scheme';
+}
+
+/**
+ * Validate and normalize URL for navigation.
+ *
+ * DECISION BOUNDARY: This is the single point where URL safety is determined.
+ *
+ * Security checks performed (in order):
+ * 1. Empty URL check - reject empty/whitespace URLs
+ * 2. Length check - prevent excessively long URLs
+ * 3. Protocol allowlist - only permit safe protocols
+ * 4. Dangerous scheme blocklist - catch schemes that bypass URL() parsing
+ *
+ * @param url - The URL to validate
+ * @returns Validation result with normalized URL if valid
+ */
+export function validateNavigationUrl(url: string): UrlValidationResult {
+  // CHECK 1: Empty URL
   const trimmedUrl = url.trim();
   if (!trimmedUrl) {
-    return { valid: false, error: 'URL cannot be empty' };
+    return { valid: false, error: 'URL cannot be empty', failedCheck: 'empty' };
   }
 
-  // Check URL length (reasonable limit to prevent abuse)
-  if (trimmedUrl.length > 8192) {
-    return { valid: false, error: `URL too long: ${trimmedUrl.length} chars (max: 8192)` };
+  // CHECK 2: Length limit
+  if (trimmedUrl.length > MAX_URL_LENGTH) {
+    return {
+      valid: false,
+      error: `URL too long: ${trimmedUrl.length} chars (max: ${MAX_URL_LENGTH})`,
+      failedCheck: 'length',
+    };
   }
 
+  // CHECK 3: Parse as absolute URL and check protocol
   try {
-    // Try to parse as absolute URL first
     const parsed = new URL(trimmedUrl);
 
-    // Check protocol is allowed (security: prevent file://, javascript:// etc.)
+    // Protocol allowlist check
     if (!ALLOWED_PROTOCOLS.includes(parsed.protocol)) {
       return {
         valid: false,
         error: `Disallowed URL protocol: ${parsed.protocol}. Allowed: ${ALLOWED_PROTOCOLS.join(', ')}`,
+        failedCheck: 'protocol',
       };
     }
 
     return { valid: true, normalized: parsed.href };
   } catch {
     // URL parsing failed - could be relative URL or invalid
-    // For relative URLs, Playwright handles them with page context
-    // But we should at least check it doesn't start with dangerous schemes
-    const lowerUrl = trimmedUrl.toLowerCase();
-    const dangerousSchemes = ['javascript:', 'file:', 'vbscript:', 'data:text/html'];
-    for (const scheme of dangerousSchemes) {
-      if (lowerUrl.startsWith(scheme)) {
-        return { valid: false, error: `Disallowed URL scheme: ${scheme}` };
-      }
-    }
-
-    // Allow relative URLs - Playwright will resolve them
-    return { valid: true, normalized: trimmedUrl };
+    // Relative URLs are fine - Playwright resolves them against current page
+    // But we must still check for dangerous schemes that bypass URL() parsing
   }
+
+  // CHECK 4: Dangerous scheme blocklist for relative/malformed URLs
+  const lowerUrl = trimmedUrl.toLowerCase();
+  for (const scheme of DANGEROUS_SCHEMES) {
+    if (lowerUrl.startsWith(scheme)) {
+      return {
+        valid: false,
+        error: `Disallowed URL scheme: ${scheme}`,
+        failedCheck: 'dangerous_scheme',
+      };
+    }
+  }
+
+  // DECISION: Allow relative URLs - Playwright will resolve them
+  return { valid: true, normalized: trimmedUrl };
 }
+
+// =============================================================================
+// NAVIGATION HANDLER
+// =============================================================================
 
 /**
  * Navigation handler
@@ -112,9 +169,9 @@ export class NavigationHandler extends BaseHandler {
       }
 
       const normalizedUrl = urlValidation.normalized || url;
-      // Prefer config timeout, fallback to param, then constant default
-      const timeout = params.timeoutMs || context.config.execution.navigationTimeoutMs || DEFAULT_NAVIGATION_TIMEOUT_MS;
-      // Use 'domcontentloaded' as default - 'networkidle' times out on ad-heavy sites
+      // DECISION: Use 'navigation' category - networks can be slow, need longer timeout
+      const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'navigation');
+      // DECISION: Use 'domcontentloaded' as default - 'networkidle' times out on ad-heavy sites
       const waitUntil = (params.waitUntil || 'domcontentloaded') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
 
       logger.debug('instruction: navigate starting', {

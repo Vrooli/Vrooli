@@ -4,6 +4,7 @@ import type { HandlerInstruction } from '../types';
 import { getTabSwitchParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
+import { tabTracker } from '../infra';
 
 /** Internal params type returned by getTabSwitchParams */
 interface TabSwitchParams {
@@ -12,29 +13,6 @@ interface TabSwitchParams {
   index?: number;
   title?: string;
   urlPattern?: string;
-}
-
-/**
- * Track pending tab operations to prevent duplicate concurrent operations.
- * Key: composite of sessionId + operation + unique identifier (URL/index)
- * Value: Promise that resolves to the handler result
- *
- * Idempotency guarantee:
- * - Concurrent open requests for the same URL will await the first
- * - Concurrent switch requests to the same target will await the first
- * - Prevents duplicate tabs from retries or concurrent calls
- */
-const pendingTabOperations: Map<string, Promise<HandlerResult>> = new Map();
-
-/**
- * Generate a stable key for tab operation idempotency.
- */
-function generateTabOperationKey(
-  sessionId: string,
-  action: string,
-  identifier: string | number | undefined
-): string {
-  return `${sessionId}:${action}:${identifier ?? 'default'}`;
 }
 
 /**
@@ -130,6 +108,11 @@ export class TabHandler extends BaseHandler {
    * Idempotency behavior:
    * - Concurrent opens with the same URL will await the first operation
    * - This prevents duplicate tabs when requests are retried concurrently
+   *
+   * ARCHITECTURE:
+   * Uses the operation tracker pattern from infra/ to handle:
+   * - In-flight deduplication (prevents concurrent tab opens for same URL)
+   * - Session cleanup (tracker clears state on session close/reset)
    */
   private async handleOpenTab(
     params: TabSwitchParams,
@@ -140,28 +123,27 @@ export class TabHandler extends BaseHandler {
     const sessionId = context.sessionId;
 
     // Generate idempotency key for this open operation
-    const operationKey = generateTabOperationKey(sessionId, 'open', url);
+    const operationKey = `open:${url}`;
 
     // Idempotency: Check for in-flight open with same URL
-    const pendingOperation = pendingTabOperations.get(operationKey);
-    if (pendingOperation) {
+    const inFlight = tabTracker.getInFlight(sessionId, operationKey);
+    if (inFlight) {
       logger.debug(scopedLog(LogContext.INSTRUCTION, 'tab open already in progress, waiting'), {
         sessionId,
         url,
         hint: 'Concurrent tab open request detected; waiting for in-flight operation',
       });
-      return pendingOperation;
+      return inFlight as Promise<HandlerResult>;
     }
 
     // Create the operation promise and track it
     const operationPromise = this.executeOpenTab(params, context, url);
-    pendingTabOperations.set(operationKey, operationPromise);
+    const cleanup = tabTracker.trackInFlight(sessionId, operationKey, operationPromise);
 
     try {
       return await operationPromise;
     } finally {
-      // Clean up in-flight tracking
-      pendingTabOperations.delete(operationKey);
+      cleanup();
     }
   }
 

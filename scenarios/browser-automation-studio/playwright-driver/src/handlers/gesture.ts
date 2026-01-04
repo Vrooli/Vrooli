@@ -1,4 +1,5 @@
 import type { Page } from 'rebrowser-playwright';
+import type winston from 'winston';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
@@ -425,7 +426,7 @@ export class GestureHandler extends BaseHandler {
   private async handleSwipe(
     page: Page,
     params: GestureParams,
-    logger: any,
+    logger: winston.Logger,
     defaultDistance: number = 300,
     behavior: HumanBehavior | null = null
   ): Promise<HandlerResult> {
@@ -547,7 +548,7 @@ export class GestureHandler extends BaseHandler {
   private async handlePinchZoom(
     page: Page,
     params: GestureParams,
-    logger: any,
+    logger: winston.Logger,
     behavior: HumanBehavior | null = null
   ): Promise<HandlerResult> {
     const scale = params.scale || 1.0;

@@ -38,6 +38,7 @@
  */
 
 import type { Page } from 'rebrowser-playwright';
+import type winston from 'winston';
 import { getRecordingScript, getCleanupScript } from './injector';
 import {
   rawBrowserEventToTimelineEntry,
@@ -60,6 +61,7 @@ import {
   LOOP_DETECTION_MAX_NAVIGATIONS,
   LOOP_DETECTION_HISTORY_SIZE,
 } from '../constants';
+import { logger as defaultLogger, LogContext, scopedLog } from '../utils';
 
 // Re-export for backwards compatibility
 export type { RecordingState } from './types';
@@ -125,8 +127,12 @@ export class RecordModeController {
   /** Replay service for executing timeline entries (delegated) */
   private readonly replayService: ReplayPreviewService;
 
-  constructor(page: Page, sessionId: string) {
+  /** Logger instance for structured logging */
+  private readonly logger: winston.Logger;
+
+  constructor(page: Page, sessionId: string, logger?: winston.Logger) {
     this.page = page;
+    this.logger = logger ?? defaultLogger;
     this.state = {
       isRecording: false,
       sessionId,
@@ -211,7 +217,7 @@ export class RecordModeController {
       this.loopDetectionRouteHandler = this.createLoopDetectionRouteHandler(currentGeneration);
       const context = this.page.context();
       await context.route('**/*', this.loopDetectionRouteHandler);
-      console.log('[LoopDetection] Route handler registered on context for redirect loop detection');
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'loop detection route handler registered'));
 
       return recordingId;
     } catch (error) {
@@ -270,7 +276,7 @@ export class RecordModeController {
           try {
             const hostname = new URL(url).hostname;
             if (hostname === this.blockedLoopDomain) {
-              console.log('[LoopDetection] BLOCKING request to looping domain:', hostname);
+              this.logger.debug(scopedLog(LogContext.RECORDING, 'blocking request to looping domain'), { hostname });
               await route.abort('blockedbyclient');
               return;
             }
@@ -290,7 +296,7 @@ export class RecordModeController {
           return;
         }
 
-        console.log('[LoopDetection] Checking navigation:', url, 'History size:', this.navigationHistory.length);
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'checking navigation for loop'), { url, historySize: this.navigationHistory.length });
 
         // Check for redirect loop
         if (this.checkForRedirectLoop(url)) {
@@ -304,7 +310,7 @@ export class RecordModeController {
           // Set the blocked domain to prevent further requests
           this.blockedLoopDomain = hostname;
 
-          console.error('[LoopDetection] REDIRECT LOOP DETECTED - BLOCKING:', hostname);
+          this.logger.error(scopedLog(LogContext.RECORDING, 'redirect loop detected - blocking'), { hostname });
           this.handleError(
             new Error(
               `Redirect loop detected on ${hostname}. ` +
@@ -320,7 +326,9 @@ export class RecordModeController {
         // Allow the request to continue
         await route.continue();
       } catch (err) {
-        console.error('[LoopDetection] Error in route handler:', err);
+        this.logger.error(scopedLog(LogContext.RECORDING, 'error in route handler'), {
+          error: err instanceof Error ? err.message : String(err),
+        });
         // On error, try to continue the request
         try {
           await route.continue();
@@ -365,7 +373,7 @@ export class RecordModeController {
         const sameDomainCount = domains.filter((d) => d === newHostname).length;
 
         if (sameDomainCount >= LOOP_DETECTION_MAX_NAVIGATIONS) {
-          console.warn('[RecordModeController] Redirect loop detected (early)', {
+          this.logger.warn(scopedLog(LogContext.RECORDING, 'redirect loop detected (early)'), {
             url: newUrl,
             hostname: newHostname,
             count: sameDomainCount,
@@ -522,7 +530,9 @@ export class RecordModeController {
         }
       }
     } catch (error) {
-      console.error('[RecordModeController] Failed to capture initial navigation:', error);
+      this.logger.error(scopedLog(LogContext.RECORDING, 'failed to capture initial navigation'), {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -670,7 +680,7 @@ export class RecordModeController {
     if (this.errorCallback) {
       this.errorCallback(error);
     } else {
-      console.error('[RecordModeController] Error:', error.message);
+      this.logger.error(scopedLog(LogContext.RECORDING, 'recording error'), { error: error.message });
     }
   }
 }
@@ -678,6 +688,10 @@ export class RecordModeController {
 /**
  * Create a new RecordModeController for a page.
  */
-export function createRecordModeController(page: Page, sessionId: string): RecordModeController {
-  return new RecordModeController(page, sessionId);
+export function createRecordModeController(
+  page: Page,
+  sessionId: string,
+  logger?: winston.Logger
+): RecordModeController {
+  return new RecordModeController(page, sessionId, logger);
 }

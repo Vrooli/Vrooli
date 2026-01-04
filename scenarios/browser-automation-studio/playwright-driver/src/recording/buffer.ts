@@ -22,10 +22,16 @@
  *
  * IDEMPOTENCY: Same entry ID inserted twice is a no-op (safe for retries)
  * MEMORY SAFETY: Buffer size is capped, oldest entries evicted when full
+ *
+ * SEAM: Session Cleanup Integration
+ * This module registers with the session cleanup registry so that buffer
+ * cleanup happens automatically when sessions are closed or reset.
+ * See infra/session-cleanup-registry.ts for the cleanup pattern.
  */
 
 import type { TimelineEntry } from '../proto/recording';
 import { MAX_RECORDING_BUFFER_SIZE, logger } from '../utils';
+import { registerSessionCleanup } from '../infra';
 
 // In-memory entry buffers keyed by session ID
 const entryBuffers = new Map<string, TimelineEntry[]>();
@@ -182,4 +188,17 @@ export function isEntryBuffered(sessionId: string, entryId: string): boolean {
   const seen = seenEntryIds.get(sessionId);
   return seen?.has(entryId) ?? false;
 }
+
+// =============================================================================
+// Session Cleanup Integration
+// =============================================================================
+
+/**
+ * Register buffer cleanup with the session cleanup registry.
+ * This ensures buffers are cleaned up when sessions are closed/reset,
+ * without the session layer needing to know about recording internals.
+ */
+registerSessionCleanup('recording-buffer', (sessionId: string): void => {
+  removeRecordingBuffer(sessionId);
+});
 

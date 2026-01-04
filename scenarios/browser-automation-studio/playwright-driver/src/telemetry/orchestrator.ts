@@ -3,7 +3,7 @@
  *
  * Coordinates telemetry collection across all collectors, providing a
  * unified interface for capturing screenshots, DOM snapshots, console logs,
- * and network events.
+ * network events, and element context.
  *
  * DESIGN:
  * Previously, telemetry collection was scattered throughout routes/session-run.ts.
@@ -12,10 +12,17 @@
  * - Respects config-based enablement flags
  * - Provides a clean interface for routes and handlers
  *
+ * SEAM: Unified Telemetry Collection
+ * This is the single entry point for all telemetry operations. Adding new
+ * telemetry types should go through this orchestrator to maintain the seam.
+ *
  * USAGE:
  * ```typescript
  * const orchestrator = new TelemetryOrchestrator(page, config);
  * orchestrator.start();
+ *
+ * // Capture element context BEFORE action (optional)
+ * const elementContext = await orchestrator.captureElementContext(selector);
  *
  * // After each instruction execution:
  * const telemetry = await orchestrator.collectForStep(handlerResult);
@@ -33,6 +40,7 @@ import type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEv
 import { ConsoleLogCollector, NetworkCollector } from './collector';
 import { captureScreenshot } from './screenshot';
 import { captureDOMSnapshot } from './dom';
+import { captureElementContext, type ElementContext } from './element-context';
 
 // =============================================================================
 // Types
@@ -46,7 +54,12 @@ export interface StepTelemetry {
   domSnapshot?: DOMSnapshot;
   consoleLogs?: ConsoleLogEntry[];
   networkEvents?: NetworkEvent[];
+  /** Element context captured BEFORE action execution (optional) */
+  elementContext?: ElementContext;
 }
+
+// Re-export ElementContext for consumers
+export type { ElementContext };
 
 /**
  * Options for telemetry collection.
@@ -207,6 +220,33 @@ export class TelemetryOrchestrator {
   async captureDomSnapshot(): Promise<DOMSnapshot | undefined> {
     if (!this.config.telemetry.dom.enabled) return undefined;
     return captureDOMSnapshot(this.page, this.config);
+  }
+
+  /**
+   * Capture element context BEFORE action execution.
+   *
+   * This captures the "before" state of an element: its position, metadata,
+   * and selector confidence. Call this before executing an action on an element
+   * to get recording-quality telemetry in execution outcomes.
+   *
+   * SEAM: Element Context Capture
+   * This method provides a unified interface for element context capture,
+   * delegating to the element-context module. Handlers should call this
+   * through the orchestrator rather than directly using captureElementContext.
+   *
+   * @param selector - CSS selector to locate the element
+   * @param options - Optional configuration (timeout, text capture settings)
+   * @returns Element context with bounding box, metadata, and confidence
+   */
+  async captureElementContextForAction(
+    selector: string,
+    options?: {
+      timeout?: number;
+      captureText?: boolean;
+      maxTextLength?: number;
+    }
+  ): Promise<ElementContext> {
+    return captureElementContext(this.page, selector, options);
   }
 
   /**

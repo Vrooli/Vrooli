@@ -7,10 +7,16 @@ import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, L
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer } from '../recording/buffer';
-import { clearSessionRoutes } from '../handlers/network';
-import { clearSessionDownloadCache } from '../handlers/download';
+import { cleanupSession } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
+import {
+  findByExecutionId,
+  findByLabels,
+  shouldAttemptReuse,
+  makeReuseDecision,
+  findIdleSessions,
+} from './session-decisions';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -132,35 +138,32 @@ export class SessionManager {
     }
 
     // Idempotency: Check for existing session with same execution_id
-    // This handles replay scenarios where the same request is retried
-    const existingByExecutionId = this.findSessionByExecutionId(spec.execution_id);
+    // Decision logic is in session-decisions.ts
+    const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
     if (existingByExecutionId) {
+      const decision = makeReuseDecision(existingByExecutionId, spec, 'execution_id_match');
+
       logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
         sessionId: existingByExecutionId.id,
         executionId: spec.execution_id,
         phase: existingByExecutionId.phase,
-        hint: 'Request appears to be a retry; returning existing session',
+        decision: decision.reason,
       });
 
-      // For clean mode, reset the session state
-      if (spec.reuse_mode === 'clean') {
+      // Apply reuse decision
+      if (decision.shouldReset) {
         await this.resetSession(existingByExecutionId.id);
       }
 
       existingByExecutionId.lastUsedAt = new Date();
 
-      // Phase recovery: If session is stuck in 'executing' phase (e.g., from a crash
-      // or timeout), reset to 'ready' to allow new instructions.
-      // This is safe because:
-      // 1. We're being called with the same execution_id, indicating a retry
-      // 2. The previous execution likely failed or timed out
-      // 3. Leaving in 'executing' would permanently block the session
-      if (existingByExecutionId.phase === 'executing') {
+      // Phase recovery based on decision
+      if (decision.shouldRecoverPhase) {
         logger.warn(scopedLog(LogContext.SESSION, 'recovering from stuck executing phase'), {
           sessionId: existingByExecutionId.id,
           executionId: spec.execution_id,
           previousPhase: 'executing',
-          hint: 'Session was stuck in executing phase, resetting to ready',
+          hint: decision.reason,
         });
         existingByExecutionId.phase = 'ready';
       }
@@ -169,17 +172,20 @@ export class SessionManager {
       return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt };
     }
 
-    // Handle reuse mode (match by labels or other criteria)
-    if (spec.reuse_mode !== 'fresh') {
-      const existingSession = this.findReusableSession(spec);
+    // Handle reuse mode (match by labels)
+    // Decision logic is in session-decisions.ts
+    if (shouldAttemptReuse(spec.reuse_mode)) {
+      const existingSession = findByLabels(this.sessions.values(), spec.labels);
       if (existingSession) {
-        // Phase recovery: Log warning if session was stuck in executing phase
-        if (existingSession.phase === 'executing') {
+        const decision = makeReuseDecision(existingSession, spec, 'label_match');
+
+        // Log warning if session was stuck in executing phase
+        if (decision.shouldRecoverPhase) {
           logger.warn(scopedLog(LogContext.SESSION, 'recovering stuck session via reuse'), {
             sessionId: existingSession.id,
             reuseMode: spec.reuse_mode,
             previousPhase: existingSession.phase,
-            hint: 'Session was stuck in executing phase, will reset to ready',
+            hint: decision.reason,
           });
         }
 
@@ -188,9 +194,10 @@ export class SessionManager {
           reuseMode: spec.reuse_mode,
           previousPhase: existingSession.phase,
           instructionCount: existingSession.instructionCount,
+          decision: decision.reason,
         });
 
-        if (spec.reuse_mode === 'clean') {
+        if (decision.shouldReset) {
           await this.resetSession(existingSession.id);
         }
 
@@ -490,11 +497,6 @@ export class SessionManager {
     // Clear network mocks from session state
     session.activeMocks.clear();
 
-    // Clear network route tracking (idempotency tracking for network handlers)
-    // This ensures replayed network-mock instructions don't incorrectly think
-    // routes are already registered after a reset
-    clearSessionRoutes(sessionId);
-
     // Unroute all Playwright route handlers to match cleared state
     await session.page.unroute('**/*').catch((err) => {
       logger.warn(scopedLog(LogContext.CLEANUP, 'unroute failed'), {
@@ -503,9 +505,9 @@ export class SessionManager {
       });
     });
 
-    // Clear download cache (idempotency tracking for download handlers)
-    // This ensures replayed download instructions will actually download again
-    clearSessionDownloadCache(sessionId);
+    // Clear handler-specific caches via the cleanup registry
+    // This consolidates cleanup operations and eliminates direct handler imports
+    await cleanupSession(sessionId);
 
     // Clear executed instructions tracking for fresh state
     session.executedInstructions?.clear();
@@ -641,39 +643,11 @@ export class SessionManager {
     };
   }
 
-  /**
-   * Find session by execution_id.
-   * Used for idempotent session lookup when same execution_id is provided.
-   */
-  private findSessionByExecutionId(executionId: string): SessionState | null {
-    for (const session of this.sessions.values()) {
-      if (session.spec.execution_id === executionId) {
-        return session;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Find reusable session matching spec by labels.
-   * Note: execution_id matching is now handled separately by findSessionByExecutionId
-   * for clearer idempotency semantics.
-   */
-  private findReusableSession(spec: SessionSpec): SessionState | null {
-    for (const session of this.sessions.values()) {
-      // Match by labels (if specified)
-      if (spec.labels && session.spec.labels) {
-        const labelsMatch = Object.entries(spec.labels).every(
-          ([key, value]) => session.spec.labels?.[key] === value
-        );
-        if (labelsMatch) {
-          return session;
-        }
-      }
-    }
-
-    return null;
-  }
+  // Session lookup functions moved to session-decisions.ts:
+  // - findByExecutionId (was findSessionByExecutionId)
+  // - findByLabels (was findReusableSession)
+  // - makeReuseDecision (new - encapsulates reuse logic)
+  // - findIdleSessions (new - encapsulates idle detection)
 
   /**
    * Get count of active sessions
@@ -694,17 +668,10 @@ export class SessionManager {
 
   /**
    * Cleanup idle sessions
+   * Decision logic is in session-decisions.ts
    */
   async cleanupIdleSessions(): Promise<void> {
-    const now = Date.now();
-    const idleSessions: string[] = [];
-
-    for (const [sessionId, session] of this.sessions.entries()) {
-      const idleTimeMs = now - session.lastUsedAt.getTime();
-      if (idleTimeMs >= this.config.session.idleTimeoutMs) {
-        idleSessions.push(sessionId);
-      }
-    }
+    const idleSessions = findIdleSessions(this.sessions, this.config.session.idleTimeoutMs);
 
     if (idleSessions.length > 0) {
       logger.info('session: cleaning up idle', {

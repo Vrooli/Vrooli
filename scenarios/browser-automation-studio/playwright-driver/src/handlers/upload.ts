@@ -3,27 +3,9 @@ import type { HandlerInstruction } from '../types';
 import { getUploadFileParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
+import { uploadTracker } from '../infra';
 import { constants as fsConstants } from 'fs';
 import { access } from 'fs/promises';
-
-/**
- * Track in-flight uploads to prevent duplicate concurrent upload operations.
- * Key: composite of sessionId + selector + filePath
- * Value: Promise that resolves to the handler result
- *
- * Idempotency guarantee:
- * - Concurrent upload requests for the same selector/file will await the first
- * - Prevents race conditions when retries or concurrent calls happen
- */
-const pendingUploads: Map<string, Promise<HandlerResult>> = new Map();
-
-/**
- * Generate upload operation key for idempotency tracking.
- */
-function generateUploadKey(sessionId: string, selector: string, filePath: string | string[]): string {
-  const fileKey = Array.isArray(filePath) ? filePath.sort().join(':') : filePath;
-  return `${sessionId}:${selector}:${fileKey}`;
-}
 
 /**
  * Upload file handler
@@ -34,6 +16,11 @@ function generateUploadKey(sessionId: string, selector: string, filePath: string
  * - Setting the same file to the same input is inherently idempotent (browser behavior)
  * - Concurrent uploads for the same selector/file await the first operation
  * - This prevents race conditions when requests are retried
+ *
+ * ARCHITECTURE:
+ * Uses the operation tracker pattern from infra/ to handle:
+ * - In-flight deduplication (prevents concurrent uploads of same file)
+ * - Session cleanup (tracker clears state on session close/reset)
  */
 export class UploadHandler extends BaseHandler {
   getSupportedTypes(): string[] {
@@ -93,29 +80,29 @@ export class UploadHandler extends BaseHandler {
       // Determine the actual file path(s) to upload - single file or array
       const filePath = filePaths.length === 1 ? filePaths[0] : filePaths;
 
-      // Generate idempotency key for this upload operation
-      const uploadKey = generateUploadKey(sessionId, params.selector, filePath);
+      // Generate operation key from selector + file path
+      const fileKey = Array.isArray(filePath) ? filePath.sort().join(':') : filePath;
+      const operationKey = `${params.selector}:${fileKey}`;
 
       // Idempotency: Check for in-flight upload with same parameters
-      const pendingUpload = pendingUploads.get(uploadKey);
-      if (pendingUpload) {
+      const inFlight = uploadTracker.getInFlight(sessionId, operationKey);
+      if (inFlight) {
         logger.debug(scopedLog(LogContext.INSTRUCTION, 'upload already in progress, waiting'), {
           sessionId,
           selector: params.selector,
           hint: 'Concurrent upload request detected; waiting for in-flight operation',
         });
-        return pendingUpload;
+        return inFlight as Promise<HandlerResult>;
       }
 
       // Create the upload promise and track it
       const uploadPromise = this.executeUpload(page, params.selector, filePath, timeout, sessionId);
-      pendingUploads.set(uploadKey, uploadPromise);
+      const cleanup = uploadTracker.trackInFlight(sessionId, operationKey, uploadPromise);
 
       try {
         return await uploadPromise;
       } finally {
-        // Clean up in-flight tracking
-        pendingUploads.delete(uploadKey);
+        cleanup();
       }
     } catch (error) {
       logger.error(scopedLog(LogContext.INSTRUCTION, 'upload failed'), {

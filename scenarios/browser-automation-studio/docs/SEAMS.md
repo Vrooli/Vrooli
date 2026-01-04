@@ -333,29 +333,37 @@ interface InstructionHandler {
 
 ---
 
-### 13. SessionManager Seam (Weak)
+### 13. SessionManager Seam (Good)
 
-**Location:** `playwright-driver/src/session/manager.ts`
+**Location:** `playwright-driver/src/session/manager.ts`, `playwright-driver/src/session/browser-manager.ts`
 
 **Current Implementation:**
 ```typescript
-class SessionManager {
-    private browser: Browser | null = null;  // Direct Playwright dependency
+// BrowserManager extracted to handle browser lifecycle
+class BrowserManager {
+    private browser: Browser | null = null;
+    async getOrLaunchBrowser(config: Config): Promise<Browser>
+    async closeBrowser(): Promise<void>
+    async verifyBrowserLaunch(): Promise<string | null>
+}
 
-    private async getBrowser(): Promise<Browser> {
-        this.browser = await chromium.launch(...);  // Hardcoded
+// SessionManager delegates to BrowserManager
+class SessionManager {
+    private browserManager: BrowserManager;
+    constructor(config: Config) {
+        this.browserManager = new BrowserManager();
     }
 }
 ```
 
-**Status:** Weak
-- No interface for browser launch
-- Direct `chromium.launch()` call
-- Hard to test session management logic independently
+**Status:** Good (UPDATED 2026-01-03)
+- BrowserManager extracted from SessionManager
+- Handles browser lifecycle (launch, close, health verification)
+- SessionManager delegates browser operations to BrowserManager
+- Session layer has clean separation of concerns
 
-**Action Needed:**
-- Extract `BrowserFactory` interface
-- Inject browser creation dependency
+**Remaining Opportunity:**
+- Consider interface extraction for BrowserManager for unit testing SessionManager logic
 
 ### 14. RecordingBuffer Seam (Strong)
 
@@ -484,7 +492,7 @@ function closeMetricsServer(server: Server): Promise<void>
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
 | AI Client | Yes | Yes | Yes | - |
 | HTTP Client (Engine) | Yes | Injectable HTTPDoer | Yes | Medium |
-| SessionManager (TS) | **Missing** | **Missing** | N/A | Medium |
+| SessionManager (TS) | Yes (BrowserManager extracted) | **Partial** | N/A | Low |
 | RecordingBuffer (TS) | Yes | N/A (pure functions) | N/A | - |
 | AI Element Analyzer | Yes | Yes | Yes (interface injection) | Medium |
 | Router (TS) | Yes | N/A (coordination) | N/A | - |
@@ -514,9 +522,10 @@ function closeMetricsServer(server: Server): Promise<void>
 3. **WorkflowService Surface Trim**
    - Consider narrowing Catalog/Execution/Export into smaller interfaces for handler deps and mocks
 
-4. **TypeScript BrowserFactory**
-   - Extract browser launch into injectable factory
-   - Enable session manager unit testing
+4. **TypeScript BrowserFactory** (PARTIALLY ADDRESSED - 2026-01-03)
+   - BrowserManager extracted from SessionManager
+   - Browser lifecycle (launch, close, verify) now in dedicated class
+   - Remaining: Consider interface extraction for full testability
 
 5. **HTTP Client Test Double**
    - Add a lightweight `HTTPDoer` stub for Playwright engine unit tests when `httptest.Server` is overkill
@@ -585,6 +594,7 @@ When adding new dependencies:
 | 2025-12-17 | Claude | WorkflowService decomposition Phase 1: Created CatalogService, ExecutionService, WorkflowResolver interfaces; refactored Handler to use interface types instead of concrete *WorkflowService; updated HandlerDeps for clean dependency injection |
 | 2025-12-17 | Claude | Architectural consolidation: Merged duplicate async execution runners; centralized eventBufferLimits(); consolidated ExecutionPlan types via compiler/contracts_adapter.go |
 | 2025-12-16 | Claude | Architecture refactoring: Added internal/wire package, services/recordmode, services/recordingimport; documented new responsibility boundaries |
+| 2026-01-03 | Claude | Screaming Architecture Audit: Fixed type safety (logger: any → winston.Logger) in gesture.ts, device.ts; added logger injection to RecordModeController; replaced console.log/warn/error with structured logging in controller.ts and action-executor.ts |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement pass #2: Removed unused BaseHandler.buildOutcome (consolidated in domain/outcome-builder.ts); replaced any types with Page in assertion handler; replaced console.log with injected logger in assertNotExists |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement: Added Router (#16), OutcomeBuilder (#17), MetricsServer (#18) seams; extracted domain/outcome-builder.ts, utils/metrics-server.ts, routes/router.ts; updated responsibility boundaries |
 | 2025-12-09 | Claude | Added RecordingBuffer seam (#14), Playwright-Driver Responsibility Boundaries section; moved action buffer state from routes to recording/buffer.ts |
@@ -966,9 +976,10 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
    - Handlers could optionally receive a `TelemetryContext` for screenshot/DOM capture
    - Would allow handlers to capture telemetry without knowing infrastructure details
 
-4. **RecordModeController Separation**
+4. **RecordModeController Separation** (PARTIALLY ADDRESSED - 2026-01-03)
    - `recording/controller.ts` mixes domain logic (action normalization, confidence scoring) with integration (Playwright page interaction)
-   - Replay preview execution (~300 lines) could be extracted to a dedicated `ReplayExecutor` or moved closer to handlers
+   - Replay preview execution has been delegated to `ReplayPreviewService` (already extracted)
+   - Logger injection added to enable structured logging instead of console.log
    - Current design trades modularity for co-location of recording concerns
 
 ### Enforced Boundaries (Completed)
@@ -987,3 +998,14 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
    - Removed duplicate `BaseHandler.buildOutcome()` method
    - All outcome construction now flows through `domain/outcome-builder.ts`
    - Single source of truth for wire format transformation
+
+4. **Handler Type Safety (Extended - 2026-01-03)**
+   - Fixed `logger: any` parameters in `gesture.ts` (handleSwipe, handlePinchZoom)
+   - Fixed `page: any, logger: any` parameters in `device.ts` (handleRotate)
+   - All handlers now use properly typed `Page` and `winston.Logger` parameters
+
+5. **Recording Module Structured Logging (2026-01-03)**
+   - `RecordModeController` now accepts optional logger via constructor injection
+   - Falls back to global logger if not provided (backward compatible)
+   - Replaced 8 console.log/warn/error calls with `scopedLog()` structured logging
+   - `action-executor.ts` uses structured logging for executor registration warnings

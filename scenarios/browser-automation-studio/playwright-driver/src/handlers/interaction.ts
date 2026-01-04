@@ -8,7 +8,6 @@ import {
   getFocusParams,
   getBlurParams,
 } from '../types';
-import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 import { captureElementContext, type ElementContext } from '../telemetry';
 import {
@@ -17,6 +16,7 @@ import {
   applyPostActionPause,
   moveMouseNaturally,
   getElementCenter,
+  resolveTimeoutFromContext,
   sleep,
 } from './behavior-utils';
 import type winston from 'winston';
@@ -54,11 +54,6 @@ function successWithElementContext(elementContext: ElementContext): HandlerResul
       } : undefined,
     },
   };
-}
-
-/** Resolve timeout from params or config */
-function resolveTimeout(paramsTimeout: number | undefined, configTimeout: number | undefined): number {
-  return paramsTimeout || configTimeout || DEFAULT_TIMEOUT_MS;
 }
 
 // =============================================================================
@@ -110,7 +105,8 @@ export class InteractionHandler extends BaseHandler {
 
     if (!params.selector) return missingSelectorError('click');
 
-    const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
+    // DECISION: Use 'default' category for click operations
+    const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'default');
     const behavior = getBehaviorFromContext(context);
 
     logger.debug('instruction: click starting', {
@@ -151,7 +147,8 @@ export class InteractionHandler extends BaseHandler {
 
     if (!params.selector) return missingSelectorError('hover');
 
-    const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
+    // DECISION: Use 'default' category for hover operations
+    const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'default');
     const behavior = getBehaviorFromContext(context);
 
     logger.debug('instruction: hover starting', {
@@ -195,7 +192,8 @@ export class InteractionHandler extends BaseHandler {
 
     if (!params.selector) return missingSelectorError('type');
 
-    const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
+    // DECISION: Use 'default' category for type operations
+    const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'default');
     const behavior = getBehaviorFromContext(context);
 
     logger.debug('instruction: type starting', {
@@ -252,7 +250,8 @@ export class InteractionHandler extends BaseHandler {
 
     if (!params.selector) return missingSelectorError('focus');
 
-    const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
+    // DECISION: Use 'default' category for focus operations
+    const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'default');
     logger.debug('instruction: focus starting', { selector: params.selector, timeout });
 
     // Capture element context BEFORE the action (recording-quality telemetry)

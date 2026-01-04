@@ -40,6 +40,7 @@ export interface FingerprintSettings {
  * Predefined user agent presets.
  */
 export type UserAgentPreset =
+  | '' // Empty = auto-detect platform
   | 'chrome-win'
   | 'chrome-mac'
   | 'chrome-linux'

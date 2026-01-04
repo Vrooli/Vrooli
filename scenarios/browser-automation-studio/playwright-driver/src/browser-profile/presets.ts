@@ -23,7 +23,7 @@ export const DEFAULT_FINGERPRINT: Required<FingerprintSettings> = {
   hardware_concurrency: 4,
   device_memory: 8,
   user_agent: '',
-  user_agent_preset: 'chrome-win',
+  user_agent_preset: '', // Empty = auto-detect platform (see resolveUserAgent)
   locale: 'en-US',
   timezone_id: 'America/New_York',
   geolocation_enabled: false,
@@ -74,9 +74,7 @@ export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   patch_battery_api: false,
   patch_connection_api: false,
   ad_blocking_mode: 'ads_only',
-  // Google domains whitelisted by default because ad blockers can interfere with
-  // Google's service worker scripts, causing redirect loops (no_sw_cr=1 parameter).
-  ad_blocking_whitelist: ['*.google.com', '*.gstatic.com', '*.googleapis.com'],
+  ad_blocking_whitelist: [],
 };
 
 /**
@@ -294,7 +292,25 @@ export const USER_AGENTS: Record<string, string> = {
 };
 
 /**
+ * Get the platform-appropriate Chrome user agent preset.
+ * This ensures the user agent matches the actual platform to avoid fingerprint inconsistencies.
+ */
+function getPlatformUserAgentPreset(): string {
+  const platform = process.platform;
+  switch (platform) {
+    case 'darwin':
+      return 'chrome-mac';
+    case 'win32':
+      return 'chrome-win';
+    case 'linux':
+    default:
+      return 'chrome-linux';
+  }
+}
+
+/**
  * Get the user agent string for a preset or custom value.
+ * If no preset is specified, auto-detects the platform and uses a matching Chrome user agent.
  */
 export function resolveUserAgent(fingerprint: FingerprintSettings): string {
   // Use custom user agent if provided
@@ -307,6 +323,7 @@ export function resolveUserAgent(fingerprint: FingerprintSettings): string {
     return USER_AGENTS[fingerprint.user_agent_preset];
   }
 
-  // Default to Chrome on Windows
-  return USER_AGENTS['chrome-win'];
+  // Auto-detect platform and use matching Chrome user agent
+  const platformPreset = getPlatformUserAgentPreset();
+  return USER_AGENTS[platformPreset];
 }
