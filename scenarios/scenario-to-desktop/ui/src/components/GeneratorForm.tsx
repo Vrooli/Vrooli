@@ -26,6 +26,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
 import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
+import { ScenarioModal } from "./ScenarioModal";
 import { FrameworkModal } from "./FrameworkModal";
 import { DeploymentModal } from "./DeploymentModal";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus, ScenariosResponse } from "./scenario-inventory/types";
@@ -192,12 +193,9 @@ function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
 
 interface ScenarioSelectorProps {
   scenarioName: string;
-  useDropdown: boolean;
   loadingScenarios: boolean;
-  scenariosData?: ScenariosResponse;
   selectedScenario?: ScenarioDesktopStatus;
-  onScenarioChange: (name: string) => void;
-  onToggleInput: () => void;
+  onOpenScenarioModal: () => void;
   onLoadSaved?: () => void;
   locked?: boolean;
   onUnlock?: () => void;
@@ -205,16 +203,15 @@ interface ScenarioSelectorProps {
 
 function ScenarioSelector({
   scenarioName,
-  useDropdown,
   loadingScenarios,
-  scenariosData,
   selectedScenario,
-  onScenarioChange,
-  onToggleInput,
+  onOpenScenarioModal,
   onLoadSaved,
   locked = false,
   onUnlock
 }: ScenarioSelectorProps) {
+  const displayName = selectedScenario?.display_name || scenarioName;
+
   if (locked && scenarioName) {
     return (
       <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 flex items-center justify-between gap-3">
@@ -251,49 +248,31 @@ function ScenarioSelector({
           )}
           <button
             type="button"
-            onClick={onToggleInput}
+            onClick={onOpenScenarioModal}
             className="text-xs text-blue-400 hover:text-blue-300"
           >
-            {useDropdown ? "Enter manually" : "Select from list"}
+            Browse scenarios
           </button>
         </div>
       </div>
 
-      {useDropdown ? (
-        <Select
-          id="scenarioName"
-          value={scenarioName}
-          onChange={(e) => onScenarioChange(e.target.value)}
-          className="mt-1.5"
-          disabled={loadingScenarios}
-        >
-          <option value="">
-            {loadingScenarios ? "Loading scenarios..." : "Select a scenario..."}
-          </option>
-          {scenariosData?.scenarios
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((scenario) => (
-              <option key={scenario.name} value={scenario.name}>
-                {scenario.name}
-                {scenario.display_name ? ` (${scenario.display_name})` : ""}
-                {scenario.has_desktop ? " — Desktop ready" : ""}
-              </option>
-            ))}
-        </Select>
-      ) : (
-        <Input
-          id="scenarioName"
-          value={scenarioName}
-          onChange={(e) => onScenarioChange(e.target.value)}
-          placeholder="e.g., picker-wheel"
-          required
-          className="mt-1.5"
-        />
-      )}
+      <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-100">
+              {displayName || (loadingScenarios ? "Loading scenarios..." : "Select a scenario")}
+            </p>
+            <p className="text-xs text-slate-400">
+              {scenarioName ? `Slug: ${scenarioName}` : "Browse scenarios to choose a desktop target."}
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={onOpenScenarioModal}>
+            Browse scenarios
+          </Button>
+        </div>
+      </div>
       <p className="mt-1.5 text-xs text-slate-400">
-        {useDropdown
-          ? "Select from available scenarios that don't have desktop versions yet"
-          : "Enter scenario name manually (must exist in scenarios directory)"}
+        Select from available scenarios or enter a slug from the modal.
       </p>
     </div>
   );
@@ -412,16 +391,22 @@ interface BundledRuntimeSectionProps {
 
 function BundledRuntimeSection({ bundleManifestPath, onBundleManifestChange, scenarioName }: BundledRuntimeSectionProps) {
   return (
-    <div className="rounded-lg border border-emerald-900 bg-emerald-950/10 p-4 space-y-3">
-      <Label htmlFor="bundleManifest">bundle_manifest_path</Label>
+    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
+      <div>
+        <Label htmlFor="bundleManifest">bundle_manifest_path</Label>
+        <p className="text-xs text-slate-400 mb-2">
+          Paste the bundle manifest exported by deployment-manager. This tells the desktop runtime how to stage services
+          for offline use.
+        </p>
+      </div>
       <Input
         id="bundleManifest"
         value={bundleManifestPath}
         onChange={(e) => onBundleManifestChange(e.target.value)}
         placeholder="/home/you/Vrooli/docs/deployment/examples/manifests/desktop-happy.json"
       />
-      <p className="text-xs text-emerald-200/80">
-        Stages the manifest and bundled binaries so the packaged runtime can launch the scenario offline.
+      <p className="text-xs text-slate-400">
+        Desktop builds use this file to bundle services and data alongside the app.
       </p>
       <DeploymentManagerBundleHelper
         scenarioName={scenarioName}
@@ -733,9 +718,12 @@ function DeploymentManagerBundleHelper({
   };
 
   return (
-    <div className="rounded-md border border-emerald-800/60 bg-emerald-900/30 p-3 space-y-3 text-xs text-emerald-100">
+    <div className="rounded border border-slate-800 bg-black/20 p-3 space-y-3 text-xs text-slate-200">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-semibold text-emerald-100">Get bundle.json from deployment-manager</p>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-400">Bundle helper</p>
+          <p className="text-sm font-semibold text-slate-100">Get bundle.json from deployment-manager</p>
+        </div>
         {deploymentManagerUrl && (
           <Button
             asChild
@@ -748,8 +736,11 @@ function DeploymentManagerBundleHelper({
           </Button>
         )}
       </div>
+      <p className="text-xs text-slate-400">
+        Export a bundle manifest so this desktop build can stage services for offline use.
+      </p>
       <div className="space-y-1">
-        <Label className="text-[11px] uppercase tracking-wide text-emerald-200/70">Tier</Label>
+        <Label className="text-[11px] uppercase tracking-wide text-slate-400">Tier</Label>
         <Select value={tier} onChange={(e) => setTier(e.target.value)} className="mt-0.5">
           <option value="tier-2-desktop">tier-2-desktop</option>
           <option value="tier-3-mobile" disabled>
@@ -758,7 +749,7 @@ function DeploymentManagerBundleHelper({
         </Select>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="secondary" onClick={handleExport} disabled={exporting}>
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
           {exporting ? "Exporting..." : "Export bundle.json"}
         </Button>
         {downloadUrl && downloadName && (
@@ -777,13 +768,13 @@ function DeploymentManagerBundleHelper({
         )}
       </div>
       {exportMeta && (
-        <p className="text-[11px] text-emerald-100/80">
+        <p className="text-[11px] text-slate-300">
           Exported {exportMeta.generated_at || "just now"}
           {exportMeta.checksum ? ` · checksum ${exportMeta.checksum.slice(0, 8)}…` : ""}
         </p>
       )}
       {manifestPath && (
-        <p className="text-[11px] text-emerald-100/80">
+        <p className="text-[11px] text-slate-300">
           Saved to {manifestPath}
         </p>
       )}
@@ -793,7 +784,7 @@ function DeploymentManagerBundleHelper({
         </p>
       )}
       {!exportError && !downloadUrl && (
-        <p className="text-[11px] text-emerald-100/70">
+        <p className="text-[11px] text-slate-400">
           Start deployment-manager (`vrooli scenario start deployment-manager`), then click Export. The manifest will be
           saved into the scenario bundle folder and the path above will be filled automatically.
         </p>
@@ -1238,7 +1229,6 @@ export function GeneratorForm({
   onOpenSigningTab
 }: GeneratorFormProps) {
   const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
-  const [useDropdown, setUseDropdown] = useState(true);
   const [appDisplayName, setAppDisplayName] = useState(
     scenarioName ? `${scenarioName} Desktop` : ""
   );
@@ -1266,6 +1256,7 @@ export function GeneratorForm({
   const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
   const [autoManageTier1, setAutoManageTier1] = useState(false);
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
+  const [scenarioModalOpen, setScenarioModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
@@ -1495,7 +1486,7 @@ export function GeneratorForm({
   };
 
   useEffect(() => {
-    if (!useDropdown || !scenarioName) {
+    if (!scenarioName) {
       return;
     }
     const updatedAt = selectedScenario?.connection_config?.updated_at;
@@ -1508,7 +1499,7 @@ export function GeneratorForm({
     }
     applySavedConnection(selectedScenario?.connection_config);
     setLastLoadedScenario(configKey);
-  }, [useDropdown, scenarioName, selectedScenario?.connection_config?.updated_at, lastLoadedScenario, selectedScenario?.connection_config]);
+  }, [scenarioName, selectedScenario?.connection_config?.updated_at, lastLoadedScenario, selectedScenario?.connection_config]);
 
   useEffect(() => {
     if (connectionDecision.kind === "bundled-runtime") {
@@ -1666,12 +1657,9 @@ export function GeneratorForm({
           )}
           <ScenarioSelector
             scenarioName={scenarioName}
-            useDropdown={useDropdown}
             loadingScenarios={loadingScenarios}
-            scenariosData={scenariosData}
             selectedScenario={selectedScenario}
-            onScenarioChange={onScenarioNameChange}
-            onToggleInput={() => setUseDropdown(!useDropdown)}
+            onOpenScenarioModal={() => setScenarioModalOpen(true)}
             onLoadSaved={
               selectedScenario?.connection_config
                 ? () => applySavedConnection(selectedScenario.connection_config)
@@ -1827,6 +1815,17 @@ export function GeneratorForm({
             </div>
           )}
         </form>
+        <ScenarioModal
+          open={scenarioModalOpen}
+          loading={loadingScenarios}
+          scenarios={scenariosData?.scenarios ?? []}
+          selectedScenarioName={scenarioName}
+          onClose={() => setScenarioModalOpen(false)}
+          onSelect={(name) => {
+            onScenarioNameChange(name);
+            setScenarioModalOpen(false);
+          }}
+        />
         <TemplateModal
           open={templateModalOpen}
           selectedTemplate={selectedTemplate}
