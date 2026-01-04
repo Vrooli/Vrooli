@@ -151,6 +151,47 @@ export interface ConfigComponent {
   };
 }
 
+/**
+ * Extended event flow test result with detailed diagnostics.
+ * Mirrors the backend EventFlowTestResult type.
+ */
+export interface EventFlowTestResult {
+  /** Whether the overall test passed */
+  passed: boolean;
+  /** Whether the console test event was sent */
+  eventSent: boolean;
+  /** Whether the console test event was received by Playwright */
+  eventReceived: boolean;
+  /** Round-trip latency for console event (ms) */
+  latencyMs?: number;
+  /** Error message if test failed */
+  error?: string;
+  /** Page URL at time of test */
+  pageUrl?: string;
+  /** Whether page is a valid HTTP(S) page */
+  pageValid?: boolean;
+  /** Script status from CDP evaluation in MAIN context */
+  scriptStatus?: {
+    loaded: boolean;
+    ready: boolean;
+    inMainContext: boolean;
+    handlersCount: number;
+    version?: string | null;
+  };
+  /** Result of testing the actual fetch event path */
+  fetchTest?: {
+    sent: boolean;
+    status: number | null;
+    error: string | null;
+  };
+  /** Console capture statistics during test */
+  consoleCapture?: {
+    count: number;
+    hasErrors: boolean;
+    samples?: Array<{ type: string; text: string }>;
+  };
+}
+
 export interface RecordingDiagnostics {
   ready: boolean;
   timestamp: string;
@@ -168,6 +209,8 @@ export interface RecordingDiagnostics {
     evaluateIsolated: boolean;
     exposeBindingIsolated: boolean;
   };
+  /** Event flow test result (FULL level only) */
+  eventFlowTest?: EventFlowTestResult;
 }
 
 export interface DeepDiagnostics {

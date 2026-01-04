@@ -113,12 +113,53 @@ export interface RecordingDiagnosticResult {
     exposeBindingIsolated: boolean;
   };
   /** Event flow test result (only for FULL level) */
-  eventFlowTest?: {
-    passed: boolean;
-    eventSent: boolean;
-    eventReceived: boolean;
-    latencyMs?: number;
-    error?: string;
+  eventFlowTest?: EventFlowTestResult;
+}
+
+/**
+ * Extended event flow test result with detailed diagnostics.
+ */
+export interface EventFlowTestResult {
+  /** Whether the overall test passed */
+  passed: boolean;
+  /** Whether the console test event was sent */
+  eventSent: boolean;
+  /** Whether the console test event was received by Playwright */
+  eventReceived: boolean;
+  /** Round-trip latency for console event (ms) */
+  latencyMs?: number;
+  /** Error message if test failed */
+  error?: string;
+
+  // === Extended diagnostic info ===
+
+  /** Page URL at time of test */
+  pageUrl?: string;
+  /** Whether page is a valid HTTP(S) page */
+  pageValid?: boolean;
+
+  /** Script status from CDP evaluation in MAIN context */
+  scriptStatus?: {
+    loaded: boolean;
+    ready: boolean;
+    inMainContext: boolean;
+    handlersCount: number;
+    version?: string | null;
+  };
+
+  /** Result of testing the actual fetch event path */
+  fetchTest?: {
+    sent: boolean;
+    status: number | null;
+    error: string | null;
+  };
+
+  /** Console capture statistics during test */
+  consoleCapture?: {
+    count: number;
+    hasErrors: boolean;
+    /** Sample of captured messages for debugging */
+    samples?: Array<{ type: string; text: string }>;
   };
 }
 
@@ -381,107 +422,277 @@ function checkScriptVerification(
 /**
  * Test the event flow from browser to Node.js.
  *
- * This test verifies that:
- * 1. The recording script is active and can execute code
- * 2. The __VROOLI_RECORDER__ global is accessible
- * 3. Console messages are being captured by Playwright
+ * This comprehensive test verifies:
+ * 1. Page is a valid HTTP(S) page (not about:blank or chrome://)
+ * 2. Recording script is loaded and ready in MAIN context (via CDP)
+ * 3. The actual fetch event path (/__vrooli_recording_event__) works
+ * 4. Console messages can be captured by Playwright
  *
- * Note: This is a basic connectivity test, not a full event flow verification.
- * The script verification (verifyScriptInjection) is the primary check for recording readiness.
+ * Uses CDP for MAIN context access since rebrowser-playwright runs
+ * page.evaluate() in ISOLATED context.
  */
 async function testEventFlow(
   page: Page,
   _context: BrowserContext,
   timeoutMs: number,
-  _logger: winston.Logger
-): Promise<RecordingDiagnosticResult['eventFlowTest']> {
+  logger: winston.Logger
+): Promise<EventFlowTestResult> {
   const testEventId = `diag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  let eventReceived = false;
-  let receiveTime = 0;
-  let consoleHandler: ((msg: import('rebrowser-playwright').ConsoleMessage) => void) | null = null;
+  const logPrefix = 'event flow test:';
 
-  // Set up the console listener BEFORE sending the event to avoid race condition
-  const consolePromise = new Promise<void>((resolve) => {
-    consoleHandler = (msg) => {
-      if (msg.text().includes(testEventId)) {
-        receiveTime = Date.now();
-        eventReceived = true;
-        resolve();
-      }
-    };
-    page.on('console', consoleHandler);
-  });
-
-  // Create a timeout promise
-  const timeoutPromise = new Promise<void>((resolve) => {
-    setTimeout(resolve, timeoutMs);
-  });
-
-  // Send a test event from the browser
-  const sendTime = Date.now();
-  let eventSent = false;
-  let recorderAccessible = false;
-
+  // === Step 1: Check page state ===
+  let pageUrl: string;
   try {
-    // Test both console messaging and recorder global access
-    const result = await page.evaluate((eventId: string) => {
-      // Log the test event
-      console.log(`[DiagnosticTest] ${eventId}`);
-
-      // Check if the recorder global is accessible
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const recorder = (window as any).__VROOLI_RECORDER__;
-      const hasRecorder = typeof recorder === 'object' && recorder !== null;
-
-      return {
-        hasRecorder,
-        isReady: hasRecorder && typeof recorder.isReady === 'function' ? recorder.isReady() : false,
-      };
-    }, testEventId);
-
-    eventSent = true;
-    recorderAccessible = result.hasRecorder;
+    pageUrl = page.url();
   } catch (error) {
-    // Clean up listener before returning
-    if (consoleHandler) {
-      page.off('console', consoleHandler);
-    }
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} failed to get page URL`), {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {
       passed: false,
       eventSent: false,
       eventReceived: false,
+      error: 'Failed to get page URL - page may be closed',
+    };
+  }
+
+  const isBlankPage = pageUrl === 'about:blank' || pageUrl === '';
+  const isChromePage = pageUrl.startsWith('chrome:') || pageUrl.startsWith('chrome-extension:');
+  const isValidPage = pageUrl.startsWith('http://') || pageUrl.startsWith('https://');
+
+  logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} page state`), {
+    url: pageUrl.slice(0, 100),
+    isBlankPage,
+    isChromePage,
+    isValidPage,
+  });
+
+  // Early return for pages where recording cannot work
+  if (isBlankPage || isChromePage) {
+    const reason = isBlankPage ? 'about:blank' : 'chrome:// URL';
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} skipping - invalid page type`), { reason });
+    return {
+      passed: false,
+      eventSent: false,
+      eventReceived: false,
+      pageUrl,
+      pageValid: false,
+      error: `Page is ${reason} - recording script cannot be injected on these pages`,
+    };
+  }
+
+  // === Step 2: Set up console capture for ALL messages ===
+  const capturedConsole: Array<{ type: string; text: string }> = [];
+  let eventReceived = false;
+  let receiveTime = 0;
+
+  const consoleHandler = (msg: import('rebrowser-playwright').ConsoleMessage) => {
+    const text = msg.text();
+    capturedConsole.push({ type: msg.type(), text: text.slice(0, 200) });
+    if (text.includes(testEventId)) {
+      receiveTime = Date.now();
+      eventReceived = true;
+    }
+  };
+  page.on('console', consoleHandler);
+
+  logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} console listener attached`));
+
+  // === Step 3: Use CDP to check recording globals in MAIN context ===
+  // This fixes the bug where we checked for __VROOLI_RECORDER__ which doesn't exist
+  let scriptStatus: EventFlowTestResult['scriptStatus'] | undefined;
+
+  try {
+    const client = await page.context().newCDPSession(page);
+    try {
+      const { result } = await client.send('Runtime.evaluate', {
+        expression: `(function() {
+          return JSON.stringify({
+            loaded: window.__vrooli_recording_script_loaded === true,
+            ready: window.__vrooli_recording_ready === true,
+            inMainContext: window.__vrooli_recording_script_context === 'MAIN',
+            handlersCount: window.__vrooli_recording_handlers_count || 0,
+            version: window.__vrooli_recording_script_version || null
+          });
+        })()`,
+        returnByValue: true,
+      });
+
+      if (result.type === 'string' && result.value) {
+        scriptStatus = JSON.parse(result.value);
+        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} CDP script status`), scriptStatus);
+      }
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch (error) {
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} CDP script check failed`), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // === Step 4: Test the actual recording fetch event path via CDP ===
+  let fetchTest: EventFlowTestResult['fetchTest'] | undefined;
+
+  try {
+    const client = await page.context().newCDPSession(page);
+    try {
+      const { result } = await client.send('Runtime.evaluate', {
+        expression: `(async function() {
+          try {
+            const response = await fetch('/__vrooli_recording_event__', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                actionType: 'diagnostic-test',
+                timestamp: Date.now(),
+                testId: '${testEventId}',
+                url: window.location.href
+              }),
+              keepalive: true,
+            });
+            return JSON.stringify({ sent: true, status: response.status, error: null });
+          } catch (e) {
+            return JSON.stringify({ sent: false, status: null, error: e.message });
+          }
+        })()`,
+        returnByValue: true,
+        awaitPromise: true,
+      });
+
+      if (result.type === 'string' && result.value) {
+        fetchTest = JSON.parse(result.value);
+        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} fetch path test result`), fetchTest);
+      }
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch (error) {
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} fetch path test failed`), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    fetchTest = {
+      sent: false,
+      status: null,
       error: error instanceof Error ? error.message : String(error),
     };
   }
 
-  // Wait for either the console event or timeout
-  await Promise.race([consolePromise, timeoutPromise]);
+  // === Step 5: Send console test event via CDP in MAIN context ===
+  const sendTime = Date.now();
+  let eventSent = false;
 
-  // Clean up listener
-  if (consoleHandler) {
-    page.off('console', consoleHandler);
+  try {
+    const client = await page.context().newCDPSession(page);
+    try {
+      await client.send('Runtime.evaluate', {
+        expression: `console.log('[DiagnosticTest] ${testEventId}')`,
+      });
+      eventSent = true;
+      logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} console test event sent via CDP`));
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch (error) {
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} console send via CDP failed`), {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
+  // === Step 6: Wait for console message or timeout ===
+  if (eventSent && !eventReceived) {
+    const waitStart = Date.now();
+    const pollInterval = 50;
+
+    while (Date.now() - waitStart < timeoutMs && !eventReceived) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} console wait complete`), {
+      eventReceived,
+      waitedMs: Date.now() - waitStart,
+      capturedCount: capturedConsole.length,
+    });
+  }
+
+  // === Step 7: Cleanup console listener ===
+  page.off('console', consoleHandler);
+
+  // === Step 8: Analyze results and determine pass/fail ===
   const latencyMs = eventReceived ? receiveTime - sendTime : undefined;
 
-  // The test passes if:
-  // 1. We could send the event (page.evaluate worked)
-  // 2. Either the console event was received OR the recorder global is accessible
-  // Console capture can be unreliable in some contexts, so we don't fail just on that
-  const passed = eventSent && (eventReceived || recorderAccessible);
+  // Script is ready if loaded, ready flag set, and running in MAIN context
+  const scriptReady = scriptStatus?.loaded && scriptStatus?.ready && scriptStatus?.inMainContext;
+
+  // Fetch works if we got a 200 response from the route handler
+  const fetchWorks = fetchTest?.sent && fetchTest?.status === 200;
+
+  // Pass if EITHER script is ready OR fetch path works
+  // (Script status is the authoritative check, fetch is the actual event path test)
+  const passed = scriptReady || fetchWorks;
+
+  // Build error message for failures
+  let errorMessage: string | undefined;
+  if (!passed) {
+    const reasons: string[] = [];
+    if (!scriptStatus) {
+      reasons.push('CDP script check failed');
+    } else if (!scriptStatus.loaded) {
+      reasons.push('script not loaded');
+    } else if (!scriptStatus.ready) {
+      reasons.push('script not ready');
+    } else if (!scriptStatus.inMainContext) {
+      reasons.push('script not in MAIN context');
+    }
+
+    if (!fetchTest) {
+      reasons.push('fetch test failed to run');
+    } else if (!fetchTest.sent) {
+      reasons.push(`fetch failed: ${fetchTest.error}`);
+    } else if (fetchTest.status !== 200) {
+      reasons.push(`fetch returned ${fetchTest.status}`);
+    }
+
+    errorMessage = reasons.join('; ');
+  }
+
+  // Log final result
+  logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} final result`), {
+    passed,
+    scriptReady,
+    fetchWorks,
+    eventSent,
+    eventReceived,
+    capturedConsoleCount: capturedConsole.length,
+    hasConsoleErrors: capturedConsole.some((c) => c.type === 'error'),
+  });
+
+  // Build console capture info with samples for debugging
+  const consoleCapture: EventFlowTestResult['consoleCapture'] = capturedConsole.length > 0
+    ? {
+        count: capturedConsole.length,
+        hasErrors: capturedConsole.some((c) => c.type === 'error'),
+        samples: capturedConsole.slice(0, 5), // First 5 messages for debugging
+      }
+    : undefined;
 
   return {
     passed,
     eventSent,
     eventReceived,
     latencyMs,
-    // Include recorder accessibility in the result for debugging
-    ...(recorderAccessible && { recorderAccessible: true }),
+    error: errorMessage,
+    pageUrl,
+    pageValid: isValidPage,
+    scriptStatus,
+    fetchTest,
+    consoleCapture,
   };
 }
 
 /**
  * Check event flow test results for issues.
+ * Provides detailed diagnostics based on the comprehensive test results.
  */
 function checkEventFlowTest(
   test: RecordingDiagnosticResult['eventFlowTest'],
@@ -489,20 +700,110 @@ function checkEventFlowTest(
 ): void {
   if (!test) return;
 
-  if (!test.eventSent) {
+  // === Check 1: Invalid page type ===
+  if (test.pageValid === false) {
     issues.push({
       code: DIAGNOSTIC_CODES.EVENT_SEND_FAILED,
-      message: 'Failed to send test event from browser',
+      message: `Page type not supported for recording: ${test.pageUrl?.slice(0, 50) || 'unknown'}`,
       severity: DiagnosticSeverity.ERROR,
-      suggestion: 'page.evaluate() may have failed. Check that the page is loaded and accessible.',
-      details: { error: test.error },
+      suggestion:
+        'Navigate to an HTTP or HTTPS page to enable recording. ' +
+        'Pages like about:blank, chrome://, or chrome-extension:// URLs do not support script injection.',
+      details: { pageUrl: test.pageUrl },
     });
     return;
   }
 
-  // If test passed (either console received or recorder accessible), no issues
+  // === Check 2: Script not loaded ===
+  if (test.scriptStatus && !test.scriptStatus.loaded) {
+    issues.push({
+      code: DIAGNOSTIC_CODES.SCRIPT_NOT_LOADED,
+      message: 'Recording script not loaded on page',
+      severity: DiagnosticSeverity.ERROR,
+      suggestion:
+        'The script injection via route interception may have failed. ' +
+        'Check that the page was loaded through normal navigation (not dynamically injected). ' +
+        'Service workers or CSP headers might be blocking injection.',
+      details: {
+        pageUrl: test.pageUrl,
+        scriptStatus: test.scriptStatus,
+        fetchTest: test.fetchTest,
+      },
+    });
+    return;
+  }
+
+  // === Check 3: Script loaded but not ready ===
+  if (test.scriptStatus && test.scriptStatus.loaded && !test.scriptStatus.ready) {
+    issues.push({
+      code: DIAGNOSTIC_CODES.SCRIPT_NOT_READY,
+      message: 'Recording script loaded but failed to initialize',
+      severity: DiagnosticSeverity.ERROR,
+      suggestion:
+        'The script started executing but crashed during initialization. ' +
+        'Check browser console for JavaScript errors. ' +
+        'A conflicting script on the page may have interfered.',
+      details: {
+        handlersCount: test.scriptStatus.handlersCount,
+        version: test.scriptStatus.version,
+        consoleCapture: test.consoleCapture,
+      },
+    });
+    return;
+  }
+
+  // === Check 4: Script not in MAIN context ===
+  if (test.scriptStatus && test.scriptStatus.loaded && !test.scriptStatus.inMainContext) {
+    issues.push({
+      code: DIAGNOSTIC_CODES.SCRIPT_WRONG_CONTEXT,
+      message: 'Recording script running in wrong execution context',
+      severity: DiagnosticSeverity.ERROR,
+      suggestion:
+        'The script is not in MAIN context. This means History API navigation events ' +
+        'will not be captured. The script should be injected via HTML route interception, ' +
+        'not via page.evaluate() or addInitScript().',
+      details: {
+        scriptStatus: test.scriptStatus,
+      },
+    });
+    return;
+  }
+
+  // === Check 5: Fetch path test failed ===
+  if (test.fetchTest && !test.fetchTest.sent) {
+    issues.push({
+      code: DIAGNOSTIC_CODES.EVENT_SEND_FAILED,
+      message: 'Event communication path test failed',
+      severity: DiagnosticSeverity.ERROR,
+      suggestion:
+        'The fetch to /__vrooli_recording_event__ failed. ' +
+        'The route handler may not be set up, or CORS/CSP policies may be blocking the request.',
+      details: {
+        fetchError: test.fetchTest.error,
+        pageUrl: test.pageUrl,
+      },
+    });
+    return;
+  }
+
+  // === Check 6: Fetch returned non-200 ===
+  if (test.fetchTest && test.fetchTest.sent && test.fetchTest.status !== 200) {
+    issues.push({
+      code: DIAGNOSTIC_CODES.EVENT_SEND_FAILED,
+      message: `Event route returned status ${test.fetchTest.status}`,
+      severity: DiagnosticSeverity.WARNING,
+      suggestion:
+        'The route handler responded but with an error status. ' +
+        'Check playwright-driver logs for route handler errors.',
+      details: {
+        status: test.fetchTest.status,
+      },
+    });
+  }
+
+  // === If test passed, check for warnings ===
   if (test.passed) {
-    // Only warn about latency if we have timing data
+    // Warn about high latency
     if (test.latencyMs && test.latencyMs > 1000) {
       issues.push({
         code: DIAGNOSTIC_CODES.EVENT_HIGH_LATENCY,
@@ -512,21 +813,49 @@ function checkEventFlowTest(
         details: { latencyMs: test.latencyMs },
       });
     }
+
+    // Warn about console errors during test
+    if (test.consoleCapture?.hasErrors) {
+      issues.push({
+        code: DIAGNOSTIC_CODES.SCRIPT_INIT_ERROR,
+        message: 'Console errors detected during diagnostic test',
+        severity: DiagnosticSeverity.WARNING,
+        suggestion: 'JavaScript errors occurred during the test. Check browser console for details.',
+        details: {
+          consoleCount: test.consoleCapture.count,
+          samples: test.consoleCapture.samples,
+        },
+      });
+    }
+
+    // Warn about low handler count
+    if (test.scriptStatus && test.scriptStatus.handlersCount < 7) {
+      issues.push({
+        code: DIAGNOSTIC_CODES.SCRIPT_LOW_HANDLERS,
+        message: `Low handler count: ${test.scriptStatus.handlersCount} (expected 7+)`,
+        severity: DiagnosticSeverity.WARNING,
+        suggestion: 'Some event types may not be captured. Script may have partially initialized.',
+        details: { handlersCount: test.scriptStatus.handlersCount },
+      });
+    }
+
     return;
   }
 
-  // Test failed - no console received AND no recorder accessible
-  if (!test.eventReceived) {
-    issues.push({
-      code: DIAGNOSTIC_CODES.EVENT_NOT_RECEIVED,
-      message: 'Recording subsystem connectivity test failed',
-      severity: DiagnosticSeverity.WARNING,
-      suggestion:
-        'The recording script may not be loaded on this page. ' +
-        'Navigate to an HTTP(S) page to enable recording. ' +
-        'Pages like about:blank or chrome:// URLs do not support recording.',
-    });
-  }
+  // === Fallback: Test failed but no specific reason identified ===
+  issues.push({
+    code: DIAGNOSTIC_CODES.EVENT_NOT_RECEIVED,
+    message: 'Recording subsystem connectivity test failed',
+    severity: DiagnosticSeverity.ERROR,
+    suggestion: test.error || 'Unknown failure. Check the diagnostic details for more information.',
+    details: {
+      error: test.error,
+      pageUrl: test.pageUrl,
+      scriptStatus: test.scriptStatus,
+      fetchTest: test.fetchTest,
+      consoleCapture: test.consoleCapture,
+    },
+  });
 }
 
 /**
@@ -575,9 +904,42 @@ function logDiagnosticResult(result: RecordingDiagnosticResult, logger: winston.
   }
 
   if (result.eventFlowTest) {
-    logger.debug(scopedLog(LogContext.RECORDING, 'event flow test'), {
-      ...result.eventFlowTest,
+    const eft = result.eventFlowTest;
+    logger.debug(scopedLog(LogContext.RECORDING, 'event flow test summary'), {
+      passed: eft.passed,
+      eventSent: eft.eventSent,
+      eventReceived: eft.eventReceived,
+      latencyMs: eft.latencyMs,
+      error: eft.error,
+      pageUrl: eft.pageUrl?.slice(0, 80),
+      pageValid: eft.pageValid,
     });
+
+    if (eft.scriptStatus) {
+      logger.debug(scopedLog(LogContext.RECORDING, 'event flow: script status (CDP)'), {
+        loaded: eft.scriptStatus.loaded,
+        ready: eft.scriptStatus.ready,
+        inMainContext: eft.scriptStatus.inMainContext,
+        handlersCount: eft.scriptStatus.handlersCount,
+        version: eft.scriptStatus.version,
+      });
+    }
+
+    if (eft.fetchTest) {
+      logger.debug(scopedLog(LogContext.RECORDING, 'event flow: fetch path test'), {
+        sent: eft.fetchTest.sent,
+        status: eft.fetchTest.status,
+        error: eft.fetchTest.error,
+      });
+    }
+
+    if (eft.consoleCapture) {
+      logger.debug(scopedLog(LogContext.RECORDING, 'event flow: console capture'), {
+        count: eft.consoleCapture.count,
+        hasErrors: eft.consoleCapture.hasErrors,
+        samples: eft.consoleCapture.samples?.map((s) => `[${s.type}] ${s.text.slice(0, 50)}`),
+      });
+    }
   }
 }
 

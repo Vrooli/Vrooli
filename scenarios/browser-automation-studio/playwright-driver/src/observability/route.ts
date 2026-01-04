@@ -34,7 +34,12 @@ import type {
   RecordingStats,
 } from './types';
 import { VERSION } from '../constants';
-import type { RecordingDiagnosticResult, DiagnosticIssue, DiagnosticSeverity } from '../recording/diagnostics';
+import type {
+  RecordingDiagnosticResult,
+  DiagnosticIssue,
+  DiagnosticSeverity,
+  EventFlowTestResult,
+} from '../recording/diagnostics';
 
 // =============================================================================
 // UI-Compatible Types
@@ -61,6 +66,8 @@ interface UIRecordingDiagnostics {
     evaluateIsolated: boolean;
     exposeBindingIsolated: boolean;
   };
+  /** Event flow test result with detailed diagnostics (FULL level only) */
+  eventFlowTest?: EventFlowTestResult;
 }
 
 /**
@@ -100,6 +107,8 @@ function transformDiagnosticsForUI(result: RecordingDiagnosticResult): UIRecordi
       suggestion: issue.suggestion,
     })),
     provider: result.provider,
+    // Include event flow test result for detailed diagnostics (FULL level only)
+    eventFlowTest: result.eventFlowTest,
   };
 }
 

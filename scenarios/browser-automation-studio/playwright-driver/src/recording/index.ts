@@ -233,6 +233,7 @@ export type {
   RecordingDiagnosticResult,
   DiagnosticIssue,
   DiagnosticOptions,
+  EventFlowTestResult,
 } from './diagnostics';
 
 // =============================================================================
