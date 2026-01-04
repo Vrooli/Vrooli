@@ -346,10 +346,35 @@ export async function handleDiagnosticsRun(
               sessionId: targetSessionId,
               error: error instanceof Error ? error.message : String(error),
             });
+            // Return an error result instead of silently failing
+            results.recording = {
+              ready: false,
+              timestamp: new Date().toISOString(),
+              durationMs: 0,
+              level: options?.level || 'quick',
+              issues: [{
+                severity: 'error',
+                category: 'session',
+                message: `Recording diagnostics failed: ${error instanceof Error ? error.message : String(error)}`,
+                suggestion: 'Check the browser console for JavaScript errors',
+              }],
+            };
           }
         } else {
-          // No sessions available
+          // No sessions available - return a structured response
           logger.warn(scopedLog(LogContext.HEALTH, 'no sessions available for recording diagnostics'));
+          results.recording = {
+            ready: false,
+            timestamp: new Date().toISOString(),
+            durationMs: 0,
+            level: options?.level || 'quick',
+            issues: [{
+              severity: 'warning',
+              category: 'session',
+              message: 'No active browser sessions available for diagnostics',
+              suggestion: 'Start a browser session first by navigating to a page',
+            }],
+          };
         }
       }
 

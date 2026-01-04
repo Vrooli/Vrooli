@@ -723,12 +723,25 @@ export function getConfigSummary(): string {
 }
 
 /**
+ * Configuration option for observability response.
+ */
+interface ObservabilityConfigOption {
+  env_var: string;
+  tier: 'essential' | 'advanced' | 'internal';
+  description: string;
+  current_value: string;
+  default_value: string;
+  is_modified: boolean;
+}
+
+/**
  * Get configuration summary in the format needed for observability.
  * Returns structured data for the diagnostics UI.
  */
 export function getObservabilityConfigSummary(): {
   summary: string;
   modified_count: number;
+  total_count: number;
   by_tier: { essential: number; advanced: number; internal: number };
   modified_options?: Array<{
     env_var: string;
@@ -737,9 +750,65 @@ export function getObservabilityConfigSummary(): {
     current_value: string;
     default_value: string;
   }>;
+  all_options?: {
+    essential: ObservabilityConfigOption[];
+    advanced: ObservabilityConfigOption[];
+    internal: ObservabilityConfigOption[];
+  };
 } {
   const result = checkModifiedConfig();
   const summary = getConfigSummary();
+
+  // Create a set of modified env vars for quick lookup
+  const modifiedSet = new Set(result.modified.map(m => m.envVar));
+
+  // Build all_options organized by tier
+  const all_options: {
+    essential: ObservabilityConfigOption[];
+    advanced: ObservabilityConfigOption[];
+    internal: ObservabilityConfigOption[];
+  } = {
+    essential: [],
+    advanced: [],
+    internal: [],
+  };
+
+  const tierNames: Record<ConfigTier, 'essential' | 'advanced' | 'internal'> = {
+    [ConfigTier.ESSENTIAL]: 'essential',
+    [ConfigTier.ADVANCED]: 'advanced',
+    [ConfigTier.INTERNAL]: 'internal',
+  };
+
+  for (const [envVar, meta] of Object.entries(CONFIG_TIER_METADATA)) {
+    const currentValue = process.env[envVar];
+    const tierName = tierNames[meta.tier];
+
+    // Determine current value (use env var if set, otherwise default)
+    let currentStr: string;
+    if (currentValue !== undefined && currentValue.trim() !== '') {
+      currentStr = currentValue.trim();
+    } else if (meta.defaultValue === undefined) {
+      currentStr = '';
+    } else {
+      currentStr = String(meta.defaultValue);
+    }
+
+    const option: ObservabilityConfigOption = {
+      env_var: envVar,
+      tier: tierName,
+      description: meta.description,
+      current_value: currentStr,
+      default_value: meta.defaultValue === undefined ? '' : String(meta.defaultValue),
+      is_modified: modifiedSet.has(envVar),
+    };
+
+    all_options[tierName].push(option);
+  }
+
+  // Sort each tier alphabetically by env_var
+  all_options.essential.sort((a, b) => a.env_var.localeCompare(b.env_var));
+  all_options.advanced.sort((a, b) => a.env_var.localeCompare(b.env_var));
+  all_options.internal.sort((a, b) => a.env_var.localeCompare(b.env_var));
 
   // Only include modified_options if there are any
   const modified_options = result.modified.length > 0
@@ -752,10 +821,14 @@ export function getObservabilityConfigSummary(): {
       }))
     : undefined;
 
+  const total_count = Object.keys(CONFIG_TIER_METADATA).length;
+
   return {
     summary,
     modified_count: result.modified.length,
+    total_count,
     by_tier: result.byTier,
     modified_options,
+    all_options,
   };
 }

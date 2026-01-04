@@ -152,6 +152,24 @@ export interface ModifiedConfigOption {
 }
 
 /**
+ * A single configuration option (all options view).
+ */
+export interface ConfigOption {
+  /** Environment variable name */
+  env_var: string;
+  /** Configuration tier */
+  tier: ConfigTier;
+  /** Description of the option */
+  description: string;
+  /** Current value (as string) */
+  current_value: string;
+  /** Default value (as string) */
+  default_value: string;
+  /** Whether this option is modified from its default */
+  is_modified: boolean;
+}
+
+/**
  * Configuration summary for observability.
  */
 export interface ConfigComponent {
@@ -159,6 +177,8 @@ export interface ConfigComponent {
   summary: string;
   /** Number of options modified from defaults */
   modified_count: number;
+  /** Total number of configuration options */
+  total_count: number;
   /** Count by tier */
   by_tier: {
     essential: number;
@@ -167,6 +187,12 @@ export interface ConfigComponent {
   };
   /** List of modified options (only in standard+ depth) */
   modified_options?: ModifiedConfigOption[];
+  /** List of all options organized by tier (only in standard+ depth) */
+  all_options?: {
+    essential: ConfigOption[];
+    advanced: ConfigOption[];
+    internal: ConfigOption[];
+  };
 }
 
 // =============================================================================

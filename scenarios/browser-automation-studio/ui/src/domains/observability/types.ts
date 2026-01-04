@@ -36,10 +36,19 @@ export interface SessionsComponent extends ComponentHealth {
 
 export interface RecordingComponent extends ComponentHealth {
   script_version?: string;
+  active_count: number;
   injection_stats?: {
+    attempted: number;
     successful: number;
     failed: number;
+    skipped: number;
     total: number;
+    methods?: {
+      head: number;
+      HEAD: number;
+      doctype: number;
+      prepend: number;
+    };
   };
 }
 
@@ -64,19 +73,40 @@ export interface ObservabilityComponents {
   metrics: MetricsComponent;
 }
 
-export type ConfigTier = 'essential' | 'advanced' | 'expert';
+export type ConfigTier = 'essential' | 'advanced' | 'internal';
 
 export interface ModifiedConfigOption {
   env_var: string;
   tier: ConfigTier;
-  current_value: unknown;
-  default_value?: unknown;
+  description?: string;
+  current_value: string;
+  default_value?: string;
+}
+
+export interface ConfigOption {
+  env_var: string;
+  tier: ConfigTier;
+  description: string;
+  current_value: string;
+  default_value: string;
+  is_modified: boolean;
 }
 
 export interface ConfigComponent {
   summary: string;
   modified_count: number;
+  total_count?: number;
+  by_tier?: {
+    essential: number;
+    advanced: number;
+    internal: number;
+  };
   modified_options?: ModifiedConfigOption[];
+  all_options?: {
+    essential: ConfigOption[];
+    advanced: ConfigOption[];
+    internal: ConfigOption[];
+  };
 }
 
 export interface RecordingDiagnostics {

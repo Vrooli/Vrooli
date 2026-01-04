@@ -37,6 +37,7 @@ export type {
   ObservabilityComponents,
   ConfigTier,
   ModifiedConfigOption,
+  ConfigOption,
   ConfigComponent,
   RecordingDiagnostics,
   DeepDiagnostics,
