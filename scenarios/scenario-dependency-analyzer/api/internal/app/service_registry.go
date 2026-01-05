@@ -278,15 +278,18 @@ type deploymentService struct {
 	workspace *scenarioWorkspace
 }
 
-func (d *deploymentService) GetDeploymentReport(name string) (*types.DeploymentAnalysisReport, error) {
+func (d *deploymentService) GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error) {
 	scenarioPath := d.workspace.pathFor(name)
 	cfg, err := d.workspace.loadConfig(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
 	}
 
-	report, err := deployment.LoadReport(scenarioPath)
-	if err != nil {
+	var report *types.DeploymentAnalysisReport
+	if !refresh {
+		report, err = deployment.LoadReport(scenarioPath)
+	}
+	if refresh || err != nil {
 		report = deployment.BuildReport(name, scenarioPath, d.workspace.root, cfg)
 		if report != nil {
 			if persistErr := deployment.PersistReport(scenarioPath, report); persistErr != nil {

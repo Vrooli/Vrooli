@@ -50,6 +50,9 @@ func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error
 	if err != nil {
 		return nil, fmt.Errorf("build analyzer url: %w", err)
 	}
+	q := target.Query()
+	q.Set("refresh", "true")
+	target.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
 	if err != nil {

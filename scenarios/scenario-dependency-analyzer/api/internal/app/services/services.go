@@ -48,7 +48,7 @@ type DependencyService interface {
 
 // DeploymentService provides access to computed deployment reports.
 type DeploymentService interface {
-	GetDeploymentReport(name string) (*types.DeploymentAnalysisReport, error)
+	GetDeploymentReport(name string, refresh bool) (*types.DeploymentAnalysisReport, error)
 }
 
 // ProposalService handles proposed scenario analysis requests.

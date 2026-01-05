@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -287,7 +288,7 @@ func (h *handler) getScenarioDetail(c *gin.Context) {
 
 func (h *handler) getDeploymentReport(c *gin.Context) {
 	deploymentSvc := h.deploymentService()
-	report, err := deploymentSvc.GetDeploymentReport(c.Param("scenario"))
+	report, err := deploymentSvc.GetDeploymentReport(c.Param("scenario"), parseRefresh(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -329,7 +330,7 @@ func (h *handler) exportDAG(c *gin.Context) {
 	}
 
 	deploymentSvc := h.deploymentService()
-	report, err := deploymentSvc.GetDeploymentReport(scenarioName)
+	report, err := deploymentSvc.GetDeploymentReport(scenarioName, parseRefresh(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -361,7 +362,7 @@ func (h *handler) getBundleManifest(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
 	deploymentSvc := h.deploymentService()
-	report, err := deploymentSvc.GetDeploymentReport(scenarioName)
+	report, err := deploymentSvc.GetDeploymentReport(scenarioName, parseRefresh(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -372,4 +373,13 @@ func (h *handler) getBundleManifest(c *gin.Context) {
 		"generated": report.GeneratedAt,
 		"manifest":  report.BundleManifest,
 	})
+}
+
+func parseRefresh(c *gin.Context) bool {
+	raw := strings.TrimSpace(c.Query("refresh"))
+	if raw == "" {
+		return false
+	}
+	parsed, err := strconv.ParseBool(raw)
+	return err == nil && parsed
 }
