@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
 import type { BundlePreflightCheck, BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
 import { Button } from "./ui/button";
@@ -217,6 +217,42 @@ function CoverageBadge({ label, active }: CoverageBadgeProps) {
   );
 }
 
+function formatDuration(ms: number) {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return "n/a";
+  }
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+function parseTimestamp(value?: string) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 2000) {
+    return null;
+  }
+  return date.getTime();
+}
+
+function formatTimestamp(value?: string) {
+  const ts = parseTimestamp(value);
+  if (!ts) {
+    return "";
+  }
+  return new Date(ts).toLocaleTimeString();
+}
+
 interface BundledPreflightSectionProps {
   bundleManifestPath: string;
   preflightResult: BundlePreflightResponse | null;
@@ -256,6 +292,7 @@ export function BundledPreflightSection({
 }: BundledPreflightSectionProps) {
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [tick, setTick] = useState(() => Date.now());
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
   const ports = preflightResult?.ports;
@@ -266,6 +303,16 @@ export function BundledPreflightSection({
     ? bundleManifestPath.trim().replace(/[/\\][^/\\]+$/, "")
     : "";
   const readinessDetails = readiness?.details ? Object.entries(readiness.details) : [];
+  const latestServiceUpdate = readinessDetails.reduce((latest, [, status]) => {
+    const ts = parseTimestamp(status.updated_at);
+    if (!ts) {
+      return latest;
+    }
+    return Math.max(latest, ts);
+  }, 0);
+  const latestServiceUpdateLabel = latestServiceUpdate
+    ? new Date(latestServiceUpdate).toLocaleTimeString()
+    : "";
   const hasMissingArtifacts = Boolean(
     validation
       && !validation.valid
@@ -287,6 +334,14 @@ export function BundledPreflightSection({
     [bundleManifestPath, preflightStartServices, preflightResult, preflightError, missingSecrets]
   );
   const hasRun = Boolean(preflightResult || preflightError);
+
+  useEffect(() => {
+    if (!preflightStartServices || !preflightResult) {
+      return;
+    }
+    const interval = window.setInterval(() => setTick(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [preflightStartServices, preflightResult]);
   const portSummary = ports
     ? Object.entries(ports)
         .map(([svc, portMap]) => {
@@ -374,7 +429,7 @@ export function BundledPreflightSection({
       return { state: "pass", label: "Ready" };
     }
     if (readiness?.ready === false) {
-      return { state: "warning", label: "Waiting" };
+      return { state: "warning", label: "Waiting (snapshot)" };
     }
     return { state: "warning", label: "Unknown" };
   })();
@@ -732,32 +787,63 @@ export function BundledPreflightSection({
                   <summary className="cursor-pointer text-xs font-semibold text-slate-100">
                     Readiness details
                   </summary>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Snapshot {latestServiceUpdateLabel ? `at ${latestServiceUpdateLabel}` : "captured during this preflight run"}.
+                  </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {readinessDetails.map(([serviceId, status]) => (
-                      <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
-                        <p className={`text-xs ${status.ready ? "text-emerald-200" : "text-amber-200"}`}>
-                          {status.ready ? "Ready" : "Waiting"}
-                        </p>
-                        {status.message && (
-                          <p className="text-[11px] text-slate-300">{status.message}</p>
-                        )}
-                        {typeof status.exit_code === "number" && (
-                          <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
-                        )}
-                      </div>
-                    ))}
+                    {readinessDetails.map(([serviceId, status]) => {
+                      const updatedAt = parseTimestamp(status.updated_at);
+                      const startedAt = parseTimestamp(status.started_at);
+                      const readyAt = parseTimestamp(status.ready_at);
+                      const isUpdatedAhead = updatedAt ? updatedAt > tick + 5000 : false;
+                      const statusAge = updatedAt && !isUpdatedAhead ? formatDuration(tick - updatedAt) : "";
+                      const startedAge = startedAt ? formatDuration(Math.max(0, tick - startedAt)) : "";
+                      const readyAge = readyAt ? formatDuration(Math.max(0, tick - readyAt)) : "";
+                      return (
+                        <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
+                          <p className={`text-xs ${status.ready ? "text-emerald-200" : "text-amber-200"}`}>
+                            {status.ready ? "Ready" : "Waiting"}
+                          </p>
+                          {status.message && (
+                            <p className="text-[11px] text-slate-300">{status.message}</p>
+                          )}
+                          {status.ready && readyAge && (
+                            <p className="text-[11px] text-emerald-200/80">Ready for {readyAge}</p>
+                          )}
+                          {!status.ready && startedAge && (
+                            <p className="text-[11px] text-amber-200/80">Starting for {startedAge}</p>
+                          )}
+                          {!status.ready && !startedAge && statusAge && (
+                            <p className="text-[11px] text-slate-400">Status set {statusAge} ago</p>
+                          )}
+                          {status.updated_at && isUpdatedAhead && (
+                            <p className="text-[11px] text-amber-200/80">
+                              Last update {formatTimestamp(status.updated_at)} (ahead of local clock)
+                            </p>
+                          )}
+                          {status.updated_at && !isUpdatedAhead && formatTimestamp(status.updated_at) && (
+                            <p className="text-[11px] text-slate-500">
+                              Last update {formatTimestamp(status.updated_at)}
+                            </p>
+                          )}
+                          {typeof status.exit_code === "number" && (
+                            <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {!readiness.ready && (
                     <p className="mt-2 text-[11px] text-slate-300">
-                      If readiness stays waiting, review log tails and confirm services can start with supplied secrets.
+                      Readiness is a snapshot from preflight. Re-run to refresh status or inspect log tails to see why a service is still waiting.
                     </p>
                   )}
                 </details>
               )}
               {preflightStartServices && (!readiness || readinessDetails.length === 0) && (
                 <p className="text-[11px] text-slate-400">
-                  Run preflight to fetch service readiness details.
+                  No service readiness details yet. Re-run preflight or verify the bundle defines services for this target.
                 </p>
               )}
               <PreflightCheckList checks={serviceChecks} />

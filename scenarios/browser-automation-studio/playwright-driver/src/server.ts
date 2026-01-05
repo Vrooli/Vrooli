@@ -366,6 +366,9 @@ function setupRoutes(
   router.get('/session/:id/record/actions', async (req, res, params) => {
     await routes.handleRecordActions(req, res, params.id, sessionManager);
   });
+  router.get('/session/:id/record/debug', async (req, res, params) => {
+    await routes.handleRecordDebug(req, res, params.id, sessionManager);
+  });
 
   // Record mode validation & interaction
   router.post('/session/:id/record/validate-selector', async (req, res, params) => {

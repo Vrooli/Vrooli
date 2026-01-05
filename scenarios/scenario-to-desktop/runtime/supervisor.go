@@ -457,6 +457,24 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 func (s *Supervisor) setStatus(id string, status ServiceStatus) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := s.clock.Now()
+	if prev, ok := s.serviceStatus[id]; ok {
+		if status.StartedAt.IsZero() {
+			status.StartedAt = prev.StartedAt
+		}
+		if status.ReadyAt.IsZero() {
+			status.ReadyAt = prev.ReadyAt
+		}
+	}
+	if status.StartedAt.IsZero() {
+		if proc, ok := s.procs[id]; ok && !proc.started.IsZero() {
+			status.StartedAt = proc.started
+		}
+	}
+	if status.Ready && status.ReadyAt.IsZero() {
+		status.ReadyAt = now
+	}
+	status.UpdatedAt = now
 	s.serviceStatus[id] = status
 }
 

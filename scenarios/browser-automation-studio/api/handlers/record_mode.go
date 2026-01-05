@@ -339,6 +339,46 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
+// GetRecordingDebug handles GET /api/v1/recordings/live/{sessionId}/debug
+// Gets live debugging info for an active recording session.
+// This proxies directly to the playwright-driver's debug endpoint.
+func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	driverURL := getPlaywrightDriverURL()
+	targetURL := fmt.Sprintf("%s/session/%s/record/debug", driverURL, sessionID)
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
 // GetRecordedActions handles GET /api/v1/recordings/live/{sessionId}/actions
 // Gets all recorded actions for a session.
 func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {

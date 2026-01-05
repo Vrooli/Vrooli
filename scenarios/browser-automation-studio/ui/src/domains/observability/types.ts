@@ -92,6 +92,8 @@ export interface RecordingComponent extends ComponentHealth {
   };
   /** Route handler statistics for event flow diagnostics */
   route_handler_stats?: RouteHandlerStats;
+  /** ID of the first actively recording session (for debug endpoint) */
+  active_session_id?: string;
 }
 
 export interface CleanupComponent {

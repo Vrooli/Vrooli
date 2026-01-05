@@ -263,6 +263,7 @@ export class ObservabilityCollector {
       route_handler_stats: recordingStats?.route_handler_stats,
       script_version: recordingStats?.script_version,
       has_event_handler: recordingStats?.has_event_handler,
+      active_session_id: recordingStats?.active_session_id,
     };
   }
 

@@ -160,7 +160,14 @@ export interface BundlePreflightSecret {
 
 export interface BundlePreflightReady {
   ready: boolean;
-  details: Record<string, { ready: boolean; message?: string; exit_code?: number }>;
+  details: Record<string, {
+    ready: boolean;
+    message?: string;
+    exit_code?: number;
+    started_at?: string;
+    ready_at?: string;
+    updated_at?: string;
+  }>;
   gpu?: {
     available: boolean;
     method?: string;

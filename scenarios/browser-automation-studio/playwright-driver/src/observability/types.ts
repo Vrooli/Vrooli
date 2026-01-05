@@ -91,6 +91,8 @@ export interface RecordingComponent extends ComponentHealth {
   active_count: number;
   /** Whether an event handler is currently set */
   has_event_handler?: boolean;
+  /** ID of the first actively recording session (for debug endpoint) */
+  active_session_id?: string;
 }
 
 /**
@@ -359,6 +361,8 @@ export interface RecordingStats {
   route_handler_stats?: RouteHandlerStats;
   /** Whether an event handler is currently set */
   has_event_handler?: boolean;
+  /** ID of the first actively recording session (for debug endpoint) */
+  active_session_id?: string;
 }
 
 /**

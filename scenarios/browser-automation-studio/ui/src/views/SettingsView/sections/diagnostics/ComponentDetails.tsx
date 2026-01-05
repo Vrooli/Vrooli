@@ -12,6 +12,7 @@ import {
   Trash2,
   Loader2,
   BarChart3,
+  Bug,
 } from 'lucide-react';
 import type {
   BrowserComponent,
@@ -21,6 +22,7 @@ import type {
   MetricsComponent,
   SessionInfo,
 } from '@/domains/observability';
+import { useRecordingDebug, type RecordingDebugResponse } from '@/domains/observability/hooks/useRecordingDebug';
 import { formatRelativeTime } from './utils';
 
 // ============================================================================
@@ -188,23 +190,301 @@ export function SessionsDetails({ sessions, sessionList, isLoadingList, onRefres
 }
 
 // ============================================================================
+// Debug Info Display (helper for RecordingDetails)
+// ============================================================================
+
+function DebugInfoDisplay({ debug }: { debug: RecordingDebugResponse }) {
+  const script = debug.browser_script;
+  const diag = debug.diagnostics;
+
+  // Collect issues
+  const issues: { message: string; severity: 'error' | 'warning' }[] = [];
+  if (diag.script_not_loaded) issues.push({ message: 'Script not loaded on page', severity: 'error' });
+  if (diag.script_not_ready) issues.push({ message: 'Script loaded but not ready', severity: 'error' });
+  if (diag.script_not_in_main) issues.push({ message: 'Script not in MAIN context (isolated)', severity: 'error' });
+  if (diag.script_inactive) issues.push({ message: 'Script is inactive (isActive=false)', severity: 'warning' });
+  if (diag.no_handlers) issues.push({ message: 'No event handlers registered', severity: 'error' });
+  if (diag.no_event_handler) issues.push({ message: 'Server event handler not set', severity: 'error' });
+  if (diag.events_being_dropped) issues.push({ message: 'Events are being dropped', severity: 'warning' });
+
+  return (
+    <div className="space-y-3 text-xs">
+      {/* Issues */}
+      {issues.length > 0 && (
+        <div className="space-y-1">
+          {issues.map((issue, i) => (
+            <div
+              key={i}
+              className={`p-2 rounded flex items-start gap-2 ${
+                issue.severity === 'error'
+                  ? 'bg-red-500/10 border border-red-500/30 text-red-300'
+                  : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+              }`}
+            >
+              <span className="flex-shrink-0">{issue.severity === 'error' ? '✕' : '⚠'}</span>
+              <span>{issue.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Browser Script State */}
+      {script && (
+        <div className="space-y-2">
+          <div className="text-gray-400 font-medium">Browser Script</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
+            <div>Loaded: <span className={script.loaded ? 'text-emerald-400' : 'text-red-400'}>{script.loaded ? 'Yes' : 'No'}</span></div>
+            <div>Ready: <span className={script.ready ? 'text-emerald-400' : 'text-gray-500'}>{script.ready ? 'Yes' : 'No'}</span></div>
+            <div>Active: <span className={script.isActive ? 'text-emerald-400' : 'text-red-400'}>
+              {script.isActive === null ? 'Unknown' : script.isActive ? 'Yes' : 'No'}
+            </span></div>
+            <div>Context: <span className={script.inMainContext ? 'text-emerald-400' : 'text-red-400'}>
+              {script.inMainContext ? 'MAIN' : 'ISOLATED'}
+            </span></div>
+            <div>Handlers: <span className={script.handlersCount && script.handlersCount > 0 ? 'text-emerald-400' : 'text-red-400'}>
+              {script.handlersCount ?? 0}
+            </span></div>
+            <div>Version: <span className="text-gray-400">{script.version || 'Unknown'}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* Browser-side Telemetry */}
+      {script && script.loaded && (
+        <div className="space-y-2">
+          <div className="text-gray-400 font-medium">Browser Telemetry</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
+            <div>Events Detected: <span className="text-surface">{script.eventsDetected ?? 0}</span></div>
+            <div>Events Captured: <span className="text-surface">{script.eventsCaptured ?? 0}</span></div>
+            <div>Events Sent: <span className="text-surface">{script.eventsSent ?? 0}</span></div>
+            <div>Send Failures: <span className={script.eventsSendFailed && script.eventsSendFailed > 0 ? 'text-red-400' : 'text-surface'}>
+              {script.eventsSendFailed ?? 0}
+            </span></div>
+          </div>
+          {script.lastError && (
+            <div className="p-2 bg-red-500/10 border border-red-500/30 rounded text-red-300">
+              Last Error: {script.lastError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Server State */}
+      <div className="space-y-2">
+        <div className="text-gray-400 font-medium">Server State</div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
+          <div>Recording: <span className={debug.server.is_recording ? 'text-emerald-400' : 'text-gray-500'}>
+            {debug.server.is_recording ? 'Active' : 'Inactive'}
+          </span></div>
+          <div>Handler Set: <span className={debug.server.has_event_handler ? 'text-emerald-400' : 'text-red-400'}>
+            {debug.server.has_event_handler ? 'Yes' : 'No'}
+          </span></div>
+          <div className="col-span-2">Phase: <span className="text-gray-400">{debug.server.phase}</span></div>
+        </div>
+      </div>
+
+      {/* No issues message */}
+      {issues.length === 0 && (
+        <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-300 text-center">
+          ✓ No obvious issues detected. Script appears healthy.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Recording Details
 // ============================================================================
 
 export function RecordingDetails({ recording }: { recording: RecordingComponent }) {
   const stats = recording.injection_stats;
+  const routeStats = recording.route_handler_stats;
   const successRate = stats && stats.total > 0 ? Math.round((stats.successful / stats.total) * 100) : 100;
   const hasData = recording.script_version || (stats && stats.total > 0);
+  const hasEventFlow = routeStats && routeStats.eventsReceived > 0;
+
+  // Calculate event flow health
+  const eventsDropped = routeStats?.eventsDroppedNoHandler ?? 0;
+  const eventsWithErrors = routeStats?.eventsWithErrors ?? 0;
+  const eventsReceived = routeStats?.eventsReceived ?? 0;
+  const eventsProcessed = routeStats?.eventsProcessed ?? 0;
+  const eventFlowHealthy = eventsDropped === 0 && eventsWithErrors === 0;
+  const hasEventHandler = recording.has_event_handler;
+
+  // Debug state
+  const { fetchDebug, isLoading: isDebugLoading, data: debugData, error: debugError, reset: resetDebug } = useRecordingDebug();
+  const [showDebug, setShowDebug] = useState(false);
+
+  const handleDebugClick = async () => {
+    if (!recording.active_session_id) return;
+
+    if (showDebug) {
+      setShowDebug(false);
+      resetDebug();
+      return;
+    }
+
+    try {
+      await fetchDebug(recording.active_session_id);
+      setShowDebug(true);
+    } catch {
+      // Error is handled by the hook
+    }
+  };
 
   return (
-    <div className="space-y-3 text-sm">
-      {/* Active recordings count */}
-      <div>
-        <span className="text-gray-500">Active Recordings:</span>
-        <span className="ml-2 text-surface">{recording.active_count}</span>
+    <div className="space-y-4 text-sm">
+      {/* Active recordings count and handler status */}
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-gray-500">Active Recordings:</span>
+          <span className="ml-2 text-surface">{recording.active_count}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {recording.active_count > 0 && (
+            <>
+              <span className="text-gray-500 text-xs">Event Handler:</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                hasEventHandler
+                  ? 'bg-emerald-500/20 text-emerald-300'
+                  : 'bg-red-500/20 text-red-300'
+              }`}>
+                {hasEventHandler ? 'Connected' : 'Disconnected'}
+              </span>
+            </>
+          )}
+          {recording.active_session_id && (
+            <button
+              onClick={handleDebugClick}
+              disabled={isDebugLoading}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded transition-colors disabled:opacity-50"
+              title="Show browser script debug info"
+            >
+              {isDebugLoading ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Bug size={12} />
+              )}
+              {showDebug ? 'Hide Debug' : 'Debug'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Show data if we have it, otherwise show helpful empty state */}
+      {/* Event Flow Stats - Only show when recording is active */}
+      {recording.active_count > 0 && routeStats && (
+        <div className="p-3 bg-gray-800/50 border border-gray-700 rounded space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 font-medium text-xs uppercase tracking-wide">Event Flow</span>
+            {hasEventFlow && (
+              <span className={`flex items-center gap-1.5 text-xs ${
+                eventFlowHealthy ? 'text-emerald-400' : 'text-amber-400'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  eventFlowHealthy ? 'bg-emerald-400' : 'bg-amber-400'
+                }`} />
+                {eventFlowHealthy ? 'Healthy' : 'Issues Detected'}
+              </span>
+            )}
+          </div>
+
+          {/* Event pipeline visualization */}
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex-1 text-center p-2 bg-gray-900 rounded">
+              <div className="text-lg font-semibold text-surface">{eventsReceived}</div>
+              <div className="text-gray-500">Received</div>
+            </div>
+            <div className="text-gray-600">→</div>
+            <div className="flex-1 text-center p-2 bg-gray-900 rounded">
+              <div className={`text-lg font-semibold ${eventsProcessed > 0 ? 'text-emerald-400' : 'text-surface'}`}>
+                {eventsProcessed}
+              </div>
+              <div className="text-gray-500">Processed</div>
+            </div>
+            {(eventsDropped > 0 || eventsWithErrors > 0) && (
+              <>
+                <div className="text-gray-600">|</div>
+                <div className="flex-1 text-center p-2 bg-red-500/10 border border-red-500/30 rounded">
+                  <div className="text-lg font-semibold text-red-400">
+                    {eventsDropped + eventsWithErrors}
+                  </div>
+                  <div className="text-red-400/70">Lost</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Warning if events are being dropped */}
+          {eventsDropped > 0 && (
+            <div className="flex items-start gap-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs">
+              <span className="text-red-400 flex-shrink-0 mt-0.5">⚠</span>
+              <div>
+                <span className="text-red-300 font-medium">{eventsDropped} events dropped</span>
+                <span className="text-red-400/80 ml-1">- No handler was set. Events are being lost!</span>
+              </div>
+            </div>
+          )}
+
+          {/* Warning if handler errors */}
+          {eventsWithErrors > 0 && (
+            <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-xs">
+              <span className="text-amber-400 flex-shrink-0 mt-0.5">⚠</span>
+              <div>
+                <span className="text-amber-300 font-medium">{eventsWithErrors} handler errors</span>
+                <span className="text-amber-400/80 ml-1">- Some events failed during processing</span>
+              </div>
+            </div>
+          )}
+
+          {/* Last event info */}
+          {routeStats.lastEventAt && (
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-700">
+              <span>Last event: <span className="text-gray-400">{routeStats.lastEventType || 'unknown'}</span></span>
+              <span>{formatRelativeTime(routeStats.lastEventAt)}</span>
+            </div>
+          )}
+
+          {/* No events yet state */}
+          {!hasEventFlow && (
+            <div className="text-center py-2 text-gray-500 text-xs">
+              <p>Waiting for events...</p>
+              <p className="text-gray-600 mt-1">Click or type in the browser to generate events</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Debug Info Panel */}
+      {showDebug && (debugData || debugError) && (
+        <div className="p-3 bg-gray-900 border border-blue-500/30 rounded space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-blue-400 font-medium text-xs uppercase tracking-wide flex items-center gap-1.5">
+              <Bug size={12} />
+              Browser Script Debug
+            </span>
+            <button
+              onClick={() => recording.active_session_id && fetchDebug(recording.active_session_id)}
+              disabled={isDebugLoading}
+              className="text-xs text-blue-400 hover:text-blue-300"
+            >
+              {isDebugLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+
+          {debugError && (
+            <div className="p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-300">
+              Error: {debugError.message}
+            </div>
+          )}
+
+          {debugData && (
+            <DebugInfoDisplay debug={debugData} />
+          )}
+        </div>
+      )}
+
+      {/* Script injection stats */}
       {hasData ? (
         <>
           {recording.script_version && (
@@ -241,13 +521,13 @@ export function RecordingDetails({ recording }: { recording: RecordingComponent 
             </div>
           )}
         </>
-      ) : (
+      ) : recording.active_count === 0 ? (
         <div className="p-3 bg-gray-800/50 border border-gray-700 rounded text-gray-400 text-center">
           <Video size={24} className="mx-auto mb-2 text-gray-500" />
           <p>No recording sessions active</p>
-          <p className="text-xs text-gray-500 mt-1">Start a recording to see injection statistics</p>
+          <p className="text-xs text-gray-500 mt-1">Start a recording to see event flow statistics</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

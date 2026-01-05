@@ -847,3 +847,130 @@ export async function handleStreamSettings(
     sendError(res, error as Error, `/session/${sessionId}/record/stream-settings`);
   }
 }
+
+/**
+ * Live recording debug endpoint
+ *
+ * GET /session/:id/record/debug
+ *
+ * Queries the live state of the recording session including:
+ * - Server-side recording state
+ * - Browser script state (injected, handlers registered, isActive)
+ * - Route handler stats (events received, processed, dropped)
+ * - Event handler status
+ *
+ * This is used for real-time debugging during active recording sessions.
+ */
+export async function handleRecordDebug(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+
+    // Server-side state
+    const isRecording = session.recordingController?.isRecording() ?? false;
+    const recordingId = session.recordingId;
+    const hasEventHandler = session.recordingInitializer?.hasEventHandler() ?? false;
+    const routeHandlerStats = session.recordingInitializer?.getRouteHandlerStats();
+    const injectionStats = session.recordingInitializer?.getInjectionStats();
+
+    // Query browser script state via CDP
+    let browserScriptState: {
+      loaded: boolean;
+      ready: boolean;
+      isActive: boolean;
+      inMainContext: boolean;
+      handlersCount: number;
+      version: string | null;
+      eventsDetected: number;
+      eventsCaptured: number;
+      eventsSent: number;
+      eventsSendFailed: number;
+      lastError: string | null;
+    } | null = null;
+
+    try {
+      const client = await session.page.context().newCDPSession(session.page);
+      try {
+        const { result } = await client.send('Runtime.evaluate', {
+          expression: `(function() {
+            if (!window.__vrooli_recording_script_loaded) {
+              return JSON.stringify({ loaded: false });
+            }
+            const telemetry = window.__vrooli_recording_telemetry || {};
+            return JSON.stringify({
+              loaded: true,
+              ready: window.__vrooli_recording_ready === true,
+              isActive: typeof window.__isRecordingActive === 'function' ? window.__isRecordingActive() : null,
+              inMainContext: window.__vrooli_recording_script_context === 'MAIN',
+              handlersCount: window.__vrooli_recording_handlers_count || 0,
+              version: window.__vrooli_recording_script_version || null,
+              eventsDetected: telemetry.eventsDetected || 0,
+              eventsCaptured: telemetry.eventsCaptured || 0,
+              eventsSent: telemetry.eventsSent || 0,
+              eventsSendFailed: telemetry.eventsSendFailed || 0,
+              lastError: telemetry.lastError || null
+            });
+          })()`,
+          returnByValue: true,
+        });
+
+        if (result.type === 'string' && result.value) {
+          browserScriptState = JSON.parse(result.value);
+        }
+      } finally {
+        await client.detach().catch(() => {});
+      }
+    } catch (error) {
+      logger.debug(scopedLog(LogContext.RECORDING, 'debug: failed to query browser script state'), {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Build response
+    const response = {
+      session_id: sessionId,
+      timestamp: new Date().toISOString(),
+      server: {
+        is_recording: isRecording,
+        recording_id: recordingId,
+        has_event_handler: hasEventHandler,
+        phase: session.phase,
+        current_url: session.page?.url?.() || null,
+      },
+      route_handler: routeHandlerStats ? {
+        events_received: routeHandlerStats.eventsReceived,
+        events_processed: routeHandlerStats.eventsProcessed,
+        events_dropped_no_handler: routeHandlerStats.eventsDroppedNoHandler,
+        events_with_errors: routeHandlerStats.eventsWithErrors,
+        last_event_at: routeHandlerStats.lastEventAt,
+        last_event_type: routeHandlerStats.lastEventType,
+      } : null,
+      injection: injectionStats ? {
+        attempted: injectionStats.attempted,
+        successful: injectionStats.successful,
+        failed: injectionStats.failed,
+        skipped: injectionStats.skipped,
+      } : null,
+      browser_script: browserScriptState,
+      diagnostics: {
+        // Check for common issues
+        script_not_loaded: browserScriptState && !browserScriptState.loaded,
+        script_not_ready: browserScriptState?.loaded && !browserScriptState.ready,
+        script_not_in_main: browserScriptState?.loaded && !browserScriptState.inMainContext,
+        script_inactive: browserScriptState?.loaded && browserScriptState.isActive === false,
+        no_handlers: browserScriptState?.loaded && browserScriptState.handlersCount === 0,
+        no_event_handler: isRecording && !hasEventHandler,
+        events_being_dropped: (routeHandlerStats?.eventsDroppedNoHandler ?? 0) > 0,
+      },
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/debug`);
+  }
+}

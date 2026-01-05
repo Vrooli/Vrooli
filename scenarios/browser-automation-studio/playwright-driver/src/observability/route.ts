@@ -134,7 +134,7 @@ export interface ObservabilityRouteDependencies {
 
 /**
  * Aggregate recording stats from all sessions.
- * Combines injection stats from all active recording initializers.
+ * Combines injection stats and route handler stats from all active recording initializers.
  */
 function aggregateRecordingStats(
   sessionManager: SessionManager
@@ -159,31 +159,80 @@ function aggregateRecordingStats(
         prepend: 0,
       },
     },
+    route_handler_stats: {
+      eventsReceived: 0,
+      eventsProcessed: 0,
+      eventsDroppedNoHandler: 0,
+      eventsWithErrors: 0,
+      lastEventAt: null,
+      lastEventType: null,
+    },
+    has_event_handler: false,
+    active_session_id: undefined,
   };
 
   let foundAny = false;
+  let latestEventAt: Date | null = null;
+  let latestEventType: string | null = null;
+  let activeRecordingSessionId: string | undefined;
 
   for (const sessionId of sessionIds) {
     try {
       const session = sessionManager.getSession(sessionId);
       if (session.recordingInitializer) {
-        const stats = session.recordingInitializer.getInjectionStats();
+        const injectionStats = session.recordingInitializer.getInjectionStats();
+        const routeStats = session.recordingInitializer.getRouteHandlerStats();
         foundAny = true;
 
-        aggregated.injection_stats.attempted += stats.attempted;
-        aggregated.injection_stats.successful += stats.successful;
-        aggregated.injection_stats.failed += stats.failed;
-        aggregated.injection_stats.skipped += stats.skipped;
+        // Track the first actively recording session for debugging
+        if (!activeRecordingSessionId && session.recordingController?.isRecording()) {
+          activeRecordingSessionId = sessionId;
+        }
+
+        // Aggregate injection stats
+        aggregated.injection_stats.attempted += injectionStats.attempted;
+        aggregated.injection_stats.successful += injectionStats.successful;
+        aggregated.injection_stats.failed += injectionStats.failed;
+        aggregated.injection_stats.skipped += injectionStats.skipped;
         aggregated.injection_stats.total = aggregated.injection_stats.attempted;
-        aggregated.injection_stats.methods.head += stats.methods.head;
-        aggregated.injection_stats.methods.HEAD += stats.methods.HEAD;
-        aggregated.injection_stats.methods.doctype += stats.methods.doctype;
-        aggregated.injection_stats.methods.prepend += stats.methods.prepend;
+        aggregated.injection_stats.methods.head += injectionStats.methods.head;
+        aggregated.injection_stats.methods.HEAD += injectionStats.methods.HEAD;
+        aggregated.injection_stats.methods.doctype += injectionStats.methods.doctype;
+        aggregated.injection_stats.methods.prepend += injectionStats.methods.prepend;
+
+        // Aggregate route handler stats
+        aggregated.route_handler_stats!.eventsReceived += routeStats.eventsReceived;
+        aggregated.route_handler_stats!.eventsProcessed += routeStats.eventsProcessed;
+        aggregated.route_handler_stats!.eventsDroppedNoHandler += routeStats.eventsDroppedNoHandler;
+        aggregated.route_handler_stats!.eventsWithErrors += routeStats.eventsWithErrors;
+
+        // Track the most recent event across all sessions
+        if (routeStats.lastEventAt) {
+          const eventTime = new Date(routeStats.lastEventAt);
+          if (!latestEventAt || eventTime > latestEventAt) {
+            latestEventAt = eventTime;
+            latestEventType = routeStats.lastEventType;
+          }
+        }
+
+        // Check if any session has an event handler set
+        if (session.recordingInitializer.hasEventHandler()) {
+          aggregated.has_event_handler = true;
+        }
       }
     } catch {
       // Session may have been closed during iteration
     }
   }
+
+  // Set the most recent event info
+  if (latestEventAt) {
+    aggregated.route_handler_stats!.lastEventAt = latestEventAt.toISOString();
+    aggregated.route_handler_stats!.lastEventType = latestEventType;
+  }
+
+  // Set the active recording session ID for debugging
+  aggregated.active_session_id = activeRecordingSessionId;
 
   return foundAny ? aggregated : undefined;
 }
