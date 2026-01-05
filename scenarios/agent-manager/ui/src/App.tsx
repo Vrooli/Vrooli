@@ -1,20 +1,13 @@
 import { useCallback, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
-import {
-  Activity,
-  AlertCircle,
-  BarChart3,
-  ClipboardList,
-  Play,
-  Search,
-  Settings2,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Card, CardContent } from "./components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
+import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
+import { MobileNav, type NavSection } from "./components/layout/MobileNav";
 import { StatusDialog } from "./components/dialogs/StatusDialog";
 import { SettingsDialog } from "./components/dialogs/SettingsDialog";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -33,12 +26,13 @@ export default function App() {
   const runs = useRuns();
   const runners = useRunners();
   const modelRegistry = useModelRegistry();
+  const isMobile = useIsMobile();
 
   const [statusOpen, setStatusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Derive active tab from current path
-  const getActiveTab = useCallback(() => {
+  // Derive active section from current path
+  const getActiveSection = useCallback((): NavSection => {
     const path = location.pathname;
     if (path.startsWith("/profiles")) return "profiles";
     if (path.startsWith("/tasks")) return "tasks";
@@ -48,7 +42,7 @@ export default function App() {
     return "dashboard";
   }, [location.pathname]);
 
-  const activeTab = getActiveTab();
+  const activeSection = getActiveSection();
 
   // WebSocket connection for real-time updates
   const handleWebSocketMessage = useCallback(
@@ -76,9 +70,12 @@ export default function App() {
     onMessage: handleWebSocketMessage,
   });
 
-  const handleTabChange = useCallback((value: string) => {
-    navigate(`/${value === "dashboard" ? "" : value}`);
-  }, [navigate]);
+  const handleSectionChange = useCallback(
+    (section: NavSection) => {
+      navigate(`/${section === "dashboard" ? "" : section}`);
+    },
+    [navigate]
+  );
 
   const handlePurgeComplete = useCallback(() => {
     profiles.refetch();
@@ -88,10 +85,13 @@ export default function App() {
 
   return (
     <QueryProvider>
-      <div className="min-h-screen bg-transparent text-foreground">
+      <div className="min-h-screen bg-transparent text-foreground flex flex-col">
         <AppHeader
           health={health.data}
           wsStatus={ws.status}
+          activeSection={activeSection}
+          isMobile={isMobile}
+          onSectionChange={handleSectionChange}
           onStatusClick={() => setStatusOpen(true)}
           onSettingsClick={() => setSettingsOpen(true)}
         />
@@ -111,7 +111,11 @@ export default function App() {
         />
 
         {/* Main Content */}
-        <main className="flex flex-1 flex-col gap-6 px-6 py-6 sm:px-10">
+        <main
+          className={`flex flex-1 flex-col gap-6 px-4 py-4 sm:px-6 lg:px-10 ${
+            isMobile ? "pb-20" : ""
+          }`}
+        >
           {health.error && (
             <Card className="border border-destructive/40 bg-destructive/10 text-sm">
               <CardContent className="flex items-center gap-3 py-4">
@@ -124,136 +128,115 @@ export default function App() {
             </Card>
           )}
 
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="mb-6 grid w-full max-w-[900px] grid-cols-6">
-              <TabsTrigger value="dashboard" className="gap-2">
-                <Activity className="h-4 w-4" />
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="gap-2">
-                <Settings2 className="h-4 w-4" />
-                Profiles
-              </TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-2">
-                <ClipboardList className="h-4 w-4" />
-                Tasks
-              </TabsTrigger>
-              <TabsTrigger value="runs" className="gap-2">
-                <Play className="h-4 w-4" />
-                Runs
-              </TabsTrigger>
-              <TabsTrigger value="investigations" className="gap-2">
-                <Search className="h-4 w-4" />
-                Investigations
-              </TabsTrigger>
-              <TabsTrigger value="stats" className="gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Stats
-              </TabsTrigger>
-            </TabsList>
-
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <DashboardPage
-                    health={health.data}
-                    profiles={profiles.data || []}
-                    tasks={tasks.data || []}
-                    runs={runs.data || []}
-                    runners={runners.data ?? undefined}
-                    modelRegistry={modelRegistry.data ?? undefined}
-                    onRefresh={() => {
-                      health.refetch();
-                      profiles.refetch();
-                      tasks.refetch();
-                      runs.refetch();
-                    }}
-                    onCreateTask={tasks.createTask}
-                    onCreateRun={runs.createRun}
-                    onRunCreated={(run) => {
-                      runs.refetch();
-                      tasks.refetch();
-                      navigate(`/runs/${run.id}`);
-                    }}
-                    onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
-                  />
-                }
-              />
-              <Route
-                path="/profiles"
-                element={
-                  <ProfilesPage
-                    profiles={profiles.data || []}
-                    loading={profiles.loading}
-                    error={profiles.error}
-                    onCreateProfile={profiles.createProfile}
-                    onUpdateProfile={profiles.updateProfile}
-                    onDeleteProfile={profiles.deleteProfile}
-                    onRefresh={profiles.refetch}
-                    runners={runners.data ?? undefined}
-                    modelRegistry={modelRegistry.data ?? undefined}
-                  />
-                }
-              />
-              <Route
-                path="/tasks"
-                element={
-                  <TasksPage
-                    tasks={tasks.data || []}
-                    profiles={profiles.data || []}
-                    loading={tasks.loading}
-                    error={tasks.error}
-                    onCreateTask={tasks.createTask}
-                    onUpdateTask={tasks.updateTask}
-                    onCancelTask={tasks.cancelTask}
-                    onDeleteTask={tasks.deleteTask}
-                    onCreateRun={runs.createRun}
-                    onCreateProfile={profiles.createProfile}
-                    onRefresh={tasks.refetch}
-                    runners={runners.data ?? undefined}
-                    modelRegistry={modelRegistry.data ?? undefined}
-                  />
-                }
-              />
-              <Route
-                path="/runs/:runId?"
-                element={
-                  <RunsPage
-                    runs={runs.data || []}
-                    tasks={tasks.data || []}
-                    profiles={profiles.data || []}
-                    loading={runs.loading}
-                    error={runs.error}
-                    onStopRun={runs.stopRun}
-                    onDeleteRun={runs.deleteRun}
-                    onRetryRun={runs.retryRun}
-                    onGetEvents={runs.getRunEvents}
-                    onGetDiff={runs.getRunDiff}
-                    onApproveRun={runs.approveRun}
-                    onRejectRun={runs.rejectRun}
-                    onRefresh={runs.refetch}
-                    wsSubscribe={ws.subscribe}
-                    wsUnsubscribe={ws.unsubscribe}
-                    wsAddMessageHandler={ws.addMessageHandler}
-                    wsRemoveMessageHandler={ws.removeMessageHandler}
-                  />
-                }
-              />
-              <Route
-                path="/investigations/:investigationId?"
-                element={
-                  <InvestigationsPage
-                    onViewRun={(runId) => navigate(`/runs/${runId}`)}
-                  />
-                }
-              />
-              <Route path="/stats" element={<StatsPage />} />
-              {/* Redirect unknown paths to dashboard */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Tabs>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  health={health.data}
+                  profiles={profiles.data || []}
+                  tasks={tasks.data || []}
+                  runs={runs.data || []}
+                  runners={runners.data ?? undefined}
+                  modelRegistry={modelRegistry.data ?? undefined}
+                  onRefresh={() => {
+                    health.refetch();
+                    profiles.refetch();
+                    tasks.refetch();
+                    runs.refetch();
+                  }}
+                  onCreateTask={tasks.createTask}
+                  onCreateRun={runs.createRun}
+                  onRunCreated={(run) => {
+                    runs.refetch();
+                    tasks.refetch();
+                    navigate(`/runs/${run.id}`);
+                  }}
+                  onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
+                />
+              }
+            />
+            <Route
+              path="/profiles"
+              element={
+                <ProfilesPage
+                  profiles={profiles.data || []}
+                  loading={profiles.loading}
+                  error={profiles.error}
+                  onCreateProfile={profiles.createProfile}
+                  onUpdateProfile={profiles.updateProfile}
+                  onDeleteProfile={profiles.deleteProfile}
+                  onRefresh={profiles.refetch}
+                  runners={runners.data ?? undefined}
+                  modelRegistry={modelRegistry.data ?? undefined}
+                />
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <TasksPage
+                  tasks={tasks.data || []}
+                  profiles={profiles.data || []}
+                  loading={tasks.loading}
+                  error={tasks.error}
+                  onCreateTask={tasks.createTask}
+                  onUpdateTask={tasks.updateTask}
+                  onCancelTask={tasks.cancelTask}
+                  onDeleteTask={tasks.deleteTask}
+                  onCreateRun={runs.createRun}
+                  onCreateProfile={profiles.createProfile}
+                  onRefresh={tasks.refetch}
+                  runners={runners.data ?? undefined}
+                  modelRegistry={modelRegistry.data ?? undefined}
+                />
+              }
+            />
+            <Route
+              path="/runs/:runId?"
+              element={
+                <RunsPage
+                  runs={runs.data || []}
+                  tasks={tasks.data || []}
+                  profiles={profiles.data || []}
+                  loading={runs.loading}
+                  error={runs.error}
+                  onStopRun={runs.stopRun}
+                  onDeleteRun={runs.deleteRun}
+                  onRetryRun={runs.retryRun}
+                  onGetEvents={runs.getRunEvents}
+                  onGetDiff={runs.getRunDiff}
+                  onApproveRun={runs.approveRun}
+                  onRejectRun={runs.rejectRun}
+                  onRefresh={runs.refetch}
+                  wsSubscribe={ws.subscribe}
+                  wsUnsubscribe={ws.unsubscribe}
+                  wsAddMessageHandler={ws.addMessageHandler}
+                  wsRemoveMessageHandler={ws.removeMessageHandler}
+                />
+              }
+            />
+            <Route
+              path="/investigations/:investigationId?"
+              element={
+                <InvestigationsPage
+                  onViewRun={(runId) => navigate(`/runs/${runId}`)}
+                />
+              }
+            />
+            <Route path="/stats" element={<StatsPage />} />
+            {/* Redirect unknown paths to dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
+
+        {/* Mobile bottom navigation */}
+        {isMobile && (
+          <MobileNav
+            activeSection={activeSection}
+            onSectionChange={handleSectionChange}
+          />
+        )}
       </div>
     </QueryProvider>
   );

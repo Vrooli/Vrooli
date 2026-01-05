@@ -103,6 +103,7 @@ export function RunsPage({
   const costTotals = getCostTotals(events);
 
   // Multi-select state for investigations
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
   const [investigateModalOpen, setInvestigateModalOpen] = useState(false);
@@ -325,18 +326,20 @@ export function RunsPage({
     setLastClickedIndex(index);
   };
 
-  const handleSelectAll = () => {
-    if (selectedRunIds.size === sortedRuns.length) {
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      // Exiting selection mode - clear selections
       setSelectedRunIds(new Set());
-    } else {
-      setSelectedRunIds(new Set(sortedRuns.map((r) => r.id)));
+      setLastClickedIndex(null);
     }
+    setSelectionMode(!selectionMode);
   };
 
   const handleInvestigate = async (request: CreateInvestigationRequest) => {
     await triggerInvestigation(request);
     setInvestigateModalOpen(false);
     setSelectedRunIds(new Set());
+    setSelectionMode(false);
     refetchActiveInvestigation();
   };
 
@@ -417,15 +420,21 @@ export function RunsPage({
                 All Runs ({runs.length})
               </CardTitle>
               {sortedRuns.length > 0 && (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedRunIds.size === sortedRuns.length && sortedRuns.length > 0}
-                    onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  Select all
-                </label>
+                <Button
+                  variant={selectionMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleSelectionMode}
+                  className="gap-2"
+                >
+                  {selectionMode ? (
+                    <>
+                      <X className="h-3 w-3" />
+                      Done
+                    </>
+                  ) : (
+                    "Select"
+                  )}
+                </Button>
               )}
             </div>
           </CardHeader>
@@ -469,16 +478,18 @@ export function RunsPage({
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedRunIds.has(run.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleRunCheckboxChange(run.id, index, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        />
+                        {selectionMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedRunIds.has(run.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleRunCheckboxChange(run.id, index, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          />
+                        )}
                         <RunStatusIcon status={run.status} />
                         <div>
                           <p className="font-medium text-sm">
