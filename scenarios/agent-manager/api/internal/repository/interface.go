@@ -282,3 +282,145 @@ type InvestigationRepository interface {
 	// Delete removes an investigation by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+// -----------------------------------------------------------------------------
+// StatsRepository - Aggregation queries for analytics
+// -----------------------------------------------------------------------------
+
+// StatsTimeWindow defines a time range for aggregation queries.
+type StatsTimeWindow struct {
+	Start time.Time
+	End   time.Time
+}
+
+// StatsFilter specifies filtering options for stats queries.
+type StatsFilter struct {
+	Window      StatsTimeWindow
+	RunnerTypes []domain.RunnerType // Filter by specific runners
+	ProfileIDs  []uuid.UUID         // Filter by specific profiles
+	Models      []string            // Filter by specific models
+	TagPrefix   string              // Filter by tag prefix
+}
+
+// RunStatusCounts contains counts by run status.
+type RunStatusCounts struct {
+	Pending     int `json:"pending" db:"pending"`
+	Starting    int `json:"starting" db:"starting"`
+	Running     int `json:"running" db:"running"`
+	Complete    int `json:"complete" db:"complete"`
+	Failed      int `json:"failed" db:"failed"`
+	Cancelled   int `json:"cancelled" db:"cancelled"`
+	NeedsReview int `json:"needsReview" db:"needs_review"`
+	Total       int `json:"total" db:"total"`
+}
+
+// DurationStats contains duration percentile statistics.
+type DurationStats struct {
+	AvgMs   int64 `json:"avgMs" db:"avg_ms"`
+	P50Ms   int64 `json:"p50Ms" db:"p50_ms"`
+	P95Ms   int64 `json:"p95Ms" db:"p95_ms"`
+	P99Ms   int64 `json:"p99Ms" db:"p99_ms"`
+	MinMs   int64 `json:"minMs" db:"min_ms"`
+	MaxMs   int64 `json:"maxMs" db:"max_ms"`
+	Count   int   `json:"count" db:"count"`
+}
+
+// CostStats contains cost aggregation data.
+type CostStats struct {
+	TotalCostUSD    float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	AvgCostUSD      float64 `json:"avgCostUsd" db:"avg_cost_usd"`
+	InputTokens     int64   `json:"inputTokens" db:"input_tokens"`
+	OutputTokens    int64   `json:"outputTokens" db:"output_tokens"`
+	CacheReadTokens int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
+	TotalTokens     int64   `json:"totalTokens" db:"total_tokens"`
+}
+
+// RunnerBreakdown contains stats grouped by runner type.
+type RunnerBreakdown struct {
+	RunnerType   domain.RunnerType `json:"runnerType" db:"runner_type"`
+	RunCount     int               `json:"runCount" db:"run_count"`
+	SuccessCount int               `json:"successCount" db:"success_count"`
+	FailedCount  int               `json:"failedCount" db:"failed_count"`
+	TotalCostUSD float64           `json:"totalCostUsd" db:"total_cost_usd"`
+	AvgDurationMs int64            `json:"avgDurationMs" db:"avg_duration_ms"`
+}
+
+// ProfileBreakdown contains stats grouped by agent profile.
+type ProfileBreakdown struct {
+	ProfileID    uuid.UUID `json:"profileId" db:"profile_id"`
+	ProfileName  string    `json:"profileName" db:"profile_name"`
+	RunCount     int       `json:"runCount" db:"run_count"`
+	SuccessCount int       `json:"successCount" db:"success_count"`
+	FailedCount  int       `json:"failedCount" db:"failed_count"`
+	TotalCostUSD float64   `json:"totalCostUsd" db:"total_cost_usd"`
+}
+
+// ModelBreakdown contains stats grouped by model.
+type ModelBreakdown struct {
+	Model        string  `json:"model" db:"model"`
+	RunCount     int     `json:"runCount" db:"run_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	TotalCostUSD float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	TotalTokens  int64   `json:"totalTokens" db:"total_tokens"`
+}
+
+// ToolUsageStats contains tool call frequency data.
+type ToolUsageStats struct {
+	ToolName     string `json:"toolName" db:"tool_name"`
+	CallCount    int    `json:"callCount" db:"call_count"`
+	SuccessCount int    `json:"successCount" db:"success_count"`
+	FailedCount  int    `json:"failedCount" db:"failed_count"`
+}
+
+// ErrorPattern contains error frequency data.
+type ErrorPattern struct {
+	ErrorCode   string    `json:"errorCode" db:"error_code"`
+	Count       int       `json:"count" db:"count"`
+	LastSeen    time.Time `json:"lastSeen" db:"last_seen"`
+	SampleRunID uuid.UUID `json:"sampleRunId" db:"sample_run_id"`
+}
+
+// TimeSeriesBucket contains time-bucketed data for charts.
+type TimeSeriesBucket struct {
+	Timestamp     time.Time `json:"timestamp" db:"timestamp"`
+	RunsStarted   int       `json:"runsStarted" db:"runs_started"`
+	RunsCompleted int       `json:"runsCompleted" db:"runs_completed"`
+	RunsFailed    int       `json:"runsFailed" db:"runs_failed"`
+	RunsCancelled int       `json:"runsCancelled" db:"runs_cancelled"`
+	TotalCostUSD  float64   `json:"totalCostUsd" db:"total_cost_usd"`
+	AvgDurationMs int64     `json:"avgDurationMs" db:"avg_duration_ms"`
+}
+
+// StatsRepository provides aggregation queries for analytics.
+// This is the primary SEAM for testing stats functionality.
+type StatsRepository interface {
+	// GetRunStatusCounts returns counts of runs by status within the time window.
+	GetRunStatusCounts(ctx context.Context, filter StatsFilter) (*RunStatusCounts, error)
+
+	// GetSuccessRate returns the ratio of complete runs to terminal runs.
+	GetSuccessRate(ctx context.Context, filter StatsFilter) (float64, error)
+
+	// GetDurationStats returns duration percentile statistics.
+	GetDurationStats(ctx context.Context, filter StatsFilter) (*DurationStats, error)
+
+	// GetCostStats aggregates cost data from metric events.
+	GetCostStats(ctx context.Context, filter StatsFilter) (*CostStats, error)
+
+	// GetRunnerBreakdown returns stats grouped by runner type.
+	GetRunnerBreakdown(ctx context.Context, filter StatsFilter) ([]*RunnerBreakdown, error)
+
+	// GetProfileBreakdown returns stats grouped by profile.
+	GetProfileBreakdown(ctx context.Context, filter StatsFilter, limit int) ([]*ProfileBreakdown, error)
+
+	// GetModelBreakdown returns stats grouped by model.
+	GetModelBreakdown(ctx context.Context, filter StatsFilter, limit int) ([]*ModelBreakdown, error)
+
+	// GetToolUsageStats aggregates tool call events.
+	GetToolUsageStats(ctx context.Context, filter StatsFilter, limit int) ([]*ToolUsageStats, error)
+
+	// GetErrorPatterns aggregates error events.
+	GetErrorPatterns(ctx context.Context, filter StatsFilter, limit int) ([]*ErrorPattern, error)
+
+	// GetTimeSeries returns time-bucketed data for charts.
+	GetTimeSeries(ctx context.Context, filter StatsFilter, bucketDuration time.Duration) ([]*TimeSeriesBucket, error)
+}

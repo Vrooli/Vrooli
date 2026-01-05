@@ -24,6 +24,7 @@ type Repositories struct {
 	Policies       repository.PolicyRepository
 	Locks          repository.LockRepository
 	Investigations repository.InvestigationRepository
+	Stats          repository.StatsRepository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -38,6 +39,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Policies:       &policyRepository{db: db, log: log},
 		Locks:          &lockRepository{db: db, log: log},
 		Investigations: &investigationRepository{db: db, log: log},
+		Stats:          &statsRepository{db: db, log: log},
 	}
 }
 

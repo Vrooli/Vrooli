@@ -90,6 +90,9 @@ CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
 
+-- Stats query indexes
+CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
+
 -- ============================================================================
 -- Run Events - Append-only event stream
 -- ============================================================================
@@ -106,6 +109,11 @@ CREATE TABLE IF NOT EXISTS run_events (
 CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_run_events_run_sequence ON run_events(run_id, sequence);
 CREATE INDEX IF NOT EXISTS idx_run_events_type ON run_events(run_id, event_type);
+
+-- Stats query indexes for cost aggregation
+CREATE INDEX IF NOT EXISTS idx_run_events_cost ON run_events(run_id, event_type) WHERE event_type = 'metric';
+CREATE INDEX IF NOT EXISTS idx_run_events_tool_calls ON run_events(run_id, event_type) WHERE event_type = 'tool_call';
+CREATE INDEX IF NOT EXISTS idx_run_events_errors ON run_events(run_id, event_type) WHERE event_type = 'error';
 
 -- ============================================================================
 -- Run Checkpoints - For resumption after interruption

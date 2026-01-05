@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
+  BarChart3,
   Bot,
   CheckCircle2,
   ClipboardList,
@@ -34,6 +36,18 @@ import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 import { InvestigationsPage } from "./pages/InvestigationsPage";
+import { StatsPage } from "./features/stats";
+
+// Create a QueryClient instance for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // 30 seconds
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 import type { ModelOption, ModelRegistry } from "./types";
 import { HealthStatus, RunStatus } from "./types";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
@@ -62,6 +76,7 @@ export default function App() {
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
     if (path.startsWith("/investigations")) return "investigations";
+    if (path.startsWith("/stats")) return "stats";
     return "dashboard";
   }, [location.pathname]);
 
@@ -363,6 +378,7 @@ export default function App() {
   );
 
   return (
+    <QueryClientProvider client={queryClient}>
     <div className="min-h-screen bg-transparent text-foreground">
       {/* Header */}
       <div className="relative overflow-hidden border-b border-border/50 backdrop-blur-sm">
@@ -977,7 +993,7 @@ export default function App() {
         )}
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-[750px] grid-cols-5">
+          <TabsList className="mb-6 grid w-full max-w-[900px] grid-cols-6">
             <TabsTrigger value="dashboard" className="gap-2">
               <Activity className="h-4 w-4" />
               Dashboard
@@ -997,6 +1013,10 @@ export default function App() {
             <TabsTrigger value="investigations" className="gap-2">
               <Search className="h-4 w-4" />
               Investigations
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Stats
             </TabsTrigger>
           </TabsList>
 
@@ -1096,12 +1116,14 @@ export default function App() {
                 />
               }
             />
+            <Route path="/stats" element={<StatsPage />} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Tabs>
       </main>
     </div>
+    </QueryClientProvider>
   );
 }
 
