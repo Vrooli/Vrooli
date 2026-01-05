@@ -113,6 +113,20 @@ func buildPortEnvVars(ports ManifestPorts) string {
 	return fmt.Sprintf("export %s &&", strings.Join(parts, " "))
 }
 
+func containsTildeInSingleQuotes(command string) bool {
+	inSingleQuote := false
+	for _, r := range command {
+		if r == '\'' {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+		if inSingleQuote && r == '~' {
+			return true
+		}
+	}
+	return false
+}
+
 func requiredResourcesForScenario(scenarioID string) ([]string, error) {
 	repoRoot, err := FindRepoRootFromCWD()
 	if err != nil {
@@ -452,7 +466,13 @@ func RunVPSDeployWithProgress(
 	// Step: wait_for_ui - Wait for UI port to be listening before health check
 	emit("step_started", "wait_for_ui", "Waiting for UI to listen")
 	waitForUIScript := buildWaitForPortScript("127.0.0.1", uiPort, 30, "UI")
-	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(waitForUIScript))); err != nil {
+	waitCmd := fmt.Sprintf("bash -c %s", shellQuoteSingle(waitForUIScript))
+	if err := run(waitCmd); err != nil {
+		healthCheckCmd := fmt.Sprintf("curl -fsS --max-time 3 http://127.0.0.1:%d/health", uiPort)
+		healthResult, healthErr := sshRunner.Run(ctx, cfg, healthCheckCmd)
+		if healthErr == nil && healthResult.ExitCode == 0 {
+			return failStep("wait_for_ui", "Waiting for UI to listen", fmt.Sprintf("wait_for_ui failed but /health responded successfully; likely wait script or port check issue. wait error: %s", err.Error()))
+		}
 		return failStep("wait_for_ui", "Waiting for UI to listen", err.Error())
 	}
 	*progress += StepWeights["wait_for_ui"]
@@ -462,11 +482,12 @@ func RunVPSDeployWithProgress(
 	emit("step_started", "verify_local", "Verifying local health")
 	localHealthURL := fmt.Sprintf("http://127.0.0.1:%d/health", uiPort)
 	localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
-	verifyLocalLogPath := fmt.Sprintf("~/.vrooli/logs/verify_local_%s.log", manifest.Scenario.ID)
-	if err := run("mkdir -p ~/.vrooli/logs"); err != nil {
-		return failStep("verify_local", "Verifying local health", err.Error())
+	logFileName := fmt.Sprintf("verify_local_%s.log", manifest.Scenario.ID)
+	preflightLogsCmd := "log_dir=\"$HOME/.vrooli/logs\"; mkdir -p \"$log_dir\" && test -w \"$log_dir\""
+	if err := run(preflightLogsCmd); err != nil {
+		return failStep("verify_local", "Verifying local health", fmt.Sprintf("verify log directory not writable: %s", err.Error()))
 	}
-	verifyLocalCmd := fmt.Sprintf("bash -c %s &> %s || (cat %s; exit 1)", shellQuoteSingle(localHealthScript), shellQuoteSingle(verifyLocalLogPath), shellQuoteSingle(verifyLocalLogPath))
+	verifyLocalCmd := fmt.Sprintf("log_dir=\"$HOME/.vrooli/logs\"; log_file=\"$log_dir\"/%s; tmp_log=\"$(mktemp)\"; if bash -c %s &> \"$tmp_log\"; then cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; else cat \"$tmp_log\"; cat \"$tmp_log\" > \"$log_file\" 2>/dev/null || true; exit 1; fi", shellQuoteSingle(logFileName), shellQuoteSingle(localHealthScript))
 	if err := run(verifyLocalCmd); err != nil {
 		return failStep("verify_local", "Verifying local health", err.Error())
 	}
@@ -630,7 +651,7 @@ while true; do
     if (( elapsed >= TIMEOUT )); then
         echo "❌ Timeout waiting for $SERVICE on $HOST:$PORT after ${TIMEOUT}s"
         echo "Investigation:"
-        echo "  • Check UI logs: tail -50 ~/.vrooli/logs/scenarios/*/vrooli.develop.*.start-ui.log"
+        echo "  • Check UI logs: tail -50 $HOME/.vrooli/logs/scenarios/*/vrooli.develop.*.start-ui.log"
         echo "  • Check port bindings: ss -tlnp | grep -E '35000|15000'"
         exit 1
     fi

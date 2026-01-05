@@ -98,3 +98,13 @@ func TestBuildPortEnvVars(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildWaitForPortScriptUsesHomeEnv(t *testing.T) {
+	script := buildWaitForPortScript("127.0.0.1", 35000, 10, "UI")
+	if strings.Contains(script, "~/.vrooli") {
+		t.Fatalf("expected wait script to avoid ~ expansion in logs path")
+	}
+	if !strings.Contains(script, "$HOME/.vrooli") {
+		t.Fatalf("expected wait script to use $HOME for logs path")
+	}
+}

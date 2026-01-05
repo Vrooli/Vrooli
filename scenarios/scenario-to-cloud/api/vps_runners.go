@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os/exec"
 	"strconv"
@@ -130,6 +131,12 @@ func (ExecSSHRunner) Run(ctx context.Context, cfg SSHConfig, command string) (SS
 // and building error messages from stdout/stderr. The returned error includes the last 50 lines
 // of stdout (useful because tools like vrooli often redirect stderr to stdout via `2>&1 | tee`).
 func RunSSHWithOutput(ctx context.Context, runner SSHRunner, cfg SSHConfig, cmd string) error {
+	if containsTildeInSingleQuotes(cmd) {
+		msg := fmt.Sprintf("invalid command: tilde inside single quotes prevents home expansion; use $HOME or an absolute path. command: %s", cmd)
+		log.Printf("ssh command rejected: %s", msg)
+		return fmt.Errorf("%s", msg)
+	}
+	log.Printf("ssh command: %s", formatSSHCommandForLog(cfg, cmd))
 	res, err := runner.Run(ctx, cfg, cmd)
 	if err != nil {
 		return buildSSHError(err, res)
@@ -157,6 +164,24 @@ func buildSSHError(err error, res SSHResult) error {
 		return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
 	}
 	return err
+}
+
+func formatSSHCommandForLog(cfg SSHConfig, cmd string) string {
+	parts := []string{
+		"ssh",
+		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=5",
+		"-o", "ServerAliveInterval=5",
+		"-o", "ServerAliveCountMax=1",
+		"-o", "StrictHostKeyChecking=accept-new",
+		"-p", strconv.Itoa(cfg.Port),
+	}
+	if cfg.KeyPath != "" {
+		parts = append(parts, "-i", "<redacted>")
+	}
+	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
+	parts = append(parts, target, "--", cmd)
+	return strings.Join(parts, " ")
 }
 
 type ExecSCPRunner struct{}
