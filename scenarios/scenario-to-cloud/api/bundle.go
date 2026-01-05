@@ -27,6 +27,16 @@ type (
 	BundleStats    = domain.BundleStats
 )
 
+// GetLocalBundlesDir returns the path to the local bundles directory.
+// This consolidates the repeated pattern of finding repo root and appending the bundles path.
+func GetLocalBundlesDir() (string, error) {
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles"), nil
+}
+
 func ListBundles(bundlesDir string) ([]BundleInfo, error) {
 	if !dirExists(bundlesDir) {
 		return []BundleInfo{}, nil
@@ -758,102 +768,85 @@ func buildMiniServiceJSON(repoRoot string, manifest CloudManifest) ([]byte, erro
 	}
 
 	// Build set of required resources from manifest
-	requiredResources := map[string]struct{}{}
-	for _, id := range stableUniqueStrings(manifest.Bundle.Resources) {
-		requiredResources[id] = struct{}{}
-	}
+	requiredResources := toStringSet(stableUniqueStrings(manifest.Bundle.Resources))
 
-	// Build set of required scenarios from manifest
-	requiredScenarios := map[string]struct{}{}
-	for _, id := range stableUniqueStrings(manifest.Bundle.Scenarios) {
-		requiredScenarios[id] = struct{}{}
-	}
-	// Also include the main scenario being deployed
+	// Build set of required scenarios from manifest (including main scenario)
+	requiredScenarios := toStringSet(stableUniqueStrings(manifest.Bundle.Scenarios))
 	if manifest.Scenario.ID != "" {
 		requiredScenarios[manifest.Scenario.ID] = struct{}{}
 	}
 
 	// Ensure dependencies section exists
-	dependenciesAny, hasDeps := doc["dependencies"]
-	var dependencies map[string]interface{}
-	if hasDeps {
-		dependencies, _ = dependenciesAny.(map[string]interface{})
-	}
-	if dependencies == nil {
-		dependencies = make(map[string]interface{})
-	}
+	dependencies := getOrCreateMapField(doc, "dependencies")
 
-	// Handle resources
+	// Handle resources and scenarios in dependencies section
 	if len(requiredResources) > 0 {
-		existingResources := make(map[string]interface{})
-		if resourcesAny, hasResources := dependencies["resources"]; hasResources {
-			if r, ok := resourcesAny.(map[string]interface{}); ok {
-				existingResources = r
-			}
-		}
-
-		newResources := make(map[string]interface{})
-		for id := range requiredResources {
-			if existing, ok := existingResources[id]; ok {
-				// Keep existing config but ensure enabled=true
-				if m, ok := existing.(map[string]interface{}); ok {
-					m["enabled"] = true
-					newResources[id] = m
-				} else {
-					newResources[id] = map[string]interface{}{"enabled": true}
-				}
-			} else {
-				// Resource not in original config, add minimal entry
-				newResources[id] = map[string]interface{}{"enabled": true}
-			}
-		}
-		dependencies["resources"] = newResources
+		dependencies["resources"] = mergeRequiredEntries(dependencies, "resources", requiredResources, true)
 	}
-
-	// Handle scenarios - ensure we have at least the deployed scenario
 	if len(requiredScenarios) > 0 {
-		existingScenarios := make(map[string]interface{})
-		if scenariosAny, hasScenarios := dependencies["scenarios"]; hasScenarios {
-			if s, ok := scenariosAny.(map[string]interface{}); ok {
-				existingScenarios = s
-			}
-		}
-
-		newScenarios := make(map[string]interface{})
-		for id := range requiredScenarios {
-			if existing, ok := existingScenarios[id]; ok {
-				newScenarios[id] = existing
-			} else {
-				// Scenario not in original config, add minimal entry
-				newScenarios[id] = map[string]interface{}{"enabled": true}
-			}
-		}
-		dependencies["scenarios"] = newScenarios
+		dependencies["scenarios"] = mergeRequiredEntries(dependencies, "scenarios", requiredScenarios, false)
 	}
 
 	doc["dependencies"] = dependencies
 
 	// Also handle legacy top-level "resources" key if present
-	if resourcesAny, ok := doc["resources"]; ok {
-		if resources, ok := resourcesAny.(map[string]interface{}); ok {
-			newResources := make(map[string]interface{})
-			for id := range requiredResources {
-				if existing, ok := resources[id]; ok {
-					if m, ok := existing.(map[string]interface{}); ok {
-						m["enabled"] = true
-						newResources[id] = m
-					} else {
-						newResources[id] = map[string]interface{}{"enabled": true}
-					}
-				} else {
-					newResources[id] = map[string]interface{}{"enabled": true}
-				}
-			}
-			doc["resources"] = newResources
-		}
+	if _, hasLegacy := doc["resources"]; hasLegacy && len(requiredResources) > 0 {
+		doc["resources"] = mergeRequiredEntries(doc, "resources", requiredResources, true)
 	}
 
 	return json.MarshalIndent(doc, "", "  ")
+}
+
+// toStringSet converts a slice to a map[string]struct{} for efficient lookup.
+func toStringSet(slice []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(slice))
+	for _, s := range slice {
+		set[s] = struct{}{}
+	}
+	return set
+}
+
+// getOrCreateMapField returns a map field from doc, creating it if needed.
+func getOrCreateMapField(doc map[string]interface{}, key string) map[string]interface{} {
+	if v, ok := doc[key]; ok {
+		if m, ok := v.(map[string]interface{}); ok {
+			return m
+		}
+	}
+	return make(map[string]interface{})
+}
+
+// mergeRequiredEntries merges required IDs with existing config, returning a new map.
+// If setEnabled is true, entries in requiredIDs get "enabled": true, and entries in
+// existing but not in requiredIDs get "enabled": false.
+func mergeRequiredEntries(parent map[string]interface{}, key string, requiredIDs map[string]struct{}, setEnabled bool) map[string]interface{} {
+	existing := getOrCreateMapField(parent, key)
+	merged := make(map[string]interface{}, len(existing)+len(requiredIDs))
+
+	// First, process all existing entries - set enabled: false for non-required ones
+	for id, entry := range existing {
+		_, isRequired := requiredIDs[id]
+		if m, ok := entry.(map[string]interface{}); ok && setEnabled {
+			// Clone the map to avoid mutating the original
+			cloned := make(map[string]interface{}, len(m))
+			for k, v := range m {
+				cloned[k] = v
+			}
+			cloned["enabled"] = isRequired
+			merged[id] = cloned
+		} else {
+			merged[id] = entry
+		}
+	}
+
+	// Then add any required entries that weren't in existing
+	for id := range requiredIDs {
+		if _, ok := existing[id]; !ok {
+			merged[id] = map[string]interface{}{"enabled": true}
+		}
+	}
+
+	return merged
 }
 
 // buildScenarioServiceJSONWithFixedPorts reads the target scenario's service.json
@@ -874,59 +867,46 @@ func buildScenarioServiceJSONWithFixedPorts(repoRoot string, manifest CloudManif
 		return nil, err
 	}
 
-	// Parse the service.json
 	var doc map[string]interface{}
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return nil, fmt.Errorf("parse scenario service.json: %w", err)
 	}
 
-	// Get the ports section
-	portsAny, hasPorts := doc["ports"]
-	if !hasPorts {
-		// No ports section, return as-is
-		return json.MarshalIndent(doc, "", "  ")
-	}
-
-	ports, ok := portsAny.(map[string]interface{})
-	if !ok {
+	// Get the ports section (return as-is if missing or invalid type)
+	ports := getOrCreateMapField(doc, "ports")
+	if len(ports) == 0 && doc["ports"] == nil {
 		return json.MarshalIndent(doc, "", "  ")
 	}
 
 	// For each port in manifest.Ports, replace the range with a fixed port
 	for portName, portValue := range manifest.Ports {
-		portConfig, exists := ports[portName]
-		if !exists {
-			// Port doesn't exist in service.json, add it
-			ports[portName] = map[string]interface{}{
-				"port":    portValue,
-				"env_var": strings.ToUpper(portName) + "_PORT",
-			}
-			continue
-		}
-
-		// Port exists, modify it
-		configMap, ok := portConfig.(map[string]interface{})
-		if !ok {
-			// Not a map, replace with fixed port
-			ports[portName] = map[string]interface{}{
-				"port":    portValue,
-				"env_var": strings.ToUpper(portName) + "_PORT",
-			}
-			continue
-		}
-
-		// Remove the range field and add fixed port
-		delete(configMap, "range")
-		configMap["port"] = portValue
-
-		// Ensure env_var is set
-		if _, hasEnvVar := configMap["env_var"]; !hasEnvVar {
-			configMap["env_var"] = strings.ToUpper(portName) + "_PORT"
-		}
+		ports[portName] = setFixedPort(ports[portName], portName, portValue)
 	}
 
 	doc["ports"] = ports
 	return json.MarshalIndent(doc, "", "  ")
+}
+
+// setFixedPort updates or creates a port config with a fixed port value.
+// Preserves existing config fields except "range", ensuring "port" and "env_var" are set.
+func setFixedPort(existing interface{}, portName string, portValue int) map[string]interface{} {
+	envVar := strings.ToUpper(portName) + "_PORT"
+
+	// If existing is a map, preserve other fields
+	if configMap, ok := existing.(map[string]interface{}); ok {
+		delete(configMap, "range")
+		configMap["port"] = portValue
+		if _, hasEnvVar := configMap["env_var"]; !hasEnvVar {
+			configMap["env_var"] = envVar
+		}
+		return configMap
+	}
+
+	// Create new config
+	return map[string]interface{}{
+		"port":    portValue,
+		"env_var": envVar,
+	}
 }
 
 // isExcluded checks if a path matches any exclusion pattern.

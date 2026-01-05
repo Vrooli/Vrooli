@@ -11,6 +11,32 @@ import (
 	"testing"
 )
 
+// testManifestJSON returns a valid CloudManifest JSON for testing.
+// This eliminates duplication across all CLI tests that need a manifest file.
+const testManifestJSON = `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`
+
+// writeTestManifest creates a temporary manifest file with valid test content.
+func writeTestManifest(t *testing.T) string {
+	t.Helper()
+	return writeTempFile(t, "cloud-manifest.json", testManifestJSON)
+}
+
 func TestHelpCommand(t *testing.T) {
 	app := newTestApp(t)
 	output := captureStdout(t, func() {
@@ -92,26 +118,9 @@ func TestStatusCallsHealthEndpoint(t *testing.T) {
 }
 
 func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
-	app := newTestApp(t)
-
 	// [REQ:STC-P0-001] manifest validation should be callable via CLI (integration layer)
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	app := newTestApp(t)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -140,24 +149,7 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 func TestPlanPostsToPlanEndpoint(t *testing.T) {
 	// [REQ:STC-P0-007] plan generation should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -186,24 +178,7 @@ func TestPlanPostsToPlanEndpoint(t *testing.T) {
 func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	// [REQ:STC-P0-002] bundle build should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -232,24 +207,7 @@ func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 	// [REQ:STC-P0-003] preflight should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -278,24 +236,7 @@ func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	// [REQ:STC-P0-006] inspect plan should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -324,24 +265,7 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	// [REQ:STC-P0-006] inspect apply should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -370,24 +294,7 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 	// [REQ:STC-P0-004] setup plan should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -427,24 +334,7 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
 	// [REQ:STC-P0-004] setup apply should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -481,24 +371,7 @@ func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
 func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 	// [REQ:STC-P0-005] deploy plan should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -534,24 +407,7 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
 	// [REQ:STC-P0-005] deploy apply should be callable via CLI (integration layer)
 	app := newTestApp(t)
-
-	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
-  "version": "1.0.0",
-  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
-  "scenario": { "id": "landing-page-business-suite" },
-  "dependencies": {
-    "scenarios": ["landing-page-business-suite"],
-    "resources": [],
-    "analyzer": { "tool": "scenario-dependency-analyzer" }
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true,
-    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
-  },
-  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
-  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
-}`)
+	manifestPath := writeTestManifest(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

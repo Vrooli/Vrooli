@@ -55,6 +55,7 @@ export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "resource_start", title: "Starting resources" },
   { id: "scenario_deps", title: "Starting dependencies" },
   { id: "scenario_target", title: "Starting scenario" },
+  { id: "wait_for_ui", title: "Waiting for UI to listen" },
   { id: "verify_local", title: "Verifying local health" },
   { id: "verify_https", title: "Verifying HTTPS" },
 ];

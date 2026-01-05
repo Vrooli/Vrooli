@@ -449,11 +449,25 @@ func RunVPSDeployWithProgress(
 	*progress += StepWeights["scenario_target"]
 	emit("step_completed", "scenario_target", "Starting scenario")
 
+	// Step: wait_for_ui - Wait for UI port to be listening before health check
+	emit("step_started", "wait_for_ui", "Waiting for UI to listen")
+	waitForUIScript := buildWaitForPortScript("127.0.0.1", uiPort, 30, "UI")
+	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(waitForUIScript))); err != nil {
+		return failStep("wait_for_ui", "Waiting for UI to listen", err.Error())
+	}
+	*progress += StepWeights["wait_for_ui"]
+	emit("step_completed", "wait_for_ui", "Waiting for UI to listen")
+
 	// Step: verify_local - Use detailed health check script for actionable error messages
 	emit("step_started", "verify_local", "Verifying local health")
 	localHealthURL := fmt.Sprintf("http://127.0.0.1:%d/health", uiPort)
 	localHealthScript := buildHealthCheckScript(localHealthURL, 5, "local")
-	if err := run(fmt.Sprintf("bash -c %s", shellQuoteSingle(localHealthScript))); err != nil {
+	verifyLocalLogPath := fmt.Sprintf("~/.vrooli/logs/verify_local_%s.log", manifest.Scenario.ID)
+	if err := run("mkdir -p ~/.vrooli/logs"); err != nil {
+		return failStep("verify_local", "Verifying local health", err.Error())
+	}
+	verifyLocalCmd := fmt.Sprintf("bash -c %s &> %s || (cat %s; exit 1)", shellQuoteSingle(localHealthScript), shellQuoteSingle(verifyLocalLogPath), shellQuoteSingle(verifyLocalLogPath))
+	if err := run(verifyLocalCmd); err != nil {
 		return failStep("verify_local", "Verifying local health", err.Error())
 	}
 	*progress += StepWeights["verify_local"]
@@ -497,7 +511,7 @@ TIMEOUT=%d
 CHECK_TYPE="%s"
 
 # Perform the request, capturing status code and body
-RESPONSE=$(curl -sS --max-time "$TIMEOUT" -w '\n%%{http_code}' "$URL" 2>&1) || {
+RESPONSE=$(curl -sS --max-time "$TIMEOUT" -w '\n%%{http_code}' "$URL") || {
     EXIT_CODE=$?
     case $EXIT_CODE in
         7)  echo "❌ Connection refused: No service listening on $URL"
@@ -542,7 +556,7 @@ case $HTTP_CODE in
         echo "Status: Service Unavailable"
         echo ""
         # Try to parse JSON response for details
-        if echo "$BODY" | jq -e '.api_connectivity' >/dev/null 2>&1; then
+        if echo "$BODY" | jq -e '.api_connectivity' &> /dev/null; then
             API_CONNECTED=$(echo "$BODY" | jq -r '.api_connectivity.connected // "unknown"')
             API_ERROR=$(echo "$BODY" | jq -r '.api_connectivity.error.message // "no details"')
             echo "API Connectivity: $API_CONNECTED"
@@ -557,7 +571,7 @@ case $HTTP_CODE in
                 echo "  • Check API logs: tail -50 scenarios/*/logs/api.log"
                 echo "  • Verify API_PORT env var was set: echo \$API_PORT"
             fi
-        elif echo "$BODY" | jq -e '.status' >/dev/null 2>&1; then
+        elif echo "$BODY" | jq -e '.status' &> /dev/null; then
             STATUS=$(echo "$BODY" | jq -r '.status')
             echo "Service status: $STATUS"
             echo ""
@@ -593,4 +607,34 @@ esac
 
 exit 1
 `, url, timeoutSecs, checkType)
+}
+
+// buildWaitForPortScript returns a shell script that waits for a TCP port to be listening.
+func buildWaitForPortScript(host string, port int, timeoutSecs int, serviceName string) string {
+	return fmt.Sprintf(`
+set -e
+HOST="%s"
+PORT=%d
+TIMEOUT=%d
+SERVICE="%s"
+
+start_time=$(date +%%s)
+echo "Waiting for $SERVICE on $HOST:$PORT to accept connections..."
+while true; do
+    if ss -tln | awk '{print $4}' | grep -Eq "[:.]${PORT}$"; then
+        echo "$SERVICE is listening on $HOST:$PORT"
+        exit 0
+    fi
+    now=$(date +%%s)
+    elapsed=$((now - start_time))
+    if (( elapsed >= TIMEOUT )); then
+        echo "❌ Timeout waiting for $SERVICE on $HOST:$PORT after ${TIMEOUT}s"
+        echo "Investigation:"
+        echo "  • Check UI logs: tail -50 ~/.vrooli/logs/scenarios/*/vrooli.develop.*.start-ui.log"
+        echo "  • Check port bindings: ss -tlnp | grep -E '35000|15000'"
+        exit 1
+    fi
+    sleep 1
+done
+`, host, port, timeoutSecs, serviceName)
 }

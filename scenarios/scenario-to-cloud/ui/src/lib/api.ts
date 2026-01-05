@@ -452,6 +452,7 @@ export type Deployment = {
   name: string;
   scenario_id: string;
   status: DeploymentStatus;
+  run_id?: string;
   manifest: unknown;
   bundle_path?: string;
   bundle_sha256?: string;

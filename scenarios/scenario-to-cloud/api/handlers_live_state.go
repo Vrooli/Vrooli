@@ -456,152 +456,169 @@ func computeDrift(manifest CloudManifest, liveState LiveStateResult) DriftReport
 		Checks:    []DriftCheck{},
 	}
 
-	// Check scenarios
-	scenarioRunning := false
-	if liveState.Processes != nil {
-		for _, s := range liveState.Processes.Scenarios {
-			if s.ID == manifest.Scenario.ID {
-				scenarioRunning = s.Status == "running"
-				break
-			}
-		}
+	// Check main scenario
+	scenarioRunning := isScenarioRunning(liveState.Processes, manifest.Scenario.ID)
+	report.addCheck(scenarioRunning, DriftCheck{
+		Category: "scenarios",
+		Name:     manifest.Scenario.ID,
+		Expected: "running",
+	}, DriftCheck{
+		Message: "Main scenario is not running",
+		Actions: []string{"restart_scenario"},
+	})
+
+	// Check expected resources
+	for _, resID := range manifest.Dependencies.Resources {
+		resourceRunning := isResourceRunning(liveState.Processes, resID)
+		report.addCheck(resourceRunning, DriftCheck{
+			Category: "resources",
+			Name:     resID,
+			Expected: "running",
+		}, DriftCheck{
+			Message: "Expected resource is not running",
+			Actions: []string{"restart_resource"},
+		})
 	}
 
-	if scenarioRunning {
-		report.Checks = append(report.Checks, DriftCheck{
-			Category: "scenarios",
-			Name:     manifest.Scenario.ID,
+	// Check for unexpected resources
+	report.checkUnexpectedResources(liveState.Processes, manifest.Dependencies.Resources)
+
+	// Check for unexpected processes with ports
+	report.checkUnexpectedPorts(liveState.Processes)
+
+	// Check Caddy/TLS
+	report.checkCaddyState(liveState.Caddy)
+
+	return report
+}
+
+// addCheck adds a pass or drift check to the report based on the condition.
+// passFields provides the base check info; driftFields provides additional info for failures.
+func (r *DriftReport) addCheck(passed bool, passFields, driftFields DriftCheck) {
+	check := passFields
+	if passed {
+		check.Status = "pass"
+		check.Actual = passFields.Expected
+		r.Summary.Passed++
+	} else {
+		check.Status = "drift"
+		check.Actual = "not running"
+		check.Message = driftFields.Message
+		check.Actions = driftFields.Actions
+		r.Summary.Drifts++
+	}
+	r.Checks = append(r.Checks, check)
+}
+
+// isScenarioRunning checks if a scenario is running in the process list.
+func isScenarioRunning(processes *ProcessState, scenarioID string) bool {
+	if processes == nil {
+		return false
+	}
+	for _, s := range processes.Scenarios {
+		if s.ID == scenarioID {
+			return s.Status == "running"
+		}
+	}
+	return false
+}
+
+// isResourceRunning checks if a resource is running in the process list.
+func isResourceRunning(processes *ProcessState, resourceID string) bool {
+	if processes == nil {
+		return false
+	}
+	for _, r := range processes.Resources {
+		if r.ID == resourceID {
+			return r.Status == "running"
+		}
+	}
+	return false
+}
+
+// checkUnexpectedResources adds warnings for resources running but not in manifest.
+func (r *DriftReport) checkUnexpectedResources(processes *ProcessState, expectedIDs []string) {
+	if processes == nil {
+		return
+	}
+	expectedSet := make(map[string]bool)
+	for _, res := range expectedIDs {
+		expectedSet[res] = true
+	}
+	for _, res := range processes.Resources {
+		if !expectedSet[res.ID] {
+			r.Checks = append(r.Checks, DriftCheck{
+				Category: "resources",
+				Name:     res.ID,
+				Status:   "warning",
+				Expected: "not specified in manifest",
+				Actual:   "running",
+				Message:  "Resource is running but not in manifest",
+				Actions:  []string{"stop", "add_to_manifest"},
+			})
+			r.Summary.Warnings++
+		}
+	}
+}
+
+// checkUnexpectedPorts adds warnings for unexpected processes listening on ports.
+func (r *DriftReport) checkUnexpectedPorts(processes *ProcessState) {
+	if processes == nil {
+		return
+	}
+	for _, u := range processes.Unexpected {
+		if u.Port > 0 {
+			r.Checks = append(r.Checks, DriftCheck{
+				Category: "ports",
+				Name:     intToStr(u.Port),
+				Status:   "warning",
+				Expected: "no unexpected process",
+				Actual:   u.Command,
+				Message:  "Unexpected process listening on port",
+				Actions:  []string{"kill_pid"},
+			})
+			r.Summary.Warnings++
+		}
+	}
+}
+
+// checkCaddyState adds checks for Caddy and TLS status.
+func (r *DriftReport) checkCaddyState(caddy *CaddyState) {
+	if caddy == nil {
+		return
+	}
+	if caddy.Running {
+		r.Checks = append(r.Checks, DriftCheck{
+			Category: "edge",
+			Name:     "caddy",
 			Status:   "pass",
 			Expected: "running",
 			Actual:   "running",
 		})
-		report.Summary.Passed++
+		r.Summary.Passed++
+
+		if caddy.TLS.Valid {
+			r.Checks = append(r.Checks, DriftCheck{
+				Category: "edge",
+				Name:     "tls",
+				Status:   "pass",
+				Expected: "valid certificate",
+				Actual:   "valid certificate",
+			})
+			r.Summary.Passed++
+		}
 	} else {
-		report.Checks = append(report.Checks, DriftCheck{
-			Category: "scenarios",
-			Name:     manifest.Scenario.ID,
+		r.Checks = append(r.Checks, DriftCheck{
+			Category: "edge",
+			Name:     "caddy",
 			Status:   "drift",
 			Expected: "running",
 			Actual:   "not running",
-			Message:  "Main scenario is not running",
-			Actions:  []string{"restart_scenario"},
+			Message:  "Caddy reverse proxy is not running",
+			Actions:  []string{"restart_caddy"},
 		})
-		report.Summary.Drifts++
+		r.Summary.Drifts++
 	}
-
-	// Check expected resources
-	for _, resID := range manifest.Dependencies.Resources {
-		resourceFound := false
-		if liveState.Processes != nil {
-			for _, r := range liveState.Processes.Resources {
-				if r.ID == resID {
-					resourceFound = r.Status == "running"
-					break
-				}
-			}
-		}
-
-		if resourceFound {
-			report.Checks = append(report.Checks, DriftCheck{
-				Category: "resources",
-				Name:     resID,
-				Status:   "pass",
-				Expected: "running",
-				Actual:   "running",
-			})
-			report.Summary.Passed++
-		} else {
-			report.Checks = append(report.Checks, DriftCheck{
-				Category: "resources",
-				Name:     resID,
-				Status:   "drift",
-				Expected: "running",
-				Actual:   "not running",
-				Message:  "Expected resource is not running",
-				Actions:  []string{"restart_resource"},
-			})
-			report.Summary.Drifts++
-		}
-	}
-
-	// Check for unexpected resources
-	if liveState.Processes != nil {
-		expectedResources := make(map[string]bool)
-		for _, res := range manifest.Dependencies.Resources {
-			expectedResources[res] = true
-		}
-
-		for _, r := range liveState.Processes.Resources {
-			if !expectedResources[r.ID] {
-				report.Checks = append(report.Checks, DriftCheck{
-					Category: "resources",
-					Name:     r.ID,
-					Status:   "warning",
-					Expected: "not specified in manifest",
-					Actual:   "running",
-					Message:  "Resource is running but not in manifest",
-					Actions:  []string{"stop", "add_to_manifest"},
-				})
-				report.Summary.Warnings++
-			}
-		}
-	}
-
-	// Check for unexpected processes with ports
-	if liveState.Processes != nil {
-		for _, u := range liveState.Processes.Unexpected {
-			if u.Port > 0 {
-				report.Checks = append(report.Checks, DriftCheck{
-					Category: "ports",
-					Name:     intToStr(u.Port),
-					Status:   "warning",
-					Expected: "no unexpected process",
-					Actual:   u.Command,
-					Message:  "Unexpected process listening on port",
-					Actions:  []string{"kill_pid"},
-				})
-				report.Summary.Warnings++
-			}
-		}
-	}
-
-	// Check Caddy/TLS
-	if liveState.Caddy != nil {
-		if liveState.Caddy.Running {
-			report.Checks = append(report.Checks, DriftCheck{
-				Category: "edge",
-				Name:     "caddy",
-				Status:   "pass",
-				Expected: "running",
-				Actual:   "running",
-			})
-			report.Summary.Passed++
-
-			if liveState.Caddy.TLS.Valid {
-				report.Checks = append(report.Checks, DriftCheck{
-					Category: "edge",
-					Name:     "tls",
-					Status:   "pass",
-					Expected: "valid certificate",
-					Actual:   "valid certificate",
-				})
-				report.Summary.Passed++
-			}
-		} else {
-			report.Checks = append(report.Checks, DriftCheck{
-				Category: "edge",
-				Name:     "caddy",
-				Status:   "drift",
-				Expected: "running",
-				Actual:   "not running",
-				Message:  "Caddy reverse proxy is not running",
-				Actions:  []string{"restart_caddy"},
-			})
-			report.Summary.Drifts++
-		}
-	}
-
-	return report
 }
 
 // Helper functions

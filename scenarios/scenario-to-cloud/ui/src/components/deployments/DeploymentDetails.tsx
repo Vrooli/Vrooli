@@ -106,6 +106,16 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     deployment.status === "stopped";
 
   const canStop = deployment.status === "deployed";
+  const isInvestigationOutdated = (inv?: { deployment_run_id?: string; created_at: string } | null) => {
+    if (!inv) return false;
+    if (deployment.run_id && inv.deployment_run_id) {
+      return inv.deployment_run_id !== deployment.run_id;
+    }
+    if (deployment.last_deployed_at) {
+      return new Date(inv.created_at).getTime() < new Date(deployment.last_deployed_at).getTime();
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-6">
@@ -206,8 +216,15 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {/* Investigation progress - show when there's an active investigation */}
       {investigation.activeInvestigation && deployment.status === "failed" && (
         <InvestigationProgress
-          deploymentId={deploymentId}
-          onViewReport={() => setShowInvestigationReport(true)}
+          investigation={investigation.activeInvestigation}
+          isRunning={investigation.isRunning}
+          onStop={investigation.stop}
+          isStopping={investigation.isStopping}
+          isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
+          onViewReport={(invId) => {
+            investigation.viewReport(invId);
+            setShowInvestigationReport(true);
+          }}
         />
       )}
 
@@ -216,6 +233,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         <InvestigationReport
           investigation={investigation.activeInvestigation}
           onClose={() => setShowInvestigationReport(false)}
+          isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
           onApplyFixes={async (invId, options) => {
             await investigation.applyFixes(invId, options);
             setShowInvestigationReport(false);
@@ -343,6 +361,8 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {activeTab === "investigations" && (
         <InvestigationsTab
           deploymentId={deploymentId}
+          deploymentRunId={deployment.run_id}
+          lastDeployedAt={deployment.last_deployed_at}
           onViewReport={(inv) => {
             investigation.viewReport(inv.id);
             setShowInvestigationReport(true);

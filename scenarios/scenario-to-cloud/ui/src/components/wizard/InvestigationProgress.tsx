@@ -1,13 +1,16 @@
 import { Loader2, CheckCircle2, XCircle, StopCircle, Bot } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
-import type { InvestigationStatus } from "../../types/investigation";
+import { Tooltip } from "../ui/tooltip";
+import type { Investigation, InvestigationStatus } from "../../types/investigation";
 
 interface InvestigationProgressProps {
-  deploymentId: string;
-  investigationId?: string;
-  onViewReport?: () => void;
+  investigation: Investigation | null | undefined;
+  onViewReport?: (investigationId: string) => void;
+  isRunning?: boolean;
+  onStop?: () => void;
+  isStopping?: boolean;
+  isOutdated?: boolean;
 }
 
 function StatusIcon({ status }: { status: InvestigationStatus }) {
@@ -59,20 +62,14 @@ function statusLabel(status: InvestigationStatus, isFixApplication: boolean): st
 }
 
 export function InvestigationProgress({
-  deploymentId,
-  investigationId,
+  investigation,
   onViewReport,
+  isRunning = false,
+  onStop,
+  isStopping = false,
+  isOutdated = false,
 }: InvestigationProgressProps) {
-  const {
-    activeInvestigation,
-    isRunning,
-    stop,
-    isStopping,
-    viewReport,
-  } = useDeploymentInvestigation(deploymentId);
-
-  // Use provided investigationId or the active one
-  const inv = activeInvestigation;
+  const inv = investigation;
   if (!inv) {
     return null;
   }
@@ -103,6 +100,13 @@ export function InvestigationProgress({
           <span className="font-medium text-slate-200">
             {isFixApplication ? "Fix Application" : "Deployment Investigation"}
           </span>
+          {isOutdated && (
+            <Tooltip content="From a previous deployment run, not the current one." side="top">
+              <span className="text-[10px] uppercase tracking-wide text-amber-300 border border-amber-500/40 rounded-full px-2 py-0.5">
+                Outdated
+              </span>
+            </Tooltip>
+          )}
           <span className="text-xs text-slate-500 font-mono ml-auto">
             {inv.id.slice(0, 8)}
           </span>
@@ -160,8 +164,7 @@ export function InvestigationProgress({
             <Button
               size="sm"
               onClick={() => {
-                viewReport(inv.id);
-                onViewReport?.();
+                onViewReport?.(inv.id);
               }}
             >
               View Report
@@ -174,8 +177,7 @@ export function InvestigationProgress({
               size="sm"
               variant="outline"
               onClick={() => {
-                viewReport(inv.id);
-                onViewReport?.();
+                onViewReport?.(inv.id);
               }}
             >
               View Details
@@ -186,7 +188,7 @@ export function InvestigationProgress({
             <Button
               size="sm"
               variant="ghost"
-              onClick={stop}
+              onClick={onStop}
               disabled={isStopping}
             >
               {isStopping ? (

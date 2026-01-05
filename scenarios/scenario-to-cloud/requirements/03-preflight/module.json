@@ -35,9 +35,9 @@
         },
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/preflight.yaml",
+          "ref": "bas/cases/03-preflight/vps-preflight.json",
           "notes": "E2E planned against a disposable VPS. Tag with [REQ:STC-P0-003]."
         }
       ]

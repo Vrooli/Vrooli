@@ -1,6 +1,7 @@
 import { X, Clock, Coins, FileText, Copy, Check, XCircle, CheckCircle2, StopCircle, Wrench, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
 import type { Investigation } from "../../types/investigation";
 import type { ApplyFixesRequest } from "../../types/investigation";
 
@@ -9,6 +10,7 @@ interface InvestigationReportProps {
   onClose: () => void;
   onApplyFixes?: (investigationId: string, options: ApplyFixesRequest) => Promise<void>;
   isApplyingFixes?: boolean;
+  isOutdated?: boolean;
 }
 
 function getStatusConfig(status: Investigation["status"], isFixReport: boolean) {
@@ -49,7 +51,7 @@ function getStatusConfig(status: Investigation["status"], isFixReport: boolean) 
   }
 }
 
-export function InvestigationReport({ investigation, onClose, onApplyFixes, isApplyingFixes }: InvestigationReportProps) {
+export function InvestigationReport({ investigation, onClose, onApplyFixes, isApplyingFixes, isOutdated }: InvestigationReportProps) {
   const [copied, setCopied] = useState(false);
   const [immediate, setImmediate] = useState(true);
   const [permanent, setPermanent] = useState(false);
@@ -99,6 +101,13 @@ export function InvestigationReport({ investigation, onClose, onApplyFixes, isAp
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusConfig.badgeClass}`}>
                   {statusConfig.label}
                 </span>
+                {isOutdated && (
+                  <Tooltip content="From a previous deployment run, not the current one." side="bottom">
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300">
+                      Outdated
+                    </span>
+                  </Tooltip>
+                )}
               </div>
               <p className="text-xs text-slate-400 font-mono">ID: {investigation.id}</p>
             </div>

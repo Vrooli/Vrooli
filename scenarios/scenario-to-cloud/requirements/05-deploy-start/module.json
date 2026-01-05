@@ -27,9 +27,9 @@
         },
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/deploy.yaml",
+          "ref": "bas/cases/05-deploy-start/vps-deploy.json",
           "notes": "E2E planned against a disposable VPS using landing-page-business-suite. Tag with [REQ:STC-P0-005]."
         }
       ]
@@ -56,9 +56,9 @@
         },
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/caddy-letsencrypt.yaml",
+          "ref": "bas/cases/05-deploy-start/caddy-letsencrypt.json",
           "notes": "E2E planned. Tag with [REQ:STC-P0-011]."
         }
       ]

@@ -96,15 +96,13 @@ func TestPackagerAPISurface_DeploymentManagerContract(t *testing.T) {
 		}
 	}
 
-	// Consumer-side contract: validate and plan accept the manifest directly.
+	// Consumer-side contract: validate endpoint accepts the manifest directly.
 	resp, body := postJSON("/api/v1/manifest/validate", manifest)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("validate status: got %d body=%s", resp.StatusCode, string(body))
 	}
-	resp, body = postJSON("/api/v1/plan", manifest)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("plan status: got %d body=%s", resp.StatusCode, string(body))
-	}
+	// Note: There is no top-level /api/v1/plan endpoint. The operation-specific
+	// plan endpoints (vps/setup/plan, vps/deploy/plan, vps/inspect/plan) are tested below.
 
 	// Packager operations: build bundle, preflight, setup/deploy/inspect plan+apply.
 	// Setup/deploy/inspect plan endpoints must accept the canonical wrapper payloads.

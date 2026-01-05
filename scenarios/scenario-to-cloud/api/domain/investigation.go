@@ -22,6 +22,7 @@ const (
 type Investigation struct {
 	ID           string              `json:"id"`
 	DeploymentID string              `json:"deployment_id"`
+	DeploymentRunID *string          `json:"deployment_run_id,omitempty"`
 	Status       InvestigationStatus `json:"status"`
 	Findings     *string             `json:"findings,omitempty"`
 	Progress     int                 `json:"progress"` // 0-100
@@ -65,6 +66,7 @@ type ApplyFixesRequest struct {
 type InvestigationSummary struct {
 	ID                    string              `json:"id"`
 	DeploymentID          string              `json:"deployment_id"`
+	DeploymentRunID       *string             `json:"deployment_run_id,omitempty"`
 	Status                InvestigationStatus `json:"status"`
 	Progress              int                 `json:"progress"`
 	HasFindings           bool                `json:"has_findings"`
@@ -79,6 +81,7 @@ func (i *Investigation) ToSummary() InvestigationSummary {
 	summary := InvestigationSummary{
 		ID:           i.ID,
 		DeploymentID: i.DeploymentID,
+		DeploymentRunID: i.DeploymentRunID,
 		Status:       i.Status,
 		Progress:     i.Progress,
 		HasFindings:  i.Findings != nil && *i.Findings != "",

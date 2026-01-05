@@ -116,10 +116,11 @@ func (s *Server) handleListInvestigations(w http.ResponseWriter, r *http.Request
 // GET /api/v1/deployments/{id}/investigations/{invId}
 func (s *Server) handleGetInvestigation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	deploymentID := vars["id"]
 	invID := vars["invId"]
 
-	if invID == "" {
-		http.Error(w, "investigation ID is required", http.StatusBadRequest)
+	if deploymentID == "" || invID == "" {
+		http.Error(w, "deployment ID and investigation ID are required", http.StatusBadRequest)
 		return
 	}
 
@@ -128,7 +129,7 @@ func (s *Server) handleGetInvestigation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	inv, err := s.investigationSvc.GetInvestigation(r.Context(), invID)
+	inv, err := s.investigationSvc.GetInvestigation(r.Context(), deploymentID, invID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -148,10 +149,11 @@ func (s *Server) handleGetInvestigation(w http.ResponseWriter, r *http.Request) 
 // POST /api/v1/deployments/{id}/investigations/{invId}/stop
 func (s *Server) handleStopInvestigation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	deploymentID := vars["id"]
 	invID := vars["invId"]
 
-	if invID == "" {
-		http.Error(w, "investigation ID is required", http.StatusBadRequest)
+	if deploymentID == "" || invID == "" {
+		http.Error(w, "deployment ID and investigation ID are required", http.StatusBadRequest)
 		return
 	}
 
@@ -160,7 +162,7 @@ func (s *Server) handleStopInvestigation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.investigationSvc.StopInvestigation(r.Context(), invID); err != nil {
+	if err := s.investigationSvc.StopInvestigation(r.Context(), deploymentID, invID); err != nil {
 		errMsg := err.Error()
 		switch {
 		case strings.Contains(errMsg, "not found"):
@@ -184,10 +186,11 @@ func (s *Server) handleStopInvestigation(w http.ResponseWriter, r *http.Request)
 // POST /api/v1/deployments/{id}/investigations/{invId}/apply-fixes
 func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	deploymentID := vars["id"]
 	invID := vars["invId"]
 
-	if invID == "" {
-		http.Error(w, "investigation ID is required", http.StatusBadRequest)
+	if deploymentID == "" || invID == "" {
+		http.Error(w, "deployment ID and investigation ID are required", http.StatusBadRequest)
 		return
 	}
 
@@ -206,6 +209,7 @@ func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
 	// Apply fixes
 	fixInv, err := s.investigationSvc.ApplyFixes(r.Context(), ApplyFixesRequest{
 		InvestigationID: invID,
+		DeploymentID:    deploymentID,
 		Immediate:       req.Immediate,
 		Permanent:       req.Permanent,
 		Prevention:      req.Prevention,

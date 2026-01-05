@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -109,10 +108,7 @@ type DiskCleanupResponse struct {
 
 func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) {
 	var req StopPortServicesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Message: "Invalid request body",
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
@@ -195,10 +191,7 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleDiskUsage(w http.ResponseWriter, r *http.Request) {
 	var req DiskUsageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Message: "Invalid request body",
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
@@ -261,10 +254,7 @@ func (s *Server) handleDiskUsage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDiskCleanup(w http.ResponseWriter, r *http.Request) {
 	var req DiskCleanupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Message: "Invalid request body",
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
@@ -349,10 +339,7 @@ type StopScenarioProcessesResponse struct {
 
 func (s *Server) handleStopScenarioProcesses(w http.ResponseWriter, r *http.Request) {
 	var req StopScenarioProcessesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Message: "Invalid request body",
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 

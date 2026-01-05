@@ -14,18 +14,19 @@ import (
 func (r *Repository) CreateInvestigation(ctx context.Context, inv *domain.Investigation) error {
 	const q = `
 		INSERT INTO deployment_investigations (
-			id, deployment_id, status, findings, progress,
+			id, deployment_id, deployment_run_id, status, findings, progress,
 			details, agent_run_id, error_message,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
-			$9, $10
+			$9, $10, $11
 		)
 	`
 	_, err := r.db.ExecContext(ctx, q,
 		inv.ID,
 		inv.DeploymentID,
+		inv.DeploymentRunID,
 		inv.Status,
 		inv.Findings,
 		inv.Progress,
@@ -45,7 +46,7 @@ func (r *Repository) CreateInvestigation(ctx context.Context, inv *domain.Invest
 func (r *Repository) GetInvestigation(ctx context.Context, id string) (*domain.Investigation, error) {
 	const q = `
 		SELECT
-			id, deployment_id, status, findings, progress,
+			id, deployment_id, deployment_run_id, status, findings, progress,
 			details, agent_run_id, error_message,
 			created_at, updated_at, completed_at
 		FROM deployment_investigations
@@ -55,6 +56,41 @@ func (r *Repository) GetInvestigation(ctx context.Context, id string) (*domain.I
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&inv.ID,
 		&inv.DeploymentID,
+		&inv.DeploymentRunID,
+		&inv.Status,
+		&inv.Findings,
+		&inv.Progress,
+		&inv.Details,
+		&inv.AgentRunID,
+		&inv.ErrorMessage,
+		&inv.CreatedAt,
+		&inv.UpdatedAt,
+		&inv.CompletedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get investigation: %w", err)
+	}
+	return inv, nil
+}
+
+// GetInvestigationForDeployment retrieves an investigation by ID scoped to a deployment.
+func (r *Repository) GetInvestigationForDeployment(ctx context.Context, deploymentID, id string) (*domain.Investigation, error) {
+	const q = `
+		SELECT
+			id, deployment_id, deployment_run_id, status, findings, progress,
+			details, agent_run_id, error_message,
+			created_at, updated_at, completed_at
+		FROM deployment_investigations
+		WHERE id = $1 AND deployment_id = $2
+	`
+	inv := &domain.Investigation{}
+	err := r.db.QueryRowContext(ctx, q, id, deploymentID).Scan(
+		&inv.ID,
+		&inv.DeploymentID,
+		&inv.DeploymentRunID,
 		&inv.Status,
 		&inv.Findings,
 		&inv.Progress,
@@ -78,7 +114,7 @@ func (r *Repository) GetInvestigation(ctx context.Context, id string) (*domain.I
 func (r *Repository) ListInvestigations(ctx context.Context, deploymentID string, limit int) ([]*domain.Investigation, error) {
 	q := `
 		SELECT
-			id, deployment_id, status, findings, progress,
+			id, deployment_id, deployment_run_id, status, findings, progress,
 			details, agent_run_id, error_message,
 			created_at, updated_at, completed_at
 		FROM deployment_investigations
@@ -101,6 +137,7 @@ func (r *Repository) ListInvestigations(ctx context.Context, deploymentID string
 		if err := rows.Scan(
 			&inv.ID,
 			&inv.DeploymentID,
+			&inv.DeploymentRunID,
 			&inv.Status,
 			&inv.Findings,
 			&inv.Progress,
@@ -127,7 +164,7 @@ func (r *Repository) ListInvestigations(ctx context.Context, deploymentID string
 func (r *Repository) GetActiveInvestigation(ctx context.Context, deploymentID string) (*domain.Investigation, error) {
 	const q = `
 		SELECT
-			id, deployment_id, status, findings, progress,
+			id, deployment_id, deployment_run_id, status, findings, progress,
 			details, agent_run_id, error_message,
 			created_at, updated_at, completed_at
 		FROM deployment_investigations
@@ -140,6 +177,7 @@ func (r *Repository) GetActiveInvestigation(ctx context.Context, deploymentID st
 	err := r.db.QueryRowContext(ctx, q, deploymentID).Scan(
 		&inv.ID,
 		&inv.DeploymentID,
+		&inv.DeploymentRunID,
 		&inv.Status,
 		&inv.Findings,
 		&inv.Progress,

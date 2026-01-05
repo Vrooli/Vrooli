@@ -3,6 +3,7 @@ export type InvestigationStatus = 'pending' | 'running' | 'completed' | 'failed'
 export interface Investigation {
   id: string;
   deployment_id: string;
+  deployment_run_id?: string;
   status: InvestigationStatus;
   findings?: string;
   progress: number;
@@ -30,6 +31,7 @@ export interface InvestigationDetails {
 export interface InvestigationSummary {
   id: string;
   deployment_id: string;
+  deployment_run_id?: string;
   status: InvestigationStatus;
   progress: number;
   has_findings: boolean;

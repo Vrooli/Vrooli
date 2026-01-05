@@ -12,11 +12,14 @@ import {
   Search,
 } from "lucide-react";
 import { useInvestigations } from "../../../hooks/useInvestigation";
+import { Tooltip } from "../../ui/tooltip";
 import { cn } from "../../../lib/utils";
 import type { InvestigationSummary, InvestigationStatus } from "../../../types/investigation";
 
 interface InvestigationsTabProps {
   deploymentId: string;
+  deploymentRunId?: string;
+  lastDeployedAt?: string;
   onViewReport: (investigation: InvestigationSummary) => void;
 }
 
@@ -53,10 +56,12 @@ function formatDate(dateString: string): string {
 function InvestigationItem({
   investigation,
   isFixApplication,
+  isOutdated,
   onClick,
 }: {
   investigation: InvestigationSummary;
   isFixApplication: boolean;
+  isOutdated: boolean;
   onClick: () => void;
 }) {
   const Icon = isFixApplication ? Wrench : Bot;
@@ -79,6 +84,13 @@ function InvestigationItem({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-slate-200">{label}</span>
           <span className="text-xs text-slate-500">{formatDate(investigation.created_at)}</span>
+          {isOutdated && (
+            <Tooltip content="From a previous deployment run, not the current one." side="top">
+              <span className="text-[10px] uppercase tracking-wide text-amber-300 border border-amber-500/40 rounded-full px-2 py-0.5">
+                Outdated
+              </span>
+            </Tooltip>
+          )}
         </div>
         {investigation.error_message && (
           <p className="text-xs text-red-400 truncate mt-0.5">
@@ -92,7 +104,21 @@ function InvestigationItem({
   );
 }
 
-export function InvestigationsTab({ deploymentId, onViewReport }: InvestigationsTabProps) {
+function isOutdatedInvestigation(
+  investigation: InvestigationSummary,
+  deploymentRunId?: string,
+  lastDeployedAt?: string
+): boolean {
+  if (deploymentRunId && investigation.deployment_run_id) {
+    return investigation.deployment_run_id !== deploymentRunId;
+  }
+  if (lastDeployedAt) {
+    return new Date(investigation.created_at).getTime() < new Date(lastDeployedAt).getTime();
+  }
+  return false;
+}
+
+export function InvestigationsTab({ deploymentId, deploymentRunId, lastDeployedAt, onViewReport }: InvestigationsTabProps) {
   const {
     data: investigations,
     isLoading,
@@ -206,6 +232,7 @@ export function InvestigationsTab({ deploymentId, onViewReport }: Investigations
               <InvestigationItem
                 investigation={node.investigation}
                 isFixApplication={false}
+                isOutdated={isOutdatedInvestigation(node.investigation, deploymentRunId, lastDeployedAt)}
                 onClick={() => onViewReport(node.investigation)}
               />
               {node.fixApplications.map((fix) => (
@@ -213,6 +240,7 @@ export function InvestigationsTab({ deploymentId, onViewReport }: Investigations
                   key={fix.id}
                   investigation={fix}
                   isFixApplication={true}
+                  isOutdated={isOutdatedInvestigation(fix, deploymentRunId, lastDeployedAt)}
                   onClick={() => onViewReport(fix)}
                 />
               ))}

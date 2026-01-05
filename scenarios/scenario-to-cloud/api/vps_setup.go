@@ -88,70 +88,23 @@ func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep
 	}, nil
 }
 
+// noopSetupProgressHub is a no-op implementation of progress broadcasting for RunVPSSetup.
+type noopSetupProgressHub struct{}
+
+func (noopSetupProgressHub) Broadcast(string, ProgressEvent) {}
+
+// noopSetupProgressRepo is a no-op implementation of progress persistence for RunVPSSetup.
+type noopSetupProgressRepo struct{}
+
+func (noopSetupProgressRepo) UpdateDeploymentProgress(context.Context, string, string, float64) error {
+	return nil
+}
+
+// RunVPSSetup executes VPS setup without progress tracking.
+// This is a convenience wrapper around RunVPSSetupWithProgress that uses no-op progress callbacks.
 func RunVPSSetup(ctx context.Context, manifest CloudManifest, bundlePath string, sshRunner SSHRunner, scpRunner SCPRunner) VPSSetupResult {
-	if _, err := os.Stat(bundlePath); err != nil {
-		return VPSSetupResult{OK: false, Error: fmt.Sprintf("bundle_path not accessible: %v", err), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	steps, err := BuildVPSSetupPlan(manifest, bundlePath)
-	if err != nil {
-		return VPSSetupResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	cfg := sshConfigFromManifest(manifest)
-
-	remoteBundleDir := safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "bundles")
-	remoteBundlePath := safeRemoteJoin(remoteBundleDir, filepath.Base(bundlePath))
-	autohealConfigPath := safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud", "autoheal-scope.json")
-
-	run := func(cmd string) error {
-		res, err := sshRunner.Run(ctx, cfg, cmd)
-		if err != nil {
-			// Collect output from both stderr and stdout for better error context.
-			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
-			var outputParts []string
-			if res.Stderr != "" {
-				outputParts = append(outputParts, "stderr: "+res.Stderr)
-			}
-			if res.Stdout != "" {
-				// Limit stdout to last 50 lines to avoid overwhelming error messages
-				lines := strings.Split(res.Stdout, "\n")
-				if len(lines) > 50 {
-					lines = lines[len(lines)-50:]
-					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
-				} else {
-					outputParts = append(outputParts, "stdout: "+res.Stdout)
-				}
-			}
-			if len(outputParts) > 0 {
-				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
-			}
-			return err
-		}
-		return nil
-	}
-
-	if err := run(fmt.Sprintf("mkdir -p %s %s", shellQuoteSingle(manifest.Target.VPS.Workdir), shellQuoteSingle(remoteBundleDir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "mkdir", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run(bootstrapCommand); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "bootstrap", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := scpRunner.Copy(ctx, cfg, bundlePath, remoteBundlePath); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "upload", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run(fmt.Sprintf("tar -xzf %s -C %s", shellQuoteSingle(remoteBundlePath), shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "extract", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "setup", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run(fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellQuoteSingle(safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellQuoteSingle(minimalAutohealScopeJSON(manifest)), shellQuoteSingle(autohealConfigPath))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "autoheal", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	if err := run(fmt.Sprintf("cd %s && vrooli --version", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify", Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
-	return VPSSetupResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	progress := 0.0
+	return RunVPSSetupWithProgress(ctx, manifest, bundlePath, sshRunner, scpRunner, noopSetupProgressHub{}, noopSetupProgressRepo{}, "", &progress)
 }
 
 // ProgressRepo is an interface for persisting progress.
@@ -166,7 +119,7 @@ func RunVPSSetupWithProgress(
 	bundlePath string,
 	sshRunner SSHRunner,
 	scpRunner SCPRunner,
-	hub *ProgressHub,
+	hub ProgressBroadcaster,
 	repo ProgressRepo,
 	deploymentID string,
 	progress *float64,
@@ -213,31 +166,9 @@ func RunVPSSetupWithProgress(
 		return VPSSetupResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
+	// run executes an SSH command and returns an error with output context if it fails.
 	run := func(cmd string) error {
-		res, err := sshRunner.Run(ctx, cfg, cmd)
-		if err != nil {
-			// Collect output from both stderr and stdout for better error context.
-			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
-			var outputParts []string
-			if res.Stderr != "" {
-				outputParts = append(outputParts, "stderr: "+res.Stderr)
-			}
-			if res.Stdout != "" {
-				// Limit stdout to last 50 lines to avoid overwhelming error messages
-				lines := strings.Split(res.Stdout, "\n")
-				if len(lines) > 50 {
-					lines = lines[len(lines)-50:]
-					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
-				} else {
-					outputParts = append(outputParts, "stdout: "+res.Stdout)
-				}
-			}
-			if len(outputParts) > 0 {
-				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
-			}
-			return err
-		}
-		return nil
+		return RunSSHWithOutput(ctx, sshRunner, cfg, cmd)
 	}
 
 	// Step: mkdir

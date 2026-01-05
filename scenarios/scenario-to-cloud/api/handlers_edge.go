@@ -166,8 +166,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	var req CaddyControlRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Invalid request body"})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 

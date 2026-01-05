@@ -33,9 +33,9 @@
         },
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/fetch-logs.yaml",
+          "ref": "bas/cases/06-observability/vps-fetch-logs.json",
           "notes": "E2E planned. Tag with [REQ:STC-P0-006]."
         }
       ]

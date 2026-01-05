@@ -4,24 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 func (a *App) cmdManifestValidate(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("Usage: scenario-to-cloud manifest-validate <manifest.json>")
-	}
-	manifest, err := readJSONFile(args[0])
-	if err != nil {
-		return err
-	}
-	payload, err := a.api.Request("POST", "/api/v1/manifest/validate", nil, manifest)
-	if err != nil {
-		return err
-	}
-	cliutil.PrintJSON(payload)
-	return nil
+	return a.postManifestOnly(args, "manifest-validate", "/api/v1/manifest/validate")
 }
 
 func readJSONFile(path string) (map[string]interface{}, error) {

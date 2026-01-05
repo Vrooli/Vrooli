@@ -6,6 +6,32 @@ import (
 	"time"
 )
 
+// requireKeyPath validates that key_path is present.
+// Returns false and writes an error response if validation fails.
+func requireKeyPath(w http.ResponseWriter, keyPath string) bool {
+	if keyPath == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_key_path",
+			Message: "key_path is required",
+		})
+		return false
+	}
+	return true
+}
+
+// requireHostAndKeyPath validates that both host and key_path are present.
+// Returns false and writes an error response if validation fails.
+func requireHostAndKeyPath(w http.ResponseWriter, host, keyPath string) bool {
+	if host == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_host",
+			Message: "host is required",
+		})
+		return false
+	}
+	return requireKeyPath(w, keyPath)
+}
+
 // handleListSSHKeys handles GET /api/v1/ssh/keys
 func (s *Server) handleListSSHKeys(w http.ResponseWriter, r *http.Request) {
 	sshDir, err := getSSHDir()
@@ -100,11 +126,7 @@ func (s *Server) handleGetPublicKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.KeyPath == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_key_path",
-			Message: "key_path is required",
-		})
+	if !requireKeyPath(w, req.KeyPath) {
 		return
 	}
 
@@ -137,19 +159,7 @@ func (s *Server) handleTestSSHConnection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Validate required fields
-	if req.Host == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_host",
-			Message: "host is required",
-		})
-		return
-	}
-	if req.KeyPath == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_key_path",
-			Message: "key_path is required",
-		})
+	if !requireHostAndKeyPath(w, req.Host, req.KeyPath) {
 		return
 	}
 
@@ -172,19 +182,7 @@ func (s *Server) handleCopySSHKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields
-	if req.Host == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_host",
-			Message: "host is required",
-		})
-		return
-	}
-	if req.KeyPath == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_key_path",
-			Message: "key_path is required",
-		})
+	if !requireHostAndKeyPath(w, req.Host, req.KeyPath) {
 		return
 	}
 	if req.Password == "" {
@@ -219,19 +217,14 @@ func (s *Server) handleDeleteSSHKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.KeyPath == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_key_path",
-			Message: "key_path is required",
-		})
+	if !requireKeyPath(w, req.KeyPath) {
 		return
 	}
 
 	result := DeleteSSHKey(req)
-
-	if result.OK {
-		writeJSON(w, http.StatusOK, result)
-	} else {
-		writeJSON(w, http.StatusBadRequest, result)
+	status := http.StatusOK
+	if !result.OK {
+		status = http.StatusBadRequest
 	}
+	writeJSON(w, status, result)
 }

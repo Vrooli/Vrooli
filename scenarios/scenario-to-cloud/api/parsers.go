@@ -412,41 +412,36 @@ type cpuStats struct {
 }
 
 // parseProcStatLine parses a single "cpu ..." line from /proc/stat
+// Format: cpu user nice system idle [iowait irq softirq steal guest guest_nice]
 func parseProcStatLine(line string) *cpuStats {
 	fields := strings.Fields(line)
 	if len(fields) < 5 || fields[0] != "cpu" {
 		return nil
 	}
 
-	// Parse at least user, nice, system, idle
-	// Optional: iowait, irq, softirq, steal
-	stats := &cpuStats{}
-	if len(fields) > 1 {
-		stats.user, _ = strconv.ParseInt(fields[1], 10, 64)
-	}
-	if len(fields) > 2 {
-		stats.nice, _ = strconv.ParseInt(fields[2], 10, 64)
-	}
-	if len(fields) > 3 {
-		stats.system, _ = strconv.ParseInt(fields[3], 10, 64)
-	}
-	if len(fields) > 4 {
-		stats.idle, _ = strconv.ParseInt(fields[4], 10, 64)
-	}
-	if len(fields) > 5 {
-		stats.iowait, _ = strconv.ParseInt(fields[5], 10, 64)
-	}
-	if len(fields) > 6 {
-		stats.irq, _ = strconv.ParseInt(fields[6], 10, 64)
-	}
-	if len(fields) > 7 {
-		stats.softirq, _ = strconv.ParseInt(fields[7], 10, 64)
-	}
-	if len(fields) > 8 {
-		stats.steal, _ = strconv.ParseInt(fields[8], 10, 64)
-	}
+	// Parse fields into a slice of int64 values
+	values := parseFieldsAsInt64(fields[1:], 8)
 
-	return stats
+	return &cpuStats{
+		user:    values[0],
+		nice:    values[1],
+		system:  values[2],
+		idle:    values[3],
+		iowait:  values[4],
+		irq:     values[5],
+		softirq: values[6],
+		steal:   values[7],
+	}
+}
+
+// parseFieldsAsInt64 parses string fields into a fixed-size slice of int64 values.
+// Returns a slice of exactly `count` elements, with 0 for missing or unparseable values.
+func parseFieldsAsInt64(fields []string, count int) []int64 {
+	result := make([]int64, count)
+	for i := 0; i < count && i < len(fields); i++ {
+		result[i], _ = strconv.ParseInt(fields[i], 10, 64)
+	}
+	return result
 }
 
 // parseCaddyRoutes extracts routes from a Caddyfile.

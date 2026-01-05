@@ -8,6 +8,7 @@ import { InvestigateButton } from "./InvestigateButton";
 import { InvestigationProgress } from "./InvestigationProgress";
 import { InvestigationReport } from "./InvestigationReport";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+import { useDeployment as useDeploymentRecord } from "../../hooks/useDeployments";
 import type { useDeployment } from "../../hooks/useDeployment";
 
 interface StepDeployProps {
@@ -36,6 +37,7 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
   // Investigation state
   const [showInvestigationReport, setShowInvestigationReport] = useState(false);
   const investigation = useDeploymentInvestigation(deploymentId);
+  const deploymentRecord = useDeploymentRecord(deploymentId);
 
   // Handler for when progress completes (called by DeploymentProgress via SSE)
   const handleProgressComplete = (success: boolean, error?: string) => {
@@ -45,6 +47,19 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
   // Handler for when investigation starts
   const handleInvestigationStarted = (investigationId: string) => {
     // Could navigate to investigation view or show inline
+  };
+
+  const isInvestigationOutdated = (inv?: { deployment_run_id?: string; created_at: string } | null) => {
+    if (!inv) return false;
+    const runId = deploymentRecord.data?.run_id;
+    const lastDeployedAt = deploymentRecord.data?.last_deployed_at;
+    if (runId && inv.deployment_run_id) {
+      return inv.deployment_run_id !== runId;
+    }
+    if (lastDeployedAt) {
+      return new Date(inv.created_at).getTime() < new Date(lastDeployedAt).getTime();
+    }
+    return false;
   };
 
   return (
@@ -87,8 +102,15 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
           {/* Investigation progress - show for active OR recently completed investigations */}
           {investigation.activeInvestigation && (
             <InvestigationProgress
-              deploymentId={deploymentId}
-              onViewReport={() => setShowInvestigationReport(true)}
+              investigation={investigation.activeInvestigation}
+              isRunning={investigation.isRunning}
+              onStop={investigation.stop}
+              isStopping={investigation.isStopping}
+              isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
+              onViewReport={(invId) => {
+                investigation.viewReport(invId);
+                setShowInvestigationReport(true);
+              }}
             />
           )}
 
@@ -97,6 +119,7 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
             <InvestigationReport
               investigation={investigation.activeInvestigation}
               onClose={() => setShowInvestigationReport(false)}
+              isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
               onApplyFixes={async (invId, options) => {
                 await investigation.applyFixes(invId, options);
                 setShowInvestigationReport(false);

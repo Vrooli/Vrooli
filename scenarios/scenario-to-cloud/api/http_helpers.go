@@ -121,6 +121,24 @@ type DeploymentRepository interface {
 	GetDeployment(ctx context.Context, id string) (*domain.Deployment, error)
 }
 
+// writeRepoNotFoundError writes a standardized error response for when the repo root cannot be found.
+func writeRepoNotFoundError(w http.ResponseWriter, err error) {
+	writeAPIError(w, http.StatusInternalServerError, APIError{
+		Code:    "repo_not_found",
+		Message: "Could not find repository root",
+		Hint:    err.Error(),
+	})
+}
+
+// writeBundlesDirError writes a standardized error response for bundles directory errors.
+func writeBundlesDirError(w http.ResponseWriter, operation string, err error) {
+	writeAPIError(w, http.StatusInternalServerError, APIError{
+		Code:    operation + "_failed",
+		Message: "Failed to " + operation,
+		Hint:    err.Error(),
+	})
+}
+
 type APIErrorEnvelope struct {
 	Error APIError `json:"error"`
 }
@@ -133,6 +151,23 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// decodeRequestBody decodes a JSON request body into the provided pointer.
+// Returns false and writes an error response if decoding fails.
+// This consolidates the common pattern of:
+//   - json.NewDecoder(r.Body).Decode(&req)
+//   - if err != nil { writeAPIError(...); return }
+func decodeRequestBody[T any](w http.ResponseWriter, r *http.Request, dest *T) bool {
+	if err := json.NewDecoder(r.Body).Decode(dest); err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Invalid request body",
+			Hint:    err.Error(),
+		})
+		return false
+	}
+	return true
 }
 
 // DecodeAndValidateManifest consolidates the common pattern of:

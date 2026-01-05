@@ -27,9 +27,9 @@
         },
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/setup.yaml",
+          "ref": "bas/cases/04-vps-setup/vps-setup.json",
           "notes": "E2E planned against a disposable VPS. Tag with [REQ:STC-P0-004]."
         }
       ]
@@ -48,9 +48,9 @@
       "validation": [
         {
           "type": "playbook",
-          "phase": "playbooks",
+          "phase": "e2e",
           "status": "planned",
-          "ref": "test/playbooks/vps/autoheal-scope.yaml",
+          "ref": "bas/cases/04-vps-setup/autoheal-scope.json",
           "notes": "E2E planned. Tag with [REQ:STC-P0-010]."
         }
       ]

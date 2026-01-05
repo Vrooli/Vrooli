@@ -210,23 +210,8 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 
 // handleGetDeployment returns a single deployment by ID.
 func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
+	_, deployment := s.FetchDeploymentOnly(w, r)
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
 		return
 	}
 
@@ -238,25 +223,11 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 
 // handleDeleteDeployment removes a deployment record, optionally stopping it first and cleaning up bundles.
 func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
 	stopOnVPS := r.URL.Query().Get("stop") == "true"
 	cleanupBundles := r.URL.Query().Get("cleanup") == "true"
 
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
+	id, deployment := s.FetchDeploymentOnly(w, r)
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
 		return
 	}
 
@@ -503,91 +474,17 @@ func (s *Server) runDeploymentPipeline(id, runID string, manifest CloudManifest,
 		"scenario_id":   manifest.Scenario.ID,
 	})
 
-	// Fetch secrets from secrets-manager BEFORE building bundle
-	// This populates manifest.Secrets with the secrets plan (what secrets are needed and how to generate them)
-	if manifest.Secrets == nil {
-		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
-		secretsResp, err := s.secretsFetcher.FetchBundleSecrets(
-			secretsCtx,
-			manifest.Scenario.ID,
-			DefaultDeploymentTier,
-			manifest.Dependencies.Resources,
-		)
-		secretsCancel()
-
-		if err != nil {
-			s.log("secrets-manager fetch failed", map[string]interface{}{
-				"scenario_id": manifest.Scenario.ID,
-				"error":       err.Error(),
-			})
-			// secrets-manager is required - fail the deployment
-			setDeploymentError(s.repo, ctx, id, "secrets_fetch", fmt.Sprintf("secrets-manager unavailable: %v", err))
-			emitError("secrets_fetch", "Fetching secrets", err.Error())
-			return
-		}
-
-		manifest.Secrets = BuildManifestSecrets(secretsResp)
-		s.log("fetched secrets manifest", map[string]interface{}{
-			"scenario_id":   manifest.Scenario.ID,
-			"total_secrets": len(secretsResp.BundleSecrets),
-		})
-	}
-
-	// Validate that all required user_prompt secrets are provided
-	if providedSecrets == nil {
-		providedSecrets = make(map[string]string)
-	}
-	if missing, err := ValidateUserPromptSecrets(manifest, providedSecrets); err != nil {
-		s.log("missing required user_prompt secrets", map[string]interface{}{
-			"scenario_id": manifest.Scenario.ID,
-			"missing":     missing,
-		})
-		setDeploymentError(s.repo, ctx, id, "secrets_validate", err.Error())
-		emitError("secrets_validate", "Validating secrets", err.Error())
-		return
+	// Fetch and validate secrets
+	if err := s.ensureSecretsAvailable(ctx, &manifest, providedSecrets, id, emitError); err != nil {
+		return // Error already logged and emitted
 	}
 
 	// Step 1: Build bundle (if not already built)
 	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
 
-	var bundlePath string
-	if existingBundlePath != nil && *existingBundlePath != "" {
-		bundlePath = *existingBundlePath
-	} else {
-		repoRoot, err := FindRepoRootFromCWD()
-		if err != nil {
-			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			emitError("bundle_build", "Building bundle", err.Error())
-			return
-		}
-
-		outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
-
-		// Clean up old bundles for this scenario before building new one (keep 3 newest)
-		const retentionCount = 3
-		if deleted, _, err := DeleteBundlesForScenario(outDir, manifest.Scenario.ID, retentionCount); err != nil {
-			s.log("bundle cleanup warning", map[string]interface{}{
-				"scenario_id": manifest.Scenario.ID,
-				"error":       err.Error(),
-			})
-		} else if len(deleted) > 0 {
-			s.log("cleaned old bundles", map[string]interface{}{
-				"scenario_id": manifest.Scenario.ID,
-				"count":       len(deleted),
-			})
-		}
-
-		artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
-		if err != nil {
-			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			emitError("bundle_build", "Building bundle", err.Error())
-			return
-		}
-
-		bundlePath = artifact.Path
-		if err := s.repo.UpdateDeploymentBundle(ctx, id, artifact.Path, artifact.Sha256, artifact.SizeBytes); err != nil {
-			s.log("failed to update bundle info", map[string]interface{}{"error": err.Error()})
-		}
+	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, id, emitError)
+	if err != nil {
+		return // Error already logged and emitted
 	}
 
 	progress += StepWeights["bundle_build"]
@@ -646,52 +543,22 @@ func (s *Server) runDeploymentPipeline(id, runID string, manifest CloudManifest,
 
 // handleInspectDeployment fetches status and logs from the deployed VPS.
 func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
+	dctx := s.FetchDeploymentContext(w, r)
+	if dctx == nil {
 		return
 	}
-
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	opts := VPSInspectOptions{
-		TailLines: 200,
-	}
-
-	result := RunVPSInspect(ctx, normalized, opts, s.sshRunner)
-	resultJSON, _ := json.Marshal(result)
+	opts := VPSInspectOptions{TailLines: 200}
+	result := RunVPSInspect(ctx, dctx.Manifest, opts, s.sshRunner)
 
 	// Store the inspect result
-	if err := s.repo.UpdateDeploymentInspectResult(ctx, id, resultJSON); err != nil {
-		s.log("failed to save inspect result", map[string]interface{}{"error": err.Error()})
+	if resultJSON, err := json.Marshal(result); err == nil {
+		if err := s.repo.UpdateDeploymentInspectResult(ctx, dctx.ID, resultJSON); err != nil {
+			s.log("failed to save inspect result", map[string]interface{}{"error": err.Error()})
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -702,41 +569,15 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 
 // handleStopDeployment stops the scenario on the VPS.
 func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
+	dctx := s.FetchDeploymentContext(w, r)
+	if dctx == nil {
 		return
 	}
 
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	result := s.stopDeploymentOnVPS(r.Context(), manifest)
+	result := s.stopDeploymentOnVPS(r.Context(), dctx.Manifest)
 
 	if result.OK {
-		if err := s.repo.UpdateDeploymentStatus(r.Context(), id, domain.StatusStopped, nil, nil); err != nil {
+		if err := s.repo.UpdateDeploymentStatus(r.Context(), dctx.ID, domain.StatusStopped, nil, nil); err != nil {
 			s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 		}
 	}
@@ -773,4 +614,126 @@ func setDeploymentError(repo interface {
 }, ctx context.Context, id, step, errMsg string,
 ) {
 	_ = repo.UpdateDeploymentStatus(ctx, id, domain.StatusFailed, &errMsg, &step)
+}
+
+// ensureSecretsAvailable fetches secrets from secrets-manager and validates user_prompt secrets.
+// Returns an error if secrets cannot be fetched or validated (error already logged and emitted).
+func (s *Server) ensureSecretsAvailable(
+	ctx context.Context,
+	manifest *CloudManifest,
+	providedSecrets map[string]string,
+	deploymentID string,
+	emitError func(step, stepTitle, errMsg string),
+) error {
+	// Fetch secrets from secrets-manager BEFORE building bundle
+	if manifest.Secrets == nil {
+		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
+		secretsResp, err := s.secretsFetcher.FetchBundleSecrets(
+			secretsCtx,
+			manifest.Scenario.ID,
+			DefaultDeploymentTier,
+			manifest.Dependencies.Resources,
+		)
+		secretsCancel()
+
+		if err != nil {
+			s.log("secrets-manager fetch failed", map[string]interface{}{
+				"scenario_id": manifest.Scenario.ID,
+				"error":       err.Error(),
+			})
+			errMsg := fmt.Sprintf("secrets-manager unavailable: %v", err)
+			setDeploymentError(s.repo, ctx, deploymentID, "secrets_fetch", errMsg)
+			emitError("secrets_fetch", "Fetching secrets", err.Error())
+			return err
+		}
+
+		manifest.Secrets = BuildManifestSecrets(secretsResp)
+		s.log("fetched secrets manifest", map[string]interface{}{
+			"scenario_id":   manifest.Scenario.ID,
+			"total_secrets": len(secretsResp.BundleSecrets),
+		})
+	}
+
+	// Validate user_prompt secrets
+	if providedSecrets == nil {
+		providedSecrets = make(map[string]string)
+	}
+	if missing, err := ValidateUserPromptSecrets(*manifest, providedSecrets); err != nil {
+		s.log("missing required user_prompt secrets", map[string]interface{}{
+			"scenario_id": manifest.Scenario.ID,
+			"missing":     missing,
+		})
+		setDeploymentError(s.repo, ctx, deploymentID, "secrets_validate", err.Error())
+		emitError("secrets_validate", "Validating secrets", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// ensureBundleBuilt builds a new bundle or returns the existing bundle path.
+// Returns the bundle path or an error (error already logged and emitted).
+func (s *Server) ensureBundleBuilt(
+	ctx context.Context,
+	manifest CloudManifest,
+	existingBundlePath *string,
+	deploymentID string,
+	emitError func(step, stepTitle, errMsg string),
+) (string, error) {
+	// Use existing bundle if provided
+	if existingBundlePath != nil && *existingBundlePath != "" {
+		return *existingBundlePath, nil
+	}
+
+	// Get bundle output directory
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
+		emitError("bundle_build", "Building bundle", err.Error())
+		return "", err
+	}
+
+	outDir, err := GetLocalBundlesDir()
+	if err != nil {
+		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
+		emitError("bundle_build", "Building bundle", err.Error())
+		return "", err
+	}
+
+	// Clean up old bundles (keep 3 newest)
+	s.cleanupOldBundles(outDir, manifest.Scenario.ID)
+
+	// Build the bundle
+	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
+	if err != nil {
+		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
+		emitError("bundle_build", "Building bundle", err.Error())
+		return "", err
+	}
+
+	// Update database with bundle info
+	if err := s.repo.UpdateDeploymentBundle(ctx, deploymentID, artifact.Path, artifact.Sha256, artifact.SizeBytes); err != nil {
+		s.log("failed to update bundle info", map[string]interface{}{"error": err.Error()})
+	}
+
+	return artifact.Path, nil
+}
+
+// cleanupOldBundles removes old bundles for a scenario, keeping the newest N.
+func (s *Server) cleanupOldBundles(bundlesDir, scenarioID string) {
+	const retentionCount = 3
+	deleted, _, err := DeleteBundlesForScenario(bundlesDir, scenarioID, retentionCount)
+	if err != nil {
+		s.log("bundle cleanup warning", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"error":       err.Error(),
+		})
+		return
+	}
+	if len(deleted) > 0 {
+		s.log("cleaned old bundles", map[string]interface{}{
+			"scenario_id": scenarioID,
+			"count":       len(deleted),
+		})
+	}
 }

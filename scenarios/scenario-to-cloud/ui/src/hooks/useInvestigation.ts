@@ -170,10 +170,20 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
   const stopMutation = useStopInvestigation();
   const applyFixesMutation = useApplyFixes();
 
+  useEffect(() => {
+    setActiveInvestigationId(null);
+    setShowReport(false);
+  }, [deploymentId]);
+
   // Auto-track latest investigation (prefer running, fallback to most recent)
   useEffect(() => {
     const investigations = investigationsQuery.data ?? [];
-    if (investigations.length === 0) return;
+    if (investigations.length === 0) {
+      if (activeInvestigationId) {
+        setActiveInvestigationId(null);
+      }
+      return;
+    }
 
     // Prefer running investigation
     const running = investigations.find(
@@ -185,7 +195,10 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
     }
 
     // If no running investigation and none tracked, track the most recent one
-    if (!activeInvestigationId && investigations.length > 0) {
+    const hasActive = activeInvestigationId
+      ? investigations.some((inv) => inv.id === activeInvestigationId)
+      : false;
+    if (!activeInvestigationId || !hasActive) {
       // Investigations are sorted by created_at desc, so first is most recent
       setActiveInvestigationId(investigations[0].id);
     }

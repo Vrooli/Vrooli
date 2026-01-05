@@ -95,6 +95,7 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			CREATE TABLE IF NOT EXISTS deployment_investigations (
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 				deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+				deployment_run_id TEXT,
 				status TEXT NOT NULL DEFAULT 'pending'
 					CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
 				findings TEXT,
@@ -108,6 +109,10 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			);
 			CREATE INDEX IF NOT EXISTS idx_investigations_deployment_id ON deployment_investigations(deployment_id);
 			CREATE INDEX IF NOT EXISTS idx_investigations_status ON deployment_investigations(status);
+		`},
+		{"add_investigations_run_id", `
+			ALTER TABLE deployment_investigations
+			ADD COLUMN IF NOT EXISTS deployment_run_id TEXT;
 		`},
 		{"add_idempotency_tracking", `
 			-- Track completed steps for replay-safe execution

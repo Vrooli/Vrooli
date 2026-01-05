@@ -28,7 +28,7 @@ var StepWeights = map[string]float64{
 	"bundle_build":      5,
 	"mkdir":             0, // Trivial, no weight
 	"bootstrap":         5, // apt update + install prereqs
-	"upload":            20,
+	"upload":            18,
 	"extract":           5,
 	"setup":             12, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,
@@ -39,8 +39,9 @@ var StepWeights = map[string]float64{
 	"secrets_provision": 5, // Generate and write secrets before resource start
 	"resource_start":    10,
 	"scenario_deps":     10,
-	"scenario_target":   10,
-	"verify_local":      3,
+	"scenario_target":   9,
+	"wait_for_ui":       1,
+	"verify_local":      2,
 	"verify_https":      2,
 }
 
@@ -71,6 +72,7 @@ var DeploySteps = []StepInfo{
 	{ID: "resource_start", Title: "Starting resources", Weight: StepWeights["resource_start"]},
 	{ID: "scenario_deps", Title: "Starting dependencies", Weight: StepWeights["scenario_deps"]},
 	{ID: "scenario_target", Title: "Starting scenario", Weight: StepWeights["scenario_target"]},
+	{ID: "wait_for_ui", Title: "Waiting for UI to listen", Weight: StepWeights["wait_for_ui"]},
 	{ID: "verify_local", Title: "Verifying local health", Weight: StepWeights["verify_local"]},
 	{ID: "verify_https", Title: "Verifying HTTPS", Weight: StepWeights["verify_https"]},
 }

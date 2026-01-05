@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,6 +22,33 @@ type (
 	VPSBundleDeleteRequest  = domain.VPSBundleDeleteRequest
 	VPSBundleDeleteResponse = domain.VPSBundleDeleteResponse
 )
+
+// validateVPSBundleRequest validates common required fields for VPS bundle operations.
+// Returns false and writes an error response if validation fails.
+func validateVPSBundleRequest(w http.ResponseWriter, host, keyPath, workdir string) bool {
+	if host == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_host",
+			Message: "Host is required",
+		})
+		return false
+	}
+	if keyPath == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_key_path",
+			Message: "SSH key path is required",
+		})
+		return false
+	}
+	if workdir == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_workdir",
+			Message: "Working directory is required",
+		})
+		return false
+	}
+	return true
+}
 
 // handleManifestValidate validates a CloudManifest and returns normalized output.
 // POST /api/v1/manifest/validate
@@ -75,22 +100,19 @@ func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
 
 	repoRoot, err := FindRepoRootFromCWD()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "repo_root_not_found",
-			Message: "Unable to locate Vrooli repo root from server working directory",
-			Hint:    err.Error(),
-		})
+		writeRepoNotFoundError(w, err)
 		return
 	}
 
-	outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+	outDir, err := GetLocalBundlesDir()
+	if err != nil {
+		writeRepoNotFoundError(w, err)
+		return
+	}
+
 	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, normalized)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "bundle_build_failed",
-			Message: "Failed to build mini-Vrooli bundle",
-			Hint:    err.Error(),
-		})
+		writeBundlesDirError(w, "build mini-Vrooli bundle", err)
 		return
 	}
 
@@ -104,24 +126,15 @@ func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
 // handleListBundles lists all stored bundles.
 // GET /api/v1/bundles
 func (s *Server) handleListBundles(w http.ResponseWriter, r *http.Request) {
-	repoRoot, err := FindRepoRootFromCWD()
+	bundlesDir, err := GetLocalBundlesDir()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "repo_root_not_found",
-			Message: "Unable to locate Vrooli repo root from server working directory",
-			Hint:    err.Error(),
-		})
+		writeRepoNotFoundError(w, err)
 		return
 	}
 
-	bundlesDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
 	bundles, err := ListBundles(bundlesDir)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "list_bundles_failed",
-			Message: "Failed to list bundles",
-			Hint:    err.Error(),
-		})
+		writeBundlesDirError(w, "list bundles", err)
 		return
 	}
 
@@ -133,24 +146,15 @@ func (s *Server) handleListBundles(w http.ResponseWriter, r *http.Request) {
 
 // handleBundleStats returns aggregate statistics about stored bundles.
 func (s *Server) handleBundleStats(w http.ResponseWriter, r *http.Request) {
-	repoRoot, err := FindRepoRootFromCWD()
+	bundlesDir, err := GetLocalBundlesDir()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "repo_not_found",
-			Message: "Could not find repository root",
-			Hint:    err.Error(),
-		})
+		writeRepoNotFoundError(w, err)
 		return
 	}
 
-	bundlesDir := filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles")
 	stats, err := GetBundleStats(bundlesDir)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "stats_failed",
-			Message: "Failed to get bundle statistics",
-			Hint:    err.Error(),
-		})
+		writeBundlesDirError(w, "get bundle statistics", err)
 		return
 	}
 
@@ -163,56 +167,22 @@ func (s *Server) handleBundleStats(w http.ResponseWriter, r *http.Request) {
 // handleBundleCleanup removes old bundles from local storage and optionally from VPS.
 func (s *Server) handleBundleCleanup(w http.ResponseWriter, r *http.Request) {
 	var req BundleCleanupRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_json",
-			Message: "Invalid request body",
-			Hint:    err.Error(),
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
-	// Set defaults
-	if req.KeepLatest <= 0 {
-		req.KeepLatest = 3
-	}
-	if req.Port == 0 {
-		req.Port = 22
-	}
-	if req.User == "" {
-		req.User = "root"
-	}
+	// Apply defaults
+	applyBundleCleanupDefaults(&req)
 
-	repoRoot, err := FindRepoRootFromCWD()
+	bundlesDir, err := GetLocalBundlesDir()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "repo_not_found",
-			Message: "Could not find repository root",
-			Hint:    err.Error(),
-		})
+		writeRepoNotFoundError(w, err)
 		return
 	}
 
-	bundlesDir := filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles")
-
-	var deleted []BundleInfo
-	var freedBytes int64
-
-	// Local cleanup
-	if req.ScenarioID != "" {
-		// Clean specific scenario
-		deleted, freedBytes, err = DeleteBundlesForScenario(bundlesDir, req.ScenarioID, req.KeepLatest)
-	} else {
-		// Clean all scenarios
-		deleted, freedBytes, err = DeleteAllOldBundles(bundlesDir, req.KeepLatest)
-	}
-
+	deleted, freedBytes, err := cleanupLocalBundles(bundlesDir, req.ScenarioID, req.KeepLatest)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "cleanup_failed",
-			Message: "Failed to clean up local bundles",
-			Hint:    err.Error(),
-		})
+		writeBundlesDirError(w, "clean up local bundles", err)
 		return
 	}
 
@@ -234,21 +204,44 @@ func (s *Server) handleBundleCleanup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build message
-	var parts []string
-	if len(deleted) > 0 {
-		parts = append(parts, fmt.Sprintf("Deleted %d local bundles (%s)", len(deleted), formatBytes(freedBytes/1024)))
+	resp.Message = buildCleanupMessage(deleted, freedBytes, resp.VPSDeleted, resp.VPSFreedBytes)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// applyBundleCleanupDefaults sets default values for bundle cleanup request.
+func applyBundleCleanupDefaults(req *BundleCleanupRequest) {
+	if req.KeepLatest <= 0 {
+		req.KeepLatest = 3
 	}
-	if resp.VPSDeleted > 0 {
-		parts = append(parts, fmt.Sprintf("Deleted %d VPS bundles (%s)", resp.VPSDeleted, formatBytes(resp.VPSFreedBytes/1024)))
+	if req.Port == 0 {
+		req.Port = 22
+	}
+	if req.User == "" {
+		req.User = "root"
+	}
+}
+
+// cleanupLocalBundles deletes old bundles from the local filesystem.
+func cleanupLocalBundles(bundlesDir, scenarioID string, keepLatest int) ([]BundleInfo, int64, error) {
+	if scenarioID != "" {
+		return DeleteBundlesForScenario(bundlesDir, scenarioID, keepLatest)
+	}
+	return DeleteAllOldBundles(bundlesDir, keepLatest)
+}
+
+// buildCleanupMessage creates a human-readable summary of cleanup operations.
+func buildCleanupMessage(localDeleted []BundleInfo, localFreed int64, vpsDeleted int, vpsFreed int64) string {
+	var parts []string
+	if len(localDeleted) > 0 {
+		parts = append(parts, fmt.Sprintf("Deleted %d local bundles (%s)", len(localDeleted), formatBytes(localFreed/1024)))
+	}
+	if vpsDeleted > 0 {
+		parts = append(parts, fmt.Sprintf("Deleted %d VPS bundles (%s)", vpsDeleted, formatBytes(vpsFreed/1024)))
 	}
 	if len(parts) == 0 {
-		resp.Message = "No bundles needed cleanup"
-	} else {
-		resp.Message = strings.Join(parts, "; ")
+		return "No bundles needed cleanup"
 	}
-
-	writeJSON(w, http.StatusOK, resp)
+	return strings.Join(parts, "; ")
 }
 
 // cleanupVPSBundles removes old bundles from the VPS.
@@ -328,53 +321,18 @@ func parseBytes(s string) int64 {
 // handleListVPSBundles lists bundles stored on the VPS.
 func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 	var req VPSBundleListRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_json",
-			Message: "Invalid request body",
-			Hint:    err.Error(),
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
-	// Validate required fields
-	if req.Host == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_host",
-			Message: "Host is required",
-		})
+	if !validateVPSBundleRequest(w, req.Host, req.KeyPath, req.Workdir) {
 		return
 	}
-	if req.KeyPath == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_key_path",
-			Message: "SSH key path is required",
-		})
-		return
-	}
-	if req.Workdir == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "missing_workdir",
-			Message: "Working directory is required",
-		})
-		return
-	}
-
-	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	bundlesPath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
-
-	// List bundles with size and modification time
-	// Format: size_bytes filename mod_time
-	listCmd := fmt.Sprintf(
-		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
-		shellQuoteSingle(bundlesPath),
-	)
-
-	res, err := s.sshRunner.Run(ctx, cfg, listCmd)
+	bundles, totalSize, err := s.listVPSBundlesSSH(ctx, req)
 	if err != nil {
 		writeJSON(w, http.StatusOK, VPSBundleListResponse{
 			OK:        false,
@@ -385,10 +343,41 @@ func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeJSON(w, http.StatusOK, VPSBundleListResponse{
+		OK:             true,
+		Bundles:        bundles,
+		TotalSizeBytes: totalSize,
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// listVPSBundlesSSH fetches bundle information from the VPS via SSH.
+// Returns the list of bundles, total size, and any error.
+func (s *Server) listVPSBundlesSSH(ctx context.Context, req VPSBundleListRequest) ([]VPSBundleInfo, int64, error) {
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
+	bundlesPath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+
+	// List bundles with size and modification time (format: size_bytes\tfilename\tmod_time)
+	listCmd := fmt.Sprintf(
+		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
+		shellQuoteSingle(bundlesPath),
+	)
+
+	res, err := s.sshRunner.Run(ctx, cfg, listCmd)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return parseVPSBundleOutput(res.Stdout)
+}
+
+// parseVPSBundleOutput parses the output from listing VPS bundles.
+// Expected format: size_bytes\tfilename\tmod_time_unix (one per line)
+func parseVPSBundleOutput(output string) ([]VPSBundleInfo, int64, error) {
 	var bundles []VPSBundleInfo
 	var totalSize int64
 
-	lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
@@ -414,23 +403,13 @@ func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
 		totalSize += sizeBytes
 	}
 
-	writeJSON(w, http.StatusOK, VPSBundleListResponse{
-		OK:             true,
-		Bundles:        bundles,
-		TotalSizeBytes: totalSize,
-		Timestamp:      time.Now().UTC().Format(time.RFC3339),
-	})
+	return bundles, totalSize, nil
 }
 
 // handleDeleteVPSBundle deletes a single bundle from the VPS.
 func (s *Server) handleDeleteVPSBundle(w http.ResponseWriter, r *http.Request) {
 	var req VPSBundleDeleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_json",
-			Message: "Invalid request body",
-			Hint:    err.Error(),
-		})
+	if !decodeRequestBody(w, r, &req) {
 		return
 	}
 
@@ -494,57 +473,56 @@ func (s *Server) handleDeleteVPSBundle(w http.ResponseWriter, r *http.Request) {
 // handleDeleteBundle deletes a single bundle by SHA256 hash.
 func (s *Server) handleDeleteBundle(w http.ResponseWriter, r *http.Request) {
 	sha256Hash := strings.TrimPrefix(r.URL.Path, "/api/v1/bundles/")
+	if !validateSHA256Hash(w, sha256Hash) {
+		return
+	}
+
+	bundlesDir, err := GetLocalBundlesDir()
+	if err != nil {
+		writeRepoNotFoundError(w, err)
+		return
+	}
+
+	freedBytes, err := DeleteBundle(bundlesDir, sha256Hash)
+	if err != nil {
+		writeBundlesDirError(w, "delete bundle", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, BundleDeleteResponse{
+		OK:         true,
+		FreedBytes: freedBytes,
+		Message:    bundleDeleteMessage(freedBytes),
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// validateSHA256Hash validates the SHA256 hash format.
+// Returns false and writes an error response if validation fails.
+func validateSHA256Hash(w http.ResponseWriter, sha256Hash string) bool {
 	if sha256Hash == "" {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "missing_sha256",
 			Message: "SHA256 hash is required in the URL path",
 			Hint:    "Use DELETE /api/v1/bundles/{sha256}",
 		})
-		return
+		return false
 	}
-
-	// Validate SHA256 format (64 hex chars)
 	if len(sha256Hash) != 64 {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "invalid_sha256",
 			Message: "Invalid SHA256 hash format",
 			Hint:    "SHA256 hash must be exactly 64 hexadecimal characters",
 		})
-		return
+		return false
 	}
+	return true
+}
 
-	repoRoot, err := FindRepoRootFromCWD()
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "repo_not_found",
-			Message: "Could not find repository root",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	bundlesDir := filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles")
-	freedBytes, err := DeleteBundle(bundlesDir, sha256Hash)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
-			Code:    "delete_failed",
-			Message: "Failed to delete bundle",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	var message string
+// bundleDeleteMessage creates a human-readable message for bundle deletion.
+func bundleDeleteMessage(freedBytes int64) string {
 	if freedBytes > 0 {
-		message = fmt.Sprintf("Deleted bundle, freed %s", formatBytes(freedBytes/1024))
-	} else {
-		message = "Bundle not found or already deleted"
+		return fmt.Sprintf("Deleted bundle, freed %s", formatBytes(freedBytes/1024))
 	}
-
-	writeJSON(w, http.StatusOK, BundleDeleteResponse{
-		OK:         true,
-		FreedBytes: freedBytes,
-		Message:    message,
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-	})
+	return "Bundle not found or already deleted"
 }

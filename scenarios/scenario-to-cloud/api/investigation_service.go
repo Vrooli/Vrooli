@@ -77,12 +77,13 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, req Tri
 	// Create investigation record
 	now := time.Now()
 	inv := &domain.Investigation{
-		ID:           uuid.New().String(),
-		DeploymentID: req.DeploymentID,
-		Status:       domain.InvestigationStatusPending,
-		Progress:     0,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:              uuid.New().String(),
+		DeploymentID:    req.DeploymentID,
+		DeploymentRunID: deployment.RunID,
+		Status:          domain.InvestigationStatusPending,
+		Progress:        0,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	if err := s.repo.CreateInvestigation(ctx, inv); err != nil {
@@ -453,9 +454,9 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	return sb.String(), nil
 }
 
-// GetInvestigation retrieves an investigation by ID.
-func (s *InvestigationService) GetInvestigation(ctx context.Context, id string) (*domain.Investigation, error) {
-	return s.repo.GetInvestigation(ctx, id)
+// GetInvestigation retrieves an investigation by ID scoped to a deployment.
+func (s *InvestigationService) GetInvestigation(ctx context.Context, deploymentID, id string) (*domain.Investigation, error) {
+	return s.repo.GetInvestigationForDeployment(ctx, deploymentID, id)
 }
 
 // ListInvestigations retrieves investigations for a deployment.
@@ -464,8 +465,8 @@ func (s *InvestigationService) ListInvestigations(ctx context.Context, deploymen
 }
 
 // StopInvestigation attempts to stop a running investigation.
-func (s *InvestigationService) StopInvestigation(ctx context.Context, id string) error {
-	inv, err := s.repo.GetInvestigation(ctx, id)
+func (s *InvestigationService) StopInvestigation(ctx context.Context, deploymentID, id string) error {
+	inv, err := s.repo.GetInvestigationForDeployment(ctx, deploymentID, id)
 	if err != nil {
 		return fmt.Errorf("failed to get investigation: %w", err)
 	}
@@ -505,6 +506,7 @@ func getStringPtr(s *string) string {
 // ApplyFixesRequest contains parameters for applying fixes from an investigation.
 type ApplyFixesRequest struct {
 	InvestigationID string
+	DeploymentID    string
 	Immediate       bool
 	Permanent       bool
 	Prevention      bool
@@ -520,7 +522,7 @@ func (s *InvestigationService) ApplyFixes(ctx context.Context, req ApplyFixesReq
 	}
 
 	// Get the original investigation
-	originalInv, err := s.repo.GetInvestigation(ctx, req.InvestigationID)
+	originalInv, err := s.repo.GetInvestigationForDeployment(ctx, req.DeploymentID, req.InvestigationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get investigation: %w", err)
 	}
@@ -562,12 +564,13 @@ func (s *InvestigationService) ApplyFixes(ctx context.Context, req ApplyFixesReq
 	// Create a new investigation record for the fix application
 	now := time.Now()
 	fixInv := &domain.Investigation{
-		ID:           uuid.New().String(),
-		DeploymentID: originalInv.DeploymentID,
-		Status:       domain.InvestigationStatusPending,
-		Progress:     0,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:              uuid.New().String(),
+		DeploymentID:    originalInv.DeploymentID,
+		DeploymentRunID: deployment.RunID,
+		Status:          domain.InvestigationStatusPending,
+		Progress:        0,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	if err := s.repo.CreateInvestigation(ctx, fixInv); err != nil {
