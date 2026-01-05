@@ -11,11 +11,13 @@ import {
   Legend,
 } from "recharts";
 import { useRunTrends } from "../../hooks/useRunTrends";
-import { formatChartTime, formatNumber } from "../../utils/formatters";
+import { useTimeWindow } from "../../hooks/useTimeWindow";
+import { formatChartAxisByPreset, formatDateTime, formatNumber } from "../../utils/formatters";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
 
 export function RunStatusTrends() {
   const { data, isLoading, error } = useRunTrends();
+  const { preset } = useTimeWindow();
 
   if (isLoading) {
     return (
@@ -71,7 +73,7 @@ export function RunStatusTrends() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"
-                tickFormatter={formatChartTime}
+                tickFormatter={(value) => formatChartAxisByPreset(value, preset)}
                 stroke={CHART_COLORS.axis}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.axis }}
@@ -84,7 +86,7 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={formatChartTime}
+                labelFormatter={formatDateTime}
                 formatter={(value: number, name: string) => [
                   formatNumber(value),
                   name.charAt(0).toUpperCase() + name.slice(1),

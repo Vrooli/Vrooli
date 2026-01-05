@@ -110,10 +110,9 @@ export interface TimeSeriesBucket {
 export interface StatsSummary {
   statusCounts: RunStatusCounts;
   successRate: number;
-  durationStats: DurationStats;
-  costStats: CostStats;
+  duration: DurationStats;
+  cost: CostStats;
   runnerBreakdown: RunnerBreakdown[];
-  timeWindow: TimeWindow;
 }
 
 export interface SummaryResponse {

@@ -483,14 +483,15 @@ func (r *statsRepository) GetTimeSeries(ctx context.Context, filter repository.S
 		query = fmt.Sprintf(`
 			SELECT
 				%s as timestamp,
-				COUNT(*) as runs_started,
-				COUNT(*) FILTER (WHERE status = 'complete') as runs_completed,
-				COUNT(*) FILTER (WHERE status = 'failed') as runs_failed,
-				COUNT(*) FILTER (WHERE status = 'cancelled') as runs_cancelled,
-				0 as total_cost_usd,
-				0 as avg_duration_ms
-			FROM runs
-			WHERE created_at >= $1 AND created_at < $2
+				COUNT(DISTINCT r.id) as runs_started,
+				COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'complete') as runs_completed,
+				COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'failed') as runs_failed,
+				COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'cancelled') as runs_cancelled,
+				COALESCE(SUM((e.data->>'totalCostUsd')::numeric), 0) as total_cost_usd,
+				COALESCE(AVG(EXTRACT(EPOCH FROM (r.ended_at - r.started_at)) * 1000)::bigint, 0) as avg_duration_ms
+			FROM runs r
+			LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			WHERE r.created_at >= $1 AND r.created_at < $2
 			GROUP BY %s
 			ORDER BY timestamp ASC`, bucketSQL, bucketSQL)
 	} else {
@@ -498,19 +499,20 @@ func (r *statsRepository) GetTimeSeries(ctx context.Context, filter repository.S
 		query = fmt.Sprintf(`
 			SELECT
 				%s as timestamp,
-				COUNT(*) as runs_started,
-				SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as runs_completed,
-				SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as runs_failed,
-				SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as runs_cancelled,
-				0 as total_cost_usd,
-				0 as avg_duration_ms
-			FROM runs
-			WHERE created_at >= ? AND created_at < ?
+				COUNT(DISTINCT r.id) as runs_started,
+				COUNT(DISTINCT CASE WHEN r.status = 'complete' THEN r.id END) as runs_completed,
+				COUNT(DISTINCT CASE WHEN r.status = 'failed' THEN r.id END) as runs_failed,
+				COUNT(DISTINCT CASE WHEN r.status = 'cancelled' THEN r.id END) as runs_cancelled,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
+				COALESCE(CAST(AVG((julianday(r.ended_at) - julianday(r.started_at)) * 86400000) AS INTEGER), 0) as avg_duration_ms
+			FROM runs r
+			LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			WHERE r.created_at >= ? AND r.created_at < ?
 			GROUP BY %s
 			ORDER BY timestamp ASC`, bucketSQLite, bucketSQLite)
 	}
 
-	query, args = r.appendFilters(query, args, filter)
+	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
 	query = r.db.Rebind(query)
 
 	var rows []*repository.TimeSeriesBucket
@@ -524,14 +526,17 @@ func (r *statsRepository) GetTimeSeries(ctx context.Context, filter repository.S
 func (r *statsRepository) getBucketSQL(bucketDuration time.Duration) string {
 	switch {
 	case bucketDuration >= 24*time.Hour:
-		return "date_trunc('day', created_at)"
+		return "date_trunc('day', r.created_at)"
+	case bucketDuration >= 6*time.Hour:
+		// 6-hour buckets for 7d view
+		return "date_trunc('day', r.created_at) + (floor(extract(hour from r.created_at)/6) * interval '6 hours')"
 	case bucketDuration >= time.Hour:
-		return "date_trunc('hour', created_at)"
+		return "date_trunc('hour', r.created_at)"
 	case bucketDuration >= 15*time.Minute:
 		mins := int(bucketDuration.Minutes())
-		return fmt.Sprintf("date_trunc('hour', created_at) + (floor(extract(minute from created_at)/%d) * interval '%d minutes')", mins, mins)
+		return fmt.Sprintf("date_trunc('hour', r.created_at) + (floor(extract(minute from r.created_at)/%d) * interval '%d minutes')", mins, mins)
 	default:
-		return "date_trunc('minute', created_at)"
+		return "date_trunc('minute', r.created_at)"
 	}
 }
 
@@ -539,11 +544,14 @@ func (r *statsRepository) getBucketSQL(bucketDuration time.Duration) string {
 func (r *statsRepository) getBucketSQLite(bucketDuration time.Duration) string {
 	switch {
 	case bucketDuration >= 24*time.Hour:
-		return "date(created_at)"
+		return "date(r.created_at)"
+	case bucketDuration >= 6*time.Hour:
+		// 6-hour buckets for 7d view
+		return "strftime('%Y-%m-%d ', r.created_at) || printf('%02d', (cast(strftime('%H', r.created_at) as integer) / 6) * 6) || ':00:00'"
 	case bucketDuration >= time.Hour:
-		return "strftime('%Y-%m-%d %H:00:00', created_at)"
+		return "strftime('%Y-%m-%d %H:00:00', r.created_at)"
 	default:
-		return "strftime('%Y-%m-%d %H:%M:00', created_at)"
+		return "strftime('%Y-%m-%d %H:%M:00', r.created_at)"
 	}
 }
 

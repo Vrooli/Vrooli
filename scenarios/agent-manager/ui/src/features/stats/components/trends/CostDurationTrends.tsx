@@ -11,15 +11,18 @@ import {
   Legend,
 } from "recharts";
 import { useRunTrends } from "../../hooks/useRunTrends";
+import { useTimeWindow } from "../../hooks/useTimeWindow";
 import {
-  formatChartTime,
+  formatChartAxisByPreset,
   formatCurrency,
   formatDuration,
+  formatDateTime,
 } from "../../utils/formatters";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
 
 export function CostDurationTrends() {
   const { data, isLoading, error } = useRunTrends();
+  const { preset } = useTimeWindow();
 
   if (isLoading) {
     return (
@@ -67,7 +70,7 @@ export function CostDurationTrends() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"
-                tickFormatter={formatChartTime}
+                tickFormatter={(value) => formatChartAxisByPreset(value, preset)}
                 stroke={CHART_COLORS.axis}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.axis }}
@@ -92,7 +95,7 @@ export function CostDurationTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={formatChartTime}
+                labelFormatter={formatDateTime}
                 formatter={(value: number, name: string) => {
                   if (name === "Cost") return [formatCurrency(value), name];
                   return [formatDuration(value), name];

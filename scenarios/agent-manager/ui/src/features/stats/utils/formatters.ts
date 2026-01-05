@@ -105,6 +105,39 @@ export function formatChartTime(dateString: string): string {
 }
 
 /**
+ * Format chart axis label based on time window preset
+ * Shows dates for longer windows (7d, 30d) and times for shorter windows
+ */
+export function formatChartAxisByPreset(
+  dateString: string,
+  preset: string
+): string {
+  const date = new Date(dateString);
+
+  // For 7d and 30d views, show date with optional time
+  if (preset === "30d") {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+
+  if (preset === "7d") {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+    }).format(date);
+  }
+
+  // For shorter windows (6h, 12h, 24h), show time only
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+/**
  * Format a date as relative time (e.g., "2 hours ago", "3 days ago")
  */
 export function formatRelativeTime(dateString: string): string {

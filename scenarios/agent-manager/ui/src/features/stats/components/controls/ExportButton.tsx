@@ -52,21 +52,21 @@ export function ExportButton({ disabled }: ExportButtonProps) {
         csv.push("");
 
         csv.push("=== Duration Stats ===");
-        csv.push(`Average (ms),${s.durationStats.avgMs}`);
-        csv.push(`P50 (ms),${s.durationStats.p50Ms}`);
-        csv.push(`P95 (ms),${s.durationStats.p95Ms}`);
-        csv.push(`P99 (ms),${s.durationStats.p99Ms}`);
-        csv.push(`Min (ms),${s.durationStats.minMs}`);
-        csv.push(`Max (ms),${s.durationStats.maxMs}`);
+        csv.push(`Average (ms),${s.duration.avgMs}`);
+        csv.push(`P50 (ms),${s.duration.p50Ms}`);
+        csv.push(`P95 (ms),${s.duration.p95Ms}`);
+        csv.push(`P99 (ms),${s.duration.p99Ms}`);
+        csv.push(`Min (ms),${s.duration.minMs}`);
+        csv.push(`Max (ms),${s.duration.maxMs}`);
         csv.push("");
 
         csv.push("=== Cost Stats ===");
-        csv.push(`Total Cost (USD),${s.costStats.totalCostUsd.toFixed(2)}`);
-        csv.push(`Avg Cost (USD),${s.costStats.avgCostUsd.toFixed(4)}`);
-        csv.push(`Input Tokens,${s.costStats.inputTokens}`);
-        csv.push(`Output Tokens,${s.costStats.outputTokens}`);
-        csv.push(`Cache Read Tokens,${s.costStats.cacheReadTokens}`);
-        csv.push(`Total Tokens,${s.costStats.totalTokens}`);
+        csv.push(`Total Cost (USD),${s.cost.totalCostUsd.toFixed(2)}`);
+        csv.push(`Avg Cost (USD),${s.cost.avgCostUsd.toFixed(4)}`);
+        csv.push(`Input Tokens,${s.cost.inputTokens}`);
+        csv.push(`Output Tokens,${s.cost.outputTokens}`);
+        csv.push(`Cache Read Tokens,${s.cost.cacheReadTokens}`);
+        csv.push(`Total Tokens,${s.cost.totalTokens}`);
         csv.push("");
       }
 

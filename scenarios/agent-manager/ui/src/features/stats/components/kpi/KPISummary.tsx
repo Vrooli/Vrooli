@@ -25,8 +25,8 @@ export function KPISummary() {
 
   const summary = data?.summary;
   const counts = summary?.statusCounts;
-  const duration = summary?.durationStats;
-  const cost = summary?.costStats;
+  const duration = summary?.duration;
+  const cost = summary?.cost;
 
   // Calculate throughput (runs/hour)
   const throughput = summary?.runnerBreakdown
