@@ -308,7 +308,7 @@ func (s *Server) preflightBundleHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, err := runBundlePreflight(request)
+	result, err := s.runBundlePreflight(request)
 	if err != nil {
 		status := http.StatusInternalServerError
 		var statusErr *preflightStatusError
@@ -1035,6 +1035,18 @@ type preflightIssue struct {
 	detail string
 }
 
+type preflightSession struct {
+	id        string
+	manifest  *bundlemanifest.Manifest
+	bundleDir string
+	appData   string
+	supervisor *bundleruntime.Supervisor
+	baseURL   string
+	token     string
+	createdAt time.Time
+	expiresAt time.Time
+}
+
 func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtimeapi.BundleValidationResult, ready *BundlePreflightReady, secrets []BundlePreflightSecret, ports map[string]map[string]int, telemetry *BundlePreflightTelemetry, logTails []BundlePreflightLogTail, request BundlePreflightRequest) []BundlePreflightCheck {
 	checks := []BundlePreflightCheck{}
 	if manifest == nil {
@@ -1051,9 +1063,14 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 		})
 	}
 
+	statusOnly := request.StatusOnly
+
 	manifestStatus := "pass"
 	manifestDetail := fmt.Sprintf("validated for %s/%s", runtime.GOOS, runtime.GOARCH)
-	if validation == nil {
+	if statusOnly {
+		manifestStatus = "skipped"
+		manifestDetail = "status-only refresh"
+	} else if validation == nil {
 		manifestStatus = "fail"
 		manifestDetail = "validation result missing"
 	} else {
@@ -1070,7 +1087,7 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 	binaryErrors := map[string][]string{}
 	missingBinaries := map[string]runtimeapi.MissingBinary{}
 	assetIssues := map[string]preflightIssue{}
-	if validation != nil {
+	if validation != nil && !statusOnly {
 		for _, err := range validation.Errors {
 			if err.Service == "" {
 				continue
@@ -1110,56 +1127,60 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 		}
 	}
 
-	for _, svc := range manifest.Services {
-		status := "pass"
-		detail := ""
-		if missing, ok := missingBinaries[svc.ID]; ok {
-			status = "fail"
-			detail = fmt.Sprintf("missing binary: %s (%s)", missing.Path, missing.Platform)
-		}
-		if errs, ok := binaryErrors[svc.ID]; ok {
-			status = "fail"
-			if detail == "" {
-				detail = strings.Join(errs, "; ")
-			} else {
-				detail = detail + "; " + strings.Join(errs, "; ")
-			}
-		}
-		addCheck("validation.binary."+svc.ID, "validation", "Binary present: "+svc.ID, status, detail)
-
-		for _, asset := range svc.Assets {
-			key := svc.ID + "|" + asset.Path
-			issue, ok := assetIssues[key]
-			assetStatus := "pass"
-			assetDetail := ""
-			if ok {
-				assetStatus = issue.status
-				assetDetail = issue.detail
-			}
-			addCheck("validation.asset."+svc.ID+"."+asset.Path, "validation", "Asset "+asset.Path+" ("+svc.ID+")", assetStatus, assetDetail)
-		}
-	}
-
-	for _, secret := range secrets {
-		status := "pass"
-		detail := ""
-		if secret.Required {
-			if secret.HasValue {
-				detail = "required secret provided"
-			} else {
+	if !statusOnly {
+		for _, svc := range manifest.Services {
+			status := "pass"
+			detail := ""
+			if missing, ok := missingBinaries[svc.ID]; ok {
 				status = "fail"
-				detail = "required secret missing"
+				detail = fmt.Sprintf("missing binary: %s (%s)", missing.Path, missing.Platform)
 			}
-		} else if secret.HasValue {
-			detail = "optional secret provided"
-		} else {
-			status = "skipped"
-			detail = "optional secret not provided"
-		}
-		addCheck("secrets."+secret.ID, "secrets", "Secret "+secret.ID, status, detail)
-	}
+			if errs, ok := binaryErrors[svc.ID]; ok {
+				status = "fail"
+				if detail == "" {
+					detail = strings.Join(errs, "; ")
+				} else {
+					detail = detail + "; " + strings.Join(errs, "; ")
+				}
+			}
+			addCheck("validation.binary."+svc.ID, "validation", "Binary present: "+svc.ID, status, detail)
 
-	addCheck("runtime.control_api", "runtime", "Runtime control API online", "pass", "control API responded")
+			for _, asset := range svc.Assets {
+				key := svc.ID + "|" + asset.Path
+				issue, ok := assetIssues[key]
+				assetStatus := "pass"
+				assetDetail := ""
+				if ok {
+					assetStatus = issue.status
+					assetDetail = issue.detail
+				}
+				addCheck("validation.asset."+svc.ID+"."+asset.Path, "validation", "Asset "+asset.Path+" ("+svc.ID+")", assetStatus, assetDetail)
+			}
+		}
+
+		for _, secret := range secrets {
+			status := "pass"
+			detail := ""
+			if secret.Required {
+				if secret.HasValue {
+					detail = "required secret provided"
+				} else {
+					status = "fail"
+					detail = "required secret missing"
+				}
+			} else if secret.HasValue {
+				detail = "optional secret provided"
+			} else {
+				status = "skipped"
+				detail = "optional secret not provided"
+			}
+			addCheck("secrets."+secret.ID, "secrets", "Secret "+secret.ID, status, detail)
+		}
+
+		addCheck("runtime.control_api", "runtime", "Runtime control API online", "pass", "control API responded")
+	} else {
+		addCheck("runtime.control_api", "runtime", "Runtime control API online", "pass", "status-only refresh")
+	}
 
 	if !request.StartServices {
 		addCheck("services.start", "services", "Start services", "skipped", "start_services=false")
@@ -1170,7 +1191,11 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 		if !ready.Ready {
 			overall = "fail"
 		}
-		addCheck("services.ready", "services", "Overall readiness", overall, "")
+		overallDetail := ""
+		if ready.WaitedSeconds > 0 {
+			overallDetail = fmt.Sprintf("waited %ds for readiness", ready.WaitedSeconds)
+		}
+		addCheck("services.ready", "services", "Overall readiness", overall, overallDetail)
 		for serviceID, status := range ready.Details {
 			checkStatus := "pass"
 			detail := status.Message
@@ -1223,9 +1248,20 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 	return checks
 }
 
-func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightResponse, error) {
+func (s *Server) runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightResponse, error) {
 	if strings.TrimSpace(request.BundleManifestPath) == "" {
 		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: errors.New("bundle_manifest_path is required")}
+	}
+
+	if request.SessionStop && strings.TrimSpace(request.SessionID) != "" {
+		if s.stopPreflightSession(request.SessionID) {
+			return &BundlePreflightResponse{Status: "stopped", SessionID: request.SessionID}, nil
+		}
+		return nil, &preflightStatusError{Status: http.StatusNotFound, Err: fmt.Errorf("preflight session not found: %s", request.SessionID)}
+	}
+
+	if request.StatusOnly && strings.TrimSpace(request.SessionID) == "" {
+		return nil, &preflightStatusError{Status: http.StatusBadRequest, Err: errors.New("session_id is required for status_only")}
 	}
 
 	manifestPath, err := filepath.Abs(request.BundleManifestPath)
@@ -1260,56 +1296,87 @@ func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightRespons
 	if timeout > 2*time.Minute {
 		timeout = 2 * time.Minute
 	}
-
-	appData, err := os.MkdirTemp("", "s2d-preflight-*")
-	if err != nil {
-		return nil, fmt.Errorf("create preflight app data: %w", err)
-	}
-	defer os.RemoveAll(appData)
-
-	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
-		Manifest:   m,
-		BundlePath: bundleRoot,
-		AppDataDir: appData,
-		DryRun:     !request.StartServices,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("init runtime: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := supervisor.Start(ctx); err != nil {
-		return nil, fmt.Errorf("start runtime: %w", err)
-	}
-	defer func() {
-		_ = supervisor.Shutdown(context.Background())
-	}()
-
-	fileTimeout := timeout / 3
-	if fileTimeout < 500*time.Millisecond {
-		fileTimeout = 500 * time.Millisecond
+	var session *preflightSession
+	if request.StatusOnly {
+		var ok bool
+		session, ok = s.getPreflightSession(request.SessionID)
+		if !ok {
+			return nil, &preflightStatusError{Status: http.StatusNotFound, Err: fmt.Errorf("preflight session not found: %s", request.SessionID)}
+		}
+		s.refreshPreflightSession(session, request.SessionTTLSeconds)
+	} else if request.StartServices {
+		if existingID := strings.TrimSpace(request.SessionID); existingID != "" {
+			s.stopPreflightSession(existingID)
+		}
+		session, err = s.createPreflightSession(m, bundleRoot, request.SessionTTLSeconds)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	tokenPath := bundlemanifest.ResolvePath(appData, m.IPC.AuthTokenRel)
-	tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("read auth token: %w", err)
-	}
-	token := strings.TrimSpace(string(tokenBytes))
+	if session == nil {
+		appData, err := os.MkdirTemp("", "s2d-preflight-*")
+		if err != nil {
+			return nil, fmt.Errorf("create preflight app data: %w", err)
+		}
+		defer os.RemoveAll(appData)
 
-	portPath := filepath.Join(appData, "runtime", "ipc_port")
-	port, err := readPortFileWithRetry(portPath, fileTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("read ipc_port: %w", err)
+		supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
+			Manifest:   m,
+			BundlePath: bundleRoot,
+			AppDataDir: appData,
+			DryRun:     !request.StartServices,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("init runtime: %w", err)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		if err := supervisor.Start(ctx); err != nil {
+			return nil, fmt.Errorf("start runtime: %w", err)
+		}
+		defer func() {
+			_ = supervisor.Shutdown(context.Background())
+		}()
+
+		fileTimeout := timeout / 3
+		if fileTimeout < 500*time.Millisecond {
+			fileTimeout = 500 * time.Millisecond
+		}
+
+		tokenPath := bundlemanifest.ResolvePath(appData, m.IPC.AuthTokenRel)
+		tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("read auth token: %w", err)
+		}
+		token := strings.TrimSpace(string(tokenBytes))
+
+		portPath := filepath.Join(appData, "runtime", "ipc_port")
+		port, err := readPortFileWithRetry(portPath, fileTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("read ipc_port: %w", err)
+		}
+
+		baseURL := fmt.Sprintf("http://%s:%d", m.IPC.Host, port)
+		client := &http.Client{Timeout: 2 * time.Second}
+
+		if err := waitForRuntimeHealth(client, baseURL, timeout); err != nil {
+			return nil, err
+		}
+
+		session = &preflightSession{
+			manifest:  m,
+			bundleDir: bundleRoot,
+			baseURL:   baseURL,
+			token:     token,
+			createdAt: time.Now(),
+		}
 	}
 
-	baseURL := fmt.Sprintf("http://%s:%d", m.IPC.Host, port)
 	client := &http.Client{Timeout: 2 * time.Second}
-
-	if err := waitForRuntimeHealth(client, baseURL, timeout); err != nil {
-		return nil, err
-	}
+	baseURL := session.baseURL
+	token := session.token
 
 	if len(request.Secrets) > 0 {
 		filtered := map[string]string{}
@@ -1330,23 +1397,31 @@ func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightRespons
 		}
 	}
 
-	var validation runtimeapi.BundleValidationResult
-	allowStatus := map[int]bool{http.StatusUnprocessableEntity: true}
-	if _, err := fetchJSON(client, baseURL, token, "/validate", http.MethodGet, nil, &validation, allowStatus); err != nil {
-		return nil, fmt.Errorf("validate bundle: %w", err)
+	var validation *runtimeapi.BundleValidationResult
+	if !request.StatusOnly {
+		var validationValue runtimeapi.BundleValidationResult
+		allowStatus := map[int]bool{http.StatusUnprocessableEntity: true}
+		if _, err := fetchJSON(client, baseURL, token, "/validate", http.MethodGet, nil, &validationValue, allowStatus); err != nil {
+			return nil, fmt.Errorf("validate bundle: %w", err)
+		}
+		validation = &validationValue
 	}
 
 	var secretsResp struct {
 		Secrets []BundlePreflightSecret `json:"secrets"`
 	}
-	if _, err := fetchJSON(client, baseURL, token, "/secrets", http.MethodGet, nil, &secretsResp, nil); err != nil {
-		return nil, fmt.Errorf("fetch secrets: %w", err)
+	if !request.StatusOnly {
+		if _, err := fetchJSON(client, baseURL, token, "/secrets", http.MethodGet, nil, &secretsResp, nil); err != nil {
+			return nil, fmt.Errorf("fetch secrets: %w", err)
+		}
 	}
 
-	var ready BundlePreflightReady
-	if _, err := fetchJSON(client, baseURL, token, "/readyz", http.MethodGet, nil, &ready, nil); err != nil {
+	ready, waitedSeconds, err := fetchReadyWithPolling(client, baseURL, token, request, timeout)
+	if err != nil {
 		return nil, fmt.Errorf("fetch readiness: %w", err)
 	}
+	ready.SnapshotAt = time.Now().Format(time.RFC3339)
+	ready.WaitedSeconds = waitedSeconds
 
 	var portsResp struct {
 		Services map[string]map[string]int `json:"services"`
@@ -1360,19 +1435,59 @@ func runBundlePreflight(request BundlePreflightRequest) (*BundlePreflightRespons
 		return nil, fmt.Errorf("fetch telemetry: %w", err)
 	}
 
-	logTails := collectLogTails(client, baseURL, token, m, request)
-	checks := buildPreflightChecks(m, &validation, &ready, secretsResp.Secrets, portsResp.Services, &telemetryResp, logTails, request)
+	logTails := collectLogTails(client, baseURL, token, session.manifest, request)
+	checks := buildPreflightChecks(m, validation, &ready, secretsResp.Secrets, portsResp.Services, &telemetryResp, logTails, request)
+
+	sessionID := ""
+	expiresAt := ""
+	if session != nil && session.id != "" {
+		sessionID = session.id
+		if !session.expiresAt.IsZero() {
+			expiresAt = session.expiresAt.Format(time.RFC3339)
+		}
+	}
 
 	return &BundlePreflightResponse{
 		Status:     "ok",
-		Validation: &validation,
+		Validation: validation,
 		Ready:      &ready,
 		Secrets:    secretsResp.Secrets,
 		Ports:      portsResp.Services,
 		Telemetry:  &telemetryResp,
 		LogTails:   logTails,
 		Checks:     checks,
+		SessionID:  sessionID,
+		ExpiresAt:  expiresAt,
 	}, nil
+}
+
+func fetchReadyWithPolling(client *http.Client, baseURL, token string, request BundlePreflightRequest, timeout time.Duration) (BundlePreflightReady, int, error) {
+	var ready BundlePreflightReady
+	if _, err := fetchJSON(client, baseURL, token, "/readyz", http.MethodGet, nil, &ready, nil); err != nil {
+		return ready, 0, err
+	}
+	if !request.StartServices || request.StatusOnly {
+		return ready, 0, nil
+	}
+	waitBudget := timeout / 2
+	if waitBudget < 2*time.Second {
+		waitBudget = 2 * time.Second
+	}
+	if waitBudget > 20*time.Second {
+		waitBudget = 20 * time.Second
+	}
+	start := time.Now()
+	deadline := start.Add(waitBudget)
+	for time.Now().Before(deadline) {
+		if ready.Ready {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		if _, err := fetchJSON(client, baseURL, token, "/readyz", http.MethodGet, nil, &ready, nil); err != nil {
+			return ready, int(time.Since(start).Seconds()), err
+		}
+	}
+	return ready, int(time.Since(start).Seconds()), nil
 }
 
 func readFileWithRetry(path string, timeout time.Duration) ([]byte, error) {
@@ -1399,6 +1514,155 @@ func readPortFileWithRetry(path string, timeout time.Duration) (int, error) {
 		return 0, err
 	}
 	return port, nil
+}
+
+func (s *Server) createPreflightSession(manifest *bundlemanifest.Manifest, bundleRoot string, ttlSeconds int) (*preflightSession, error) {
+	if ttlSeconds <= 0 {
+		ttlSeconds = 120
+	}
+	if ttlSeconds > 900 {
+		ttlSeconds = 900
+	}
+
+	appData, err := os.MkdirTemp("", "s2d-preflight-*")
+	if err != nil {
+		return nil, fmt.Errorf("create preflight app data: %w", err)
+	}
+
+	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
+		Manifest:   manifest,
+		BundlePath: bundleRoot,
+		AppDataDir: appData,
+		DryRun:     false,
+	})
+	if err != nil {
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("init runtime: %w", err)
+	}
+
+	ctx := context.Background()
+	if err := supervisor.Start(ctx); err != nil {
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("start runtime: %w", err)
+	}
+
+	fileTimeout := 5 * time.Second
+	tokenPath := bundlemanifest.ResolvePath(appData, manifest.IPC.AuthTokenRel)
+	tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
+	if err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("read auth token: %w", err)
+	}
+	token := strings.TrimSpace(string(tokenBytes))
+
+	portPath := filepath.Join(appData, "runtime", "ipc_port")
+	port, err := readPortFileWithRetry(portPath, fileTimeout)
+	if err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("read ipc_port: %w", err)
+	}
+
+	baseURL := fmt.Sprintf("http://%s:%d", manifest.IPC.Host, port)
+	client := &http.Client{Timeout: 2 * time.Second}
+	if err := waitForRuntimeHealth(client, baseURL, 10*time.Second); err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, err
+	}
+
+	session := &preflightSession{
+		id:         uuid.NewString(),
+		manifest:   manifest,
+		bundleDir:  bundleRoot,
+		appData:    appData,
+		supervisor: supervisor,
+		baseURL:    baseURL,
+		token:      token,
+		createdAt:  time.Now(),
+		expiresAt:  time.Now().Add(time.Duration(ttlSeconds) * time.Second),
+	}
+	s.preflightMux.Lock()
+	s.preflight[session.id] = session
+	s.preflightMux.Unlock()
+
+	return session, nil
+}
+
+func (s *Server) getPreflightSession(id string) (*preflightSession, bool) {
+	s.preflightMux.Lock()
+	defer s.preflightMux.Unlock()
+	session, ok := s.preflight[id]
+	if !ok {
+		return nil, false
+	}
+	if time.Now().After(session.expiresAt) {
+		delete(s.preflight, id)
+		go s.shutdownPreflightSession(session)
+		return nil, false
+	}
+	return session, true
+}
+
+func (s *Server) refreshPreflightSession(session *preflightSession, ttlSeconds int) {
+	if ttlSeconds <= 0 {
+		return
+	}
+	maxTTL := 900
+	if ttlSeconds > maxTTL {
+		ttlSeconds = maxTTL
+	}
+	s.preflightMux.Lock()
+	defer s.preflightMux.Unlock()
+	session.expiresAt = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
+}
+
+func (s *Server) stopPreflightSession(id string) bool {
+	s.preflightMux.Lock()
+	session, ok := s.preflight[id]
+	if ok {
+		delete(s.preflight, id)
+	}
+	s.preflightMux.Unlock()
+	if ok {
+		s.shutdownPreflightSession(session)
+	}
+	return ok
+}
+
+func (s *Server) shutdownPreflightSession(session *preflightSession) {
+	if session == nil {
+		return
+	}
+	_ = session.supervisor.Shutdown(context.Background())
+	_ = os.RemoveAll(session.appData)
+}
+
+func (s *Server) startPreflightJanitor() {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.cleanupPreflightSessions()
+		}
+	}()
+}
+
+func (s *Server) cleanupPreflightSessions() {
+	var expired []*preflightSession
+	now := time.Now()
+	s.preflightMux.Lock()
+	for id, session := range s.preflight {
+		if now.After(session.expiresAt) {
+			expired = append(expired, session)
+			delete(s.preflight, id)
+		}
+	}
+	s.preflightMux.Unlock()
+	for _, session := range expired {
+		s.shutdownPreflightSession(session)
+	}
 }
 
 func waitForRuntimeHealth(client *http.Client, baseURL string, timeout time.Duration) error {

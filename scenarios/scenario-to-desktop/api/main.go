@@ -39,6 +39,8 @@ type Server struct {
 	templateDir    string
 	logger         *slog.Logger
 	telemetryMux   sync.Mutex
+	preflightMux   sync.Mutex
+	preflight      map[string]*preflightSession
 }
 
 // NewServer creates a new server instance
@@ -67,8 +69,10 @@ func NewServer(port int) *Server {
 		wineInstalls: make(map[string]*WineInstallStatus),
 		templateDir:  "../templates", // Templates are in parent directory when running from api/
 		logger:       logger,
+		preflight:    make(map[string]*preflightSession),
 	}
 
+	server.startPreflightJanitor()
 	server.setupRoutes()
 	return server
 }

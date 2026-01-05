@@ -253,6 +253,18 @@ function formatTimestamp(value?: string) {
   return new Date(ts).toLocaleTimeString();
 }
 
+function countLines(text?: string) {
+  if (!text) {
+    return 0;
+  }
+  const lines = text.split(/\r?\n/);
+  if (lines.length === 0) {
+    return 0;
+  }
+  const last = lines[lines.length - 1];
+  return last === "" ? lines.length - 1 : lines.length;
+}
+
 interface BundledPreflightSectionProps {
   bundleManifestPath: string;
   preflightResult: BundlePreflightResponse | null;
@@ -263,11 +275,17 @@ interface BundledPreflightSectionProps {
   preflightOk: boolean;
   preflightOverride: boolean;
   preflightStartServices: boolean;
+  preflightAutoRefresh: boolean;
+  preflightSessionTTL: number;
+  preflightSessionId?: string | null;
+  preflightSessionExpiresAt?: string | null;
   preflightLogTails?: BundlePreflightLogTail[];
   deploymentManagerUrl?: string | null;
   onReexportBundle?: () => void;
   onOverrideChange: (value: boolean) => void;
   onStartServicesChange: (value: boolean) => void;
+  onAutoRefreshChange: (value: boolean) => void;
+  onSessionTTLChange: (value: number) => void;
   onSecretChange: (id: string, value: string) => void;
   onRun: (secretsOverride?: Record<string, string>) => void;
 }
@@ -282,16 +300,23 @@ export function BundledPreflightSection({
   preflightOk,
   preflightOverride,
   preflightStartServices,
+  preflightAutoRefresh,
+  preflightSessionTTL,
+  preflightSessionId,
+  preflightSessionExpiresAt,
   preflightLogTails,
   deploymentManagerUrl,
   onReexportBundle,
   onOverrideChange,
   onStartServicesChange,
+  onAutoRefreshChange,
+  onSessionTTLChange,
   onSecretChange,
   onRun
 }: BundledPreflightSectionProps) {
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [logCopyStatus, setLogCopyStatus] = useState<Record<string, "idle" | "copied" | "error">>({});
   const [tick, setTick] = useState(() => Date.now());
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
@@ -310,9 +335,9 @@ export function BundledPreflightSection({
     }
     return Math.max(latest, ts);
   }, 0);
-  const latestServiceUpdateLabel = latestServiceUpdate
-    ? new Date(latestServiceUpdate).toLocaleTimeString()
-    : "";
+  const snapshotTs = parseTimestamp(readiness?.snapshot_at) || latestServiceUpdate || 0;
+  const snapshotLabel = snapshotTs ? new Date(snapshotTs).toLocaleTimeString() : "";
+  const snapshotAge = snapshotTs ? formatDuration(Math.max(0, tick - snapshotTs)) : "";
   const hasMissingArtifacts = Boolean(
     validation
       && !validation.valid
@@ -509,12 +534,39 @@ export function BundledPreflightSection({
           </Button>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-xs text-slate-400">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <Checkbox
           checked={preflightStartServices}
           onChange={(e) => onStartServicesChange(e.target.checked)}
           label="Start services to capture log tails + readiness (slower)"
         />
+        <Checkbox
+          checked={preflightAutoRefresh}
+          onChange={(e) => onAutoRefreshChange(e.target.checked)}
+          disabled={!preflightStartServices}
+          label="Auto-refresh readiness (every 10s)"
+        />
+        <div className="flex items-center gap-2">
+          <Label htmlFor="preflight-session-ttl" className="text-[11px] text-slate-400">
+            Session TTL (s)
+          </Label>
+          <Input
+            id="preflight-session-ttl"
+            type="number"
+            min={30}
+            max={900}
+            value={preflightSessionTTL}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (Number.isNaN(next)) {
+                return;
+              }
+              onSessionTTLChange(Math.min(900, Math.max(30, next)));
+            }}
+            className="h-7 w-20 text-xs"
+            disabled={!preflightStartServices}
+          />
+        </div>
       </div>
 
       {!bundleManifestPath.trim() && (
@@ -788,17 +840,29 @@ export function BundledPreflightSection({
                     Readiness details
                   </summary>
                   <p className="mt-1 text-[11px] text-slate-400">
-                    Snapshot {latestServiceUpdateLabel ? `at ${latestServiceUpdateLabel}` : "captured during this preflight run"}.
+                    Snapshot {snapshotLabel ? `at ${snapshotLabel}` : "captured during this preflight run"}
+                    {snapshotAge ? ` (${snapshotAge} ago)` : ""}.
+                    {typeof readiness?.waited_seconds === "number" && readiness.waited_seconds > 0
+                      ? ` Waited ${readiness.waited_seconds}s before capturing status.`
+                      : ""}
+                    {preflightAutoRefresh ? " Auto-refresh is updating this snapshot." : ""}
                   </p>
+                  {(preflightSessionId || preflightSessionExpiresAt) && (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Session {preflightSessionId ? preflightSessionId.slice(0, 8) : "active"}
+                      {preflightSessionExpiresAt ? ` · expires ${formatTimestamp(preflightSessionExpiresAt)}` : ""}
+                    </p>
+                  )}
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {readinessDetails.map(([serviceId, status]) => {
+                      const referenceTs = snapshotTs || tick;
                       const updatedAt = parseTimestamp(status.updated_at);
                       const startedAt = parseTimestamp(status.started_at);
                       const readyAt = parseTimestamp(status.ready_at);
                       const isUpdatedAhead = updatedAt ? updatedAt > tick + 5000 : false;
-                      const statusAge = updatedAt && !isUpdatedAhead ? formatDuration(tick - updatedAt) : "";
-                      const startedAge = startedAt ? formatDuration(Math.max(0, tick - startedAt)) : "";
-                      const readyAge = readyAt ? formatDuration(Math.max(0, tick - readyAt)) : "";
+                      const statusAge = updatedAt && !isUpdatedAhead ? formatDuration(Math.max(0, referenceTs - updatedAt)) : "";
+                      const startedAge = startedAt ? formatDuration(Math.max(0, referenceTs - startedAt)) : "";
+                      const readyAge = readyAt ? formatDuration(Math.max(0, referenceTs - readyAt)) : "";
                       return (
                         <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
                           <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
@@ -807,6 +871,11 @@ export function BundledPreflightSection({
                           </p>
                           {status.message && (
                             <p className="text-[11px] text-slate-300">{status.message}</p>
+                          )}
+                          {status.message === "pending start" && (
+                            <p className="text-[11px] text-slate-500">
+                              Not launched yet; waiting on dependencies or secrets.
+                            </p>
                           )}
                           {status.ready && readyAge && (
                             <p className="text-[11px] text-emerald-200/80">Ready for {readyAge}</p>
@@ -836,7 +905,7 @@ export function BundledPreflightSection({
                   </div>
                   {!readiness.ready && (
                     <p className="mt-2 text-[11px] text-slate-300">
-                      Readiness is a snapshot from preflight. Re-run to refresh status or inspect log tails to see why a service is still waiting.
+                      Readiness is a snapshot from preflight. Services shut down after this run, so re-run to refresh status or inspect log tails for why a service is waiting.
                     </p>
                   )}
                 </details>
@@ -878,20 +947,50 @@ export function BundledPreflightSection({
                     Service log tails
                   </summary>
                   <div className="mt-2 space-y-2">
-                    {logTails.map((tail, idx) => (
-                      <div key={`${tail.service_id}-${idx}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                          {tail.service_id} · {tail.lines} lines
-                        </p>
-                        {tail.error ? (
-                          <p className="text-amber-200">{tail.error}</p>
-                        ) : (
-                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
-                            {tail.content || "No log output yet."}
-                          </pre>
-                        )}
-                      </div>
-                    ))}
+                    {logTails.map((tail, idx) => {
+                      const copyKey = `${tail.service_id}-${idx}`;
+                      const lineCount = countLines(tail.content);
+                      const copyState = logCopyStatus[copyKey] || "idle";
+                      return (
+                        <div key={copyKey} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                              {tail.service_id} · {lineCount} of {tail.lines} lines
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-[10px]"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(tail.content || "");
+                                  setLogCopyStatus((prev) => ({ ...prev, [copyKey]: "copied" }));
+                                  window.setTimeout(() => {
+                                    setLogCopyStatus((prev) => ({ ...prev, [copyKey]: "idle" }));
+                                  }, 1500);
+                                } catch (error) {
+                                  console.warn("Failed to copy log tail", error);
+                                  setLogCopyStatus((prev) => ({ ...prev, [copyKey]: "error" }));
+                                }
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                              <span className="ml-1">
+                                {copyState === "copied" ? "Copied" : copyState === "error" ? "Failed" : "Copy"}
+                              </span>
+                            </Button>
+                          </div>
+                          {tail.error ? (
+                            <p className="text-amber-200">{tail.error}</p>
+                          ) : (
+                            <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-slate-200">
+                              {tail.content || "No log output yet."}
+                            </pre>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </details>
               )}

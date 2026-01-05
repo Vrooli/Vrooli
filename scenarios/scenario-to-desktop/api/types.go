@@ -124,6 +124,10 @@ type BundlePreflightRequest struct {
 	StartServices      bool              `json:"start_services,omitempty"`
 	LogTailLines       int               `json:"log_tail_lines,omitempty"`
 	LogTailServices    []string          `json:"log_tail_services,omitempty"`
+	StatusOnly         bool              `json:"status_only,omitempty"`
+	SessionID          string            `json:"session_id,omitempty"`
+	SessionTTLSeconds  int               `json:"session_ttl_seconds,omitempty"`
+	SessionStop        bool              `json:"session_stop,omitempty"`
 }
 
 // BundlePreflightResponse reports the dry-run validation results.
@@ -137,6 +141,8 @@ type BundlePreflightResponse struct {
 	LogTails   []BundlePreflightLogTail           `json:"log_tails,omitempty"`
 	Checks     []BundlePreflightCheck             `json:"checks,omitempty"`
 	Errors     []string                           `json:"errors,omitempty"`
+	SessionID  string                             `json:"session_id,omitempty"`
+	ExpiresAt  string                             `json:"expires_at,omitempty"`
 }
 
 // BundlePreflightCheck enumerates a single preflight test case and outcome.
@@ -150,9 +156,11 @@ type BundlePreflightCheck struct {
 
 // BundlePreflightReady captures readiness results from the runtime control API.
 type BundlePreflightReady struct {
-	Ready   bool                     `json:"ready"`
-	Details map[string]health.Status `json:"details"`
-	GPU     BundlePreflightGPU       `json:"gpu,omitempty"`
+	Ready         bool                     `json:"ready"`
+	Details       map[string]health.Status `json:"details"`
+	GPU           BundlePreflightGPU       `json:"gpu,omitempty"`
+	SnapshotAt    string                   `json:"snapshot_at,omitempty"`
+	WaitedSeconds int                      `json:"waited_seconds,omitempty"`
 }
 
 // BundlePreflightGPU surfaces GPU detection info from the runtime.

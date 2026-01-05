@@ -612,6 +612,10 @@ export function GeneratorForm({
   const [preflightOverride, setPreflightOverride] = useState(false);
   const [preflightSecrets, setPreflightSecrets] = useState<Record<string, string>>({});
   const [preflightStartServices, setPreflightStartServices] = useState(false);
+  const [preflightAutoRefresh, setPreflightAutoRefresh] = useState(false);
+  const [preflightSessionId, setPreflightSessionId] = useState<string | null>(null);
+  const [preflightSessionExpiresAt, setPreflightSessionExpiresAt] = useState<string | null>(null);
+  const [preflightSessionTTL, setPreflightSessionTTL] = useState(120);
   const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [signingEnabledForBuild, setSigningEnabledForBuild] = useState(false);
@@ -745,10 +749,14 @@ export function GeneratorForm({
         bundle_manifest_path: manifestPath,
         secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         start_services: preflightStartServices,
-        log_tail_lines: preflightStartServices ? 80 : undefined
+        log_tail_lines: preflightStartServices ? 80 : undefined,
+        session_ttl_seconds: preflightStartServices ? preflightSessionTTL : undefined,
+        session_id: preflightSessionId ?? undefined
       });
       setPreflightResult(result);
       setPreflightOverride(false);
+      setPreflightSessionId(result.session_id ?? null);
+      setPreflightSessionExpiresAt(result.expires_at ?? null);
     } catch (error) {
       setPreflightResult(null);
       setPreflightError((error as Error).message);
@@ -756,6 +764,111 @@ export function GeneratorForm({
       setPreflightPending(false);
     }
   };
+
+  const refreshPreflightStatus = async () => {
+    if (!preflightResult || preflightPending || !preflightSessionId) {
+      return;
+    }
+    const manifestPath = bundleManifestPath.trim();
+    if (!manifestPath) {
+      return;
+    }
+    setPreflightPending(true);
+    try {
+      const filteredSecrets = Object.entries(preflightSecrets)
+        .filter(([, value]) => value.trim())
+        .reduce<Record<string, string>>((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
+      const result = await runBundlePreflight({
+        bundle_manifest_path: manifestPath,
+        secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+        start_services: preflightStartServices,
+        log_tail_lines: preflightStartServices ? 80 : undefined,
+        status_only: true,
+        session_id: preflightSessionId,
+        session_ttl_seconds: preflightSessionTTL
+      });
+      setPreflightResult((prev) => {
+        if (!prev) {
+          return result;
+        }
+        const nextChecks = result.checks ?? prev.checks;
+        const mergedChecks = prev.checks
+          ? prev.checks.map((check) => {
+              const updated = nextChecks?.find((item) => item.id === check.id);
+              if (!updated) {
+                return check;
+              }
+              if (updated.step === "services" || updated.step === "diagnostics") {
+                return updated;
+              }
+              return check;
+            })
+          : nextChecks;
+        return {
+          ...prev,
+          ready: result.ready ?? prev.ready,
+          ports: result.ports ?? prev.ports,
+          telemetry: result.telemetry ?? prev.telemetry,
+          log_tails: result.log_tails ?? prev.log_tails,
+          checks: mergedChecks ?? prev.checks
+        };
+      });
+      setPreflightSessionExpiresAt(result.expires_at ?? preflightSessionExpiresAt);
+    } catch (error) {
+      setPreflightError((error as Error).message);
+    } finally {
+      setPreflightPending(false);
+    }
+  };
+
+  const stopPreflightSession = async () => {
+    if (!preflightSessionId || preflightPending) {
+      return;
+    }
+    const manifestPath = bundleManifestPath.trim();
+    if (!manifestPath) {
+      return;
+    }
+    setPreflightPending(true);
+    try {
+      await runBundlePreflight({
+        bundle_manifest_path: manifestPath,
+        status_only: true,
+        session_id: preflightSessionId,
+        session_stop: true
+      });
+    } catch (error) {
+      setPreflightError((error as Error).message);
+    } finally {
+      setPreflightPending(false);
+      setPreflightSessionId(null);
+      setPreflightSessionExpiresAt(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!preflightAutoRefresh || !preflightStartServices || preflightPending) {
+      return;
+    }
+    const manifestPath = bundleManifestPath.trim();
+    if (!manifestPath || !preflightResult || !preflightSessionId) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      void refreshPreflightStatus();
+    }, 10000);
+    return () => window.clearInterval(interval);
+  }, [preflightAutoRefresh, preflightStartServices, preflightPending, bundleManifestPath, preflightSecrets, preflightResult, preflightSessionId]);
+
+  useEffect(() => {
+    if (!preflightStartServices) {
+      setPreflightAutoRefresh(false);
+      void stopPreflightSession();
+    }
+  }, [preflightStartServices]);
 
   const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
   const iconPreviewUrl = useMemo(
@@ -1148,11 +1261,17 @@ export function GeneratorForm({
               preflightOk={preflightOk}
               preflightOverride={preflightOverride}
               preflightStartServices={preflightStartServices}
+              preflightAutoRefresh={preflightAutoRefresh}
+              preflightSessionTTL={preflightSessionTTL}
+              preflightSessionId={preflightSessionId}
+              preflightSessionExpiresAt={preflightSessionExpiresAt}
               preflightLogTails={preflightResult?.log_tails}
               deploymentManagerUrl={deploymentManagerUrl}
               onReexportBundle={() => bundleHelperRef.current?.exportBundle()}
               onOverrideChange={setPreflightOverride}
               onStartServicesChange={setPreflightStartServices}
+              onAutoRefreshChange={setPreflightAutoRefresh}
+              onSessionTTLChange={setPreflightSessionTTL}
               onSecretChange={(id, value) => {
                 setPreflightSecrets((prev) => ({ ...prev, [id]: value }));
               }}

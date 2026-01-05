@@ -146,6 +146,10 @@ export interface BundlePreflightRequest {
   start_services?: boolean;
   log_tail_lines?: number;
   log_tail_services?: string[];
+  status_only?: boolean;
+  session_id?: string;
+  session_ttl_seconds?: number;
+  session_stop?: boolean;
 }
 
 export interface BundlePreflightSecret {
@@ -174,6 +178,8 @@ export interface BundlePreflightReady {
     reason?: string;
     requirements?: Record<string, string>;
   };
+  snapshot_at?: string;
+  waited_seconds?: number;
 }
 
 export interface BundlePreflightTelemetry {
@@ -206,6 +212,8 @@ export interface BundlePreflightResponse {
   log_tails?: BundlePreflightLogTail[];
   checks?: BundlePreflightCheck[];
   errors?: string[];
+  session_id?: string;
+  expires_at?: string;
 }
 
 export interface BundleManifestResponse {
