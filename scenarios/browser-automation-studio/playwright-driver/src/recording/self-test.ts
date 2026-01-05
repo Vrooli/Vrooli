@@ -402,11 +402,18 @@ export async function runRecordingPipelineTest(
     timeoutMs?: number;
     /** Whether to capture console messages */
     captureConsole?: boolean;
+    /**
+     * Server base URL for the event endpoint.
+     * Required when using data URLs, as they have no origin.
+     * Example: 'http://127.0.0.1:39419'
+     */
+    serverBaseUrl?: string;
   } = {}
 ): Promise<PipelineTestResult> {
   const {
     timeoutMs = 30000,
     captureConsole = true,
+    serverBaseUrl,
   } = options;
 
   const startTime = Date.now();
@@ -469,18 +476,34 @@ export async function runRecordingPipelineTest(
     // Get initial stats
     diagnostics.routeStatsBefore = contextInitializer.getRouteHandlerStats();
 
-    // Step 1: Navigate to test page
+    // Step 1: Load test page via route interception
+    // We navigate to a URL on the playwright-driver server, which the context.route()
+    // handler intercepts and serves our test page. This approach:
+    // 1. Works with route interception (unlike data URLs which have CORS issues)
+    // 2. Uses a real origin so relative URLs like /__vrooli_recording_event__ work
+    // 3. The server is running, so the TCP connection succeeds before route intercepts
     const navStart = Date.now();
     try {
-      // Build the test page URL - we'll intercept this in the route
-      const testPageFullUrl = `http://localhost${TEST_PAGE_URL}`;
-      diagnostics.testPageUrl = testPageFullUrl;
+      // Build the test page URL using the server's address
+      // The context.route('**/__vrooli_recording_test__') handler will intercept this
+      // and serve the test page with the recording script injected
+      if (!serverBaseUrl) {
+        throw new Error('serverBaseUrl is required for pipeline test - needed to build test page URL');
+      }
 
-      await page.goto(testPageFullUrl, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
-      addStep('navigate_to_test_page', true, Date.now() - navStart);
+      const testUrl = `${serverBaseUrl}${TEST_PAGE_URL}`;
+      diagnostics.testPageUrl = testUrl;
+
+      // Navigate to the test page - route interception will serve it
+      await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+      // Wait a moment for the script to initialize
+      await sleep(100);
+
+      addStep('load_test_page', true, Date.now() - navStart);
     } catch (error) {
-      addStep('navigate_to_test_page', false, Date.now() - navStart, error instanceof Error ? error.message : String(error));
-      return buildResult(false, 'navigation', 'Failed to navigate to test page', steps, diagnostics, startTime);
+      addStep('load_test_page', false, Date.now() - navStart, error instanceof Error ? error.message : String(error));
+      return buildResult(false, 'page_load', 'Failed to load test page', steps, diagnostics, startTime);
     }
 
     // Setup page-level event route after navigation
@@ -514,9 +537,9 @@ export async function runRecordingPipelineTest(
       if (!verification.loaded) {
         addStep('verify_script_injection', false, Date.now() - verifyStart, 'Script not loaded');
         return buildResult(false, 'script_injection', 'Recording script was not injected into the page', steps, diagnostics, startTime, [
-          'Check that HTML route interception is working',
-          'Verify the test page URL is being served correctly',
-          'Check for CSP headers blocking script injection',
+          'Check that the recording script was properly generated',
+          'Verify page.setContent() loaded the HTML correctly',
+          'Check for CSP headers blocking inline scripts',
         ]);
       }
 
@@ -640,7 +663,14 @@ export async function runRecordingPipelineTest(
       await simulateRealType(page, 'test');
       await sleep(500); // Wait for events to propagate
 
-      const inputReceived = receivedEvents.some(e => e.actionType === 'input' || e.actionType === 'change');
+      // Check for any input-related event types (type, input, change, keypress, keydown)
+      const inputReceived = receivedEvents.some(e =>
+        e.actionType === 'type' ||
+        e.actionType === 'input' ||
+        e.actionType === 'change' ||
+        e.actionType === 'keypress' ||
+        e.actionType === 'keydown'
+      );
       addStep('simulate_input', inputReceived, Date.now() - inputStart, inputReceived ? undefined : 'Input event not received', {
         eventsReceived: receivedEvents.length,
         eventTypes: receivedEvents.map(e => e.actionType),

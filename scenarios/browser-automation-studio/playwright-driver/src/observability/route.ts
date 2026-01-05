@@ -936,6 +936,11 @@ export async function handlePipelineTest(
         throw new Error('Recording initializer not set on session - context may not have been initialized properly');
       }
 
+      // Build server base URL for the test page
+      // This is needed because the test uses a data URL which has no origin,
+      // so we inject a <base> tag to allow relative URLs like /__vrooli_recording_event__
+      const serverBaseUrl = `http://${deps.config.server.host}:${deps.config.server.port}`;
+
       // Run the pipeline test
       const result = await runRecordingPipelineTest(
         session.page,
@@ -944,6 +949,7 @@ export async function handlePipelineTest(
         {
           timeoutMs,
           captureConsole: true,
+          serverBaseUrl,
         }
       );
 

@@ -207,6 +207,9 @@ export class RecordingContextInitializer {
   /** Track pages that have event routes set up */
   private pagesWithEventRoute: WeakSet<Page> = new WeakSet();
 
+  /** Track pages that have navigation listeners set up */
+  private pagesWithNavigationListener: WeakSet<Page> = new WeakSet();
+
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
     this.logger = options.logger ?? defaultLogger;
@@ -338,6 +341,50 @@ export class RecordingContextInitializer {
     this.pagesWithEventRoute.add(page);
 
     this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route set up'), {
+      url: page.url()?.slice(0, 50),
+    });
+  }
+
+  /**
+   * Set up navigation listener on a page to re-register event routes after navigation.
+   *
+   * CRITICAL: With rebrowser-playwright, page.route() handlers do NOT persist across navigation.
+   * This means after every page.goto() or link click that navigates to a new URL, the
+   * event route handler is lost. This listener re-registers the route after each navigation.
+   *
+   * This is idempotent - safe to call multiple times for the same page.
+   *
+   * @param page - The page to set up the navigation listener on
+   */
+  setupPageNavigationListener(page: Page): void {
+    // Skip if already set up for this page
+    if (this.pagesWithNavigationListener.has(page)) {
+      return;
+    }
+
+    // Use 'load' event to re-register routes after navigation
+    // The 'load' event fires when the page has finished loading, which is the right time
+    // to set up routes for event interception
+    page.on('load', async () => {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'page load detected, re-registering event route'), {
+        url: page.url()?.slice(0, 50),
+      });
+
+      try {
+        // Force re-registration since the route was lost during navigation
+        await this.setupPageEventRoute(page, { force: true });
+      } catch (err) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-register event route after navigation'), {
+          url: page.url()?.slice(0, 50),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    // Mark this page as having the navigation listener set up
+    this.pagesWithNavigationListener.add(page);
+
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'page navigation listener set up'), {
       url: page.url()?.slice(0, 50),
     });
   }
@@ -546,13 +593,16 @@ export class RecordingContextInitializer {
 
     this.logger.info(scopedLog(LogContext.RECORDING, 'HTML injection route set up'));
 
-    // CRITICAL: Setup page-level event routes for all existing pages
+    // CRITICAL: Setup page-level event routes and navigation listeners for all existing pages
     // rebrowser-playwright doesn't intercept fetch/XHR via context.route(),
-    // so we MUST use page.route() to catch recording events from within pages
+    // so we MUST use page.route() to catch recording events from within pages.
+    // Additionally, page.route() handlers don't persist across navigation with rebrowser-playwright,
+    // so we need navigation listeners to re-register routes after each navigation.
     const existingPages = context.pages();
     for (const page of existingPages) {
       try {
         await this.setupPageEventRoute(page);
+        this.setupPageNavigationListener(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for existing page'), {
           url: page.url()?.slice(0, 50),
@@ -561,13 +611,14 @@ export class RecordingContextInitializer {
       }
     }
 
-    // Setup event route for any new pages created in this context
+    // Setup event route and navigation listener for any new pages created in this context
     context.on('page', async (page: Page) => {
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route'), {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route and navigation listener'), {
         url: page.url()?.slice(0, 50),
       });
       try {
         await this.setupPageEventRoute(page);
+        this.setupPageNavigationListener(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for new page'), {
           url: page.url()?.slice(0, 50),
