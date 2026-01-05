@@ -12,6 +12,7 @@ import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scen
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchScenarioDesktopStatus } from "./lib/api";
+import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/RecordsManager";
 
@@ -36,14 +37,24 @@ function parseSearchParams(): { view?: ViewMode; scenario?: string; doc?: string
 }
 
 function AppContent() {
-  const [selectedTemplate, setSelectedTemplate] = useState("basic");
-  const [currentBuildId, setCurrentBuildId] = useState<string | null>(null);
-  const [selectedScenarioName, setSelectedScenarioName] = useState("");
-  const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("inventory");
-  const [docPath, setDocPath] = useState<string | null>(null);
-  const [activeStep, setActiveStep] = useState(2);
-  const [userPinnedStep, setUserPinnedStep] = useState(false);
+  const initialParams = useMemo(() => parseSearchParams(), []);
+  const storedState = useMemo(() => loadGeneratorAppState(), []);
+  const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
+  const [currentBuildId, setCurrentBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
+  const [selectedScenarioName, setSelectedScenarioName] = useState(
+    initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
+  );
+  const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(
+    initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    (initialParams.view as ViewMode | undefined) ?? (storedState?.viewMode as ViewMode | undefined) ?? "inventory"
+  );
+  const [docPath, setDocPath] = useState<string | null>(
+    initialParams.doc ?? storedState?.docPath ?? null
+  );
+  const [activeStep, setActiveStep] = useState(storedState?.activeStep ?? 2);
+  const [userPinnedStep, setUserPinnedStep] = useState(storedState?.userPinnedStep ?? false);
   const overviewRef = useRef<HTMLDivElement>(null);
   const configureRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
@@ -137,6 +148,30 @@ function AppContent() {
       window.history.replaceState(null, "", newUrl);
     }
   }, [viewMode, selectedScenarioName, docPath]);
+
+  useEffect(() => {
+    saveGeneratorAppState({
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      viewMode,
+      selectedScenarioName,
+      selectedTemplate,
+      selectionSource,
+      currentBuildId,
+      activeStep,
+      userPinnedStep,
+      docPath
+    });
+  }, [
+    viewMode,
+    selectedScenarioName,
+    selectedTemplate,
+    selectionSource,
+    currentBuildId,
+    activeStep,
+    userPinnedStep,
+    docPath
+  ]);
 
   useEffect(() => {
     if (viewMode !== "generator") {

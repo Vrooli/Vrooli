@@ -44,6 +44,11 @@ import {
   type DeploymentMode,
   type ServerType
 } from "../domain/deployment";
+import {
+  clearGeneratorDraft,
+  loadGeneratorDraft,
+  saveGeneratorDraft
+} from "../lib/draftStorage";
 
 type PlatformSelection = {
   win: boolean;
@@ -81,6 +86,49 @@ interface BuildDesktopConfigOptions {
   includeSigning: boolean;
   codeSigning?: SigningConfig;
 }
+
+type GeneratorDraftState = {
+  selectedTemplate: string;
+  appDisplayName: string;
+  appDescription: string;
+  iconPath: string;
+  displayNameEdited: boolean;
+  descriptionEdited: boolean;
+  iconPathEdited: boolean;
+  framework: string;
+  serverType: ServerType;
+  deploymentMode: DeploymentMode;
+  platforms: PlatformSelection;
+  locationMode: OutputLocation;
+  outputPath: string;
+  proxyUrl: string;
+  bundleManifestPath: string;
+  serverPort: number;
+  localServerPath: string;
+  localApiEndpoint: string;
+  autoManageTier1: boolean;
+  vrooliBinaryPath: string;
+  connectionResult: ProbeResponse | null;
+  connectionError: string | null;
+  preflightResult: BundlePreflightResponse | null;
+  preflightError: string | null;
+  preflightOverride: boolean;
+  preflightSecrets: Record<string, string>;
+  preflightStartServices: boolean;
+  preflightAutoRefresh: boolean;
+  preflightSessionId: string | null;
+  preflightSessionExpiresAt: string | null;
+  preflightSessionTTL: number;
+  deploymentManagerUrl: string | null;
+  signingEnabledForBuild: boolean;
+};
+
+type DraftTimestamps = {
+  createdAt: string;
+  updatedAt: string;
+};
+
+const DRAFT_SAVE_DEBOUNCE_MS = 600;
 
 const TEMPLATE_SUMMARIES: Record<string, { name: string; description: string }> = {
   basic: { name: "Basic", description: "Balanced single window wrapper" },
@@ -152,6 +200,41 @@ function resolveEndpoints(input: {
     return { serverPath: input.proxyUrl, apiEndpoint: input.proxyUrl };
   }
   return { serverPath: input.localServerPath, apiEndpoint: input.localApiEndpoint };
+}
+
+function sanitizePreflightResult(
+  result: BundlePreflightResponse | null
+): BundlePreflightResponse | null {
+  if (!result) return null;
+  const { log_tails, ...rest } = result;
+  return rest;
+}
+
+function sanitizeDraft(draft: GeneratorDraftState): GeneratorDraftState {
+  const sanitizedSecrets = Object.keys(draft.preflightSecrets).reduce<Record<string, string>>((acc, key) => {
+    acc[key] = "";
+    return acc;
+  }, {});
+
+  return {
+    ...draft,
+    preflightSecrets: sanitizedSecrets,
+    preflightResult: sanitizePreflightResult(draft.preflightResult)
+  };
+}
+
+function normalizeDraftOnLoad(draft: GeneratorDraftState): GeneratorDraftState {
+  const now = Date.now();
+  const sessionExpiry = draft.preflightSessionExpiresAt ? Date.parse(draft.preflightSessionExpiresAt) : 0;
+  const sessionValid = Boolean(draft.preflightSessionId) && sessionExpiry > now;
+
+  return {
+    ...draft,
+    preflightSessionId: sessionValid ? draft.preflightSessionId : null,
+    preflightSessionExpiresAt: sessionValid ? draft.preflightSessionExpiresAt : null,
+    preflightAutoRefresh: sessionValid ? draft.preflightAutoRefresh : false,
+    preflightStartServices: sessionValid ? draft.preflightStartServices : false
+  };
 }
 
 function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
@@ -619,8 +702,12 @@ export function GeneratorForm({
   const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [signingEnabledForBuild, setSigningEnabledForBuild] = useState(false);
+  const [draftTimestamps, setDraftTimestamps] = useState<DraftTimestamps | null>(null);
+  const [draftLoadedScenario, setDraftLoadedScenario] = useState<string | null>(null);
   const isUpdateMode = selectionSource === "inventory";
   const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
+  const draftSaveTimeoutRef = useRef<number | null>(null);
+  const skipNextDraftSaveRef = useRef(false);
 
   const connectionDecision = useMemo(
     () => decideConnection(deploymentMode, serverType),
@@ -698,6 +785,106 @@ export function GeneratorForm({
   useEffect(() => {
     setScenarioLocked(selectionSource === "inventory");
   }, [selectionSource]);
+
+  const resetFormState = (resetTemplate: boolean) => {
+    setAppDisplayName("");
+    setAppDescription("");
+    setIconPath("");
+    setDisplayNameEdited(false);
+    setDescriptionEdited(false);
+    setIconPathEdited(false);
+    setIconPreviewError(false);
+    setFramework("electron");
+    setServerType(DEFAULT_SERVER_TYPE);
+    setDeploymentMode(DEFAULT_DEPLOYMENT_MODE);
+    setPlatforms({ win: true, mac: true, linux: true });
+    setLocationMode("proper");
+    setOutputPath("");
+    setProxyUrl("");
+    setBundleManifestPath("");
+    setServerPort(3000);
+    setLocalServerPath("ui/server.js");
+    setLocalApiEndpoint("http://localhost:3001/api");
+    setAutoManageTier1(false);
+    setVrooliBinaryPath("vrooli");
+    setConnectionResult(null);
+    setConnectionError(null);
+    setPreflightResult(null);
+    setPreflightError(null);
+    setPreflightPending(false);
+    setPreflightOverride(false);
+    setPreflightSecrets({});
+    setPreflightStartServices(false);
+    setPreflightAutoRefresh(false);
+    setPreflightSessionId(null);
+    setPreflightSessionExpiresAt(null);
+    setPreflightSessionTTL(120);
+    setDeploymentManagerUrl(null);
+    setSigningEnabledForBuild(false);
+    setLastLoadedScenario(null);
+    if (resetTemplate) {
+      onTemplateChange("basic");
+    }
+  };
+
+  const applyDraftState = (draft: GeneratorDraftState) => {
+    skipNextDraftSaveRef.current = true;
+    setAppDisplayName(draft.appDisplayName);
+    setAppDescription(draft.appDescription);
+    setIconPath(draft.iconPath);
+    setDisplayNameEdited(draft.displayNameEdited);
+    setDescriptionEdited(draft.descriptionEdited);
+    setIconPathEdited(draft.iconPathEdited);
+    setFramework(draft.framework || "electron");
+    setServerType(draft.serverType ?? DEFAULT_SERVER_TYPE);
+    setDeploymentMode(draft.deploymentMode ?? DEFAULT_DEPLOYMENT_MODE);
+    setPlatforms(draft.platforms ?? { win: true, mac: true, linux: true });
+    setLocationMode(draft.locationMode ?? "proper");
+    setOutputPath(draft.outputPath ?? "");
+    setProxyUrl(draft.proxyUrl ?? "");
+    setBundleManifestPath(draft.bundleManifestPath ?? "");
+    setServerPort(draft.serverPort ?? 3000);
+    setLocalServerPath(draft.localServerPath ?? "ui/server.js");
+    setLocalApiEndpoint(draft.localApiEndpoint ?? "http://localhost:3001/api");
+    setAutoManageTier1(draft.autoManageTier1 ?? false);
+    setVrooliBinaryPath(draft.vrooliBinaryPath ?? "vrooli");
+    setConnectionResult(draft.connectionResult ?? null);
+    setConnectionError(draft.connectionError ?? null);
+    setPreflightResult(draft.preflightResult ?? null);
+    setPreflightError(draft.preflightError ?? null);
+    setPreflightPending(false);
+    setPreflightOverride(draft.preflightOverride ?? false);
+    setPreflightSecrets(draft.preflightSecrets ?? {});
+    setPreflightStartServices(draft.preflightStartServices ?? false);
+    setPreflightAutoRefresh(draft.preflightAutoRefresh ?? false);
+    setPreflightSessionId(draft.preflightSessionId ?? null);
+    setPreflightSessionExpiresAt(draft.preflightSessionExpiresAt ?? null);
+    setPreflightSessionTTL(draft.preflightSessionTTL ?? 120);
+    setDeploymentManagerUrl(draft.deploymentManagerUrl ?? null);
+    setSigningEnabledForBuild(draft.signingEnabledForBuild ?? false);
+    if (draft.selectedTemplate) {
+      onTemplateChange(draft.selectedTemplate);
+    }
+  };
+
+  useEffect(() => {
+    if (!scenarioName) {
+      setDraftTimestamps(null);
+      setDraftLoadedScenario(null);
+      return;
+    }
+    const stored = loadGeneratorDraft<GeneratorDraftState>(scenarioName);
+    if (!stored) {
+      resetFormState(true);
+      setDraftTimestamps(null);
+      setDraftLoadedScenario(null);
+      return;
+    }
+    const normalized = normalizeDraftOnLoad(stored.data);
+    applyDraftState(normalized);
+    setDraftTimestamps({ createdAt: stored.createdAt, updatedAt: stored.updatedAt });
+    setDraftLoadedScenario(scenarioName);
+  }, [scenarioName]);
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -984,9 +1171,18 @@ export function GeneratorForm({
     if (configKey === lastLoadedScenario) {
       return;
     }
+    if (draftLoadedScenario === scenarioName) {
+      return;
+    }
     applySavedConnection(selectedScenario?.connection_config);
     setLastLoadedScenario(configKey);
-  }, [scenarioName, selectedScenario?.connection_config?.updated_at, lastLoadedScenario, selectedScenario?.connection_config]);
+  }, [
+    scenarioName,
+    selectedScenario?.connection_config?.updated_at,
+    lastLoadedScenario,
+    selectedScenario?.connection_config,
+    draftLoadedScenario
+  ]);
 
   useEffect(() => {
     if (connectionDecision.kind === "bundled-runtime") {
@@ -998,6 +1194,100 @@ export function GeneratorForm({
       }
     }
   }, [autoManageTier1, connectionDecision, serverType]);
+
+  const draftState = useMemo<GeneratorDraftState>(
+    () => ({
+      selectedTemplate,
+      appDisplayName,
+      appDescription,
+      iconPath,
+      displayNameEdited,
+      descriptionEdited,
+      iconPathEdited,
+      framework,
+      serverType,
+      deploymentMode,
+      platforms,
+      locationMode,
+      outputPath,
+      proxyUrl,
+      bundleManifestPath,
+      serverPort,
+      localServerPath,
+      localApiEndpoint,
+      autoManageTier1,
+      vrooliBinaryPath,
+      connectionResult,
+      connectionError,
+      preflightResult,
+      preflightError,
+      preflightOverride,
+      preflightSecrets,
+      preflightStartServices,
+      preflightAutoRefresh,
+      preflightSessionId,
+      preflightSessionExpiresAt,
+      preflightSessionTTL,
+      deploymentManagerUrl,
+      signingEnabledForBuild
+    }),
+    [
+      selectedTemplate,
+      appDisplayName,
+      appDescription,
+      iconPath,
+      displayNameEdited,
+      descriptionEdited,
+      iconPathEdited,
+      framework,
+      serverType,
+      deploymentMode,
+      platforms,
+      locationMode,
+      outputPath,
+      proxyUrl,
+      bundleManifestPath,
+      serverPort,
+      localServerPath,
+      localApiEndpoint,
+      autoManageTier1,
+      vrooliBinaryPath,
+      connectionResult,
+      connectionError,
+      preflightResult,
+      preflightError,
+      preflightOverride,
+      preflightSecrets,
+      preflightStartServices,
+      preflightAutoRefresh,
+      preflightSessionId,
+      preflightSessionExpiresAt,
+      preflightSessionTTL,
+      deploymentManagerUrl,
+      signingEnabledForBuild
+    ]
+  );
+
+  useEffect(() => {
+    if (!scenarioName) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    if (draftSaveTimeoutRef.current) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+    }
+    draftSaveTimeoutRef.current = window.setTimeout(() => {
+      const sanitized = sanitizeDraft(draftState);
+      const record = saveGeneratorDraft(scenarioName, sanitized);
+      setDraftTimestamps({ createdAt: record.createdAt, updatedAt: record.updatedAt });
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => {
+      if (draftSaveTimeoutRef.current) {
+        window.clearTimeout(draftSaveTimeoutRef.current);
+      }
+    };
+  }, [scenarioName, draftState]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -1127,16 +1417,49 @@ export function GeneratorForm({
       />
     );
 
+  const draftUpdatedLabel = draftTimestamps?.updatedAt
+    ? new Date(draftTimestamps.updatedAt).toLocaleString()
+    : null;
+  const draftCreatedLabel = draftTimestamps?.createdAt
+    ? new Date(draftTimestamps.createdAt).toLocaleString()
+    : null;
+
   return (
     <Card>
-      <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Rocket className="h-5 w-5" />
-        Generate Desktop App
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Rocket className="h-5 w-5" />
+          Generate Desktop App
+        </CardTitle>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          {draftCreatedLabel && (
+            <span>Draft started {draftCreatedLabel}</span>
+          )}
+          {draftUpdatedLabel && (
+            <span>Updated {draftUpdatedLabel}</span>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!scenarioName}
+            onClick={() => {
+              if (!scenarioName) return;
+              if (preflightSessionId && bundleManifestPath.trim()) {
+                void stopPreflightSession();
+              }
+              clearGeneratorDraft(scenarioName);
+              resetFormState(true);
+              setDraftTimestamps(null);
+              setDraftLoadedScenario(null);
+            }}
+          >
+            Reset progress
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
             <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
               <div className="font-semibold text-blue-50">
