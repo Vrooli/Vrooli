@@ -43,6 +43,7 @@ export {
   handleRecordActions,
   handleStreamSettings,
   handleRecordDebug,
+  handleRecordPipelineTest,
 } from './recording-lifecycle';
 
 // Recording validation handlers

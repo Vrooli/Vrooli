@@ -198,7 +198,14 @@ function DebugInfoDisplay({ debug }: { debug: RecordingDebugResponse }) {
   const diag = debug.diagnostics;
 
   // Collect issues
-  const issues: { message: string; severity: 'error' | 'warning' }[] = [];
+  const issues: { message: string; severity: 'error' | 'warning'; detail?: string }[] = [];
+  if (diag.service_worker_blocking) {
+    issues.push({
+      message: 'Service Worker intercepting events!',
+      severity: 'error',
+      detail: 'The site has a service worker that is intercepting fetch requests. Events are being sent but never reach the server. This is a known limitation with PWAs and sites using aggressive caching.',
+    });
+  }
   if (diag.script_not_loaded) issues.push({ message: 'Script not loaded on page', severity: 'error' });
   if (diag.script_not_ready) issues.push({ message: 'Script loaded but not ready', severity: 'error' });
   if (diag.script_not_in_main) issues.push({ message: 'Script not in MAIN context (isolated)', severity: 'error' });
@@ -215,14 +222,19 @@ function DebugInfoDisplay({ debug }: { debug: RecordingDebugResponse }) {
           {issues.map((issue, i) => (
             <div
               key={i}
-              className={`p-2 rounded flex items-start gap-2 ${
+              className={`p-2 rounded ${
                 issue.severity === 'error'
                   ? 'bg-red-500/10 border border-red-500/30 text-red-300'
                   : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
               }`}
             >
-              <span className="flex-shrink-0">{issue.severity === 'error' ? '✕' : '⚠'}</span>
-              <span>{issue.message}</span>
+              <div className="flex items-start gap-2">
+                <span className="flex-shrink-0">{issue.severity === 'error' ? '✕' : '⚠'}</span>
+                <span className="font-medium">{issue.message}</span>
+              </div>
+              {issue.detail && (
+                <div className="mt-1 ml-5 text-gray-400 text-xs">{issue.detail}</div>
+              )}
             </div>
           ))}
         </div>
@@ -245,6 +257,16 @@ function DebugInfoDisplay({ debug }: { debug: RecordingDebugResponse }) {
               {script.handlersCount ?? 0}
             </span></div>
             <div>Version: <span className="text-gray-400">{script.version || 'Unknown'}</span></div>
+            <div className="col-span-2">
+              Service Worker: <span className={script.serviceWorkerActive ? 'text-amber-400' : 'text-gray-400'}>
+                {script.serviceWorkerActive ? 'Active ⚠' : 'None'}
+              </span>
+              {script.serviceWorkerActive && script.serviceWorkerUrl && (
+                <div className="text-gray-500 text-xs mt-0.5 truncate" title={script.serviceWorkerUrl}>
+                  {script.serviceWorkerUrl}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

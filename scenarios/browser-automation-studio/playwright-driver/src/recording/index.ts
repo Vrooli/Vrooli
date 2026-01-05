@@ -249,3 +249,20 @@ export {
 export type {
   InjectionVerification,
 } from './verification';
+
+// =============================================================================
+// SELF-TEST (Automated Pipeline Testing)
+// =============================================================================
+
+export {
+  runRecordingPipelineTest,
+  TEST_PAGE_HTML,
+  TEST_PAGE_URL,
+} from './self-test';
+
+export type {
+  PipelineTestResult,
+  PipelineFailurePoint,
+  PipelineStepResult,
+  PipelineTestDiagnostics,
+} from './self-test';

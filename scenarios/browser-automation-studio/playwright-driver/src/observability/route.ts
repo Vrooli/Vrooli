@@ -41,6 +41,7 @@ import type {
   DiagnosticCheck,
   EventFlowTestResult,
 } from '../recording/diagnostics';
+import { runRecordingPipelineTest } from '../recording/self-test';
 
 // =============================================================================
 // UI-Compatible Types
@@ -860,4 +861,179 @@ export async function handleConfigRuntime(
       message: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+/**
+ * POST /observability/pipeline-test
+ *
+ * Run an automated end-to-end test of the recording pipeline.
+ * This is fully autonomous - it creates a temporary session if needed.
+ *
+ * Request body (optional):
+ * {
+ *   "timeout_ms": 30000,  // Test timeout (default: 30000)
+ * }
+ *
+ * Response: PipelineTestResponse (same format as session-specific endpoint)
+ */
+export async function handlePipelineTest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  deps: ObservabilityRouteDependencies
+): Promise<void> {
+  // Read request body
+  let body = '';
+  req.on('data', (chunk) => {
+    body += chunk.toString();
+  });
+
+  req.on('end', async () => {
+    const startTime = Date.now();
+    let tempSessionId: string | undefined;
+    let createdTempSession = false;
+
+    try {
+      const request = JSON.parse(body || '{}');
+      const timeoutMs = request.timeout_ms ?? 30000;
+
+      logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test starting'), {
+        timeoutMs,
+      });
+
+      // Try to find an existing session to use, otherwise create a temporary one
+      const existingSessionIds = deps.sessionManager.getAllSessionIds();
+      let session;
+
+      if (existingSessionIds.length > 0) {
+        // Use an existing session
+        tempSessionId = existingSessionIds[0];
+        session = deps.sessionManager.getSession(tempSessionId);
+        logger.debug(scopedLog(LogContext.HEALTH, 'using existing session for pipeline test'), {
+          sessionId: tempSessionId,
+        });
+      } else {
+        // Create a temporary session
+        logger.info(scopedLog(LogContext.HEALTH, 'creating temporary session for pipeline test'));
+
+        const result = await deps.sessionManager.startSession({
+          execution_id: `pipeline-test-${Date.now()}`,
+          workflow_id: 'pipeline-test',
+          viewport: { width: 1280, height: 720 },
+          reuse_mode: 'fresh',
+        });
+
+        tempSessionId = result.sessionId;
+        createdTempSession = true;
+        session = deps.sessionManager.getSession(tempSessionId);
+
+        logger.debug(scopedLog(LogContext.HEALTH, 'temporary session created'), {
+          sessionId: tempSessionId,
+        });
+      }
+
+      // Ensure we have a recording initializer
+      if (!session.recordingInitializer) {
+        throw new Error('Recording initializer not set on session - context may not have been initialized properly');
+      }
+
+      // Run the pipeline test
+      const result = await runRecordingPipelineTest(
+        session.page,
+        session.context,
+        session.recordingInitializer,
+        {
+          timeoutMs,
+          captureConsole: true,
+        }
+      );
+
+      // Clean up temporary session if we created one
+      if (createdTempSession && tempSessionId) {
+        try {
+          await deps.sessionManager.closeSession(tempSessionId);
+          logger.debug(scopedLog(LogContext.HEALTH, 'temporary session cleaned up'), {
+            sessionId: tempSessionId,
+          });
+        } catch (cleanupError) {
+          logger.warn(scopedLog(LogContext.HEALTH, 'failed to clean up temporary session'), {
+            sessionId: tempSessionId,
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          });
+        }
+      }
+
+      // Log result summary
+      const durationMs = Date.now() - startTime;
+      if (result.success) {
+        logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test PASSED'), {
+          durationMs,
+          usedTempSession: createdTempSession,
+          stepsCompleted: result.steps.filter(s => s.passed).length,
+          totalSteps: result.steps.length,
+        });
+      } else {
+        logger.warn(scopedLog(LogContext.HEALTH, 'autonomous pipeline test FAILED'), {
+          durationMs,
+          usedTempSession: createdTempSession,
+          failurePoint: result.failurePoint,
+          failureMessage: result.failureMessage,
+        });
+      }
+
+      // Build response (same format as session-specific endpoint)
+      const response = {
+        success: result.success,
+        timestamp: result.timestamp,
+        duration_ms: result.durationMs,
+        failure_point: result.failurePoint,
+        failure_message: result.failureMessage,
+        suggestions: result.suggestions,
+        steps: result.steps.map(step => ({
+          name: step.name,
+          passed: step.passed,
+          duration_ms: step.durationMs,
+          error: step.error,
+          details: step.details,
+        })),
+        diagnostics: {
+          test_page_url: result.diagnostics.testPageUrl,
+          test_page_injected: result.diagnostics.testPageInjected,
+          script_status_before: result.diagnostics.scriptStatusBefore,
+          script_status_after: result.diagnostics.scriptStatusAfter,
+          telemetry_before: result.diagnostics.telemetryBefore,
+          telemetry_after: result.diagnostics.telemetryAfter,
+          route_stats_before: result.diagnostics.routeStatsBefore,
+          route_stats_after: result.diagnostics.routeStatsAfter,
+          events_captured: result.diagnostics.eventsCaptured,
+          console_messages: result.diagnostics.consoleMessages.slice(0, 50),
+        },
+        // Extra info for autonomous mode
+        used_temp_session: createdTempSession,
+        session_id: tempSessionId,
+      };
+
+      sendJson(res, 200, response);
+    } catch (error) {
+      // Clean up on error if we created a temp session
+      if (createdTempSession && tempSessionId) {
+        try {
+          await deps.sessionManager.closeSession(tempSessionId);
+        } catch {
+          // Ignore cleanup errors on failure path
+        }
+      }
+
+      logger.error(scopedLog(LogContext.HEALTH, 'autonomous pipeline test failed'), {
+        error: error instanceof Error ? error.message : String(error),
+        durationMs: Date.now() - startTime,
+      });
+
+      sendJson(res, 500, {
+        success: false,
+        error: 'Pipeline test failed',
+        message: error instanceof Error ? error.message : String(error),
+        hint: 'Check browser connectivity and ensure the driver is running correctly',
+      });
+    }
+  });
 }

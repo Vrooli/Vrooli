@@ -67,3 +67,11 @@ export {
 } from './hooks/useRefreshDiagnostics';
 export { useMetrics } from './hooks/useMetrics';
 export { useConfigUpdate } from './hooks/useConfigUpdate';
+export {
+  usePipelineTest,
+  type PipelineTestResponse,
+  type PipelineTestRequest,
+  type PipelineStepResult,
+  type PipelineFailurePoint,
+  type PipelineTestDiagnostics,
+} from './hooks/usePipelineTest';

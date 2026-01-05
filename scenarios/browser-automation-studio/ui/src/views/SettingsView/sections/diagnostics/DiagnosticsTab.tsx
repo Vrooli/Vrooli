@@ -22,6 +22,7 @@ import {
   Zap,
   Play,
   Code,
+  TestTube2,
 } from 'lucide-react';
 import {
   useObservability,
@@ -31,6 +32,7 @@ import {
   useRunCleanup,
   useSessionList,
   useConfigUpdate,
+  usePipelineTest,
 } from '@/domains/observability';
 import { SettingSection } from '../shared';
 
@@ -49,6 +51,7 @@ import { JsonViewer } from './JsonViewer';
 import { ConfigurationPanel } from './ConfigurationPanel';
 import { MetricsViewer } from './MetricsViewer';
 import { DiagnosticResultsCard } from './DiagnosticResults';
+import { PipelineTestResults } from './PipelineTestResults';
 
 type ViewMode = 'dashboard' | 'json' | 'metrics';
 
@@ -76,6 +79,7 @@ export function DiagnosticsTab() {
       void refetch();
     },
   });
+  const { runTest: runPipelineTest, isRunning: isPipelineTestRunning, result: pipelineTestResult } = usePipelineTest();
 
   const handleRefresh = useCallback(async () => {
     refreshCache();
@@ -85,6 +89,11 @@ export function DiagnosticsTab() {
   const handleRunDiagnostics = useCallback(async () => {
     await runDiagnostics({ type: 'all', options: { level: 'full' } });
   }, [runDiagnostics]);
+
+  const handleRunPipelineTest = useCallback(async () => {
+    // The pipeline test is fully autonomous - it creates a session if needed
+    await runPipelineTest();
+  }, [runPipelineTest]);
 
   const handleCleanNow = useCallback(async () => {
     await runCleanup();
@@ -366,6 +375,24 @@ export function DiagnosticsTab() {
                 </>
               )}
             </button>
+            <button
+              onClick={handleRunPipelineTest}
+              disabled={isPipelineTestRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Run automated pipeline test (creates session automatically if needed)"
+            >
+              {isPipelineTestRunning ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Testing Pipeline...
+                </>
+              ) : (
+                <>
+                  <TestTube2 size={16} />
+                  Test Pipeline
+                </>
+              )}
+            </button>
             {data?.summary && (
               <span className="text-xs text-gray-500">
                 {data.summary.sessions} session{data.summary.sessions !== 1 ? 's' : ''} available
@@ -373,6 +400,26 @@ export function DiagnosticsTab() {
               </span>
             )}
           </div>
+
+          {/* Pipeline Test Description */}
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <div className="flex items-start gap-2">
+              <TestTube2 size={16} className="text-purple-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="text-purple-300 font-medium">Fully Autonomous Pipeline Test</p>
+                <p className="text-purple-200/70 text-xs mt-1">
+                  Tests the entire recording pipeline by automatically creating a browser session,
+                  navigating to an internal test page, simulating real user interactions, and verifying events flow correctly.
+                  <strong className="text-purple-300"> No active session or manual clicking required!</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Pipeline Test Results */}
+          {pipelineTestResult && (
+            <PipelineTestResults result={pipelineTestResult} />
+          )}
 
           {/* Diagnostics Results */}
           {diagnosticsResult && (

@@ -91,5 +91,6 @@ export {
   handleConfigUpdate,
   handleConfigReset,
   handleConfigRuntime,
+  handlePipelineTest,
   type ObservabilityRouteDependencies,
 } from './route';

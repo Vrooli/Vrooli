@@ -297,3 +297,41 @@ func (h *Handler) ResetConfig(w http.ResponseWriter, r *http.Request, envVar str
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
+
+// RunPipelineTest proxies POST /observability/pipeline-test requests to the playwright-driver.
+// Runs an autonomous end-to-end test of the recording pipeline.
+// This test automatically creates a session if needed, runs the test, and cleans up.
+func (h *Handler) RunPipelineTest(w http.ResponseWriter, r *http.Request) {
+	driverURL := getPlaywrightDriverURL()
+	targetURL := driverURL + "/observability/pipeline-test"
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, r.Body)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	// Copy content-type header
+	if ct := r.Header.Get("Content-Type"); ct != "" {
+		req.Header.Set("Content-Type", ct)
+	}
+
+	// Longer timeout - the test creates a session and simulates interactions
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}

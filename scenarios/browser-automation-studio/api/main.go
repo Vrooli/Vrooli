@@ -418,6 +418,7 @@ func main() {
 		r.Get("/observability/sessions", handler.GetSessionList)
 		r.Post("/observability/cleanup/run", handler.RunCleanup)
 		r.Get("/observability/metrics", handler.GetMetrics)
+		r.Post("/observability/pipeline-test", handler.RunPipelineTest)
 		// Runtime configuration management
 		r.Get("/observability/config/runtime", handler.GetConfigRuntime)
 		r.Put("/observability/config/{envVar}", func(w http.ResponseWriter, req *http.Request) {

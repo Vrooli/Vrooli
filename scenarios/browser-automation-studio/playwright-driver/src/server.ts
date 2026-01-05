@@ -319,6 +319,10 @@ function setupRoutes(
   router.delete('/observability/config/:env_var', async (req, res, params) => {
     await observability.handleConfigReset(req, res, params.env_var);
   });
+  // Autonomous pipeline test (creates temp session if needed)
+  router.post('/observability/pipeline-test', async (req, res) => {
+    await observability.handlePipelineTest(req, res, observabilityDeps);
+  });
 
   router.get('/artifacts', async (req, res) => {
     await routes.handleArtifactDownload(req, res);
@@ -368,6 +372,9 @@ function setupRoutes(
   });
   router.get('/session/:id/record/debug', async (req, res, params) => {
     await routes.handleRecordDebug(req, res, params.id, sessionManager);
+  });
+  router.post('/session/:id/record/pipeline-test', async (req, res, params) => {
+    await routes.handleRecordPipelineTest(req, res, params.id, sessionManager, config);
   });
 
   // Record mode validation & interaction

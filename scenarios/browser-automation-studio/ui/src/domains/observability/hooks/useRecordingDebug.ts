@@ -21,6 +21,8 @@ export interface BrowserScriptState {
   eventsSent?: number;
   eventsSendFailed?: number;
   lastError?: string | null;
+  serviceWorkerActive?: boolean;
+  serviceWorkerUrl?: string | null;
 }
 
 export interface RecordingDebugResponse {
@@ -56,6 +58,7 @@ export interface RecordingDebugResponse {
     no_handlers: boolean;
     no_event_handler: boolean;
     events_being_dropped: boolean;
+    service_worker_blocking: boolean;
   };
 }
 

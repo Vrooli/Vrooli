@@ -25,6 +25,7 @@ import {
   clearTimelineEntries,
 } from '../../recording/buffer';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
+import { runRecordingPipelineTest, TEST_PAGE_URL } from '../../recording/self-test';
 import type { Page } from 'rebrowser-playwright';
 import type {
   StartRecordingRequest,
@@ -890,6 +891,8 @@ export async function handleRecordDebug(
       eventsSent: number;
       eventsSendFailed: number;
       lastError: string | null;
+      serviceWorkerActive: boolean;
+      serviceWorkerUrl: string | null;
     } | null = null;
 
     try {
@@ -901,6 +904,13 @@ export async function handleRecordDebug(
               return JSON.stringify({ loaded: false });
             }
             const telemetry = window.__vrooli_recording_telemetry || {};
+            // Check for service worker
+            let serviceWorkerActive = false;
+            let serviceWorkerUrl = null;
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+              serviceWorkerActive = true;
+              serviceWorkerUrl = navigator.serviceWorker.controller.scriptURL || null;
+            }
             return JSON.stringify({
               loaded: true,
               ready: window.__vrooli_recording_ready === true,
@@ -912,7 +922,9 @@ export async function handleRecordDebug(
               eventsCaptured: telemetry.eventsCaptured || 0,
               eventsSent: telemetry.eventsSent || 0,
               eventsSendFailed: telemetry.eventsSendFailed || 0,
-              lastError: telemetry.lastError || null
+              lastError: telemetry.lastError || null,
+              serviceWorkerActive: serviceWorkerActive,
+              serviceWorkerUrl: serviceWorkerUrl
             });
           })()`,
           returnByValue: true,
@@ -966,11 +978,162 @@ export async function handleRecordDebug(
         no_handlers: browserScriptState?.loaded && browserScriptState.handlersCount === 0,
         no_event_handler: isRecording && !hasEventHandler,
         events_being_dropped: (routeHandlerStats?.eventsDroppedNoHandler ?? 0) > 0,
+        // Service worker interception detection
+        service_worker_blocking: browserScriptState?.serviceWorkerActive &&
+          (browserScriptState.eventsSent > 0) &&
+          (routeHandlerStats?.eventsReceived ?? 0) === 0,
       },
     };
 
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/debug`);
+  }
+}
+
+/**
+ * Recording pipeline self-test endpoint
+ *
+ * POST /session/:id/record/pipeline-test
+ *
+ * Runs an automated end-to-end test of the recording pipeline.
+ * This test:
+ * 1. Navigates to a special test page served by the driver
+ * 2. Simulates real user interactions using CDP (not page.click)
+ * 3. Verifies events flow through the entire pipeline
+ * 4. Reports detailed diagnostics at each step
+ *
+ * This eliminates the need for human-in-the-loop debugging - the system
+ * tests itself and reports exactly where events are getting lost.
+ *
+ * Request body (optional):
+ * {
+ *   "timeout_ms": 30000,          // Test timeout (default: 30000)
+ *   "return_to_original": true,   // Navigate back to original URL after test (default: true)
+ * }
+ *
+ * Response:
+ * {
+ *   "success": boolean,           // Whether all tests passed
+ *   "failure_point": string,      // Where it failed (if failed)
+ *   "failure_message": string,    // Human-readable failure description
+ *   "suggestions": string[],      // Suggestions for fixing the issue
+ *   "steps": [...],               // Detailed results for each step
+ *   "diagnostics": {...},         // Raw diagnostic data
+ * }
+ */
+export async function handleRecordPipelineTest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config).catch(() => ({}));
+    const request = body as { timeout_ms?: number; return_to_original?: boolean };
+
+    const timeoutMs = request.timeout_ms ?? 30000;
+    const returnToOriginal = request.return_to_original ?? true;
+
+    // Store original URL to navigate back after test
+    const originalUrl = session.page.url();
+
+    logger.info(scopedLog(LogContext.RECORDING, 'starting pipeline self-test'), {
+      sessionId,
+      originalUrl: originalUrl.slice(0, 80),
+      timeoutMs,
+      testPageUrl: TEST_PAGE_URL,
+    });
+
+    // Ensure we have a recording initializer
+    if (!session.recordingInitializer) {
+      sendJson(res, 500, {
+        error: 'MISSING_INITIALIZER',
+        message: 'Recording initializer not set on session',
+        hint: 'The session may not have been properly initialized for recording',
+      });
+      return;
+    }
+
+    // Run the pipeline test
+    const result = await runRecordingPipelineTest(
+      session.page,
+      session.context,
+      session.recordingInitializer,
+      {
+        timeoutMs,
+        captureConsole: true,
+      }
+    );
+
+    // Navigate back to original URL if requested and we were on a real page
+    if (returnToOriginal && originalUrl && !originalUrl.startsWith('about:')) {
+      try {
+        await session.page.goto(originalUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
+        logger.debug(scopedLog(LogContext.RECORDING, 'returned to original URL after test'), {
+          sessionId,
+          originalUrl: originalUrl.slice(0, 80),
+        });
+      } catch (navError) {
+        logger.warn(scopedLog(LogContext.RECORDING, 'failed to return to original URL'), {
+          sessionId,
+          originalUrl: originalUrl.slice(0, 80),
+          error: navError instanceof Error ? navError.message : String(navError),
+        });
+      }
+    }
+
+    // Log result summary
+    if (result.success) {
+      logger.info(scopedLog(LogContext.RECORDING, 'pipeline self-test PASSED'), {
+        sessionId,
+        durationMs: result.durationMs,
+        stepsCompleted: result.steps.filter(s => s.passed).length,
+        totalSteps: result.steps.length,
+      });
+    } else {
+      logger.warn(scopedLog(LogContext.RECORDING, 'pipeline self-test FAILED'), {
+        sessionId,
+        durationMs: result.durationMs,
+        failurePoint: result.failurePoint,
+        failureMessage: result.failureMessage,
+        suggestions: result.suggestions,
+      });
+    }
+
+    // Build response
+    const response = {
+      success: result.success,
+      timestamp: result.timestamp,
+      duration_ms: result.durationMs,
+      failure_point: result.failurePoint,
+      failure_message: result.failureMessage,
+      suggestions: result.suggestions,
+      steps: result.steps.map(step => ({
+        name: step.name,
+        passed: step.passed,
+        duration_ms: step.durationMs,
+        error: step.error,
+        details: step.details,
+      })),
+      diagnostics: {
+        test_page_url: result.diagnostics.testPageUrl,
+        test_page_injected: result.diagnostics.testPageInjected,
+        script_status_before: result.diagnostics.scriptStatusBefore,
+        script_status_after: result.diagnostics.scriptStatusAfter,
+        telemetry_before: result.diagnostics.telemetryBefore,
+        telemetry_after: result.diagnostics.telemetryAfter,
+        route_stats_before: result.diagnostics.routeStatsBefore,
+        route_stats_after: result.diagnostics.routeStatsAfter,
+        events_captured: result.diagnostics.eventsCaptured,
+        console_messages: result.diagnostics.consoleMessages.slice(0, 50), // Limit console messages
+      },
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/pipeline-test`);
   }
 }

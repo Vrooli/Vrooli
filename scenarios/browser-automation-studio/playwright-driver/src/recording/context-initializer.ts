@@ -31,6 +31,7 @@ import type { RawBrowserEvent } from './types';
 import { logger as defaultLogger, LogContext, scopedLog } from '../utils';
 import { waitForScriptReady } from './verification';
 import { playwrightProvider } from '../playwright';
+import { TEST_PAGE_HTML, TEST_PAGE_URL } from './self-test';
 
 // =============================================================================
 // Types
@@ -334,6 +335,27 @@ export class RecordingContextInitializer {
     // Generate the recording script once
     const initScript = generateRecordingInitScript(this.bindingName);
 
+    // Set up test page route - serves a special test page for automated pipeline testing
+    // This allows the self-test to navigate to a page we control and verify the full pipeline
+    await context.route(`**${TEST_PAGE_URL}`, async (route) => {
+      this.logger.info(scopedLog(LogContext.RECORDING, 'serving test page for pipeline testing'));
+
+      // Inject the recording script into the test page HTML
+      const scriptTag = `<script>${initScript}</script>`;
+      const testPageWithScript = TEST_PAGE_HTML.replace('<head>', `<head>${scriptTag}`);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: testPageWithScript,
+      });
+
+      // Track as successful injection
+      this.injectionStats.attempted++;
+      this.injectionStats.successful++;
+      this.injectionStats.methods.head++;
+    });
+
     // Inject recording script into HTML responses via route interception
     // This ensures the script runs in MAIN context (not isolated) by being
     // part of the actual page HTML, bypassing rebrowser-playwright's context isolation
@@ -341,11 +363,11 @@ export class RecordingContextInitializer {
       const request = route.request();
       const url = request.url();
 
-      // Skip our own event URL - pass it to the event route handler
+      // Skip our own special URLs - pass them to their dedicated route handlers
       // IMPORTANT: Use fallback() not continue() - continue() sends to network,
       // fallback() passes to the next matching route handler
-      if (url.includes('__vrooli_recording_event__')) {
-        this.logger.debug(scopedLog(LogContext.RECORDING, 'passing event URL to event route'), {
+      if (url.includes('__vrooli_recording_event__') || url.includes('__vrooli_recording_test__')) {
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'passing special URL to dedicated route'), {
           url: url.slice(0, 100),
         });
         await route.fallback();
