@@ -5,7 +5,7 @@
  * These types define the API contract between the backend and frontend.
  */
 
-import type { InjectionStats } from '../recording/context-initializer';
+import type { InjectionStats, RouteHandlerStats } from '../recording/context-initializer';
 import type { RecordingDiagnosticResult } from '../recording/diagnostics';
 
 // =============================================================================
@@ -83,10 +83,14 @@ export interface SessionsComponent extends ComponentHealth {
 export interface RecordingComponent extends ComponentHealth {
   /** Script injection statistics */
   injection_stats?: InjectionStats;
+  /** Route handler statistics for event flow diagnostics */
+  route_handler_stats?: RouteHandlerStats;
   /** Recording script version */
   script_version?: string;
   /** Number of active recording sessions */
   active_count: number;
+  /** Whether an event handler is currently set */
+  has_event_handler?: boolean;
 }
 
 /**
@@ -351,6 +355,10 @@ export interface RecordingStats {
   script_version: string;
   /** Aggregated injection statistics */
   injection_stats: InjectionStats;
+  /** Route handler statistics for event flow diagnostics */
+  route_handler_stats?: RouteHandlerStats;
+  /** Whether an event handler is currently set */
+  has_event_handler?: boolean;
 }
 
 /**

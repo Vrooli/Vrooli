@@ -64,6 +64,25 @@ export interface InjectionStats {
 }
 
 /**
+ * Statistics about route handler event processing.
+ * Useful for diagnosing event flow issues.
+ */
+export interface RouteHandlerStats {
+  /** Total events received by route handler */
+  eventsReceived: number;
+  /** Events successfully processed (handler called) */
+  eventsProcessed: number;
+  /** Events dropped because no handler was set */
+  eventsDroppedNoHandler: number;
+  /** Events that caused handler errors */
+  eventsWithErrors: number;
+  /** Timestamp of last event received */
+  lastEventAt: string | null;
+  /** Type of last event received */
+  lastEventType: string | null;
+}
+
+/**
  * Options for initializing the recording context.
  */
 export interface RecordingContextOptions {
@@ -171,6 +190,19 @@ export class RecordingContextInitializer {
     },
   };
 
+  /**
+   * Statistics tracking for route handler event processing.
+   * Useful for diagnosing event flow issues.
+   */
+  private routeHandlerStats: RouteHandlerStats = {
+    eventsReceived: 0,
+    eventsProcessed: 0,
+    eventsDroppedNoHandler: 0,
+    eventsWithErrors: 0,
+    lastEventAt: null,
+    lastEventType: null,
+  };
+
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
     this.logger = options.logger ?? defaultLogger;
@@ -188,6 +220,22 @@ export class RecordingContextInitializer {
       ...this.injectionStats,
       methods: { ...this.injectionStats.methods },
     };
+  }
+
+  /**
+   * Get current route handler statistics.
+   * Returns a copy to prevent external mutation.
+   */
+  getRouteHandlerStats(): RouteHandlerStats {
+    return { ...this.routeHandlerStats };
+  }
+
+  /**
+   * Check if an event handler is currently set.
+   * Useful for diagnostics to verify the event pipeline is connected.
+   */
+  hasEventHandler(): boolean {
+    return this.eventHandler !== null;
   }
 
   /**
@@ -223,15 +271,21 @@ export class RecordingContextInitializer {
       try {
         const request = route.request();
 
+        // Track that we received an event
+        this.routeHandlerStats.eventsReceived++;
+        this.routeHandlerStats.lastEventAt = new Date().toISOString();
+
         this.logger.info(scopedLog(LogContext.RECORDING, 'event route matched'), {
           url: request.url().slice(0, 100),
           method: request.method(),
+          eventsReceived: this.routeHandlerStats.eventsReceived,
         });
 
         const postData = request.postData();
 
         if (postData) {
           const rawEvent = JSON.parse(postData) as RawBrowserEvent;
+          this.routeHandlerStats.lastEventType = rawEvent.actionType;
 
           this.logger.info(scopedLog(LogContext.RECORDING, 'event received via route'), {
             actionType: rawEvent.actionType,
@@ -242,12 +296,20 @@ export class RecordingContextInitializer {
           if (this.eventHandler) {
             try {
               this.eventHandler(rawEvent);
+              this.routeHandlerStats.eventsProcessed++;
             } catch (error) {
+              this.routeHandlerStats.eventsWithErrors++;
               this.logger.error(scopedLog(LogContext.RECORDING, 'event handler error'), {
                 error: error instanceof Error ? error.message : String(error),
                 actionType: rawEvent.actionType,
               });
             }
+          } else {
+            this.routeHandlerStats.eventsDroppedNoHandler++;
+            this.logger.warn(scopedLog(LogContext.RECORDING, 'event dropped - no handler set'), {
+              actionType: rawEvent.actionType,
+              eventsDropped: this.routeHandlerStats.eventsDroppedNoHandler,
+            });
           }
         }
 

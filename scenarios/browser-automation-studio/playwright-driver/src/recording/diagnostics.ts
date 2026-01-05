@@ -73,6 +73,32 @@ export enum DiagnosticSeverity {
 }
 
 /**
+ * Status of a single diagnostic check.
+ */
+export type DiagnosticCheckStatus = 'passed' | 'failed' | 'warning' | 'skipped';
+
+/**
+ * A single diagnostic check that was performed.
+ * Always reported, even when passing, to show what was validated.
+ */
+export interface DiagnosticCheck {
+  /** Unique identifier for the check */
+  id: string;
+  /** Human-readable name of the check */
+  name: string;
+  /** Category for grouping (e.g., 'script', 'events', 'context') */
+  category: 'script' | 'context' | 'events' | 'telemetry';
+  /** Status of this check */
+  status: DiagnosticCheckStatus;
+  /** Brief description of what was checked */
+  description: string;
+  /** Value or result of the check (for display) */
+  value?: string;
+  /** Additional details if failed or warning */
+  details?: string;
+}
+
+/**
  * A single diagnostic issue found.
  */
 export interface DiagnosticIssue {
@@ -100,6 +126,8 @@ export interface RecordingDiagnosticResult {
   durationMs: number;
   /** Diagnostic level that was run */
   level: RecordingDiagnosticLevel;
+  /** All checks performed with their status (always present) */
+  checks: DiagnosticCheck[];
   /** Issues found (empty if all good) */
   issues: DiagnosticIssue[];
   /** Script injection verification result */
@@ -114,6 +142,38 @@ export interface RecordingDiagnosticResult {
   };
   /** Event flow test result (only for FULL level) */
   eventFlowTest?: EventFlowTestResult;
+}
+
+/**
+ * Browser-side telemetry from recording script.
+ */
+export interface BrowserTelemetry {
+  eventsDetected: number;
+  eventsCaptured: number;
+  eventsSent: number;
+  eventsSendSuccess: number;
+  eventsSendFailed: number;
+  lastEventAt: number | null;
+  lastEventType: string | null;
+  lastError: string | null;
+}
+
+/**
+ * Result of real click simulation test.
+ */
+export interface RealClickTestResult {
+  /** Whether click simulation was attempted */
+  attempted: boolean;
+  /** Whether click event was detected by recording script */
+  clickDetected: boolean;
+  /** Whether event was sent via fetch */
+  eventSent: boolean;
+  /** Telemetry before click */
+  telemetryBefore?: BrowserTelemetry;
+  /** Telemetry after click */
+  telemetryAfter?: BrowserTelemetry;
+  /** Error if test failed */
+  error?: string;
 }
 
 /**
@@ -161,6 +221,12 @@ export interface EventFlowTestResult {
     /** Sample of captured messages for debugging */
     samples?: Array<{ type: string; text: string }>;
   };
+
+  /** Browser-side telemetry from recording script */
+  browserTelemetry?: BrowserTelemetry;
+
+  /** Result of real click simulation test */
+  realClickTest?: RealClickTestResult;
 }
 
 /**
@@ -205,6 +271,11 @@ export const DIAGNOSTIC_CODES = {
   EVENT_NOT_RECEIVED: 'EVENT_NOT_RECEIVED',
   EVENT_HIGH_LATENCY: 'EVENT_HIGH_LATENCY',
 
+  // Real click test issues
+  CLICK_NOT_DETECTED: 'CLICK_NOT_DETECTED',
+  CLICK_NOT_SENT: 'CLICK_NOT_SENT',
+  CLICK_TEST_FAILED: 'CLICK_TEST_FAILED',
+
   // Configuration issues
   PROVIDER_MISMATCH: 'PROVIDER_MISMATCH',
   CDP_NOT_AVAILABLE: 'CDP_NOT_AVAILABLE',
@@ -213,6 +284,213 @@ export const DIAGNOSTIC_CODES = {
 // =============================================================================
 // Diagnostic Functions
 // =============================================================================
+
+/**
+ * Build the checks array showing all validations performed.
+ * This provides visibility into what was tested even when everything passes.
+ */
+function buildChecksArray(
+  scriptVerification: InjectionVerification | undefined,
+  injectionStats: InjectionStats | undefined,
+  eventFlowTest: EventFlowTestResult | undefined,
+  level: RecordingDiagnosticLevel
+): DiagnosticCheck[] {
+  const checks: DiagnosticCheck[] = [];
+
+  // === Script Checks ===
+  if (scriptVerification) {
+    checks.push({
+      id: 'script-loaded',
+      name: 'Script Loaded',
+      category: 'script',
+      status: scriptVerification.loaded ? 'passed' : 'failed',
+      description: 'Recording script is present on the page',
+      value: scriptVerification.loaded ? 'Yes' : 'No',
+      details: scriptVerification.error,
+    });
+
+    checks.push({
+      id: 'script-ready',
+      name: 'Script Ready',
+      category: 'script',
+      status: scriptVerification.ready ? 'passed' : scriptVerification.loaded ? 'failed' : 'skipped',
+      description: 'Script initialized successfully',
+      value: scriptVerification.ready ? 'Yes' : 'No',
+      details: scriptVerification.initError || undefined,
+    });
+
+    checks.push({
+      id: 'script-version',
+      name: 'Script Version',
+      category: 'script',
+      status: scriptVerification.version ? 'passed' : 'warning',
+      description: 'Recording script version',
+      value: scriptVerification.version || 'Unknown',
+    });
+
+    checks.push({
+      id: 'handlers-registered',
+      name: 'Event Handlers',
+      category: 'script',
+      status: scriptVerification.handlersCount >= 7 ? 'passed' : scriptVerification.handlersCount > 0 ? 'warning' : 'failed',
+      description: 'DOM event handlers registered',
+      value: `${scriptVerification.handlersCount} handlers`,
+      details: scriptVerification.handlersCount < 7 ? `Expected 7+, found ${scriptVerification.handlersCount}` : undefined,
+    });
+  }
+
+  // === Context Checks ===
+  if (scriptVerification) {
+    checks.push({
+      id: 'main-context',
+      name: 'Main Context',
+      category: 'context',
+      status: scriptVerification.inMainContext ? 'passed' : 'failed',
+      description: 'Script running in MAIN execution context',
+      value: scriptVerification.inMainContext ? 'MAIN' : 'ISOLATED',
+      details: !scriptVerification.inMainContext ? 'Script must run in MAIN context to capture History API events' : undefined,
+    });
+  }
+
+  // === Injection Stats Checks ===
+  if (injectionStats) {
+    const successRate = injectionStats.attempted > 0
+      ? ((injectionStats.successful / injectionStats.attempted) * 100).toFixed(0)
+      : '0';
+
+    checks.push({
+      id: 'injection-attempts',
+      name: 'Injection Attempts',
+      category: 'script',
+      status: injectionStats.attempted > 0 ? 'passed' : 'warning',
+      description: 'HTML documents processed for script injection',
+      value: `${injectionStats.attempted} attempts`,
+      details: injectionStats.attempted === 0 ? 'No pages loaded yet' : undefined,
+    });
+
+    checks.push({
+      id: 'injection-success',
+      name: 'Injection Success Rate',
+      category: 'script',
+      status: parseFloat(successRate) >= 80 ? 'passed' : parseFloat(successRate) >= 50 ? 'warning' : 'failed',
+      description: 'Percentage of successful script injections',
+      value: `${successRate}% (${injectionStats.successful}/${injectionStats.attempted})`,
+      details: parseFloat(successRate) < 80 ? 'Some pages may not have recording enabled' : undefined,
+    });
+  }
+
+  // === Event Flow Checks (FULL level only) ===
+  if (level === RecordingDiagnosticLevel.FULL && eventFlowTest) {
+    // Page validity
+    checks.push({
+      id: 'page-valid',
+      name: 'Page Type',
+      category: 'context',
+      status: eventFlowTest.pageValid ? 'passed' : 'failed',
+      description: 'Page supports script injection (HTTP/HTTPS)',
+      value: eventFlowTest.pageValid ? 'Valid' : 'Invalid',
+      details: !eventFlowTest.pageValid ? 'about:blank and chrome:// pages cannot be recorded' : undefined,
+    });
+
+    // Fetch path test
+    if (eventFlowTest.fetchTest) {
+      checks.push({
+        id: 'event-route',
+        name: 'Event Route',
+        category: 'events',
+        status: eventFlowTest.fetchTest.sent && eventFlowTest.fetchTest.status === 200 ? 'passed' : 'failed',
+        description: 'Event communication path (fetch to route handler)',
+        value: eventFlowTest.fetchTest.status !== null ? `HTTP ${eventFlowTest.fetchTest.status}` : 'Failed',
+        details: eventFlowTest.fetchTest.error || undefined,
+      });
+    }
+
+    // Console capture
+    if (eventFlowTest.consoleCapture) {
+      checks.push({
+        id: 'console-capture',
+        name: 'Console Capture',
+        category: 'events',
+        status: eventFlowTest.eventReceived ? 'passed' : 'warning',
+        description: 'Browser console events captured by Playwright',
+        value: `${eventFlowTest.consoleCapture.count} messages`,
+        details: eventFlowTest.consoleCapture.hasErrors ? 'Console errors detected during test' : undefined,
+      });
+    }
+
+    // Browser telemetry
+    if (eventFlowTest.browserTelemetry) {
+      const tel = eventFlowTest.browserTelemetry;
+      checks.push({
+        id: 'telemetry-detected',
+        name: 'Events Detected',
+        category: 'telemetry',
+        status: 'passed',
+        description: 'DOM events detected by recording script',
+        value: `${tel.eventsDetected} total`,
+      });
+
+      checks.push({
+        id: 'telemetry-captured',
+        name: 'Events Captured',
+        category: 'telemetry',
+        status: tel.eventsCaptured > 0 || tel.eventsDetected === 0 ? 'passed' : 'warning',
+        description: 'Events passed isActive check',
+        value: `${tel.eventsCaptured} captured`,
+        details: tel.eventsDetected > 0 && tel.eventsCaptured === 0 ? 'Events detected but not captured - isActive may be false' : undefined,
+      });
+
+      checks.push({
+        id: 'telemetry-sent',
+        name: 'Events Sent',
+        category: 'telemetry',
+        status: tel.eventsSendFailed === 0 ? 'passed' : 'warning',
+        description: 'Events sent via fetch',
+        value: `${tel.eventsSent} sent, ${tel.eventsSendFailed} failed`,
+        details: tel.lastError || undefined,
+      });
+    }
+
+    // Real click test
+    if (eventFlowTest.realClickTest) {
+      const rct = eventFlowTest.realClickTest;
+      if (rct.attempted) {
+        checks.push({
+          id: 'real-click-detected',
+          name: 'Click Detection',
+          category: 'events',
+          status: rct.clickDetected ? 'passed' : 'failed',
+          description: 'Simulated click detected by recording script',
+          value: rct.clickDetected ? 'Detected' : 'Not detected',
+          details: !rct.clickDetected ? 'DOM event handlers may not be firing' : undefined,
+        });
+
+        checks.push({
+          id: 'real-click-sent',
+          name: 'Click Event Sent',
+          category: 'events',
+          status: rct.eventSent ? 'passed' : rct.clickDetected ? 'failed' : 'skipped',
+          description: 'Click event sent through fetch',
+          value: rct.eventSent ? 'Sent' : rct.clickDetected ? 'Not sent' : 'Skipped',
+          details: rct.clickDetected && !rct.eventSent ? 'Click detected but not sent - check isActive state' : undefined,
+        });
+      }
+    }
+  } else if (level !== RecordingDiagnosticLevel.FULL) {
+    // Add placeholder for skipped checks
+    checks.push({
+      id: 'event-flow-test',
+      name: 'Event Flow Test',
+      category: 'events',
+      status: 'skipped',
+      description: 'Full event flow validation',
+      value: 'Skipped',
+      details: 'Run a FULL scan to test event flow',
+    });
+  }
+
+  return checks;
+}
 
 /**
  * Run recording diagnostics on a page.
@@ -296,11 +574,15 @@ export async function runRecordingDiagnostics(
   // Determine if ready (no ERROR severity issues)
   const ready = !issues.some((i) => i.severity === DiagnosticSeverity.ERROR);
 
+  // Build checks array showing all validations performed
+  const checks = buildChecksArray(scriptVerification, injectionStats, eventFlowTest, level);
+
   const result: RecordingDiagnosticResult = {
     ready,
     timestamp: new Date().toISOString(),
     durationMs,
     level,
+    checks,
     issues,
     scriptVerification,
     injectionStats,
@@ -417,6 +699,116 @@ function checkScriptVerification(
       details: { handlersCount: verification.handlersCount, expected: expectedMinHandlers },
     });
   }
+}
+
+/**
+ * Query browser telemetry via CDP.
+ */
+async function queryBrowserTelemetry(page: Page): Promise<BrowserTelemetry | null> {
+  try {
+    const client = await page.context().newCDPSession(page);
+    try {
+      const { result } = await client.send('Runtime.evaluate', {
+        expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
+        returnByValue: true,
+      });
+      if (result.type === 'string' && result.value && result.value !== 'null') {
+        return JSON.parse(result.value);
+      }
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+/**
+ * Perform a real click simulation test using CDP Input.dispatchMouseEvent.
+ * This tests the full event flow from DOM event → recording script → fetch.
+ */
+async function performRealClickTest(
+  page: Page,
+  logger: winston.Logger,
+  logPrefix: string
+): Promise<RealClickTestResult> {
+  const result: RealClickTestResult = {
+    attempted: false,
+    clickDetected: false,
+    eventSent: false,
+  };
+
+  try {
+    // Get telemetry before click
+    result.telemetryBefore = (await queryBrowserTelemetry(page)) || undefined;
+    const beforeDetected = result.telemetryBefore?.eventsDetected ?? 0;
+    const beforeSent = result.telemetryBefore?.eventsSent ?? 0;
+
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} real click test: before`), {
+      eventsDetected: beforeDetected,
+      eventsSent: beforeSent,
+    });
+
+    // Get viewport dimensions to click in the center
+    const viewport = page.viewportSize();
+    const x = viewport ? Math.floor(viewport.width / 2) : 100;
+    const y = viewport ? Math.floor(viewport.height / 2) : 100;
+
+    // Simulate a real click using CDP Input.dispatchMouseEvent
+    const client = await page.context().newCDPSession(page);
+    try {
+      result.attempted = true;
+
+      // Mouse down
+      await client.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+
+      // Mouse up
+      await client.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+
+      logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} real click test: click sent`), { x, y });
+
+      // Wait a bit for the event to be processed
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Get telemetry after click
+      result.telemetryAfter = (await queryBrowserTelemetry(page)) || undefined;
+      const afterDetected = result.telemetryAfter?.eventsDetected ?? 0;
+      const afterSent = result.telemetryAfter?.eventsSent ?? 0;
+
+      // Check if click was detected
+      result.clickDetected = afterDetected > beforeDetected;
+      result.eventSent = afterSent > beforeSent;
+
+      logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} real click test: after`), {
+        eventsDetected: afterDetected,
+        eventsSent: afterSent,
+        clickDetected: result.clickDetected,
+        eventSent: result.eventSent,
+      });
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error);
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} real click test failed`), {
+      error: result.error,
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -618,7 +1010,35 @@ async function testEventFlow(
   // === Step 7: Cleanup console listener ===
   page.off('console', consoleHandler);
 
-  // === Step 8: Analyze results and determine pass/fail ===
+  // === Step 8: Query browser telemetry ===
+  let browserTelemetry: BrowserTelemetry | undefined;
+  try {
+    const client = await page.context().newCDPSession(page);
+    try {
+      const { result } = await client.send('Runtime.evaluate', {
+        expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
+        returnByValue: true,
+      });
+      if (result.type === 'string' && result.value && result.value !== 'null') {
+        browserTelemetry = JSON.parse(result.value);
+        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} browser telemetry`), browserTelemetry);
+      }
+    } finally {
+      await client.detach().catch(() => {});
+    }
+  } catch (error) {
+    logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} browser telemetry query failed`), {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // === Step 9: Real click simulation test ===
+  let realClickTest: RealClickTestResult | undefined;
+  if (scriptStatus?.ready && scriptStatus?.inMainContext) {
+    realClickTest = await performRealClickTest(page, logger, logPrefix);
+  }
+
+  // === Step 10: Analyze results and determine pass/fail ===
   const latencyMs = eventReceived ? receiveTime - sendTime : undefined;
 
   // Script is ready if loaded, ready flag set, and running in MAIN context
@@ -687,6 +1107,8 @@ async function testEventFlow(
     scriptStatus,
     fetchTest,
     consoleCapture,
+    browserTelemetry,
+    realClickTest,
   };
 }
 
@@ -837,6 +1259,52 @@ function checkEventFlowTest(
         suggestion: 'Some event types may not be captured. Script may have partially initialized.',
         details: { handlersCount: test.scriptStatus.handlersCount },
       });
+    }
+
+    // === CRITICAL: Check real click test results ===
+    // This is the definitive test of whether DOM events are being captured
+    if (test.realClickTest) {
+      if (test.realClickTest.error) {
+        issues.push({
+          code: DIAGNOSTIC_CODES.CLICK_TEST_FAILED,
+          message: `Real click simulation test failed: ${test.realClickTest.error}`,
+          severity: DiagnosticSeverity.WARNING,
+          suggestion: 'CDP Input.dispatchMouseEvent may not be supported or the page may have blocked the event.',
+          details: { error: test.realClickTest.error },
+        });
+      } else if (test.realClickTest.attempted && !test.realClickTest.clickDetected) {
+        // This is the CRITICAL case - click was simulated but not detected
+        issues.push({
+          code: DIAGNOSTIC_CODES.CLICK_NOT_DETECTED,
+          message: 'CRITICAL: Real click was simulated but NOT detected by recording script',
+          severity: DiagnosticSeverity.ERROR,
+          suggestion:
+            'DOM event handlers are not firing. This is the root cause of recording not working. ' +
+            'Possible causes: (1) Event listeners were removed by page scripts, ' +
+            '(2) Event propagation is being stopped, ' +
+            '(3) The click target is in a Shadow DOM or iframe, ' +
+            '(4) The recording script was replaced after initialization.',
+          details: {
+            telemetryBefore: test.realClickTest.telemetryBefore,
+            telemetryAfter: test.realClickTest.telemetryAfter,
+          },
+        });
+      } else if (test.realClickTest.clickDetected && !test.realClickTest.eventSent) {
+        // Click detected but not sent - isActive might be false
+        issues.push({
+          code: DIAGNOSTIC_CODES.CLICK_NOT_SENT,
+          message: 'Click was detected but event was NOT sent',
+          severity: DiagnosticSeverity.ERROR,
+          suggestion:
+            'The recording script detected the click but did not send it. ' +
+            'This usually means isActive is false (recording not started) ' +
+            'or captureAction is failing before sendEvent is called.',
+          details: {
+            telemetryBefore: test.realClickTest.telemetryBefore,
+            telemetryAfter: test.realClickTest.telemetryAfter,
+          },
+        });
+      }
     }
 
     return;

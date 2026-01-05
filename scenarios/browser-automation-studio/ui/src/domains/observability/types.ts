@@ -34,9 +34,49 @@ export interface SessionsComponent extends ComponentHealth {
   active_recordings: number;
 }
 
+/**
+ * Route handler statistics for event flow diagnostics.
+ */
+export interface RouteHandlerStats {
+  eventsReceived: number;
+  eventsProcessed: number;
+  eventsDroppedNoHandler: number;
+  eventsWithErrors: number;
+  lastEventAt: string | null;
+  lastEventType: string | null;
+}
+
+/**
+ * Browser-side telemetry from recording script.
+ */
+export interface BrowserTelemetry {
+  eventsDetected: number;
+  eventsCaptured: number;
+  eventsSent: number;
+  eventsSendSuccess: number;
+  eventsSendFailed: number;
+  lastEventAt: number | null;
+  lastEventType: string | null;
+  lastError: string | null;
+}
+
+/**
+ * Result of real click simulation test.
+ */
+export interface RealClickTestResult {
+  attempted: boolean;
+  clickDetected: boolean;
+  eventSent: boolean;
+  telemetryBefore?: BrowserTelemetry;
+  telemetryAfter?: BrowserTelemetry;
+  error?: string;
+}
+
 export interface RecordingComponent extends ComponentHealth {
   script_version?: string;
   active_count: number;
+  /** Whether an event handler is currently set */
+  has_event_handler?: boolean;
   injection_stats?: {
     attempted: number;
     successful: number;
@@ -50,6 +90,8 @@ export interface RecordingComponent extends ComponentHealth {
       prepend: number;
     };
   };
+  /** Route handler statistics for event flow diagnostics */
+  route_handler_stats?: RouteHandlerStats;
 }
 
 export interface CleanupComponent {
@@ -190,6 +232,35 @@ export interface EventFlowTestResult {
     hasErrors: boolean;
     samples?: Array<{ type: string; text: string }>;
   };
+  /** Browser-side telemetry from recording script */
+  browserTelemetry?: BrowserTelemetry;
+  /** Result of real click simulation test */
+  realClickTest?: RealClickTestResult;
+}
+
+/**
+ * Status of a single diagnostic check.
+ */
+export type DiagnosticCheckStatus = 'passed' | 'failed' | 'warning' | 'skipped';
+
+/**
+ * A single diagnostic check that was performed.
+ */
+export interface DiagnosticCheck {
+  /** Unique identifier for the check */
+  id: string;
+  /** Human-readable name of the check */
+  name: string;
+  /** Category for grouping */
+  category: 'script' | 'context' | 'events' | 'telemetry';
+  /** Status of this check */
+  status: DiagnosticCheckStatus;
+  /** Brief description of what was checked */
+  description: string;
+  /** Value or result of the check (for display) */
+  value?: string;
+  /** Additional details if failed or warning */
+  details?: string;
 }
 
 export interface RecordingDiagnostics {
@@ -197,6 +268,8 @@ export interface RecordingDiagnostics {
   timestamp: string;
   durationMs: number;
   level: 'quick' | 'standard' | 'full';
+  /** All checks performed with their status */
+  checks: DiagnosticCheck[];
   issues: Array<{
     severity: 'error' | 'warning' | 'info';
     category: string;

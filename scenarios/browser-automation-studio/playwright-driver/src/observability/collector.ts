@@ -217,6 +217,7 @@ export class ObservabilityCollector {
     // Calculate success rate if we have injection stats
     let status: ComponentStatus = 'healthy';
     let message = `${sessionSummary.active_recordings} active recording(s)`;
+    let hint: string | undefined;
 
     if (recordingStats?.injection_stats) {
       const stats = recordingStats.injection_stats;
@@ -231,13 +232,37 @@ export class ObservabilityCollector {
       }
     }
 
+    // Check route handler stats for event flow issues
+    if (recordingStats?.route_handler_stats) {
+      const routeStats = recordingStats.route_handler_stats;
+      if (routeStats.eventsDroppedNoHandler > 0) {
+        status = 'error';
+        hint = `${routeStats.eventsDroppedNoHandler} events dropped - no handler set. Recording may not be capturing events.`;
+      } else if (routeStats.eventsWithErrors > 0) {
+        status = 'degraded';
+        hint = `${routeStats.eventsWithErrors} events had handler errors.`;
+      }
+    }
+
+    // Check if event handler is set
+    if (recordingStats?.has_event_handler === false && sessionSummary.active_recordings > 0) {
+      status = 'error';
+      hint = 'Recording is active but no event handler is set. Events will be dropped.';
+    }
+
+    if (!hint && status !== 'healthy') {
+      hint = 'Check browser console for JavaScript errors or CSP issues';
+    }
+
     return {
       status,
       message,
-      hint: status !== 'healthy' ? 'Check browser console for JavaScript errors or CSP issues' : undefined,
+      hint,
       active_count: sessionSummary.active_recordings,
       injection_stats: recordingStats?.injection_stats,
+      route_handler_stats: recordingStats?.route_handler_stats,
       script_version: recordingStats?.script_version,
+      has_event_handler: recordingStats?.has_event_handler,
     };
   }
 

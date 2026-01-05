@@ -4,7 +4,7 @@
  * Displays diagnostic scan results with improved UX.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -13,12 +13,29 @@ import {
   CheckCircle2,
   Zap,
   ExternalLink,
+  Code,
+  Globe,
+  Radio,
+  BarChart3,
+  MinusCircle,
 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+type DiagnosticCheckStatus = 'passed' | 'failed' | 'warning' | 'skipped';
+
+interface DiagnosticCheck {
+  id: string;
+  name: string;
+  category: 'script' | 'context' | 'events' | 'telemetry';
+  status: DiagnosticCheckStatus;
+  description: string;
+  value?: string;
+  details?: string;
+}
 
 interface DiagnosticIssue {
   severity: 'error' | 'warning' | 'info';
@@ -39,6 +56,7 @@ interface RecordingDiagnostic {
   timestamp: string;
   durationMs: number;
   level: 'quick' | 'standard' | 'full';
+  checks?: DiagnosticCheck[];
   issues: DiagnosticIssue[];
   provider?: DiagnosticProvider;
 }
@@ -154,6 +172,243 @@ function IssueCard({ issue }: IssueCardProps) {
 }
 
 // ============================================================================
+// Check Status Icon
+// ============================================================================
+
+interface CheckStatusIconProps {
+  status: DiagnosticCheckStatus;
+  size?: number;
+}
+
+function CheckStatusIcon({ status, size = 12 }: CheckStatusIconProps) {
+  switch (status) {
+    case 'passed':
+      return <CheckCircle2 size={size} className="text-emerald-400" />;
+    case 'failed':
+      return <AlertCircle size={size} className="text-red-400" />;
+    case 'warning':
+      return <AlertTriangle size={size} className="text-amber-400" />;
+    case 'skipped':
+      return <MinusCircle size={size} className="text-gray-500" />;
+  }
+}
+
+// ============================================================================
+// Category Icon
+// ============================================================================
+
+interface CategoryIconProps {
+  category: DiagnosticCheck['category'];
+  size?: number;
+  className?: string;
+}
+
+function CategoryIcon({ category, size = 14, className = '' }: CategoryIconProps) {
+  switch (category) {
+    case 'script':
+      return <Code size={size} className={className} />;
+    case 'context':
+      return <Globe size={size} className={className} />;
+    case 'events':
+      return <Radio size={size} className={className} />;
+    case 'telemetry':
+      return <BarChart3 size={size} className={className} />;
+  }
+}
+
+const CATEGORY_LABELS: Record<DiagnosticCheck['category'], string> = {
+  script: 'Script Injection',
+  context: 'Execution Context',
+  events: 'Event Flow',
+  telemetry: 'Browser Telemetry',
+};
+
+const CATEGORY_ORDER: DiagnosticCheck['category'][] = ['script', 'context', 'events', 'telemetry'];
+
+// ============================================================================
+// Check Row
+// ============================================================================
+
+interface CheckRowProps {
+  check: DiagnosticCheck;
+}
+
+function CheckRow({ check }: CheckRowProps) {
+  const statusColors = {
+    passed: 'text-emerald-300',
+    failed: 'text-red-300',
+    warning: 'text-amber-300',
+    skipped: 'text-gray-500',
+  };
+
+  return (
+    <div className="flex items-start gap-2 py-1.5">
+      <div className="flex-shrink-0 mt-0.5">
+        <CheckStatusIcon status={check.status} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm ${statusColors[check.status]}`}>{check.name}</span>
+          {check.value && (
+            <span className="text-xs text-gray-500 font-mono">{check.value}</span>
+          )}
+        </div>
+        {check.details && (
+          <p className="text-xs text-gray-500 mt-0.5">{check.details}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Checks Breakdown
+// ============================================================================
+
+interface ChecksBreakdownProps {
+  checks: DiagnosticCheck[];
+}
+
+function ChecksBreakdown({ checks }: ChecksBreakdownProps) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
+    // Start with all categories expanded
+    return new Set(CATEGORY_ORDER);
+  });
+
+  // Group checks by category
+  const checksByCategory = useMemo(() => {
+    const grouped: Record<string, DiagnosticCheck[]> = {};
+    for (const check of checks) {
+      if (!grouped[check.category]) {
+        grouped[check.category] = [];
+      }
+      grouped[check.category].push(check);
+    }
+    return grouped;
+  }, [checks]);
+
+  // Calculate summary stats per category
+  const categoryStats = useMemo(() => {
+    const stats: Record<string, { passed: number; failed: number; warning: number; skipped: number; total: number }> = {};
+    for (const [category, categoryChecks] of Object.entries(checksByCategory)) {
+      stats[category] = {
+        passed: categoryChecks.filter(c => c.status === 'passed').length,
+        failed: categoryChecks.filter(c => c.status === 'failed').length,
+        warning: categoryChecks.filter(c => c.status === 'warning').length,
+        skipped: categoryChecks.filter(c => c.status === 'skipped').length,
+        total: categoryChecks.length,
+      };
+    }
+    return stats;
+  }, [checksByCategory]);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      {CATEGORY_ORDER.map(category => {
+        const categoryChecks = checksByCategory[category];
+        if (!categoryChecks || categoryChecks.length === 0) return null;
+
+        const stats = categoryStats[category];
+        const isExpanded = expandedCategories.has(category);
+        const hasIssues = stats.failed > 0 || stats.warning > 0;
+
+        return (
+          <div
+            key={category}
+            className={`rounded-lg border ${
+              stats.failed > 0
+                ? 'border-red-500/30 bg-red-500/5'
+                : stats.warning > 0
+                ? 'border-amber-500/30 bg-amber-500/5'
+                : 'border-gray-700 bg-gray-800/30'
+            }`}
+          >
+            <button
+              onClick={() => toggleCategory(category)}
+              className="w-full px-3 py-2.5 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CategoryIcon
+                    category={category}
+                    className={
+                      stats.failed > 0
+                        ? 'text-red-400'
+                        : stats.warning > 0
+                        ? 'text-amber-400'
+                        : 'text-emerald-400'
+                    }
+                  />
+                  <span
+                    className={`text-sm font-medium ${
+                      stats.failed > 0
+                        ? 'text-red-300'
+                        : stats.warning > 0
+                        ? 'text-amber-300'
+                        : 'text-emerald-300'
+                    }`}
+                  >
+                    {CATEGORY_LABELS[category]}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {stats.passed}/{stats.total} passed
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasIssues && (
+                    <div className="flex items-center gap-1">
+                      {stats.failed > 0 && (
+                        <span className="flex items-center gap-0.5 text-xs text-red-400">
+                          <AlertCircle size={10} />
+                          {stats.failed}
+                        </span>
+                      )}
+                      {stats.warning > 0 && (
+                        <span className="flex items-center gap-0.5 text-xs text-amber-400">
+                          <AlertTriangle size={10} />
+                          {stats.warning}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown size={14} className="text-gray-500" />
+                  ) : (
+                    <ChevronRight size={14} className="text-gray-500" />
+                  )}
+                </div>
+              </div>
+            </button>
+
+            {isExpanded && (
+              <div className="px-3 pb-3 pt-0 border-t border-gray-700/50">
+                <div className="pt-2 space-y-0.5">
+                  {categoryChecks.map(check => (
+                    <CheckRow key={check.id} check={check} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
 // Diagnostic Results Card
 // ============================================================================
 
@@ -259,8 +514,13 @@ export function DiagnosticResultsCard({ result }: DiagnosticResultsCardProps) {
 
       {/* Body */}
       <div className="bg-gray-800/50 p-4 space-y-4">
-        {/* Success State */}
-        {isHealthy && !hasIssues && (
+        {/* Checks Breakdown - Show when we have checks data */}
+        {recording.checks && recording.checks.length > 0 && (
+          <ChecksBreakdown checks={recording.checks} />
+        )}
+
+        {/* Fallback Success State - Only show if no checks data */}
+        {isHealthy && !hasIssues && (!recording.checks || recording.checks.length === 0) && (
           <div className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
             <div className="flex-shrink-0">
               <CheckCircle2 size={24} className="text-emerald-400" />

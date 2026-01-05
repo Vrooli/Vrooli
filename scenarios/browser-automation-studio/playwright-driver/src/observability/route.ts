@@ -38,6 +38,7 @@ import type {
   RecordingDiagnosticResult,
   DiagnosticIssue,
   DiagnosticSeverity,
+  DiagnosticCheck,
   EventFlowTestResult,
 } from '../recording/diagnostics';
 
@@ -60,6 +61,8 @@ interface UIRecordingDiagnostics {
   timestamp: string;
   durationMs: number;
   level: 'quick' | 'standard' | 'full';
+  /** All checks performed with their status for breakdown display */
+  checks?: DiagnosticCheck[];
   issues: UIDiagnosticIssue[];
   provider?: {
     name: string;
@@ -100,6 +103,8 @@ function transformDiagnosticsForUI(result: RecordingDiagnosticResult): UIRecordi
     timestamp: result.timestamp,
     durationMs: result.durationMs,
     level: result.level,
+    // Include all checks performed for detailed breakdown display
+    checks: result.checks,
     issues: result.issues.map((issue: DiagnosticIssue) => ({
       severity: severityToString(issue.severity),
       category: codeToCategory(issue.code),

@@ -75,8 +75,21 @@
   // These allow Node.js to verify script injection worked
   window.__vrooli_recording_script_loaded = true;
   window.__vrooli_recording_script_load_time = Date.now();
-  window.__vrooli_recording_script_version = '2.1.0';
+  window.__vrooli_recording_script_version = '2.2.0';
   window.__vrooli_recording_script_context = 'MAIN'; // Proves we're in MAIN context
+
+  // TELEMETRY - Track event flow for diagnostics
+  // These counters help identify where events are being lost
+  window.__vrooli_recording_telemetry = {
+    eventsDetected: 0,       // DOM event handler fired (e.g., handleClick)
+    eventsCaptured: 0,       // captureAction called (passed isActive check)
+    eventsSent: 0,           // sendEvent called
+    eventsSendSuccess: 0,    // fetch succeeded (no error)
+    eventsSendFailed: 0,     // fetch failed
+    lastEventAt: null,       // timestamp of last event
+    lastEventType: null,     // type of last event (click, input, etc.)
+    lastError: null,         // last error message
+  };
 
   // Track all registered event listeners for cleanup
   // This enables safe re-initialization without listener accumulation
@@ -103,14 +116,21 @@
   var RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
   function sendEvent(eventData) {
+    // Track that we're sending an event
+    window.__vrooli_recording_telemetry.eventsSent++;
+
     // Use fetch with keepalive to ensure the request completes even if page navigates
     fetch(RECORDING_EVENT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(eventData),
       keepalive: true,
+    }).then(function() {
+      window.__vrooli_recording_telemetry.eventsSendSuccess++;
     }).catch(function(e) {
-      // Silently ignore fetch errors (page might be navigating)
+      window.__vrooli_recording_telemetry.eventsSendFailed++;
+      window.__vrooli_recording_telemetry.lastError = e.message;
+      // Log warning (page might be navigating)
       console.warn('[Recording] Failed to send event:', e.message);
     });
   }
@@ -740,6 +760,11 @@
     payload = payload || {};
     if (!target || target === document || target === window) return;
 
+    // Track that we captured an event (passed isActive check)
+    window.__vrooli_recording_telemetry.eventsCaptured++;
+    window.__vrooli_recording_telemetry.lastEventAt = Date.now();
+    window.__vrooli_recording_telemetry.lastEventType = type;
+
     var action = {
       actionType: type,
       timestamp: Date.now(),
@@ -767,7 +792,9 @@
    * Handle click events - captures ALL clicks (no filtering).
    */
   function handleClick(e) {
-    console.error('[Recording] DIAGNOSTIC: Click detected, isActive=' + isActive);
+    // Track that DOM event handler fired
+    window.__vrooli_recording_telemetry.eventsDetected++;
+    console.error('[Recording] DIAGNOSTIC: Click detected, isActive=' + isActive + ', eventsDetected=' + window.__vrooli_recording_telemetry.eventsDetected);
     captureAction('click', e.target, e, {
       button: e.button === 0 ? 'left' : e.button === 2 ? 'right' : 'middle',
       modifiers: getModifiers(e),
@@ -805,6 +832,9 @@
 
     // Only capture for form elements
     if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') return;
+
+    // Track that DOM event handler fired (for input events)
+    window.__vrooli_recording_telemetry.eventsDetected++;
 
     // Debounce: reset timer and update buffer
     if (inputTarget !== target) {
