@@ -131,7 +131,7 @@ func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
 	openAITools := make([]map[string]interface{}, len(tools))
 	for i, tool := range tools {
 		if tool.Enabled {
-			openAITools[i] = tool.Tool.ToOpenAIFunction()
+			openAITools[i] = domain.ToOpenAIFunction(tool.Tool)
 		}
 	}
 
@@ -230,7 +230,7 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 	forcedTool := r.URL.Query().Get("force_tool")
 
 	// Prepare completion request (validates chat exists and has messages)
-	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc := h.NewCompletionService()
 	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r), forcedTool)
 	if err != nil {
 		statusCode := mapCompletionErrorToStatus(err)

@@ -204,6 +204,9 @@ export class RecordingContextInitializer {
     lastEventType: null,
   };
 
+  /** Track pages that have event routes set up */
+  private pagesWithEventRoute: WeakSet<Page> = new WeakSet();
+
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
     this.logger = options.logger ?? defaultLogger;
@@ -240,35 +243,38 @@ export class RecordingContextInitializer {
   }
 
   /**
-   * Initialize recording capability on a browser context.
+   * Setup page-level route for event interception.
    *
-   * This sets up:
-   * 1. The recording init script (runs in MAIN context on all page loads)
-   * 2. The context binding for receiving events from pages
+   * CRITICAL: rebrowser-playwright doesn't intercept fetch/XHR requests via context.route().
+   * Only navigation requests are intercepted at the context level.
+   * We MUST use page.route() to intercept fetch requests from within pages.
    *
-   * Safe to call multiple times (idempotent).
+   * This method:
+   * 1. Adds a page-level route for the recording event URL
+   * 2. Handles incoming events and forwards to the event handler
+   * 3. Is idempotent - safe to call multiple times for the same page
    *
-   * @param context - The browser context to initialize
+   * NOTE: With rebrowser-playwright, page routes may not persist across navigation.
+   * Use force=true to re-register the route after navigation.
+   *
+   * @param page - The page to setup event interception on
+   * @param options - Options for route setup
+   * @param options.force - Force re-registration even if already set up
    */
-  async initialize(context: BrowserContext): Promise<void> {
-    if (this.initialized) {
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'context already initialized, skipping'));
+  async setupPageEventRoute(page: Page, options: { force?: boolean } = {}): Promise<void> {
+    const { force = false } = options;
+
+    // Skip if already set up for this page (unless force is true)
+    if (!force && this.pagesWithEventRoute.has(page)) {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'page event route already set up, skipping'), {
+        url: page.url()?.slice(0, 50),
+      });
       return;
     }
 
-    this.logger.debug(scopedLog(LogContext.RECORDING, 'initializing recording context'), {
-      bindingName: this.bindingName,
-      runSanityCheck: this.runSanityCheck,
-    });
-
-    // Store context for sanity check
-    this.context = context;
-
-    // Use route interception for event communication
-    // This bypasses the isolated context issue - fetch works from any context
     const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
-    await context.route(`**${RECORDING_EVENT_URL}`, async (route) => {
+    await page.route(`**${RECORDING_EVENT_URL}`, async (route) => {
       try {
         const request = route.request();
 
@@ -276,7 +282,7 @@ export class RecordingContextInitializer {
         this.routeHandlerStats.eventsReceived++;
         this.routeHandlerStats.lastEventAt = new Date().toISOString();
 
-        this.logger.info(scopedLog(LogContext.RECORDING, 'event route matched'), {
+        this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route matched'), {
           url: request.url().slice(0, 100),
           method: request.method(),
           eventsReceived: this.routeHandlerStats.eventsReceived,
@@ -288,7 +294,7 @@ export class RecordingContextInitializer {
           const rawEvent = JSON.parse(postData) as RawBrowserEvent;
           this.routeHandlerStats.lastEventType = rawEvent.actionType;
 
-          this.logger.info(scopedLog(LogContext.RECORDING, 'event received via route'), {
+          this.logger.info(scopedLog(LogContext.RECORDING, 'event received via page route'), {
             actionType: rawEvent.actionType,
             url: rawEvent.url?.slice(0, 50),
             hasHandler: !!this.eventHandler,
@@ -321,12 +327,48 @@ export class RecordingContextInitializer {
           body: '{"ok":true}',
         });
       } catch (error) {
-        this.logger.error(scopedLog(LogContext.RECORDING, 'route handler error'), {
+        this.logger.error(scopedLog(LogContext.RECORDING, 'page event route handler error'), {
           error: error instanceof Error ? error.message : String(error),
         });
         await route.fulfill({ status: 500, body: 'error' });
       }
     });
+
+    // Mark this page as having the event route set up
+    this.pagesWithEventRoute.add(page);
+
+    this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route set up'), {
+      url: page.url()?.slice(0, 50),
+    });
+  }
+
+  /**
+   * Initialize recording capability on a browser context.
+   *
+   * This sets up:
+   * 1. The recording init script (runs in MAIN context on all page loads)
+   * 2. The context binding for receiving events from pages
+   *
+   * Safe to call multiple times (idempotent).
+   *
+   * @param context - The browser context to initialize
+   */
+  async initialize(context: BrowserContext): Promise<void> {
+    if (this.initialized) {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'context already initialized, skipping'));
+      return;
+    }
+
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'initializing recording context'), {
+      bindingName: this.bindingName,
+      runSanityCheck: this.runSanityCheck,
+    });
+
+    // Store context for sanity check
+    this.context = context;
+
+    // Event URL constant for recording events
+    const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
     this.logger.info(scopedLog(LogContext.RECORDING, 'route interception set up'), {
       eventUrl: RECORDING_EVENT_URL,
@@ -359,15 +401,18 @@ export class RecordingContextInitializer {
     // Inject recording script into HTML responses via route interception
     // This ensures the script runs in MAIN context (not isolated) by being
     // part of the actual page HTML, bypassing rebrowser-playwright's context isolation
+    //
+    // NOTE: This route ONLY handles document (HTML) injection. Event interception
+    // is handled via page.route() because rebrowser-playwright doesn't intercept
+    // fetch/XHR requests via context.route() - only navigation requests work.
+    // See setupPageEventRoute() for event handling.
     await context.route('**/*', async (route) => {
       const request = route.request();
       const url = request.url();
 
-      // Skip our own special URLs - pass them to their dedicated route handlers
-      // IMPORTANT: Use fallback() not continue() - continue() sends to network,
-      // fallback() passes to the next matching route handler
-      if (url.includes('__vrooli_recording_event__') || url.includes('__vrooli_recording_test__')) {
-        this.logger.debug(scopedLog(LogContext.RECORDING, 'passing special URL to dedicated route'), {
+      // Handle test page URLs via fallback - navigation requests work correctly with fallback
+      if (url.includes('__vrooli_recording_test__')) {
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'passing test page URL to dedicated route'), {
           url: url.slice(0, 100),
         });
         await route.fallback();
@@ -500,6 +545,36 @@ export class RecordingContextInitializer {
     });
 
     this.logger.info(scopedLog(LogContext.RECORDING, 'HTML injection route set up'));
+
+    // CRITICAL: Setup page-level event routes for all existing pages
+    // rebrowser-playwright doesn't intercept fetch/XHR via context.route(),
+    // so we MUST use page.route() to catch recording events from within pages
+    const existingPages = context.pages();
+    for (const page of existingPages) {
+      try {
+        await this.setupPageEventRoute(page);
+      } catch (err) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for existing page'), {
+          url: page.url()?.slice(0, 50),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // Setup event route for any new pages created in this context
+    context.on('page', async (page: Page) => {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route'), {
+        url: page.url()?.slice(0, 50),
+      });
+      try {
+        await this.setupPageEventRoute(page);
+      } catch (err) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for new page'), {
+          url: page.url()?.slice(0, 50),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
 
     this.initialized = true;
     this.logger.info(scopedLog(LogContext.RECORDING, 'recording context initialized'), {

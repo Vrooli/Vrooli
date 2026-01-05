@@ -42,6 +42,7 @@ type CompletionService struct {
 	contextManager   *ContextManager
 	messageConverter *MessageConverter
 	storage          StorageService
+	asyncTracker     *AsyncTrackerService
 }
 
 // NewCompletionService creates a new completion service.
@@ -69,6 +70,12 @@ func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *To
 		messageConverter: NewMessageConverter(storage),
 		storage:          storage,
 	}
+}
+
+// SetAsyncTracker sets the async tracker for tracking long-running tool operations.
+// This is called after construction to avoid circular dependencies.
+func (s *CompletionService) SetAsyncTracker(tracker *AsyncTrackerService) {
+	s.asyncTracker = tracker
 }
 
 // SaveCompletionResult persists a completion result to the database.
@@ -198,6 +205,11 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			}
 		} else {
 			log.Printf("[WARN] No messageID for tool call %s, skipping record save", tc.Function.Name)
+		}
+
+		// Check for async behavior and start tracking if applicable
+		if err == nil && s.asyncTracker != nil {
+			s.maybeStartAsyncTracking(ctx, chatID, tc.ID, tc.Function.Name, record)
 		}
 
 		// Save tool response message (parented to the assistant message)
@@ -342,6 +354,47 @@ func (s *CompletionService) RejectToolCall(ctx context.Context, chatID, toolCall
 // GetPendingApprovals returns all pending tool call approvals for a chat.
 func (s *CompletionService) GetPendingApprovals(ctx context.Context, chatID string) ([]*domain.ToolCallRecord, error) {
 	return s.repo.GetPendingApprovals(ctx, chatID)
+}
+
+// maybeStartAsyncTracking checks if a tool has AsyncBehavior and starts tracking if so.
+func (s *CompletionService) maybeStartAsyncTracking(ctx context.Context, chatID, toolCallID, toolName string, record *domain.ToolCallRecord) {
+	// Look up the tool to check for async behavior
+	tool, scenario, err := s.toolRegistry.GetToolByName(ctx, toolName)
+	if err != nil {
+		log.Printf("[DEBUG] Could not look up tool %s for async tracking: %v", toolName, err)
+		return
+	}
+
+	// Check if the tool has async behavior defined
+	if tool.Metadata == nil || tool.Metadata.AsyncBehavior == nil {
+		return
+	}
+
+	asyncBehavior := tool.Metadata.AsyncBehavior
+	if asyncBehavior.StatusPolling == nil {
+		log.Printf("[DEBUG] Tool %s has AsyncBehavior but no StatusPolling configured", toolName)
+		return
+	}
+
+	// Parse the result to extract operation ID
+	var resultData interface{}
+	if err := json.Unmarshal([]byte(record.Result), &resultData); err != nil {
+		log.Printf("[WARN] Failed to parse tool result for async tracking: %v", err)
+		return
+	}
+
+	// Start async tracking
+	if err := s.asyncTracker.StartTracking(
+		context.Background(), // Use background context for long-running polling
+		toolCallID,
+		chatID,
+		toolName,
+		scenario,
+		resultData,
+		asyncBehavior,
+	); err != nil {
+		log.Printf("[WARN] Failed to start async tracking for %s: %v", toolName, err)
+	}
 }
 
 // UpdateChatPreview updates the chat's preview text based on completion result.
@@ -643,6 +696,11 @@ func (s *CompletionService) ExecuteToolManually(ctx context.Context, chatID, sce
 			result.Result = record.Result // Return as string if not valid JSON
 		} else {
 			result.Result = parsedResult
+		}
+
+		// Start async tracking if applicable
+		if chatID != "" && s.asyncTracker != nil {
+			s.maybeStartAsyncTracking(ctx, chatID, toolCallID, toolName, record)
 		}
 	}
 

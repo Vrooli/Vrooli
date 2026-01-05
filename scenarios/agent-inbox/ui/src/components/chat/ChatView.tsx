@@ -3,10 +3,20 @@ import { Loader2 } from "lucide-react";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
+import { AsyncOperationsPanel } from "./AsyncOperationCard";
 import type { ChatWithMessages, Model, Label, Message } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
+import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
 import { computeVisibleMessages } from "../../lib/messageTree";
+
+// Stable empty arrays for default prop values and useMemo returns
+// CRITICAL: Using `= []` or `return []` creates a NEW array on every render/recalculation,
+// which changes references and triggers infinite re-render loops via useMemo dependencies
+const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
+const EMPTY_IMAGES: string[] = [];
+const EMPTY_ASYNC_OPS: AsyncStatusUpdate[] = [];
+const EMPTY_MESSAGES: Message[] = [];
 
 interface ChatViewProps {
   chatData: ChatWithMessages | null;
@@ -39,6 +49,9 @@ interface ChatViewProps {
   onEditMessage?: (message: Message) => void;
   onCancelEdit?: () => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
+  // Async operations
+  asyncOperations?: AsyncStatusUpdate[];
+  onCancelAsyncOperation?: (toolCallId: string) => Promise<void>;
 }
 
 export function ChatView({
@@ -48,8 +61,8 @@ export function ChatView({
   isLoading,
   isGenerating,
   streamingContent,
-  activeToolCalls = [],
-  generatedImages = [],
+  activeToolCalls = EMPTY_TOOL_CALLS,
+  generatedImages = EMPTY_IMAGES,
   scrollToMessageId,
   onScrollComplete,
   onSendMessage,
@@ -70,31 +83,26 @@ export function ChatView({
   onEditMessage,
   onCancelEdit,
   onSubmitEdit,
+  asyncOperations = EMPTY_ASYNC_OPS,
+  onCancelAsyncOperation,
 }: ChatViewProps) {
   // Compute visible messages based on the active branch
   // This filters the full message tree to only show the active path
   // NOTE: Must be called before any early returns to satisfy React's rules of hooks
-  const allMessages = chatData?.messages || [];
-  const activeLeafId = chatData?.chat.active_leaf_message_id ?? null;
+
+  // Memoize allMessages to avoid creating new array references on each render
+  // when chatData?.messages is undefined (which would cause infinite re-renders)
+  // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
+  const allMessages = useMemo(
+    () => chatData?.messages ?? EMPTY_MESSAGES,
+    [chatData?.messages]
+  );
+  const activeLeafId = chatData?.chat?.active_leaf_message_id ?? null;
+
+  // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
   const visibleMessages = useMemo(() => {
-    if (!chatData) return [];
-    console.log("[ChatView] Computing visible messages", {
-      allMessagesCount: allMessages.length,
-      activeLeafId,
-      allMessages: allMessages.map(m => ({
-        id: m.id.slice(0, 8),
-        role: m.role,
-        parent: m.parent_message_id?.slice(0, 8) ?? null,
-        siblingIndex: m.sibling_index,
-      })),
-    });
-    const result = computeVisibleMessages(allMessages, activeLeafId ?? undefined);
-    console.log("[ChatView] Visible messages result:", result.map(m => ({
-      id: m.id.slice(0, 8),
-      role: m.role,
-      siblingIndex: m.sibling_index,
-    })));
-    return result;
+    if (!chatData || allMessages.length === 0) return EMPTY_MESSAGES;
+    return computeVisibleMessages(allMessages, activeLeafId ?? undefined);
   }, [chatData, allMessages, activeLeafId]);
 
   if (isLoading) {
@@ -126,6 +134,14 @@ export function ChatView({
         onAssignLabel={onAssignLabel}
         onRemoveLabel={onRemoveLabel}
       />
+
+      {/* Async Operations Panel - shows active long-running tool operations */}
+      {asyncOperations.length > 0 && (
+        <AsyncOperationsPanel
+          operations={asyncOperations}
+          onCancel={onCancelAsyncOperation}
+        />
+      )}
 
       <MessageList
         messages={visibleMessages}

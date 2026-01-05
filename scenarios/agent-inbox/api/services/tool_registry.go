@@ -26,6 +26,8 @@ import (
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // ToolRegistry manages tool discovery and user configurations.
@@ -157,7 +159,10 @@ func (r *ToolRegistry) GetEffectiveTools(ctx context.Context, chatID string) ([]
 
 		// Determine effective approval requirement
 		// Priority: chat-specific > global > tool metadata default
-		metadataDefault := tool.Tool.Metadata.RequiresApproval
+		metadataDefault := false
+		if tool.Tool.Metadata != nil {
+			metadataDefault = tool.Tool.Metadata.RequiresApproval
+		}
 		result[i].RequiresApproval = metadataDefault
 
 		if chatCfg, ok := chatConfigMap[key]; ok && chatCfg.ApprovalOverride != "" {
@@ -202,7 +207,7 @@ func (r *ToolRegistry) GetToolsForOpenAI(ctx context.Context, chatID string) ([]
 
 	result := make([]map[string]interface{}, len(tools))
 	for i, tool := range tools {
-		result[i] = tool.Tool.ToOpenAIFunction()
+		result[i] = domain.ToOpenAIFunction(tool.Tool)
 	}
 
 	return result, nil
@@ -246,7 +251,7 @@ func (r *ToolRegistry) GetScenarioStatuses(ctx context.Context) []*domain.Scenar
 }
 
 // GetTool looks up a specific tool by scenario and name.
-func (r *ToolRegistry) GetTool(ctx context.Context, scenario, toolName string) (*domain.ToolDefinition, error) {
+func (r *ToolRegistry) GetTool(ctx context.Context, scenario, toolName string) (*toolspb.ToolDefinition, error) {
 	toolSet, err := r.GetToolSet(ctx)
 	if err != nil {
 		return nil, err
@@ -254,7 +259,7 @@ func (r *ToolRegistry) GetTool(ctx context.Context, scenario, toolName string) (
 
 	for _, tool := range toolSet.Tools {
 		if tool.Scenario == scenario && tool.Tool.Name == toolName {
-			return &tool.Tool, nil
+			return tool.Tool, nil
 		}
 	}
 
@@ -263,7 +268,7 @@ func (r *ToolRegistry) GetTool(ctx context.Context, scenario, toolName string) (
 
 // GetToolByName looks up a tool by name only (across all scenarios).
 // If multiple scenarios provide tools with the same name, returns the first found.
-func (r *ToolRegistry) GetToolByName(ctx context.Context, toolName string) (*domain.ToolDefinition, string, error) {
+func (r *ToolRegistry) GetToolByName(ctx context.Context, toolName string) (*toolspb.ToolDefinition, string, error) {
 	toolSet, err := r.GetToolSet(ctx)
 	if err != nil {
 		return nil, "", err
@@ -271,7 +276,7 @@ func (r *ToolRegistry) GetToolByName(ctx context.Context, toolName string) (*dom
 
 	for _, tool := range toolSet.Tools {
 		if tool.Tool.Name == toolName {
-			return &tool.Tool, tool.Scenario, nil
+			return tool.Tool, tool.Scenario, nil
 		}
 	}
 
@@ -299,7 +304,10 @@ func (r *ToolRegistry) GetToolApprovalRequired(ctx context.Context, chatID, tool
 	}
 
 	// Check user overrides via repository
-	metadataDefault := tool.Metadata.RequiresApproval
+	metadataDefault := false
+	if tool.Metadata != nil {
+		metadataDefault = tool.Metadata.RequiresApproval
+	}
 	return r.repo.GetEffectiveToolApproval(ctx, chatID, scenario, toolName, metadataDefault)
 }
 
@@ -311,10 +319,10 @@ func (r *ToolRegistry) SetToolApprovalOverride(ctx context.Context, chatID, scen
 }
 
 // buildToolSet aggregates manifests from multiple scenarios into a ToolSet.
-func (r *ToolRegistry) buildToolSet(manifests map[string]*domain.ToolManifest) *domain.ToolSet {
-	var scenarios []domain.ScenarioInfo
+func (r *ToolRegistry) buildToolSet(manifests map[string]*toolspb.ToolManifest) *domain.ToolSet {
+	var scenarios []*toolspb.ScenarioInfo
 	var tools []domain.EffectiveTool
-	categoryMap := make(map[string]domain.ToolCategory)
+	categoryMap := make(map[string]*toolspb.ToolCategory)
 
 	for scenarioName, manifest := range manifests {
 		// Add scenario info (with base URL if we know it)
@@ -323,24 +331,30 @@ func (r *ToolRegistry) buildToolSet(manifests map[string]*domain.ToolManifest) *
 
 		// Add tools with default enabled state and approval requirement
 		for _, tool := range manifest.Tools {
+			enabledByDefault := false
+			requiresApproval := false
+			if tool.Metadata != nil {
+				enabledByDefault = tool.Metadata.EnabledByDefault
+				requiresApproval = tool.Metadata.RequiresApproval
+			}
 			tools = append(tools, domain.EffectiveTool{
 				Scenario:         scenarioName,
 				Tool:             tool,
-				Enabled:          tool.Metadata.EnabledByDefault,
-				Source:           "",                             // Empty means using tool's default
-				RequiresApproval: tool.Metadata.RequiresApproval, // Default from tool metadata
-				ApprovalSource:   "",                             // Empty means using tool's default
+				Enabled:          enabledByDefault,
+				Source:           "",               // Empty means using tool's default
+				RequiresApproval: requiresApproval, // Default from tool metadata
+				ApprovalSource:   "",               // Empty means using tool's default
 			})
 		}
 
 		// Merge categories
 		for _, cat := range manifest.Categories {
-			categoryMap[cat.ID] = cat
+			categoryMap[cat.Id] = cat
 		}
 	}
 
 	// Convert category map to slice
-	categories := make([]domain.ToolCategory, 0, len(categoryMap))
+	categories := make([]*toolspb.ToolCategory, 0, len(categoryMap))
 	for _, cat := range categoryMap {
 		categories = append(categories, cat)
 	}

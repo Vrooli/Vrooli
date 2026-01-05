@@ -57,15 +57,18 @@ export const CodeBlock = memo(function CodeBlock({
   language,
   className,
 }: CodeBlockProps) {
+  // Defensive: ensure code is a string to prevent crashes
+  const safeCode = typeof code === "string" ? code : (code ? String(code) : "");
+
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
-  const { copied, copyCode } = useCodeCopy(code);
+  const { copied, copyCode } = useCodeCopy(safeCode);
 
   // Extract language from className if not provided directly
   // react-markdown passes language as className="language-typescript"
   const extractedLang = className?.replace(/^language-/, "") || language;
   const normalizedLang = extractedLang
     ? normalizeLanguage(extractedLang)
-    : detectLanguage(code);
+    : detectLanguage(safeCode);
 
   // Display name for the language label
   const displayLang = normalizedLang === "text" ? "" : normalizedLang;
@@ -82,7 +85,7 @@ export const CodeBlock = memo(function CodeBlock({
         const langs = highlighter.getLoadedLanguages();
         const langToUse = langs.includes(normalizedLang) ? normalizedLang : "text";
 
-        const html = highlighter.codeToHtml(code, {
+        const html = highlighter.codeToHtml(safeCode, {
           lang: langToUse,
           theme: "github-dark",
         });
@@ -101,7 +104,7 @@ export const CodeBlock = memo(function CodeBlock({
     return () => {
       cancelled = true;
     };
-  }, [code, normalizedLang]);
+  }, [safeCode, normalizedLang]);
 
   return (
     <div className="relative group rounded-lg overflow-hidden my-3">
@@ -136,7 +139,7 @@ export const CodeBlock = memo(function CodeBlock({
           />
         ) : (
           <pre className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto">
-            {code}
+            {safeCode}
           </pre>
         )}
       </div>

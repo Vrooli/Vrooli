@@ -30,16 +30,24 @@ type Handlers struct {
 	ToolRegistry  *services.ToolRegistry
 	ModelRegistry *services.ModelRegistry
 	Storage       services.StorageService
+	ToolExecutor  *integrations.ToolExecutor
+	AsyncTracker  *services.AsyncTrackerService
 }
 
 // New creates a new Handlers instance with all dependencies.
 func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
+	toolRegistry := services.NewToolRegistry(repo)
+	toolExecutor := integrations.NewToolExecutor()
+	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor)
+
 	return &Handlers{
 		Repo:          repo,
 		OllamaClient:  ollamaClient,
-		ToolRegistry:  services.NewToolRegistry(repo),
+		ToolRegistry:  toolRegistry,
 		ModelRegistry: services.NewModelRegistry(),
 		Storage:       storage,
+		ToolExecutor:  toolExecutor,
+		AsyncTracker:  asyncTracker,
 	}
 }
 
@@ -100,6 +108,11 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tool-calls/{id}/approve", h.ApproveToolCall).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tool-calls/{id}/reject", h.RejectToolCall).Methods("POST", "OPTIONS")
 
+	// Async Tool Operations (SSE for real-time updates)
+	r.HandleFunc("/api/v1/chats/{id}/async-status", h.StreamAsyncStatus).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations", h.GetAsyncOperations).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations/{toolCallId}/cancel", h.CancelAsyncOperation).Methods("POST", "OPTIONS")
+
 	// Settings
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.GetYoloMode).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.SetYoloMode).Methods("POST", "OPTIONS")
@@ -126,6 +139,14 @@ func (h *Handlers) JSONResponse(w http.ResponseWriter, data interface{}, status 
 // Deprecated: Use WriteAppError for structured errors.
 func (h *Handlers) JSONError(w http.ResponseWriter, message string, status int) {
 	h.JSONResponse(w, map[string]string{"error": message}, status)
+}
+
+// NewCompletionService creates a completion service with async tracker configured.
+// This is the preferred way to create completion services in handlers.
+func (h *Handlers) NewCompletionService() *services.CompletionService {
+	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc.SetAsyncTracker(h.AsyncTracker)
+	return svc
 }
 
 // Validation helpers

@@ -14,6 +14,14 @@ import { PendingApprovalCard } from "./PendingApprovalCard";
 import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
 import { MarkdownRenderer, CodeBlock } from "../markdown";
 
+// Stable empty arrays for default prop values
+// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
+// which changes references and triggers infinite re-render loops via useMemo dependencies
+const EMPTY_IMAGES: string[] = [];
+const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
+const EMPTY_TOOL_RECORDS: ToolCallRecord[] = [];
+const EMPTY_APPROVALS: PendingApproval[] = [];
+
 interface MessageListProps {
   messages: Message[];
   /** All messages including non-visible branches (for sibling computation) */
@@ -57,10 +65,10 @@ export function MessageList({
   allMessages,
   isGenerating,
   streamingContent,
-  generatedImages = [],
-  activeToolCalls = [],
-  toolCallRecords = [],
-  pendingApprovals = [],
+  generatedImages = EMPTY_IMAGES,
+  activeToolCalls = EMPTY_TOOL_CALLS,
+  toolCallRecords = EMPTY_TOOL_RECORDS,
+  pendingApprovals = EMPTY_APPROVALS,
   awaitingApprovals = false,
   isProcessingApproval = false,
   scrollToMessageId,
@@ -387,13 +395,21 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
     : "bg-amber-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs";
 
   // Try to format result as JSON if possible
-  const formatResult = (resultStr: string) => {
-    try {
-      const parsed = JSON.parse(resultStr);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return resultStr;
+  // Note: result might be a string (from DB) or an object (from SSE streaming)
+  const formatResult = (resultData: unknown): string => {
+    if (typeof resultData === "string") {
+      // If it's a string, try to parse and re-stringify for formatting
+      try {
+        const parsed = JSON.parse(resultData);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return resultData;
+      }
+    } else if (resultData && typeof resultData === "object") {
+      // If it's already an object, just stringify it
+      return JSON.stringify(resultData, null, 2);
     }
+    return String(resultData ?? "");
   };
 
   return (
@@ -438,7 +454,7 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
       </div>
       {isFailed && errorMessage && (
         <div className="ml-5 mt-1 text-xs text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
-          {errorMessage}
+          {typeof errorMessage === "string" ? errorMessage : JSON.stringify(errorMessage)}
         </div>
       )}
       {hasResult && isExpanded && (
@@ -786,11 +802,15 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
         {isTool ? (
           <div className="max-h-80 overflow-y-auto">
             <CodeBlock code={(() => {
+              // Defensive: ensure content is a string
+              const content = typeof message.content === "string"
+                ? message.content
+                : (message.content ? JSON.stringify(message.content, null, 2) : "");
               try {
-                const parsed = JSON.parse(message.content);
+                const parsed = JSON.parse(content);
                 return JSON.stringify(parsed, null, 2);
               } catch {
-                return message.content;
+                return content;
               }
             })()} language="json" />
           </div>
@@ -823,13 +843,19 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   // Bubble mode: Tool response messages
   if (isTool) {
     // Format tool content as JSON if possible
-    const formatToolContent = (content: string) => {
-      try {
-        const parsed = JSON.parse(content);
-        return JSON.stringify(parsed, null, 2);
-      } catch {
-        return content;
+    // Defensive: content might be undefined, null, or even an object in edge cases
+    const formatToolContent = (content: unknown): string => {
+      if (typeof content === "string") {
+        try {
+          const parsed = JSON.parse(content);
+          return JSON.stringify(parsed, null, 2);
+        } catch {
+          return content;
+        }
+      } else if (content && typeof content === "object") {
+        return JSON.stringify(content, null, 2);
       }
+      return String(content ?? "");
     };
 
     return (

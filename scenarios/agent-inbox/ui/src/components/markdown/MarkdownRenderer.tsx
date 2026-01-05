@@ -133,15 +133,18 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     []
   );
 
-  // Don't render if content is empty
+  // Don't render if content is empty or not a string
   if (!content) {
     return null;
   }
 
+  // Defensive: ensure content is a string
+  const safeContent = typeof content === "string" ? content : String(content);
+
   return (
     <div className={`markdown-content ${className || ""}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
+        {safeContent}
       </ReactMarkdown>
     </div>
   );

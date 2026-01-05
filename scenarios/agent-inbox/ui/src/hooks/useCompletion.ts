@@ -60,12 +60,19 @@ function generateRequestId(): number {
   return ++requestIdCounter;
 }
 
+// Stable empty arrays to prevent infinite re-render loops
+// CRITICAL: Using inline [] creates new array on every setState call,
+// which changes references and triggers useMemo/useCallback dependencies
+const EMPTY_IMAGES: string[] = [];
+const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
+const EMPTY_APPROVALS: PendingApproval[] = [];
+
 export function useCompletion(): CompletionState & CompletionActions {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<string[]>(EMPTY_IMAGES);
+  const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>(EMPTY_TOOL_CALLS);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>(EMPTY_APPROVALS);
   const [awaitingApprovals, setAwaitingApprovals] = useState(false);
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
 
@@ -186,9 +193,9 @@ export function useCompletion(): CompletionState & CompletionActions {
     currentRequestIdRef.current = 0;
     setIsGenerating(false);
     setStreamingContent("");
-    setGeneratedImages([]);
-    setActiveToolCalls([]);
-    setPendingApprovals([]);
+    setGeneratedImages(EMPTY_IMAGES);
+    setActiveToolCalls(EMPTY_TOOL_CALLS);
+    setPendingApprovals(EMPTY_APPROVALS);
     setAwaitingApprovals(false);
   }, []);
 
@@ -208,9 +215,9 @@ export function useCompletion(): CompletionState & CompletionActions {
       // Reset state for new request
       setIsGenerating(true);
       setStreamingContent("");
-      setGeneratedImages([]);
-      setActiveToolCalls([]);
-      setPendingApprovals([]);
+      setGeneratedImages(EMPTY_IMAGES);
+      setActiveToolCalls(EMPTY_TOOL_CALLS);
+      setPendingApprovals(EMPTY_APPROVALS);
       setAwaitingApprovals(false);
 
       try {
@@ -225,8 +232,8 @@ export function useCompletion(): CompletionState & CompletionActions {
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
           setStreamingContent("");
-          setGeneratedImages([]);
-          setActiveToolCalls([]);
+          setGeneratedImages(EMPTY_IMAGES);
+          setActiveToolCalls(EMPTY_TOOL_CALLS);
           // Note: Don't reset pendingApprovals here as we might be awaiting approvals
         }
       } catch (error) {
@@ -234,9 +241,9 @@ export function useCompletion(): CompletionState & CompletionActions {
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
           setStreamingContent("");
-          setGeneratedImages([]);
-          setActiveToolCalls([]);
-          setPendingApprovals([]);
+          setGeneratedImages(EMPTY_IMAGES);
+          setActiveToolCalls(EMPTY_TOOL_CALLS);
+          setPendingApprovals(EMPTY_APPROVALS);
           setAwaitingApprovals(false);
 
           // Don't throw on abort - it's intentional cancellation

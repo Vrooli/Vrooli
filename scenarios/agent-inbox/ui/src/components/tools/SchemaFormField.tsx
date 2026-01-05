@@ -213,6 +213,7 @@ export function SchemaFormField({
   // Handle object
   if (type === "object" && schema.properties) {
     const objectValue = (value as Record<string, unknown>) ?? {};
+    const schemaProperties = schema.properties ?? {};
 
     const updateProperty = (propName: string, newValue: unknown) => {
       onChange({ ...objectValue, [propName]: newValue });
@@ -228,7 +229,7 @@ export function SchemaFormField({
           <p className="text-xs text-slate-500 mb-2">{description}</p>
         )}
         <div className="space-y-2 pl-4 border-l border-white/10">
-          {Object.entries(schema.properties).map(([propName, propSchema]) => (
+          {Object.entries(schemaProperties).map(([propName, propSchema]) => (
             <SchemaFormField
               key={propName}
               name={propName}
@@ -302,11 +303,11 @@ export function SchemaFormField({
  * Get a default value for a schema type.
  */
 function getDefaultValue(schema: ParameterSchema): unknown {
-  if (schema.default !== undefined) {
+  if (schema?.default !== undefined) {
     return schema.default;
   }
 
-  switch (schema.type) {
+  switch (schema?.type) {
     case "string":
       return "";
     case "number":
@@ -319,7 +320,8 @@ function getDefaultValue(schema: ParameterSchema): unknown {
     case "object":
       if (schema.properties) {
         const obj: Record<string, unknown> = {};
-        for (const [key, propSchema] of Object.entries(schema.properties)) {
+        const schemaProperties = schema.properties ?? {};
+        for (const [key, propSchema] of Object.entries(schemaProperties)) {
           obj[key] = getDefaultValue(propSchema);
         }
         return obj;

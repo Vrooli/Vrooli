@@ -15,7 +15,6 @@ package integrations
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,6 +26,9 @@ import (
 
 	"agent-inbox/config"
 	"agent-inbox/domain"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // HTTPClient defines the interface for HTTP operations.
@@ -55,7 +57,7 @@ type ScenarioClient struct {
 
 // cachedManifest stores a manifest with its fetch time.
 type cachedManifest struct {
-	manifest  *domain.ToolManifest
+	manifest  *toolspb.ToolManifest
 	fetchedAt time.Time
 }
 
@@ -101,7 +103,7 @@ func NewScenarioClientWithDeps(httpClient HTTPClient, urlResolver URLResolver, c
 
 // FetchToolManifest retrieves the tool manifest from a scenario.
 // Uses caching to avoid redundant network calls.
-func (c *ScenarioClient) FetchToolManifest(ctx context.Context, scenarioName string) (*domain.ToolManifest, error) {
+func (c *ScenarioClient) FetchToolManifest(ctx context.Context, scenarioName string) (*toolspb.ToolManifest, error) {
 	// Check cache first
 	if manifest := c.getCached(scenarioName); manifest != nil {
 		return manifest, nil
@@ -127,8 +129,8 @@ func (c *ScenarioClient) FetchToolManifest(ctx context.Context, scenarioName str
 
 // FetchMultiple fetches tool manifests from multiple scenarios concurrently.
 // Returns a map of scenario name to manifest, and any errors encountered.
-func (c *ScenarioClient) FetchMultiple(ctx context.Context, scenarioNames []string) (map[string]*domain.ToolManifest, map[string]error) {
-	results := make(map[string]*domain.ToolManifest)
+func (c *ScenarioClient) FetchMultiple(ctx context.Context, scenarioNames []string) (map[string]*toolspb.ToolManifest, map[string]error) {
+	results := make(map[string]*toolspb.ToolManifest)
 	errors := make(map[string]error)
 
 	var wg sync.WaitGroup
@@ -190,7 +192,7 @@ func (c *ScenarioClient) InvalidateAllCache() {
 }
 
 // getCached retrieves a manifest from cache if still valid.
-func (c *ScenarioClient) getCached(scenarioName string) *domain.ToolManifest {
+func (c *ScenarioClient) getCached(scenarioName string) *toolspb.ToolManifest {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -207,7 +209,7 @@ func (c *ScenarioClient) getCached(scenarioName string) *domain.ToolManifest {
 }
 
 // setCache stores a manifest in the cache.
-func (c *ScenarioClient) setCache(scenarioName string, manifest *domain.ToolManifest) {
+func (c *ScenarioClient) setCache(scenarioName string, manifest *toolspb.ToolManifest) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -218,7 +220,7 @@ func (c *ScenarioClient) setCache(scenarioName string, manifest *domain.ToolMani
 }
 
 // fetchManifest performs the HTTP request to get the tool manifest.
-func (c *ScenarioClient) fetchManifest(ctx context.Context, baseURL string) (*domain.ToolManifest, error) {
+func (c *ScenarioClient) fetchManifest(ctx context.Context, baseURL string) (*toolspb.ToolManifest, error) {
 	url := baseURL + "/api/v1/tools"
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -243,8 +245,9 @@ func (c *ScenarioClient) fetchManifest(ctx context.Context, baseURL string) (*do
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	var manifest domain.ToolManifest
-	if err := json.Unmarshal(body, &manifest); err != nil {
+	var manifest toolspb.ToolManifest
+	// Use protojson for proper proto JSON handling (e.g., timestamps)
+	if err := protojson.Unmarshal(body, &manifest); err != nil {
 		return nil, fmt.Errorf("failed to parse manifest: %w", err)
 	}
 

@@ -10,7 +10,6 @@ import (
 	"net/http"
 
 	"agent-inbox/domain"
-	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 )
@@ -183,7 +182,7 @@ func (h *Handlers) GetPendingApprovals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc := h.NewCompletionService()
 	pending, err := svc.GetPendingApprovals(r.Context(), chatID)
 	if err != nil {
 		h.JSONError(w, "Failed to get pending approvals", http.StatusInternalServerError)
@@ -213,7 +212,7 @@ func (h *Handlers) ApproveToolCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc := h.NewCompletionService()
 	result, err := svc.ApproveToolCall(r.Context(), chatID, toolCallID)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
@@ -279,7 +278,7 @@ func (h *Handlers) ExecuteToolManually(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute the tool via completion service
-	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc := h.NewCompletionService()
 	result, err := svc.ExecuteToolManually(r.Context(), req.ChatID, req.Scenario, req.ToolName, req.Arguments)
 	if err != nil {
 		h.JSONResponse(w, map[string]interface{}{
@@ -332,7 +331,7 @@ func (h *Handlers) RejectToolCall(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req) // Ignore error - reason is optional
 
-	svc := services.NewCompletionService(h.Repo, h.Storage)
+	svc := h.NewCompletionService()
 	if err := svc.RejectToolCall(r.Context(), chatID, toolCallID, req.Reason); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return

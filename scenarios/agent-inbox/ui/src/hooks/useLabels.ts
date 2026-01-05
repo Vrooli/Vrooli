@@ -18,18 +18,25 @@ import {
   Label,
 } from "../lib/api";
 
+// Stable empty array for default value
+// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
+// which changes references and triggers infinite re-render loops via useMemo dependencies
+const EMPTY_LABELS: Label[] = [];
+
 export function useLabels() {
   const queryClient = useQueryClient();
 
   // Fetch labels
+  // NOTE: Use stable EMPTY_LABELS constant instead of `= []`
   const {
-    data: labels = [],
+    data: labelsData,
     isLoading: loadingLabels,
     error: labelsError,
   } = useQuery({
     queryKey: ["labels"],
     queryFn: fetchLabels,
   });
+  const labels = labelsData ?? EMPTY_LABELS;
 
   // Create label
   const createLabelMutation = useMutation({

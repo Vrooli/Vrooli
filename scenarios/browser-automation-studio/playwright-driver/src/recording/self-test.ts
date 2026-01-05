@@ -483,6 +483,18 @@ export async function runRecordingPipelineTest(
       return buildResult(false, 'navigation', 'Failed to navigate to test page', steps, diagnostics, startTime);
     }
 
+    // Setup page-level event route after navigation
+    // CRITICAL: rebrowser-playwright's page.route() doesn't persist across navigation
+    // The controller handles this for recording sessions, but the self-test needs it too
+    try {
+      await contextInitializer.setupPageEventRoute(page, { force: true });
+      logger.debug(scopedLog(LogContext.RECORDING, 'page-level event route setup after navigation'));
+    } catch (err) {
+      logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route after navigation'), {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     // Wait for page to stabilize
     await sleep(500);
 

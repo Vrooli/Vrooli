@@ -15,7 +15,7 @@
  *
  * SEAM: For testing, mock the individual hooks or the API functions.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchChats,
@@ -38,11 +38,19 @@ import {
   type StreamingEvent,
   type BulkOperation,
   type Message,
+  type Chat,
+  type Model,
 } from "../lib/api";
 import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
 import { useLabels } from "./useLabels";
 import { getDefaultModel } from "../components/settings/Settings";
 import type { MessagePayload } from "../components/chat/MessageInput";
+
+// Stable empty arrays to prevent infinite re-render loops
+// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
+// which changes the reference and triggers useMemo/useCallback dependencies
+const EMPTY_CHATS: Chat[] = [];
+const EMPTY_MODELS: Model[] = [];
 
 export type View = "inbox" | "starred" | "archived";
 
@@ -67,8 +75,10 @@ export function useChats(options: UseChatsOptions = {}) {
   const labelOps = useLabels();
 
   // Fetch chats based on current view
+  // NOTE: Use stable EMPTY_CHATS constant instead of `= []` to prevent
+  // creating new array references on every render when data is undefined
   const {
-    data: chats = [],
+    data: chatsData,
     isLoading: loadingChats,
     error: chatsError,
   } = useQuery({
@@ -80,6 +90,7 @@ export function useChats(options: UseChatsOptions = {}) {
       }),
     refetchInterval: 10000,
   });
+  const chats = chatsData ?? EMPTY_CHATS;
 
   // Fetch selected chat with messages
   const {
@@ -93,10 +104,12 @@ export function useChats(options: UseChatsOptions = {}) {
   });
 
   // Fetch available models
-  const { data: models = [] } = useQuery({
+  // NOTE: Use stable EMPTY_MODELS constant instead of `= []`
+  const { data: modelsData } = useQuery({
     queryKey: ["models"],
     queryFn: fetchModels,
   });
+  const models = modelsData ?? EMPTY_MODELS;
 
   // Chat mutations
   const createChatMutation = useMutation({

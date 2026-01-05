@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { useChats } from "./hooks/useChats";
+import { useAsyncStatus } from "./hooks/useAsyncStatus";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -101,6 +102,12 @@ function AppContent() {
     onChatChange: handleChatChange,
   });
 
+  // Track async operations for the selected chat
+  const {
+    operations: asyncOperations,
+    cancelOperation: cancelAsyncOperation,
+  } = useAsyncStatus(selectedChatId);
+
   // Handle browser back/forward navigation
   usePopStateListener(
     useCallback(
@@ -120,11 +127,12 @@ function AppContent() {
   }, [selectedChatId]);
 
   // Calculate unread counts for sidebar badges
-  const chatCounts = {
+  // Memoized to prevent creating new object on every render
+  const chatCounts = useMemo(() => ({
     inbox: chats.filter((c) => !c.is_archived).length,
     starred: chats.filter((c) => c.is_starred).length,
     archived: chats.filter((c) => c.is_archived).length,
-  };
+  }), [chats]);
 
   // Track which message to scroll to (from search results)
   const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null);
@@ -490,6 +498,8 @@ function AppContent() {
                 editMessageAndComplete(editingMessage.id, payload);
               }
             }}
+            asyncOperations={asyncOperations}
+            onCancelAsyncOperation={cancelAsyncOperation}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />

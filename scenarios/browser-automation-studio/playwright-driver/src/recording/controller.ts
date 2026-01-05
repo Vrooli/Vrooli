@@ -213,6 +213,18 @@ export class RecordModeController {
       });
       this.logger.debug(scopedLog(LogContext.RECORDING, 'event handler registered with context initializer'));
 
+      // Setup page-level event route for the initial page
+      // CRITICAL: rebrowser-playwright requires page.route() for fetch interception
+      // context.route() only works for navigation requests, not fetch/XHR
+      try {
+        await this.recordingInitializer.setupPageEventRoute(this.page, { force: true });
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'page event route setup for initial page'));
+      } catch (err) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route on initial page'), {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
       // Capture initial navigation action with current URL
       await this.captureInitialNavigation();
 
@@ -230,16 +242,42 @@ export class RecordModeController {
         if (!this.state.isRecording || this.recordingGeneration !== currentGeneration) {
           return;
         }
-        this.logger.debug(scopedLog(LogContext.RECORDING, 'new page detected, activating recording'), {
+        this.logger.debug(scopedLog(LogContext.RECORDING, 'new page detected, setting up event route and activating recording'), {
           url: page.url()?.slice(0, 50),
         });
+
+        // Setup page-level event route immediately for the new page
+        // CRITICAL: rebrowser-playwright requires page-level routes for fetch interception
+        try {
+          await this.recordingInitializer.setupPageEventRoute(page, { force: true });
+        } catch (err) {
+          this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route on new page'), {
+            url: page.url()?.slice(0, 50),
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+
         // Wait for page to be ready, then activate recording
-        page.once('load', () => {
-          if (this.state.isRecording && this.recordingGeneration === currentGeneration) {
-            this.activateRecordingOnPage(page, recordingId).catch((err) => {
-              this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to activate recording on new page'), {
-                error: err instanceof Error ? err.message : String(err),
-              });
+        page.once('load', async () => {
+          if (!this.state.isRecording || this.recordingGeneration !== currentGeneration) {
+            return;
+          }
+
+          // Re-setup event route after navigation (route doesn't persist)
+          try {
+            await this.recordingInitializer.setupPageEventRoute(page, { force: true });
+          } catch (err) {
+            this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-setup event route on new page after load'), {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+
+          // Activate recording
+          try {
+            await this.activateRecordingOnPage(page, recordingId);
+          } catch (err) {
+            this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to activate recording on new page'), {
+              error: err instanceof Error ? err.message : String(err),
             });
           }
         });
@@ -366,6 +404,9 @@ export class RecordModeController {
    * Create a navigation handler that re-activates recording after page loads.
    * The init script is already present via context.addInitScript(), so we just
    * need to send the activation message again.
+   *
+   * CRITICAL: With rebrowser-playwright, page.route() doesn't persist across navigation.
+   * We MUST re-setup the page-level event route after each navigation.
    */
   private createNavigationHandler(generation: number, recordingId: string): () => void {
     return (): void => {
@@ -378,6 +419,14 @@ export class RecordModeController {
       if (newUrl && newUrl !== this.lastUrl) {
         this.captureNavigation(newUrl);
       }
+
+      // Re-setup page-level event route after navigation
+      // CRITICAL: rebrowser-playwright's page.route() doesn't persist across navigation
+      this.recordingInitializer.setupPageEventRoute(this.page, { force: true }).catch((err) => {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-setup event route after navigation'), {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
 
       // Re-activate recording on the new page
       // The init script runs on every page load but starts dormant

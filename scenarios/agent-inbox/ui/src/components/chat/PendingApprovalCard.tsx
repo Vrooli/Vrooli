@@ -28,13 +28,19 @@ export function PendingApprovalCard({
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Parse and format arguments for display
-  const formatArguments = (args: string) => {
-    try {
-      const parsed = JSON.parse(args);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return args;
+  // Defensive: args might not be a string in edge cases
+  const formatArguments = (args: unknown): string => {
+    if (typeof args === "string") {
+      try {
+        const parsed = JSON.parse(args);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return args;
+      }
+    } else if (args && typeof args === "object") {
+      return JSON.stringify(args, null, 2);
     }
+    return String(args ?? "{}");
   };
 
   const formattedArgs = formatArguments(approval.arguments);

@@ -12,6 +12,11 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { searchChats, type SearchResult } from "../lib/api";
 
+// Stable empty array for default value
+// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
+// which changes references and triggers infinite re-render loops via useMemo dependencies
+const EMPTY_RESULTS: SearchResult[] = [];
+
 interface UseSearchOptions {
   /** Debounce delay in ms (default: 300) */
   debounceMs?: number;
@@ -58,8 +63,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const shouldSearch = debouncedQuery.length >= minLength;
 
   // Fetch search results
+  // NOTE: Use stable EMPTY_RESULTS constant instead of `= []`
   const {
-    data: results = [],
+    data: resultsData,
     isLoading: isSearching,
     error,
   } = useQuery({
@@ -68,6 +74,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     enabled: shouldSearch,
     staleTime: 30000, // Cache results for 30s
   });
+  const results = resultsData ?? EMPTY_RESULTS;
 
   // Clear function
   const clear = useMemo(
@@ -81,7 +88,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   return {
     query,
     setQuery,
-    results: shouldSearch ? results : [],
+    results: shouldSearch ? results : EMPTY_RESULTS,
     isSearching: isActive && (isSearching || query !== debouncedQuery),
     error: error as Error | null,
     isActive,

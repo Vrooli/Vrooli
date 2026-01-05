@@ -15,6 +15,7 @@
  * - Query client can be mocked in tests
  */
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchToolSet,
@@ -239,22 +240,35 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   });
 
   // Derived data: enabled tools only
-  const enabledTools = toolSet?.tools.filter((t) => t.enabled) ?? [];
+  // CRITICAL: Must memoize to prevent creating new arrays on every render
+  // which would cause infinite re-render loops in consuming components
+  const enabledTools = useMemo(
+    () => toolSet?.tools.filter((t) => t.enabled) ?? [],
+    [toolSet?.tools]
+  );
 
   // Derived data: tools grouped by scenario
-  const toolsByScenario = new Map<string, EffectiveTool[]>();
-  for (const tool of toolSet?.tools ?? []) {
-    const existing = toolsByScenario.get(tool.scenario) ?? [];
-    toolsByScenario.set(tool.scenario, [...existing, tool]);
-  }
+  // CRITICAL: Must memoize Map creation to prevent new references on every render
+  const toolsByScenario = useMemo(() => {
+    const map = new Map<string, EffectiveTool[]>();
+    for (const tool of toolSet?.tools ?? []) {
+      const existing = map.get(tool.scenario) ?? [];
+      map.set(tool.scenario, [...existing, tool]);
+    }
+    return map;
+  }, [toolSet?.tools]);
 
   // Derived data: tools grouped by category
-  const toolsByCategory = new Map<string, EffectiveTool[]>();
-  for (const tool of toolSet?.tools ?? []) {
-    const category = tool.tool.category ?? "uncategorized";
-    const existing = toolsByCategory.get(category) ?? [];
-    toolsByCategory.set(category, [...existing, tool]);
-  }
+  // CRITICAL: Must memoize Map creation to prevent new references on every render
+  const toolsByCategory = useMemo(() => {
+    const map = new Map<string, EffectiveTool[]>();
+    for (const tool of toolSet?.tools ?? []) {
+      const category = tool.tool.category ?? "uncategorized";
+      const existing = map.get(category) ?? [];
+      map.set(category, [...existing, tool]);
+    }
+    return map;
+  }, [toolSet?.tools]);
 
   return {
     // Data
