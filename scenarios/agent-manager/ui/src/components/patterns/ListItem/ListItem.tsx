@@ -39,13 +39,13 @@ export function ListItem({
   return (
     <div
       className={cn(
-        "flex items-center justify-between rounded-lg border p-3 transition-colors",
+        "flex items-center justify-between px-4 py-3 transition-colors border-b border-border last:border-b-0",
         onClick && "cursor-pointer",
         selected
-          ? "border-primary bg-primary/5"
+          ? "bg-primary/10 border-l-2 border-l-primary"
           : highlighted
-          ? "border-primary/50 bg-primary/5"
-          : "border-border hover:bg-muted/50",
+          ? "bg-primary/5"
+          : "hover:bg-muted/50",
         className
       )}
       onClick={onClick}

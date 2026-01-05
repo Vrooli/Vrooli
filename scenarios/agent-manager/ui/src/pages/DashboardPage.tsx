@@ -69,7 +69,7 @@ export function DashboardPage({
     .slice(0, 5);
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-10 space-y-6">
       {/* Header with refresh */}
       <div className="flex items-center justify-between">
         <div>
@@ -147,7 +147,7 @@ export function DashboardPage({
               Component status and availability
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-0">
             {(() => {
               const dependencies = health?.dependencies ?? {};
               const sandboxDep = parseDependency(dependencies["sandbox"]);
@@ -201,7 +201,7 @@ export function DashboardPage({
             </CardTitle>
             <CardDescription>Latest run executions</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <ScrollArea className="h-[280px]">
               {recentRuns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -210,7 +210,7 @@ export function DashboardPage({
                   <p className="text-xs">Create a task and start a run to see activity</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div>
                   {recentRuns.map((run) => (
                     <RunActivityItem
                       key={run.id}
@@ -238,14 +238,14 @@ export function DashboardPage({
               These runs have completed and need your approval before changes are applied
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="p-0">
+            <div>
               {pendingReview.map((run) => {
                 const task = tasks.find((t) => t.id === run.taskId);
                 return (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => onNavigateToRun?.(run.id)}
                     role="button"
                     tabIndex={0}
@@ -426,7 +426,7 @@ function HealthItem({
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card/50 p-3">
+    <div className="flex flex-col gap-2 px-4 py-3 border-b border-border last:border-b-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {available ? (
@@ -543,7 +543,7 @@ function RunActivityItem({
 
   return (
     <div
-      className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+      className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
       onClick={onClick}
       role="button"
       tabIndex={0}

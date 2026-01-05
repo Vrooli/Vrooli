@@ -15,7 +15,7 @@ import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
 export function StatsPage() {
   return (
     <TimeWindowProvider defaultPreset="24h">
-      <div className="space-y-6">
+      <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-10 space-y-6">
         {/* Header with controls */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

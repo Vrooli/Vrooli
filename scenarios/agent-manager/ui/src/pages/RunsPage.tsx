@@ -522,18 +522,9 @@ export function RunsPage({
     </DetailPanel>
   );
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Runs</h2>
-          <p className="text-sm text-muted-foreground">
-            Monitor executions and review changes
-          </p>
-        </div>
-      </div>
-
+  // Build header content with banners
+  const headerContent = (
+    <>
       {/* Active Investigation Banner */}
       {activeInvestigation && (activeInvestigation.status === "pending" || activeInvestigation.status === "running") && (
         <Card className="border-primary/50 bg-primary/5">
@@ -565,8 +556,16 @@ export function RunsPage({
           </CardContent>
         </Card>
       )}
+    </>
+  );
 
+  return (
+    <>
       <MasterDetailLayout
+        pageTitle="Runs"
+        pageSubtitle="Monitor executions and review changes"
+        storageKey="runs"
+        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedRun?.id ?? null}
@@ -586,7 +585,7 @@ export function RunsPage({
         loading={investigationLoading}
         error={investigationError}
       />
-    </div>
+    </>
   );
 }
 

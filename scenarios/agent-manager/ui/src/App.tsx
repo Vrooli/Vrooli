@@ -1,7 +1,5 @@
 import { useCallback, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { AlertCircle } from "lucide-react";
-import { Card, CardContent } from "./components/ui/card";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useIsMobile } from "./hooks/useViewportSize";
@@ -85,7 +83,7 @@ export default function App() {
 
   return (
     <QueryProvider>
-      <div className="min-h-screen bg-transparent text-foreground flex flex-col">
+      <div className="h-screen bg-transparent text-foreground flex flex-col overflow-hidden">
         <AppHeader
           health={health.data}
           wsStatus={ws.status}
@@ -112,22 +110,8 @@ export default function App() {
 
         {/* Main Content */}
         <main
-          className={`flex flex-1 flex-col gap-6 px-4 py-4 sm:px-6 lg:px-10 ${
-            isMobile ? "pb-20" : ""
-          }`}
+          className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "pb-16" : ""}`}
         >
-          {health.error && (
-            <Card className="border border-destructive/40 bg-destructive/10 text-sm">
-              <CardContent className="flex items-center gap-3 py-4">
-                <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
-                <div>
-                  <p className="font-semibold text-destructive">API Connection Error</p>
-                  <p className="text-xs text-destructive/80">{health.error}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Routes>
             <Route
               path="/"

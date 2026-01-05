@@ -579,28 +579,23 @@ export function TasksPage({
     </DetailPanel>
   );
 
+  // Build header content with error banner
+  const headerContent = error ? (
+    <Card className="border-destructive/50 bg-destructive/10">
+      <CardContent className="flex items-center gap-3 py-4">
+        <AlertCircle className="h-4 w-4 text-destructive" />
+        <p className="text-sm text-destructive">{error}</p>
+      </CardContent>
+    </Card>
+  ) : null;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Tasks</h2>
-          <p className="text-sm text-muted-foreground">
-            Define what needs to be done
-          </p>
-        </div>
-      </div>
-
-      {error && (
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardContent className="flex items-center gap-3 py-4">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
-          </CardContent>
-        </Card>
-      )}
-
+    <>
       <MasterDetailLayout
+        pageTitle="Tasks"
+        pageSubtitle="Define what needs to be done"
+        storageKey="tasks"
+        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedTaskId}
@@ -1275,6 +1270,6 @@ export function TasksPage({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
