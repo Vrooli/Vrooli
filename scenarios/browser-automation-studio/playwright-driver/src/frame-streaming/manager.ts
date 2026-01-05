@@ -31,6 +31,8 @@ import type {
   FrameStreamOptions,
   FrameStreamUpdateOptions,
   FrameStreamSettings,
+  FrameStreamViewportOptions,
+  FrameStreamViewportResult,
   SessionProvider,
 } from './types';
 
@@ -222,6 +224,71 @@ export function getFrameStreamSettings(sessionId: string): FrameStreamSettings |
     isStreaming: session.strategyHandle?.isActive() ?? false,
     perfMode: session.includePerfHeaders,
   };
+}
+
+/**
+ * Update viewport dimensions for an active frame streaming session.
+ * This may require restarting the screencast (for CDP strategy).
+ *
+ * @param sessionId - Session ID
+ * @param options - New viewport dimensions
+ * @returns Result of the viewport update operation
+ */
+export async function updateFrameStreamViewport(
+  sessionId: string,
+  options: FrameStreamViewportOptions
+): Promise<FrameStreamViewportResult> {
+  const session = sessions.get(sessionId);
+  if (!session || !session.strategyHandle?.isActive()) {
+    return { success: false, error: 'No active stream for session' };
+  }
+
+  // Check if viewport update is supported by the strategy
+  if (!session.strategyHandle.updateViewport) {
+    return { success: false, error: 'Viewport update not supported by strategy' };
+  }
+
+  // Check if an update is already pending
+  if (session.strategyHandle.isViewportUpdatePending?.()) {
+    return { success: false, skipped: true, error: 'Viewport update already pending' };
+  }
+
+  try {
+    await session.strategyHandle.updateViewport(options.width, options.height);
+
+    logger.info(scopedLog(LogContext.RECORDING, 'frame stream viewport updated'), {
+      sessionId,
+      viewport: options,
+      strategy: session.strategyName,
+    });
+
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    logger.error(scopedLog(LogContext.RECORDING, 'frame stream viewport update failed'), {
+      sessionId,
+      viewport: options,
+      error: message,
+    });
+
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Check if a viewport update is currently in progress for a session.
+ *
+ * @param sessionId - Session ID
+ * @returns true if viewport update is pending, false otherwise
+ */
+export function isViewportUpdatePending(sessionId: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session || !session.strategyHandle) {
+    return false;
+  }
+
+  return session.strategyHandle.isViewportUpdatePending?.() ?? false;
 }
 
 // =============================================================================

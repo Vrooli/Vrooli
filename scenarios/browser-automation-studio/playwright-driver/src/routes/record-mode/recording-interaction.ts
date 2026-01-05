@@ -16,6 +16,7 @@ import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger } from '../../utils';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../constants';
+import { updateFrameStreamViewport } from '../../frame-streaming';
 import type {
   NavigateRequest,
   NavigateResponse,
@@ -461,6 +462,7 @@ export async function handleRecordFrame(
 
 /**
  * Update viewport size for the active recording page.
+ * Also updates the frame streaming viewport to restart screencast at new dimensions.
  *
  * POST /session/:id/record/viewport
  */
@@ -484,16 +486,41 @@ export async function handleRecordViewport(
       return;
     }
 
+    const roundedWidth = Math.round(width);
+    const roundedHeight = Math.round(height);
+
+    // Update Playwright viewport
     await session.page.setViewportSize({
-      width: Math.round(width),
-      height: Math.round(height),
+      width: roundedWidth,
+      height: roundedHeight,
+    });
+
+    // Update frame streaming to restart screencast at new dimensions
+    // This is async but we don't need to wait for it - the UI will get updated frames
+    // when the screencast restarts. Fire and forget to keep response fast.
+    updateFrameStreamViewport(sessionId, {
+      width: roundedWidth,
+      height: roundedHeight,
+    }).then((result) => {
+      if (!result.success && !result.skipped) {
+        logger.warn('recording: frame stream viewport update failed', {
+          sessionId,
+          error: result.error,
+          viewport: { width: roundedWidth, height: roundedHeight },
+        });
+      }
+    }).catch((error) => {
+      logger.error('recording: frame stream viewport update error', {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
 
     const viewport = session.page.viewportSize();
     const response: ViewportResponse = {
       session_id: sessionId,
-      width: viewport?.width ?? Math.round(width),
-      height: viewport?.height ?? Math.round(height),
+      width: viewport?.width ?? roundedWidth,
+      height: viewport?.height ?? roundedHeight,
     };
 
     sendJson(res, 200, response);

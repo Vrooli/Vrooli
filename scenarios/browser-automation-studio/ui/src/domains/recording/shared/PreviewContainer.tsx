@@ -7,11 +7,21 @@
  * - Container bounds measurement with ResizeObserver
  * - Replay style settings synchronization
  * - Presentation model computation
- * - PresentationWrapper for styled/unstyled rendering
+ * - StablePreviewWrapper for styled/unstyled rendering (no remounts!)
  *
- * Content components passed as children are agnostic to whether replay styling
- * is enabled - they simply render their content and this container handles
- * the presentation wrapper.
+ * KEY ARCHITECTURAL DECISIONS:
+ *
+ * 1. Children always stay mounted: Unlike the previous implementation that used
+ *    conditional rendering (causing React to unmount/remount PlaywrightView),
+ *    this version uses StablePreviewWrapper which keeps children in a stable
+ *    DOM position regardless of replay style toggle.
+ *
+ * 2. Browser viewport is decoupled from display: The actual browser viewport
+ *    (sent to Playwright) is based on container bounds, NOT replay settings.
+ *    This prevents CDP screencast restarts when toggling replay style.
+ *
+ * 3. Display scaling is CSS-only: When replay style is enabled, the content
+ *    is visually scaled via CSS transforms, not by changing the browser viewport.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
@@ -22,7 +32,7 @@ import type { FrameStatsAggregated } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useReplaySettingsSync } from '@/domains/replay-style';
 import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
-import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
+import { StablePreviewWrapper } from './StablePreviewWrapper';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 
 export interface PreviewContainerProps {
@@ -66,6 +76,24 @@ export interface PreviewContainerProps {
   // Optional ref for viewport element
   viewportRef?: Ref<HTMLDivElement>;
 
+  /**
+   * Callback when browser viewport changes (container-based, stable).
+   * This is the viewport that should be sent to Playwright - it does NOT
+   * change when toggling replay style.
+   */
+  onBrowserViewportChange?: (viewport: { width: number; height: number }) => void;
+
+  /**
+   * Optional: Override browser viewport (e.g., from session profile).
+   * When set, this indicates the actual browser dimensions may differ from requested.
+   */
+  actualBrowserViewport?: { width: number; height: number } | null;
+
+  /**
+   * Whether viewport sync is in progress
+   */
+  isViewportSyncing?: boolean;
+
   // Additional class for the container
   className?: string;
 }
@@ -73,10 +101,26 @@ export interface PreviewContainerProps {
 export interface PreviewContainerContext {
   /** Current preview bounds (measured container size) */
   previewBounds: { width: number; height: number } | null;
-  /** Computed viewport dimensions for the browser */
-  activeViewport: { width: number; height: number };
+  /**
+   * Browser viewport - what Playwright uses (container-based, stable).
+   * Does NOT change when toggling replay style.
+   */
+  browserViewport: { width: number; height: number } | null;
+  /**
+   * Display viewport - how content is visually rendered.
+   * May differ from browserViewport when replay style is enabled (CSS scaling).
+   */
+  displayViewport: { width: number; height: number } | null;
   /** Whether presentation model is ready */
   isReady: boolean;
+}
+
+// Constants
+const MIN_DIMENSION = 320;
+const MAX_DIMENSION = 3840;
+
+function clampDimension(value: number): number {
+  return Math.min(MAX_DIMENSION, Math.max(MIN_DIMENSION, Math.round(value)));
 }
 
 export function PreviewContainer({
@@ -102,11 +146,17 @@ export function PreviewContainer({
   children,
   footer,
   viewportRef,
+  onBrowserViewportChange,
+  actualBrowserViewport,
+  isViewportSyncing,
   className,
 }: PreviewContainerProps) {
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
   const internalViewportRef = useRef<HTMLDivElement | null>(null);
   const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
+
+  // Track if this is the first render to avoid initial viewport change callback
+  const isFirstRenderRef = useRef(true);
 
   // Get replay settings from store
   const { replay, setReplaySetting } = useSettingsStore();
@@ -189,35 +239,75 @@ export function PreviewContainer({
     return () => observer.disconnect();
   }, []);
 
-  // Calculate viewport dimensions
-  const activeViewport = useMemo(() => {
-    if (!showReplayStyle && previewBounds) {
-      const width = Math.min(3840, Math.max(320, Math.round(previewBounds.width)));
-      const height = Math.min(3840, Math.max(320, Math.round(previewBounds.height)));
-      return { width, height };
-    }
-    const width = Math.min(3840, Math.max(320, Math.round(replay.presentationWidth)));
-    const height = Math.min(3840, Math.max(320, Math.round(replay.presentationHeight)));
-    return { width, height };
-  }, [previewBounds, replay.presentationHeight, replay.presentationWidth, showReplayStyle]);
+  /**
+   * Browser viewport: ALWAYS based on container bounds, NOT replay settings.
+   *
+   * This is the key architectural change. The browser viewport should be stable
+   * and not change when toggling replay style. This prevents:
+   * - CDP screencast restarts
+   * - Frame flickering
+   * - WebSocket subscription resets
+   */
+  const browserViewport = useMemo(() => {
+    if (!previewBounds) return null;
+    return {
+      width: clampDimension(previewBounds.width),
+      height: clampDimension(previewBounds.height),
+    };
+  }, [previewBounds]);
 
-  // Compute presentation model
+  // Notify parent when browser viewport changes (for syncing to Playwright)
+  useEffect(() => {
+    // Skip the first render to avoid initial viewport change callback
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      // Still call the callback on first render if we have bounds
+      if (browserViewport && onBrowserViewportChange) {
+        onBrowserViewportChange(browserViewport);
+      }
+      return;
+    }
+
+    if (browserViewport && onBrowserViewportChange) {
+      onBrowserViewportChange(browserViewport);
+    }
+  }, [browserViewport, onBrowserViewportChange]);
+
+  /**
+   * Display dimensions for the presentation model.
+   * When replay style is enabled, use the replay settings.
+   * When disabled, use the browser viewport (container-based).
+   *
+   * IMPORTANT: These dimensions only affect visual rendering (CSS),
+   * NOT the actual browser viewport.
+   */
+  const displayDimensions = useMemo(() => {
+    if (showReplayStyle) {
+      return {
+        width: clampDimension(replay.presentationWidth),
+        height: clampDimension(replay.presentationHeight),
+      };
+    }
+    // When unstyled, display matches browser viewport
+    return browserViewport ?? { width: 1280, height: 720 };
+  }, [showReplayStyle, replay.presentationWidth, replay.presentationHeight, browserViewport]);
+
+  // Compute presentation model for styled rendering
   const previewTitle = pageTitle || previewUrl || 'Preview';
   // Account for p-4 padding (16px each side = 32px) when replay style is shown
   const paddingOffset = showReplayStyle ? 32 : 0;
   const adjustedBounds = previewBounds
     ? { width: previewBounds.width - paddingOffset, height: previewBounds.height - paddingOffset }
     : undefined;
+
   const presentationModel = useReplayPresentationModel({
     style: styleOverrides,
     title: previewTitle,
-    canvasDimensions: { width: activeViewport.width, height: activeViewport.height },
-    viewportDimensions: activeViewport,
+    canvasDimensions: displayDimensions,
+    viewportDimensions: browserViewport ?? displayDimensions,
     presentationBounds: adjustedBounds,
     presentationFit: adjustedBounds ? 'contain' : 'none',
   });
-
-  const previewLayout = showReplayStyle ? presentationModel.layout : null;
 
   // Merge viewport refs
   const mergedViewportRef = useCallback(
@@ -231,6 +321,20 @@ export function PreviewContainer({
     },
     [viewportRef],
   );
+
+  // Check for dimension mismatch (browser profile override)
+  const hasDimensionMismatch = useMemo(() => {
+    if (!browserViewport || !actualBrowserViewport) return false;
+    const widthDiff = Math.abs(browserViewport.width - actualBrowserViewport.width);
+    const heightDiff = Math.abs(browserViewport.height - actualBrowserViewport.height);
+    return widthDiff > 5 || heightDiff > 5;
+  }, [browserViewport, actualBrowserViewport]);
+
+  // Overlay for watermark
+  const overlayNode = useMemo(() => {
+    if (!replay.watermark?.enabled) return null;
+    return <WatermarkOverlay settings={replay.watermark} />;
+  }, [replay.watermark]);
 
   return (
     <div className={clsx('flex flex-col h-full', className)}>
@@ -256,48 +360,40 @@ export function PreviewContainer({
         isSettingsPanelOpen={isSettingsPanelOpen}
         mode={mode}
         readOnly={readOnly}
+        // New props for viewport indicator
+        browserViewport={browserViewport}
+        actualBrowserViewport={actualBrowserViewport}
+        hasDimensionMismatch={hasDimensionMismatch}
+        isViewportSyncing={isViewportSyncing}
       />
 
       {/* Main content area */}
       <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
         <div
           className={clsx(
-            'h-full w-full flex',
+            'h-full w-full flex transition-colors duration-200',
             showReplayStyle ? 'bg-slate-950/95' : 'bg-transparent',
             showReplayStyle ? 'items-center justify-center p-4' : 'items-stretch justify-stretch',
           )}
         >
-          <div
-            style={
-              showReplayStyle && previewLayout
-                ? {
-                    width: previewLayout.display.width + previewLayout.contentInset.x * 2,
-                    height: previewLayout.display.height + previewLayout.contentInset.y * 2,
-                  }
-                : { width: '100%', height: '100%' }
-            }
-            className={clsx('relative', !showReplayStyle && 'h-full w-full')}
+          {/*
+           * StablePreviewWrapper: Children ALWAYS stay mounted!
+           *
+           * This is the key to preventing flickering. Unlike the previous
+           * conditional rendering approach, this wrapper keeps children
+           * in a stable DOM position regardless of showReplayStyle.
+           */}
+          <StablePreviewWrapper
+            showReplayStyle={showReplayStyle}
+            layout={presentationModel.layout}
+            backgroundDecor={presentationModel.backgroundDecor}
+            chromeDecor={presentationModel.chromeDecor}
+            deviceFrameDecor={presentationModel.deviceFrameDecor}
+            viewportRef={mergedViewportRef}
+            overlayNode={overlayNode}
           >
-            {showReplayStyle && previewLayout ? (
-              <div data-theme="dark" className="relative h-full w-full">
-                <ReplayPresentation
-                  model={presentationModel}
-                  viewportRef={mergedViewportRef}
-                  overlayNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
-                  containerClassName="h-full w-full"
-                  contentClassName="h-full w-full"
-                >
-                  <div className="h-full w-full">
-                    {children}
-                  </div>
-                </ReplayPresentation>
-              </div>
-            ) : (
-              <div className="h-full w-full">
-                {children}
-              </div>
-            )}
-          </div>
+            {children}
+          </StablePreviewWrapper>
         </div>
       </div>
 

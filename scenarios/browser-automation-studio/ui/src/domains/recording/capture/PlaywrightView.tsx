@@ -90,6 +90,10 @@ interface PlaywrightViewProps {
   onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
   /** Whether to hide the in-preview connection indicator (use when status is shown in header) */
   hideConnectionIndicator?: boolean;
+  /** Whether a viewport resize is in progress (from ViewportSyncManager) */
+  isResizing?: boolean;
+  /** Whether viewport sync is pending (awaiting backend acknowledgment) */
+  isViewportSyncing?: boolean;
 }
 
 /**
@@ -134,9 +138,13 @@ export function PlaywrightView({
   onContentRectChange,
   onConnectionStatusChange,
   hideConnectionIndicator = false,
+  isResizing = false,
+  isViewportSyncing = false,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Secondary canvas for double-buffering to prevent white flash during resize
+  const backBufferRef = useRef<HTMLCanvasElement | null>(null);
 
   // Store frame dimensions in ref to avoid re-renders on every frame
   // Only trigger re-render when dimensions actually change (for layout) or when we get first frame
@@ -393,7 +401,12 @@ export function PlaywrightView({
   isWsFrameActiveRef.current = isWsFrameActive;
 
   /**
-   * Draw a bitmap directly to canvas - bypasses Blob URL creation entirely.
+   * Draw a bitmap directly to canvas using double-buffering.
+   * This prevents white flash when canvas dimensions change by:
+   * 1. Drawing to off-screen back buffer
+   * 2. Only resizing main canvas after back buffer is ready
+   * 3. Copying from back buffer to main canvas in a single operation
+   *
    * This is significantly faster than creating/revoking Blob URLs per frame.
    */
   const drawFrameToCanvas = useCallback((bitmap: ImageBitmap) => {
@@ -403,14 +416,33 @@ export function PlaywrightView({
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return false;
 
-    // Resize canvas if needed (only when dimensions change)
-    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+    const dimensionsChanging = canvas.width !== bitmap.width || canvas.height !== bitmap.height;
+
+    if (dimensionsChanging) {
+      // Use double-buffering to prevent white flash during resize
+      // Create or get back buffer
+      if (!backBufferRef.current) {
+        backBufferRef.current = document.createElement("canvas");
+      }
+      const backBuffer = backBufferRef.current;
+      const backCtx = backBuffer.getContext("2d", { alpha: false });
+      if (!backCtx) return false;
+
+      // Resize and draw to back buffer first
+      backBuffer.width = bitmap.width;
+      backBuffer.height = bitmap.height;
+      backCtx.drawImage(bitmap, 0, 0);
+
+      // Now resize main canvas and copy from back buffer
+      // This is a single operation, minimizing the "blank" period
       canvas.width = bitmap.width;
       canvas.height = bitmap.height;
+      ctx.drawImage(backBuffer, 0, 0);
+    } else {
+      // No resize needed - draw directly for best performance
+      ctx.drawImage(bitmap, 0, 0);
     }
 
-    // Draw directly - no intermediate Blob URL needed
-    ctx.drawImage(bitmap, 0, 0);
     return true;
   }, []);
 
@@ -859,6 +891,20 @@ export function PlaywrightView({
             </svg>
             Switching tab…
           </div>
+        </div>
+      )}
+
+      {/* Resize transition overlay - shown during rapid resize to mask frame lag */}
+      {isResizing && hasFrame && (
+        <div className="absolute inset-0 bg-gray-100/30 dark:bg-gray-900/30 transition-opacity duration-150 z-5 pointer-events-none">
+          {/* Subtle overlay during resize - frames continue underneath */}
+        </div>
+      )}
+
+      {/* Viewport sync indicator - subtle visual feedback when backend is updating */}
+      {isViewportSyncing && hasFrame && !isResizing && (
+        <div className="absolute top-2 right-2 px-2 py-1 text-[10px] text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-gray-900/80 rounded shadow-sm z-5">
+          Syncing viewport…
         </div>
       )}
 

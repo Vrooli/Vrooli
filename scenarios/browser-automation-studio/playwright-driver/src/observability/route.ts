@@ -21,7 +21,6 @@ import {
   setRuntimeValue,
   resetRuntimeValue,
   getRuntimeConfigState,
-  type SetConfigResult,
 } from '../runtime-config';
 import { createObservabilityCollector, getObservabilityCache } from './index';
 import type {
@@ -34,12 +33,13 @@ import type {
   RecordingStats,
 } from './types';
 import { VERSION } from '../constants';
-import type {
-  RecordingDiagnosticResult,
-  DiagnosticIssue,
+import {
+  RecordingDiagnosticLevel,
   DiagnosticSeverity,
-  DiagnosticCheck,
-  EventFlowTestResult,
+  type RecordingDiagnosticResult,
+  type DiagnosticIssue,
+  type DiagnosticCheck,
+  type EventFlowTestResult,
 } from '../recording/diagnostics';
 import { runRecordingPipelineTest } from '../recording/self-test';
 
@@ -489,33 +489,47 @@ export async function handleDiagnosticsRun(
               error: error instanceof Error ? error.message : String(error),
             });
             // Return an error result instead of silently failing
+            const errorLevel = options?.level === 'full'
+              ? RecordingDiagnosticLevel.FULL
+              : options?.level === 'standard'
+                ? RecordingDiagnosticLevel.STANDARD
+                : RecordingDiagnosticLevel.QUICK;
             results.recording = {
               ready: false,
               timestamp: new Date().toISOString(),
               durationMs: 0,
-              level: options?.level || 'quick',
+              level: errorLevel,
               issues: [{
-                severity: 'error',
-                category: 'session',
+                severity: DiagnosticSeverity.ERROR,
+                code: 'DIAGNOSTIC_FAILED',
                 message: `Recording diagnostics failed: ${error instanceof Error ? error.message : String(error)}`,
                 suggestion: 'Check the browser console for JavaScript errors',
               }],
+              checks: [],
+              provider: { name: 'unknown', evaluateIsolated: false, exposeBindingIsolated: false },
             };
           }
         } else {
           // No sessions available - return a structured response
           logger.warn(scopedLog(LogContext.HEALTH, 'no sessions available for recording diagnostics'));
+          const noSessionLevel = options?.level === 'full'
+            ? RecordingDiagnosticLevel.FULL
+            : options?.level === 'standard'
+              ? RecordingDiagnosticLevel.STANDARD
+              : RecordingDiagnosticLevel.QUICK;
           results.recording = {
             ready: false,
             timestamp: new Date().toISOString(),
             durationMs: 0,
-            level: options?.level || 'quick',
+            level: noSessionLevel,
             issues: [{
-              severity: 'warning',
-              category: 'session',
+              severity: DiagnosticSeverity.WARNING,
+              code: 'NO_SESSIONS',
               message: 'No active browser sessions available for diagnostics',
               suggestion: 'Start a browser session first by navigating to a page',
             }],
+            checks: [],
+            provider: { name: 'unknown', evaluateIsolated: false, exposeBindingIsolated: false },
           };
         }
       }

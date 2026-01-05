@@ -124,6 +124,17 @@ export interface StreamingHandle {
   updateQuality?(quality: number): void;
   /** Update target FPS (polling only) */
   updateTargetFps?(fps: number): void;
+  /**
+   * Update viewport dimensions.
+   * For CDP screencast, this requires restarting the screencast.
+   * Returns a promise that resolves when the new viewport is active.
+   */
+  updateViewport?(width: number, height: number): Promise<void>;
+  /**
+   * Check if a viewport update is currently in progress.
+   * UI can use this to show a transition state.
+   */
+  isViewportUpdatePending?(): boolean;
 }
 
 /**

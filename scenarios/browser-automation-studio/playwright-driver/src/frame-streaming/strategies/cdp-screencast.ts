@@ -93,12 +93,17 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     let frameCount = 0;
     let ackFailures = 0;
     let currentQuality = config.quality;
+    let currentViewport = currentPage.viewportSize() ?? { width: 1280, height: 720 };
+    let viewportUpdatePending = false;
     let pageCheckInterval: ReturnType<typeof setInterval> | null = null;
 
     const { sessionId } = config;
 
-    // Helper to restart screencast on a new page
-    const restartScreencastOnPage = async (newPage: Page) => {
+    // Minimum change threshold to trigger restart (prevents rapid restarts during resize)
+    const VIEWPORT_CHANGE_THRESHOLD = 20; // pixels
+
+    // Helper to restart screencast on a new page or with new viewport
+    const restartScreencast = async (newPage: Page, newViewport?: { width: number; height: number }) => {
       // Stop old screencast
       try {
         await cdpSession.send('Page.stopScreencast');
@@ -114,7 +119,10 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       // Re-attach frame handler
       setupFrameHandler();
 
-      const viewport = newPage.viewportSize() ?? { width: 1280, height: 720 };
+      // Use provided viewport or get from page
+      const viewport = newViewport ?? newPage.viewportSize() ?? { width: 1280, height: 720 };
+      currentViewport = viewport;
+
       await cdpSession.send('Page.startScreencast', {
         format: 'jpeg',
         quality: currentQuality,
@@ -123,10 +131,17 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         everyNthFrame: 1,
       });
 
-      logger.info(scopedLog(LogContext.RECORDING, 'screencast restarted for new page'), {
+      logger.info(scopedLog(LogContext.RECORDING, 'screencast restarted'), {
         sessionId,
         frameCount,
+        viewport,
+        reason: newViewport ? 'viewport_update' : 'page_change',
       });
+    };
+
+    // Legacy wrapper for page changes (maintains existing API)
+    const restartScreencastOnPage = async (newPage: Page) => {
+      await restartScreencast(newPage);
     };
 
     // Check for page changes periodically
@@ -251,6 +266,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     return {
       getFrameCount: () => frameCount,
       isActive: () => isActive,
+      isViewportUpdatePending: () => viewportUpdatePending,
 
       updateQuality: (quality: number) => {
         currentQuality = quality;
@@ -261,6 +277,66 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
           quality,
           note: 'Takes effect on next screencast restart',
         });
+      },
+
+      updateViewport: async (width: number, height: number) => {
+        if (!isActive) return;
+
+        // Check if viewport change is significant enough to warrant restart
+        const widthDiff = Math.abs(width - currentViewport.width);
+        const heightDiff = Math.abs(height - currentViewport.height);
+
+        if (widthDiff < VIEWPORT_CHANGE_THRESHOLD && heightDiff < VIEWPORT_CHANGE_THRESHOLD) {
+          logger.debug(scopedLog(LogContext.RECORDING, 'viewport change below threshold, skipping restart'), {
+            sessionId,
+            current: currentViewport,
+            requested: { width, height },
+            threshold: VIEWPORT_CHANGE_THRESHOLD,
+          });
+          return;
+        }
+
+        // Prevent concurrent viewport updates
+        if (viewportUpdatePending) {
+          logger.debug(scopedLog(LogContext.RECORDING, 'viewport update already pending, skipping'), {
+            sessionId,
+            requested: { width, height },
+          });
+          return;
+        }
+
+        viewportUpdatePending = true;
+        const updateStart = performance.now();
+
+        try {
+          logger.info(scopedLog(LogContext.RECORDING, 'updating viewport'), {
+            sessionId,
+            from: currentViewport,
+            to: { width, height },
+          });
+
+          // Update Playwright viewport first
+          await currentPage.setViewportSize({ width, height });
+
+          // Restart screencast with new dimensions
+          await restartScreencast(currentPage, { width, height });
+
+          const updateMs = performance.now() - updateStart;
+          logger.info(scopedLog(LogContext.RECORDING, 'viewport update complete'), {
+            sessionId,
+            viewport: { width, height },
+            updateMs: updateMs.toFixed(2),
+          });
+        } catch (error) {
+          logger.error(scopedLog(LogContext.RECORDING, 'viewport update failed'), {
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+            requested: { width, height },
+          });
+          throw error;
+        } finally {
+          viewportUpdatePending = false;
+        }
       },
 
       stop: async () => {

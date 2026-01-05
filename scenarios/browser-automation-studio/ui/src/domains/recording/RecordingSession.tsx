@@ -43,6 +43,7 @@ import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
 import { PreviewSettingsPanel } from '@/domains/preview-settings';
+import { useViewportSyncManager } from './utils/ViewportSyncManager';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
@@ -259,7 +260,23 @@ export function RecordModePage({
   // Initialize previewUrl from template's initialUrl if provided
   const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
-  const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Viewport sync manager - handles debouncing, resize detection, and CDP screencast restart
+  // This centralizes viewport management so it doesn't change when toggling replay style
+  const viewportSync = useViewportSyncManager({
+    sessionId: sessionId ?? null,
+    debounceMs: 200,
+    resizeThresholdMs: 100,
+  });
+
+  // Handler for PreviewContainer's browser viewport changes
+  const handleBrowserViewportChange = useCallback((viewport: { width: number; height: number }) => {
+    // Update local state for session creation
+    setPreviewViewport(viewport);
+    // Update ViewportSyncManager for backend sync
+    viewportSync.updateFromBounds(viewport);
+  }, [viewportSync]);
+
   const autoStartedRef = useRef(false);
 
   // Stream settings for session creation (from shared context)
@@ -853,37 +870,11 @@ export function RecordModePage({
     };
   }, [sessionId, previewUrl, initialUrl]); // Note: isInitialNavigationComplete intentionally NOT in deps to avoid re-triggering navigation
 
-  useEffect(() => {
-    if (!sessionId || !previewViewport) {
-      return;
-    }
-
-    if (viewportSyncTimer.current) {
-      clearTimeout(viewportSyncTimer.current);
-    }
-
-    viewportSyncTimer.current = setTimeout(async () => {
-      try {
-        const config = await getConfig();
-        await fetch(`${config.API_URL}/recordings/live/${sessionId}/viewport`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            width: Math.round(previewViewport.width),
-            height: Math.round(previewViewport.height),
-          }),
-        });
-      } catch (err) {
-        console.warn('Failed to sync viewport to recording session', err);
-      }
-    }, 200);
-
-    return () => {
-      if (viewportSyncTimer.current) {
-        clearTimeout(viewportSyncTimer.current);
-      }
-    };
-  }, [previewViewport, sessionId]);
+  // NOTE: Viewport sync is centralized in RecordingSession via ViewportSyncManager.
+  // PreviewContainer measures bounds and calls handleBrowserViewportChange.
+  // The manager handles debouncing, resize detection, and CDP screencast restart.
+  // The browser viewport is decoupled from replay style - toggling replay style
+  // does NOT change the actual browser viewport, preventing flickering.
 
   // Auto-start recording when session is ready
   useEffect(() => {
@@ -1326,6 +1317,9 @@ export function RecordModePage({
                   placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
                   frameStats={recordingFrameStats}
                   mode="recording"
+                  // New viewport management props
+                  onBrowserViewportChange={handleBrowserViewportChange}
+                  isViewportSyncing={viewportSync.state.isSyncing}
                 >
                   <RecordPreviewPanel
                     previewUrl={previewUrl}
@@ -1333,7 +1327,10 @@ export function RecordModePage({
                     sessionId={sessionId}
                     activePageId={activePageId}
                     actions={actions}
-                    onViewportChange={setPreviewViewport}
+                    // New viewport architecture: viewport comes from PreviewContainer via ViewportSyncManager
+                    viewport={viewportSync.state.viewport}
+                    isResizing={viewportSync.state.isResizing}
+                    isViewportSyncing={viewportSync.state.isSyncing}
                     onConnectionStatusChange={setConnectionStatus}
                     hideConnectionIndicator={true}
                     onPageTitleChange={setRecordingPageTitle}

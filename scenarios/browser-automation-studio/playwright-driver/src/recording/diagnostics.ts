@@ -1049,7 +1049,7 @@ async function testEventFlow(
 
   // Pass if EITHER script is ready OR fetch path works
   // (Script status is the authoritative check, fetch is the actual event path test)
-  const passed = scriptReady || fetchWorks;
+  const passed = Boolean(scriptReady) || Boolean(fetchWorks);
 
   // Build error message for failures
   let errorMessage: string | undefined;

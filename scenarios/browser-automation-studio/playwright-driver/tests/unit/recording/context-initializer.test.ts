@@ -80,6 +80,31 @@ function createMockContext(): {
   return { context: mockContext, routeHandlers };
 }
 
+// Helper to create mock page with event listeners
+function createMockPage(): {
+  page: any;
+  pageListeners: Map<string, Array<(...args: unknown[]) => void>>;
+  pageRouteHandlers: Map<string, (route: Route) => Promise<void>>;
+} {
+  const pageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
+  const pageRouteHandlers = new Map<string, (route: Route) => Promise<void>>();
+
+  const mockPage = {
+    url: jest.fn().mockReturnValue('https://example.com'),
+    on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+      const handlers = pageListeners.get(event) || [];
+      handlers.push(handler);
+      pageListeners.set(event, handlers);
+    }),
+    off: jest.fn(),
+    route: jest.fn().mockImplementation(async (pattern: string, handler: (route: Route) => Promise<void>) => {
+      pageRouteHandlers.set(pattern, handler);
+    }),
+  };
+
+  return { page: mockPage, pageListeners, pageRouteHandlers };
+}
+
 describe('RecordingContextInitializer', () => {
   let initializer: RecordingContextInitializer;
 
@@ -667,6 +692,198 @@ describe('RecordingContextInitializer', () => {
       // Timeout should be reasonable (> 10s to handle slow servers)
       const fetchCall = (route.fetch as jest.Mock).mock.calls[0][0];
       expect(fetchCall.timeout).toBeGreaterThanOrEqual(10000);
+    });
+  });
+
+  describe('page navigation listener (route persistence fix)', () => {
+    /**
+     * CRITICAL: These tests verify the fix for page.route() loss after navigation.
+     *
+     * With rebrowser-playwright, page.route() handlers do NOT persist across navigation.
+     * After a page.goto() or link click, the event route is silently lost, and events
+     * stop flowing through the pipeline.
+     *
+     * The fix: Set up a 'load' event listener on each page that re-registers the
+     * event route after every navigation.
+     */
+
+    it('should set up navigation listener on existing pages during initialization', async () => {
+      const { page, pageListeners } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Should have set up page.route for event URL
+      expect(page.route).toHaveBeenCalled();
+
+      // Should have set up 'load' listener
+      expect(pageListeners.has('load')).toBe(true);
+    });
+
+    it('should set up navigation listener on new pages', async () => {
+      const contextPageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([]),
+        on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+          const handlers = contextPageListeners.get(event) || [];
+          handlers.push(handler);
+          contextPageListeners.set(event, handlers);
+        }),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Simulate new page creation
+      const { page, pageListeners } = createMockPage();
+      const pageHandler = contextPageListeners.get('page')?.[0];
+      expect(pageHandler).toBeDefined();
+
+      await pageHandler!(page);
+
+      // Should have set up page.route for event URL
+      expect(page.route).toHaveBeenCalled();
+
+      // Should have set up 'load' listener on new page
+      expect(pageListeners.has('load')).toBe(true);
+    });
+
+    it('should re-register event route when page load event fires', async () => {
+      const { page, pageListeners, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Initially, page.route should have been called once
+      const initialRouteCallCount = (page.route as jest.Mock).mock.calls.length;
+      expect(initialRouteCallCount).toBeGreaterThan(0);
+
+      // Simulate navigation by firing the 'load' event
+      const loadHandlers = pageListeners.get('load') || [];
+      expect(loadHandlers.length).toBeGreaterThan(0);
+
+      // Fire the load event
+      await loadHandlers[0]!();
+
+      // page.route should have been called again (force re-registration)
+      const afterLoadRouteCallCount = (page.route as jest.Mock).mock.calls.length;
+      expect(afterLoadRouteCallCount).toBeGreaterThan(initialRouteCallCount);
+    });
+
+    it('should NOT set up duplicate navigation listeners (idempotent)', async () => {
+      const { page, pageListeners } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Manually call setupPageNavigationListener again
+      initializer.setupPageNavigationListener(page);
+      initializer.setupPageNavigationListener(page);
+
+      // Should only have ONE 'load' listener despite multiple calls
+      const loadHandlers = pageListeners.get('load') || [];
+      expect(loadHandlers.length).toBe(1);
+    });
+
+    it('should handle navigation listener errors gracefully', async () => {
+      const pageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
+      let routeCallCount = 0;
+      const mockPage = {
+        url: jest.fn().mockReturnValue('https://example.com'),
+        on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+          const handlers = pageListeners.get(event) || [];
+          handlers.push(handler);
+          pageListeners.set(event, handlers);
+        }),
+        off: jest.fn(),
+        // First call succeeds (during initialization), subsequent calls fail (simulating navigation issue)
+        route: jest.fn().mockImplementation(async () => {
+          routeCallCount++;
+          if (routeCallCount > 1) {
+            throw new Error('Route setup failed');
+          }
+        }),
+      };
+
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([mockPage]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Should have set up 'load' listener
+      const loadHandlers = pageListeners.get('load') || [];
+      expect(loadHandlers.length).toBeGreaterThan(0);
+
+      // Fire the load event - should not throw even though route fails
+      await loadHandlers[0]!();
+
+      // Error should be logged
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('failed to re-register event route'),
+        expect.anything()
+      );
+    });
+  });
+
+  describe('setupPageEventRoute', () => {
+    it('should be idempotent by default (skip if already set up)', async () => {
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      const initialRouteCallCount = (page.route as jest.Mock).mock.calls.length;
+
+      // Call setupPageEventRoute again (without force)
+      await initializer.setupPageEventRoute(page, { force: false });
+
+      // Should NOT have called page.route again
+      expect((page.route as jest.Mock).mock.calls.length).toBe(initialRouteCallCount);
+    });
+
+    it('should re-register when force=true', async () => {
+      const { page } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      const initialRouteCallCount = (page.route as jest.Mock).mock.calls.length;
+
+      // Call setupPageEventRoute with force=true
+      await initializer.setupPageEventRoute(page, { force: true });
+
+      // Should have called page.route again
+      expect((page.route as jest.Mock).mock.calls.length).toBeGreaterThan(initialRouteCallCount);
     });
   });
 });

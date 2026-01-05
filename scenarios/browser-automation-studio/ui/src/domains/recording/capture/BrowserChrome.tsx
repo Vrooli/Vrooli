@@ -6,9 +6,14 @@
  *
  * The Replay Style and Settings buttons are always visible regardless of mode.
  * Frame stats are shown when live streaming (recording mode with showStats=true).
+ *
+ * Viewport indicator shows:
+ * - Current browser viewport dimensions
+ * - Warning when actual browser dimensions differ from requested (e.g., session profile override)
+ * - Sync status when viewport is being updated
  */
 
-import { Palette, SlidersHorizontal, PanelLeft } from 'lucide-react';
+import { Palette, SlidersHorizontal, PanelLeft, Monitor, AlertTriangle, Loader2 } from 'lucide-react';
 import { BrowserUrlBar } from './BrowserUrlBar';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
@@ -54,6 +59,16 @@ interface BrowserChromeProps {
   // Read-only (execution playback - disables URL editing)
   readOnly?: boolean;
 
+  // Viewport indicator props (Priority 3)
+  /** Current browser viewport dimensions (what we requested from Playwright) */
+  browserViewport?: { width: number; height: number } | null;
+  /** Actual browser dimensions (may differ due to session profile override) */
+  actualBrowserViewport?: { width: number; height: number } | null;
+  /** Whether there's a mismatch between requested and actual dimensions */
+  hasDimensionMismatch?: boolean;
+  /** Whether viewport sync is in progress */
+  isViewportSyncing?: boolean;
+
   // Additional class name
   className?: string;
 }
@@ -78,6 +93,10 @@ export function BrowserChrome({
   onSettingsClick,
   isSettingsPanelOpen = false,
   readOnly = false,
+  browserViewport,
+  actualBrowserViewport,
+  hasDimensionMismatch = false,
+  isViewportSyncing = false,
   className,
 }: BrowserChromeProps) {
   // In read-only mode, we don't allow navigation or refresh
@@ -128,6 +147,39 @@ export function BrowserChrome({
           targetFps={targetFps}
           debugStats={debugStats ?? null}
         />
+      )}
+
+      {/* Viewport indicator - shows current browser dimensions and sync status */}
+      {browserViewport && (
+        <div
+          className={clsx(
+            'flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-mono transition-colors',
+            hasDimensionMismatch
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+              : 'bg-gray-800/50 border border-gray-700/50 text-gray-400',
+          )}
+          title={
+            hasDimensionMismatch
+              ? `Browser using ${actualBrowserViewport?.width}x${actualBrowserViewport?.height} (session profile override)`
+              : `Browser viewport: ${browserViewport.width}x${browserViewport.height}`
+          }
+        >
+          {isViewportSyncing ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : hasDimensionMismatch ? (
+            <AlertTriangle size={12} />
+          ) : (
+            <Monitor size={12} />
+          )}
+          <span>
+            {hasDimensionMismatch && actualBrowserViewport
+              ? `${actualBrowserViewport.width}x${actualBrowserViewport.height}`
+              : `${browserViewport.width}x${browserViewport.height}`}
+          </span>
+          {hasDimensionMismatch && (
+            <span className="text-[10px] opacity-70">(profile)</span>
+          )}
+        </div>
       )}
 
       {/* Replay style toggle */}

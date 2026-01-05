@@ -7,11 +7,17 @@
  * The component:
  * - Renders PlaywrightView when a session and URL are active
  * - Renders StartRecordingState when no session/URL is active
+ * - Receives viewport from parent (PreviewContainer manages viewport state)
  * - Exposes metadata (pageTitle, frameStats) via callbacks for the parent to use
  * - Fills available space (h-full w-full)
+ *
+ * ARCHITECTURAL NOTE:
+ * Viewport management has been moved to PreviewContainer. This component now
+ * receives the viewport as a prop instead of managing its own ViewportSyncManager.
+ * This ensures the browser viewport stays stable during replay style toggles.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
 import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
@@ -26,8 +32,11 @@ interface RecordPreviewPanelProps {
   sessionId?: string | null;
   /** Active page ID for multi-tab sessions */
   activePageId?: string | null;
-  /** Callback when viewport size changes (for session creation) */
-  onViewportChange?: (size: { width: number; height: number }) => void;
+  /**
+   * Browser viewport dimensions (managed by PreviewContainer).
+   * This is the viewport that Playwright uses - stable during replay style toggles.
+   */
+  viewport?: { width: number; height: number } | null;
   /** Callback when stream connection status changes */
   onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
   /** Whether to hide the in-preview connection indicator (shown in header instead) */
@@ -38,6 +47,10 @@ interface RecordPreviewPanelProps {
   onFrameStatsChange?: (stats: FrameStats | null) => void;
   /** Refresh token - increment to trigger a page refresh */
   refreshToken?: number;
+  /** Whether the viewport is being resized (show resize indicator) */
+  isResizing?: boolean;
+  /** Whether viewport sync is in progress */
+  isViewportSyncing?: boolean;
 }
 
 export function RecordPreviewPanel({
@@ -46,12 +59,14 @@ export function RecordPreviewPanel({
   actions,
   sessionId,
   activePageId,
-  onViewportChange,
+  viewport,
   onConnectionStatusChange,
   hideConnectionIndicator = false,
   onPageTitleChange,
   onFrameStatsChange,
   refreshToken = 0,
+  isResizing = false,
+  isViewportSyncing = false,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -71,43 +86,6 @@ export function RecordPreviewPanel({
   // Stream settings (for quality/fps)
   const { settings: streamSettings } = useStreamSettings();
 
-  // Container ref for measuring available space
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
-
-  // Measure container for viewport sizing
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      const width = entry.contentRect.width;
-      const height = entry.contentRect.height;
-      if (width <= 0 || height <= 0) return;
-      setContainerSize({ width, height });
-    });
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  // Calculate viewport for PlaywrightView based on container size
-  const viewport = useMemo(() => {
-    if (!containerSize) return undefined;
-    return {
-      width: Math.min(3840, Math.max(320, Math.round(containerSize.width))),
-      height: Math.min(3840, Math.max(320, Math.round(containerSize.height))),
-    };
-  }, [containerSize]);
-
-  // Notify parent of viewport changes (for session creation)
-  useEffect(() => {
-    if (viewport) {
-      onViewportChange?.(viewport);
-    }
-  }, [viewport, onViewportChange]);
-
   // Frame statistics from PlaywrightView
   const handleStatsUpdate = useCallback((stats: FrameStats) => {
     onFrameStatsChange?.(stats);
@@ -118,20 +96,25 @@ export function RecordPreviewPanel({
     onPageTitleChange?.(metadata.title);
   }, [onPageTitleChange]);
 
+  // Convert viewport to the format PlaywrightView expects
+  const viewportForPlaywright = viewport ?? undefined;
+
   return (
-    <div ref={containerRef} className="h-full w-full">
+    <div className="h-full w-full">
       {sessionId && effectiveUrl ? (
         <PlaywrightView
           sessionId={sessionId}
           pageId={activePageId ?? undefined}
           refreshToken={refreshToken}
-          viewport={viewport}
+          viewport={viewportForPlaywright}
           quality={streamSettings.quality}
           fps={streamSettings.fps}
           onStatsUpdate={handleStatsUpdate}
           onPageMetadataChange={handlePageMetadataChange}
           onConnectionStatusChange={onConnectionStatusChange}
           hideConnectionIndicator={hideConnectionIndicator}
+          isResizing={isResizing}
+          isViewportSyncing={isViewportSyncing}
         />
       ) : (
         <StartRecordingState onNavigate={onPreviewUrlChange} />

@@ -55,6 +55,8 @@ export interface InjectionStats {
   failed: number;
   /** Number of requests skipped (non-HTML, non-document) */
   skipped: number;
+  /** Total injection requests (same as attempted, for convenience) */
+  total: number;
   /** Breakdown of injection methods used */
   methods: {
     head: number;
@@ -183,6 +185,7 @@ export class RecordingContextInitializer {
     successful: 0,
     failed: 0,
     skipped: 0,
+    total: 0,
     methods: {
       head: 0,
       HEAD: 0,
@@ -441,6 +444,7 @@ export class RecordingContextInitializer {
 
       // Track as successful injection
       this.injectionStats.attempted++;
+      this.injectionStats.total++;
       this.injectionStats.successful++;
       this.injectionStats.methods.head++;
     });
@@ -475,6 +479,7 @@ export class RecordingContextInitializer {
 
       // Track injection attempt
       this.injectionStats.attempted++;
+      this.injectionStats.total++;
 
       if (this.diagnosticsEnabled) {
         this.logger.debug(scopedLog(LogContext.INJECTION, 'intercepting document request'), {

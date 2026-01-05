@@ -56,6 +56,28 @@ export interface FrameStreamUpdateOptions {
 }
 
 /**
+ * Options for updating viewport dimensions.
+ */
+export interface FrameStreamViewportOptions {
+  /** New viewport width */
+  width: number;
+  /** New viewport height */
+  height: number;
+}
+
+/**
+ * Result of a viewport update operation.
+ */
+export interface FrameStreamViewportResult {
+  /** Whether the update was applied */
+  success: boolean;
+  /** Whether an update was pending (skipped) */
+  skipped?: boolean;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
  * Current frame stream settings.
  */
 export interface FrameStreamSettings {

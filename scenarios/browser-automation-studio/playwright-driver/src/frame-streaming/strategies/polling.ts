@@ -229,6 +229,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
     return {
       getFrameCount: () => frameCount,
       isActive: () => isActive,
+      isViewportUpdatePending: () => false, // Polling doesn't need to restart on viewport change
 
       updateQuality: (quality: number) => {
         currentQuality = Math.min(Math.max(quality, 1), 100);
@@ -252,6 +253,15 @@ export class PollingStrategy implements FrameStreamingStrategy {
             currentFps: getCurrentFps(fpsState),
           });
         }
+      },
+
+      // Polling strategy captures whatever the page shows, so no restart needed
+      // The Playwright viewport is updated separately, and the next capture will use it
+      updateViewport: async (_width: number, _height: number) => {
+        logger.debug(scopedLog(LogContext.RECORDING, 'polling viewport update (no-op, page handles it)'), {
+          sessionId,
+        });
+        // No-op for polling - the next frame capture will pick up the new viewport
       },
 
       stop: async () => {

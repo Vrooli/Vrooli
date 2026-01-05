@@ -57,6 +57,16 @@ export { usePerfStats } from './hooks/usePerfStats';
 export { useRecordModeLayout } from './hooks/useRecordModeLayout';
 export { useStorageState } from './hooks/useStorageState';
 export { useServiceWorkers } from './hooks/useServiceWorkers';
+export { useViewportState } from './hooks/useViewportState';
+export type {
+  ViewportState,
+  ViewportStateActions,
+  ViewportStateConfig,
+  ViewportDimensionInfo,
+  ViewportSyncStatus,
+  UseViewportStateReturn,
+  Dimensions as ViewportDimensions,
+} from './hooks/useViewportState';
 export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
 export type { UseStorageStateResult } from './hooks/useStorageState';
 export type {

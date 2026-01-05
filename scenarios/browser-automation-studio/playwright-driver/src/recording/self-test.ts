@@ -67,6 +67,7 @@ export interface PipelineTestResult {
  * Where in the pipeline the test failed.
  */
 export type PipelineFailurePoint =
+  | 'page_load'
   | 'navigation'
   | 'script_injection'
   | 'script_initialization'
@@ -411,7 +412,7 @@ export async function runRecordingPipelineTest(
   } = {}
 ): Promise<PipelineTestResult> {
   const {
-    timeoutMs = 30000,
+    timeoutMs: _timeoutMs = 30000, // Currently unused but reserved for future timeout handling
     captureConsole = true,
     serverBaseUrl,
   } = options;
