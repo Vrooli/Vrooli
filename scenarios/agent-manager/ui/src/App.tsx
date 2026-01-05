@@ -381,86 +381,39 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
     <div className="min-h-screen bg-transparent text-foreground">
       {/* Header */}
-      <div className="relative overflow-hidden border-b border-border/50 backdrop-blur-sm">
-        <div className="pointer-events-none absolute inset-0 opacity-40">
-          <div className="absolute -left-32 top-24 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
-          <div className="absolute -top-20 right-0 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
+      <header className="flex items-center justify-between gap-4 border-b border-border/50 px-6 py-3 sm:px-10">
+        <div className="flex items-center gap-3">
+          <Bot className="h-6 w-6 text-primary" />
+          <span className="text-lg font-semibold">Agent Manager</span>
+          <Badge
+            variant={statusVariant}
+            className="gap-1 cursor-pointer"
+            onClick={() => setStatusOpen(true)}
+            role="button"
+            tabIndex={0}
+            aria-label="Open status details"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setStatusOpen(true);
+              }
+            }}
+          >
+            {isHealthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+            {ws.status === "connected" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+            {statusText}
+          </Badge>
         </div>
-        <header className="z-10 px-6 pb-4 pt-8 sm:px-10">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Bot className="h-8 w-8 text-primary" />
-                <Badge className="uppercase tracking-wide" variant="secondary">
-                  Agent Manager
-                </Badge>
-                <Badge
-                  variant={statusVariant}
-                  className="gap-1 cursor-pointer"
-                  onClick={() => setStatusOpen(true)}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Open status details"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setStatusOpen(true);
-                    }
-                  }}
-                >
-                  {isHealthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                  {ws.status === "connected" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                  {statusText}
-                </Badge>
-              </div>
-              <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
-                AI Agent Orchestration & Control
-              </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                Manage agent profiles, create tasks, execute runs in sandboxed environments,
-                and review changes with approve/reject workflows.
-              </p>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="flex flex-wrap items-center gap-4">
-              <QuickStat
-                icon={<Settings2 className="h-4 w-4" />}
-                label="Profiles"
-                value={profiles.data?.length ?? 0}
-              />
-              <QuickStat
-                icon={<ClipboardList className="h-4 w-4" />}
-                label="Tasks"
-                value={tasks.data?.length ?? 0}
-              />
-              <QuickStat
-                icon={<Play className="h-4 w-4" />}
-                label="Runs"
-                value={runs.data?.length ?? 0}
-              />
-              <QuickStat
-                icon={<Activity className="h-4 w-4" />}
-                label="Active"
-                value={
-                  runs.data?.filter(
-                    (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
-                  ).length ?? 0
-                }
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSettingsOpen(true)}
-                className="gap-2"
-              >
-                <Settings2 className="h-4 w-4" />
-                Settings
-              </Button>
-            </div>
-          </div>
-        </header>
-      </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSettingsOpen(true)}
+          className="gap-2"
+        >
+          <Settings2 className="h-4 w-4" />
+          Settings
+        </Button>
+      </header>
 
       <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
         <DialogContent>
@@ -1127,25 +1080,6 @@ export default function App() {
   );
 }
 
-function QuickStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-card/50 px-4 py-2 border border-border/50">
-      <div className="text-muted-foreground">{icon}</div>
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 type EditableModelOption = { id: string; description: string };
 
