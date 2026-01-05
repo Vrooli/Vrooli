@@ -15,27 +15,29 @@ import (
 
 // Repositories holds all PostgreSQL repository implementations.
 type Repositories struct {
-	Profiles    repository.ProfileRepository
-	Tasks       repository.TaskRepository
-	Runs        repository.RunRepository
-	Events      repository.EventRepository
-	Checkpoints repository.CheckpointRepository
-	Idempotency repository.IdempotencyRepository
-	Policies    repository.PolicyRepository
-	Locks       repository.LockRepository
+	Profiles       repository.ProfileRepository
+	Tasks          repository.TaskRepository
+	Runs           repository.RunRepository
+	Events         repository.EventRepository
+	Checkpoints    repository.CheckpointRepository
+	Idempotency    repository.IdempotencyRepository
+	Policies       repository.PolicyRepository
+	Locks          repository.LockRepository
+	Investigations repository.InvestigationRepository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
 func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 	return &Repositories{
-		Profiles:    &profileRepository{db: db, log: log},
-		Tasks:       &taskRepository{db: db, log: log},
-		Runs:        &runRepository{db: db, log: log},
-		Events:      &eventRepository{db: db, log: log},
-		Checkpoints: &checkpointRepository{db: db, log: log},
-		Idempotency: &idempotencyRepository{db: db, log: log},
-		Policies:    &policyRepository{db: db, log: log},
-		Locks:       &lockRepository{db: db, log: log},
+		Profiles:       &profileRepository{db: db, log: log},
+		Tasks:          &taskRepository{db: db, log: log},
+		Runs:           &runRepository{db: db, log: log},
+		Events:         &eventRepository{db: db, log: log},
+		Checkpoints:    &checkpointRepository{db: db, log: log},
+		Idempotency:    &idempotencyRepository{db: db, log: log},
+		Policies:       &policyRepository{db: db, log: log},
+		Locks:          &lockRepository{db: db, log: log},
+		Investigations: &investigationRepository{db: db, log: log},
 	}
 }
 

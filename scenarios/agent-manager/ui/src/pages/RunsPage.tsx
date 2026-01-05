@@ -15,6 +15,7 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  Search,
   Square,
   Terminal,
   Trash2,
@@ -34,6 +35,7 @@ import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
+  CreateInvestigationRequest,
   RejectFormData,
   Run,
   RunDiff,
@@ -42,6 +44,8 @@ import type {
 } from "../types";
 import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
+import { useTriggerInvestigation, useActiveInvestigation } from "../hooks/useInvestigations";
+import { InvestigateModal } from "../components/InvestigateModal";
 
 interface RunsPageProps {
   runs: Run[];
@@ -97,6 +101,15 @@ export function RunsPage({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const finalResponse = getFinalResponse(events);
   const costTotals = getCostTotals(events);
+
+  // Multi-select state for investigations
+  const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
+  const [investigateModalOpen, setInvestigateModalOpen] = useState(false);
+
+  // Investigation hooks
+  const { trigger: triggerInvestigation, loading: investigationLoading, error: investigationError } = useTriggerInvestigation();
+  const { data: activeInvestigation, refetch: refetchActiveInvestigation } = useActiveInvestigation();
 
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
@@ -286,6 +299,47 @@ export function RunsPage({
     return bTime - aTime;
   });
 
+  // Multi-select handlers
+  const handleRunCheckboxChange = (runId: string, index: number, shiftKey: boolean) => {
+    setSelectedRunIds((prev) => {
+      const next = new Set(prev);
+
+      if (shiftKey && lastClickedIndex !== null) {
+        // Range selection
+        const start = Math.min(lastClickedIndex, index);
+        const end = Math.max(lastClickedIndex, index);
+        for (let i = start; i <= end; i++) {
+          next.add(sortedRuns[i].id);
+        }
+      } else {
+        // Toggle single selection
+        if (next.has(runId)) {
+          next.delete(runId);
+        } else {
+          next.add(runId);
+        }
+      }
+
+      return next;
+    });
+    setLastClickedIndex(index);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRunIds.size === sortedRuns.length) {
+      setSelectedRunIds(new Set());
+    } else {
+      setSelectedRunIds(new Set(sortedRuns.map((r) => r.id)));
+    }
+  };
+
+  const handleInvestigate = async (request: CreateInvestigationRequest) => {
+    await triggerInvestigation(request);
+    setInvestigateModalOpen(false);
+    setSelectedRunIds(new Set());
+    refetchActiveInvestigation();
+  };
+
   const getTaskTitle = (taskId: string) =>
     tasks.find((t) => t.id === taskId)?.title || "Unknown Task";
   const getProfileName = (profileId?: string) =>
@@ -301,11 +355,48 @@ export function RunsPage({
             Monitor executions and review changes
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedRunIds.size > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setInvestigateModalOpen(true)}
+              className="gap-2"
+              disabled={activeInvestigation !== null && (activeInvestigation.status === "pending" || activeInvestigation.status === "running")}
+            >
+              <Search className="h-4 w-4" />
+              Investigate ({selectedRunIds.size})
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Active Investigation Banner */}
+      {activeInvestigation && (activeInvestigation.status === "pending" || activeInvestigation.status === "running") && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-3">
+              <Search className="h-4 w-4 text-primary animate-pulse" />
+              <div>
+                <p className="text-sm font-medium">Investigation in progress</p>
+                <p className="text-xs text-muted-foreground">
+                  Analyzing {activeInvestigation.run_ids.length} run(s) - {activeInvestigation.progress}% complete
+                </p>
+              </div>
+            </div>
+            <div className="w-32 bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${activeInvestigation.progress}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Card className="border-destructive/50 bg-destructive/10">
@@ -320,10 +411,23 @@ export function RunsPage({
         {/* Runs List */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Play className="h-5 w-5" />
-              All Runs ({runs.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5" />
+                All Runs ({runs.length})
+              </CardTitle>
+              {sortedRuns.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedRunIds.size === sortedRuns.length && sortedRuns.length > 0}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  Select all
+                </label>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -339,13 +443,15 @@ export function RunsPage({
             ) : (
               <ScrollArea className="h-[500px]">
                 <div className="space-y-2">
-                  {sortedRuns.map((run) => (
+                  {sortedRuns.map((run, index) => (
                     <div
                       key={run.id}
                       className={cn(
                         "flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors",
                         selectedRun?.id === run.id
                           ? "border-primary bg-primary/5"
+                          : selectedRunIds.has(run.id)
+                          ? "border-primary/50 bg-primary/5"
                           : "border-border hover:bg-muted/50"
                       )}
                       onClick={() => {
@@ -363,6 +469,16 @@ export function RunsPage({
                       }}
                     >
                       <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRunIds.has(run.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleRunCheckboxChange(run.id, index, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        />
                         <RunStatusIcon status={run.status} />
                         <div>
                           <p className="font-medium text-sm">
@@ -787,6 +903,16 @@ export function RunsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Investigation Modal */}
+      <InvestigateModal
+        open={investigateModalOpen}
+        onOpenChange={setInvestigateModalOpen}
+        selectedRunIds={Array.from(selectedRunIds)}
+        onInvestigate={handleInvestigate}
+        loading={investigationLoading}
+        error={investigationError}
+      />
     </div>
   );
 }

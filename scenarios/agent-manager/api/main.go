@@ -41,14 +41,15 @@ type Config struct {
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config       *Config
-	db           *database.DB
-	logger       *logrus.Logger
-	router       *mux.Router
-	orchestrator orchestration.Service
-	wsHub        *handlers.WebSocketHub
-	reconciler   *orchestration.Reconciler
-	toolRegistry *toolregistry.Registry
+	config                 *Config
+	db                     *database.DB
+	logger                 *logrus.Logger
+	router                 *mux.Router
+	orchestrator           orchestration.Service
+	investigationService   orchestration.InvestigationService
+	wsHub                  *handlers.WebSocketHub
+	reconciler             *orchestration.Reconciler
+	toolRegistry           *toolregistry.Registry
 }
 
 // NewServer initializes configuration, database, and routes
@@ -92,14 +93,15 @@ func NewServer() (*Server, error) {
 	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
 
 	srv := &Server{
-		config:       cfg,
-		db:           db,
-		logger:       logger,
-		router:       mux.NewRouter(),
-		orchestrator: deps.orchestrator,
-		wsHub:        wsHub,
-		reconciler:   deps.reconciler,
-		toolRegistry: toolReg,
+		config:               cfg,
+		db:                   db,
+		logger:               logger,
+		router:               mux.NewRouter(),
+		orchestrator:         deps.orchestrator,
+		investigationService: deps.investigationService,
+		wsHub:                wsHub,
+		reconciler:           deps.reconciler,
+		toolRegistry:         toolReg,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -115,8 +117,9 @@ func NewServer() (*Server, error) {
 
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
-	orchestrator orchestration.Service
-	reconciler   *orchestration.Reconciler
+	orchestrator         orchestration.Service
+	investigationService orchestration.InvestigationService
+	reconciler           *orchestration.Reconciler
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
@@ -128,11 +131,12 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	// Create repositories
 	var (
-		profileRepo     repository.ProfileRepository
-		taskRepo        repository.TaskRepository
-		runRepo         repository.RunRepository
-		checkpointRepo  repository.CheckpointRepository
-		idempotencyRepo repository.IdempotencyRepository
+		profileRepo       repository.ProfileRepository
+		taskRepo          repository.TaskRepository
+		runRepo           repository.RunRepository
+		checkpointRepo    repository.CheckpointRepository
+		idempotencyRepo   repository.IdempotencyRepository
+		investigationRepo repository.InvestigationRepository
 	)
 
 	// Create event store - use PostgreSQL when database is available
@@ -149,6 +153,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		runRepo = repository.NewMemoryRunRepository()
 		checkpointRepo = repository.NewMemoryCheckpointRepository()
 		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
+		investigationRepo = repository.NewMemoryInvestigationRepository()
 	} else {
 		// PostgreSQL persistence
 		log.Printf("Using PostgreSQL persistence")
@@ -160,6 +165,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		runRepo = repos.Runs
 		checkpointRepo = repos.Checkpoints
 		idempotencyRepo = repos.Idempotency
+		investigationRepo = repos.Investigations
 	}
 
 	// Create runner registry
@@ -312,10 +318,14 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithReconcilerBroadcaster(wsHub),
 	)
 
+	// Create investigation service for self-investigation capabilities
+	investigationSvc := orchestration.NewInvestigationOrchestrator(orch, investigationRepo)
+
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
 	return orchestratorDeps{
-		orchestrator: orch,
-		reconciler:   reconciler,
+		orchestrator:         orch,
+		investigationService: investigationSvc,
+		reconciler:           reconciler,
 	}
 }
 
@@ -343,6 +353,13 @@ func (s *Server) setupRoutes() {
 	// Register all API routes via the handlers package
 	// WebSocket hub was created in NewServer and is shared with orchestrator
 	handler.RegisterRoutes(s.router)
+
+	// Register investigation routes
+	if s.investigationService != nil {
+		investigationHandler := handlers.NewInvestigationHandler(s.investigationService)
+		investigationHandler.RegisterRoutes(s.router)
+		log.Printf("Investigation endpoints available at /api/v1/investigations")
+	}
 
 	// Register tool discovery routes
 	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)

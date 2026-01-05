@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Play,
+  Search,
   Settings2,
   Wifi,
   WifiOff,
@@ -32,6 +33,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
+import { InvestigationsPage } from "./pages/InvestigationsPage";
 import type { ModelOption, ModelRegistry } from "./types";
 import { HealthStatus, RunStatus } from "./types";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
@@ -59,6 +61,7 @@ export default function App() {
     if (path.startsWith("/profiles")) return "profiles";
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
+    if (path.startsWith("/investigations")) return "investigations";
     return "dashboard";
   }, [location.pathname]);
 
@@ -974,7 +977,7 @@ export default function App() {
         )}
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-4">
+          <TabsList className="mb-6 grid w-full max-w-[750px] grid-cols-5">
             <TabsTrigger value="dashboard" className="gap-2">
               <Activity className="h-4 w-4" />
               Dashboard
@@ -990,6 +993,10 @@ export default function App() {
             <TabsTrigger value="runs" className="gap-2">
               <Play className="h-4 w-4" />
               Runs
+            </TabsTrigger>
+            <TabsTrigger value="investigations" className="gap-2">
+              <Search className="h-4 w-4" />
+              Investigations
             </TabsTrigger>
           </TabsList>
 
@@ -1078,6 +1085,14 @@ export default function App() {
                   wsUnsubscribe={ws.unsubscribe}
                   wsAddMessageHandler={ws.addMessageHandler}
                   wsRemoveMessageHandler={ws.removeMessageHandler}
+                />
+              }
+            />
+            <Route
+              path="/investigations/:investigationId?"
+              element={
+                <InvestigationsPage
+                  onViewRun={(runId) => navigate(`/runs/${runId}`)}
                 />
               }
             />

@@ -181,6 +181,32 @@ CREATE INDEX IF NOT EXISTS idx_scope_locks_scope ON scope_locks(scope_path, proj
 CREATE INDEX IF NOT EXISTS idx_scope_locks_expires ON scope_locks(expires_at);
 
 -- ============================================================================
+-- Investigations - Self-analysis of agent runs
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS investigations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    run_ids JSONB NOT NULL DEFAULT '[]',
+    status VARCHAR(50) DEFAULT 'pending',
+    analysis_type JSONB NOT NULL DEFAULT '{}',
+    report_sections JSONB NOT NULL DEFAULT '{}',
+    custom_context TEXT,
+    progress INTEGER DEFAULT 0,
+    agent_run_id UUID REFERENCES runs(id) ON DELETE SET NULL,
+    findings JSONB,
+    metrics JSONB,
+    error_message TEXT,
+    source_investigation_id UUID REFERENCES investigations(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status);
+CREATE INDEX IF NOT EXISTS idx_investigations_created_at ON investigations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_investigations_agent_run_id ON investigations(agent_run_id);
+CREATE INDEX IF NOT EXISTS idx_investigations_source_id ON investigations(source_investigation_id);
+
+-- ============================================================================
 -- Triggers for automatic updated_at
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

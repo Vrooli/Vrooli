@@ -119,3 +119,86 @@ export interface RejectFormData {
   actor?: string;
   reason?: string;
 }
+
+// Investigation types
+export type InvestigationStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface AnalysisType {
+  error_diagnosis: boolean;
+  efficiency_analysis: boolean;
+  tool_usage_patterns: boolean;
+}
+
+export interface ReportSections {
+  root_cause_evidence: boolean;
+  recommendations: boolean;
+  metrics_summary: boolean;
+}
+
+export interface Evidence {
+  run_id: string;
+  event_seq?: number;
+  description: string;
+  snippet?: string;
+}
+
+export interface RootCauseAnalysis {
+  description: string;
+  evidence: Evidence[];
+  confidence: "high" | "medium" | "low";
+}
+
+export interface Recommendation {
+  id: string;
+  priority: "critical" | "high" | "medium" | "low";
+  title: string;
+  description: string;
+  action_type: "prompt_change" | "profile_config" | "code_fix";
+}
+
+export interface InvestigationReport {
+  summary: string;
+  root_cause?: RootCauseAnalysis;
+  recommendations?: Recommendation[];
+}
+
+export interface MetricsData {
+  total_runs: number;
+  success_rate: number;
+  avg_duration_seconds: number;
+  total_tokens_used: number;
+  total_cost: number;
+  tool_usage_breakdown: Record<string, number>;
+  error_type_breakdown: Record<string, number>;
+  custom_metrics: Record<string, number>;
+}
+
+export interface Investigation {
+  id: string;
+  run_ids: string[];
+  status: InvestigationStatus;
+  analysis_type: AnalysisType;
+  report_sections: ReportSections;
+  custom_context?: string;
+  progress: number;
+  agent_run_id?: string;
+  findings?: InvestigationReport;
+  metrics?: MetricsData;
+  error_message?: string;
+  source_investigation_id?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface CreateInvestigationRequest {
+  run_ids: string[];
+  analysis_type: AnalysisType;
+  report_sections: ReportSections;
+  custom_context?: string;
+}
+
+export interface ApplyFixesRequest {
+  recommendation_ids: string[];
+  note?: string;
+}

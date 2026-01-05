@@ -207,3 +207,36 @@ CREATE TRIGGER IF NOT EXISTS update_policies_updated_at
 BEGIN
     UPDATE policies SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+
+-- ============================================================================
+-- Investigations - Self-analysis of agent runs
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS investigations (
+    id TEXT PRIMARY KEY,
+    run_ids TEXT NOT NULL DEFAULT '[]',
+    status TEXT DEFAULT 'pending',
+    analysis_type TEXT NOT NULL DEFAULT '{}',
+    report_sections TEXT NOT NULL DEFAULT '{}',
+    custom_context TEXT,
+    progress INTEGER DEFAULT 0,
+    agent_run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+    findings TEXT,
+    metrics TEXT,
+    error_message TEXT,
+    source_investigation_id TEXT REFERENCES investigations(id) ON DELETE SET NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    started_at TEXT,
+    completed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status);
+CREATE INDEX IF NOT EXISTS idx_investigations_created_at ON investigations(created_at);
+CREATE INDEX IF NOT EXISTS idx_investigations_agent_run_id ON investigations(agent_run_id);
+CREATE INDEX IF NOT EXISTS idx_investigations_source_id ON investigations(source_investigation_id);
+
+CREATE TRIGGER IF NOT EXISTS update_investigations_updated_at
+    AFTER UPDATE ON investigations
+    FOR EACH ROW
+BEGIN
+    UPDATE investigations SET created_at = created_at WHERE id = NEW.id;
+END;
