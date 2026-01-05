@@ -1,16 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   Bot,
-  Edit,
   Plus,
   RefreshCw,
   Settings2,
-  Trash2,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -23,13 +21,17 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
-import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 import { formatDate, runnerTypeLabel } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
 import { ModelPreset, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
+import { ProfileDetail } from "../components/ProfileDetail";
+
+import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
+import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
+import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
@@ -47,6 +49,18 @@ const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
   RunnerTypeEnum.CODEX,
   RunnerTypeEnum.OPENCODE,
+];
+
+const RUNNER_TYPE_FILTER_OPTIONS = [
+  { value: String(RunnerTypeEnum.CLAUDE_CODE), label: "Claude Code" },
+  { value: String(RunnerTypeEnum.CODEX), label: "Codex" },
+  { value: String(RunnerTypeEnum.OPENCODE), label: "OpenCode" },
+];
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
+  { value: "name", label: "Name A-Z" },
 ];
 
 const durationToMinutes = (duration: Duration | undefined): number => {
@@ -73,19 +87,6 @@ type ProfileFormState = ProfileFormData & {
   modelMode: ModelSelectionMode;
 };
 
-const modelPresetLabel = (preset?: ModelPreset) => {
-  switch (preset) {
-    case ModelPreset.FAST:
-      return "Fast";
-    case ModelPreset.CHEAP:
-      return "Cheap";
-    case ModelPreset.SMART:
-      return "Smart";
-    default:
-      return "";
-  }
-};
-
 export function ProfilesPage({
   profiles,
   loading,
@@ -101,7 +102,6 @@ export function ProfilesPage({
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
   };
 
-  // Helper to get models for a runner type from registry, fallback to capabilities
   const getModelsForRunner = (runnerType: RunnerType) => {
     const registry = getRegistryForRunner(runnerType);
     if (registry?.models?.length) {
@@ -115,6 +115,10 @@ export function ProfilesPage({
     return getRegistryForRunner(runnerType)?.presets ?? {};
   };
 
+  // Selection state
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
+  // Modal state
   const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AgentProfile | null>(null);
   const [formData, setFormData] = useState<ProfileFormState>({
@@ -133,6 +137,16 @@ export function ProfilesPage({
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Filter/sort/search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [runnerTypeFilter, setRunnerTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
+
+  const selectedProfile = useMemo(
+    () => profiles.find((p) => p.id === selectedProfileId) || null,
+    [profiles, selectedProfileId]
+  );
 
   const resetForm = () => {
     setFormData({
@@ -211,6 +225,9 @@ export function ProfilesPage({
     if (!confirm("Are you sure you want to delete this profile?")) return;
     try {
       await onDeleteProfile(id);
+      if (selectedProfileId === id) {
+        setSelectedProfileId(null);
+      }
     } catch (err) {
       console.error("Failed to delete profile:", err);
     }
@@ -240,6 +257,137 @@ export function ProfilesPage({
     });
   };
 
+  const filteredAndSortedProfiles = useMemo(() => {
+    let result = [...profiles];
+
+    if (runnerTypeFilter !== "all") {
+      const runnerType = Number(runnerTypeFilter) as RunnerType;
+      result = result.filter((p) => p.runnerType === runnerType);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query)
+      );
+    }
+
+    result.sort((a, b) => {
+      if (sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+      const aTime = a.createdAt ? new Date(a.createdAt.toString()).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
+      return sortBy === "newest" ? bTime - aTime : aTime - bTime;
+    });
+
+    return result;
+  }, [profiles, runnerTypeFilter, searchQuery, sortBy]);
+
+  const filters: FilterConfig[] = [
+    {
+      id: "runnerType",
+      label: "Filter by runner type",
+      value: runnerTypeFilter,
+      options: RUNNER_TYPE_FILTER_OPTIONS,
+      onChange: setRunnerTypeFilter,
+      allLabel: "All Runners",
+    },
+  ];
+
+  const listPanel = (
+    <ListPanel
+      title="Agent Profiles"
+      count={filteredAndSortedProfiles.length}
+      loading={loading}
+      headerActions={
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">New</span>
+          </Button>
+        </div>
+      }
+      toolbar={
+        <SearchToolbar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search profiles..."
+          filters={filters}
+          sortOptions={SORT_OPTIONS}
+          currentSort={sortBy}
+          onSortChange={setSortBy}
+        />
+      }
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Bot className="h-12 w-12 mb-3 opacity-50" />
+          <p className="font-medium">
+            {profiles.length === 0 ? "No Agent Profiles" : "No Matching Profiles"}
+          </p>
+          <p className="text-sm text-center mt-1">
+            {profiles.length === 0
+              ? "Create your first profile to get started"
+              : "Try adjusting your filters"}
+          </p>
+          {profiles.length === 0 && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="gap-2 mt-4"
+              size="sm"
+            >
+              <Plus className="h-4 w-4" />
+              Create Profile
+            </Button>
+          )}
+        </div>
+      }
+    >
+      {filteredAndSortedProfiles.map((profile) => (
+        <ListItem
+          key={profile.id}
+          selected={selectedProfileId === profile.id}
+          onClick={() => setSelectedProfileId(profile.id)}
+          icon={<Settings2 className="h-5 w-5 text-primary flex-shrink-0" />}
+          actions={
+            <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
+          }
+        >
+          <ListItemTitle>{profile.name}</ListItemTitle>
+          <ListItemSubtitle>
+            {profile.description || "No description"} | {formatDate(profile.createdAt)}
+          </ListItemSubtitle>
+        </ListItem>
+      ))}
+    </ListPanel>
+  );
+
+  const detailPanel = (
+    <DetailPanel
+      title="Profile Details"
+      hasSelection={!!selectedProfile}
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Settings2 className="h-12 w-12 mb-3 opacity-50" />
+          <p className="text-sm">Select a profile to view details</p>
+        </div>
+      }
+    >
+      {selectedProfile && (
+        <ProfileDetail
+          profile={selectedProfile}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+    </DetailPanel>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -249,16 +397,6 @@ export function ProfilesPage({
           <p className="text-sm text-muted-foreground">
             Configure how agents execute tasks
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setShowForm(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Profile
-          </Button>
         </div>
       </div>
 
@@ -270,6 +408,14 @@ export function ProfilesPage({
           </CardContent>
         </Card>
       )}
+
+      <MasterDetailLayout
+        listPanel={listPanel}
+        detailPanel={detailPanel}
+        selectedId={selectedProfileId}
+        onDeselect={() => setSelectedProfileId(null)}
+        detailTitle={selectedProfile?.name ?? "Profile Details"}
+      />
 
       {/* Create/Edit Profile Modal */}
       <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
@@ -493,98 +639,6 @@ export function ProfilesPage({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Profiles List */}
-      {loading ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Loading profiles...
-          </CardContent>
-        </Card>
-      ) : profiles.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Bot className="h-16 w-16 mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-1">No Agent Profiles</h3>
-            <p className="text-sm mb-4">Create your first profile to get started</p>
-            <Button onClick={() => setShowForm(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Profile
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <ScrollArea className="h-[600px]">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {profiles.map((profile) => (
-              <Card key={profile.id} className="relative">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Settings2 className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-base">{profile.name}</CardTitle>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        aria-label={`Edit ${profile.name}`}
-                        onClick={() => handleEdit(profile)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        aria-label={`Delete ${profile.name}`}
-                        onClick={() => handleDelete(profile.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <CardDescription className="line-clamp-2">
-                    {profile.description || "No description"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-                    {profile.modelPreset !== ModelPreset.UNSPECIFIED && (
-                        <Badge variant="outline" className="text-xs">
-                          Preset: {modelPresetLabel(profile.modelPreset)}
-                        </Badge>
-                      )}
-                    {profile.model && profile.model.trim() !== "" && (
-                      <Badge variant="outline" className="text-xs">
-                        {profile.model}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex gap-2 text-xs">
-                    {profile.requiresSandbox && (
-                      <Badge variant="outline" className="text-[10px]">Sandbox</Badge>
-                    )}
-                    {profile.requiresApproval && (
-                      <Badge variant="outline" className="text-[10px]">Approval</Badge>
-                    )}
-                    {profile.maxTurns && (
-                      <Badge variant="outline" className="text-[10px]">
-                        Max {profile.maxTurns} turns
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Created {formatDate(profile.createdAt)}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      )}
     </div>
   );
 }

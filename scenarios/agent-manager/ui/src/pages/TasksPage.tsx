@@ -8,14 +8,13 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
   Settings2,
   Trash2,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -28,12 +27,16 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
-import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
 import { formatRelativeTime, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
 import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+
+import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
+import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
+import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { TaskDetail } from "../components/TaskDetail";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -78,16 +81,6 @@ const taskStatusLabel = (status: TaskStatus): string => {
   }
 };
 
-const resolveModelMode = (model: string | undefined, preset: ModelPreset | undefined): ModelSelectionMode => {
-  if (preset !== undefined && preset !== ModelPreset.UNSPECIFIED) {
-    return "preset";
-  }
-  if (model && model.trim() !== "") {
-    return "model";
-  }
-  return "default";
-};
-
 const getModelId = (model: string | { id: string }): string => {
   return typeof model === "string" ? model : model.id;
 };
@@ -108,6 +101,22 @@ type ProfileFormState = ProfileFormData & {
   modelMode: ModelSelectionMode;
 };
 
+const STATUS_FILTER_OPTIONS = [
+  { value: String(TaskStatus.QUEUED), label: "Queued" },
+  { value: String(TaskStatus.RUNNING), label: "Running" },
+  { value: String(TaskStatus.NEEDS_REVIEW), label: "Needs Review" },
+  { value: String(TaskStatus.APPROVED), label: "Approved" },
+  { value: String(TaskStatus.REJECTED), label: "Rejected" },
+  { value: String(TaskStatus.FAILED), label: "Failed" },
+  { value: String(TaskStatus.CANCELLED), label: "Cancelled" },
+];
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
+  { value: "title", label: "Title A-Z" },
+];
+
 export function TasksPage({
   tasks,
   profiles,
@@ -127,7 +136,6 @@ export function TasksPage({
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
   };
 
-  // Helper to get models for a runner type from registry, fallback to capabilities
   const getModelsForRunner = (runnerType: RunnerType) => {
     const registry = getRegistryForRunner(runnerType);
     if (registry?.models?.length) {
@@ -140,10 +148,17 @@ export function TasksPage({
   const getPresetMapForRunner = (runnerType: RunnerType) => {
     return getRegistryForRunner(runnerType)?.presets ?? {};
   };
+
+  // Selection state
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  // Modal state
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState<TaskFormData>({
     title: "",
     description: "",
@@ -190,7 +205,12 @@ export function TasksPage({
   // Filter/sort/search state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
+  const [sortBy, setSortBy] = useState<string>("newest");
+
+  const selectedTask = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) || null,
+    [tasks, selectedTaskId]
+  );
 
   const resetForm = () => {
     setFormData({
@@ -252,7 +272,6 @@ export function TasksPage({
   const handleStartRun = async () => {
     if (!showRunDialog) return;
 
-    // Validate based on mode
     if (runConfigMode === "profile" && !selectedProfileId) return;
 
     setSubmitting(true);
@@ -264,7 +283,6 @@ export function TasksPage({
       if (runConfigMode === "profile") {
         request.agentProfileId = selectedProfileId;
       } else {
-        // Use inline config
         request.runnerType = inlineConfig.runnerType;
         if (inlineConfig.modelMode === "model" && inlineConfig.model.trim() !== "") {
           request.model = inlineConfig.model;
@@ -332,7 +350,6 @@ export function TasksPage({
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
         fallbackRunnerTypes: profileFormData.fallbackRunnerTypes ?? [],
       });
-      // Auto-select the new profile and switch to profile mode
       setSelectedProfileId(newProfile.id);
       setRunConfigMode("profile");
       resetProfileForm();
@@ -357,6 +374,9 @@ export function TasksPage({
     if (!confirm("Permanently delete this task? This cannot be undone.")) return;
     try {
       await onDeleteTask(taskId);
+      if (selectedTaskId === taskId) {
+        setSelectedTaskId(null);
+      }
     } catch (err) {
       console.error("Failed to delete task:", err);
     }
@@ -413,13 +433,11 @@ export function TasksPage({
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
 
-    // Filter by status
     if (statusFilter !== "all") {
       const statusValue = Number(statusFilter) as TaskStatus;
       result = result.filter((t) => t.status === statusValue);
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -429,7 +447,6 @@ export function TasksPage({
       );
     }
 
-    // Sort
     result.sort((a, b) => {
       const createdAtA = a.createdAt ? timestampMs(a.createdAt) : 0;
       const createdAtB = b.createdAt ? timestampMs(b.createdAt) : 0;
@@ -445,6 +462,123 @@ export function TasksPage({
     return result;
   }, [tasks, statusFilter, searchQuery, sortBy]);
 
+  const filters: FilterConfig[] = [
+    {
+      id: "status",
+      label: "Filter by status",
+      value: statusFilter,
+      options: STATUS_FILTER_OPTIONS,
+      onChange: setStatusFilter,
+      allLabel: "All Status",
+    },
+  ];
+
+  const listPanel = (
+    <ListPanel
+      title="Tasks"
+      count={filteredAndSortedTasks.length}
+      loading={loading}
+      headerActions={
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">New</span>
+          </Button>
+        </div>
+      }
+      toolbar={
+        <SearchToolbar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search tasks..."
+          filters={filters}
+          sortOptions={SORT_OPTIONS}
+          currentSort={sortBy}
+          onSortChange={setSortBy}
+        />
+      }
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <ClipboardList className="h-12 w-12 mb-3 opacity-50" />
+          <p className="font-medium">
+            {tasks.length === 0 ? "No Tasks" : "No Matching Tasks"}
+          </p>
+          <p className="text-sm text-center mt-1">
+            {tasks.length === 0
+              ? "Create your first task to get started"
+              : "Try adjusting your filters"}
+          </p>
+          {tasks.length === 0 && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="gap-2 mt-4"
+              size="sm"
+            >
+              <Plus className="h-4 w-4" />
+              Create Task
+            </Button>
+          )}
+        </div>
+      }
+    >
+      {filteredAndSortedTasks.map((task) => (
+        <ListItem
+          key={task.id}
+          selected={selectedTaskId === task.id}
+          onClick={() => setSelectedTaskId(task.id)}
+          icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+          actions={
+            <Badge
+              variant={
+                taskStatusLabel(task.status) as
+                  | "queued"
+                  | "running"
+                  | "needs_review"
+                  | "approved"
+                  | "rejected"
+                  | "failed"
+                  | "cancelled"
+              }
+            >
+              {taskStatusLabel(task.status).replace("_", " ")}
+            </Badge>
+          }
+        >
+          <ListItemTitle>{task.title}</ListItemTitle>
+          <ListItemSubtitle>
+            {task.scopePath} | {formatRelativeTime(task.createdAt)}
+          </ListItemSubtitle>
+        </ListItem>
+      ))}
+    </ListPanel>
+  );
+
+  const detailPanel = (
+    <DetailPanel
+      title="Task Details"
+      hasSelection={!!selectedTask}
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <ClipboardList className="h-12 w-12 mb-3 opacity-50" />
+          <p className="text-sm">Select a task to view details</p>
+        </div>
+      }
+    >
+      {selectedTask && (
+        <TaskDetail
+          task={selectedTask}
+          onEdit={handleEditTask}
+          onRun={(task) => setShowRunDialog(task)}
+          onCancel={handleCancel}
+          onDelete={handleDelete}
+        />
+      )}
+    </DetailPanel>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -454,16 +588,6 @@ export function TasksPage({
           <p className="text-sm text-muted-foreground">
             Define what needs to be done
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setShowForm(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Task
-          </Button>
         </div>
       </div>
 
@@ -476,44 +600,13 @@ export function TasksPage({
         </Card>
       )}
 
-      {/* Filter/Sort/Search */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search tasks"
-            className="h-9 pl-9"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter tasks by status"
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="all">All Status</option>
-          <option value={String(TaskStatus.QUEUED)}>Queued</option>
-          <option value={String(TaskStatus.RUNNING)}>Running</option>
-          <option value={String(TaskStatus.NEEDS_REVIEW)}>Needs Review</option>
-          <option value={String(TaskStatus.APPROVED)}>Approved</option>
-          <option value={String(TaskStatus.REJECTED)}>Rejected</option>
-          <option value={String(TaskStatus.FAILED)}>Failed</option>
-          <option value={String(TaskStatus.CANCELLED)}>Cancelled</option>
-        </select>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "title")}
-          aria-label="Sort tasks"
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="newest">Newest First</option>
-          <option value="oldest">Oldest First</option>
-          <option value="title">Title A-Z</option>
-        </select>
-      </div>
+      <MasterDetailLayout
+        listPanel={listPanel}
+        detailPanel={detailPanel}
+        selectedId={selectedTaskId}
+        onDeselect={() => setSelectedTaskId(null)}
+        detailTitle={selectedTask?.title ?? "Task Details"}
+      />
 
       {/* Create Task Modal */}
       <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
@@ -1182,126 +1275,6 @@ export function TasksPage({
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Tasks List */}
-      {loading ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Loading tasks...
-          </CardContent>
-        </Card>
-      ) : filteredAndSortedTasks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <ClipboardList className="h-16 w-16 mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-1">
-              {tasks.length === 0 ? "No Tasks" : "No Matching Tasks"}
-            </h3>
-            <p className="text-sm mb-4">
-              {tasks.length === 0
-                ? "Create your first task to get started"
-                : "Try adjusting your filters"}
-            </p>
-            {tasks.length === 0 && (
-              <Button onClick={() => setShowForm(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Task
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <ScrollArea className="h-[600px]">
-          <div className="space-y-4">
-            {filteredAndSortedTasks.map((task) => (
-              <Card key={task.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base">{task.title}</CardTitle>
-                        <Badge
-                          variant={
-                            taskStatusLabel(task.status) as
-                              | "queued"
-                              | "running"
-                              | "needs_review"
-                              | "approved"
-                              | "rejected"
-                              | "failed"
-                              | "cancelled"
-                          }
-                        >
-                          {taskStatusLabel(task.status).replace("_", " ")}
-                        </Badge>
-                      </div>
-                      <CardDescription className="line-clamp-2">
-                        {task.description || "No description provided"}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditTask(task)}
-                        className="gap-1"
-                        aria-label={`Edit ${task.title}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      {task.status === TaskStatus.QUEUED && (
-                        <>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setShowRunDialog(task)}
-                            className="gap-1"
-                          >
-                            <Play className="h-3 w-3" />
-                            Run
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCancel(task.id)}
-                            className="text-destructive hover:text-destructive"
-                            aria-label={`Cancel ${task.title}`}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                      {task.status === TaskStatus.CANCELLED && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(task.id)}
-                          className="text-destructive hover:text-destructive gap-1"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <FolderOpen className="h-4 w-4" />
-                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                        {task.scopePath}
-                      </code>
-                    </div>
-                    <span>Created {formatRelativeTime(task.createdAt)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      )}
     </div>
   );
 }

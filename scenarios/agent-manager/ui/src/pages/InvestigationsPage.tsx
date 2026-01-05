@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
-  ChevronRight,
   Clock,
   Eye,
   RefreshCw,
@@ -12,11 +11,9 @@ import {
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { ScrollArea } from "../components/ui/scroll-area";
+import { Card, CardContent } from "../components/ui/card";
 import { InvestigationReport } from "../components/InvestigationReport";
-import { cn } from "../lib/utils";
-import type { ApplyFixesRequest, Investigation } from "../types";
+import type { ApplyFixesRequest } from "../types";
 import {
   useInvestigations,
   useInvestigation,
@@ -25,9 +22,26 @@ import {
   useApplyFixes,
 } from "../hooks/useInvestigations";
 
+import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
+import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
+import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+
 interface InvestigationsPageProps {
   onViewRun?: (runId: string) => void;
 }
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "running", label: "Running" },
+  { value: "completed", label: "Completed" },
+  { value: "failed", label: "Failed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
+];
 
 export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
   const { investigationId } = useParams<{ investigationId?: string }>();
@@ -37,6 +51,11 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
   const { deleteInvestigation, loading: deleteLoading } = useDeleteInvestigation();
   const { stop: stopInvestigation, loading: stopLoading } = useStopInvestigation();
   const { applyFixes, loading: applyLoading } = useApplyFixes();
+
+  // Filter/sort/search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
 
   const handleSelect = (id: string) => {
     navigate(`/investigations/${id}`);
@@ -81,18 +100,199 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
-        return <Search className="h-5 w-5 text-success" />;
+        return <Search className="h-5 w-5 text-success flex-shrink-0" />;
       case "failed":
-        return <XCircle className="h-5 w-5 text-destructive" />;
+        return <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />;
       case "running":
       case "pending":
-        return <Search className="h-5 w-5 text-primary animate-pulse" />;
+        return <Search className="h-5 w-5 text-primary animate-pulse flex-shrink-0" />;
       case "cancelled":
-        return <XCircle className="h-5 w-5 text-muted-foreground" />;
+        return <XCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
       default:
-        return <Clock className="h-5 w-5 text-muted-foreground" />;
+        return <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
     }
   };
+
+  const filteredAndSortedInvestigations = useMemo(() => {
+    if (!investigations) return [];
+
+    let result = [...investigations];
+
+    if (statusFilter !== "all") {
+      result = result.filter((inv) => inv.status === statusFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((inv) =>
+        inv.id.toLowerCase().includes(query) ||
+        inv.run_ids.some((id) => id.toLowerCase().includes(query))
+      );
+    }
+
+    result.sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortBy === "newest" ? bTime - aTime : aTime - bTime;
+    });
+
+    return result;
+  }, [investigations, statusFilter, searchQuery, sortBy]);
+
+  const filters: FilterConfig[] = [
+    {
+      id: "status",
+      label: "Filter by status",
+      value: statusFilter,
+      options: STATUS_FILTER_OPTIONS,
+      onChange: setStatusFilter,
+      allLabel: "All Status",
+    },
+  ];
+
+  const listPanel = (
+    <ListPanel
+      title="All Investigations"
+      count={filteredAndSortedInvestigations.length}
+      loading={loading}
+      headerActions={
+        <Button variant="outline" size="sm" onClick={refetch}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      }
+      toolbar={
+        <SearchToolbar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search investigations..."
+          filters={filters}
+          sortOptions={SORT_OPTIONS}
+          currentSort={sortBy}
+          onSortChange={setSortBy}
+        />
+      }
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Search className="h-12 w-12 mb-3 opacity-50" />
+          <p className="font-medium">
+            {!investigations || investigations.length === 0 ? "No Investigations Yet" : "No Matching Investigations"}
+          </p>
+          <p className="text-sm text-center mt-1">
+            {!investigations || investigations.length === 0
+              ? 'Select runs and click "Investigate" to start'
+              : "Try adjusting your filters"}
+          </p>
+        </div>
+      }
+    >
+      {filteredAndSortedInvestigations.map((inv) => (
+        <ListItem
+          key={inv.id}
+          selected={investigationId === inv.id}
+          onClick={() => handleSelect(inv.id)}
+          icon={getStatusIcon(inv.status)}
+          actions={
+            <div className="flex items-center gap-1">
+              <Badge variant={getStatusVariant(inv.status)}>
+                {inv.status}
+              </Badge>
+              {inv.status === "running" || inv.status === "pending" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStop(inv.id);
+                  }}
+                  disabled={stopLoading}
+                  aria-label="Stop investigation"
+                >
+                  <XCircle className="h-3 w-3" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(inv.id);
+                  }}
+                  disabled={deleteLoading}
+                  aria-label="Delete investigation"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <ListItemTitle>
+            {inv.run_ids.length} Run{inv.run_ids.length !== 1 ? "s" : ""} Analyzed
+          </ListItemTitle>
+          <ListItemSubtitle>{formatDate(inv.created_at)}</ListItemSubtitle>
+        </ListItem>
+      ))}
+    </ListPanel>
+  );
+
+  const detailPanel = (
+    <DetailPanel
+      title="Investigation Details"
+      hasSelection={!!selectedInvestigation}
+      empty={
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Eye className="h-12 w-12 mb-3 opacity-50" />
+          <p className="text-sm">Select an investigation to view details</p>
+        </div>
+      }
+    >
+      {selectedInvestigation && (
+        selectedInvestigation.status === "running" || selectedInvestigation.status === "pending" ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Search className="h-12 w-12 mb-4 text-primary animate-pulse" />
+            <p className="text-sm font-medium">Investigation in progress</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {selectedInvestigation.progress}% complete
+            </p>
+            <div className="w-48 bg-muted rounded-full h-2 mt-4">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${selectedInvestigation.progress}%` }}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => handleStop(selectedInvestigation.id)}
+              disabled={stopLoading}
+            >
+              Stop Investigation
+            </Button>
+          </div>
+        ) : selectedInvestigation.status === "failed" ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <XCircle className="h-12 w-12 mb-4 text-destructive" />
+            <p className="text-sm font-medium">Investigation failed</p>
+            {selectedInvestigation.error_message && (
+              <p className="text-xs text-muted-foreground mt-2 text-center max-w-md">
+                {selectedInvestigation.error_message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <InvestigationReport
+            investigation={selectedInvestigation}
+            onApplyFixes={handleApplyFixes}
+            onViewRun={handleViewRun}
+            applyingFixes={applyLoading}
+          />
+        )
+      )}
+    </DetailPanel>
+  );
 
   return (
     <div className="space-y-6">
@@ -104,10 +304,6 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
             View analysis reports and apply recommendations
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
       </div>
 
       {error && (
@@ -119,158 +315,17 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Investigations List */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              All Investigations ({investigations?.length ?? 0})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Loading investigations...
-              </div>
-            ) : !investigations || investigations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Search className="h-12 w-12 mb-4 opacity-50" />
-                <p className="text-sm">No investigations yet</p>
-                <p className="text-xs">Select runs and click "Investigate" to start</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-2">
-                  {investigations.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className={cn(
-                        "flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors",
-                        investigationId === inv.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted/50"
-                      )}
-                      onClick={() => handleSelect(inv.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleSelect(inv.id);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {getStatusIcon(inv.status)}
-                        <div>
-                          <p className="font-medium text-sm">
-                            {inv.run_ids.length} Run{inv.run_ids.length !== 1 ? "s" : ""} Analyzed
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(inv.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getStatusVariant(inv.status)}>
-                          {inv.status}
-                        </Badge>
-                        {inv.status === "running" || inv.status === "pending" ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStop(inv.id);
-                            }}
-                            disabled={stopLoading}
-                          >
-                            <XCircle className="h-3 w-3" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(inv.id);
-                            }}
-                            disabled={deleteLoading}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Investigation Details */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              Investigation Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!selectedInvestigation ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Eye className="h-12 w-12 mb-4 opacity-50" />
-                <p className="text-sm">Select an investigation to view details</p>
-              </div>
-            ) : selectedInvestigation.status === "running" || selectedInvestigation.status === "pending" ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Search className="h-12 w-12 mb-4 text-primary animate-pulse" />
-                <p className="text-sm font-medium">Investigation in progress</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selectedInvestigation.progress}% complete
-                </p>
-                <div className="w-48 bg-muted rounded-full h-2 mt-4">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${selectedInvestigation.progress}%` }}
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => handleStop(selectedInvestigation.id)}
-                  disabled={stopLoading}
-                >
-                  Stop Investigation
-                </Button>
-              </div>
-            ) : selectedInvestigation.status === "failed" ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <XCircle className="h-12 w-12 mb-4 text-destructive" />
-                <p className="text-sm font-medium">Investigation failed</p>
-                {selectedInvestigation.error_message && (
-                  <p className="text-xs text-muted-foreground mt-2 text-center max-w-md">
-                    {selectedInvestigation.error_message}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <InvestigationReport
-                investigation={selectedInvestigation}
-                onApplyFixes={handleApplyFixes}
-                onViewRun={handleViewRun}
-                applyingFixes={applyLoading}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <MasterDetailLayout
+        listPanel={listPanel}
+        detailPanel={detailPanel}
+        selectedId={investigationId ?? null}
+        onDeselect={() => navigate("/investigations")}
+        detailTitle={
+          selectedInvestigation
+            ? `${selectedInvestigation.run_ids.length} Run${selectedInvestigation.run_ids.length !== 1 ? "s" : ""} Analyzed`
+            : "Investigation Details"
+        }
+      />
     </div>
   );
 }
