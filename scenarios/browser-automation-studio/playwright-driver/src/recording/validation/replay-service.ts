@@ -38,10 +38,10 @@ import {
   executeTimelineEntry,
   type ExecutorContext,
   type ActionReplayResult,
-} from './action-executor';
+} from '../action-executor';
 import { validateSelectorOnPage, type SelectorValidation } from './selector-service';
-import type { TimelineEntry } from '../proto/recording';
-import { createInFlightGuard, type InFlightGuard } from '../infra';
+import type { TimelineEntry } from '../../proto/recording';
+import { createInFlightGuard, type InFlightGuard } from '../../infra';
 
 // =============================================================================
 // Types

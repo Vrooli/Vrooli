@@ -12,13 +12,12 @@ import {
   RecordingDiagnosticLevel,
   DiagnosticSeverity,
   DIAGNOSTIC_CODES,
-} from '../../../src/recording/diagnostics';
-import type { InjectionStats } from '../../../src/recording/context-initializer';
-import type { InjectionVerification } from '../../../src/recording/verification';
+} from '../../../src/recording';
+import type { InjectionStats, InjectionVerification } from '../../../src/recording';
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 
 // Mock the verification module
-jest.mock('../../../src/recording/verification', () => ({
+jest.mock('../../../src/recording/validation/verification', () => ({
   verifyScriptInjection: jest.fn(),
 }));
 
@@ -35,7 +34,7 @@ jest.mock('../../../src/playwright', () => ({
 }));
 
 // Import the mocked function
-import { verifyScriptInjection } from '../../../src/recording/verification';
+import { verifyScriptInjection } from '../../../src/recording/validation/verification';
 
 const mockVerifyScriptInjection = verifyScriptInjection as jest.MockedFunction<
   typeof verifyScriptInjection

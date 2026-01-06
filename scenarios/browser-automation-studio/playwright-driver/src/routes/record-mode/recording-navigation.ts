@@ -16,7 +16,7 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger } from '../../utils';
-import { verifyScriptInjection } from '../../recording/verification';
+import { verifyScriptInjection } from '../../recording';
 import { clearFrameCache } from './recording-frames';
 import { captureThumbnail, emitHistoryCallback } from './recording-pages';
 import type {

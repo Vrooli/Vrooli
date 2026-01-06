@@ -37,7 +37,7 @@ import { executeViaHandler, hasHandlerForActionType, type ReplayContext } from '
 import { logger, LogContext, scopedLog } from '../utils';
 
 // Import SelectorValidation from canonical location (selector-service)
-import type { SelectorValidation } from './selector-service';
+import type { SelectorValidation } from './validation/selector-service';
 
 // Re-export types for consumers of this module
 export type { ActionErrorCode, SelectorError, SelectorValidation };

@@ -11,7 +11,7 @@
  */
 
 import { ActionType, isSelectorOptional } from '../proto/action-type-utils';
-import { adjustConfidenceForStrongType } from './selector-config';
+import { adjustConfidenceForStrongType } from './validation/selector-config';
 
 /** Default confidence when selector info is missing or incomplete */
 const DEFAULT_CONFIDENCE = 0.5;

@@ -15,7 +15,7 @@ import {
   type RecordingPipelineState,
   type RecordingTransition,
   type PipelineVerification,
-} from '../../../src/recording/state-machine';
+} from '../../../src/recording';
 
 describe('RecordingStateMachine', () => {
   describe('createInitialState', () => {

@@ -364,8 +364,10 @@ async function startWithStrategy(
 
   // Try to start the strategy
   try {
-    // Wait briefly for WebSocket to connect
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // NOTE: No artificial delay here. The strategy handles WebSocket readiness:
+    // - CDP screencast checks wsProvider.isReady() before sending frames
+    // - Frames are ACKed even when WS isn't ready (so Chrome keeps sending)
+    // - Early frames may be skipped, but streaming starts immediately
 
     session.strategyHandle = await strategy.start(
       pageProvider,

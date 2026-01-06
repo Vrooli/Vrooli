@@ -25,29 +25,29 @@ import {
   type PipelineError,
   type RecordingData,
 } from './state-machine';
-import type { RecordingContextInitializer } from './context-initializer';
-import { waitForScriptReady } from './verification';
+import type { RecordingContextInitializer } from '../io/context-initializer';
+import { waitForScriptReady } from '../validation/verification';
 import {
   rawBrowserEventToTimelineEntry,
   createNavigateTimelineEntry,
   type RawBrowserEvent,
   type TimelineEntry,
-} from '../proto/recording';
+} from '../../proto/recording';
 import {
   generateActivationScript,
   generateDeactivationScript,
-} from './init-script-generator';
-import { logger as defaultLogger, LogContext, scopedLog } from '../utils';
+} from '../capture/init-script-generator';
+import { logger as defaultLogger, LogContext, scopedLog } from '../../utils';
 import {
   LOOP_DETECTION_WINDOW_MS,
   LOOP_DETECTION_MAX_NAVIGATIONS,
-} from '../constants';
-import { validateSelectorOnPage, type SelectorValidation } from './selector-service';
+} from '../../constants';
+import { validateSelectorOnPage, type SelectorValidation } from '../validation/selector-service';
 import {
   ReplayPreviewService,
   type ReplayPreviewRequest,
   type ReplayPreviewResponse,
-} from './replay-service';
+} from '../validation/replay-service';
 
 // =============================================================================
 // Types
@@ -105,8 +105,8 @@ export interface PipelineManagerOptions {
 }
 
 // Re-export types for convenience
-export type { SelectorValidation } from './selector-service';
-export type { ReplayPreviewRequest, ReplayPreviewResponse } from './replay-service';
+export type { SelectorValidation } from '../validation/selector-service';
+export type { ReplayPreviewRequest, ReplayPreviewResponse } from '../validation/replay-service';
 
 // =============================================================================
 // Pipeline Manager

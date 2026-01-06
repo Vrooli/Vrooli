@@ -5,8 +5,7 @@
  * These types define the API contract between the backend and frontend.
  */
 
-import type { InjectionStats, RouteHandlerStats } from '../recording/context-initializer';
-import type { RecordingDiagnosticResult } from '../recording/diagnostics';
+import type { InjectionStats, RouteHandlerStats, RecordingDiagnosticResult } from '../recording';
 
 // =============================================================================
 // Core Types

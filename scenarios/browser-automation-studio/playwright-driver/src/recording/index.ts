@@ -9,15 +9,33 @@
  * │ FILE GUIDE - What to read based on what you're trying to do:           │
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │                                                                         │
- * │ UNDERSTANDING THE SYSTEM:                                               │
- * │   state-machine.ts        - Core state machine (single source of truth) │
- * │   pipeline-manager.ts     - Main orchestrator (start/stop, state)       │
- * │   context-initializer.ts  - Context-level setup (binding + init script) │
- * │   init-script-generator.ts- Generates init script for addInitScript()   │
- * │   action-executor.ts      - Proto-native action execution               │
- * │   replay-service.ts       - Replay preview for testing recorded entries │
- * │   selector-service.ts     - Selector validation on pages                │
- * │   ../proto/recording.ts   - Proto conversion (RawBrowserEvent→Timeline) │
+ * │ FOLDER STRUCTURE:                                                       │
+ * │   capture/           - Browser-side script injection                    │
+ * │     └─ init-script-generator.ts - Generates recording script            │
+ * │     └─ browser-scripts/         - Scripts injected into pages           │
+ * │   orchestration/     - Pipeline state and control                       │
+ * │     └─ state-machine.ts         - Core state machine                    │
+ * │     └─ pipeline-manager.ts      - Main orchestrator                     │
+ * │     └─ decisions.ts             - Named decision functions              │
+ * │   io/                - Data flow and context setup                      │
+ * │     └─ context-initializer.ts   - Context-level setup coordinator       │
+ * │     └─ html-injector.ts         - HTML injection route                  │
+ * │     └─ event-route.ts           - Page event interception               │
+ * │     └─ buffer.ts                - In-memory entry storage               │
+ * │   validation/        - Selectors, replay, verification                  │
+ * │     └─ selector-service.ts      - Selector validation                   │
+ * │     └─ selector-config.ts       - Selector scoring config               │
+ * │     └─ replay-service.ts        - Replay preview service                │
+ * │     └─ verification.ts          - Script injection verification         │
+ * │   testing/           - Diagnostics and self-testing                     │
+ * │     └─ self-test.ts             - Automated pipeline testing            │
+ * │     └─ diagnostics.ts           - Comprehensive diagnostics             │
+ * │                                                                         │
+ * │ ROOT FILES (shared utilities):                                          │
+ * │   types.ts           - Proto type re-exports and recording types        │
+ * │   action-executor.ts - Proto-native action execution                    │
+ * │   action-types.ts    - Action confidence calculation                    │
+ * │   handler-adapter.ts - Bridge replay to handlers                        │
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
  * │   1. packages/proto/schemas/.../action.proto - Add to ActionType enum   │
@@ -26,31 +44,29 @@
  * │      OR action-executor.ts - Add executor (if handler not suitable)     │
  * │                                                                         │
  * │ MODIFYING SELECTOR GENERATION:                                          │
- * │   1. selector-config.ts      - Configuration (scores, patterns)         │
- * │   2. browser-scripts/recording-script.js - Browser-side selector logic  │
- * │   3. selectors.ts            - Documentation only, not executable       │
- * │                                                                         │
- * │ MODIFYING ACTION BUFFERING:                                             │
- * │   buffer.ts        - In-memory TimelineEntry storage                    │
+ * │   1. validation/selector-config.ts     - Configuration (scores)         │
+ * │   2. capture/browser-scripts/*.js      - Browser-side logic             │
  * │                                                                         │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
  * ARCHITECTURE OVERVIEW (PROTO-FIRST + MAIN CONTEXT):
  *
- * Context Setup (once per context)    Recording Sessions (per session)
- * ┌───────────────────────────────┐   ┌─────────────────────────────────────┐
- * │  RecordingContextInitializer  │   │  RecordingPipelineManager           │
- * │  ├─ context.exposeBinding()   │   │  ├─ state-machine.ts (state)        │
- * │  └─ context.addInitScript()   │   │  ├─ startRecording() / stopRecording│
- * └───────────────────────────────┘   │  ├─ handleRawEvent()                │
- *                                      │  │   └─ rawBrowserEventToTimeline() │
- * Browser Page (MAIN context)         │  └─ verifyPipeline()                │
- * ┌─────────────────────────────┐     └───────────────┬─────────────────────┘
- * │ recording-script.js         │                     │
- * │ ├─ Listens for activation   │     ┌─────────────────────────────────────┐
- * │ ├─ Captures DOM events      │────▶│  buffer.ts (TimelineEntry storage)  │
- * │ ├─ Wraps History API        │     └─────────────────────────────────────┘
- * │ └─ Sends via exposeBinding  │
+ * Context Setup (once per context)        Recording Sessions (per session)
+ * ┌─────────────────────────────────┐     ┌─────────────────────────────────┐
+ * │  RecordingContextInitializer    │     │  RecordingPipelineManager       │
+ * │  ├─ io/html-injector.ts         │     │  ├─ orchestration/state-machine │
+ * │  │   └─ Inject script into HTML │     │  ├─ startRecording()/stop()     │
+ * │  └─ io/event-route.ts           │     │  ├─ handleRawEvent()            │
+ * │      └─ Page event interception │     │  │   └─ rawBrowserEventTo...()  │
+ * └─────────────────────────────────┘     │  └─ verifyPipeline()            │
+ *                                         └──────────────┬──────────────────┘
+ * Browser Page (MAIN context)                            │
+ * ┌─────────────────────────────┐     ┌─────────────────────────────────────┐
+ * │ capture/recording-script.js │     │  io/buffer.ts (TimelineEntry store) │
+ * │ ├─ Listens for activation   │     └─────────────────────────────────────┘
+ * │ ├─ Captures DOM events      │────▶ fetch POST to event route
+ * │ ├─ Wraps History API        │
+ * │ └─ Generates selectors      │
  * └─────────────────────────────┘
  */
 
@@ -107,7 +123,7 @@ export type {
   RecordingTransition,
   StateListener,
   RecordingStateMachine,
-} from './state-machine';
+} from './orchestration/state-machine';
 
 export {
   createRecordingStateMachine,
@@ -115,7 +131,7 @@ export {
   createInitialState,
   isValidTransition,
   RECOVERABLE_ERRORS,
-} from './state-machine';
+} from './orchestration/state-machine';
 
 // =============================================================================
 // PIPELINE MANAGER (Orchestration Layer)
@@ -124,14 +140,14 @@ export {
 export {
   RecordingPipelineManager,
   createRecordingPipelineManager,
-} from './pipeline-manager';
+} from './orchestration/pipeline-manager';
 
 export type {
   StartRecordingOptions as PipelineStartOptions,
   StopRecordingResult,
   VerifyPipelineOptions,
   PipelineManagerOptions,
-} from './pipeline-manager';
+} from './orchestration/pipeline-manager';
 
 // =============================================================================
 // ACTION EXECUTOR (Proto-Native)
@@ -167,23 +183,43 @@ export { calculateActionConfidence } from './action-types';
 // SELECTOR CONFIGURATION & SERVICE
 // =============================================================================
 
-export * from './selector-config';
-export * from './selector-service';
+export * from './validation/selector-config';
+export * from './validation/selector-service';
 
 // =============================================================================
 // CONTEXT INITIALIZATION (Recording Infrastructure)
 // =============================================================================
 
 // Context-level setup for recording (binding + init script)
+// The coordinator imports from specialized modules:
+//   - io/html-injector.ts - HTML injection into document responses
+//   - io/event-route.ts - Page-level event route setup
 export {
   RecordingContextInitializer,
   createRecordingContextInitializer,
-} from './context-initializer';
+} from './io/context-initializer';
 
 export type {
   RecordingEventHandler,
   RecordingContextOptions,
-} from './context-initializer';
+  InjectionStats,
+  RouteHandlerStats,
+  SanityCheckResult,
+} from './io/context-initializer';
+
+// Specialized modules (for advanced usage)
+export {
+  setupHtmlInjectionRoute,
+  injectScriptIntoHtml,
+  createInjectionStats,
+} from './io/html-injector';
+
+export {
+  createEventRouteManager,
+  createRouteHandlerStats,
+} from './io/event-route';
+
+export type { EventRouteManager } from './io/event-route';
 
 // Init script generation for context.addInitScript()
 export {
@@ -193,7 +229,7 @@ export {
   RECORDING_CONTROL_MESSAGE_TYPE,
   DEFAULT_RECORDING_BINDING_NAME,
   clearScriptCache,
-} from './init-script-generator';
+} from './capture/init-script-generator';
 
 // =============================================================================
 // REPLAY PREVIEW SERVICE
@@ -202,12 +238,12 @@ export {
 export {
   ReplayPreviewService,
   createReplayPreviewService,
-} from './replay-service';
+} from './validation/replay-service';
 
 export type {
   ReplayPreviewRequest,
   ReplayPreviewResponse,
-} from './replay-service';
+} from './validation/replay-service';
 
 // =============================================================================
 // BUFFER (TimelineEntry Storage)
@@ -222,7 +258,7 @@ export {
   removeRecordingBuffer,
   isEntryBuffered,
   getBufferStats,
-} from './buffer';
+} from './io/buffer';
 
 // =============================================================================
 // HANDLER ADAPTER (Bridge replay to handlers)
@@ -253,14 +289,15 @@ export {
   RecordingDiagnosticLevel,
   DiagnosticSeverity,
   DIAGNOSTIC_CODES,
-} from './diagnostics';
+} from './testing/diagnostics';
 
 export type {
   RecordingDiagnosticResult,
   DiagnosticIssue,
   DiagnosticOptions,
   EventFlowTestResult,
-} from './diagnostics';
+  DiagnosticCheck,
+} from './testing/diagnostics';
 
 // =============================================================================
 // VERIFICATION
@@ -270,11 +307,11 @@ export {
   verifyScriptInjection,
   assertScriptInjected,
   waitForScriptReady,
-} from './verification';
+} from './validation/verification';
 
 export type {
   InjectionVerification,
-} from './verification';
+} from './validation/verification';
 
 // =============================================================================
 // SELF-TEST (Automated Pipeline Testing)
@@ -285,7 +322,7 @@ export {
   runExternalUrlInjectionTest,
   TEST_PAGE_HTML,
   DEFAULT_TEST_URL,
-} from './self-test';
+} from './testing/self-test';
 
 export type {
   PipelineTestResult,
@@ -293,4 +330,4 @@ export type {
   PipelineStepResult,
   PipelineTestDiagnostics,
   ExternalUrlTestResult,
-} from './self-test';
+} from './testing/self-test';

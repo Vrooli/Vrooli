@@ -16,6 +16,10 @@ type TimelineService struct {
 	mu      sync.RWMutex
 }
 
+// duplicateNavigateThreshold is the time window for detecting duplicate navigate actions.
+// If two navigate actions to the same URL occur within this window, the second is skipped.
+const duplicateNavigateThreshold = 500 * time.Millisecond
+
 // NewTimelineService creates a new timeline service.
 func NewTimelineService() *TimelineService {
 	return &TimelineService{
@@ -24,6 +28,8 @@ func NewTimelineService() *TimelineService {
 }
 
 // AddAction adds a recorded action to the timeline.
+// It includes deduplication logic for navigate actions to prevent double-navigation
+// flickering when both the API and browser script capture the same navigation.
 func (s *TimelineService) AddAction(sessionID string, action *RecordedAction, pageID uuid.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -32,6 +38,28 @@ func (s *TimelineService) AddAction(sessionID string, action *RecordedAction, pa
 	ts, err := time.Parse(time.RFC3339Nano, action.Timestamp)
 	if err != nil {
 		ts = time.Now()
+	}
+
+	// Deduplication: Skip duplicate navigate actions to the same URL within threshold.
+	// This prevents double-navigation entries when both the Go API handler and browser
+	// script capture the same navigation event.
+	if action.ActionType == "navigate" && action.URL != "" {
+		entries := s.entries[sessionID]
+		// Check recent entries (last 5) for duplicate navigate to same URL
+		checkCount := 5
+		if len(entries) < checkCount {
+			checkCount = len(entries)
+		}
+		for i := len(entries) - 1; i >= len(entries)-checkCount && i >= 0; i-- {
+			existing := entries[i]
+			if existing.Action != nil &&
+				existing.Action.ActionType == "navigate" &&
+				existing.Action.URL == action.URL &&
+				ts.Sub(existing.Timestamp) < duplicateNavigateThreshold {
+				// Duplicate navigate action detected, skip it
+				return
+			}
+		}
 	}
 
 	// Create simplified action entry for timeline storage

@@ -19,7 +19,7 @@ import {
   getDynamicIdPatterns,
   getSemanticClassPatterns,
   serializeConfigForBrowser,
-} from '../../../src/recording/selector-config';
+} from '../../../src/recording';
 
 describe('Selector Configuration', () => {
   describe('SELECTOR_STRATEGIES', () => {

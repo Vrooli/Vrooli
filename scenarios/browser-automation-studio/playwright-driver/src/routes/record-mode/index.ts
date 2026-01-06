@@ -100,7 +100,7 @@ export {
 } from './recording-pages';
 
 // Cleanup utility
-import { removeRecordingBuffer } from '../../recording/buffer';
+import { removeRecordingBuffer } from '../../recording';
 import { clearFrameCache } from './recording-frames';
 import { clearNavigationState } from './recording-navigation';
 

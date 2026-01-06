@@ -29,9 +29,9 @@
  * See infra/session-cleanup-registry.ts for the cleanup pattern.
  */
 
-import type { TimelineEntry } from '../proto/recording';
-import { MAX_RECORDING_BUFFER_SIZE, logger } from '../utils';
-import { registerSessionCleanup } from '../infra';
+import type { TimelineEntry } from '../../proto/recording';
+import { MAX_RECORDING_BUFFER_SIZE, logger } from '../../utils';
+import { registerSessionCleanup } from '../../infra';
 
 // In-memory entry buffers keyed by session ID
 const entryBuffers = new Map<string, TimelineEntry[]>();

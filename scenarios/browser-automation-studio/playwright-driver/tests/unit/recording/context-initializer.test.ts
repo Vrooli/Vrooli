@@ -14,8 +14,8 @@ import {
   createRecordingContextInitializer,
   type InjectionStats,
   type RecordingEventHandler,
-} from '../../../src/recording/context-initializer';
-import type { RawBrowserEvent } from '../../../src/recording/types';
+  type RawBrowserEvent,
+} from '../../../src/recording';
 import type { BrowserContext, Route, Request, APIResponse } from 'rebrowser-playwright';
 
 // Mock logger

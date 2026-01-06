@@ -21,7 +21,7 @@ import {
   getTimelineEntries,
   getTimelineEntryCount,
   clearTimelineEntries,
-} from '../../recording/buffer';
+} from '../../recording';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
 import type {
   StartRecordingRequest,

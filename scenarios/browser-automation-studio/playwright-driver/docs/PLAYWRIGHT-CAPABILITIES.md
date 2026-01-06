@@ -451,8 +451,8 @@ pnpm add playwright
 
 - `src/playwright/types.ts` - Provider interface and capability types
 - `src/playwright/provider.ts` - Active provider configuration
-- `src/recording/context-initializer.ts` - HTML injection and route setup
-- `src/recording/diagnostics.ts` - Automated diagnostic system
-- `src/recording/verification.ts` - Script injection verification
-- `src/recording/browser-scripts/recording-script.js` - Browser-side capture
-- `src/recording/controller.ts` - Recording orchestration
+- `src/recording/io/context-initializer.ts` - HTML injection and route setup
+- `src/recording/testing/diagnostics.ts` - Automated diagnostic system
+- `src/recording/validation/verification.ts` - Script injection verification
+- `src/recording/capture/browser-scripts/recording-script.js` - Browser-side capture
+- `src/recording/orchestration/pipeline-manager.ts` - Recording orchestration

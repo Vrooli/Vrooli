@@ -8,8 +8,13 @@
  * - Coordinate mapping from screen space to viewport space
  * - WebSocket-based input delivery (low latency)
  * - HTTP fallback when WebSocket unavailable
- * - Move event throttling (100ms)
+ * - Move event throttling (16ms ~60fps for smooth cursor tracking)
  * - Multi-tab support via pageId
+ *
+ * IMPORTANT: Viewport dimensions must be provided for accurate coordinate mapping.
+ * If viewport is null/undefined, pointer events will NOT be forwarded to prevent
+ * incorrect cursor positions. This can happen briefly on initial render before
+ * the ResizeObserver fires.
  */
 
 import React, { useCallback, useRef } from 'react';
@@ -146,9 +151,18 @@ export function useInputForwarding({
     ) => {
       if (!hasFrame) return;
 
+      // CRITICAL: Don't forward pointer events if viewport dimensions are unknown.
+      // Without proper viewport dimensions, coordinate mapping will be incorrect
+      // (would return 0,0), causing cursor position inaccuracy.
+      if (!viewport?.width || !viewport?.height) {
+        return;
+      }
+
       if (action === 'move') {
         const now = performance.now();
-        if (now - lastMoveRef.current < 100) return; // throttle move (100ms)
+        // Throttle move events to ~60fps (16ms) for smooth cursor tracking
+        // while avoiding excessive network traffic
+        if (now - lastMoveRef.current < 16) return;
         lastMoveRef.current = now;
       }
 
@@ -166,7 +180,7 @@ export function useInputForwarding({
       e.preventDefault();
       e.stopPropagation();
     },
-    [getScaledPoint, sendInput]
+    [getScaledPoint, sendInput, viewport?.width, viewport?.height]
   );
 
   const handleWheel = useCallback(

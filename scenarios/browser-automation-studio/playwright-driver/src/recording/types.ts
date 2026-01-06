@@ -11,7 +11,7 @@
  * - Recording state types: Defined here (driver-specific, not in proto)
  */
 
-import { SELECTOR_DEFAULTS, getUnstableClassPatterns } from './selector-config';
+import { SELECTOR_DEFAULTS, getUnstableClassPatterns } from './validation/selector-config';
 
 // =============================================================================
 // PROTO TYPE RE-EXPORTS
@@ -68,7 +68,7 @@ export type {
   RecordingTransition,
   StateListener,
   RecordingStateMachine,
-} from './state-machine';
+} from './orchestration/state-machine';
 
 export {
   createRecordingStateMachine,
@@ -76,7 +76,7 @@ export {
   createInitialState,
   isValidTransition,
   RECOVERABLE_ERRORS,
-} from './state-machine';
+} from './orchestration/state-machine';
 
 // =============================================================================
 // RECORDING-SPECIFIC TYPES (driver-only, not in proto)

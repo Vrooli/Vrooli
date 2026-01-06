@@ -115,7 +115,7 @@ function createMockPipelineManager(overrides?: Partial<{
       config.isRecording ? { startedAt: config.startedAt } : undefined
     ),
     getState: jest.fn().mockReturnValue({
-      phase: config.isRecording ? 'recording' : config.phase,
+      phase: config.isRecording ? 'capturing' : config.phase,
       recording: config.isRecording ? {
         recordingId: config.recordingId,
         actionCount: config.actionCount,
@@ -131,6 +131,13 @@ function createMockPipelineManager(overrides?: Partial<{
       valid: true,
       matchCount: 1,
       selector: 'button#submit',
+    }),
+    getVerification: jest.fn().mockReturnValue({
+      loaded: true,
+      ready: true,
+      handlersCount: 10,
+      inMainContext: true,
+      version: '1.0.0',
     }),
   };
 }

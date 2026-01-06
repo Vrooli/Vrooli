@@ -7,7 +7,7 @@ import { ServiceWorkerController } from '../service-worker';
 import {
   RecordingContextInitializer,
   createRecordingContextInitializer,
-} from '../recording/context-initializer';
+} from '../recording';
 import {
   mergeWithPreset,
   resolveUserAgent,

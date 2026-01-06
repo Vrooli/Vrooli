@@ -9,20 +9,22 @@ The recording system uses a **proto-first architecture** where all events are co
 ### Two-Layer Design
 
 ```
-Context Setup (once per context)    Recording Sessions (per session)
-┌───────────────────────────────┐   ┌─────────────────────────────────────┐
-│  RecordingContextInitializer  │   │  RecordingPipelineManager           │
-│  ├─ context.exposeBinding()   │   │  ├─ state-machine.ts (state)        │
-│  └─ context.addInitScript()   │   │  ├─ startRecording() / stopRecording│
-└───────────────────────────────┘   │  ├─ handleRawEvent()                │
-                                    │  │   └─ rawBrowserEventToTimeline() │
-Browser Page (MAIN context)         │  └─ verifyPipeline()                │
-┌─────────────────────────────┐     └───────────────┬─────────────────────┘
-│ recording-script.js         │                     │
-│ ├─ Listens for activation   │     ┌─────────────────────────────────────┐
-│ ├─ Captures DOM events      │────▶│  buffer.ts (TimelineEntry storage)  │
-│ ├─ Wraps History API        │     └─────────────────────────────────────┘
-│ └─ Sends via exposeBinding  │
+Context Setup (once per context)        Recording Sessions (per session)
+┌─────────────────────────────────┐     ┌─────────────────────────────────┐
+│  RecordingContextInitializer    │     │  RecordingPipelineManager       │
+│  ├─ html-injector.ts            │     │  ├─ state-machine.ts (state)    │
+│  │   └─ Inject script into HTML │     │  ├─ startRecording()/stop()     │
+│  └─ event-route.ts              │     │  ├─ handleRawEvent()            │
+│      └─ Page event interception │     │  │   └─ rawBrowserEventTo...()  │
+└─────────────────────────────────┘     │  └─ verifyPipeline()            │
+                                        └──────────────┬──────────────────┘
+Browser Page (MAIN context)                            │
+┌─────────────────────────────┐     ┌─────────────────────────────────────┐
+│ recording-script.js         │     │  buffer.ts (TimelineEntry storage)  │
+│ ├─ Listens for activation   │     └─────────────────────────────────────┘
+│ ├─ Captures DOM events      │────▶ fetch POST to event route
+│ ├─ Wraps History API        │
+│ └─ Generates selectors      │
 └─────────────────────────────┘
 ```
 
@@ -34,7 +36,10 @@ Browser Page (MAIN context)         │  └─ verifyPipeline()                
 |------|---------|
 | `state-machine.ts` | Core state machine (single source of truth for recording state) |
 | `pipeline-manager.ts` | Main orchestrator (start/stop, state transitions, event handling) |
-| `context-initializer.ts` | Context-level setup (binding + init script injection) |
+| `context-initializer.ts` | Context-level setup coordinator |
+| `html-injector.ts` | HTML injection into document responses (sub-module of context-initializer) |
+| `event-route.ts` | Page-level event route setup (sub-module of context-initializer) |
+| `decisions.ts` | Named decision functions (inject? process?) for debuggability |
 | `init-script-generator.ts` | Generates init script for `context.addInitScript()` |
 | `action-executor.ts` | Proto-native action execution for replay |
 | `replay-service.ts` | Replay preview for testing recorded entries |
@@ -83,12 +88,17 @@ const result = await pipelineManager.stopRecording();
 
 ### RecordingContextInitializer (`context-initializer.ts`)
 
-**Responsibility:** One-time context setup for recording infrastructure.
+**Responsibility:** Coordinates one-time context setup for recording infrastructure.
 
-Sets up:
-- `context.exposeBinding()` - Creates bridge for browser → Node.js events
-- `context.addInitScript()` - Injects recording script into every page
-- Route interception for HTML injection (rebrowser-playwright workaround)
+This is a coordinator that composes specialized modules:
+
+- **`html-injector.ts`** - Intercepts document requests and injects recording script into HTML
+- **`event-route.ts`** - Sets up page-level routes for event interception
+
+Why this architecture:
+- `rebrowser-playwright` doesn't intercept fetch/XHR via `context.route()` (only navigation)
+- Recording script must run in MAIN context (not isolated) for History API wrapping
+- Page routes don't persist across navigation (need re-registration)
 
 ### Recording Script (`browser-scripts/recording-script.js`)
 

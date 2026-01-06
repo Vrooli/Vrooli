@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { TEST_PAGE_HTML, DEFAULT_TEST_URL } from '../../../src/recording/self-test';
+import { TEST_PAGE_HTML, DEFAULT_TEST_URL } from '../../../src/recording';
 
 describe('Recording Self-Test Module', () => {
   describe('TEST_PAGE_HTML', () => {

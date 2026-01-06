@@ -39,10 +39,10 @@
 
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type winston from 'winston';
-import { verifyScriptInjection, type InjectionVerification } from './verification';
-import type { RecordingContextInitializer, InjectionStats } from './context-initializer';
-import { playwrightProvider } from '../playwright';
-import { logger as defaultLogger, LogContext, scopedLog } from '../utils';
+import { verifyScriptInjection, type InjectionVerification } from '../validation/verification';
+import type { RecordingContextInitializer, InjectionStats } from '../io/context-initializer';
+import { playwrightProvider } from '../../playwright';
+import { logger as defaultLogger, LogContext, scopedLog } from '../../utils';
 
 // =============================================================================
 // Types

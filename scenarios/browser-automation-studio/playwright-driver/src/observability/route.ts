@@ -38,10 +38,10 @@ import {
   DiagnosticSeverity,
   type RecordingDiagnosticResult,
   type DiagnosticIssue,
-  type DiagnosticCheck,
   type EventFlowTestResult,
-} from '../recording/diagnostics';
-import { runRecordingPipelineTest } from '../recording/self-test';
+  type DiagnosticCheck,
+  runRecordingPipelineTest,
+} from '../recording';
 
 // =============================================================================
 // UI-Compatible Types
@@ -466,7 +466,7 @@ export async function handleDiagnosticsRun(
         if (targetSessionId) {
           try {
             const session = deps.sessionManager.getSession(targetSessionId);
-            const { runRecordingDiagnostics, RecordingDiagnosticLevel } = await import('../recording/diagnostics');
+            const { runRecordingDiagnostics, RecordingDiagnosticLevel } = await import('../recording');
 
             const level = options?.level === 'full'
               ? RecordingDiagnosticLevel.FULL

@@ -31,12 +31,12 @@
  */
 
 import type { Page, BrowserContext } from 'rebrowser-playwright';
-import type { RecordingContextInitializer } from './context-initializer';
-import type { RecordingPipelineManager } from './pipeline-manager';
-import type { TimelineEntry } from '../proto/recording';
-import { ActionType } from '../proto/recording';
-import { logger, scopedLog, LogContext } from '../utils';
-import { verifyScriptInjection } from './verification';
+import type { RecordingContextInitializer } from '../io/context-initializer';
+import type { RecordingPipelineManager } from '../orchestration/pipeline-manager';
+import type { TimelineEntry } from '../../proto/recording';
+import { ActionType } from '../../proto/recording';
+import { logger, scopedLog, LogContext } from '../../utils';
+import { verifyScriptInjection } from '../validation/verification';
 
 // =============================================================================
 // Types

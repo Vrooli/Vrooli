@@ -1,6 +1,5 @@
 import type { Page, BrowserContext, Browser, Frame } from 'rebrowser-playwright';
-import type { RecordingContextInitializer } from '../recording/context-initializer';
-import type { RecordingPipelineManager } from '../recording/pipeline-manager';
+import type { RecordingContextInitializer, RecordingPipelineManager } from '../recording';
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';

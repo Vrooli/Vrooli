@@ -17,7 +17,7 @@ import {
   updateFrameStreamSettings,
   getFrameStreamSettings,
 } from '../../frame-streaming';
-import { runRecordingPipelineTest, runExternalUrlInjectionTest } from '../../recording/self-test';
+import { runRecordingPipelineTest, runExternalUrlInjectionTest } from '../../recording';
 import type { StreamSettingsRequest, StreamSettingsResponse } from './types';
 
 // =============================================================================
