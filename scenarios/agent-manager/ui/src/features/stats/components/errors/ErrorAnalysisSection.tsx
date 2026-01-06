@@ -18,7 +18,7 @@ function ErrorItem({ error }: ErrorItemProps) {
       : errorDisplay;
 
   return (
-    <div className="rounded border border-border/60 bg-card/30 p-3">
+    <div className="rounded border border-border bg-card/30 p-3">
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
         <div className="flex-1 min-w-0">
@@ -55,7 +55,7 @@ export function ErrorAnalysisSection() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+      <div className="rounded-lg border border-border bg-card/50 p-6">
         <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -78,7 +78,7 @@ export function ErrorAnalysisSection() {
   const errors = data?.errors ?? [];
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Error Analysis

@@ -116,7 +116,7 @@ function DependenciesSection({ entries }: { entries: [string, JsonValue][] }) {
           const error = plain?.error as string | undefined;
           const storage = plain?.storage as string | undefined;
           return (
-            <div key={name} className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
+            <div key={name} className="flex flex-col gap-1 rounded-md border border-border p-2">
               <div className="flex items-center justify-between text-foreground">
                 <span className="font-semibold">{name}</span>
                 <span>{status || "unknown"}</span>
@@ -148,7 +148,7 @@ function MetricsSection({ entries }: { entries: [string, JsonValue][] }) {
       <p className="text-sm font-semibold">Metrics</p>
       <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
         {entries.map(([name, value]) => (
-          <div key={name} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+          <div key={name} className="flex items-center justify-between rounded-md border border-border p-2">
             <span>{name}</span>
             <span className="text-foreground">{String(jsonValueToPlain(value) ?? "n/a")}</span>
           </div>

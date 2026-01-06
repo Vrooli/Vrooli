@@ -81,7 +81,7 @@ export function ModelRegistryTab({
           />
 
           {Object.entries(draft.runners).length === 0 && (
-            <Card className="border-border/60 bg-card/40">
+            <Card className="border-border bg-card/40">
               <CardContent className="py-6 text-sm text-muted-foreground">
                 No runners are configured yet. Add your first runner to build a model list.
               </CardContent>
@@ -143,7 +143,7 @@ function FallbackRunnersCard({
   ).sort((a, b) => a.localeCompare(b));
 
   return (
-    <Card className="border-border/60 bg-card/40">
+    <Card className="border-border bg-card/40">
       <CardContent className="space-y-4 py-5">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Global Fallbacks</h3>
@@ -226,7 +226,7 @@ function RunnerCard({
   const presets = runnerConfig.presets ?? {};
 
   return (
-    <Card className="border-border/60 bg-card/40">
+    <Card className="border-border bg-card/40">
       <CardContent className="space-y-4 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -247,7 +247,7 @@ function RunnerCard({
           </Button>
         </div>
 
-        <div className="space-y-3 rounded-md border border-border/70 bg-background/60 p-3">
+        <div className="space-y-3 rounded-md border border-border bg-background/60 p-3">
           <div className="grid gap-2 text-[11px] font-semibold uppercase text-muted-foreground sm:grid-cols-[1fr_1.5fr_auto]">
             <span>Model ID</span>
             <span>Description</span>
@@ -292,7 +292,7 @@ function RunnerCard({
           </div>
         </div>
 
-        <div className="space-y-3 rounded-md border border-border/70 bg-background/60 p-3">
+        <div className="space-y-3 rounded-md border border-border bg-background/60 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label>Preset Mappings</Label>
             <p className="text-xs text-muted-foreground">Map presets to models in this list.</p>
@@ -338,7 +338,7 @@ function AddRunnerCard({
   knownRunners: Record<string, unknown> | undefined;
 }) {
   return (
-    <Card className="border-dashed border-border/70 bg-card/30">
+    <Card className="border-dashed border-border bg-card/30">
       <CardContent className="space-y-3 py-5">
         <Label>Add Runner</Label>
         <div className="flex flex-wrap gap-2">

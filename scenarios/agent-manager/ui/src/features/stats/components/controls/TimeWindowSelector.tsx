@@ -7,7 +7,7 @@ export function TimeWindowSelector() {
   const { preset, setPreset, presetOptions } = useTimeWindow();
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-card/50 p-1">
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-card/50 p-1">
       {presetOptions.map((option) => (
         <button
           key={option}

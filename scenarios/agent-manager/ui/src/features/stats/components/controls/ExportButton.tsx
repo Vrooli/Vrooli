@@ -138,7 +138,7 @@ export function ExportButton({ disabled }: ExportButtonProps) {
       disabled={isDisabled}
       className="
         flex items-center gap-2 px-3 py-1.5 text-sm font-medium
-        rounded-md border border-border/60 bg-card/50
+        rounded-md border border-border bg-card/50
         text-muted-foreground hover:text-foreground hover:bg-muted/50
         disabled:opacity-50 disabled:cursor-not-allowed
         transition-colors

@@ -94,12 +94,12 @@ export function MasterDetailLayout({
         <div className="flex-1 min-h-0 overflow-hidden px-4 sm:px-6 lg:px-10 pb-4">
           <div
             ref={containerRef}
-            className="h-full flex rounded-lg border bg-card overflow-hidden"
+            className="h-full flex rounded-lg border border-border bg-card overflow-hidden"
           >
             {/* List panel */}
             <div
               style={{ width: listWidth }}
-              className="shrink-0 min-h-0 overflow-hidden border-r"
+              className="shrink-0 min-h-0 overflow-hidden border-r border-border"
             >
               {listPanel}
             </div>
@@ -139,7 +139,7 @@ export function MasterDetailLayout({
 
       {/* List panel - fills remaining height */}
       <div className="flex-1 min-h-0 overflow-hidden px-4 pb-4">
-        <div className="h-full rounded-lg border bg-card overflow-hidden">
+        <div className="h-full rounded-lg border border-border bg-card overflow-hidden">
           {listPanel}
         </div>
       </div>

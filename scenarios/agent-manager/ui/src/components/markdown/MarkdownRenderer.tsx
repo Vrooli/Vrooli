@@ -88,11 +88,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         </blockquote>
       ),
 
-      hr: () => <hr className="my-6 border-border/60" />,
+      hr: () => <hr className="my-6 border-border" />,
 
       table: ({ children }: { children?: ReactNode }) => (
         <div className="overflow-x-auto my-4">
-          <table className="min-w-full border-collapse border border-border/60 text-sm">
+          <table className="min-w-full border-collapse border border-border text-sm">
             {children}
           </table>
         </div>
@@ -101,12 +101,12 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <thead className="bg-muted/40">{children}</thead>
       ),
       th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-border/60 px-3 py-2 text-left font-semibold">
+        <th className="border border-border px-3 py-2 text-left font-semibold">
           {children}
         </th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-border/60 px-3 py-2">{children}</td>
+        <td className="border border-border px-3 py-2">{children}</td>
       ),
 
       strong: ({ children }: { children?: ReactNode }) => (

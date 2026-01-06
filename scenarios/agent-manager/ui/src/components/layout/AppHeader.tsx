@@ -75,7 +75,7 @@ export function AppHeader({
   const statusText = `${healthLabel} • ${wsLabel}`;
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border/50 bg-background/95 backdrop-blur-sm px-4 py-2 sm:px-6 lg:px-10">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-2 sm:px-6 lg:px-10">
       {/* Left: Logo and status */}
       <div className="flex items-center gap-3 shrink-0">
         <Bot className="h-6 w-6 text-primary" />

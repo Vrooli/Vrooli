@@ -19,7 +19,7 @@ export function ModelUsageBreakdown() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+      <div className="rounded-lg border border-border bg-card/50 p-6">
         <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
         <div className="h-[250px] animate-pulse rounded bg-muted/20" />
       </div>
@@ -51,7 +51,7 @@ export function ModelUsageBreakdown() {
   const totalRuns = chartData.reduce((sum, d) => sum + d.runs, 0);
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-6">
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Model Usage
       </h3>

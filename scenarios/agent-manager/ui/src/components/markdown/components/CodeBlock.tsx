@@ -97,8 +97,8 @@ export const CodeBlock = memo(function CodeBlock({
   }, [safeCode, normalizedLang]);
 
   return (
-    <div className="relative rounded-lg border border-border/60 bg-card/50 overflow-hidden my-3">
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/60 border-b border-border/60">
+    <div className="relative rounded-lg border border-border bg-card/50 overflow-hidden my-3">
+      <div className="flex items-center justify-between px-4 py-2 bg-muted/60 border-b border-border">
         <span className="text-xs text-muted-foreground font-mono">
           {displayLang}
         </span>

@@ -51,7 +51,7 @@ export function KPICard({
       case "error":
         return "border-red-500/30 bg-red-500/5";
       default:
-        return "border-border/60 bg-card/50";
+        return "border-border bg-card/50";
     }
   };
 

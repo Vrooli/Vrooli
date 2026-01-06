@@ -39,7 +39,7 @@ export function ProfileActivityTable() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+      <div className="rounded-lg border border-border bg-card/50 p-6">
         <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -95,7 +95,7 @@ export function ProfileActivityTable() {
   });
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-6">
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Profile Activity
       </h3>
@@ -105,7 +105,7 @@ export function ProfileActivityTable() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/60 text-left">
+              <tr className="border-b border-border text-left">
                 <th className="pb-2 pr-4">
                   <button
                     onClick={() => handleSort("profileName")}
@@ -147,7 +147,7 @@ export function ProfileActivityTable() {
                 return (
                   <tr
                     key={profile.profileId}
-                    className="border-b border-border/30 last:border-0"
+                    className="border-b border-border last:border-0"
                   >
                     <td className="py-2 pr-4 font-medium">
                       <span className="truncate max-w-[150px] inline-block" title={profile.profileName}>
