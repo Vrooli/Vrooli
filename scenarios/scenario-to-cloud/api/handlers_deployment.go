@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -200,6 +201,13 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+
+	s.appendHistoryEvent(r.Context(), deployment.ID, domain.HistoryEvent{
+		Type:      domain.EventDeploymentCreated,
+		Timestamp: time.Now().UTC(),
+		Message:   "Deployment created",
+		Success:   boolPtr(true),
+	})
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"deployment": deployment,
@@ -497,6 +505,13 @@ func (s *Server) runDeploymentPipeline(
 
 	// Optional preflight checks
 	if options.RunPreflight {
+		preflightStart := time.Now()
+		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:      domain.EventPreflightStarted,
+			Timestamp: preflightStart.UTC(),
+			Message:   "Preflight checks started",
+		})
+
 		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
 		preflightResp := RunVPSPreflight(ctx, manifest, s.dnsService, s.sshRunner)
 		if !preflightResp.OK {
@@ -510,10 +525,25 @@ func (s *Server) runDeploymentPipeline(
 			if failCount > 0 {
 				errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
 			}
+			s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+				Type:       domain.EventPreflightCompleted,
+				Timestamp:  time.Now().UTC(),
+				Message:    errMsg,
+				Details:    formatPreflightFailureDetails(preflightResp),
+				DurationMs: time.Since(preflightStart).Milliseconds(),
+				Success:    boolPtr(false),
+			})
 			setDeploymentError(s.repo, ctx, id, "preflight", errMsg)
 			emitError("preflight", "Running preflight checks", errMsg)
 			return
 		}
+		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:       domain.EventPreflightCompleted,
+			Timestamp:  time.Now().UTC(),
+			Message:    "Preflight checks passed",
+			DurationMs: time.Since(preflightStart).Milliseconds(),
+			Success:    boolPtr(true),
+		})
 		progress += StepWeights["preflight"]
 		emitProgress("step_completed", "preflight", "Running preflight checks", progress, "")
 	}
@@ -534,6 +564,13 @@ func (s *Server) runDeploymentPipeline(
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
 
+	setupStart := time.Now()
+	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:      domain.EventSetupStarted,
+		Timestamp: setupStart.UTC(),
+		Message:   "VPS setup started",
+	})
+
 	setupResult := RunVPSSetupWithProgress(ctx, manifest, bundlePath, s.sshRunner, s.scpRunner, s.progressHub, s.repo, id, &progress)
 	setupJSON, _ := json.Marshal(setupResult)
 	if err := s.repo.UpdateDeploymentSetupResult(ctx, id, setupJSON); err != nil {
@@ -546,14 +583,38 @@ func (s *Server) runDeploymentPipeline(
 		if failedStep == "" {
 			failedStep = "vps_setup"
 		}
+		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:       domain.EventSetupCompleted,
+			Timestamp:  time.Now().UTC(),
+			Message:    "VPS setup failed",
+			Details:    setupResult.Error,
+			DurationMs: time.Since(setupStart).Milliseconds(),
+			Success:    boolPtr(false),
+			StepName:   failedStep,
+		})
 		setDeploymentError(s.repo, ctx, id, failedStep, setupResult.Error)
 		return
 	}
+
+	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:       domain.EventSetupCompleted,
+		Timestamp:  time.Now().UTC(),
+		Message:    "VPS setup completed",
+		DurationMs: time.Since(setupStart).Milliseconds(),
+		Success:    boolPtr(true),
+	})
 
 	// Step 3: VPS Deploy
 	if err := s.repo.UpdateDeploymentStatus(ctx, id, domain.StatusDeploying, nil, nil); err != nil {
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
+
+	deployStart := time.Now()
+	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:      domain.EventDeployStarted,
+		Timestamp: deployStart.UTC(),
+		Message:   "Deployment started",
+	})
 
 	deployResult := RunVPSDeployWithProgress(ctx, manifest, s.sshRunner, s.secretsGenerator, s.progressHub, s.repo, id, &progress)
 	deployJSON, _ := json.Marshal(deployResult)
@@ -567,9 +628,26 @@ func (s *Server) runDeploymentPipeline(
 		if failedStep == "" {
 			failedStep = "vps_deploy"
 		}
+		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:       domain.EventDeployFailed,
+			Timestamp:  time.Now().UTC(),
+			Message:    "Deployment failed",
+			Details:    deployResult.Error,
+			DurationMs: time.Since(deployStart).Milliseconds(),
+			Success:    boolPtr(false),
+			StepName:   failedStep,
+		})
 		setDeploymentError(s.repo, ctx, id, failedStep, deployResult.Error)
 		return
 	}
+
+	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:       domain.EventDeployCompleted,
+		Timestamp:  time.Now().UTC(),
+		Message:    "Deployment completed",
+		DurationMs: time.Since(deployStart).Milliseconds(),
+		Success:    boolPtr(true),
+	})
 
 	// Success!
 	s.progressHub.Broadcast(id, ProgressEvent{
@@ -592,6 +670,14 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 
 	opts := VPSInspectOptions{TailLines: 200}
 	result := RunVPSInspect(ctx, dctx.Manifest, opts, s.sshRunner)
+
+	s.appendHistoryEvent(ctx, dctx.ID, domain.HistoryEvent{
+		Type:      domain.EventInspection,
+		Timestamp: time.Now().UTC(),
+		Message:   "Inspection completed",
+		Details:   result.Error,
+		Success:   boolPtr(result.OK),
+	})
 
 	// Store the inspect result
 	if resultJSON, err := json.Marshal(result); err == nil {
@@ -620,6 +706,14 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 			s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 		}
 	}
+
+	s.appendHistoryEvent(r.Context(), dctx.ID, domain.HistoryEvent{
+		Type:      domain.EventStopped,
+		Timestamp: time.Now().UTC(),
+		Message:   "Deployment stop requested",
+		Details:   result.Error,
+		Success:   boolPtr(result.OK),
+	})
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"success":   result.OK,
@@ -683,6 +777,14 @@ func (s *Server) ensureSecretsAvailable(
 			errMsg := fmt.Sprintf("secrets-manager unavailable: %v", err)
 			setDeploymentError(s.repo, ctx, deploymentID, "secrets_fetch", errMsg)
 			emitError("secrets_fetch", "Fetching secrets", err.Error())
+			s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+				Type:      domain.EventDeployFailed,
+				Timestamp: time.Now().UTC(),
+				Message:   "Secrets fetch failed",
+				Details:   errMsg,
+				Success:   boolPtr(false),
+				StepName:  "secrets_fetch",
+			})
 			return err
 		}
 
@@ -704,6 +806,14 @@ func (s *Server) ensureSecretsAvailable(
 		})
 		setDeploymentError(s.repo, ctx, deploymentID, "secrets_validate", err.Error())
 		emitError("secrets_validate", "Validating secrets", err.Error())
+		s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+			Type:      domain.EventDeployFailed,
+			Timestamp: time.Now().UTC(),
+			Message:   "Secrets validation failed",
+			Details:   err.Error(),
+			Success:   boolPtr(false),
+			StepName:  "secrets_validate",
+		})
 		return err
 	}
 
@@ -744,12 +854,31 @@ func (s *Server) ensureBundleBuilt(
 	s.cleanupOldBundles(outDir, manifest.Scenario.ID)
 
 	// Build the bundle
+	buildStart := time.Now()
 	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
 	if err != nil {
 		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
 		emitError("bundle_build", "Building bundle", err.Error())
+		s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+			Type:       domain.EventBundleBuilt,
+			Timestamp:  time.Now().UTC(),
+			Message:    "Bundle build failed",
+			Details:    err.Error(),
+			DurationMs: time.Since(buildStart).Milliseconds(),
+			Success:    boolPtr(false),
+		})
 		return "", err
 	}
+
+	s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
+		Type:       domain.EventBundleBuilt,
+		Timestamp:  time.Now().UTC(),
+		Message:    "Bundle built locally",
+		Details:    fmt.Sprintf("Path: %s\nSize: %d bytes", artifact.Path, artifact.SizeBytes),
+		DurationMs: time.Since(buildStart).Milliseconds(),
+		Success:    boolPtr(true),
+		BundleHash: artifact.Sha256,
+	})
 
 	// Update database with bundle info
 	if err := s.repo.UpdateDeploymentBundle(ctx, deploymentID, artifact.Path, artifact.Sha256, artifact.SizeBytes); err != nil {
@@ -783,4 +912,70 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
+}
+
+type HistoryRecorder interface {
+	AppendHistoryEvent(ctx context.Context, id string, event domain.HistoryEvent) error
+}
+
+// appendHistoryEvent persists a history event and logs failures without impacting the request.
+// Timeline event contract (UI History > Timeline):
+// - deployment_created: when a deployment record is created
+// - preflight_started/completed: preflight checks, with success + duration
+// - bundle_built: local bundle build result (success false on build failure)
+// - setup_started/completed: VPS setup phase
+// - deploy_started/completed/failed: VPS deploy phase (step_name for failures)
+// - inspection: manual inspection runs
+// - stopped/restarted: manual lifecycle actions
+func (s *Server) appendHistoryEvent(ctx context.Context, deploymentID string, event domain.HistoryEvent) {
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now().UTC()
+	}
+	recorder := s.historyRecorder
+	if recorder == nil {
+		recorder = s.repo
+	}
+	if err := recorder.AppendHistoryEvent(ctx, deploymentID, event); err != nil {
+		s.log("failed to append history event", map[string]interface{}{
+			"deployment_id": deploymentID,
+			"type":          event.Type,
+			"error":         err.Error(),
+		})
+	}
+}
+
+func formatPreflightFailureDetails(resp PreflightResponse) string {
+	if len(resp.Checks) == 0 {
+		return "No preflight checks returned"
+	}
+
+	var b strings.Builder
+	for _, check := range resp.Checks {
+		if check.Status != PreflightFail {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("- ")
+		b.WriteString(check.Title)
+		if check.Details != "" {
+			b.WriteString(": ")
+			b.WriteString(check.Details)
+		}
+		if check.Hint != "" {
+			b.WriteString(" (hint: ")
+			b.WriteString(check.Hint)
+			b.WriteString(")")
+		}
+	}
+
+	if b.Len() == 0 {
+		return "Preflight failed (no failing checks reported)"
+	}
+	return b.String()
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }

@@ -41,6 +41,7 @@ type Server struct {
 	progressHub      *ProgressHub
 	agentSvc         *agentmanager.AgentService
 	investigationSvc *InvestigationService
+	historyRecorder  HistoryRecorder
 
 	// Seam: SSH command execution (defaults to ExecSSHRunner)
 	sshRunner SSHRunner
@@ -101,6 +102,7 @@ func NewServer() (*Server, error) {
 		db:               db,
 		repo:             repo,
 		progressHub:      progressHub,
+		historyRecorder:  repo,
 		agentSvc:         agentSvc,
 		investigationSvc: NewInvestigationService(repo, agentSvc, progressHub),
 		// Initialize seams with production implementations

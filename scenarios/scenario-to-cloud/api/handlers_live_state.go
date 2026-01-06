@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 // handleGetLiveState fetches comprehensive live state from the VPS.
@@ -280,6 +283,13 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
 	if err != nil {
+		s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
+			Type:      domain.EventRestarted,
+			Timestamp: time.Now().UTC(),
+			Message:   fmt.Sprintf("Restart failed: %s %s", req.Type, req.ID),
+			Details:   result.Stderr,
+			Success:   boolPtr(false),
+		})
 		writeAPIError(w, http.StatusInternalServerError, APIError{
 			Code:    "restart_failed",
 			Message: "Failed to restart " + req.Type,
@@ -287,6 +297,14 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
+		Type:      domain.EventRestarted,
+		Timestamp: time.Now().UTC(),
+		Message:   fmt.Sprintf("Restarted %s %s", req.Type, req.ID),
+		Details:   strings.TrimSpace(result.Stdout),
+		Success:   boolPtr(true),
+	})
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"ok":        true,
@@ -338,6 +356,21 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 		response.OK = false
 		response.Message = "Failed to " + req.Action + " " + req.Type
 		response.Output = result.Stderr
+		if req.Action == "restart" || req.Action == "stop" {
+			eventType := domain.EventRestarted
+			if req.Action == "stop" {
+				eventType = domain.EventStopped
+			}
+			label := actionLabel(req.Action)
+			s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
+				Type:      eventType,
+				Timestamp: time.Now().UTC(),
+				Message:   fmt.Sprintf("%s failed: %s %s", label, req.Type, req.ID),
+				Details:   result.Stderr,
+				Success:   boolPtr(false),
+				StepName:  req.Action,
+			})
+		}
 		writeJSON(w, http.StatusInternalServerError, response)
 		return
 	}
@@ -345,7 +378,33 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	response.OK = true
 	response.Message = "Successfully " + req.Action + "ed " + req.Type + " " + req.ID
 	response.Output = result.Stdout
+	if req.Action == "restart" || req.Action == "stop" {
+		eventType := domain.EventRestarted
+		if req.Action == "stop" {
+			eventType = domain.EventStopped
+		}
+		label := actionLabel(req.Action)
+		s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
+			Type:      eventType,
+			Timestamp: time.Now().UTC(),
+			Message:   fmt.Sprintf("%s %s %s", label, req.Type, req.ID),
+			Details:   strings.TrimSpace(result.Stdout),
+			Success:   boolPtr(true),
+			StepName:  req.Action,
+		})
+	}
 	writeJSON(w, http.StatusOK, response)
+}
+
+func actionLabel(action string) string {
+	switch action {
+	case "restart":
+		return "Restart"
+	case "stop":
+		return "Stop"
+	default:
+		return action
+	}
 }
 
 // validateProcessControlRequest validates the ProcessControlRequest fields.
