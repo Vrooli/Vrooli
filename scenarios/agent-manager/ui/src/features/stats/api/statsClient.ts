@@ -6,6 +6,7 @@ import type {
   DurationResponse,
   ErrorPatternsResponse,
   ModelBreakdownResponse,
+  ModelUsageRunsResponse,
   ProfileBreakdownResponse,
   RunnerBreakdownResponse,
   StatsFilter,
@@ -14,6 +15,8 @@ import type {
   SummaryResponse,
   TimeSeriesResponse,
   ToolUsageResponse,
+  ToolUsageModelsResponse,
+  ToolUsageRunsResponse,
 } from "./types";
 
 // =============================================================================
@@ -112,9 +115,24 @@ export async function fetchModelBreakdown(filter: StatsFilter, limit = 10): Prom
   return fetchJson<ModelBreakdownResponse>(url);
 }
 
+export async function fetchModelUsageRuns(filter: StatsFilter, limit = 25): Promise<ModelUsageRunsResponse> {
+  const url = buildUrl(STATS_ENDPOINTS.MODEL_RUNS, filter, { limit: String(limit) });
+  return fetchJson<ModelUsageRunsResponse>(url);
+}
+
 export async function fetchToolUsage(filter: StatsFilter, limit = 20): Promise<ToolUsageResponse> {
   const url = buildUrl(STATS_ENDPOINTS.TOOLS, filter, { limit: String(limit) });
   return fetchJson<ToolUsageResponse>(url);
+}
+
+export async function fetchToolUsageModels(filter: StatsFilter, toolName: string, limit = 25): Promise<ToolUsageModelsResponse> {
+  const url = buildUrl(STATS_ENDPOINTS.TOOL_MODELS, filter, { limit: String(limit), tool_name: toolName });
+  return fetchJson<ToolUsageModelsResponse>(url);
+}
+
+export async function fetchToolUsageRuns(filter: StatsFilter, toolName: string, limit = 25): Promise<ToolUsageRunsResponse> {
+  const url = buildUrl(STATS_ENDPOINTS.TOOL_RUNS, filter, { limit: String(limit), tool_name: toolName });
+  return fetchJson<ToolUsageRunsResponse>(url);
 }
 
 export async function fetchErrorPatterns(filter: StatsFilter, limit = 10): Promise<ErrorPatternsResponse> {
@@ -148,7 +166,12 @@ export const statsQueryKeys = {
   runners: (filter: StatsFilter) => [...statsQueryKeys.all, "runners", filter] as const,
   profiles: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "profiles", filter, limit] as const,
   models: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "models", filter, limit] as const,
+  modelRuns: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "modelRuns", filter, limit] as const,
   tools: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "tools", filter, limit] as const,
+  toolModels: (filter: StatsFilter, toolName: string, limit: number) =>
+    [...statsQueryKeys.all, "toolModels", filter, toolName, limit] as const,
+  toolRuns: (filter: StatsFilter, toolName: string, limit: number) =>
+    [...statsQueryKeys.all, "toolRuns", filter, toolName, limit] as const,
   errors: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "errors", filter, limit] as const,
   timeSeries: (filter: StatsFilter, bucket?: string) => [...statsQueryKeys.all, "timeSeries", filter, bucket] as const,
 } as const;

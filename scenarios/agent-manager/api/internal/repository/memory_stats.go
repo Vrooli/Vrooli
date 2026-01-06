@@ -40,6 +40,9 @@ type MemoryStatsRepository struct {
 	SeededProfileBreakdown []*ProfileBreakdown
 	SeededModelBreakdown  []*ModelBreakdown
 	SeededToolUsage       []*ToolUsageStats
+	SeededModelRunUsage   []*ModelRunUsage
+	SeededToolRunUsage    []*ToolRunUsage
+	SeededToolUsageModels []*ToolUsageModelBreakdown
 	SeededErrorPatterns   []*ErrorPattern
 	SeededTimeSeries      []*TimeSeriesBucket
 }
@@ -310,6 +313,51 @@ func (r *MemoryStatsRepository) GetToolUsageStats(ctx context.Context, filter St
 	}
 
 	return []*ToolUsageStats{}, nil
+}
+
+func (r *MemoryStatsRepository) GetModelRunUsage(ctx context.Context, filter StatsFilter, model string, limit int) ([]*ModelRunUsage, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if r.SeededModelRunUsage != nil {
+		result := r.SeededModelRunUsage
+		if limit > 0 && len(result) > limit {
+			result = result[:limit]
+		}
+		return result, nil
+	}
+
+	return []*ModelRunUsage{}, nil
+}
+
+func (r *MemoryStatsRepository) GetToolRunUsage(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolRunUsage, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if r.SeededToolRunUsage != nil {
+		result := r.SeededToolRunUsage
+		if limit > 0 && len(result) > limit {
+			result = result[:limit]
+		}
+		return result, nil
+	}
+
+	return []*ToolRunUsage{}, nil
+}
+
+func (r *MemoryStatsRepository) GetToolUsageByModel(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolUsageModelBreakdown, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if r.SeededToolUsageModels != nil {
+		result := r.SeededToolUsageModels
+		if limit > 0 && len(result) > limit {
+			result = result[:limit]
+		}
+		return result, nil
+	}
+
+	return []*ToolUsageModelBreakdown{}, nil
 }
 
 func (r *MemoryStatsRepository) GetErrorPatterns(ctx context.Context, filter StatsFilter, limit int) ([]*ErrorPattern, error) {

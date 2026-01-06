@@ -372,6 +372,43 @@ type ToolUsageStats struct {
 	FailedCount  int    `json:"failedCount" db:"failed_count"`
 }
 
+// ToolUsageModelBreakdown contains tool usage grouped by model.
+type ToolUsageModelBreakdown struct {
+	Model        string `json:"model" db:"model"`
+	RunCount     int    `json:"runCount" db:"run_count"`
+	CallCount    int    `json:"callCount" db:"call_count"`
+	SuccessCount int    `json:"successCount" db:"success_count"`
+	FailedCount  int    `json:"failedCount" db:"failed_count"`
+}
+
+// ModelRunUsage contains run-level details for a specific model.
+type ModelRunUsage struct {
+	RunID        uuid.UUID  `json:"runId" db:"run_id"`
+	TaskID       uuid.UUID  `json:"taskId" db:"task_id"`
+	TaskTitle    string     `json:"taskTitle" db:"task_title"`
+	ProfileID    *uuid.UUID `json:"profileId" db:"profile_id"`
+	ProfileName  string     `json:"profileName" db:"profile_name"`
+	Status       string     `json:"status" db:"status"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	TotalCostUSD float64    `json:"totalCostUsd" db:"total_cost_usd"`
+	TotalTokens  int64      `json:"totalTokens" db:"total_tokens"`
+}
+
+// ToolRunUsage contains run-level tool usage details.
+type ToolRunUsage struct {
+	RunID        uuid.UUID  `json:"runId" db:"run_id"`
+	TaskID       uuid.UUID  `json:"taskId" db:"task_id"`
+	TaskTitle    string     `json:"taskTitle" db:"task_title"`
+	ProfileID    *uuid.UUID `json:"profileId" db:"profile_id"`
+	ProfileName  string     `json:"profileName" db:"profile_name"`
+	Status       string     `json:"status" db:"status"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	Model        string     `json:"model" db:"model"`
+	CallCount    int        `json:"callCount" db:"call_count"`
+	SuccessCount int        `json:"successCount" db:"success_count"`
+	FailedCount  int        `json:"failedCount" db:"failed_count"`
+}
+
 // ErrorPattern contains error frequency data.
 type ErrorPattern struct {
 	ErrorCode   string    `json:"errorCode" db:"error_code"`
@@ -417,6 +454,15 @@ type StatsRepository interface {
 
 	// GetToolUsageStats aggregates tool call events.
 	GetToolUsageStats(ctx context.Context, filter StatsFilter, limit int) ([]*ToolUsageStats, error)
+
+	// GetModelRunUsage returns run-level usage for a specific model.
+	GetModelRunUsage(ctx context.Context, filter StatsFilter, model string, limit int) ([]*ModelRunUsage, error)
+
+	// GetToolRunUsage returns run-level usage for a specific tool.
+	GetToolRunUsage(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolRunUsage, error)
+
+	// GetToolUsageByModel returns tool usage grouped by model.
+	GetToolUsageByModel(ctx context.Context, filter StatsFilter, toolName string, limit int) ([]*ToolUsageModelBreakdown, error)
 
 	// GetErrorPatterns aggregates error events.
 	GetErrorPatterns(ctx context.Context, filter StatsFilter, limit int) ([]*ErrorPattern, error)

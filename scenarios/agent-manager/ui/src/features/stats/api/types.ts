@@ -87,6 +87,40 @@ export interface ToolUsageStats {
   failedCount: number;
 }
 
+export interface ToolUsageModelBreakdown {
+  model: string;
+  runCount: number;
+  callCount: number;
+  successCount: number;
+  failedCount: number;
+}
+
+export interface ModelUsageRun {
+  runId: string;
+  taskId: string;
+  taskTitle: string;
+  profileId?: string;
+  profileName: string;
+  status: string;
+  createdAt: string;
+  totalCostUsd: number;
+  totalTokens: number;
+}
+
+export interface ToolUsageRun {
+  runId: string;
+  taskId: string;
+  taskTitle: string;
+  profileId?: string;
+  profileName: string;
+  status: string;
+  createdAt: string;
+  model: string;
+  callCount: number;
+  successCount: number;
+  failedCount: number;
+}
+
 export interface ErrorPattern {
   errorCode: string;
   count: number;
@@ -149,6 +183,18 @@ export interface ModelBreakdownResponse {
 
 export interface ToolUsageResponse {
   tools: ToolUsageStats[];
+}
+
+export interface ModelUsageRunsResponse {
+  runs: ModelUsageRun[];
+}
+
+export interface ToolUsageRunsResponse {
+  runs: ToolUsageRun[];
+}
+
+export interface ToolUsageModelsResponse {
+  models: ToolUsageModelBreakdown[];
 }
 
 export interface ErrorPatternsResponse {

@@ -33,7 +33,10 @@ func (h *StatsHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/stats/runners", h.GetRunnerBreakdown).Methods("GET")
 	r.HandleFunc("/api/v1/stats/profiles", h.GetProfileBreakdown).Methods("GET")
 	r.HandleFunc("/api/v1/stats/models", h.GetModelBreakdown).Methods("GET")
+	r.HandleFunc("/api/v1/stats/models/runs", h.GetModelRunUsage).Methods("GET")
 	r.HandleFunc("/api/v1/stats/tools", h.GetToolUsageStats).Methods("GET")
+	r.HandleFunc("/api/v1/stats/tools/models", h.GetToolUsageByModel).Methods("GET")
+	r.HandleFunc("/api/v1/stats/tools/runs", h.GetToolRunUsage).Methods("GET")
 	r.HandleFunc("/api/v1/stats/errors", h.GetErrorPatterns).Methods("GET")
 	r.HandleFunc("/api/v1/stats/time-series", h.GetTimeSeries).Methods("GET")
 }
@@ -85,6 +88,21 @@ type ModelBreakdownResponse struct {
 // ToolUsageResponse is the HTTP response for tool usage stats.
 type ToolUsageResponse struct {
 	Tools []*repository.ToolUsageStats `json:"tools"`
+}
+
+// ModelRunUsageResponse is the HTTP response for model run usage stats.
+type ModelRunUsageResponse struct {
+	Runs []*repository.ModelRunUsage `json:"runs"`
+}
+
+// ToolRunUsageResponse is the HTTP response for tool run usage stats.
+type ToolRunUsageResponse struct {
+	Runs []*repository.ToolRunUsage `json:"runs"`
+}
+
+// ToolUsageByModelResponse is the HTTP response for tool usage grouped by model.
+type ToolUsageByModelResponse struct {
+	Models []*repository.ToolUsageModelBreakdown `json:"models"`
 }
 
 // ErrorPatternsResponse is the HTTP response for error patterns.
@@ -334,6 +352,90 @@ func (h *StatsHandler) GetToolUsageStats(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, ToolUsageResponse{Tools: tools})
+}
+
+// GetModelRunUsage handles GET /api/v1/stats/models/runs
+func (h *StatsHandler) GetModelRunUsage(w http.ResponseWriter, r *http.Request) {
+	filter, err := h.parseStatsFilter(r)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	model := queryFirst(r, "model")
+	if model == "" {
+		writeError(w, r, domain.NewValidationError("model", "model is required"))
+		return
+	}
+
+	limit := 25
+	if l, ok := parseQueryInt(r, "limit"); ok && l > 0 {
+		limit = l
+	}
+
+	runs, err := h.svc.GetModelRunUsage(r.Context(), filter, model, limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ModelRunUsageResponse{Runs: runs})
+}
+
+// GetToolRunUsage handles GET /api/v1/stats/tools/runs
+func (h *StatsHandler) GetToolRunUsage(w http.ResponseWriter, r *http.Request) {
+	filter, err := h.parseStatsFilter(r)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	toolName := queryFirst(r, "tool_name", "toolName")
+	if toolName == "" {
+		writeError(w, r, domain.NewValidationError("tool_name", "tool name is required"))
+		return
+	}
+
+	limit := 25
+	if l, ok := parseQueryInt(r, "limit"); ok && l > 0 {
+		limit = l
+	}
+
+	runs, err := h.svc.GetToolRunUsage(r.Context(), filter, toolName, limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ToolRunUsageResponse{Runs: runs})
+}
+
+// GetToolUsageByModel handles GET /api/v1/stats/tools/models
+func (h *StatsHandler) GetToolUsageByModel(w http.ResponseWriter, r *http.Request) {
+	filter, err := h.parseStatsFilter(r)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	toolName := queryFirst(r, "tool_name", "toolName")
+	if toolName == "" {
+		writeError(w, r, domain.NewValidationError("tool_name", "tool name is required"))
+		return
+	}
+
+	limit := 25
+	if l, ok := parseQueryInt(r, "limit"); ok && l > 0 {
+		limit = l
+	}
+
+	models, err := h.svc.GetToolUsageByModel(r.Context(), filter, toolName, limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ToolUsageByModelResponse{Models: models})
 }
 
 // GetErrorPatterns handles GET /api/v1/stats/errors

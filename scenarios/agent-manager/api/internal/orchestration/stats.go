@@ -84,6 +84,15 @@ type StatsService interface {
 	// GetToolUsageStats returns tool call frequency data.
 	GetToolUsageStats(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ToolUsageStats, error)
 
+	// GetModelRunUsage returns run-level usage for a specific model.
+	GetModelRunUsage(ctx context.Context, filter repository.StatsFilter, model string, limit int) ([]*repository.ModelRunUsage, error)
+
+	// GetToolRunUsage returns run-level usage for a specific tool.
+	GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error)
+
+	// GetToolUsageByModel returns tool usage grouped by model.
+	GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error)
+
 	// GetErrorPatterns returns error frequency data.
 	GetErrorPatterns(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ErrorPattern, error)
 
@@ -263,6 +272,21 @@ func (o *statsOrchestrator) GetModelBreakdown(ctx context.Context, filter reposi
 // GetToolUsageStats returns tool call frequency data.
 func (o *statsOrchestrator) GetToolUsageStats(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ToolUsageStats, error) {
 	return o.stats.GetToolUsageStats(ctx, filter, limit)
+}
+
+// GetModelRunUsage returns run-level usage for a specific model.
+func (o *statsOrchestrator) GetModelRunUsage(ctx context.Context, filter repository.StatsFilter, model string, limit int) ([]*repository.ModelRunUsage, error) {
+	return o.stats.GetModelRunUsage(ctx, filter, model, limit)
+}
+
+// GetToolRunUsage returns run-level usage for a specific tool.
+func (o *statsOrchestrator) GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error) {
+	return o.stats.GetToolRunUsage(ctx, filter, toolName, limit)
+}
+
+// GetToolUsageByModel returns tool usage grouped by model.
+func (o *statsOrchestrator) GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error) {
+	return o.stats.GetToolUsageByModel(ctx, filter, toolName, limit)
 }
 
 // GetErrorPatterns returns error frequency data.

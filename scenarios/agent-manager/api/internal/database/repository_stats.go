@@ -423,6 +423,179 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 	return rows, nil
 }
 
+// GetModelRunUsage returns run-level usage for a specific model.
+func (r *statsRepository) GetModelRunUsage(ctx context.Context, filter repository.StatsFilter, model string, limit int) ([]*repository.ModelRunUsage, error) {
+	var query string
+	args := []interface{}{filter.Window.Start, filter.Window.End, model, limit}
+
+	if r.db.Dialect() == DialectPostgres {
+		query = `
+			SELECT
+				r.id as run_id,
+				r.task_id as task_id,
+				COALESCE(t.title, 'Unknown Task') as task_title,
+				r.agent_profile_id as profile_id,
+				COALESCE(p.name, 'Unknown Profile') as profile_name,
+				r.status as status,
+				r.created_at as created_at,
+				COALESCE(SUM((e.data->>'totalCostUsd')::numeric), 0) as total_cost_usd,
+				COALESCE(SUM(COALESCE((e.data->>'inputTokens')::bigint, 0) + COALESCE((e.data->>'outputTokens')::bigint, 0)), 0) as total_tokens
+			FROM runs r
+			LEFT JOIN tasks t ON r.task_id = t.id
+			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+			LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			WHERE r.created_at >= $1 AND r.created_at < $2
+			  AND COALESCE(r.resolved_config->>'model', 'unknown') = $3
+			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at
+			ORDER BY r.created_at DESC
+			LIMIT $4`
+	} else {
+		query = `
+			SELECT
+				r.id as run_id,
+				r.task_id as task_id,
+				COALESCE(t.title, 'Unknown Task') as task_title,
+				r.agent_profile_id as profile_id,
+				COALESCE(p.name, 'Unknown Profile') as profile_name,
+				r.status as status,
+				r.created_at as created_at,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
+				COALESCE(SUM(
+					COALESCE(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER), 0) +
+					COALESCE(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER), 0)
+				), 0) as total_tokens
+			FROM runs r
+			LEFT JOIN tasks t ON r.task_id = t.id
+			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+			LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			WHERE r.created_at >= ? AND r.created_at < ?
+			  AND COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') = ?
+			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at
+			ORDER BY r.created_at DESC
+			LIMIT ?`
+	}
+
+	query = r.db.Rebind(query)
+
+	var rows []*repository.ModelRunUsage
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("get_model_run_usage", "Stats", "", err)
+	}
+	return rows, nil
+}
+
+// GetToolRunUsage returns run-level usage for a specific tool.
+func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error) {
+	var query string
+	args := []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+
+	if r.db.Dialect() == DialectPostgres {
+		query = `
+			SELECT
+				r.id as run_id,
+				r.task_id as task_id,
+				COALESCE(t.title, 'Unknown Task') as task_title,
+				r.agent_profile_id as profile_id,
+				COALESCE(p.name, 'Unknown Profile') as profile_name,
+				r.status as status,
+				r.created_at as created_at,
+				COALESCE(r.resolved_config->>'model', 'unknown') as model,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+			FROM run_events e
+			JOIN runs r ON e.run_id = r.id
+			LEFT JOIN tasks t ON r.task_id = t.id
+			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+			WHERE r.created_at >= $1 AND r.created_at < $2
+			  AND e.event_type IN ('tool_call', 'tool_result')
+			  AND e.data->>'toolName' = $3
+			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+			ORDER BY call_count DESC, r.created_at DESC
+			LIMIT $4`
+	} else {
+		query = `
+			SELECT
+				r.id as run_id,
+				r.task_id as task_id,
+				COALESCE(t.title, 'Unknown Task') as task_title,
+				r.agent_profile_id as profile_id,
+				COALESCE(p.name, 'Unknown Profile') as profile_name,
+				r.status as status,
+				r.created_at as created_at,
+				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+			FROM run_events e
+			JOIN runs r ON e.run_id = r.id
+			LEFT JOIN tasks t ON r.task_id = t.id
+			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+			WHERE r.created_at >= ? AND r.created_at < ?
+			  AND e.event_type IN ('tool_call', 'tool_result')
+			  AND json_extract(e.data, '$.toolName') = ?
+			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+			ORDER BY call_count DESC, r.created_at DESC
+			LIMIT ?`
+	}
+
+	query = r.db.Rebind(query)
+
+	var rows []*repository.ToolRunUsage
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("get_tool_run_usage", "Stats", "", err)
+	}
+	return rows, nil
+}
+
+// GetToolUsageByModel returns tool usage grouped by model.
+func (r *statsRepository) GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error) {
+	var query string
+	args := []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+
+	if r.db.Dialect() == DialectPostgres {
+		query = `
+			SELECT
+				COALESCE(r.resolved_config->>'model', 'unknown') as model,
+				COUNT(DISTINCT r.id) as run_count,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+			FROM run_events e
+			JOIN runs r ON e.run_id = r.id
+			WHERE r.created_at >= $1 AND r.created_at < $2
+			  AND e.event_type IN ('tool_call', 'tool_result')
+			  AND e.data->>'toolName' = $3
+			GROUP BY r.resolved_config->>'model'
+			ORDER BY call_count DESC
+			LIMIT $4`
+	} else {
+		query = `
+			SELECT
+				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+				COUNT(DISTINCT r.id) as run_count,
+				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+			FROM run_events e
+			JOIN runs r ON e.run_id = r.id
+			WHERE r.created_at >= ? AND r.created_at < ?
+			  AND e.event_type IN ('tool_call', 'tool_result')
+			  AND json_extract(e.data, '$.toolName') = ?
+			GROUP BY json_extract(r.resolved_config, '$.model')
+			ORDER BY call_count DESC
+			LIMIT ?`
+	}
+
+	query = r.db.Rebind(query)
+
+	var rows []*repository.ToolUsageModelBreakdown
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("get_tool_usage_by_model", "Stats", "", err)
+	}
+	return rows, nil
+}
+
 // GetErrorPatterns aggregates error events.
 func (r *statsRepository) GetErrorPatterns(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ErrorPattern, error) {
 	var query string

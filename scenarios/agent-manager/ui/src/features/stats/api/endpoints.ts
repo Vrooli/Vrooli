@@ -11,7 +11,10 @@ export const STATS_ENDPOINTS = {
   RUNNERS: `${API_BASE}/runners`,
   PROFILES: `${API_BASE}/profiles`,
   MODELS: `${API_BASE}/models`,
+  MODEL_RUNS: `${API_BASE}/models/runs`,
   TOOLS: `${API_BASE}/tools`,
+  TOOL_MODELS: `${API_BASE}/tools/models`,
+  TOOL_RUNS: `${API_BASE}/tools/runs`,
   ERRORS: `${API_BASE}/errors`,
   TIME_SERIES: `${API_BASE}/time-series`,
 } as const;
