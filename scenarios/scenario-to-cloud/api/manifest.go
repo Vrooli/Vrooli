@@ -20,6 +20,7 @@ type (
 	ManifestPorts            = domain.ManifestPorts
 	ManifestEdge             = domain.ManifestEdge
 	ManifestCaddy            = domain.ManifestCaddy
+	DNSPolicy                = domain.DNSPolicy
 	ManifestSecrets          = domain.ManifestSecrets
 	BundleSecretPlan         = domain.BundleSecretPlan
 	BundleSecretTarget       = domain.BundleSecretTarget
@@ -35,6 +36,9 @@ const (
 	SeverityError     = domain.SeverityError
 	SeverityWarn      = domain.SeverityWarn
 	DefaultVPSWorkdir = domain.DefaultVPSWorkdir
+	DNSPolicyRequired = domain.DNSPolicyRequired
+	DNSPolicyWarn     = domain.DNSPolicyWarn
+	DNSPolicySkip     = domain.DNSPolicySkip
 )
 
 // hasBlockingIssues returns true if any issue has error severity.
@@ -210,6 +214,19 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 			Path:     "edge.domain",
 			Message:  "edge.domain must be a hostname (no scheme, no path)",
 			Hint:     "Example: 'example.com' or 'app.example.com' (not 'https://example.com').",
+			Severity: SeverityError,
+		})
+	}
+
+	if strings.TrimSpace(string(out.Edge.DNSPolicy)) == "" {
+		out.Edge.DNSPolicy = DNSPolicyRequired
+	} else if out.Edge.DNSPolicy != DNSPolicyRequired &&
+		out.Edge.DNSPolicy != DNSPolicyWarn &&
+		out.Edge.DNSPolicy != DNSPolicySkip {
+		issues = append(issues, ValidationIssue{
+			Path:     "edge.dns_policy",
+			Message:  "edge.dns_policy must be required, warn, or skip",
+			Hint:     "Use 'required' to block on DNS, 'warn' to allow warnings, or 'skip' to defer DNS checks.",
 			Severity: SeverityError,
 		})
 	}

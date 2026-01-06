@@ -12,19 +12,23 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"scenario-to-cloud/dns"
+	"scenario-to-cloud/domain"
 )
 
 // DNSCheckResponse is the response from the DNS check endpoint.
 type DNSCheckResponse struct {
-	OK          bool     `json:"ok"`
-	Domain      string   `json:"domain"`
-	VPSHost     string   `json:"vps_host"`
-	DomainIPs   []string `json:"domain_ips"`
-	VPSIPs      []string `json:"vps_ips"`
-	PointsToVPS bool     `json:"points_to_vps"`
-	Message     string   `json:"message"`
-	Hint        string   `json:"hint,omitempty"`
-	Timestamp   string   `json:"timestamp"`
+	OK          bool                   `json:"ok"`
+	Domain      string                 `json:"domain"`
+	VPSHost     string                 `json:"vps_host"`
+	DomainIPs   []string               `json:"domain_ips"`
+	VPSIPs      []string               `json:"vps_ips"`
+	PointsToVPS bool                   `json:"points_to_vps"`
+	Message     string                 `json:"message"`
+	Hint        string                 `json:"hint,omitempty"`
+	HintData    *domain.DNSARecordHint `json:"hint_data,omitempty"`
+	Timestamp   string                 `json:"timestamp"`
 }
 
 // CaddyControlRequest is the request body for Caddy control actions.
@@ -101,63 +105,51 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	vpsHost := normalized.Target.VPS.Host
 	domain := normalized.Edge.Domain
 
-	// Resolve VPS host
-	vpsIPs, vpsErr := resolveHostIPs(ctx, s.dnsResolver, vpsHost)
-	if vpsErr != nil {
-		writeJSON(w, http.StatusOK, DNSCheckResponse{
-			OK:        false,
-			Domain:    domain,
-			VPSHost:   vpsHost,
-			Message:   fmt.Sprintf("Failed to resolve VPS host: %s", vpsErr.Error()),
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-		return
-	}
-
-	// Resolve edge domain
-	domainIPs, domainErr := resolveHostIPs(ctx, s.dnsResolver, domain)
-	if domainErr != nil {
-		writeJSON(w, http.StatusOK, DNSCheckResponse{
-			OK:        false,
-			Domain:    domain,
-			VPSHost:   vpsHost,
-			VPSIPs:    vpsIPs,
-			Message:   fmt.Sprintf("Failed to resolve domain: %s", domainErr.Error()),
-			Hint:      fmt.Sprintf("Add a DNS A record for %s pointing to %s", domain, vpsIPs[0]),
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-		return
-	}
-
-	// Check if domain points to VPS
-	pointsToVPS := intersects(vpsIPs, domainIPs)
-
-	resp := DNSCheckResponse{
-		OK:          true,
-		Domain:      domain,
-		VPSHost:     vpsHost,
-		DomainIPs:   domainIPs,
-		VPSIPs:      vpsIPs,
-		PointsToVPS: pointsToVPS,
-		Timestamp:   time.Now().UTC().Format(time.RFC3339),
-	}
-
-	if pointsToVPS {
-		resp.Message = fmt.Sprintf("Domain %s correctly points to VPS (%s)", domain, strings.Join(domainIPs, ", "))
-	} else {
-		resp.Message = fmt.Sprintf("Domain %s resolves to %s, not your VPS (%s)", domain, strings.Join(domainIPs, ", "), strings.Join(vpsIPs, ", "))
-		resp.Hint = fmt.Sprintf(
-			"Update DNS A record for %s to point to %s.\n\n"+
-				"Common DNS providers:\n"+
-				"- Cloudflare: DNS > Records > Add A record with name '@' or subdomain, IPv4 address %s\n"+
-				"- Namecheap: Domain List > Manage > Advanced DNS > Add A Record\n"+
-				"- GoDaddy: DNS Management > Add > Type: A, Points to: %s\n\n"+
-				"DNS changes can take up to 48 hours to propagate (usually 5-30 minutes).",
-			domain, vpsIPs[0], vpsIPs[0], vpsIPs[0],
-		)
-	}
-
+	compare := s.dnsService.CompareDomainToVPS(ctx, domain, vpsHost)
+	resp := buildDNSCheckResponse(compare)
+	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func buildDNSCheckResponse(compare domain.DNSComparisonResult) DNSCheckResponse {
+	response := DNSCheckResponse{
+		Domain:      compare.Domain.Host,
+		VPSHost:     compare.VPS.Host,
+		DomainIPs:   compare.Domain.IPs,
+		VPSIPs:      compare.VPS.IPs,
+		PointsToVPS: compare.PointsToVPS,
+	}
+
+	if compare.VPS.Error != nil {
+		response.OK = false
+		response.Message = fmt.Sprintf("Failed to resolve VPS host: %s", compare.VPS.Error.Message)
+		return response
+	}
+
+	if compare.Domain.Error != nil {
+		response.OK = false
+		response.Message = fmt.Sprintf("Failed to resolve domain: %s", compare.Domain.Error.Message)
+		if len(compare.VPS.IPs) > 0 {
+			hint, hintData := dns.BuildARecordHint(compare.Domain.Host, compare.VPS.IPs[0])
+			response.Hint = hint
+			response.HintData = &hintData
+		}
+		return response
+	}
+
+	response.OK = true
+	if compare.PointsToVPS {
+		response.Message = fmt.Sprintf("Domain %s correctly points to VPS (%s)", compare.Domain.Host, strings.Join(compare.Domain.IPs, ", "))
+	} else {
+		response.Message = fmt.Sprintf("Domain %s resolves to %s, not your VPS (%s)", compare.Domain.Host, strings.Join(compare.Domain.IPs, ", "), strings.Join(compare.VPS.IPs, ", "))
+		if len(compare.VPS.IPs) > 0 {
+			hint, hintData := dns.BuildARecordHint(compare.Domain.Host, compare.VPS.IPs[0])
+			response.Hint = hint
+			response.HintData = &hintData
+		}
+	}
+
+	return response
 }
 
 // handleCaddyControl handles Caddy service control actions.

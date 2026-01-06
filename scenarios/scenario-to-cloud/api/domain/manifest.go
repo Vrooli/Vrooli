@@ -66,8 +66,9 @@ type ManifestPorts map[string]int
 
 // ManifestEdge configures edge/TLS settings.
 type ManifestEdge struct {
-	Domain string        `json:"domain"`
-	Caddy  ManifestCaddy `json:"caddy"`
+	Domain    string        `json:"domain"`
+	DNSPolicy DNSPolicy     `json:"dns_policy,omitempty"`
+	Caddy     ManifestCaddy `json:"caddy"`
 }
 
 // ManifestCaddy configures Caddy reverse proxy and TLS.

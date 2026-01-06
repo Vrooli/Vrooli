@@ -36,10 +36,7 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
 	t.Setenv("API_PORT", "0")
 
-	srv, err := NewServer()
-	if err != nil {
-		t.Fatalf("NewServer: %v", err)
-	}
+	srv := newTestServer()
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()
 

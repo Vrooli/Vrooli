@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"scenario-to-cloud/domain"
 )
 
 // ScenarioInfo represents a scenario with its configuration
@@ -91,14 +93,8 @@ type ReachabilityRequest struct {
 	Domain string `json:"domain,omitempty"`
 }
 
-// ReachabilityResult represents the result of a single reachability check
-type ReachabilityResult struct {
-	Target    string `json:"target"`
-	Type      string `json:"type"` // "host" or "domain"
-	Reachable bool   `json:"reachable"`
-	Message   string `json:"message,omitempty"`
-	Hint      string `json:"hint,omitempty"`
-}
+// ReachabilityResult represents the result of a single reachability check.
+type ReachabilityResult = domain.ReachabilityResult
 
 // ReachabilityResponse is the response for POST /validate/reachability
 type ReachabilityResponse struct {
@@ -248,7 +244,7 @@ func (s *Server) handleReachabilityCheck(w http.ResponseWriter, r *http.Request)
 
 	// Check domain reachability (DNS resolution)
 	if req.Domain != "" {
-		result := checkDomainReachability(ctx, req.Domain)
+		result := s.dnsService.CheckDomainReachability(ctx, req.Domain)
 		results = append(results, result)
 	}
 
@@ -305,43 +301,6 @@ func checkHostReachability(ctx context.Context, host string) ReachabilityResult 
 
 	result.Reachable = true
 	result.Message = "Host is reachable via SSH"
-	return result
-}
-
-func checkDomainReachability(ctx context.Context, domain string) ReachabilityResult {
-	result := ReachabilityResult{
-		Target: domain,
-		Type:   "domain",
-	}
-
-	// Check DNS resolution
-	resolver := &net.Resolver{}
-	addrs, err := resolver.LookupHost(ctx, domain)
-	if err != nil {
-		if dnsErr, ok := err.(*net.DNSError); ok {
-			if dnsErr.IsNotFound {
-				result.Reachable = false
-				result.Message = "Domain does not resolve (NXDOMAIN)"
-				result.Hint = "DNS is not configured for this domain yet. You can proceed if you plan to configure DNS before deployment."
-			} else if dnsErr.IsTimeout {
-				result.Reachable = false
-				result.Message = "DNS lookup timed out"
-				result.Hint = "Unable to verify DNS. You can proceed if you're confident the domain is configured correctly."
-			} else {
-				result.Reachable = false
-				result.Message = "DNS lookup failed"
-				result.Hint = "Check that the domain is valid. You can proceed if DNS will be configured later."
-			}
-		} else {
-			result.Reachable = false
-			result.Message = "Unable to resolve domain"
-			result.Hint = "You can proceed if DNS will be configured before deployment."
-		}
-		return result
-	}
-
-	result.Reachable = true
-	result.Message = "Domain resolves to " + strings.Join(addrs, ", ")
 	return result
 }
 

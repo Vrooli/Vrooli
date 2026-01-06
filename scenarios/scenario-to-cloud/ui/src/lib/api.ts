@@ -1458,6 +1458,13 @@ export async function getLogs(
 // Edge/TLS Management Types & Functions (Ground Truth Redesign - Enhancement)
 // ============================================================================
 
+export type DNSARecordHint = {
+  domain: string;
+  target_ip: string;
+  providers?: string[];
+  propagation_note?: string;
+};
+
 export type DNSCheckResponse = {
   ok: boolean;
   domain: string;
@@ -1467,6 +1474,7 @@ export type DNSCheckResponse = {
   points_to_vps: boolean;
   message: string;
   hint?: string;
+  hint_data?: DNSARecordHint;
   timestamp: string;
 };
 

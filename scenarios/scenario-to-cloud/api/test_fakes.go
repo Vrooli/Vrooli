@@ -19,33 +19,9 @@ import (
 //	    scpRunner:        &FakeSCPRunner{},
 //	    secretsFetcher:   &FakeSecretsFetcher{Response: testSecrets},
 //	    secretsGenerator: &FakeSecretsGenerator{Values: map[string]string{"key": "value"}},
-//	    dnsResolver:      &FakeResolver{Hosts: map[string][]string{"example.com": {"1.2.3.4"}}},
+//	    dnsService:       dns.NewService(&dns.FakeResolver{Hosts: map[string][]string{"example.com": {"1.2.3.4"}}}),
 //	}
 // =============================================================================
-
-// FakeResolver provides a controllable DNSResolver for testing.
-// Configure expected hosts and their IPs, or set Err for failure scenarios.
-type FakeResolver struct {
-	// Hosts maps hostnames to IP addresses
-	Hosts map[string][]string
-	// Err is returned for all lookups if set
-	Err error
-}
-
-// Ensure FakeResolver implements DNSResolver at compile time.
-var _ DNSResolver = (*FakeResolver)(nil)
-
-// LookupHost returns configured IPs for the host, or an error if not found.
-func (f *FakeResolver) LookupHost(_ context.Context, host string) ([]string, error) {
-	if f.Err != nil {
-		return nil, f.Err
-	}
-	ips, ok := f.Hosts[host]
-	if !ok {
-		return nil, errors.New("no such host")
-	}
-	return ips, nil
-}
 
 // FakeSSHRunner provides a controllable SSHRunner for testing.
 // Configure expected command responses, or set default error behavior.

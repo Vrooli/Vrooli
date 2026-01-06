@@ -155,6 +155,20 @@ func TestValidateAndNormalizeManifest_DefaultsAreApplied(t *testing.T) {
 			t.Errorf("expected at least 2 scenarios in bundle, got %v", normalized.Bundle.Scenarios)
 		}
 	})
+
+	t.Run("default DNS policy is required", func(t *testing.T) {
+		manifest := testManifestBase("test", []string{"test"})
+		manifest.Edge.DNSPolicy = ""
+		normalized, issues := ValidateAndNormalizeManifest(manifest)
+		for _, issue := range issues {
+			if issue.Severity == SeverityError {
+				t.Fatalf("unexpected error: %+v", issue)
+			}
+		}
+		if normalized.Edge.DNSPolicy != DNSPolicyRequired {
+			t.Errorf("expected dns_policy required, got %q", normalized.Edge.DNSPolicy)
+		}
+	})
 }
 
 func TestValidateAndNormalizeManifest_StableOutput(t *testing.T) {

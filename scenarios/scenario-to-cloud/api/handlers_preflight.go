@@ -37,7 +37,7 @@ func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
 
-	resp := RunVPSPreflight(ctx, normalized, s.dnsResolver, s.sshRunner)
+	resp := RunVPSPreflight(ctx, normalized, s.dnsService, s.sshRunner)
 	resp.Issues = issues
 	writeJSON(w, http.StatusOK, resp)
 }

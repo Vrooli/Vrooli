@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/server"
 
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/dns"
 	"scenario-to-cloud/persistence"
 )
 
@@ -49,13 +50,8 @@ type Server struct {
 	secretsFetcher SecretsFetcher
 	// Seam: Secrets generation (defaults to NewSecretsGenerator())
 	secretsGenerator SecretsGeneratorFunc
-	// Seam: DNS resolution (defaults to NetResolver)
-	dnsResolver DNSResolver
-}
-
-// DNSResolver abstracts DNS lookups for testing.
-type DNSResolver interface {
-	LookupHost(ctx context.Context, host string) ([]string, error)
+	// Seam: DNS services (defaults to dns.NewService(dns.NetResolver{}, dns.WithTimeout(...)))
+	dnsService dns.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -112,7 +108,7 @@ func NewServer() (*Server, error) {
 		scpRunner:        ExecSCPRunner{},
 		secretsFetcher:   NewSecretsClient(),
 		secretsGenerator: NewSecretsGenerator(),
-		dnsResolver:      NetResolver{},
+		dnsService:       dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second)),
 	}
 
 	srv.setupRoutes()

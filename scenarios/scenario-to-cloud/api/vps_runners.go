@@ -6,18 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
-
-type NetResolver struct{}
-
-func (NetResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-	return net.DefaultResolver.LookupHost(ctx, host)
-}
 
 // vrooliCommand wraps a vrooli command with PATH setup for SSH non-interactive sessions.
 // SSH non-interactive commands don't source .bashrc, so we need to set up PATH explicitly.

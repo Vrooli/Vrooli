@@ -52,7 +52,7 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 
 	// Commands now include PATH setup for SSH non-interactive sessions
 	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := fakeSSHRunner{responses: map[string]SSHResult{
+	runner := &FakeSSHRunner{Responses: map[string]SSHResult{
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json":   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
@@ -261,7 +261,7 @@ func TestRunVPSInspectHandlesErrors(t *testing.T) {
 				errs[pathPrefix+"cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100"] = errors.New(tt.expectedError)
 			}
 
-			runner := fakeSSHRunner{responses: responses, errs: errs}
+			runner := &FakeSSHRunner{Responses: responses, Errs: errs}
 			result := RunVPSInspect(ctx, manifest, opts, runner)
 
 			if result.OK {
@@ -295,7 +295,7 @@ func TestRunVPSInspectTimestamp(t *testing.T) {
 	opts := VPSInspectOptions{TailLines: 10}
 
 	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := fakeSSHRunner{responses: map[string]SSHResult{
+	runner := &FakeSSHRunner{Responses: map[string]SSHResult{
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test' --json": {ExitCode: 0, Stdout: `{}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":        {ExitCode: 0, Stdout: `{}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test' --tail 10": {ExitCode: 0, Stdout: ""},

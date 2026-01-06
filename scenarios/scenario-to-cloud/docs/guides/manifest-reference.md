@@ -63,6 +63,7 @@ Configures public access and HTTPS.
 {
   "edge": {
     "domain": "app.example.com",
+    "dns_policy": "required",
     "caddy": {
       "enabled": true,
       "email": "admin@example.com"
@@ -74,6 +75,7 @@ Configures public access and HTTPS.
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `domain` | string | Yes | - | Public domain name |
+| `dns_policy` | string | No | `required` | DNS enforcement mode: `required`, `warn`, or `skip` |
 | `caddy.enabled` | boolean | No | `true` | Enable Caddy reverse proxy |
 | `caddy.email` | string | No | - | Email for Let's Encrypt |
 

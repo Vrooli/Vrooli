@@ -15,10 +15,7 @@ func TestPackagerAPISurface_DeploymentManagerContract(t *testing.T) {
 	// This test avoids executing real SSH/SCP/network operations; it validates route presence,
 	// request/response JSON envelopes, and stable HTTP status semantics for orchestration.
 	t.Setenv("API_PORT", "0")
-	srv, err := NewServer()
-	if err != nil {
-		t.Fatalf("NewServer: %v", err)
-	}
+	srv := newTestServer()
 
 	ts := httptest.NewServer(srv.router)
 	defer ts.Close()

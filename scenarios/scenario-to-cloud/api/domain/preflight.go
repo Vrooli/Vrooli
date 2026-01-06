@@ -10,6 +10,12 @@ const (
 	PreflightFail PreflightCheckStatus = "fail"
 )
 
+const (
+	PreflightDNSVPSHostID     = "dns_vps_host"
+	PreflightDNSEdgeDomainID  = "dns_edge_domain"
+	PreflightDNSPointsToVPSID = "dns_points_to_vps"
+)
+
 // PreflightCheck represents a single preflight validation result.
 type PreflightCheck struct {
 	ID      string               `json:"id"`

@@ -129,16 +129,13 @@ type fakeSSHRunner struct {
 
 ### DNS Resolution
 
-**Location:** Inline interface in `preflight.go`
+**Location:** `api/dns` package (`dns.Service`, `dns.Resolver`)
 
-The preflight function accepts a resolver interface:
-```go
-resolver interface {
-    LookupHost(ctx context.Context, host string) ([]string, error)
-}
-```
+The DNS service exposes a resolver seam for DNS lookups and encapsulates
+comparisons + hints used by preflight and edge checks.
 
-**Usage in tests:** Use `fakeResolver` to control DNS responses.
+**Usage in tests:** Use `FakeResolver` from `test_fakes.go` (or a local test fake)
+to control DNS responses.
 
 ### Secrets Fetching
 
@@ -323,7 +320,7 @@ var _ SecretsFetcher = (*SecretsClient)(nil)
 
 **Existing seams preserved:**
 - `SSHRunner` / `SCPRunner` for VPS command execution (already well-used in tests)
-- Inline resolver interface for DNS lookups in preflight
+- `dns.Service` / `dns.Resolver` for DNS lookups and comparisons
 - `ProgressRepo` for deployment progress persistence
 
 ### Server-Level Dependency Injection (2026-01-03)
@@ -342,18 +339,18 @@ type Server struct {
     secretsFetcher SecretsFetcher
     // Seam: Secrets generation (defaults to NewSecretsGenerator())
     secretsGenerator SecretsGeneratorFunc
-    // Seam: DNS resolution (defaults to NetResolver)
-    dnsResolver DNSResolver
+    // Seam: DNS services (defaults to dns.NewService(dns.NetResolver{}, dns.WithTimeout(...)))
+    dnsService dns.Service
 }
 ```
 
 **Handler migration complete - all handlers now use Server seams:**
 - `handlers_deployment.go`: Uses `s.sshRunner`, `s.scpRunner`, `s.secretsFetcher`, `s.secretsGenerator`
-- `handlers_preflight.go`: Uses `s.sshRunner`, `s.dnsResolver`
+- `handlers_preflight.go`: Uses `s.sshRunner`, `s.dnsService`
 - `handlers_bundle.go`: Uses `s.sshRunner`
 - `handlers_live_state.go`: Uses `s.sshRunner`
 - `handlers_vps_management.go`: Uses `s.sshRunner`
-- `handlers_edge.go`: Uses `s.sshRunner`, `s.dnsResolver`
+- `handlers_edge.go`: Uses `s.sshRunner`, `s.dnsService`
 
 **Updated business logic in `vps_deploy.go`:**
 - `RunVPSDeploy`: Now accepts `SecretsGeneratorFunc` parameter (defaults to `NewSecretsGenerator()` if nil)
@@ -372,7 +369,7 @@ srv := &Server{
     scpRunner:        &FakeSCPRunner{},
     secretsFetcher:   &FakeSecretsFetcher{Response: testSecrets},
     secretsGenerator: &FakeSecretsGenerator{Values: map[string]string{"key": "deterministic-value"}},
-    dnsResolver:      &FakeResolver{Hosts: map[string][]string{"example.com": {"1.2.3.4"}}},
+    dnsService:      dns.NewService(&dns.FakeResolver{Hosts: map[string][]string{"example.com": {"1.2.3.4"}}}),
     // ... other fields ...
 }
 ```
@@ -386,7 +383,7 @@ Added `test_fakes.go` with reusable fake implementations for all seams:
 
 | Fake | Interface | Purpose |
 |------|-----------|---------|
-| `FakeResolver` | `DNSResolver` | Control DNS lookup responses |
+| `FakeResolver` | `dns.Resolver` | Control DNS lookup responses |
 | `FakeSSHRunner` | `SSHRunner` | Control SSH command responses, track calls |
 | `FakeSCPRunner` | `SCPRunner` | Control SCP copy results, track calls |
 | `FakeSecretsFetcher` | `SecretsFetcher` | Control secrets-manager responses |

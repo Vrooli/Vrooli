@@ -1,57 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 func isIPLiteral(host string) bool {
 	return net.ParseIP(strings.TrimSpace(host)) != nil
-}
-
-func resolveHostIPs(ctx context.Context, resolver interface {
-	LookupHost(ctx context.Context, host string) ([]string, error)
-}, host string,
-) ([]string, error) {
-	host = strings.TrimSpace(host)
-	if host == "" {
-		return nil, fmt.Errorf("host is empty")
-	}
-	if isIPLiteral(host) {
-		return []string{host}, nil
-	}
-	ips, err := resolver.LookupHost(ctx, host)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, 0, len(ips))
-	for _, ip := range ips {
-		ip = strings.TrimSpace(ip)
-		if ip == "" {
-			continue
-		}
-		out = append(out, ip)
-	}
-	sort.Strings(out)
-	return stableUniqueStrings(out), nil
-}
-
-func intersects(a, b []string) bool {
-	set := map[string]struct{}{}
-	for _, v := range a {
-		set[v] = struct{}{}
-	}
-	for _, v := range b {
-		if _, ok := set[v]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func shellQuoteSingle(s string) string {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 )
 
@@ -24,12 +25,16 @@ const (
 	PreflightFail = domain.PreflightFail
 )
 
+const (
+	preflightDNSVPSHost     = domain.PreflightDNSVPSHostID
+	preflightDNSEdgeDomain  = domain.PreflightDNSEdgeDomainID
+	preflightDNSPointsToVPS = domain.PreflightDNSPointsToVPSID
+)
+
 func RunVPSPreflight(
 	ctx context.Context,
 	manifest CloudManifest,
-	resolver interface {
-		LookupHost(ctx context.Context, host string) ([]string, error)
-	},
+	dnsService dns.Service,
 	sshRunner SSHRunner,
 ) PreflightResponse {
 	cfg := sshConfigFromManifest(manifest)
@@ -64,56 +69,7 @@ func RunVPSPreflight(
 		})
 	}
 
-	vpsIPs, vpsErr := resolveHostIPs(ctx, resolver, cfg.Host)
-	if vpsErr != nil {
-		fail(
-			"dns_vps_host",
-			"Resolve VPS host",
-			fmt.Sprintf("Unable to resolve VPS host %q", cfg.Host),
-			vpsErr.Error(),
-			nil,
-		)
-	} else {
-		pass("dns_vps_host", "Resolve VPS host", "Resolved VPS host", map[string]string{"ips": strings.Join(vpsIPs, ",")})
-	}
-
-	edgeIPs, edgeErr := resolveHostIPs(ctx, resolver, manifest.Edge.Domain)
-	if edgeErr != nil {
-		fail(
-			"dns_edge_domain",
-			"Resolve edge domain",
-			fmt.Sprintf("Unable to resolve edge.domain %q", manifest.Edge.Domain),
-			edgeErr.Error(),
-			nil,
-		)
-	} else {
-		pass("dns_edge_domain", "Resolve edge domain", "Resolved edge.domain", map[string]string{"ips": strings.Join(edgeIPs, ",")})
-	}
-
-	if vpsErr == nil && edgeErr == nil && !intersects(vpsIPs, edgeIPs) {
-		// Build helpful DNS provider instructions
-		domain := manifest.Edge.Domain
-		targetIP := vpsIPs[0] // Use first IP for instructions
-		hint := fmt.Sprintf(
-			"Update DNS A record for %s to point to %s.\n\n"+
-				"Common DNS providers:\n"+
-				"- Cloudflare: DNS > Records > Add A record with name '@' or subdomain, IPv4 address %s\n"+
-				"- Namecheap: Domain List > Manage > Advanced DNS > Add A Record\n"+
-				"- GoDaddy: DNS Management > Add > Type: A, Points to: %s\n"+
-				"- DigitalOcean: Networking > Domains > Add A record\n\n"+
-				"DNS changes can take up to 48 hours to propagate (usually 5-30 minutes).",
-			domain, targetIP, targetIP, targetIP,
-		)
-		fail(
-			"dns_points_to_vps",
-			"DNS points to VPS",
-			fmt.Sprintf("%s resolves to %s, not your VPS (%s)", domain, strings.Join(edgeIPs, ", "), strings.Join(vpsIPs, ", ")),
-			hint,
-			map[string]string{"vps_ips": strings.Join(vpsIPs, ","), "edge_ips": strings.Join(edgeIPs, ","), "domain": domain},
-		)
-	} else if vpsErr == nil && edgeErr == nil {
-		pass("dns_points_to_vps", "DNS points to VPS", "edge.domain resolves to the VPS", nil)
-	}
+	checks = append(checks, dns.PreflightChecks(ctx, dnsService, manifest.Edge.Domain, cfg.Host, manifest.Edge.DNSPolicy)...)
 
 	if _, err := sshRunner.Run(ctx, cfg, "echo ok"); err != nil {
 		fail(
@@ -291,7 +247,7 @@ func RunVPSPreflight(
 	}
 
 	// Check: apt access (required for bootstrap to work)
-	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris 2>&1 | head -1")
+	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log")
 	if aptErr != nil {
 		fail("apt_access", "apt accessible",
 			"Unable to run apt-get",
