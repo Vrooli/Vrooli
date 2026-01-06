@@ -108,19 +108,19 @@ export function useDeploymentProgress(
       try {
         const data = JSON.parse(e.data) as ProgressEvent;
         setProgress((prev) => {
-          // Update steps up to current step as completed
           let steps = prev?.steps ?? getInitialSteps();
-          let foundCurrent = false;
-          steps = steps.map((s) => {
-            if (s.id === data.step) {
-              foundCurrent = true;
-              return { ...s, status: "running" as StepStatus };
-            }
-            if (!foundCurrent) {
-              return { ...s, status: "completed" as StepStatus };
-            }
-            return s;
-          });
+          const stepIndex = steps.findIndex((s) => s.id === data.step);
+          if (stepIndex !== -1) {
+            steps = steps.map((s, index) => {
+              if (index < stepIndex) {
+                return { ...s, status: "completed" as StepStatus };
+              }
+              if (index === stepIndex) {
+                return { ...s, status: "running" as StepStatus };
+              }
+              return s;
+            });
+          }
 
           return {
             currentStep: data.step,
@@ -182,17 +182,18 @@ export function useDeploymentProgress(
           // Reconstruct step states: all steps before failed step = completed, failed step = failed
           let steps = prev?.steps ?? getInitialSteps();
           if (data.step) {
-            let foundFailed = false;
-            steps = steps.map((s) => {
-              if (s.id === data.step) {
-                foundFailed = true;
-                return { ...s, status: "failed" as StepStatus };
-              }
-              if (!foundFailed) {
-                return { ...s, status: "completed" as StepStatus };
-              }
-              return s;
-            });
+            const stepIndex = steps.findIndex((s) => s.id === data.step);
+            if (stepIndex !== -1) {
+              steps = steps.map((s, index) => {
+                if (index < stepIndex) {
+                  return { ...s, status: "completed" as StepStatus };
+                }
+                if (index === stepIndex) {
+                  return { ...s, status: "failed" as StepStatus };
+                }
+                return s;
+              });
+            }
           }
 
           return {

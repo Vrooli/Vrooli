@@ -503,6 +503,17 @@ func (s *Server) runDeploymentPipeline(
 		return // Error already logged and emitted
 	}
 
+	// Step 1: Build bundle (if not already built)
+	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
+
+	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, options.ForceBundleBuild, id, emitError)
+	if err != nil {
+		return // Error already logged and emitted
+	}
+
+	progress += StepWeights["bundle_build"]
+	emitProgress("step_completed", "bundle_build", "Building bundle", progress, "")
+
 	// Optional preflight checks
 	if options.RunPreflight {
 		preflightStart := time.Now()
@@ -559,17 +570,6 @@ func (s *Server) runDeploymentPipeline(
 		progress += StepWeights["preflight"]
 		emitProgress("step_completed", "preflight", "Running preflight checks", progress, "")
 	}
-
-	// Step 1: Build bundle (if not already built)
-	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
-
-	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, options.ForceBundleBuild, id, emitError)
-	if err != nil {
-		return // Error already logged and emitted
-	}
-
-	progress += StepWeights["bundle_build"]
-	emitProgress("step_completed", "bundle_build", "Building bundle", progress, "")
 
 	// Step 2: VPS Setup
 	if err := s.repo.UpdateDeploymentStatus(ctx, id, domain.StatusSetupRunning, nil, nil); err != nil {

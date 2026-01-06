@@ -15,6 +15,7 @@ interface StepperProps extends React.HTMLAttributes<HTMLElement> {
   onStepClick?: (stepIndex: number) => void;
   stepStates?: StepperStatus[];
   allowFutureClicks?: boolean;
+  displayedStep?: number;
 }
 
 export function Stepper({
@@ -23,6 +24,7 @@ export function Stepper({
   onStepClick,
   stepStates,
   allowFutureClicks,
+  displayedStep,
   className,
   ...props
 }: StepperProps) {
@@ -34,6 +36,7 @@ export function Stepper({
           const isCompleted = status ? status === "completed" : index < currentStep;
           const isCurrent = status ? status === "running" : index === currentStep;
           const isSkipped = status === "skipped";
+          const isDisplayed = typeof displayedStep === "number" && displayedStep === index;
           const isClickable = Boolean(
             onStepClick && (allowFutureClicks || index <= currentStep),
           );
@@ -79,6 +82,7 @@ export function Stepper({
                     isCurrent && "bg-slate-900 border-blue-500 ring-4 ring-blue-500/20",
                     isSkipped && "bg-slate-800 border-slate-500",
                     !isCompleted && !isCurrent && !isSkipped && "bg-slate-900 border-slate-600",
+                    isDisplayed && !isCurrent && "ring-2 ring-slate-500/40 border-slate-400",
                     isClickable && !isCurrent && "group-hover:border-slate-400"
                   )}
                 >
@@ -88,7 +92,7 @@ export function Stepper({
                     <span
                       className={cn(
                         "text-sm font-medium",
-                        isCurrent ? "text-blue-400" : isSkipped ? "text-slate-300" : "text-slate-400"
+                        isCurrent ? "text-blue-400" : isDisplayed ? "text-slate-200" : isSkipped ? "text-slate-300" : "text-slate-400"
                       )}
                     >
                       {index + 1}
@@ -102,6 +106,7 @@ export function Stepper({
                     "mt-2 text-xs font-medium text-center transition-colors hidden sm:block",
                     isCompleted && "text-emerald-400",
                     isCurrent && "text-blue-400",
+                    isDisplayed && !isCurrent && "text-slate-200",
                     isSkipped && "text-slate-400",
                     !isCompleted && !isCurrent && !isSkipped && "text-slate-500"
                   )}

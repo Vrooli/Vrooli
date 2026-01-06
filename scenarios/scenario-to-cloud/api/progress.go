@@ -88,8 +88,8 @@ var DeploySteps = []StepInfo{
 // AllSteps returns all deployment steps in order.
 func AllSteps() []StepInfo {
 	steps := []StepInfo{
-		{ID: "preflight", Title: "Running preflight checks", Weight: StepWeights["preflight"]},
 		{ID: "bundle_build", Title: "Building bundle", Weight: StepWeights["bundle_build"]},
+		{ID: "preflight", Title: "Running preflight checks", Weight: StepWeights["preflight"]},
 	}
 	steps = append(steps, SetupSteps...)
 	steps = append(steps, DeploySteps...)
