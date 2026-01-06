@@ -12,6 +12,12 @@ import { defineProject } from 'vitest/config';
 // Vite requires build-time values; undefined is used to signal missing config.
 const UI_PORT = process.env.UI_PORT || '3000';
 const API_PORT = process.env.API_PORT || '8080';
+// Direct frame server port (driver port + 1) for latency research spike
+// Try PLAYWRIGHT_DRIVER_PORT first (lifecycle system), then DRIVER_PORT (legacy)
+const DRIVER_PORT = process.env.PLAYWRIGHT_DRIVER_PORT || process.env.DRIVER_PORT || '39400';
+const DIRECT_FRAME_PORT = parseInt(DRIVER_PORT) + 1;
+
+console.log(`[vite.config] Direct frame server proxy: DRIVER_PORT=${DRIVER_PORT}, DIRECT_FRAME_PORT=${DIRECT_FRAME_PORT}`);
 
 const API_HOST = process.env.API_HOST || 'localhost';
 
@@ -330,6 +336,13 @@ export default defineConfig({
         target: `ws://${API_HOST}:${API_PORT}`,
         ws: true,
         changeOrigin: true,
+      },
+      // Direct frame server for latency research spike (bypasses API hub)
+      '/driver-ws': {
+        target: `ws://${API_HOST}:${DIRECT_FRAME_PORT}`,
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/driver-ws/, ''),
       },
     },
   },

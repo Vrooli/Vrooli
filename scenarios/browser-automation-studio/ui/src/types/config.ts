@@ -8,4 +8,6 @@ export interface Config {
   API_PORT: string;
   UI_PORT: string;
   WS_PORT: string;
+  /** Playwright driver port for direct WebSocket frame streaming (driver port + 1 = frame server) */
+  PLAYWRIGHT_DRIVER_PORT?: number;
 }

@@ -7,6 +7,7 @@ import * as observability from './observability';
 import { sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
+import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
 
 /**
  * Main Playwright Driver Server
@@ -105,6 +106,15 @@ async function main() {
   server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
   server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
 
+  // Start direct frame server for latency research spike
+  // Uses main server port + 1 (e.g., 39401 if main is 39400)
+  const directFramePort = config.server.port + 1;
+  const directFrameServer = createDirectFrameServer(directFramePort);
+  directFrameServer.start();
+
+  // Make direct frame server available globally for frame manager
+  (global as { directFrameServer?: DirectFrameServer }).directFrameServer = directFrameServer;
+
   // Start listening
   server.listen(config.server.port, config.server.host, () => {
     logger.info('server: listening', {
@@ -122,6 +132,7 @@ async function main() {
       metricsEndpoint: config.metrics.enabled
         ? `http://${config.server.host}:${config.metrics.port}/metrics`
         : 'disabled',
+      directFrameEndpoint: `ws://${config.server.host}:${directFramePort}/frames`,
       browserVerified: !browserError,
     });
   });
@@ -173,6 +184,9 @@ async function main() {
         logger.info('server: metrics closed');
       });
     }
+
+    // Close direct frame server
+    directFrameServer.stop();
 
     // Wait for in-flight requests to complete (with timeout)
     // Timeouts from constants.ts

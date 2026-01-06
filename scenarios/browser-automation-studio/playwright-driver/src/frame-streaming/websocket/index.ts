@@ -16,3 +16,9 @@ export type {
   WebSocketConnectionState,
   WebSocketConnectionOptions,
 } from './connection';
+
+// Direct frame server for latency research spike
+export {
+  DirectFrameServer,
+  createDirectFrameServer,
+} from './server';

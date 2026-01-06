@@ -26,6 +26,7 @@ import type {
   CdpStreamingConfig,
 } from './interface';
 import { DEFAULT_CDP_CONFIG } from './interface';
+import type { DirectFrameServer } from '../websocket';
 
 /** Frame event from CDP */
 interface ScreencastFrameEvent {
@@ -190,16 +191,28 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
                 compare_ms: 0,
                 ws_send_ms: 0, // Will be updated by API
                 frame_bytes: buffer.length,
+                sent_at: Date.now(), // Absolute timestamp for latency measurement
               };
               const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
               const headerLen = Buffer.alloc(4);
               headerLen.writeUInt32BE(headerJson.length, 0);
               frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
             } else {
-              frameToSend = buffer;
+              // Even without full perf headers, prepend 8-byte timestamp for latency testing
+              const timestampBuffer = Buffer.alloc(8);
+              timestampBuffer.writeBigInt64BE(BigInt(Date.now()), 0);
+              frameToSend = Buffer.concat([timestampBuffer, buffer]);
             }
 
             ws.send(frameToSend);
+
+            // Also broadcast to direct frame server for latency research spike
+            // DirectFrameServer adds its own timestamp, so we pass raw buffer
+            const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
+            if (directServer?.hasSubscribers(sessionId)) {
+              directServer.broadcast(buffer, sessionId);
+            }
+
             const sendMs = performance.now() - sendStart;
 
             frameCount++;

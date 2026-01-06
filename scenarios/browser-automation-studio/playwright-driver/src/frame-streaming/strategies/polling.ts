@@ -34,6 +34,7 @@ import type {
   FrameStatsReporter,
   PageProvider,
 } from './interface';
+import type { DirectFrameServer } from '../websocket';
 
 /** FPS logging interval (every N frames) */
 const FPS_LOG_INTERVAL = 30;
@@ -193,6 +194,14 @@ export class PollingStrategy implements FrameStreamingStrategy {
             }
 
             ws.send(frameToSend);
+
+            // Also broadcast to direct frame server for latency research spike
+            // DirectFrameServer adds its own timestamp, so we pass raw buffer
+            const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
+            if (directServer?.hasSubscribers(sessionId)) {
+              directServer.broadcast(buffer, sessionId);
+            }
+
             const wsSendTime = performance.now() - wsSendStart;
 
             frameCount++;
