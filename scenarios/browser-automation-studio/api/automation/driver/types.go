@@ -15,6 +15,30 @@ type Viewport struct {
 	Height int `json:"height"`
 }
 
+// ViewportSource describes what determined the actual viewport dimensions.
+// This attribution helps users understand why dimensions may differ from requested.
+type ViewportSource string
+
+const (
+	// ViewportSourceRequested means the UI-requested dimensions were used
+	ViewportSourceRequested ViewportSource = "requested"
+	// ViewportSourceFingerprint means browser profile fingerprint override was applied
+	ViewportSourceFingerprint ViewportSource = "fingerprint"
+	// ViewportSourceFingerprintPartial means fingerprint set one dimension, requested used for other
+	ViewportSourceFingerprintPartial ViewportSource = "fingerprint_partial"
+	// ViewportSourceDefault means fallback defaults were used
+	ViewportSourceDefault ViewportSource = "default"
+)
+
+// ActualViewport contains viewport dimensions with source attribution.
+// Includes the dimensions and explanation of what determined them.
+type ActualViewport struct {
+	Width  int            `json:"width"`
+	Height int            `json:"height"`
+	Source ViewportSource `json:"source"`
+	Reason string         `json:"reason"`
+}
+
 // FrameStreamingConfig configures live frame streaming for recording mode.
 type FrameStreamingConfig struct {
 	CallbackURL string `json:"callback_url"`
@@ -85,7 +109,8 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
-	SessionID string `json:"session_id"`
+	SessionID      string          `json:"session_id"`
+	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
 }
 
 // StartRecordingRequest is the request to start recording user actions.
@@ -204,9 +229,12 @@ type UpdateViewportRequest struct {
 
 // UpdateViewportResponse is the response from updating viewport.
 type UpdateViewportResponse struct {
-	SessionID string `json:"session_id"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
+	SessionID      string          `json:"session_id"`
+	ActualViewport *ActualViewport `json:"actual_viewport,omitempty"`
+	// Deprecated: Use ActualViewport.Width instead
+	Width int `json:"width"`
+	// Deprecated: Use ActualViewport.Height instead
+	Height int `json:"height"`
 }
 
 // ValidateSelectorRequest is the request to validate a selector.

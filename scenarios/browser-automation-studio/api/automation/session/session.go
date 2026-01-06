@@ -21,6 +21,10 @@ type Session struct {
 
 	// Multi-page tracking for recording sessions
 	pages *PageTracker
+
+	// ActualViewport is the viewport Playwright is actually using (may differ from requested)
+	// Includes source attribution for debugging (e.g., "fingerprint", "requested", "default")
+	actualViewport *driver.ActualViewport
 }
 
 // --- Execution Mode Operations ---
@@ -305,6 +309,11 @@ func (s *Session) Mode() Mode { return s.mode }
 // Pages returns the page tracker for this session.
 // Returns nil if page tracking is not initialized.
 func (s *Session) Pages() *PageTracker { return s.pages }
+
+// ActualViewport returns the viewport Playwright is actually using.
+// May differ from requested dimensions due to browser profile fingerprint settings.
+// Includes source attribution (e.g., "fingerprint", "requested", "default") and reason.
+func (s *Session) ActualViewport() *driver.ActualViewport { return s.actualViewport }
 
 // InitializePageTracking sets up page tracking for recording sessions.
 // This should be called after session creation with the initial URL.

@@ -5,7 +5,7 @@
  * with an expanded tooltip on hover showing detailed metrics.
  *
  * Design:
- * - Inline badge: "6 fps · 42KB" - always visible, minimal footprint
+ * - Inline badge: "30 fps · 42KB" - always visible, minimal footprint
  * - Hover tooltip: Detailed breakdown of all metrics
  * - Color coding: Green when hitting target FPS, yellow/red when degraded
  *
@@ -20,6 +20,7 @@ import type { FrameStats } from '../hooks/useFrameStats';
 import { formatBytes, formatBandwidth } from '../hooks/useFrameStats';
 import type { FrameStatsAggregated, BottleneckType } from '../hooks/usePerfStats';
 import { getBottleneckSeverity, formatMs } from '../hooks/usePerfStats';
+import { DEFAULT_STREAM_FPS } from '../constants';
 
 interface FrameStatsDisplayProps {
   /** Current frame statistics (client-side) */
@@ -86,7 +87,7 @@ function getBottleneckDisplay(bottleneck: BottleneckType): {
 
 export function FrameStatsDisplay({
   stats,
-  targetFps = 6,
+  targetFps = DEFAULT_STREAM_FPS,
   debugStats,
   className = '',
 }: FrameStatsDisplayProps) {

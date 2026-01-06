@@ -59,8 +59,6 @@ function buildWebSocketUrl(): string {
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  // Keep for backwards compatibility but deprecate
-  const [lastBinaryFrame, setLastBinaryFrame] = useState<ArrayBuffer | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -108,8 +106,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
               }
             });
           }
-          // Also update state for backwards compatibility (deprecated)
-          setLastBinaryFrame(event.data);
+          // Note: Removed setLastBinaryFrame() - it caused React re-renders on every frame
+          // which severely degraded streaming performance. Use subscribeToBinaryFrames() instead.
           return;
         }
 
@@ -229,7 +227,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const value: WebSocketContextValue = {
     isConnected,
     lastMessage,
-    lastBinaryFrame,
+    lastBinaryFrame: null, // Deprecated: always null, use subscribeToBinaryFrames() instead
     send,
     subscribe,
     unsubscribe,

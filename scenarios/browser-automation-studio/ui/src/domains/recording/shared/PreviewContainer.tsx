@@ -34,6 +34,7 @@ import { useReplaySettingsSync } from '@/domains/replay-style';
 import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
 import { StablePreviewWrapper } from './StablePreviewWrapper';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
+import { useViewportOptional } from '../context';
 
 export interface PreviewContainerProps {
   // Replay style state (controlled from parent)
@@ -158,6 +159,9 @@ export function PreviewContainer({
   // Track if this is the first render to avoid initial viewport change callback
   const isFirstRenderRef = useRef(true);
 
+  // Get viewport context if available (for recording mode with ViewportProvider)
+  const viewportContext = useViewportOptional();
+
   // Get replay settings from store
   const { replay, setReplaySetting } = useSettingsStore();
 
@@ -256,22 +260,26 @@ export function PreviewContainer({
     };
   }, [previewBounds]);
 
-  // Notify parent when browser viewport changes (for syncing to Playwright)
+  // Notify parent AND context when browser viewport changes (for syncing to Playwright)
   useEffect(() => {
     // Skip the first render to avoid initial viewport change callback
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
-      // Still call the callback on first render if we have bounds
-      if (browserViewport && onBrowserViewportChange) {
-        onBrowserViewportChange(browserViewport);
+      // Still call the callback/context on first render if we have bounds
+      if (browserViewport) {
+        onBrowserViewportChange?.(browserViewport);
+        viewportContext?.updateFromBounds(browserViewport);
       }
       return;
     }
 
-    if (browserViewport && onBrowserViewportChange) {
-      onBrowserViewportChange(browserViewport);
+    if (browserViewport) {
+      // Call prop callback (for session creation in RecordingSession)
+      onBrowserViewportChange?.(browserViewport);
+      // Update context (for viewport sync to backend)
+      viewportContext?.updateFromBounds(browserViewport);
     }
-  }, [browserViewport, onBrowserViewportChange]);
+  }, [browserViewport, onBrowserViewportChange, viewportContext]);
 
   /**
    * Display dimensions for the presentation model.
@@ -322,13 +330,27 @@ export function PreviewContainer({
     [viewportRef],
   );
 
+  // Use context values when available, fall back to props
+  const effectiveActualViewport = viewportContext?.actualViewport ?? actualBrowserViewport;
+  const effectiveIsSyncing = viewportContext?.syncState.isSyncing ?? isViewportSyncing;
+  // Get the viewport reason - prefer actualViewport.reason (always present), fall back to mismatchReason
+  const effectiveViewportReason =
+    viewportContext?.actualViewport?.reason ??
+    viewportContext?.mismatchReason ??
+    null;
+
   // Check for dimension mismatch (browser profile override)
   const hasDimensionMismatch = useMemo(() => {
+    // Use context mismatch if available
+    if (viewportContext) {
+      return viewportContext.hasMismatch;
+    }
+    // Fall back to prop-based calculation
     if (!browserViewport || !actualBrowserViewport) return false;
     const widthDiff = Math.abs(browserViewport.width - actualBrowserViewport.width);
     const heightDiff = Math.abs(browserViewport.height - actualBrowserViewport.height);
     return widthDiff > 5 || heightDiff > 5;
-  }, [browserViewport, actualBrowserViewport]);
+  }, [viewportContext, browserViewport, actualBrowserViewport]);
 
   // Overlay for watermark
   const overlayNode = useMemo(() => {
@@ -362,9 +384,10 @@ export function PreviewContainer({
         readOnly={readOnly}
         // New props for viewport indicator
         browserViewport={browserViewport}
-        actualBrowserViewport={actualBrowserViewport}
+        actualBrowserViewport={effectiveActualViewport}
         hasDimensionMismatch={hasDimensionMismatch}
-        isViewportSyncing={isViewportSyncing}
+        isViewportSyncing={effectiveIsSyncing}
+        viewportReason={effectiveViewportReason ?? undefined}
       />
 
       {/* Main content area */}

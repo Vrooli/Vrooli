@@ -128,9 +128,10 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 	}
 
 	session := &Session{
-		id:     resp.SessionID,
-		mode:   spec.Mode,
-		client: m.client,
+		id:             resp.SessionID,
+		mode:           spec.Mode,
+		client:         m.client,
+		actualViewport: resp.ActualViewport,
 	}
 
 	m.mu.Lock()

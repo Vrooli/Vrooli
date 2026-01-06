@@ -57,16 +57,6 @@ export { usePerfStats } from './hooks/usePerfStats';
 export { useRecordModeLayout } from './hooks/useRecordModeLayout';
 export { useStorageState } from './hooks/useStorageState';
 export { useServiceWorkers } from './hooks/useServiceWorkers';
-export { useViewportState } from './hooks/useViewportState';
-export type {
-  ViewportState,
-  ViewportStateActions,
-  ViewportStateConfig,
-  ViewportDimensionInfo,
-  ViewportSyncStatus,
-  UseViewportStateReturn,
-  Dimensions as ViewportDimensions,
-} from './hooks/useViewportState';
 export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
 export type { UseStorageStateResult } from './hooks/useStorageState';
 export type {
@@ -135,3 +125,27 @@ export {
   hasTimelineEntry,
   parseTimelineEntry,
 } from './types/timeline-unified';
+
+// Context providers
+export {
+  ViewportProvider,
+  useViewport,
+  useViewportOptional,
+  type ViewportProviderProps,
+  type ViewportContextState,
+  type ViewportContextActions,
+  type ViewportContextValue,
+} from './context';
+
+// Constants - single source of truth for streaming defaults
+export {
+  DEFAULT_STREAM_FPS,
+  DEFAULT_STREAM_QUALITY,
+  DEFAULT_STREAM_SCALE,
+  MIN_STREAM_FPS,
+  MAX_STREAM_FPS,
+  MIN_STREAM_QUALITY,
+  MAX_STREAM_QUALITY,
+  STREAM_PRESETS,
+  DEFAULT_STREAM_PRESET,
+} from './constants';

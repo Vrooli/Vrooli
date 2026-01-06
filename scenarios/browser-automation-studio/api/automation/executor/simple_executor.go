@@ -1338,7 +1338,7 @@ func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID)
 	}
 	fps := state.IntValue(raw, "fps")
 	if fps <= 0 {
-		fps = 6 // Default FPS
+		fps = 30 // Default FPS
 	}
 	scale := "css"
 	if s, ok := raw["scale"].(string); ok && s != "" {

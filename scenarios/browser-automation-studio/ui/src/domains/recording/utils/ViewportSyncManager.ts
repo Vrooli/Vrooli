@@ -1,43 +1,30 @@
 /**
  * ViewportSyncManager - Centralized viewport coordination for recording sessions
  *
- * This module provides a single source of truth for viewport state and handles:
- * - Viewport computation (styled vs unstyled modes)
- * - Debounced sync to backend
- * - Resize transition detection (for showing loading states)
- * - Coordinate mapping information
+ * This module provides viewport state management and debounced sync to backend.
  *
  * Architecture:
  * - Uses React hooks for state management
  * - Debounces rapid viewport changes (e.g., during sidebar drag)
  * - Provides isResizing flag for UI transition states
  * - Syncs viewport to backend API which updates Playwright and frame streaming
+ *
+ * Types are imported from the consolidated types/viewport.ts module.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getConfig } from '@/config';
+import type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
+
+// Re-export types for backward compatibility
+export type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
+
+// Re-export utility functions for backward compatibility
+export { viewportsEqual, getAspectRatio, fitViewportToBounds } from '../types/viewport';
 
 // =============================================================================
-// Types
+// Types (local to this module)
 // =============================================================================
-
-export interface ViewportDimensions {
-  width: number;
-  height: number;
-}
-
-export interface ViewportSyncState {
-  /** Current computed viewport dimensions */
-  viewport: ViewportDimensions | null;
-  /** Whether a resize operation is in progress (rapid changes detected) */
-  isResizing: boolean;
-  /** Whether viewport sync to backend is pending */
-  isSyncing: boolean;
-  /** Last successful sync timestamp */
-  lastSyncTime: number | null;
-  /** Error from last sync attempt */
-  syncError: string | null;
-}
 
 export interface ViewportSyncConfig {
   /** Session ID for API calls */
@@ -290,40 +277,3 @@ export function useViewportSyncManager(config: ViewportSyncConfig): ViewportSync
   };
 }
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Check if two viewports are effectively equal (within 1px tolerance).
- */
-export function viewportsEqual(
-  a: ViewportDimensions | null,
-  b: ViewportDimensions | null,
-  tolerance = 1
-): boolean {
-  if (!a || !b) return a === b;
-  return Math.abs(a.width - b.width) <= tolerance && Math.abs(a.height - b.height) <= tolerance;
-}
-
-/**
- * Compute aspect ratio of a viewport.
- */
-export function getAspectRatio(viewport: ViewportDimensions): number {
-  return viewport.width / viewport.height;
-}
-
-/**
- * Scale a viewport to fit within bounds while preserving aspect ratio.
- */
-export function fitViewportToBounds(
-  viewport: ViewportDimensions,
-  bounds: ViewportDimensions
-): ViewportDimensions {
-  const scale = Math.min(bounds.width / viewport.width, bounds.height / viewport.height);
-
-  return {
-    width: Math.round(viewport.width * scale),
-    height: Math.round(viewport.height * scale),
-  };
-}

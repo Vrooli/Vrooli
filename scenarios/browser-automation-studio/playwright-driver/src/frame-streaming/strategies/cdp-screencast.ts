@@ -179,7 +179,27 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
           const ws = wsProvider.getWebSocket();
           if (ws && ws.readyState === 1) {
             const sendStart = performance.now();
-            ws.send(buffer);
+
+            // Build frame with optional perf header
+            let frameToSend: Buffer;
+            if (config.includePerfHeaders) {
+              // Header format: [4-byte length BE][JSON header][JPEG data]
+              const header = {
+                frame_id: `${sessionId}-${frameCount + 1}`,
+                capture_ms: decodeMs,
+                compare_ms: 0,
+                ws_send_ms: 0, // Will be updated by API
+                frame_bytes: buffer.length,
+              };
+              const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
+              const headerLen = Buffer.alloc(4);
+              headerLen.writeUInt32BE(headerJson.length, 0);
+              frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
+            } else {
+              frameToSend = buffer;
+            }
+
+            ws.send(frameToSend);
             const sendMs = performance.now() - sendStart;
 
             frameCount++;

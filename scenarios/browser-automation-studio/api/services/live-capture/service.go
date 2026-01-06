@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/domain"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
@@ -93,8 +94,17 @@ type SessionConfig struct {
 
 // SessionResult is the result of creating a session.
 type SessionResult struct {
-	SessionID string
-	CreatedAt time.Time
+	SessionID      string
+	CreatedAt      time.Time
+	ActualViewport *ViewportDimensions // Actual viewport from Playwright (may differ due to profile)
+}
+
+// ViewportDimensions represents width and height of a viewport with source attribution.
+type ViewportDimensions struct {
+	Width  int
+	Height int
+	Source string // "requested", "fingerprint", "fingerprint_partial", or "default"
+	Reason string // Human-readable explanation of what determined the dimensions
 }
 
 // CreateSession creates a new browser session for live capture.
@@ -103,14 +113,23 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		return nil, fmt.Errorf("session manager not initialized")
 	}
 
-	// Set defaults for frame streaming
+	// Get defaults from config - this is the single source of truth for defaults
+	appCfg := config.Load()
+
+	// Set defaults for frame streaming, using config values
 	quality := cfg.StreamQuality
 	if quality <= 0 || quality > 100 {
-		quality = 55
+		quality = appCfg.Recording.DefaultStreamQuality
+		if quality <= 0 || quality > 100 {
+			quality = 55 // Ultimate fallback
+		}
 	}
 	fps := cfg.StreamFPS
 	if fps <= 0 || fps > 60 {
-		fps = 6
+		fps = appCfg.Recording.DefaultStreamFPS
+		if fps <= 0 || fps > 60 {
+			fps = 30 // Ultimate fallback
+		}
 	}
 	scale := cfg.StreamScale
 	if scale != "device" {
@@ -152,9 +171,21 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		}
 	}
 
+	// Get actual viewport from Playwright (may differ from requested due to profile)
+	var actualViewport *ViewportDimensions
+	if av := sess.ActualViewport(); av != nil {
+		actualViewport = &ViewportDimensions{
+			Width:  av.Width,
+			Height: av.Height,
+			Source: string(av.Source),
+			Reason: av.Reason,
+		}
+	}
+
 	return &SessionResult{
-		SessionID: sess.ID(),
-		CreatedAt: time.Now().UTC(),
+		SessionID:      sess.ID(),
+		CreatedAt:      time.Now().UTC(),
+		ActualViewport: actualViewport,
 	}, nil
 }
 
@@ -203,6 +234,14 @@ func (s *Service) UnregisterServiceWorker(ctx context.Context, sessionID, scopeU
 type RecordingConfig struct {
 	APIHost string
 	APIPort string
+	// FrameQuality is the JPEG quality for frame streaming (1-100).
+	// Default: uses BAS_RECORDING_DEFAULT_STREAM_QUALITY from config (default 55).
+	FrameQuality int
+	// FrameFPS is the target frames per second for frame streaming.
+	// Default: uses BAS_RECORDING_DEFAULT_STREAM_FPS from config (default 30).
+	// Note: For CDP screencast (Chromium), Chrome controls actual FPS.
+	// For polling strategy (Firefox/WebKit), this controls capture interval.
+	FrameFPS int
 }
 
 // StartRecording starts recording user actions.
@@ -216,12 +255,31 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 		apiPort = "8080"
 	}
 
+	// Get defaults from config - single source of truth
+	appCfg := config.Load()
+
+	// Apply defaults for optional config values, using config system
+	frameQuality := cfg.FrameQuality
+	if frameQuality <= 0 {
+		frameQuality = appCfg.Recording.DefaultStreamQuality
+		if frameQuality <= 0 {
+			frameQuality = 55 // Ultimate fallback
+		}
+	}
+	frameFPS := cfg.FrameFPS
+	if frameFPS <= 0 {
+		frameFPS = appCfg.Recording.DefaultStreamFPS
+		if frameFPS <= 0 {
+			frameFPS = 30 // Ultimate fallback
+		}
+	}
+
 	req := &driver.StartRecordingRequest{
 		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
 		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
 		PageCallbackURL:  fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
-		FrameQuality:     65,
-		FrameFPS:         6,
+		FrameQuality:     frameQuality,
+		FrameFPS:         frameFPS,
 	}
 
 	return s.sessions.Client().StartRecording(ctx, sessionID, req)

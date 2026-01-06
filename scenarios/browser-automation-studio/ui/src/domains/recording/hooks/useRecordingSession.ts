@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
+import type { ViewportDimensions, ActualViewport } from '../types/viewport';
+
+// Re-export types for backward compatibility
+export type { ViewportSource, ActualViewport } from '../types/viewport';
 
 interface UseRecordingSessionOptions {
   initialSessionId: string | null;
   onSessionReady?: (sessionId: string) => void;
   initialSessionProfileId?: string | null;
-}
-
-interface ViewportSize {
-  width: number;
-  height: number;
 }
 
 /** Stream settings passed to session creation */
@@ -26,8 +25,10 @@ interface UseRecordingSessionReturn {
   sessionProfileId: string | null;
   isCreatingSession: boolean;
   sessionError: string | null;
+  /** Actual viewport from Playwright with source attribution (may differ from requested due to profile settings) */
+  actualViewport: ActualViewport | null;
   ensureSession: (
-    viewport?: ViewportSize | null,
+    viewport?: ViewportDimensions | null,
     profileId?: string | null,
     streamSettings?: StreamSettings | null
   ) => Promise<string | null>;
@@ -44,6 +45,7 @@ export function useRecordingSession({
   const [sessionProfileId, setSessionProfileId] = useState<string | null>(initialSessionProfileId ?? null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [actualViewport, setActualViewport] = useState<ActualViewport | null>(null);
 
   // Track in-flight session creation to prevent duplicate requests.
   // We use a ref because React state updates are async and multiple calls
@@ -54,11 +56,12 @@ export function useRecordingSession({
     setSessionId(initialSessionId ?? null);
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
+    setActualViewport(null);
     pendingSessionPromiseRef.current = null;
   }, [initialSessionId, initialSessionProfileId]);
 
   const ensureSession = useCallback(async (
-    viewport?: ViewportSize | null,
+    viewport?: ViewportDimensions | null,
     profileId?: string | null,
     streamSettings?: StreamSettings | null
   ): Promise<string | null> => {
@@ -107,6 +110,15 @@ export function useRecordingSession({
         if (data.session_profile_id) {
           setSessionProfileId(data.session_profile_id as string);
         }
+        // Store actual viewport from Playwright with source attribution (may differ from requested due to profile)
+        if (data.actual_viewport) {
+          setActualViewport({
+            width: data.actual_viewport.width,
+            height: data.actual_viewport.height,
+            source: data.actual_viewport.source ?? 'requested',
+            reason: data.actual_viewport.reason ?? '',
+          });
+        }
         if (onSessionReady) {
           onSessionReady(newSessionId);
         }
@@ -134,6 +146,7 @@ export function useRecordingSession({
     sessionProfileId,
     isCreatingSession,
     sessionError,
+    actualViewport,
     ensureSession,
     setSessionProfileId,
     resetSessionError,

@@ -88,6 +88,12 @@ export function createMockContext(overrides?: Partial<BrowserContext>): jest.Moc
     off: jest.fn(),
     once: jest.fn(),
     removeListener: jest.fn(),
+    route: jest.fn().mockResolvedValue(undefined),
+    unroute: jest.fn().mockResolvedValue(undefined),
+    addInitScript: jest.fn().mockResolvedValue(undefined),
+    exposeBinding: jest.fn().mockResolvedValue(undefined),
+    setDefaultNavigationTimeout: jest.fn(),
+    setDefaultTimeout: jest.fn(),
     ...overrides,
   } as unknown as jest.Mocked<BrowserContext>;
 

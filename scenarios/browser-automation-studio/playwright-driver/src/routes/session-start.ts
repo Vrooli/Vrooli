@@ -91,8 +91,8 @@ export async function handleSessionStart(
       browser_profile: request.browser_profile,
     };
 
-    // Start session - returns session info including whether it was reused
-    const { sessionId, reused, createdAt } = await sessionManager.startSession(spec);
+    // Start session - returns session info including whether it was reused and actual viewport
+    const { sessionId, reused, createdAt, actualViewport } = await sessionManager.startSession(spec);
 
     // Start frame streaming if requested (for record mode live preview)
     if (request.frame_streaming?.callback_url) {
@@ -108,6 +108,7 @@ export async function handleSessionStart(
       phase: 'ready',
       created_at: createdAt.toISOString(),
       reused: reused || undefined, // Only include if true
+      actual_viewport: actualViewport, // Report actual Playwright viewport
     };
 
     sendJson(res, 200, response);

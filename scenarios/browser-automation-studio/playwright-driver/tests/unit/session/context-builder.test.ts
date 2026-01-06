@@ -242,4 +242,119 @@ describe('ContextBuilder', () => {
       );
     });
   });
+
+  describe('viewport source attribution', () => {
+    it('should return actualViewport with requested source when using spec viewport', async () => {
+      const result = await buildContext(mockBrowser, sessionSpec, config);
+
+      expect(result.actualViewport).toEqual({
+        width: 1280,
+        height: 720,
+        source: 'requested',
+        reason: 'Using requested 1280x720',
+      });
+    });
+
+    it('should return actualViewport with fingerprint source when profile has both dimensions', async () => {
+      const specWithProfile: SessionSpec = {
+        ...sessionSpec,
+        session_profile: {
+          id: 'profile-1',
+          name: 'Test Profile',
+          fingerprint: {
+            viewport_width: 1920,
+            viewport_height: 1080,
+          },
+        },
+      };
+
+      const result = await buildContext(mockBrowser, specWithProfile, config);
+
+      expect(result.actualViewport).toEqual({
+        width: 1920,
+        height: 1080,
+        source: 'fingerprint',
+        reason: 'Browser profile specifies 1920x1080',
+      });
+    });
+
+    it('should use requested viewport when fingerprint has only one dimension (width)', async () => {
+      const specWithPartialProfile: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 1280, height: 720 },
+        session_profile: {
+          id: 'profile-1',
+          name: 'Test Profile',
+          fingerprint: {
+            viewport_width: 1920,
+            // viewport_height intentionally omitted
+          },
+        },
+      };
+
+      const result = await buildContext(mockBrowser, specWithPartialProfile, config);
+
+      // Should use requested viewport, not fingerprint width
+      expect(result.actualViewport.source).toBe('requested');
+      expect(result.actualViewport.width).toBe(1280);
+      expect(result.actualViewport.height).toBe(720);
+    });
+
+    it('should use requested viewport when fingerprint has only one dimension (height)', async () => {
+      const specWithPartialProfile: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 1280, height: 720 },
+        session_profile: {
+          id: 'profile-1',
+          name: 'Test Profile',
+          fingerprint: {
+            // viewport_width intentionally omitted
+            viewport_height: 1080,
+          },
+        },
+      };
+
+      const result = await buildContext(mockBrowser, specWithPartialProfile, config);
+
+      // Should use requested viewport, not fingerprint height
+      expect(result.actualViewport.source).toBe('requested');
+      expect(result.actualViewport.width).toBe(1280);
+      expect(result.actualViewport.height).toBe(720);
+    });
+
+    it('should use requested viewport when fingerprint dimensions are zero', async () => {
+      const specWithZeroProfile: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 1280, height: 720 },
+        session_profile: {
+          id: 'profile-1',
+          name: 'Test Profile',
+          fingerprint: {
+            viewport_width: 0,
+            viewport_height: 0,
+          },
+        },
+      };
+
+      const result = await buildContext(mockBrowser, specWithZeroProfile, config);
+
+      expect(result.actualViewport.source).toBe('requested');
+      expect(result.actualViewport.width).toBe(1280);
+      expect(result.actualViewport.height).toBe(720);
+    });
+
+    it('should use default viewport when both requested and fingerprint are missing', async () => {
+      const specWithNoViewport: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 0, height: 0 },
+      };
+
+      const result = await buildContext(mockBrowser, specWithNoViewport, config);
+
+      expect(result.actualViewport.source).toBe('default');
+      expect(result.actualViewport.width).toBe(1280);
+      expect(result.actualViewport.height).toBe(720);
+      expect(result.actualViewport.reason).toContain('default');
+    });
+  });
 });

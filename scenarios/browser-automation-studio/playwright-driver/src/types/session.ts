@@ -302,9 +302,10 @@ export interface StartSessionRequest {
   frame_streaming?: {
     /** Callback URL for frame delivery (API constructs WebSocket URL from this) */
     callback_url: string;
-    /** JPEG quality 1-100 (default: 65) */
+    /** JPEG quality 1-100 (default: 55 from API config) */
     quality?: number;
-    /** Target FPS 1-30 (default: 6) */
+    /** Target FPS 1-60 (default: 30 from API config) */
+    /** Note: For CDP screencast, Chrome controls actual FPS. This is a target/hint. */
     fps?: number;
     /** Screenshot scale: 'css' for 1x scale (default), 'device' for device pixel ratio */
     scale?: 'css' | 'device';
@@ -315,6 +316,29 @@ export interface StartSessionRequest {
   browser_profile?: BrowserProfile;
 }
 
+/**
+ * Describes what determined the actual viewport dimensions.
+ * This attribution helps users understand why dimensions may differ from requested.
+ */
+export type ViewportSource =
+  | 'requested'           // Used the UI-requested dimensions
+  | 'fingerprint'         // Browser profile fingerprint override
+  | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
+  | 'default';            // Fallback defaults used
+
+/**
+ * Actual viewport with source attribution.
+ * Includes the dimensions and explanation of what determined them.
+ */
+export interface ActualViewportResponse {
+  width: number;
+  height: number;
+  /** What determined these dimensions */
+  source: ViewportSource;
+  /** Human-readable explanation of why this source was used */
+  reason: string;
+}
+
 export interface StartSessionResponse {
   session_id: string;
   /** Session phase after creation (always 'ready' for new sessions) */
@@ -323,6 +347,25 @@ export interface StartSessionResponse {
   created_at: string;
   /** Whether this was a reused session (only true if reuse_mode != 'fresh' and match found) */
   reused?: boolean;
+  /**
+   * Actual viewport dimensions applied by Playwright with source attribution.
+   * May differ from requested dimensions due to browser profile fingerprint overrides.
+   */
+  actual_viewport?: ActualViewportResponse;
+}
+
+/**
+ * Response from updating session viewport dimensions.
+ */
+export interface UpdateViewportResponse {
+  /** Success status */
+  success: boolean;
+  /**
+   * Actual viewport dimensions after update with source attribution.
+   * This is what Playwright is actually using, which may differ from requested
+   * dimensions due to constraints or browser profile settings.
+   */
+  actual_viewport: ActualViewportResponse;
 }
 
 /**

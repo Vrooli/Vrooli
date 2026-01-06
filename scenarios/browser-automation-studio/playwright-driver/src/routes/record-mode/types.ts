@@ -24,9 +24,10 @@ export interface StartRecordingRequest {
   frame_callback_url?: string;
   /** Optional callback URL to stream page lifecycle events to (for multi-tab support) */
   page_callback_url?: string;
-  /** Frame quality (0-100), default 65 */
+  /** Frame quality (1-100), default 55 (from API config) */
   frame_quality?: number;
-  /** Target FPS for frame streaming, default 6 */
+  /** Target FPS for frame streaming (1-60), default 30 (from API config) */
+  /** Note: For CDP screencast, Chrome controls actual FPS. This is a target/hint. */
   frame_fps?: number;
 }
 

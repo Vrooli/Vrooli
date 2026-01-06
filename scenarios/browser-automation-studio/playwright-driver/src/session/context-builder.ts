@@ -50,6 +50,24 @@ export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
  * - User agent and other browser options
  * - Browser profile (fingerprint, behavior, anti-detection)
  */
+/**
+ * Describes what determined the actual viewport dimensions.
+ * This attribution helps users understand why dimensions may differ from requested.
+ */
+export type ViewportSource =
+  | 'requested'           // Used the UI-requested dimensions
+  | 'fingerprint'         // Browser profile fingerprint override
+  | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
+  | 'default';            // Fallback defaults used
+
+export interface ActualViewport {
+  width: number;
+  height: number;
+  source: ViewportSource;
+  /** Human-readable explanation of why this source was used */
+  reason: string;
+}
+
 export async function buildContext(
   browser: Browser,
   spec: SessionSpec,
@@ -61,6 +79,7 @@ export async function buildContext(
   videoDir?: string;
   serviceWorkerController: ServiceWorkerController;
   recordingInitializer: RecordingContextInitializer;
+  actualViewport: ActualViewport;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
   const resolvedArtifacts = resolveArtifactPaths(
@@ -72,9 +91,72 @@ export async function buildContext(
   // Merge browser profile with preset defaults
   const { fingerprint, behavior, antiDetection, proxy } = mergeWithPreset(spec.browser_profile);
 
-  // Determine viewport: browser profile overrides spec if set
-  const viewportWidth = fingerprint.viewport_width || spec.viewport.width;
-  const viewportHeight = fingerprint.viewport_height || spec.viewport.height;
+  // Determine viewport with explicit source attribution
+  // We check the EXPLICIT session_profile fingerprint, not the merged fingerprint,
+  // because mergeWithPreset always adds default values (1280x720).
+  // Fingerprint viewport is ONLY used when the user explicitly provided a session_profile
+  // with BOTH dimensions set and > 0. This prevents default fingerprint values from
+  // overriding the UI-requested viewport.
+  const explicitFingerprint = spec.session_profile?.fingerprint;
+  const explicitHasWidth = explicitFingerprint?.viewport_width && explicitFingerprint.viewport_width > 0;
+  const explicitHasHeight = explicitFingerprint?.viewport_height && explicitFingerprint.viewport_height > 0;
+  const explicitHasBoth = explicitHasWidth && explicitHasHeight;
+
+  let viewportWidth: number;
+  let viewportHeight: number;
+  let viewportSource: ViewportSource;
+  let viewportReason: string;
+
+  if (explicitHasBoth) {
+    // User explicitly provided a session_profile with complete viewport override
+    viewportWidth = explicitFingerprint!.viewport_width!;
+    viewportHeight = explicitFingerprint!.viewport_height!;
+    viewportSource = 'fingerprint';
+    viewportReason = `Browser profile specifies ${viewportWidth}x${viewportHeight}`;
+  } else if (explicitHasWidth || explicitHasHeight) {
+    // User provided partial fingerprint override - warn but use requested viewport
+    // This is likely unintentional, so we don't apply partial overrides
+    logger.warn('Partial viewport override detected in session profile - using requested viewport instead', {
+      explicitWidth: explicitFingerprint?.viewport_width,
+      explicitHeight: explicitFingerprint?.viewport_height,
+      requestedWidth: spec.viewport.width,
+      requestedHeight: spec.viewport.height,
+    });
+    // Fall through to use requested viewport
+    if (spec.viewport.width > 0 && spec.viewport.height > 0) {
+      viewportWidth = spec.viewport.width;
+      viewportHeight = spec.viewport.height;
+      viewportSource = 'requested';
+      viewportReason = `Using requested ${viewportWidth}x${viewportHeight} (profile had partial override)`;
+    } else {
+      viewportWidth = 1280;
+      viewportHeight = 720;
+      viewportSource = 'default';
+      viewportReason = 'No valid viewport specified, using default 1280x720';
+    }
+  } else if (spec.viewport.width > 0 && spec.viewport.height > 0) {
+    // Use requested viewport from UI (most common case)
+    viewportWidth = spec.viewport.width;
+    viewportHeight = spec.viewport.height;
+    viewportSource = 'requested';
+    viewportReason = `Using requested ${viewportWidth}x${viewportHeight}`;
+  } else {
+    // Fallback defaults (should rarely happen)
+    viewportWidth = 1280;
+    viewportHeight = 720;
+    viewportSource = 'default';
+    viewportReason = 'No viewport specified, using default 1280x720';
+    logger.warn('Using default viewport - no valid dimensions provided', {
+      specViewport: spec.viewport,
+    });
+  }
+
+  const actualViewport: ActualViewport = {
+    width: viewportWidth,
+    height: viewportHeight,
+    source: viewportSource,
+    reason: viewportReason,
+  };
 
   // Determine device scale factor from profile
   const deviceScaleFactor = fingerprint.device_scale_factor || 2;
@@ -276,7 +358,13 @@ export async function buildContext(
 
   logger.info('Browser context created', {
     executionId: spec.execution_id,
-    viewport: { width: viewportWidth, height: viewportHeight },
+    viewport: {
+      width: viewportWidth,
+      height: viewportHeight,
+      source: viewportSource,
+      requestedWidth: spec.viewport.width,
+      requestedHeight: spec.viewport.height,
+    },
     har: !!harPath,
     video: !!videoDir,
     tracing: !!tracePath,
@@ -295,6 +383,7 @@ export async function buildContext(
     videoDir,
     serviceWorkerController,
     recordingInitializer,
+    actualViewport,
   };
 }
 

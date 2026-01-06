@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2025-12-05T22:52:24.195616797Z",
+  "generated_at": "2026-01-05T15:15:28.398707297Z",
   "dependencies": [
     {
       "name": "minio",
@@ -305,7 +305,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2025-12-05T22:52:24.195616797Z",
+    "generated_at": "2026-01-05T15:15:28.398707297Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -335,7 +335,7 @@
       {
         "path": "cli/browser-automation-studio",
         "type": "cli-binary",
-        "exists": true
+        "exists": false
       }
     ],
     "dependencies": [
@@ -495,7 +495,7 @@
       "schema_version": "v0.1",
       "target": "desktop",
       "app": {
-        "name": "Vrooli Ascension",
+        "name": "browser-automation-studio",
         "version": "1.0.0",
         "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
       },
@@ -543,14 +543,29 @@
           "description": "Bundled API process for browser-automation-studio",
           "binaries": {
             "darwin-x64": {
-              "path": "api/browser-automation-studio-api"
+              "path": "bin/api/darwin-x64/browser-automation-studio-api"
             },
             "linux-x64": {
-              "path": "api/browser-automation-studio-api"
+              "path": "bin/api/linux-x64/browser-automation-studio-api"
             },
             "win-x64": {
-              "path": "api/browser-automation-studio-api.exe"
+              "path": "bin/api/win-x64/browser-automation-studio-api.exe"
             }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/api/{{platform}}/browser-automation-studio-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${browser-automation-studio-api.api}",
+            "BAS_DB_BACKEND": "sqlite",
+            "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
           },
           "data_dirs": [
             "data/api"
@@ -596,6 +611,10 @@
               "path": "ui/dist/index.html"
             }
           },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
           "log_dir": "logs/ui",
           "ports": {
             "requested": [
@@ -623,15 +642,54 @@
           },
           "assets": [
             {
-              "path": "ui/dist",
-              "sha256": "pending"
-            },
-            {
               "path": "ui/dist/index.html",
               "sha256": "pending"
             }
           ],
           "critical": true
+        },
+        {
+          "id": "browser-automation-studio-cli",
+          "type": "resource",
+          "description": "CLI for browser-automation-studio scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/browser-automation-studio"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/browser-automation-studio"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/browser-automation-studio.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/browser-automation-studio{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          }
         }
       ]
     }

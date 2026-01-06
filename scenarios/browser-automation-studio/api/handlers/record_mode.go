@@ -74,12 +74,20 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Apply stream settings with defaults
-	streamQuality := 55
+	// Apply stream settings with defaults from config
+	// Note: These defaults should be centralized in config.go, not hardcoded here
+	appCfg := config.Load()
+	streamQuality := appCfg.Recording.DefaultStreamQuality
+	if streamQuality <= 0 || streamQuality > 100 {
+		streamQuality = 55 // Fallback if config invalid
+	}
 	if req.StreamQuality != nil && *req.StreamQuality >= 1 && *req.StreamQuality <= 100 {
 		streamQuality = *req.StreamQuality
 	}
-	streamFPS := 6
+	streamFPS := appCfg.Recording.DefaultStreamFPS
+	if streamFPS <= 0 || streamFPS > 60 {
+		streamFPS = 30 // Fallback if config invalid
+	}
 	if req.StreamFPS != nil && *req.StreamFPS >= 1 && *req.StreamFPS <= 60 {
 		streamFPS = *req.StreamFPS
 	}
@@ -122,12 +130,24 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		h.setActiveSessionProfile(result.SessionID, profileID)
 	}
 
+	// Convert actual viewport with source attribution if present
+	var actualViewport *ActualViewportWithSource
+	if result.ActualViewport != nil {
+		actualViewport = &ActualViewportWithSource{
+			Width:  result.ActualViewport.Width,
+			Height: result.ActualViewport.Height,
+			Source: ViewportSource(result.ActualViewport.Source),
+			Reason: result.ActualViewport.Reason,
+		}
+	}
+
 	response := CreateRecordingSessionResponse{
 		SessionID:          result.SessionID,
 		CreatedAt:          result.CreatedAt.Format(time.RFC3339),
 		SessionProfileID:   profileID,
 		SessionProfileName: profileName,
 		LastUsedAt:         profileLastUsed,
+		ActualViewport:     actualViewport,
 	}
 
 	if pb, err := protoconv.RecordingSessionToProto(response); err == nil && pb != nil {
@@ -218,11 +238,20 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.StartRecording(ctx, req.SessionID, &livecapture.RecordingConfig{
+	// Build recording config with optional FPS/quality
+	recordingCfg := &livecapture.RecordingConfig{
 		APIHost: os.Getenv("API_HOST"),
 		APIPort: os.Getenv("API_PORT"),
-	})
+	}
+	if req.FrameQuality != nil {
+		recordingCfg.FrameQuality = *req.FrameQuality
+	}
+	if req.FrameFPS != nil {
+		recordingCfg.FrameFPS = *req.FrameFPS
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.StartRecording(ctx, req.SessionID, recordingCfg)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to start recording")
 		// Check for specific error types

@@ -43,19 +43,19 @@ import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
 import { PreviewSettingsPanel } from '@/domains/preview-settings';
-import { useViewportSyncManager } from './utils/ViewportSyncManager';
+import { ViewportProvider } from './context';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
 import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
+import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
-import type { ConsoleLogEntry, NetworkEventEntry, DomSnapshotEntry } from './sidebar/ArtifactsTab';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow, useExecutionEvents, type TimelineFrame } from '@/domains/executions';
+import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
@@ -64,6 +64,10 @@ import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
+import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
+
+/** LocalStorage key for persisting the last selected session profile ID */
+const LAST_SELECTED_PROFILE_KEY = 'bas_last_selected_session_profile_id';
 
 /** Workflow type being created (from AI modal or template) */
 export type WorkflowTypeParam = 'action' | 'flow' | 'case';
@@ -103,104 +107,6 @@ interface RecordModePageProps {
 
 /** Right panel view state */
 type RightPanelView = 'preview' | 'create-workflow';
-
-// ============================================================================
-// Artifact Extraction Helpers
-// ============================================================================
-
-/**
- * Extract console logs from timeline artifacts.
- * Console logs are captured as artifacts with type 'console_log'.
- */
-function extractConsoleLogs(timeline: TimelineFrame[]): ConsoleLogEntry[] {
-  const consoleLogs: ConsoleLogEntry[] = [];
-  for (const frame of timeline) {
-    if (!frame.artifacts) continue;
-    for (const artifact of frame.artifacts) {
-      if (artifact.type === 'console_log' && artifact.payload) {
-        const payload = artifact.payload as {
-          level?: string;
-          text?: string;
-          timestamp?: string;
-          stack?: string;
-          location?: string;
-        };
-        consoleLogs.push({
-          id: artifact.id,
-          level: (payload.level as ConsoleLogEntry['level']) ?? 'log',
-          text: payload.text ?? '',
-          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-          stack: payload.stack,
-          location: payload.location,
-        });
-      }
-    }
-  }
-  return consoleLogs;
-}
-
-/**
- * Extract network events from timeline artifacts.
- * Network events are captured as artifacts with type 'network_event'.
- */
-function extractNetworkEvents(timeline: TimelineFrame[]): NetworkEventEntry[] {
-  const networkEvents: NetworkEventEntry[] = [];
-  for (const frame of timeline) {
-    if (!frame.artifacts) continue;
-    for (const artifact of frame.artifacts) {
-      if (artifact.type === 'network_event' && artifact.payload) {
-        const payload = artifact.payload as {
-          type?: string;
-          url?: string;
-          method?: string;
-          resourceType?: string;
-          status?: number;
-          ok?: boolean;
-          failure?: string;
-          timestamp?: string;
-          durationMs?: number;
-        };
-        networkEvents.push({
-          id: artifact.id,
-          type: (payload.type as NetworkEventEntry['type']) ?? 'request',
-          url: payload.url ?? '',
-          method: payload.method,
-          resourceType: payload.resourceType,
-          status: payload.status,
-          ok: payload.ok,
-          failure: payload.failure,
-          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-          durationMs: payload.durationMs,
-        });
-      }
-    }
-  }
-  return networkEvents;
-}
-
-/**
- * Extract DOM snapshots from timeline artifacts.
- * DOM snapshots are captured as artifacts with type 'dom_snapshot'.
- */
-function extractDomSnapshots(timeline: TimelineFrame[]): DomSnapshotEntry[] {
-  const snapshots: DomSnapshotEntry[] = [];
-  for (const frame of timeline) {
-    if (!frame.artifacts) continue;
-    for (const artifact of frame.artifacts) {
-      if (artifact.type === 'dom_snapshot') {
-        snapshots.push({
-          id: artifact.id,
-          stepIndex: artifact.step_index ?? frame.stepIndex ?? 0,
-          stepName: artifact.label ?? frame.stepType ?? 'Step',
-          timestamp: new Date(),
-          storageUrl: artifact.storage_url,
-          sizeBytes: artifact.size_bytes,
-        });
-      }
-    }
-  }
-  return snapshots;
-}
 
 export function RecordModePage({
   sessionId: initialSessionId,
@@ -247,6 +153,7 @@ export function RecordModePage({
     sessionId,
     sessionProfileId,
     sessionError,
+    actualViewport: sessionActualViewport,
     ensureSession,
     setSessionProfileId,
   } = useRecordingSession({ initialSessionId, onSessionReady });
@@ -261,26 +168,15 @@ export function RecordModePage({
   const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
 
-  // Viewport sync manager - handles debouncing, resize detection, and CDP screencast restart
-  // This centralizes viewport management so it doesn't change when toggling replay style
-  const viewportSync = useViewportSyncManager({
-    sessionId: sessionId ?? null,
-    debounceMs: 200,
-    resizeThresholdMs: 100,
-  });
-
-  // Handler for PreviewContainer's browser viewport changes
+  // Handler for PreviewContainer's browser viewport changes (for session creation)
   const handleBrowserViewportChange = useCallback((viewport: { width: number; height: number }) => {
-    // Update local state for session creation
     setPreviewViewport(viewport);
-    // Update ViewportSyncManager for backend sync
-    viewportSync.updateFromBounds(viewport);
-  }, [viewportSync]);
+  }, []);
 
   const autoStartedRef = useRef(false);
 
   // Stream settings for session creation (from shared context)
-  const { settings: streamSettings } = useStreamSettings();
+  const { settings: streamSettings, showStats } = useStreamSettings();
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
@@ -502,8 +398,8 @@ export function RecordModePage({
         // Enable live frame streaming for real-time execution preview
         frameStreaming: {
           enabled: true,
-          quality: currentStreamSettings?.quality ?? 55,
-          fps: currentStreamSettings?.fps ?? 6,
+          quality: currentStreamSettings?.quality ?? DEFAULT_STREAM_QUALITY,
+          fps: currentStreamSettings?.fps ?? DEFAULT_STREAM_FPS,
         },
       });
     } catch {
@@ -742,13 +638,28 @@ export function RecordModePage({
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
+  // Initialize profile selection - prefer localStorage, then API, then default
   useEffect(() => {
+    // Skip if we already have a selection
+    if (selectedProfileId) return;
+    // Wait for profiles to load
+    if (sessionProfiles.profiles.length === 0) return;
+
+    // Priority 1: Check localStorage for last explicitly selected profile
+    const storedProfileId = localStorage.getItem(LAST_SELECTED_PROFILE_KEY);
+    if (storedProfileId && sessionProfiles.profiles.some((p) => p.id === storedProfileId)) {
+      setSelectedProfileId(storedProfileId);
+      setSessionProfileId(storedProfileId);
+      return;
+    }
+
+    // Priority 2: Use sessionProfileId from hook or API default
     const maybeDefault = sessionProfileId ?? sessionProfiles.getDefaultProfileId();
-    if (!selectedProfileId && maybeDefault) {
+    if (maybeDefault) {
       setSelectedProfileId(maybeDefault);
       setSessionProfileId(maybeDefault);
     }
-  }, [selectedProfileId, sessionProfileId, sessionProfiles.getDefaultProfileId, setSessionProfileId]);
+  }, [selectedProfileId, sessionProfileId, sessionProfiles.profiles, sessionProfiles.getDefaultProfileId, setSessionProfileId]);
 
   useEffect(() => {
     if (sessionProfileId && sessionProfileId !== selectedProfileId) {
@@ -756,6 +667,7 @@ export function RecordModePage({
     }
   }, [sessionProfileId, selectedProfileId]);
 
+  // Handle case where selected profile no longer exists (was deleted)
   useEffect(() => {
     if (
       selectedProfileId &&
@@ -765,6 +677,12 @@ export function RecordModePage({
       const fallback = sessionProfiles.getDefaultProfileId();
       setSelectedProfileId(fallback);
       setSessionProfileId(fallback);
+      // Update localStorage with the fallback or clear it
+      if (fallback) {
+        localStorage.setItem(LAST_SELECTED_PROFILE_KEY, fallback);
+      } else {
+        localStorage.removeItem(LAST_SELECTED_PROFILE_KEY);
+      }
     }
   }, [selectedProfileId, sessionProfiles.getDefaultProfileId, sessionProfiles.profiles, setSessionProfileId]);
 
@@ -917,6 +835,12 @@ export function RecordModePage({
     (profileId: string | null) => {
       setSelectedProfileId(profileId);
       setSessionProfileId(profileId);
+      // Persist to localStorage for next visit
+      if (profileId) {
+        localStorage.setItem(LAST_SELECTED_PROFILE_KEY, profileId);
+      } else {
+        localStorage.removeItem(LAST_SELECTED_PROFILE_KEY);
+      }
     },
     [setSessionProfileId]
   );
@@ -926,6 +850,8 @@ export function RecordModePage({
     if (created) {
       setSelectedProfileId(created.id);
       setSessionProfileId(created.id);
+      // Persist newly created profile to localStorage
+      localStorage.setItem(LAST_SELECTED_PROFILE_KEY, created.id);
     }
   }, [sessionProfiles, setSessionProfileId]);
 
@@ -1131,6 +1057,7 @@ export function RecordModePage({
   const displayError = sessionError ?? error;
 
   return (
+    <ViewportProvider sessionId={sessionId} actualViewport={sessionActualViewport}>
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={mode === 'recording' && isRecording}
@@ -1316,10 +1243,11 @@ export function RecordModePage({
                   pageTitle={recordingPageTitle || undefined}
                   placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
                   frameStats={recordingFrameStats}
+                  targetFps={streamSettings?.fps ?? DEFAULT_STREAM_FPS}
+                  showStats={showStats}
                   mode="recording"
-                  // New viewport management props
+                  // Viewport props (context handles sync and actual viewport)
                   onBrowserViewportChange={handleBrowserViewportChange}
-                  isViewportSyncing={viewportSync.state.isSyncing}
                 >
                   <RecordPreviewPanel
                     previewUrl={previewUrl}
@@ -1327,10 +1255,7 @@ export function RecordModePage({
                     sessionId={sessionId}
                     activePageId={activePageId}
                     actions={actions}
-                    // New viewport architecture: viewport comes from PreviewContainer via ViewportSyncManager
-                    viewport={viewportSync.state.viewport}
-                    isResizing={viewportSync.state.isResizing}
-                    isViewportSyncing={viewportSync.state.isSyncing}
+                    // Viewport state now comes from ViewportProvider context
                     onConnectionStatusChange={setConnectionStatus}
                     hideConnectionIndicator={true}
                     onPageTitleChange={setRecordingPageTitle}
@@ -1427,5 +1352,6 @@ export function RecordModePage({
       {/* Confirmation dialog for unsaved actions */}
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
     </div>
+    </ViewportProvider>
   );
 }

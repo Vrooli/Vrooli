@@ -42,6 +42,11 @@ type Hub struct {
 	// Driver status broadcasting
 	currentDriverStatus *health.DriverHealth // Cached for immediate send on subscribe
 	driverStatusMu      sync.RWMutex
+
+	// Frame drop monitoring
+	droppedFrameCount   int64     // Total dropped frames since startup
+	lastDropLogTime     time.Time // Last time we logged about dropped frames
+	droppedFrameCountMu sync.Mutex
 }
 
 // NewHub creates a new WebSocket hub
@@ -59,6 +64,34 @@ func NewHub(log *logrus.Logger) *Hub {
 // This should be called during server initialization.
 func (h *Hub) SetInputForwarder(forwarder InputForwarder) {
 	h.inputForwarder = forwarder
+}
+
+// recordDroppedFrame increments the dropped frame counter and logs periodically.
+// This helps diagnose performance issues without flooding the logs.
+func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID) {
+	h.droppedFrameCountMu.Lock()
+	defer h.droppedFrameCountMu.Unlock()
+
+	h.droppedFrameCount++
+
+	// Log at most once per second to avoid log spam
+	now := time.Now()
+	if now.Sub(h.lastDropLogTime) >= time.Second {
+		h.log.WithFields(logrus.Fields{
+			"session_id":          sessionID,
+			"client_id":           clientID,
+			"total_dropped":       h.droppedFrameCount,
+			"reason":              "client_buffer_full",
+		}).Warn("Frame dropped: client buffer full")
+		h.lastDropLogTime = now
+	}
+}
+
+// GetDroppedFrameCount returns the total number of dropped frames since startup.
+func (h *Hub) GetDroppedFrameCount() int64 {
+	h.droppedFrameCountMu.Lock()
+	defer h.droppedFrameCountMu.Unlock()
+	return h.droppedFrameCount
 }
 
 // Run starts the hub's main loop
@@ -209,6 +242,7 @@ func (h *Hub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {
 			default:
 				// Client buffer full, skip frame (non-blocking)
 				// This is acceptable - missing a frame is better than blocking
+				h.recordDroppedFrame(sessionID, client.ID)
 			}
 		}
 	}
@@ -229,6 +263,7 @@ func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 			default:
 				// Client buffer full, skip frame (non-blocking)
 				// Missing a frame is better than blocking the broadcast
+				h.recordDroppedFrame(sessionID, client.ID)
 			}
 		}
 	}

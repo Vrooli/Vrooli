@@ -62,12 +62,19 @@ interface BrowserChromeProps {
   // Viewport indicator props (Priority 3)
   /** Current browser viewport dimensions (what we requested from Playwright) */
   browserViewport?: { width: number; height: number } | null;
-  /** Actual browser dimensions (may differ due to session profile override) */
-  actualBrowserViewport?: { width: number; height: number } | null;
+  /** Actual browser dimensions with source attribution (may differ due to session profile override) */
+  actualBrowserViewport?: {
+    width: number;
+    height: number;
+    source?: 'requested' | 'fingerprint' | 'fingerprint_partial' | 'default';
+    reason?: string;
+  } | null;
   /** Whether there's a mismatch between requested and actual dimensions */
   hasDimensionMismatch?: boolean;
   /** Whether viewport sync is in progress */
   isViewportSyncing?: boolean;
+  /** Human-readable explanation of what determined the viewport dimensions */
+  viewportReason?: string;
 
   // Additional class name
   className?: string;
@@ -97,6 +104,7 @@ export function BrowserChrome({
   actualBrowserViewport,
   hasDimensionMismatch = false,
   isViewportSyncing = false,
+  viewportReason,
   className,
 }: BrowserChromeProps) {
   // In read-only mode, we don't allow navigation or refresh
@@ -159,9 +167,31 @@ export function BrowserChrome({
               : 'bg-gray-800/50 border border-gray-700/50 text-gray-400',
           )}
           title={
-            hasDimensionMismatch
-              ? `Browser using ${actualBrowserViewport?.width}x${actualBrowserViewport?.height} (session profile override)`
-              : `Browser viewport: ${browserViewport.width}x${browserViewport.height}`
+            // Build a detailed tooltip showing viewport attribution
+            (() => {
+              const displayWidth = hasDimensionMismatch && actualBrowserViewport
+                ? actualBrowserViewport.width
+                : browserViewport.width;
+              const displayHeight = hasDimensionMismatch && actualBrowserViewport
+                ? actualBrowserViewport.height
+                : browserViewport.height;
+              const source = actualBrowserViewport?.source;
+              const reason = viewportReason || actualBrowserViewport?.reason;
+
+              if (reason) {
+                return `${displayWidth}x${displayHeight}: ${reason}`;
+              }
+              if (hasDimensionMismatch) {
+                return `Browser using ${displayWidth}x${displayHeight} (session profile override)`;
+              }
+              if (source && source !== 'requested') {
+                const sourceLabel = source === 'fingerprint' ? 'browser profile' :
+                                   source === 'fingerprint_partial' ? 'partial profile' :
+                                   source === 'default' ? 'default' : source;
+                return `${displayWidth}x${displayHeight} (from ${sourceLabel})`;
+              }
+              return `Browser viewport: ${displayWidth}x${displayHeight}`;
+            })()
           }
         >
           {isViewportSyncing ? (
@@ -176,9 +206,16 @@ export function BrowserChrome({
               ? `${actualBrowserViewport.width}x${actualBrowserViewport.height}`
               : `${browserViewport.width}x${browserViewport.height}`}
           </span>
-          {hasDimensionMismatch && (
+          {/* Show source attribution inline when there's a mismatch or non-requested source */}
+          {hasDimensionMismatch ? (
             <span className="text-[10px] opacity-70">(profile)</span>
-          )}
+          ) : actualBrowserViewport?.source && actualBrowserViewport.source !== 'requested' ? (
+            <span className="text-[10px] opacity-70">
+              ({actualBrowserViewport.source === 'fingerprint' ? 'profile' :
+                actualBrowserViewport.source === 'default' ? 'default' :
+                actualBrowserViewport.source})
+            </span>
+          ) : null}
         </div>
       )}
 

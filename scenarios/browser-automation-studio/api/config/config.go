@@ -311,7 +311,7 @@ type RecordingConfig struct {
 	DefaultStreamQuality int
 
 	// DefaultStreamFPS is the default frames per second for streaming (1-60).
-	// Env: BAS_RECORDING_DEFAULT_STREAM_FPS (default: 6)
+	// Env: BAS_RECORDING_DEFAULT_STREAM_FPS (default: 30)
 	DefaultStreamFPS int
 
 	// InputTimeout is the timeout for forwarding input events to the driver.
@@ -546,7 +546,7 @@ type EntitlementConfig struct {
 type PerformanceConfig struct {
 	// Enabled activates debug performance mode for frame streaming.
 	// When true, the API parses timing headers from driver frames and collects metrics.
-	// Env: BAS_PERF_ENABLED (default: false)
+	// Env: BAS_PERF_ENABLED (default: true)
 	Enabled bool
 
 	// LogSummaryInterval controls how often performance summaries are logged (in frames).
@@ -641,7 +641,7 @@ func loadFromEnv() *Config {
 			DefaultViewportWidth:   parseInt("BAS_RECORDING_DEFAULT_VIEWPORT_WIDTH", 1280),
 			DefaultViewportHeight:  parseInt("BAS_RECORDING_DEFAULT_VIEWPORT_HEIGHT", 720),
 			DefaultStreamQuality:   parseInt("BAS_RECORDING_DEFAULT_STREAM_QUALITY", 55),
-			DefaultStreamFPS:       parseInt("BAS_RECORDING_DEFAULT_STREAM_FPS", 6),
+			DefaultStreamFPS:       parseInt("BAS_RECORDING_DEFAULT_STREAM_FPS", 30),
 			InputTimeout:           parseDurationMs("BAS_RECORDING_INPUT_TIMEOUT_MS", 2000),
 			ConnectionIdleTimeout:  parseDurationMs("BAS_RECORDING_CONN_IDLE_TIMEOUT_MS", 90000),
 			MaxArchiveBytes:        parseInt64("BAS_RECORDING_MAX_ARCHIVE_BYTES", 209715200),
@@ -702,7 +702,7 @@ func loadFromEnv() *Config {
 			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 		Performance: PerformanceConfig{
-			Enabled:            parseBool("BAS_PERF_ENABLED", false),
+			Enabled:            parseBool("BAS_PERF_ENABLED", true),
 			LogSummaryInterval: parseInt("BAS_PERF_LOG_SUMMARY_INTERVAL", 60),
 			ExposeEndpoint:     parseBool("BAS_PERF_EXPOSE_ENDPOINT", true),
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),

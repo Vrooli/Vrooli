@@ -62,7 +62,7 @@ const STORAGE_KEY = 'browser-automation-studio:stream-preset';
 const CUSTOM_SETTINGS_STORAGE_KEY = 'browser-automation-studio:stream-custom-settings';
 const SHOW_STATS_STORAGE_KEY = 'browser-automation-studio:show-stream-stats';
 const DEFAULT_PRESET: StreamPreset = 'balanced';
-const DEFAULT_SHOW_STATS = false;
+const DEFAULT_SHOW_STATS = true;
 
 /** Load preset from localStorage */
 function loadStoredPreset(): StreamPreset {

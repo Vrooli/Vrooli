@@ -89,7 +89,7 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | `BAS_WS_CLIENT_READ_LIMIT` | Max client message size | `512` |
 | `BAS_RECORDING_DEFAULT_VIEWPORT_WIDTH` / `BAS_RECORDING_DEFAULT_VIEWPORT_HEIGHT` | Default viewport | `1280` / `720` |
 | `BAS_RECORDING_DEFAULT_STREAM_QUALITY` | JPEG quality 1-100 | `55` |
-| `BAS_RECORDING_DEFAULT_STREAM_FPS` | FPS 1-60 | `6` |
+| `BAS_RECORDING_DEFAULT_STREAM_FPS` | Target FPS 1-60 (for polling; CDP screencast uses Chrome's compositor timing) | `30` |
 | `BAS_RECORDING_INPUT_TIMEOUT_MS` | Input forwarding timeout | `2000` |
 | `BAS_RECORDING_CONN_IDLE_TIMEOUT_MS` | Driver idle timeout | `90000` |
 

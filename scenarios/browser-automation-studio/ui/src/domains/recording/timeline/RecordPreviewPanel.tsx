@@ -24,6 +24,7 @@ import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPrev
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
 import { useStreamSettings } from '../capture/StreamSettings';
+import { useViewportOptional } from '../context';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -86,6 +87,14 @@ export function RecordPreviewPanel({
   // Stream settings (for quality/fps)
   const { settings: streamSettings } = useStreamSettings();
 
+  // Get viewport context if available (for recording mode with ViewportProvider)
+  const viewportContext = useViewportOptional();
+
+  // Use context values when available, fall back to props
+  const effectiveViewport = viewportContext?.browserViewport ?? viewport;
+  const effectiveIsResizing = viewportContext?.syncState.isResizing ?? isResizing;
+  const effectiveIsSyncing = viewportContext?.syncState.isSyncing ?? isViewportSyncing;
+
   // Frame statistics from PlaywrightView
   const handleStatsUpdate = useCallback((stats: FrameStats) => {
     onFrameStatsChange?.(stats);
@@ -97,7 +106,7 @@ export function RecordPreviewPanel({
   }, [onPageTitleChange]);
 
   // Convert viewport to the format PlaywrightView expects
-  const viewportForPlaywright = viewport ?? undefined;
+  const viewportForPlaywright = effectiveViewport ?? undefined;
 
   return (
     <div className="h-full w-full">
@@ -113,8 +122,8 @@ export function RecordPreviewPanel({
           onPageMetadataChange={handlePageMetadataChange}
           onConnectionStatusChange={onConnectionStatusChange}
           hideConnectionIndicator={hideConnectionIndicator}
-          isResizing={isResizing}
-          isViewportSyncing={isViewportSyncing}
+          isResizing={effectiveIsResizing}
+          isViewportSyncing={effectiveIsSyncing}
         />
       ) : (
         <StartRecordingState onNavigate={onPreviewUrlChange} />

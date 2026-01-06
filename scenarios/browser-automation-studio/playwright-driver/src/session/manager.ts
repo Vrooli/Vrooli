@@ -4,7 +4,7 @@ import { rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
-import { buildContext } from './context-builder';
+import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer } from '../recording/buffer';
 import { cleanupSession } from '../infra';
@@ -62,7 +62,7 @@ export class SessionManager {
    * Prevents duplicate session creation when multiple concurrent requests
    * arrive with the same execution_id before the first completes.
    */
-  private pendingSessionCreations: Map<string, Promise<{ sessionId: string; reused: boolean; createdAt: Date }>> = new Map();
+  private pendingSessionCreations: Map<string, Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }>> = new Map();
 
   constructor(config: Config, browserManager?: BrowserManager) {
     this.config = config;
@@ -93,9 +93,9 @@ export class SessionManager {
    * - If session creation is already in-flight for this execution_id, awaits that instead of creating duplicate
    * - Uses in-flight tracking to prevent race conditions under concurrent requests
    *
-   * @returns Object with session ID and whether it was reused
+   * @returns Object with session ID, whether it was reused, and the actual viewport with source attribution
    */
-  async startSession(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date }> {
+  async startSession(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }> {
     // Idempotency: Check for in-flight session creation with same execution_id
     // This prevents duplicate sessions when concurrent requests arrive
     const pendingCreation = this.pendingSessionCreations.get(spec.execution_id);
@@ -124,7 +124,7 @@ export class SessionManager {
    * Internal session creation logic.
    * Separated from startSession to enable in-flight tracking.
    */
-  private async startSessionInternal(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date }> {
+  private async startSessionInternal(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }> {
     // Check resource limits
     if (this.sessions.size >= this.config.session.maxConcurrent) {
       logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
@@ -170,7 +170,14 @@ export class SessionManager {
       }
 
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-      return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt };
+      const viewportSize = existingByExecutionId.page.viewportSize() ?? { width: 1280, height: 720 };
+      const actualViewport: ActualViewport = {
+        width: viewportSize.width,
+        height: viewportSize.height,
+        source: 'requested', // Reused session - original source unknown
+        reason: 'Reused existing session',
+      };
+      return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt, actualViewport };
     }
 
     // Handle reuse mode (match by labels)
@@ -205,7 +212,14 @@ export class SessionManager {
         existingSession.lastUsedAt = new Date();
         existingSession.phase = 'ready';
         metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-        return { sessionId: existingSession.id, reused: true, createdAt: existingSession.createdAt };
+        const viewportSize = existingSession.page.viewportSize() ?? { width: 1280, height: 720 };
+        const actualViewport: ActualViewport = {
+          width: viewportSize.width,
+          height: viewportSize.height,
+          source: 'requested', // Reused session - original source unknown
+          reason: 'Reused existing session by label match',
+        };
+        return { sessionId: existingSession.id, reused: true, createdAt: existingSession.createdAt, actualViewport };
       }
     }
 
@@ -222,8 +236,8 @@ export class SessionManager {
 
     const browser = await this.browserManager.getBrowser();
 
-    // Build context
-    const { context, harPath, tracePath, videoDir, serviceWorkerController, recordingInitializer } = await buildContext(
+    // Build context (includes actualViewport with source attribution)
+    const { context, harPath, tracePath, videoDir, serviceWorkerController, recordingInitializer, actualViewport } = await buildContext(
       browser,
       spec,
       this.config
@@ -321,7 +335,8 @@ export class SessionManager {
     metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
     metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
 
-    return { sessionId, reused: false, createdAt };
+    // Return actualViewport from buildContext (includes source attribution)
+    return { sessionId, reused: false, createdAt, actualViewport };
   }
 
   /**

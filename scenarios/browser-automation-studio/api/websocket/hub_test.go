@@ -891,6 +891,140 @@ func TestBroadcastRecordingActionWithFullBuffer(t *testing.T) {
 	})
 }
 
+// =============================================================================
+// Frame Drop Monitoring Tests
+// =============================================================================
+
+// TestGetDroppedFrameCount verifies the dropped frame counter tracks correctly
+func TestGetDroppedFrameCount(t *testing.T) {
+	t.Run("[REQ:BAS-FRAME-STREAM] tracks dropped frame count", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		// Initially should be 0
+		if count := hub.GetDroppedFrameCount(); count != 0 {
+			t.Fatalf("expected 0 dropped frames initially, got %d", count)
+		}
+	})
+}
+
+// TestBroadcastBinaryFrameDropsWithFullBuffer verifies binary frames are dropped and counted when buffer is full
+func TestBroadcastBinaryFrameDropsWithFullBuffer(t *testing.T) {
+	t.Run("[REQ:BAS-FRAME-STREAM] drops and counts frames when client binary buffer is full", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		sessionID := "test-session-binary-buffer"
+
+		// Client with tiny binary buffer that will fill up
+		client := &Client{
+			ID:                 uuid.New(),
+			Send:               make(chan any, 4),
+			BinarySend:         make(chan []byte, 1), // Tiny buffer - only 1 frame
+			Hub:                hub,
+			RecordingSessionID: &sessionID,
+		}
+
+		hub.register <- client
+		_ = waitForMessage(t, client.Send) // Drain welcome
+
+		// Send multiple binary frames - first should go through, rest should be dropped
+		testFrame := []byte{0xFF, 0xD8, 0xFF} // JPEG magic bytes
+		hub.BroadcastBinaryFrame(sessionID, testFrame)
+		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
+		hub.BroadcastBinaryFrame(sessionID, testFrame) // Should be dropped
+
+		// Allow time for processing
+		time.Sleep(100 * time.Millisecond)
+
+		// At least 2 frames should have been dropped
+		droppedCount := hub.GetDroppedFrameCount()
+		if droppedCount < 2 {
+			t.Errorf("expected at least 2 dropped frames, got %d", droppedCount)
+		}
+	})
+}
+
+// TestBroadcastBinaryFrameToSubscribedClient verifies binary frames are sent to subscribed clients
+func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
+	t.Run("[REQ:BAS-FRAME-STREAM] broadcasts binary frames to subscribed clients", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		sessionID := "test-session-binary"
+
+		client := &Client{
+			ID:                 uuid.New(),
+			Send:               make(chan any, 4),
+			BinarySend:         make(chan []byte, 4),
+			Hub:                hub,
+			RecordingSessionID: &sessionID,
+		}
+
+		hub.register <- client
+		_ = waitForMessage(t, client.Send) // Drain welcome
+
+		testFrame := []byte{0xFF, 0xD8, 0xFF, 0xE0} // JPEG magic bytes
+		hub.BroadcastBinaryFrame(sessionID, testFrame)
+
+		select {
+		case frame := <-client.BinarySend:
+			if len(frame) != len(testFrame) {
+				t.Errorf("expected frame length %d, got %d", len(testFrame), len(frame))
+			}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for binary frame")
+		}
+	})
+}
+
+// TestBroadcastBinaryFrameFiltersNonSubscribed verifies non-subscribed clients don't receive binary frames
+func TestBroadcastBinaryFrameFiltersNonSubscribed(t *testing.T) {
+	t.Run("[REQ:BAS-FRAME-STREAM] filters binary frames from non-subscribed clients", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		sessionID := "test-session-binary-filter"
+		otherSessionID := "other-session"
+
+		// Client subscribed to different session
+		otherClient := &Client{
+			ID:                 uuid.New(),
+			Send:               make(chan any, 4),
+			BinarySend:         make(chan []byte, 4),
+			Hub:                hub,
+			RecordingSessionID: &otherSessionID,
+		}
+
+		// Client not subscribed to any recording
+		unsubscribed := &Client{
+			ID:         uuid.New(),
+			Send:       make(chan any, 4),
+			BinarySend: make(chan []byte, 4),
+			Hub:        hub,
+		}
+
+		hub.register <- otherClient
+		hub.register <- unsubscribed
+		_ = waitForMessage(t, otherClient.Send)  // Drain welcome
+		_ = waitForMessage(t, unsubscribed.Send) // Drain welcome
+
+		testFrame := []byte{0xFF, 0xD8, 0xFF}
+		hub.BroadcastBinaryFrame(sessionID, testFrame)
+
+		// Neither client should receive the frame
+		select {
+		case <-otherClient.BinarySend:
+			t.Fatal("client subscribed to other session should not receive frame")
+		case <-time.After(100 * time.Millisecond):
+			// Expected
+		}
+
+		select {
+		case <-unsubscribed.BinarySend:
+			t.Fatal("unsubscribed client should not receive frame")
+		case <-time.After(100 * time.Millisecond):
+			// Expected
+		}
+	})
+}
+
 // TestRecordingActionStreamingSequence verifies multiple actions are received in order
 func TestRecordingActionStreamingSequence(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] streams multiple recording actions in sequence", func(t *testing.T) {

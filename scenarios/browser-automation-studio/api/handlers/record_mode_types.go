@@ -21,9 +21,11 @@ type CreateRecordingSessionRequest struct {
 	// Optional persisted session profile to load cookies/storage from
 	SessionProfileID string `json:"session_profile_id,omitempty"`
 	// Stream quality settings (optional)
-	// Quality: JPEG quality 0-100 (default 55)
+	// Quality: JPEG quality 1-100 (default from BAS_RECORDING_DEFAULT_STREAM_QUALITY, typically 55)
 	StreamQuality *int `json:"stream_quality,omitempty"`
-	// FPS: Frames per second 1-60 (default 6)
+	// FPS: Target frames per second 1-60 (default from BAS_RECORDING_DEFAULT_STREAM_FPS, typically 30)
+	// Note: For CDP screencast (Chromium), Chrome controls actual FPS based on compositor timing.
+	// For polling strategy (Firefox/WebKit), this controls the capture interval.
 	StreamFPS *int `json:"stream_fps,omitempty"`
 	// Scale: "css" for 1x scale, "device" for device pixel ratio (default "css")
 	StreamScale string `json:"stream_scale,omitempty"`
@@ -31,11 +33,40 @@ type CreateRecordingSessionRequest struct {
 
 // CreateRecordingSessionResponse is the response after creating a recording session.
 type CreateRecordingSessionResponse struct {
-	SessionID          string `json:"session_id"`
-	CreatedAt          string `json:"created_at"`
-	SessionProfileID   string `json:"session_profile_id,omitempty"`
-	SessionProfileName string `json:"session_profile_name,omitempty"`
-	LastUsedAt         string `json:"last_used_at,omitempty"`
+	SessionID          string                    `json:"session_id"`
+	CreatedAt          string                    `json:"created_at"`
+	SessionProfileID   string                    `json:"session_profile_id,omitempty"`
+	SessionProfileName string                    `json:"session_profile_name,omitempty"`
+	LastUsedAt         string                    `json:"last_used_at,omitempty"`
+	ActualViewport     *ActualViewportWithSource `json:"actual_viewport,omitempty"`
+}
+
+// ViewportDimensions represents width and height of a viewport.
+type ViewportDimensions struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
+// ViewportSource describes what determined the actual viewport dimensions.
+type ViewportSource string
+
+const (
+	// ViewportSourceRequested means the UI-requested dimensions were used
+	ViewportSourceRequested ViewportSource = "requested"
+	// ViewportSourceFingerprint means browser profile fingerprint override was applied
+	ViewportSourceFingerprint ViewportSource = "fingerprint"
+	// ViewportSourceFingerprintPartial means fingerprint set one dimension, requested used for other
+	ViewportSourceFingerprintPartial ViewportSource = "fingerprint_partial"
+	// ViewportSourceDefault means fallback defaults were used
+	ViewportSourceDefault ViewportSource = "default"
+)
+
+// ActualViewportWithSource contains viewport dimensions with source attribution.
+type ActualViewportWithSource struct {
+	Width  int            `json:"width"`
+	Height int            `json:"height"`
+	Source ViewportSource `json:"source"`
+	Reason string         `json:"reason"`
 }
 
 // CloseRecordingSessionRequest is the request body for closing a recording session.
@@ -51,6 +82,14 @@ type CloseRecordingSessionRequest struct {
 type StartRecordingRequest struct {
 	SessionID   string `json:"session_id"`
 	CallbackURL string `json:"callback_url,omitempty"`
+	// FrameQuality is the JPEG quality for frame streaming (1-100).
+	// Optional: defaults to BAS_RECORDING_DEFAULT_STREAM_QUALITY (typically 55).
+	FrameQuality *int `json:"frame_quality,omitempty"`
+	// FrameFPS is the target frames per second for frame streaming (1-60).
+	// Optional: defaults to BAS_RECORDING_DEFAULT_STREAM_FPS (typically 30).
+	// Note: For CDP screencast (Chromium), Chrome controls actual FPS.
+	// For polling strategy (Firefox/WebKit), this controls capture interval.
+	FrameFPS *int `json:"frame_fps,omitempty"`
 }
 
 // StartRecordingResponse is the response after starting recording.

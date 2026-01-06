@@ -795,10 +795,11 @@ export async function handleStreamSettings(
       });
 
       // Return a response indicating no active stream
+      // Note: Defaults should match API config (BAS_RECORDING_DEFAULT_STREAM_*)
       const response: StreamSettingsResponse = {
         session_id: sessionId,
         quality: request.quality ?? 55,
-        fps: request.fps ?? 6,
+        fps: request.fps ?? 30, // Match API config default (BAS_RECORDING_DEFAULT_STREAM_FPS)
         current_fps: 0,
         scale: request.scale ?? 'css',
         is_streaming: false,
