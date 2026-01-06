@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { TEST_PAGE_HTML, TEST_PAGE_URL, DEFAULT_TEST_URL } from '../../../src/recording/self-test';
+import { TEST_PAGE_HTML, DEFAULT_TEST_URL } from '../../../src/recording/self-test';
 
 describe('Recording Self-Test Module', () => {
   describe('TEST_PAGE_HTML', () => {
@@ -51,13 +51,6 @@ describe('Recording Self-Test Module', () => {
 
     it('should be a valid HTTPS URL', () => {
       expect(DEFAULT_TEST_URL).toMatch(/^https:\/\//);
-    });
-  });
-
-  describe('TEST_PAGE_URL (deprecated)', () => {
-    it('should equal DEFAULT_TEST_URL for backwards compatibility', () => {
-      // TEST_PAGE_URL is deprecated but kept for backwards compatibility
-      expect(TEST_PAGE_URL).toBe(DEFAULT_TEST_URL);
     });
   });
 

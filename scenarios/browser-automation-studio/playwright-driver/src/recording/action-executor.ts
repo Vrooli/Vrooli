@@ -36,20 +36,15 @@ import { executeViaHandler, hasHandlerForActionType, type ReplayContext } from '
 // Import logger for structured logging
 import { logger, LogContext, scopedLog } from '../utils';
 
+// Import SelectorValidation from canonical location (selector-service)
+import type { SelectorValidation } from './selector-service';
+
 // Re-export types for consumers of this module
-export type { ActionErrorCode, SelectorError };
+export type { ActionErrorCode, SelectorError, SelectorValidation };
 
 // =============================================================================
 // Types
 // =============================================================================
-
-/** Result of validating a selector */
-export interface SelectorValidation {
-  valid: boolean;
-  matchCount: number;
-  selector: string;
-  error?: string;
-}
 
 /** Context provided to action executors */
 export interface ExecutorContext {

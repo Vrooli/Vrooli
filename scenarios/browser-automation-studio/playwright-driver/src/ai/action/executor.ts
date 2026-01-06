@@ -33,6 +33,7 @@ import type {
   ActionExecutionContext,
 } from '../vision-agent/types';
 import type { BehaviorSettings } from '../../types/browser-profile';
+import { logger, LogContext, scopedLog } from '../../utils';
 import { HumanBehavior } from '../../browser-profile/human-behavior';
 import { sleep } from '../../utils';
 
@@ -73,6 +74,15 @@ export function createActionExecutor(
   const behavior = config.behaviorSettings ? new HumanBehavior(config.behaviorSettings) : null;
   // Legacy fallback for typeDelay
   const legacyTypeDelay = config.typeDelay ?? 0;
+
+  // LEGACY TELEMETRY: Log once when executor is created with deprecated typeDelay
+  if (config.typeDelay !== undefined && config.typeDelay > 0) {
+    logger.warn(scopedLog(LogContext.INSTRUCTION, 'deprecated typeDelay config used'), {
+      typeDelay: config.typeDelay,
+      hasBehaviorSettings: !!config.behaviorSettings,
+      telemetryReason: 'DEPRECATED_TYPE_DELAY_CONFIG',
+    });
+  }
 
   return {
     async execute(

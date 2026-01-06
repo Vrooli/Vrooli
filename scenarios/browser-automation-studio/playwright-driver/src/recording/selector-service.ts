@@ -52,6 +52,12 @@ import {
 
 /**
  * Result of selector validation.
+ *
+ * CANONICAL LOCATION: This is the single source of truth for SelectorValidation.
+ * Other modules should import from here or re-export from here.
+ *
+ * @see action-executor.ts - Re-exports this type
+ * @see types.ts - Re-exports this type
  */
 export interface SelectorValidation {
   /** Whether selector is valid (matches exactly 1 element) */

@@ -21,6 +21,7 @@ import type { ActionDefinition } from '@vrooli/proto-types/browser-automation-st
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { jsonValueMapToPlain } from './utils';
 import { actionTypeToString } from './action-type-utils';
+import { logger, LogContext, scopedLog } from '../utils';
 
 // =============================================================================
 // HandlerInstruction Type
@@ -104,6 +105,17 @@ export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruc
 export function getActionType(instruction: HandlerInstruction): string {
   if (instruction.action?.type !== undefined && instruction.action.type !== ActionType.UNSPECIFIED) {
     return actionTypeToString(instruction.action.type);
+  }
+  // LEGACY TELEMETRY: Track usage of deprecated legacy type field
+  // This helps identify if Go API is sending instructions without typed actions
+  if (instruction.type) {
+    logger.warn(scopedLog(LogContext.INSTRUCTION, 'legacy type field used'), {
+      nodeId: instruction.nodeId,
+      legacyType: instruction.type,
+      hasAction: !!instruction.action,
+      actionType: instruction.action?.type,
+      telemetryReason: 'DEPRECATED_LEGACY_TYPE_FIELD',
+    });
   }
   return instruction.type;
 }

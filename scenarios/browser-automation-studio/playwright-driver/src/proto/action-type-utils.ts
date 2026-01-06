@@ -18,6 +18,7 @@
  */
 
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import { logger, LogContext, scopedLog } from '../utils';
 
 // =============================================================================
 // ActionType → String Mappings
@@ -260,7 +261,18 @@ export function stringToActionType(typeString: string): ActionType {
  */
 export function normalizeToProtoActionType(rawType: string): ActionType {
   const normalized = rawType.toLowerCase();
-  return ACTION_TYPE_MAP[normalized] ?? ActionType.CLICK;
+  const actionType = ACTION_TYPE_MAP[normalized];
+  if (actionType !== undefined) {
+    return actionType;
+  }
+  // LEGACY TELEMETRY: Track unknown action types that fall back to CLICK
+  // This helps identify unmapped browser event types that need explicit handling
+  logger.warn(scopedLog(LogContext.RECORDING, 'unknown action type defaulting to CLICK'), {
+    rawType,
+    normalized,
+    telemetryReason: 'UNKNOWN_ACTION_TYPE_FALLBACK',
+  });
+  return ActionType.CLICK;
 }
 
 // =============================================================================

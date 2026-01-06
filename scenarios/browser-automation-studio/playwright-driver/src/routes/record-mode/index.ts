@@ -42,17 +42,21 @@ export type {
   ActivePageResponse,
 } from './types';
 
-// Recording lifecycle handlers
+// Recording lifecycle handlers (core start/stop/status/actions)
 export {
   handleRecordStart,
   handleRecordStop,
   handleRecordStatus,
   handleRecordActions,
+} from './recording-lifecycle';
+
+// Recording diagnostics handlers (stream settings, debug, testing)
+export {
   handleStreamSettings,
   handleRecordDebug,
   handleRecordPipelineTest,
   handleRecordExternalUrlTest,
-} from './recording-lifecycle';
+} from './recording-diagnostics-routes';
 
 // Recording validation handlers
 export {
@@ -81,7 +85,8 @@ export {
 
 // Cleanup utility
 import { removeRecordingBuffer } from '../../recording/buffer';
-import { clearFrameCache, clearNavigationState } from './recording-interaction';
+import { clearFrameCache } from './recording-frames';
+import { clearNavigationState } from './recording-navigation';
 
 /**
  * Clean up recording buffer, frame cache, and navigation state for a session

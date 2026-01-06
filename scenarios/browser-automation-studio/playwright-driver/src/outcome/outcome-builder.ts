@@ -37,15 +37,15 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/domain/selectors_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
-import type { BaseExecutionResult, HandlerError } from './types';
+import type { BaseExecutionResult, ExecutionError, HandlerError } from './types';
 
-// Re-export HandlerError for consumers that import from this module
-export type { HandlerError };
+// Re-export error types for consumers
+// NOTE: HandlerError is deprecated - use ExecutionError directly
+export type { ExecutionError, HandlerError };
 
 // =============================================================================
 // HANDLER RESULT TYPE
 // =============================================================================
-// HandlerError is now imported from types.ts (single source of truth)
 
 /**
  * Result of handler execution with optional extracted data.
@@ -62,8 +62,8 @@ export type { HandlerError };
  * @see HandlerAdapterResult - Minimal adapter variant in recording/handler-adapter.ts
  */
 export interface HandlerResult extends Omit<BaseExecutionResult, 'error'> {
-  /** Handler-specific error with flexible kind type */
-  error?: HandlerError;
+  /** Execution error if the handler failed */
+  error?: ExecutionError;
   /** Extracted data from the page (text, attributes, etc.) */
   extracted_data?: Record<string, unknown>;
   /** Information about the focused element */

@@ -284,7 +284,7 @@ export {
   runRecordingPipelineTest,
   runExternalUrlInjectionTest,
   TEST_PAGE_HTML,
-  TEST_PAGE_URL,
+  DEFAULT_TEST_URL,
 } from './self-test';
 
 export type {

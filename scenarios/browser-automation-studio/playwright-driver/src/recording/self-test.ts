@@ -376,10 +376,6 @@ export const TEST_PAGE_HTML = `<!DOCTYPE html>
  */
 export const DEFAULT_TEST_URL = 'https://example.com';
 
-/**
- * @deprecated Use DEFAULT_TEST_URL instead. Kept for backwards compatibility.
- */
-export const TEST_PAGE_URL = DEFAULT_TEST_URL;
 
 // =============================================================================
 // Pipeline Test Implementation
