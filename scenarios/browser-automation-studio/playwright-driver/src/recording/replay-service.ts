@@ -41,6 +41,7 @@ import {
 } from './action-executor';
 import { validateSelectorOnPage, type SelectorValidation } from './selector-service';
 import type { TimelineEntry } from '../proto/recording';
+import { createInFlightGuard, type InFlightGuard } from '../infra';
 
 // =============================================================================
 // Types
@@ -109,16 +110,19 @@ export type { ActionReplayResult, SelectorValidation };
  */
 export class ReplayPreviewService {
   private readonly page: Page;
-  private pendingReplays: Map<string, Promise<ReplayPreviewResponse>> = new Map();
+  private replayGuard: InFlightGuard<string, ReplayPreviewResponse>;
 
   constructor(page: Page) {
     this.page = page;
+    this.replayGuard = createInFlightGuard<string, ReplayPreviewResponse>({
+      name: 'replay-preview',
+    });
   }
 
   /**
    * Replay recorded entries for preview/testing.
    *
-   * Supports idempotency - concurrent calls with the same entries
+   * Uses InFlightGuard for idempotency - concurrent calls with the same entries
    * will return the same promise.
    *
    * @param request - Replay configuration
@@ -135,21 +139,11 @@ export class ReplayPreviewService {
     const entriesToReplay = limit ? entries.slice(0, limit) : entries;
     const replayKey = this.generateReplayKey(entriesToReplay);
 
-    // Check for in-flight replay with same entries
-    const pendingReplay = this.pendingReplays.get(replayKey);
-    if (pendingReplay) {
-      return pendingReplay;
-    }
-
-    // Start new replay
-    const replayPromise = this.executeReplay(entriesToReplay, stopOnFailure, actionTimeout);
-    this.pendingReplays.set(replayKey, replayPromise);
-
-    try {
-      return await replayPromise;
-    } finally {
-      this.pendingReplays.delete(replayKey);
-    }
+    // InFlightGuard handles concurrent replay deduplication
+    return this.replayGuard.execute(
+      replayKey,
+      () => this.executeReplay(entriesToReplay, stopOnFailure, actionTimeout)
+    );
   }
 
   /**

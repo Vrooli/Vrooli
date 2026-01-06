@@ -141,11 +141,30 @@ export function shouldInjectScript(
 /**
  * Decide whether to process an incoming recording event.
  *
+ * ## STALE EVENT DETECTION (Optional Feature)
+ *
+ * The `generation` and `eventGeneration` parameters enable stale event detection:
+ * - If both are provided and differ, the event is dropped as "stale"
+ * - This catches events from old recordings that arrive after a new recording starts
+ *
+ * **Current Status:** NOT WIRED UP
+ *
+ * The generation parameters are optional and **not currently passed** from the pipeline.
+ * The pipeline currently relies on phase checking (`phase === 'capturing'`) which is
+ * sufficient for most cases. Stale event detection would be an additional safety layer.
+ *
+ * **To enable stale event detection:**
+ * 1. Pass generation to browser via `generateActivationScript()` config
+ * 2. Browser includes generation in every event it sends
+ * 3. Pipeline passes both generations to this function
+ *
+ * @see pipeline-manager.ts sequenceNum docs for generation hierarchy explanation
+ *
  * @param phase - Current pipeline phase
  * @param hasHandler - Whether an event handler is set
  * @param eventType - Type of the event
- * @param generation - Current recording generation (optional)
- * @param eventGeneration - Generation the event was captured in (optional)
+ * @param generation - Current recording generation (optional, not currently used)
+ * @param eventGeneration - Generation the event was captured in (optional, not currently used)
  */
 export function shouldProcessEvent(
   phase: string,
@@ -154,12 +173,12 @@ export function shouldProcessEvent(
   generation?: number,
   eventGeneration?: number
 ): EventProcessingDecision {
-  // Decision 1: Must be in recording phase
-  if (phase !== 'recording') {
+  // Decision 1: Must be in capturing phase
+  if (phase !== 'capturing') {
     return {
       shouldProcess: false,
       reason: 'not_recording',
-      message: `Event dropped: not in recording phase (phase=${phase})`,
+      message: `Event dropped: not in capturing phase (phase=${phase})`,
       metadata: { phase, eventType },
     };
   }

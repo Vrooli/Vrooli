@@ -413,7 +413,7 @@ export async function handleRecordStatus(
 
     const response: RecordingStatusResponse = {
       session_id: sessionId,
-      is_recording: pipelineState?.phase === 'recording',
+      is_recording: pipelineState?.phase === 'capturing',
       recording_id: pipelineState?.recording?.recordingId,
       action_count: bufferedCount || pipelineState?.recording?.actionCount || 0,
       started_at: pipelineState?.recording?.startedAt,

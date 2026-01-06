@@ -142,7 +142,7 @@ export async function handleRecordDebug(
     // Server-side state (using pipelineManager as single source of truth)
     const pipelineManager = session.pipelineManager;
     const pipelineState = pipelineManager?.getState();
-    const isRecording = pipelineState?.phase === 'recording';
+    const isRecording = pipelineState?.phase === 'capturing';
     const recordingId = pipelineState?.recording?.recordingId;
     const pipelinePhase = pipelineState?.phase;
     const pipelineVerification = pipelineState?.verification;

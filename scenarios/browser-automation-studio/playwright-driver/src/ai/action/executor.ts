@@ -57,7 +57,38 @@ export interface ActionExecutorConfig {
   waitForNavigation?: boolean;
   /** Behavior settings for human-like interactions */
   behaviorSettings?: BehaviorSettings;
-  /** @deprecated Use behaviorSettings instead. Delay between typing characters in ms (0 for instant) */
+  /**
+   * @deprecated Use behaviorSettings instead. Delay between typing characters in ms (0 for instant).
+   *
+   * ## Migration Guide
+   *
+   * Replace:
+   * ```typescript
+   * createActionExecutor({ typeDelay: 50 })
+   * ```
+   *
+   * With:
+   * ```typescript
+   * createActionExecutor({
+   *   behaviorSettings: {
+   *     typingBehavior: {
+   *       enabled: true,
+   *       baseDelayMs: 50,        // Average delay between chars
+   *       varianceMs: 20,         // Random variance (+/-)
+   *       burstProbability: 0.1,  // Chance of fast typing bursts
+   *     }
+   *   }
+   * })
+   * ```
+   *
+   * BehaviorSettings provides more realistic human-like typing with:
+   * - Variable delays between characters
+   * - Typing bursts (fast sequences)
+   * - Digraph awareness (common letter pairs typed faster)
+   * - Micro-pauses for realism
+   *
+   * @see BehaviorSettings in types/browser-profile.ts for full options
+   */
   typeDelay?: number;
 }
 

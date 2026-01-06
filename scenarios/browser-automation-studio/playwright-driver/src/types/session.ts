@@ -143,6 +143,26 @@ export interface SessionSpec {
  * - Concurrent instruction attempts return 409 Conflict
  * - Recording mode allows streaming but blocks instruction execution
  *
+ * ## RELATIONSHIP TO RECORDING PIPELINE STATE
+ *
+ * The `recording` phase here is an **API-level** indicator that the session is in record mode.
+ * Internally, recording uses a separate state machine (`RecordingPipelinePhase`) with 8 phases
+ * for tracking infrastructure health (initializing, verifying, ready, starting, capturing, etc.).
+ *
+ * **Why two state machines?**
+ * - SessionPhase is for external consumers (UI, API clients) - simplified 6-phase view
+ * - RecordingPipelinePhase is for internal infrastructure - detailed 8-phase view
+ * - This separation allows recording infrastructure to fail/recover without affecting API state
+ *
+ * **Synchronization pattern** (query at boundaries):
+ * When determining session phase, code queries the pipeline manager:
+ * ```typescript
+ * const phase = session.pipelineManager?.isRecording() ? 'recording' : 'ready';
+ * ```
+ *
+ * @see RecordingPipelinePhase in recording/state-machine.ts for infrastructure-level phases
+ * @see RecordingPipelineManager in recording/pipeline-manager.ts for recording orchestration
+ *
  * Phase meanings:
  * - 'initializing': Session is being created, browser context not yet ready
  * - 'ready': Session is ready to accept instructions

@@ -149,7 +149,34 @@ export class RecordingPipelineManager {
   private entryCallback: RecordEntryCallback | null = null;
   private errorCallback: RecordErrorCallback | null = null;
 
-  // Sequence counter for timeline entries
+  /**
+   * Sequence counter for timeline entries.
+   *
+   * ## THREE-LEVEL GENERATION HIERARCHY
+   *
+   * Recording uses three counters that serve different purposes:
+   *
+   * | Counter | Location | Scope | Purpose |
+   * |---------|----------|-------|---------|
+   * | `totalGenerations` | RecordingPipelineState | Session lifetime | "How many recordings this session?" |
+   * | `RecordingData.generation` | RecordingPipelineState.recording | Per-recording | "Which recording is this?" (stale event detection) |
+   * | `sequenceNum` | PipelineManager (this) | Per-recording | "What order is this event?" (event ordering) |
+   *
+   * **Why three counters?**
+   * - `totalGenerations` persists across start/stop cycles for global tracking
+   * - `generation` identifies a specific recording run for stale event detection
+   * - `sequenceNum` orders events within a recording (independent of generation)
+   *
+   * **Lifecycle:**
+   * - `sequenceNum` resets to 0 when startRecording() is called
+   * - Increments monotonically for each event
+   * - Passed to `ConversionContext` when creating `TimelineEntry`
+   *
+   * These counters CANNOT be consolidated - they serve fundamentally different purposes.
+   *
+   * @see state-machine.ts for `totalGenerations` and `RecordingData.generation`
+   * @see decisions.ts for stale event detection using generation
+   */
   private sequenceNum = 0;
 
   // Navigation handler reference (for cleanup)
@@ -539,7 +566,7 @@ export class RecordingPipelineManager {
       // Start loop detection
       this.startLoopDetection(generation);
 
-      // Transition to 'recording'
+      // Transition to 'capturing'
       this.stateMachine.dispatch({
         type: 'RECORDING_STARTED',
         startedAt: new Date().toISOString(),
@@ -573,7 +600,7 @@ export class RecordingPipelineManager {
     const phase = this.stateMachine.getPhase();
     const state = this.stateMachine.getState();
 
-    if (phase !== 'recording' || !state.recording) {
+    if (phase !== 'capturing' || !state.recording) {
       throw new Error(`Cannot stop recording from phase '${phase}'`);
     }
 
@@ -654,9 +681,9 @@ export class RecordingPipelineManager {
   handleRawEvent(raw: RawBrowserEvent): void {
     const state = this.stateMachine.getState();
 
-    // Check if recording
-    if (state.phase !== 'recording' || !state.recording || !this.entryCallback) {
-      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event dropped (not recording)'), {
+    // Check if capturing
+    if (state.phase !== 'capturing' || !state.recording || !this.entryCallback) {
+      this.logger.debug(scopedLog(LogContext.EVENT_FLOW, 'event dropped (not capturing)'), {
         sessionId: this.sessionId,
         phase: state.phase,
         actionType: raw.actionType,
@@ -665,7 +692,7 @@ export class RecordingPipelineManager {
     }
 
     // Note: Generation is available in state.recording.generation for stale event detection
-    // Currently we check state.phase === 'recording' which is sufficient
+    // Currently we check state.phase === 'capturing' which is sufficient
 
     try {
       // Update navigation tracking for navigate events
@@ -868,7 +895,7 @@ export class RecordingPipelineManager {
     return (): void => {
       const state = this.stateMachine.getState();
 
-      if (state.phase !== 'recording' || state.recording?.generation !== generation) {
+      if (state.phase !== 'capturing' || state.recording?.generation !== generation) {
         return;
       }
 
@@ -900,7 +927,7 @@ export class RecordingPipelineManager {
     // Re-check state after potential await
     const currentState = this.stateMachine.getState();
     if (
-      currentState.phase !== 'recording' ||
+      currentState.phase !== 'capturing' ||
       currentState.recording?.generation !== generation
     ) {
       return;
@@ -920,7 +947,7 @@ export class RecordingPipelineManager {
     // Re-check state again
     const stateAfterRoute = this.stateMachine.getState();
     if (
-      stateAfterRoute.phase !== 'recording' ||
+      stateAfterRoute.phase !== 'capturing' ||
       stateAfterRoute.recording?.generation !== generation
     ) {
       return;
@@ -957,7 +984,7 @@ export class RecordingPipelineManager {
     return async (newPage: Page): Promise<void> => {
       const state = this.stateMachine.getState();
 
-      if (state.phase !== 'recording' || state.recording?.generation !== generation) {
+      if (state.phase !== 'capturing' || state.recording?.generation !== generation) {
         return;
       }
 
@@ -1009,7 +1036,7 @@ export class RecordingPipelineManager {
   ): Promise<void> {
     const currentState = this.stateMachine.getState();
     if (
-      currentState.phase !== 'recording' ||
+      currentState.phase !== 'capturing' ||
       currentState.recording?.generation !== generation
     ) {
       return;
@@ -1029,7 +1056,7 @@ export class RecordingPipelineManager {
     // Re-check state
     const stateAfterRoute = this.stateMachine.getState();
     if (
-      stateAfterRoute.phase !== 'recording' ||
+      stateAfterRoute.phase !== 'capturing' ||
       stateAfterRoute.recording?.generation !== generation
     ) {
       return;
@@ -1061,7 +1088,7 @@ export class RecordingPipelineManager {
       const state = this.stateMachine.getState();
 
       if (
-        state.phase !== 'recording' ||
+        state.phase !== 'capturing' ||
         state.recording?.generation !== generation ||
         state.loopDetection?.isBreakingLoop
       ) {

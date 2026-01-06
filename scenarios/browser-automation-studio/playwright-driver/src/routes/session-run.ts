@@ -88,6 +88,24 @@ export function clearSessionIdempotencyCache(sessionId: string): void {
 // Helper Functions
 // =============================================================================
 
+/**
+ * Determine the session phase based on recording state.
+ *
+ * This is the canonical synchronization point between:
+ * - SessionPhase (API-level, 6 phases): What external consumers see
+ * - RecordingPipelinePhase (infrastructure-level, 8 phases): Internal state
+ *
+ * The two state machines are intentionally separate:
+ * - Recording infrastructure can fail/recover without affecting API state
+ * - This function bridges them by querying the pipeline at phase boundaries
+ *
+ * @see SessionPhase in types/session.ts for API-level documentation
+ * @see RecordingPipelinePhase in recording/state-machine.ts for infrastructure docs
+ */
+function getDesiredSessionPhase(session: SessionState): 'recording' | 'ready' {
+  return session.pipelineManager?.isRecording() ? 'recording' : 'ready';
+}
+
 /** Record an executed instruction in the session's tracking map. */
 function recordExecutedInstruction(
   session: SessionState,
@@ -196,7 +214,7 @@ export async function handleSessionRun(
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
         sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
       });
-      sessionManager.setSessionPhase(sessionId, session.pipelineManager?.isRecording() ? 'recording' : 'ready');
+      sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
       if (idempotencyKey) {
         idempotencyCache.store(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
       }
@@ -235,7 +253,7 @@ export async function handleSessionRun(
     // [PRESENTATION] Send response
     // ─────────────────────────────────────────────────────────────────────────
     recordExecutedInstruction(session, instructionKey, driverOutcome, success, completedAt);
-    sessionManager.setSessionPhase(sessionId, session.pipelineManager?.isRecording() ? 'recording' : 'ready');
+    sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
     if (idempotencyKey) {
       idempotencyCache.store(idempotencyKey, sessionId, instructionKey, driverOutcome);
     }

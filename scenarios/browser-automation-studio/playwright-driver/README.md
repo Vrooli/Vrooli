@@ -160,7 +160,11 @@ src/
 │   └── record-mode/       # Recording API endpoints
 │       ├── recording-lifecycle.ts   # start/stop/status/actions
 │       ├── recording-validation.ts  # selector validation, replay
-│       └── recording-interaction.ts # navigation, input, screenshots
+│       ├── recording-navigation.ts  # URL navigation, back/forward
+│       ├── recording-frames.ts      # frame capture, screenshots
+│       ├── recording-input.ts       # pointer, keyboard, viewport
+│       ├── recording-pages.ts       # multi-tab page management
+│       └── recording-diagnostics-routes.ts # debug, testing
 │
 ├── middleware/            # HTTP Request/Response Processing
 │   ├── body-parser.ts     # JSON body parsing with size limits

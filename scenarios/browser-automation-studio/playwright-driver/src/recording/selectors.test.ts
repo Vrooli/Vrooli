@@ -152,42 +152,6 @@ const TEST_SITES: TestSite[] = [
 ];
 
 /**
- * Generate selectors for an element using the injected script.
- * @internal Currently unused - tests use inline evaluate calls instead.
- */
-async function _generateSelectorsForElement(
-  page: Page,
-  findSelector: string
-): Promise<SelectorSet | null> {
-  // Inject the recording script
-  await page.evaluate(getRecordingScript());
-
-  // Generate selectors for the element
-  const result = await page.evaluate<SelectorSet | null, [string]>((selector: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const element = document.querySelector(selector);
-    if (!element) return null;
-
-    // Access the injected generateSelectors function
-    // @ts-expect-error - generateSelectors is injected by the recording script
-    if (typeof window.generateSelectors !== 'function') {
-      // The function isn't exposed globally, so we need to call it differently
-      // The recording script is self-contained, so we need to recreate the selector generation
-      return null;
-    }
-
-    // @ts-expect-error - generateSelectors is injected
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
-    return window.generateSelectors(element);
-  }, [findSelector]);
-
-  return result;
-}
-
-// Export to avoid unused warning (can be used in future tests)
-export { _generateSelectorsForElement };
-
-/**
  * Validate that a selector still finds exactly one element after refresh.
  */
 async function validateSelectorAfterRefresh(

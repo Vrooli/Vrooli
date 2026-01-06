@@ -38,18 +38,18 @@ describe('RecordingStateMachine', () => {
       expect(isValidTransition('verifying', 'ready')).toBe(true);
       expect(isValidTransition('verifying', 'error')).toBe(true);
       expect(isValidTransition('ready', 'starting')).toBe(true);
-      expect(isValidTransition('starting', 'recording')).toBe(true);
-      expect(isValidTransition('recording', 'stopping')).toBe(true);
+      expect(isValidTransition('starting', 'capturing')).toBe(true);
+      expect(isValidTransition('capturing', 'stopping')).toBe(true);
       expect(isValidTransition('stopping', 'ready')).toBe(true);
       expect(isValidTransition('error', 'ready')).toBe(true);
       expect(isValidTransition('error', 'uninitialized')).toBe(true);
     });
 
     it('should reject invalid transitions', () => {
-      expect(isValidTransition('uninitialized', 'recording')).toBe(false);
-      expect(isValidTransition('ready', 'recording')).toBe(false); // Must go through 'starting'
-      expect(isValidTransition('recording', 'ready')).toBe(false); // Must go through 'stopping'
-      expect(isValidTransition('verifying', 'recording')).toBe(false);
+      expect(isValidTransition('uninitialized', 'capturing')).toBe(false);
+      expect(isValidTransition('ready', 'capturing')).toBe(false); // Must go through 'starting'
+      expect(isValidTransition('capturing', 'ready')).toBe(false); // Must go through 'stopping'
+      expect(isValidTransition('verifying', 'capturing')).toBe(false);
       expect(isValidTransition('stopping', 'uninitialized')).toBe(false);
     });
   });
@@ -280,7 +280,7 @@ describe('RecordingStateMachine', () => {
     });
 
     describe('RECORDING_STARTED transition', () => {
-      it('should transition from starting to recording', () => {
+      it('should transition from starting to capturing', () => {
         const state: RecordingPipelineState = {
           phase: 'starting',
           recording: {
@@ -298,7 +298,7 @@ describe('RecordingStateMachine', () => {
 
         const newState = recordingReducer(state, transition);
 
-        expect(newState.phase).toBe('recording');
+        expect(newState.phase).toBe('capturing');
         expect(newState.recording?.startedAt).toBe(startedAt);
       });
     });
@@ -306,7 +306,7 @@ describe('RecordingStateMachine', () => {
     describe('ACTION_CAPTURED transition', () => {
       it('should increment action count', () => {
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           recording: {
             sessionId: 's1',
             recordingId: 'r1',
@@ -324,7 +324,7 @@ describe('RecordingStateMachine', () => {
         expect(newState.recording?.actionCount).toBe(6);
       });
 
-      it('should not change state if not recording', () => {
+      it('should not change state if not capturing', () => {
         const state: RecordingPipelineState = {
           phase: 'ready',
           totalGenerations: 0,
@@ -338,9 +338,9 @@ describe('RecordingStateMachine', () => {
     });
 
     describe('STOP_RECORDING transition', () => {
-      it('should transition from recording to stopping', () => {
+      it('should transition from capturing to stopping', () => {
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           recording: {
             sessionId: 's1',
             recordingId: 'r1',
@@ -385,7 +385,7 @@ describe('RecordingStateMachine', () => {
     describe('ERROR transition', () => {
       it('should transition to error from any phase', () => {
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           recording: {
             sessionId: 's1',
             recordingId: 'r1',
@@ -406,13 +406,13 @@ describe('RecordingStateMachine', () => {
 
         expect(newState.phase).toBe('error');
         expect(newState.error?.code).toBe('PAGE_CLOSED');
-        expect(newState.error?.previousPhase).toBe('recording');
+        expect(newState.error?.previousPhase).toBe('capturing');
         expect(newState.error?.recoverable).toBe(false); // PAGE_CLOSED is not recoverable
       });
 
       it('should mark recoverable errors correctly', () => {
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           totalGenerations: 1,
         };
         const transition: RecordingTransition = {
@@ -496,7 +496,7 @@ describe('RecordingStateMachine', () => {
     describe('NAVIGATION transition', () => {
       it('should update navigation history', () => {
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           recording: {
             sessionId: 's1',
             recordingId: 'r1',
@@ -532,7 +532,7 @@ describe('RecordingStateMachine', () => {
         }));
 
         const state: RecordingPipelineState = {
-          phase: 'recording',
+          phase: 'capturing',
           recording: {
             sessionId: 's1',
             recordingId: 'r1',

@@ -4,120 +4,103 @@ This module implements **Record Mode** - the ability to capture user actions in 
 
 ## Architecture Overview
 
+The recording system uses a **proto-first architecture** where all events are converted to proto `TimelineEntry` format as early as possible. This ensures wire format compatibility and eliminates intermediate type definitions.
+
+### Two-Layer Design
+
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           RECORD MODE FLOW                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   Browser Page                    Node.js Driver                             │
-│   ────────────                    ──────────────                             │
-│                                                                              │
-│   ┌─────────────────┐            ┌─────────────────┐                        │
-│   │   User Action   │            │   API Request   │                        │
-│   │  (click, type)  │            │ POST /record/   │                        │
-│   └────────┬────────┘            │     start       │                        │
-│            │                     └────────┬────────┘                        │
-│            ▼                              │                                  │
-│   ┌─────────────────┐                     ▼                                  │
-│   │  injector.ts    │◀────────── RecordModeController                       │
-│   │  (injected JS)  │            startRecording()                           │
-│   │                 │                     │                                  │
-│   │  Listens for:   │                     │                                  │
-│   │  - clicks       │                     ▼                                  │
-│   │  - input        │            page.exposeFunction()                      │
-│   │  - scroll       │            __recordAction()                           │
-│   │  - navigation   │                     │                                  │
-│   └────────┬────────┘                     │                                  │
-│            │                              │                                  │
-│            │ RawBrowserEvent              │                                  │
-│            │                              │                                  │
-│            ▼                              ▼                                  │
-│   window.__recordAction(event) ────▶ handleRawEvent()                       │
-│                                              │                               │
-│                                              ▼                               │
-│                                    rawBrowserEventToTimelineEntry()         │
-│                                    (proto/recording.ts)                     │
-│                                              │                               │
-│                                              ▼                               │
-│                                    TimelineEntry (proto)                    │
-│                                              │                               │
-│                                              ▼                               │
-│                                    onEntry callback                         │
-│                                    (sent to API)                            │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+Context Setup (once per context)    Recording Sessions (per session)
+┌───────────────────────────────┐   ┌─────────────────────────────────────┐
+│  RecordingContextInitializer  │   │  RecordingPipelineManager           │
+│  ├─ context.exposeBinding()   │   │  ├─ state-machine.ts (state)        │
+│  └─ context.addInitScript()   │   │  ├─ startRecording() / stopRecording│
+└───────────────────────────────┘   │  ├─ handleRawEvent()                │
+                                    │  │   └─ rawBrowserEventToTimeline() │
+Browser Page (MAIN context)         │  └─ verifyPipeline()                │
+┌─────────────────────────────┐     └───────────────┬─────────────────────┘
+│ recording-script.js         │                     │
+│ ├─ Listens for activation   │     ┌─────────────────────────────────────┐
+│ ├─ Captures DOM events      │────▶│  buffer.ts (TimelineEntry storage)  │
+│ ├─ Wraps History API        │     └─────────────────────────────────────┘
+│ └─ Sends via exposeBinding  │
+└─────────────────────────────┘
 ```
+
+## File Guide
+
+### Understanding the System
+
+| File | Purpose |
+|------|---------|
+| `state-machine.ts` | Core state machine (single source of truth for recording state) |
+| `pipeline-manager.ts` | Main orchestrator (start/stop, state transitions, event handling) |
+| `context-initializer.ts` | Context-level setup (binding + init script injection) |
+| `init-script-generator.ts` | Generates init script for `context.addInitScript()` |
+| `action-executor.ts` | Proto-native action execution for replay |
+| `replay-service.ts` | Replay preview for testing recorded entries |
+| `selector-service.ts` | Selector validation on pages |
+| `../proto/recording.ts` | Proto conversion (RawBrowserEvent → TimelineEntry) |
+
+### Adding a New Action Type
+
+1. `packages/proto/schemas/.../action.proto` - Add to ActionType enum
+2. `../proto/action-type-utils.ts` - Add string ↔ enum mappings
+3. `../handlers/*.ts` - Implement handler (preferred)
+   OR `action-executor.ts` - Add executor (if handler not suitable)
+
+### Modifying Selector Generation
+
+1. `selector-config.ts` - Configuration (scores, patterns)
+2. `browser-scripts/recording-script.js` - Browser-side selector logic
+3. `selectors.ts` - Documentation only, not executable
+
+### Modifying Action Buffering
+
+- `buffer.ts` - In-memory TimelineEntry storage with FIFO eviction
 
 ## Key Components
 
-### 1. RecordModeController (`controller.ts`)
+### RecordingPipelineManager (`pipeline-manager.ts`)
 
-**Responsibility:** Orchestrates the recording lifecycle.
+**Responsibility:** Orchestrates the recording lifecycle using a state machine.
 
 ```typescript
 // Start recording
-await controller.startRecording({
+await pipelineManager.startRecording({
   sessionId: 'session-123',
   onEntry: (entry) => sendToApi(entry),
 });
 
 // Stop recording
-await controller.stopRecording();
+const result = await pipelineManager.stopRecording();
 ```
 
 **Key behaviors:**
-- Injects event listener script into browser via `page.evaluate()`
-- Re-injects script after navigation (pages lose injected JS on navigate)
-- Manages recording generation counter to prevent race conditions
-- Delegates replay to `ReplayPreviewService`
+- Manages recording state via reducer pattern (state-machine.ts)
+- Handles raw browser events and converts to TimelineEntry
+- Coordinates with RecordingContextInitializer for infrastructure
+- Delegates replay to handler-adapter.ts
 
-### 2. Injector (`injector.ts`)
+### RecordingContextInitializer (`context-initializer.ts`)
 
-**Responsibility:** Browser-side event capture (runs in page context).
+**Responsibility:** One-time context setup for recording infrastructure.
 
-This is JavaScript that gets **stringified and injected** into the browser. It:
+Sets up:
+- `context.exposeBinding()` - Creates bridge for browser → Node.js events
+- `context.addInitScript()` - Injects recording script into every page
+- Route interception for HTML injection (rebrowser-playwright workaround)
+
+### Recording Script (`browser-scripts/recording-script.js`)
+
+**Responsibility:** Browser-side event capture (runs in page MAIN context).
+
+This JavaScript gets injected into every page. It:
 - Attaches DOM event listeners (click, input, scroll, etc.)
 - Generates CSS selectors for target elements
 - Scores selectors by uniqueness confidence
-- Calls `window.__recordAction()` with raw events
+- Sends events via exposed binding to Node.js
 
-### 3. Proto Recording Utilities (`../proto/recording.ts`)
-
-**Responsibility:** Convert raw events to proto format.
-
-```typescript
-// Converts browser event to wire format
-const entry = rawBrowserEventToTimelineEntry(rawEvent, {
-  sessionId: 'session-123',
-  sequenceNum: 42,
-});
-```
-
-### 4. ReplayPreviewService (`replay-service.ts`)
-
-**Responsibility:** Execute recorded actions for preview/validation.
-
-```typescript
-// Preview an action before saving
-const result = await controller.replayPreview({
-  entry: timelineEntry,
-  timeoutMs: 5000,
-});
-```
-
-### 5. Action Executor (`action-executor.ts`)
-
-**Responsibility:** Registry of action executors.
-
-```typescript
-// Register a new action type
-registerActionExecutor('custom-action', async (page, params) => {
-  // Execute the action
-  return { success: true };
-});
-```
-
-### 6. Handler Adapter (`handler-adapter.ts`)
+### Handler Adapter (`handler-adapter.ts`)
 
 **Responsibility:** Bridge between recording and handlers.
 
@@ -128,8 +111,9 @@ Allows recorded actions to reuse the same handler implementations used for autom
 ```
 ┌──────────────┐    ┌───────────────┐    ┌─────────────────┐    ┌──────────────┐
 │ Browser DOM  │───▶│ RawBrowserEvent│───▶│ TimelineEntry   │───▶│ API / Buffer │
-│   Event      │    │ (injector.ts) │    │ (proto format)  │    │   Storage    │
-└──────────────┘    └───────────────┘    └─────────────────┘    └──────────────┘
+│   Event      │    │ (recording-   │    │ (proto format)  │    │   Storage    │
+└──────────────┘    │  script.js)   │    └─────────────────┘    └──────────────┘
+                    └───────────────┘
 
 RawBrowserEvent = {
   actionType: 'click',
@@ -148,89 +132,62 @@ TimelineEntry = {
 }
 ```
 
-## Replay Flow
+## State Machines
+
+The recording system uses **two separate state machines** that work together:
+
+### Session State Machine (`../session/state-machine.ts`)
+
+**Purpose:** API-level session lifecycle (6 phases)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           REPLAY PREVIEW FLOW                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   POST /record/replay-preview                                                │
-│            │                                                                 │
-│            ▼                                                                 │
-│   RecordModeController.replayPreview()                                       │
-│            │                                                                 │
-│            ▼                                                                 │
-│   ReplayPreviewService.replayPreview()                                       │
-│            │                                                                 │
-│            ▼                                                                 │
-│   executeTimelineEntry()                                                     │
-│            │                                                                 │
-│            ├───▶ action-executor.ts (registry lookup)                        │
-│            │            │                                                    │
-│            │            ▼                                                    │
-│            │     handler-adapter.ts (bridges to handlers/)                   │
-│            │            │                                                    │
-│            │            ▼                                                    │
-│            │     handlers/interaction.ts (actual execution)                  │
-│            │                                                                 │
-│            ▼                                                                 │
-│   ActionReplayResult                                                         │
-│   { success: boolean, error?: string, ... }                                  │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+initializing → ready ↔ executing
+                 ↕
+              recording → closing
 ```
 
-## Key Design Decisions
+- `recording` phase = "User is in record mode" (API-level)
+- Used by external consumers (UI, API clients)
 
-### 1. Proto-First Architecture
+### Recording Pipeline State Machine (`state-machine.ts`)
 
-Events are converted to proto format (`TimelineEntry`) as early as possible. This:
-- Eliminates intermediate type definitions
-- Ensures wire format compatibility with API
-- Simplifies serialization
+**Purpose:** Infrastructure-level event capture (8 phases)
 
-### 2. Recording Generation Counter
+```
+uninitialized → initializing → verifying → ready → starting → capturing
+                    ↓              ↓          ↑         ↓          ↓
+                  error ←──────────┴──────────┴─────────┴──────────┘
+```
 
+- `capturing` phase = "Actively capturing events" (infrastructure-level)
+- Used internally for infrastructure health tracking
+
+### Why Two State Machines?
+
+The separation is **intentional**:
+
+1. **Resilience**: Recording infrastructure can recover from errors without affecting API state
+2. **Granularity**: Infrastructure has 8 internal phases; API only needs 6
+3. **Decoupling**: Infrastructure verification doesn't expose implementation details to API consumers
+
+**Synchronization pattern**: Session queries recording state at boundaries:
 ```typescript
-private recordingGeneration = 0;
-
-async startRecording() {
-  this.recordingGeneration++;
-  const currentGeneration = this.recordingGeneration;
-
-  // Later, in async callbacks:
-  if (this.recordingGeneration !== currentGeneration) {
-    return; // Ignore stale callback
-  }
-}
+sessionManager.setSessionPhase(sessionId,
+  session.pipelineManager?.isRecording() ? 'recording' : 'ready'
+);
 ```
 
-This prevents race conditions when:
-- Recording is stopped and restarted quickly
-- Async callbacks from old recording arrive after new one starts
+## Generation Tracking
 
-### 3. Script Re-injection After Navigation
+Three counters track different aspects of recording:
 
-Browser pages lose all injected JavaScript when they navigate. The controller:
-1. Listens for `page.on('load')` events
-2. Re-injects the recording script after each navigation
-3. Uses exponential backoff retry (100ms, 200ms, 400ms)
+| Counter | Purpose | Scope |
+|---------|---------|-------|
+| `totalGenerations` | "How many recordings this session?" | Session lifetime |
+| `RecordingData.generation` | "Which recording is this?" | Per-recording ID |
+| `sequenceNum` | "What order is this event?" | Event ordering |
 
-### 4. Selector Confidence Scoring
-
-The injector generates multiple selector strategies and scores them:
-
-```javascript
-const strategies = [
-  { selector: '#unique-id', confidence: 1.0 },
-  { selector: '[data-testid="button"]', confidence: 0.9 },
-  { selector: 'button.submit', confidence: 0.7 },
-  { selector: 'div > div > button', confidence: 0.3 },
-];
-```
-
-The best selector (highest confidence above threshold) is used.
+These serve different purposes and cannot be consolidated.
 
 ## Configuration
 
@@ -244,16 +201,3 @@ Recording behavior is controlled by `config.recording`:
 | `debounce.scrollMs` | 150 | Scroll event debounce |
 | `selector.maxCssDepth` | 5 | Max CSS path traversal depth |
 | `selector.includeXPath` | true | Include XPath as fallback |
-
-## File Reference
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `controller.ts` | ~470 | Recording lifecycle orchestration |
-| `injector.ts` | ~790 | Browser-side event capture (stringified JS) |
-| `replay-service.ts` | ~200 | Replay preview execution |
-| `action-executor.ts` | ~150 | Action executor registry |
-| `handler-adapter.ts` | ~100 | Bridge to handlers/ |
-| `selector-service.ts` | ~500 | Selector validation |
-| `action-types.ts` | ~100 | Action type normalization maps |
-| `types.ts` | ~50 | Shared type definitions |

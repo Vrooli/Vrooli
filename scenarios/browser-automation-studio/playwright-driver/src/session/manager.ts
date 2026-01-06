@@ -8,7 +8,7 @@ import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer } from '../recording/buffer';
 import { RecordingPipelineManager } from '../recording/pipeline-manager';
-import { cleanupSession } from '../infra';
+import { cleanupSession, createInFlightGuard, type InFlightGuard } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
 import {
@@ -50,6 +50,9 @@ import { setupDiagnosticLogging } from './diagnostic-logger';
  * - Uses closingSessionIds Set to prevent double-close
  * - Browser concurrency handled by BrowserManager
  */
+/** Result type for session creation */
+type SessionCreationResult = { sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport };
+
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
   private browserManager: BrowserManager;
@@ -59,15 +62,19 @@ export class SessionManager {
   private closingSessionIds: Set<string> = new Set();
 
   /**
-   * Track in-flight session creation by execution_id.
+   * In-flight guard for session creation.
    * Prevents duplicate session creation when multiple concurrent requests
    * arrive with the same execution_id before the first completes.
    */
-  private pendingSessionCreations: Map<string, Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }>> = new Map();
+  private sessionCreationGuard: InFlightGuard<string, SessionCreationResult>;
 
   constructor(config: Config, browserManager?: BrowserManager) {
     this.config = config;
     this.browserManager = browserManager ?? new BrowserManager(config);
+    this.sessionCreationGuard = createInFlightGuard<string, SessionCreationResult>({
+      name: 'session-creation',
+      logContext: LogContext.SESSION,
+    });
   }
 
   /**
@@ -92,40 +99,23 @@ export class SessionManager {
    * Idempotency behavior:
    * - If a session with the same execution_id already exists, returns it (for reuse/clean modes)
    * - If session creation is already in-flight for this execution_id, awaits that instead of creating duplicate
-   * - Uses in-flight tracking to prevent race conditions under concurrent requests
+   * - Uses InFlightGuard to prevent race conditions under concurrent requests
    *
    * @returns Object with session ID, whether it was reused, and the actual viewport with source attribution
    */
-  async startSession(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }> {
-    // Idempotency: Check for in-flight session creation with same execution_id
-    // This prevents duplicate sessions when concurrent requests arrive
-    const pendingCreation = this.pendingSessionCreations.get(spec.execution_id);
-    if (pendingCreation) {
-      logger.debug(scopedLog(LogContext.SESSION, 'awaiting in-flight creation'), {
-        executionId: spec.execution_id,
-        hint: 'Concurrent request detected, waiting for first request to complete',
-      });
-      return pendingCreation;
-    }
-
-    // Create the session creation promise and track it
-    const creationPromise = this.startSessionInternal(spec);
-    this.pendingSessionCreations.set(spec.execution_id, creationPromise);
-
-    try {
-      const result = await creationPromise;
-      return result;
-    } finally {
-      // Always clean up the pending creation tracking
-      this.pendingSessionCreations.delete(spec.execution_id);
-    }
+  async startSession(spec: SessionSpec): Promise<SessionCreationResult> {
+    // InFlightGuard handles concurrent request deduplication automatically
+    return this.sessionCreationGuard.execute(
+      spec.execution_id,
+      () => this.startSessionInternal(spec)
+    );
   }
 
   /**
    * Internal session creation logic.
-   * Separated from startSession to enable in-flight tracking.
+   * Separated from startSession to enable InFlightGuard tracking.
    */
-  private async startSessionInternal(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport }> {
+  private async startSessionInternal(spec: SessionSpec): Promise<SessionCreationResult> {
     // Check resource limits
     if (this.sessions.size >= this.config.session.maxConcurrent) {
       logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {

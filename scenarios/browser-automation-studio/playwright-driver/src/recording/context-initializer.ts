@@ -36,6 +36,7 @@ import {
   shouldProcessEvent,
   formatDecisionForLog,
 } from './decisions';
+import { createWeakSetGuard, createSetGuard, type WeakSetGuard, type SetGuard } from '../infra';
 
 // =============================================================================
 // Types
@@ -212,17 +213,18 @@ export class RecordingContextInitializer {
   };
 
   /** Track pages that have event routes set up */
-  private pagesWithEventRoute: WeakSet<Page> = new WeakSet();
+  private pagesWithEventRoute: WeakSetGuard<Page> = createWeakSetGuard<Page>();
 
   /** Track pages that have navigation listeners set up */
-  private pagesWithNavigationListener: WeakSet<Page> = new WeakSet();
+  private pagesWithNavigationListener: WeakSetGuard<Page> = createWeakSetGuard<Page>();
 
   /**
    * Track pages currently being set up to prevent duplicate concurrent registrations.
    * This provides an atomic check to prevent the race condition where two concurrent
    * calls both pass the WeakSet check before either adds to the WeakSet.
+   * Note: Using SetGuard (not WeakSetGuard) because we need explicit cleanup in finally block.
    */
-  private pagesBeingSetUp: Set<Page> = new Set();
+  private pagesBeingSetUp: SetGuard<Page> = createSetGuard<Page>({ name: 'pages-setup-lock' });
 
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
@@ -327,10 +329,10 @@ export class RecordingContextInitializer {
             this.routeHandlerStats.lastEventType = rawEvent.actionType;
 
             // Use decision function to determine if we should process this event
-            // Note: We pass 'recording' as phase since this route is only active during recording
+            // Note: We pass 'capturing' as phase since this route is only active during recording
             // The actual phase check happens in pipeline-manager.handleRawEvent()
             const decision = shouldProcessEvent(
-              this.eventHandler ? 'recording' : 'idle',
+              this.eventHandler ? 'capturing' : 'idle',
               !!this.eventHandler,
               rawEvent.actionType
             );

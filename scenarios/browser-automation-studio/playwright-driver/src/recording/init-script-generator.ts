@@ -110,10 +110,12 @@ export const RECORDING_ACTIVATION_KEY = '__vrooli_recording_activation__';
  * Called via page.evaluate() when recording starts.
  *
  * @param sessionId - The recording session ID
- * @param bindingName - The name of the exposed binding (unused but kept for API compat)
+ * @param bindingName - Kept for API consistency with other functions but NOT USED in the
+ *   generated script. The activation script doesn't need the binding name because it only
+ *   sets activation state via sessionStorage - the init script handles binding communication.
  * @returns JavaScript string for page.evaluate()
  */
-export function generateActivationScript(sessionId: string, bindingName: string = DEFAULT_RECORDING_BINDING_NAME): string {
+export function generateActivationScript(sessionId: string, _bindingName: string = DEFAULT_RECORDING_BINDING_NAME): string {
   return `
 (function() {
   // Use sessionStorage for cross-context activation

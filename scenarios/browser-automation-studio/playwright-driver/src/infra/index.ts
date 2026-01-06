@@ -42,3 +42,14 @@ export {
   type OperationTracker,
   type OperationTrackerConfig,
 } from './operation-tracker';
+
+export {
+  createInFlightGuard,
+  createSetGuard,
+  createWeakSetGuard,
+  type InFlightGuard,
+  type InFlightGuardConfig,
+  type InFlightStats,
+  type SetGuard,
+  type WeakSetGuard,
+} from './in-flight-guard';

@@ -20,9 +20,40 @@
 /**
  * Recording pipeline phases.
  *
- * State machine diagram:
+ * ## DUAL STATE MACHINE ARCHITECTURE
+ *
+ * The recording system uses TWO separate state machines that work together:
+ *
+ * | State Machine | Phases | Purpose | Consumer |
+ * |---------------|--------|---------|----------|
+ * | SessionPhase | 6 | API-level session lifecycle | UI, API clients |
+ * | RecordingPipelinePhase | 8 | Infrastructure-level event capture | Internal |
+ *
+ * **Why two state machines?**
+ * 1. **Resilience**: Recording infrastructure can fail/recover without affecting API state
+ * 2. **Granularity**: Infrastructure needs 8 phases; API only needs 6
+ * 3. **Decoupling**: Infrastructure verification doesn't expose implementation details
+ *
+ * **Key distinction:**
+ * - `SessionPhase.recording` = "API-level: session is in record mode"
+ * - `RecordingPipelinePhase.capturing` = "Infrastructure-level: actively capturing events"
+ *
+ * The session can be in 'recording' phase while the pipeline is in 'verifying' or 'error'.
+ * This allows the API to report a consistent state while infrastructure recovers.
+ *
+ * **Synchronization pattern** (query at boundaries):
+ * ```typescript
+ * // In routes/session-run.ts
+ * const phase = session.pipelineManager?.isRecording() ? 'recording' : 'ready';
  * ```
- * uninitialized ──► initializing ──► verifying ──► ready ──► starting ──► recording
+ *
+ * @see SessionPhase in types/session.ts for API-level state machine
+ * @see README.md in this directory for full architecture overview
+ *
+ * ## STATE DIAGRAM
+ *
+ * ```
+ * uninitialized ──► initializing ──► verifying ──► ready ──► starting ──► capturing
  *       ▲                │              │           ▲          │            │
  *       │                ▼              ▼           │          ▼            │
  *       └────────────── error ◄────────────────────┴─────────────────────────┘
@@ -37,7 +68,7 @@ export type RecordingPipelinePhase =
   | 'verifying' // Checking script loaded correctly
   | 'ready' // Pipeline verified, can start recording
   | 'starting' // Recording being activated
-  | 'recording' // Actively recording
+  | 'capturing' // Actively capturing events (was 'recording')
   | 'stopping' // Recording being stopped
   | 'error'; // Pipeline error state
 
@@ -114,7 +145,7 @@ export interface PipelineError {
 }
 
 /**
- * Recording session data (present during 'recording' phase).
+ * Recording session data (present during 'capturing' phase).
  */
 export interface RecordingData {
   /** Unique recording identifier */
@@ -160,7 +191,7 @@ export interface RecordingPipelineState {
   /** Verification result (present after successful verification) */
   verification?: PipelineVerification;
 
-  /** Recording data (present during 'starting', 'recording', 'stopping') */
+  /** Recording data (present during 'starting', 'capturing', 'stopping') */
   recording?: RecordingData;
 
   /** Error data (present during 'error' phase) */
@@ -208,8 +239,8 @@ const VALID_TRANSITIONS: Record<RecordingPipelinePhase, RecordingPipelinePhase[]
   initializing: ['verifying', 'error'],
   verifying: ['ready', 'error'],
   ready: ['starting', 'error', 'uninitialized'],
-  starting: ['recording', 'error'],
-  recording: ['stopping', 'error'],
+  starting: ['capturing', 'error'],
+  capturing: ['stopping', 'error'],
   stopping: ['ready', 'error'],
   error: ['ready', 'uninitialized'], // RECOVER or RESET
 };
@@ -394,7 +425,7 @@ export function recordingReducer(
       }
       return {
         ...state,
-        phase: 'recording',
+        phase: 'capturing',
         recording: {
           ...state.recording,
           startedAt: transition.startedAt,
@@ -403,7 +434,7 @@ export function recordingReducer(
     }
 
     case 'STOP_RECORDING': {
-      if (state.phase !== 'recording') {
+      if (state.phase !== 'capturing') {
         return state;
       }
       return {
@@ -433,7 +464,7 @@ export function recordingReducer(
     // -------------------------------------------------------------------------
 
     case 'ACTION_CAPTURED': {
-      if (state.phase !== 'recording' || !state.recording) {
+      if (state.phase !== 'capturing' || !state.recording) {
         return state;
       }
       return {
@@ -474,7 +505,7 @@ export function recordingReducer(
     // -------------------------------------------------------------------------
 
     case 'REDIRECT_LOOP_DETECTED': {
-      if (state.phase !== 'recording' || !state.loopDetection) {
+      if (state.phase !== 'capturing' || !state.loopDetection) {
         return state;
       }
       return {
@@ -623,7 +654,7 @@ export function createRecordingStateMachine(): RecordingStateMachine {
     },
 
     // Convenience methods
-    isRecording: () => state.phase === 'recording',
+    isRecording: () => state.phase === 'capturing', // Checks if actively capturing events
     isReady: () => state.phase === 'ready',
     isError: () => state.phase === 'error',
     getPhase: () => state.phase,

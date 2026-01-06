@@ -6,7 +6,11 @@
  *
  * - recording-lifecycle: Start/stop/status/actions management
  * - recording-validation: Selector validation and replay preview
- * - recording-interaction: Browser interaction during recording
+ * - recording-navigation: URL navigation, back/forward, reload
+ * - recording-frames: Frame capture and screenshots
+ * - recording-input: Pointer, keyboard, wheel, viewport input
+ * - recording-pages: Multi-tab page management
+ * - recording-diagnostics-routes: Debug endpoints, pipeline testing
  */
 
 // Types
@@ -64,7 +68,7 @@ export {
   handleReplayPreview,
 } from './recording-validation';
 
-// Recording interaction handlers
+// Recording navigation handlers
 export {
   handleRecordNavigate,
   handleRecordReload,
@@ -72,16 +76,28 @@ export {
   handleRecordGoForward,
   handleRecordNavigationState,
   handleRecordNavigationStack,
-  handleRecordScreenshot,
-  handleRecordInput,
+  clearNavigationState,
+} from './recording-navigation';
+
+// Recording frame handlers
+export {
   handleRecordFrame,
-  handleRecordViewport,
-  handleRecordNewPage,
-  handleRecordActivePage,
+  handleRecordScreenshot,
   clearFrameCache,
   clearAllFrameCaches,
-  clearNavigationState,
-} from './recording-interaction';
+} from './recording-frames';
+
+// Recording input handlers
+export {
+  handleRecordInput,
+  handleRecordViewport,
+} from './recording-input';
+
+// Recording page handlers
+export {
+  handleRecordNewPage,
+  handleRecordActivePage,
+} from './recording-pages';
 
 // Cleanup utility
 import { removeRecordingBuffer } from '../../recording/buffer';

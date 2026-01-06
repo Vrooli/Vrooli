@@ -258,10 +258,12 @@ export {
 // Use proto types directly from the exports above.
 
 // =============================================================================
-// HANDLER-FRIENDLY TYPES (re-exported from ./instruction.ts)
+// HANDLER-FRIENDLY TYPES
 // =============================================================================
-// HandlerInstruction and related functions have been extracted to instruction.ts
-// to reduce file size and improve maintainability.
+// CANONICAL LOCATION: ./instruction.ts
+//
+// Re-exported here so existing imports from 'proto/' continue to work.
+// New code should import directly from './instruction' when only these types are needed.
 
 export {
   type HandlerInstruction,
@@ -270,10 +272,13 @@ export {
 } from './instruction';
 
 // =============================================================================
-// PARAM EXTRACTORS (re-exported from ./params.ts)
+// PARAM EXTRACTORS
 // =============================================================================
-// All param extractors have been moved to ./params.ts to reduce file size
-// and improve maintainability. They are re-exported here for backward compatibility.
+// CANONICAL LOCATION: ./params.ts
+//
+// Re-exported here so existing imports from 'proto/' continue to work.
+// New code should import directly from './params' when only param extractors are needed.
+// This reduces bundle size for consumers that don't need all proto exports.
 
 export {
   getClickParams,
