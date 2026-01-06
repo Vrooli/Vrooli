@@ -18,7 +18,7 @@
  * - Message-based activation allows dynamic start/stop without re-injection
  *
  * @see init-script-generator.ts - Generates the init script
- * @see controller.ts - Uses this for recording sessions
+ * @see pipeline-manager.ts - Uses this for recording sessions
  */
 
 import type { BrowserContext, Page } from 'rebrowser-playwright';
@@ -31,7 +31,11 @@ import type { RawBrowserEvent } from './types';
 import { logger as defaultLogger, LogContext, scopedLog } from '../utils';
 import { waitForScriptReady } from './verification';
 import { playwrightProvider } from '../playwright';
-import { TEST_PAGE_HTML, TEST_PAGE_URL } from './self-test';
+import {
+  shouldInjectScript,
+  shouldProcessEvent,
+  formatDecisionForLog,
+} from './decisions';
 
 // =============================================================================
 // Types
@@ -213,6 +217,13 @@ export class RecordingContextInitializer {
   /** Track pages that have navigation listeners set up */
   private pagesWithNavigationListener: WeakSet<Page> = new WeakSet();
 
+  /**
+   * Track pages currently being set up to prevent duplicate concurrent registrations.
+   * This provides an atomic check to prevent the race condition where two concurrent
+   * calls both pass the WeakSet check before either adds to the WeakSet.
+   */
+  private pagesBeingSetUp: Set<Page> = new Set();
+
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
     this.logger = options.logger ?? defaultLogger;
@@ -259,6 +270,7 @@ export class RecordingContextInitializer {
    * 1. Adds a page-level route for the recording event URL
    * 2. Handles incoming events and forwards to the event handler
    * 3. Is idempotent - safe to call multiple times for the same page
+   * 4. Uses a lock to prevent duplicate concurrent registrations
    *
    * NOTE: With rebrowser-playwright, page routes may not persist across navigation.
    * Use force=true to re-register the route after navigation.
@@ -278,74 +290,100 @@ export class RecordingContextInitializer {
       return;
     }
 
+    // Prevent duplicate concurrent registrations using a lock
+    // This handles the race where two calls both pass the WeakSet check above
+    // before either has added to the WeakSet
+    if (!force && this.pagesBeingSetUp.has(page)) {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'page event route setup already in progress, skipping'), {
+        url: page.url()?.slice(0, 50),
+      });
+      return;
+    }
+
+    // Mark as being set up (lock acquisition)
+    this.pagesBeingSetUp.add(page);
+
     const RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
-    await page.route(`**${RECORDING_EVENT_URL}`, async (route) => {
-      try {
-        const request = route.request();
+    try {
+      await page.route(`**${RECORDING_EVENT_URL}`, async (route) => {
+        try {
+          const request = route.request();
 
-        // Track that we received an event
-        this.routeHandlerStats.eventsReceived++;
-        this.routeHandlerStats.lastEventAt = new Date().toISOString();
+          // Track that we received an event
+          this.routeHandlerStats.eventsReceived++;
+          this.routeHandlerStats.lastEventAt = new Date().toISOString();
 
-        this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route matched'), {
-          url: request.url().slice(0, 100),
-          method: request.method(),
-          eventsReceived: this.routeHandlerStats.eventsReceived,
-        });
-
-        const postData = request.postData();
-
-        if (postData) {
-          const rawEvent = JSON.parse(postData) as RawBrowserEvent;
-          this.routeHandlerStats.lastEventType = rawEvent.actionType;
-
-          this.logger.info(scopedLog(LogContext.RECORDING, 'event received via page route'), {
-            actionType: rawEvent.actionType,
-            url: rawEvent.url?.slice(0, 50),
-            hasHandler: !!this.eventHandler,
+          this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route matched'), {
+            url: request.url().slice(0, 100),
+            method: request.method(),
+            eventsReceived: this.routeHandlerStats.eventsReceived,
           });
 
-          if (this.eventHandler) {
-            try {
-              this.eventHandler(rawEvent);
-              this.routeHandlerStats.eventsProcessed++;
-            } catch (error) {
-              this.routeHandlerStats.eventsWithErrors++;
-              this.logger.error(scopedLog(LogContext.RECORDING, 'event handler error'), {
-                error: error instanceof Error ? error.message : String(error),
-                actionType: rawEvent.actionType,
-              });
+          const postData = request.postData();
+
+          if (postData) {
+            const rawEvent = JSON.parse(postData) as RawBrowserEvent;
+            this.routeHandlerStats.lastEventType = rawEvent.actionType;
+
+            // Use decision function to determine if we should process this event
+            // Note: We pass 'recording' as phase since this route is only active during recording
+            // The actual phase check happens in pipeline-manager.handleRawEvent()
+            const decision = shouldProcessEvent(
+              this.eventHandler ? 'recording' : 'idle',
+              !!this.eventHandler,
+              rawEvent.actionType
+            );
+
+            this.logger.info(
+              scopedLog(LogContext.RECORDING, `event decision: ${decision.reason}`),
+              formatDecisionForLog(decision)
+            );
+
+            if (decision.shouldProcess && this.eventHandler) {
+              try {
+                this.eventHandler(rawEvent);
+                this.routeHandlerStats.eventsProcessed++;
+              } catch (error) {
+                this.routeHandlerStats.eventsWithErrors++;
+                this.logger.error(scopedLog(LogContext.RECORDING, 'event handler error'), {
+                  error: error instanceof Error ? error.message : String(error),
+                  actionType: rawEvent.actionType,
+                });
+              }
+            } else {
+              this.routeHandlerStats.eventsDroppedNoHandler++;
+              this.logger.warn(
+                scopedLog(LogContext.RECORDING, `event dropped: ${decision.reason}`),
+                formatDecisionForLog(decision)
+              );
             }
-          } else {
-            this.routeHandlerStats.eventsDroppedNoHandler++;
-            this.logger.warn(scopedLog(LogContext.RECORDING, 'event dropped - no handler set'), {
-              actionType: rawEvent.actionType,
-              eventsDropped: this.routeHandlerStats.eventsDroppedNoHandler,
-            });
           }
+
+          // Respond immediately to not block the page
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: '{"ok":true}',
+          });
+        } catch (error) {
+          this.logger.error(scopedLog(LogContext.RECORDING, 'page event route handler error'), {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          await route.fulfill({ status: 500, body: 'error' });
         }
+      });
 
-        // Respond immediately to not block the page
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: '{"ok":true}',
-        });
-      } catch (error) {
-        this.logger.error(scopedLog(LogContext.RECORDING, 'page event route handler error'), {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await route.fulfill({ status: 500, body: 'error' });
-      }
-    });
+      // Mark this page as having the event route set up
+      this.pagesWithEventRoute.add(page);
 
-    // Mark this page as having the event route set up
-    this.pagesWithEventRoute.add(page);
-
-    this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route set up'), {
-      url: page.url()?.slice(0, 50),
-    });
+      this.logger.info(scopedLog(LogContext.RECORDING, 'page-level event route set up'), {
+        url: page.url()?.slice(0, 50),
+      });
+    } finally {
+      // Always release the lock, whether setup succeeded or failed
+      this.pagesBeingSetUp.delete(page);
+    }
   }
 
   /**
@@ -427,28 +465,6 @@ export class RecordingContextInitializer {
     // Generate the recording script once
     const initScript = generateRecordingInitScript(this.bindingName);
 
-    // Set up test page route - serves a special test page for automated pipeline testing
-    // This allows the self-test to navigate to a page we control and verify the full pipeline
-    await context.route(`**${TEST_PAGE_URL}`, async (route) => {
-      this.logger.info(scopedLog(LogContext.RECORDING, 'serving test page for pipeline testing'));
-
-      // Inject the recording script into the test page HTML
-      const scriptTag = `<script>${initScript}</script>`;
-      const testPageWithScript = TEST_PAGE_HTML.replace('<head>', `<head>${scriptTag}`);
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/html',
-        body: testPageWithScript,
-      });
-
-      // Track as successful injection
-      this.injectionStats.attempted++;
-      this.injectionStats.total++;
-      this.injectionStats.successful++;
-      this.injectionStats.methods.head++;
-    });
-
     // Inject recording script into HTML responses via route interception
     // This ensures the script runs in MAIN context (not isolated) by being
     // part of the actual page HTML, bypassing rebrowser-playwright's context isolation
@@ -460,20 +476,26 @@ export class RecordingContextInitializer {
     await context.route('**/*', async (route) => {
       const request = route.request();
       const url = request.url();
+      const resourceType = request.resourceType();
 
-      // Handle test page URLs via fallback - navigation requests work correctly with fallback
-      if (url.includes('__vrooli_recording_test__')) {
-        this.logger.debug(scopedLog(LogContext.RECORDING, 'passing test page URL to dedicated route'), {
-          url: url.slice(0, 100),
-        });
-        await route.fallback();
-        return;
-      }
+      // Phase 1: Pre-fetch decision (before making network request)
+      const preFetchDecision = shouldInjectScript(resourceType, url);
 
-      // Only intercept document requests (HTML pages)
-      if (request.resourceType() !== 'document') {
-        this.injectionStats.skipped++;
-        await route.continue();
+      if (!preFetchDecision.shouldInject) {
+        // Log decision for debugging
+        if (this.diagnosticsEnabled || preFetchDecision.reason === 'skip_test_page') {
+          this.logger.debug(
+            scopedLog(LogContext.INJECTION, `decision: ${preFetchDecision.reason}`),
+            formatDecisionForLog(preFetchDecision)
+          );
+        }
+
+        if (preFetchDecision.reason === 'skip_test_page') {
+          await route.fallback();
+        } else {
+          this.injectionStats.skipped++;
+          await route.continue();
+        }
         return;
       }
 
@@ -484,7 +506,7 @@ export class RecordingContextInitializer {
       if (this.diagnosticsEnabled) {
         this.logger.debug(scopedLog(LogContext.INJECTION, 'intercepting document request'), {
           url: url.slice(0, 80),
-          resourceType: request.resourceType(),
+          resourceType: resourceType,
           attemptNumber: this.injectionStats.attempted,
         });
       }
@@ -494,79 +516,91 @@ export class RecordingContextInitializer {
         // won't match the final content URL. JavaScript checking location.href would see
         // the original URL, not the redirect destination, which can cause redirect loops.
         // Let the browser handle redirects naturally - we'll inject on the final destination.
+
+        // Step 1: Log before fetch
+        this.logger.info(scopedLog(LogContext.INJECTION, 'fetching document for injection'), {
+          url: url.slice(0, 100),
+          resourceType,
+        });
+
         const response = await route.fetch({
           maxRedirects: 0,
           timeout: 30000, // 30s timeout to prevent hanging
         });
 
-        // If it's a redirect, pass it through without modification
+        // Phase 2: Post-fetch decision (after we have response headers)
         const status = response.status();
-        if (status >= 300 && status < 400) {
-          this.injectionStats.skipped++;
-          if (this.diagnosticsEnabled) {
-            this.logger.debug(scopedLog(LogContext.INJECTION, 'passing redirect through'), {
-              url: url.slice(0, 80),
-              status,
-              location: response.headers()['location']?.slice(0, 80),
-            });
-          }
-          await route.fulfill({ response });
-          return;
-        }
-
         const contentType = response.headers()['content-type'] || '';
 
-        // Only inject into HTML responses
-        if (!contentType.includes('text/html')) {
+        // Step 2: Log after fetch
+        this.logger.info(scopedLog(LogContext.INJECTION, 'document fetched'), {
+          url: url.slice(0, 100),
+          status,
+          contentType: contentType.slice(0, 50),
+        });
+
+        const postFetchDecision = shouldInjectScript(resourceType, url, status, contentType);
+
+        if (!postFetchDecision.shouldInject) {
+          // Log decision for debugging
+          this.logger.debug(
+            scopedLog(LogContext.INJECTION, `decision: ${postFetchDecision.reason}`),
+            formatDecisionForLog(postFetchDecision)
+          );
+
           this.injectionStats.skipped++;
           await route.fulfill({ response });
           return;
         }
 
-        let body = await response.text();
+        const originalBody = await response.text();
+        const originalLength = originalBody.length;
 
         // Inject the recording script at the start of <head> or after <!DOCTYPE>
         const scriptTag = `<script>${initScript}</script>`;
         let injectionMethod: 'head' | 'HEAD' | 'doctype' | 'prepend';
+        let modifiedBody: string;
 
-        if (body.includes('<head>')) {
-          body = body.replace('<head>', `<head>${scriptTag}`);
+        if (originalBody.includes('<head>')) {
+          modifiedBody = originalBody.replace('<head>', `<head>${scriptTag}`);
           injectionMethod = 'head';
-        } else if (body.includes('<HEAD>')) {
-          body = body.replace('<HEAD>', `<HEAD>${scriptTag}`);
+        } else if (originalBody.includes('<HEAD>')) {
+          modifiedBody = originalBody.replace('<HEAD>', `<HEAD>${scriptTag}`);
           injectionMethod = 'HEAD';
-        } else if (body.toLowerCase().includes('<!doctype')) {
+        } else if (originalBody.toLowerCase().includes('<!doctype')) {
           // Insert after doctype
-          body = body.replace(/<!doctype[^>]*>/i, (match) => `${match}${scriptTag}`);
+          modifiedBody = originalBody.replace(/<!doctype[^>]*>/i, (match) => `${match}${scriptTag}`);
           injectionMethod = 'doctype';
         } else {
           // Prepend to body
-          body = scriptTag + body;
+          modifiedBody = scriptTag + originalBody;
           injectionMethod = 'prepend';
         }
 
-        // Update stats
+        // Step 3: Log after modification
+        this.logger.info(scopedLog(LogContext.INJECTION, 'HTML modified for injection'), {
+          url: url.slice(0, 100),
+          method: injectionMethod,
+          originalLength,
+          modifiedLength: modifiedBody.length,
+          scriptInjectedLength: modifiedBody.length - originalLength,
+        });
+
+        // Fulfill the route with modified body
+        await route.fulfill({
+          response,
+          body: modifiedBody,
+        });
+
+        // Step 4: Update stats AFTER successful fulfill (critical fix!)
         this.injectionStats.successful++;
         this.injectionStats.methods[injectionMethod]++;
 
-        // Log injection success
-        if (this.diagnosticsEnabled) {
-          this.logger.debug(scopedLog(LogContext.INJECTION, 'script injected successfully'), {
-            url: request.url().slice(0, 80),
-            method: injectionMethod,
-            contentLength: body.length,
-            stats: this.getInjectionStats(),
-          });
-        } else {
-          this.logger.info(scopedLog(LogContext.INJECTION, 'script injected'), {
-            url: request.url().slice(0, 80),
-            method: injectionMethod,
-          });
-        }
-
-        await route.fulfill({
-          response,
-          body,
+        // Step 5: Log after successful fulfill
+        this.logger.info(scopedLog(LogContext.INJECTION, 'route.fulfill completed - injection successful'), {
+          url: url.slice(0, 100),
+          method: injectionMethod,
+          stats: this.getInjectionStats(),
         });
 
         // Trigger sanity check on first successful injection
@@ -641,7 +675,7 @@ export class RecordingContextInitializer {
   /**
    * Set the handler for recording events.
    *
-   * Called by RecordModeController when recording starts.
+   * Called by RecordingPipelineManager when recording starts.
    * Only one handler can be active at a time.
    *
    * @param handler - Function to receive recording events

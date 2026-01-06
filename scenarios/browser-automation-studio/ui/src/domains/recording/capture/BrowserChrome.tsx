@@ -13,12 +13,27 @@
  * - Sync status when viewport is being updated
  */
 
-import { Palette, SlidersHorizontal, PanelLeft, Monitor, AlertTriangle, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Palette, SlidersHorizontal, PanelLeft, Monitor, AlertTriangle, Loader2, ArrowLeft, ArrowRight, RotateCw, History } from 'lucide-react';
 import { BrowserUrlBar } from './BrowserUrlBar';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
 import type { FrameStatsAggregated } from '../hooks/usePerfStats';
 import clsx from 'clsx';
+
+/** A single entry in the navigation stack */
+export interface NavigationStackEntry {
+  url: string;
+  title: string;
+  timestamp: string;
+}
+
+/** Navigation stack data from the driver */
+export interface NavigationStackData {
+  backStack: NavigationStackEntry[];
+  current: NavigationStackEntry | null;
+  forwardStack: NavigationStackEntry[];
+}
 
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -27,9 +42,15 @@ interface BrowserChromeProps {
   previewUrl: string;
   onPreviewUrlChange: (url: string) => void;
   onNavigate?: (url: string) => void;
-  onRefresh?: () => void;
   pageTitle?: string;
   placeholder?: string;
+
+  // Navigation controls (back, forward, refresh)
+  onGoBack?: () => void;
+  onGoForward?: () => void;
+  onRefresh?: () => void;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 
   // Left sidebar toggle
   isSidebarOpen?: boolean;
@@ -59,6 +80,14 @@ interface BrowserChromeProps {
   // Read-only (execution playback - disables URL editing)
   readOnly?: boolean;
 
+  // Navigation history popup (right-click on back/forward buttons)
+  /** Fetch navigation stack data for the popup */
+  onFetchNavigationStack?: () => Promise<NavigationStackData | null>;
+  /** Navigate to a specific number of steps back or forward */
+  onNavigateToIndex?: (delta: number) => void;
+  /** Open the full history view in session settings */
+  onOpenHistorySettings?: () => void;
+
   // Viewport indicator props (Priority 3)
   /** Current browser viewport dimensions (what we requested from Playwright) */
   browserViewport?: { width: number; height: number } | null;
@@ -84,9 +113,13 @@ export function BrowserChrome({
   previewUrl,
   onPreviewUrlChange,
   onNavigate,
-  onRefresh,
   pageTitle,
   placeholder = 'Search or enter URL',
+  onGoBack,
+  onGoForward,
+  onRefresh,
+  canGoBack = false,
+  canGoForward = false,
   isSidebarOpen,
   onToggleSidebar,
   actionCount = 0,
@@ -100,6 +133,9 @@ export function BrowserChrome({
   onSettingsClick,
   isSettingsPanelOpen = false,
   readOnly = false,
+  onFetchNavigationStack,
+  onNavigateToIndex,
+  onOpenHistorySettings,
   browserViewport,
   actualBrowserViewport,
   hasDimensionMismatch = false,
@@ -107,14 +143,95 @@ export function BrowserChrome({
   viewportReason,
   className,
 }: BrowserChromeProps) {
-  // In read-only mode, we don't allow navigation or refresh
+  // In read-only mode, we don't allow navigation
   const handleNavigate = readOnly ? undefined : onNavigate;
+  const handleGoBack = readOnly ? undefined : onGoBack;
+  const handleGoForward = readOnly ? undefined : onGoForward;
   const handleRefresh = readOnly ? undefined : onRefresh;
 
   // Default handlers for URL bar when read-only
   const handleUrlChange = readOnly ? () => {} : onPreviewUrlChange;
   const noopNavigate = () => {};
-  const noopRefresh = () => {};
+
+  // Navigation history popup state
+  const [historyPopup, setHistoryPopup] = useState<{
+    type: 'back' | 'forward';
+    position: { x: number; y: number };
+    entries: NavigationStackEntry[];
+  } | null>(null);
+  // Note: historyLoading could be used for a loading indicator, but for now
+  // the fetch is fast enough that we skip showing it
+  const [, setHistoryLoading] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    if (!historyPopup) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        setHistoryPopup(null);
+      }
+    };
+
+    // Small delay to prevent immediate close
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [historyPopup]);
+
+  // Handle right-click on back/forward buttons
+  const handleHistoryContextMenu = useCallback(async (
+    e: React.MouseEvent,
+    type: 'back' | 'forward'
+  ) => {
+    e.preventDefault();
+    if (readOnly || !onFetchNavigationStack) return;
+
+    setHistoryLoading(true);
+    try {
+      const data = await onFetchNavigationStack();
+      if (!data) {
+        setHistoryPopup(null);
+        return;
+      }
+
+      const entries = type === 'back' ? data.backStack : data.forwardStack;
+      if (entries.length === 0) {
+        setHistoryPopup(null);
+        return;
+      }
+
+      // Position popup below the button
+      const rect = (e.target as HTMLElement).closest('button')?.getBoundingClientRect();
+      setHistoryPopup({
+        type,
+        position: {
+          x: rect?.left ?? e.clientX,
+          y: (rect?.bottom ?? e.clientY) + 4,
+        },
+        entries,
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [readOnly, onFetchNavigationStack]);
+
+  // Handle navigation from popup
+  const handlePopupNavigate = useCallback((index: number) => {
+    if (!historyPopup || !onNavigateToIndex) return;
+
+    // For back stack, index 0 is the most recent (delta = -1)
+    // For forward stack, index 0 is the next page (delta = +1)
+    const delta = historyPopup.type === 'back' ? -(index + 1) : (index + 1);
+    onNavigateToIndex(delta);
+    setHistoryPopup(null);
+  }, [historyPopup, onNavigateToIndex]);
 
   return (
     <div className={clsx(
@@ -137,12 +254,67 @@ export function BrowserChrome({
         </button>
       )}
 
+      {/* Navigation controls - back, forward, refresh */}
+      <div className="flex-shrink-0 flex items-center gap-0.5">
+        {/* Back button */}
+        <button
+          type="button"
+          onClick={handleGoBack}
+          onContextMenu={(e) => handleHistoryContextMenu(e, 'back')}
+          disabled={readOnly || !canGoBack}
+          className={clsx(
+            'p-1.5 rounded-lg transition-colors',
+            canGoBack && !readOnly
+              ? 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+              : 'text-gray-600 cursor-not-allowed'
+          )}
+          title={canGoBack ? 'Go back (right-click for history)' : 'No back history'}
+          aria-label="Go back"
+        >
+          <ArrowLeft size={16} />
+        </button>
+
+        {/* Forward button */}
+        <button
+          type="button"
+          onClick={handleGoForward}
+          onContextMenu={(e) => handleHistoryContextMenu(e, 'forward')}
+          disabled={readOnly || !canGoForward}
+          className={clsx(
+            'p-1.5 rounded-lg transition-colors',
+            canGoForward && !readOnly
+              ? 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+              : 'text-gray-600 cursor-not-allowed'
+          )}
+          title={canGoForward ? 'Go forward (right-click for history)' : 'No forward history'}
+          aria-label="Go forward"
+        >
+          <ArrowRight size={16} />
+        </button>
+
+        {/* Refresh button */}
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={readOnly}
+          className={clsx(
+            'p-1.5 rounded-lg transition-colors',
+            readOnly
+              ? 'text-gray-600 cursor-not-allowed'
+              : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+          )}
+          title="Refresh page"
+          aria-label="Refresh page"
+        >
+          <RotateCw size={16} />
+        </button>
+      </div>
+
       {/* Browser URL bar */}
       <BrowserUrlBar
         value={previewUrl}
         onChange={handleUrlChange}
         onNavigate={handleNavigate ?? noopNavigate}
-        onRefresh={handleRefresh ?? noopRefresh}
         placeholder={placeholder}
         pageTitle={pageTitle}
         disabled={readOnly}
@@ -251,6 +423,62 @@ export function BrowserChrome({
         >
           <SlidersHorizontal size={16} />
         </button>
+      )}
+
+      {/* Navigation history popup */}
+      {historyPopup && (
+        <div
+          ref={popupRef}
+          className="fixed z-50 min-w-[280px] max-w-[400px] bg-gray-900 border border-gray-700 rounded-lg shadow-xl overflow-hidden"
+          style={{
+            left: historyPopup.position.x,
+            top: historyPopup.position.y,
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700 bg-gray-800/50">
+            <History size={14} className="text-gray-400" />
+            <span className="text-xs font-medium text-gray-300">
+              {historyPopup.type === 'back' ? 'Back History' : 'Forward History'}
+            </span>
+            <span className="text-xs text-gray-500 ml-auto">
+              {historyPopup.entries.length} {historyPopup.entries.length === 1 ? 'page' : 'pages'}
+            </span>
+          </div>
+
+          {/* Entries list */}
+          <div className="max-h-[300px] overflow-y-auto">
+            {historyPopup.entries.map((entry, index) => (
+              <button
+                key={`${entry.url}-${index}`}
+                onClick={() => handlePopupNavigate(index)}
+                className="w-full text-left px-3 py-2 hover:bg-gray-800 border-b border-gray-800 last:border-b-0 transition-colors group"
+              >
+                <div className="text-sm text-gray-200 truncate group-hover:text-white">
+                  {entry.title || '(No title)'}
+                </div>
+                <div className="text-xs text-gray-500 truncate mt-0.5 font-mono">
+                  {entry.url}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Footer with "Show All History" link */}
+          {onOpenHistorySettings && (
+            <div className="px-3 py-2 border-t border-gray-700 bg-gray-800/30">
+              <button
+                onClick={() => {
+                  setHistoryPopup(null);
+                  onOpenHistorySettings();
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+              >
+                Show All History...
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

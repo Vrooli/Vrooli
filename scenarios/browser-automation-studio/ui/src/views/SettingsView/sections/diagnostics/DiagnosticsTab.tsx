@@ -57,6 +57,7 @@ type ViewMode = 'dashboard' | 'json' | 'metrics';
 
 export function DiagnosticsTab() {
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+  const [pipelineTestUrl, setPipelineTestUrl] = useState<string>('https://example.com');
 
   const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useObservability({
     depth: 'standard',
@@ -92,8 +93,8 @@ export function DiagnosticsTab() {
 
   const handleRunPipelineTest = useCallback(async () => {
     // The pipeline test is fully autonomous - it creates a session if needed
-    await runPipelineTest();
-  }, [runPipelineTest]);
+    await runPipelineTest({ test_url: pipelineTestUrl || undefined });
+  }, [runPipelineTest, pipelineTestUrl]);
 
   const handleCleanNow = useCallback(async () => {
     await runCleanup();
@@ -401,19 +402,37 @@ export function DiagnosticsTab() {
             )}
           </div>
 
-          {/* Pipeline Test Description */}
-          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+          {/* Pipeline Test Description and URL Input */}
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg space-y-3">
             <div className="flex items-start gap-2">
               <TestTube2 size={16} className="text-purple-400 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="text-purple-300 font-medium">Fully Autonomous Pipeline Test</p>
                 <p className="text-purple-200/70 text-xs mt-1">
                   Tests the entire recording pipeline by automatically creating a browser session,
-                  navigating to an internal test page, simulating real user interactions, and verifying events flow correctly.
+                  navigating to an external URL, simulating real user interactions, and verifying events flow correctly.
                   <strong className="text-purple-300"> No active session or manual clicking required!</strong>
                 </p>
               </div>
             </div>
+            {/* Test URL Input */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="pipeline-test-url" className="text-sm text-gray-400 whitespace-nowrap">
+                Test URL:
+              </label>
+              <input
+                id="pipeline-test-url"
+                type="text"
+                value={pipelineTestUrl}
+                onChange={(e) => setPipelineTestUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="flex-1 px-3 py-1.5 text-sm bg-gray-800 border border-gray-600 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                disabled={isPipelineTestRunning}
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              Enter any URL to test recording injection. The test will navigate to this URL and verify the recording script is properly injected and events flow correctly.
+            </p>
           </div>
 
           {/* Pipeline Test Results */}

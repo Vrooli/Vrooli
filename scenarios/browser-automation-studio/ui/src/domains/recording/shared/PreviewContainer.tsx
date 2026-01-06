@@ -26,7 +26,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import clsx from 'clsx';
-import { BrowserChrome, type ExecutionStatus } from '../capture/BrowserChrome';
+import { BrowserChrome, type ExecutionStatus, type NavigationStackData } from '../capture/BrowserChrome';
 import type { FrameStats } from '../capture/PlaywrightView';
 import type { FrameStatsAggregated } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -53,9 +53,20 @@ export interface PreviewContainerProps {
   previewUrl: string;
   onPreviewUrlChange: (url: string) => void;
   onNavigate?: (url: string) => void;
-  onRefresh?: () => void;
   pageTitle?: string;
   placeholder?: string;
+
+  // Navigation controls (back, forward, refresh)
+  onGoBack?: () => void;
+  onGoForward?: () => void;
+  onRefresh?: () => void;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
+
+  // Navigation history popup (right-click on back/forward buttons)
+  onFetchNavigationStack?: () => Promise<NavigationStackData | null>;
+  onNavigateToIndex?: (delta: number) => void;
+  onOpenHistorySettings?: () => void;
 
   // Frame stats (optional - shown during live streaming)
   frameStats?: FrameStats | null;
@@ -135,9 +146,16 @@ export function PreviewContainer({
   previewUrl,
   onPreviewUrlChange,
   onNavigate,
-  onRefresh,
   pageTitle,
   placeholder = 'Search or enter URL',
+  onGoBack,
+  onGoForward,
+  onRefresh,
+  canGoBack,
+  canGoForward,
+  onFetchNavigationStack,
+  onNavigateToIndex,
+  onOpenHistorySettings,
   frameStats,
   targetFps,
   debugStats,
@@ -365,9 +383,13 @@ export function PreviewContainer({
         previewUrl={previewUrl}
         onPreviewUrlChange={onPreviewUrlChange}
         onNavigate={onNavigate}
-        onRefresh={onRefresh}
         placeholder={placeholder}
         pageTitle={pageTitle}
+        onGoBack={onGoBack}
+        onGoForward={onGoForward}
+        onRefresh={onRefresh}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={onToggleSidebar}
         actionCount={actionCount}
@@ -382,6 +404,10 @@ export function PreviewContainer({
         isSettingsPanelOpen={isSettingsPanelOpen}
         mode={mode}
         readOnly={readOnly}
+        // Navigation history popup
+        onFetchNavigationStack={onFetchNavigationStack}
+        onNavigateToIndex={onNavigateToIndex}
+        onOpenHistorySettings={onOpenHistorySettings}
         // New props for viewport indicator
         browserViewport={browserViewport}
         actualBrowserViewport={effectiveActualViewport}

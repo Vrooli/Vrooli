@@ -21,7 +21,7 @@ declare global {
 
     /**
      * Callback function exposed by Playwright to receive raw browser events.
-     * This is set up via page.exposeFunction() in the RecordModeController.
+     * This is set up via page.exposeFunction() in the RecordingContextInitializer.
      *
      * @param action - Raw browser event captured by the recording script
      */

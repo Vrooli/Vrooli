@@ -390,6 +390,9 @@ function setupRoutes(
   router.post('/session/:id/record/pipeline-test', async (req, res, params) => {
     await routes.handleRecordPipelineTest(req, res, params.id, sessionManager, config);
   });
+  router.post('/session/:id/record/external-url-test', async (req, res, params) => {
+    await routes.handleRecordExternalUrlTest(req, res, params.id, sessionManager, config);
+  });
 
   // Record mode validation & interaction
   router.post('/session/:id/record/validate-selector', async (req, res, params) => {
@@ -400,6 +403,21 @@ function setupRoutes(
   });
   router.post('/session/:id/record/navigate', async (req, res, params) => {
     await routes.handleRecordNavigate(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/reload', async (req, res, params) => {
+    await routes.handleRecordReload(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/go-back', async (req, res, params) => {
+    await routes.handleRecordGoBack(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/go-forward', async (req, res, params) => {
+    await routes.handleRecordGoForward(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/navigation-state', async (req, res, params) => {
+    await routes.handleRecordNavigationState(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/navigation-stack', async (req, res, params) => {
+    await routes.handleRecordNavigationStack(req, res, params.id, sessionManager, config);
   });
   router.post('/session/:id/record/screenshot', async (req, res, params) => {
     await routes.handleRecordScreenshot(req, res, params.id, sessionManager, config);

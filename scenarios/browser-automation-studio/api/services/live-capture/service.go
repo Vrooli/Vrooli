@@ -365,6 +365,31 @@ func (s *Service) Navigate(ctx context.Context, sessionID string, req *driver.Na
 	return s.sessions.Client().Navigate(ctx, sessionID, req)
 }
 
+// Reload reloads the current page.
+func (s *Service) Reload(ctx context.Context, sessionID string, req *driver.ReloadRequest) (*driver.ReloadResponse, error) {
+	return s.sessions.Client().Reload(ctx, sessionID, req)
+}
+
+// GoBack navigates back in browser history.
+func (s *Service) GoBack(ctx context.Context, sessionID string, req *driver.GoBackRequest) (*driver.GoBackResponse, error) {
+	return s.sessions.Client().GoBack(ctx, sessionID, req)
+}
+
+// GoForward navigates forward in browser history.
+func (s *Service) GoForward(ctx context.Context, sessionID string, req *driver.GoForwardRequest) (*driver.GoForwardResponse, error) {
+	return s.sessions.Client().GoForward(ctx, sessionID, req)
+}
+
+// GetNavigationState retrieves the current navigation state.
+func (s *Service) GetNavigationState(ctx context.Context, sessionID string) (*driver.NavigationStateResponse, error) {
+	return s.sessions.Client().GetNavigationState(ctx, sessionID)
+}
+
+// GetNavigationStack retrieves the navigation history stack for back/forward popup.
+func (s *Service) GetNavigationStack(ctx context.Context, sessionID string) (*driver.NavigationStackResponse, error) {
+	return s.sessions.Client().GetNavigationStack(ctx, sessionID)
+}
+
 // UpdateViewport updates the viewport dimensions.
 func (s *Service) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*driver.UpdateViewportResponse, error) {
 	return s.sessions.Client().UpdateViewport(ctx, sessionID, &driver.UpdateViewportRequest{

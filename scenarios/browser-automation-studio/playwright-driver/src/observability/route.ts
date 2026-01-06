@@ -186,7 +186,7 @@ function aggregateRecordingStats(
         foundAny = true;
 
         // Track the first actively recording session for debugging
-        if (!activeRecordingSessionId && session.recordingController?.isRecording()) {
+        if (!activeRecordingSessionId && session.pipelineManager?.isRecording()) {
           activeRecordingSessionId = sessionId;
         }
 
@@ -282,7 +282,7 @@ function createSessionSummary(
         idleCount++;
       }
 
-      if (session.recordingController?.isRecording()) {
+      if (session.pipelineManager?.isRecording()) {
         recordingCount++;
       }
     } catch {
@@ -448,7 +448,7 @@ export async function handleDiagnosticsRun(
             for (const sid of allSessionIds) {
               try {
                 const session = deps.sessionManager.getSession(sid);
-                if (session.recordingController?.isRecording()) {
+                if (session.pipelineManager?.isRecording()) {
                   targetSessionId = sid;
                   break;
                 }
@@ -885,7 +885,8 @@ export async function handleConfigRuntime(
  *
  * Request body (optional):
  * {
- *   "timeout_ms": 30000,  // Test timeout (default: 30000)
+ *   "test_url": "https://example.com",  // External URL to test (default: example.com)
+ *   "timeout_ms": 30000,                // Test timeout (default: 30000)
  * }
  *
  * Response: PipelineTestResponse (same format as session-specific endpoint)
@@ -908,9 +909,11 @@ export async function handlePipelineTest(
 
     try {
       const request = JSON.parse(body || '{}');
+      const testUrl = request.test_url; // undefined = use default (example.com)
       const timeoutMs = request.timeout_ms ?? 30000;
 
       logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test starting'), {
+        testUrl: testUrl || 'default (example.com)',
         timeoutMs,
       });
 
@@ -945,25 +948,24 @@ export async function handlePipelineTest(
         });
       }
 
-      // Ensure we have a recording initializer
+      // Ensure we have a recording initializer and pipeline manager
       if (!session.recordingInitializer) {
         throw new Error('Recording initializer not set on session - context may not have been initialized properly');
       }
+      if (!session.pipelineManager) {
+        throw new Error('Pipeline manager not set on session - context may not have been initialized properly');
+      }
 
-      // Build server base URL for the test page
-      // This is needed because the test uses a data URL which has no origin,
-      // so we inject a <base> tag to allow relative URLs like /__vrooli_recording_event__
-      const serverBaseUrl = `http://${deps.config.server.host}:${deps.config.server.port}`;
-
-      // Run the pipeline test
+      // Run the pipeline test using the REAL recording path
       const result = await runRecordingPipelineTest(
         session.page,
         session.context,
+        session.pipelineManager,
         session.recordingInitializer,
         {
+          testUrl,
           timeoutMs,
           captureConsole: true,
-          serverBaseUrl,
         }
       );
 

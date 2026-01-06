@@ -129,6 +129,8 @@ export interface PipelineTestResponse {
  * Request options for the pipeline test.
  */
 export interface PipelineTestRequest {
+  /** External URL to test injection on (default: https://example.com) */
+  test_url?: string;
   timeout_ms?: number;
 }
 
@@ -163,6 +165,7 @@ export function usePipelineTest(): UsePipelineTestReturn {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          test_url: options.test_url, // undefined = use default (example.com)
           timeout_ms: options.timeout_ms ?? 30000,
         }),
       });

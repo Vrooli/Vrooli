@@ -1070,13 +1070,345 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 
 	// Map service response to handler response type
 	driverResp := NavigateRecordingResponse{
-		URL:        resp.URL,
-		Title:      resp.Title,
-		StatusCode: resp.StatusCode,
-		Screenshot: resp.Screenshot,
+		URL:          resp.URL,
+		Title:        resp.Title,
+		CanGoBack:    resp.CanGoBack,
+		CanGoForward: resp.CanGoForward,
+		StatusCode:   resp.StatusCode,
+		Screenshot:   resp.Screenshot,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload
+// Reloads the current page in the recording session.
+func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req ReloadRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.Reload(ctx, sessionID, &livecapture.ReloadRequest{
+		WaitUntil: req.WaitUntil,
+		TimeoutMs: req.TimeoutMs,
+	})
+	if err != nil {
+		h.log.WithError(err).Error("Failed to reload recording session")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Create a reload action for the recording timeline
+	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		pages := sess.Pages()
+		activePageID := pages.GetActivePageID()
+
+		now := time.Now()
+		reloadAction := livecapture.RecordedAction{
+			ID:          uuid.NewString(),
+			SessionID:   sessionID,
+			Timestamp:   now.Format(time.RFC3339Nano),
+			ActionType:  "reload",
+			Confidence:  1.0,
+			URL:         resp.URL,
+			PageID:      activePageID.String(),
+			PageTitle:   resp.Title,
+		}
+
+		h.recordModeService.AddTimelineAction(sessionID, &reloadAction, activePageID)
+
+		timelineEntry := h.convertRecordedActionToTimelineEntry(&reloadAction)
+		if timelineEntry != nil {
+			timelineEntry["pageId"] = activePageID.String()
+			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, reloadAction, timelineEntry)
+		} else {
+			h.wsHub.BroadcastRecordingAction(sessionID, reloadAction)
+		}
+
+		h.log.WithFields(map[string]interface{}{
+			"session_id":  sessionID,
+			"action_type": "reload",
+			"url":         resp.URL,
+		}).Debug("Created and broadcast reload action")
+	}
+
+	driverResp := ReloadRecordingResponse{
+		SessionID:    sessionID,
+		URL:          resp.URL,
+		Title:        resp.Title,
+		CanGoBack:    resp.CanGoBack,
+		CanGoForward: resp.CanGoForward,
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// GoBackRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-back
+// Navigates back in browser history.
+func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req GoBackRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.GoBack(ctx, sessionID, &livecapture.GoBackRequest{
+		WaitUntil: req.WaitUntil,
+		TimeoutMs: req.TimeoutMs,
+	})
+	if err != nil {
+		h.log.WithError(err).Error("Failed to go back in recording session")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Create a goBack action for the recording timeline
+	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		pages := sess.Pages()
+		activePageID := pages.GetActivePageID()
+
+		// Update page info
+		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
+
+		now := time.Now()
+		goBackAction := livecapture.RecordedAction{
+			ID:          uuid.NewString(),
+			SessionID:   sessionID,
+			Timestamp:   now.Format(time.RFC3339Nano),
+			ActionType:  "goBack",
+			Confidence:  1.0,
+			URL:         resp.URL,
+			PageID:      activePageID.String(),
+			PageTitle:   resp.Title,
+		}
+
+		h.recordModeService.AddTimelineAction(sessionID, &goBackAction, activePageID)
+
+		timelineEntry := h.convertRecordedActionToTimelineEntry(&goBackAction)
+		if timelineEntry != nil {
+			timelineEntry["pageId"] = activePageID.String()
+			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, goBackAction, timelineEntry)
+		} else {
+			h.wsHub.BroadcastRecordingAction(sessionID, goBackAction)
+		}
+
+		// Broadcast page_navigated event
+		pageEvent := &domain.PageEvent{
+			ID:        uuid.New(),
+			Type:      domain.PageEventNavigated,
+			PageID:    activePageID,
+			URL:       resp.URL,
+			Title:     resp.Title,
+			Timestamp: now,
+		}
+		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
+
+		h.log.WithFields(map[string]interface{}{
+			"session_id":  sessionID,
+			"action_type": "goBack",
+			"url":         resp.URL,
+		}).Debug("Created and broadcast goBack action")
+	}
+
+	driverResp := GoBackRecordingResponse{
+		SessionID:    sessionID,
+		URL:          resp.URL,
+		Title:        resp.Title,
+		CanGoBack:    resp.CanGoBack,
+		CanGoForward: resp.CanGoForward,
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// GoForwardRecordingSession handles POST /api/v1/recordings/live/{sessionId}/go-forward
+// Navigates forward in browser history.
+func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req GoForwardRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.GoForward(ctx, sessionID, &livecapture.GoForwardRequest{
+		WaitUntil: req.WaitUntil,
+		TimeoutMs: req.TimeoutMs,
+	})
+	if err != nil {
+		h.log.WithError(err).Error("Failed to go forward in recording session")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Create a goForward action for the recording timeline
+	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		pages := sess.Pages()
+		activePageID := pages.GetActivePageID()
+
+		// Update page info
+		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
+
+		now := time.Now()
+		goForwardAction := livecapture.RecordedAction{
+			ID:          uuid.NewString(),
+			SessionID:   sessionID,
+			Timestamp:   now.Format(time.RFC3339Nano),
+			ActionType:  "goForward",
+			Confidence:  1.0,
+			URL:         resp.URL,
+			PageID:      activePageID.String(),
+			PageTitle:   resp.Title,
+		}
+
+		h.recordModeService.AddTimelineAction(sessionID, &goForwardAction, activePageID)
+
+		timelineEntry := h.convertRecordedActionToTimelineEntry(&goForwardAction)
+		if timelineEntry != nil {
+			timelineEntry["pageId"] = activePageID.String()
+			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, goForwardAction, timelineEntry)
+		} else {
+			h.wsHub.BroadcastRecordingAction(sessionID, goForwardAction)
+		}
+
+		// Broadcast page_navigated event
+		pageEvent := &domain.PageEvent{
+			ID:        uuid.New(),
+			Type:      domain.PageEventNavigated,
+			PageID:    activePageID,
+			URL:       resp.URL,
+			Title:     resp.Title,
+			Timestamp: now,
+		}
+		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
+
+		h.log.WithFields(map[string]interface{}{
+			"session_id":  sessionID,
+			"action_type": "goForward",
+			"url":         resp.URL,
+		}).Debug("Created and broadcast goForward action")
+	}
+
+	driverResp := GoForwardRecordingResponse{
+		SessionID:    sessionID,
+		URL:          resp.URL,
+		Title:        resp.Title,
+		CanGoBack:    resp.CanGoBack,
+		CanGoForward: resp.CanGoForward,
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// GetNavigationState handles GET /api/v1/recordings/live/{sessionId}/navigation-state
+// Returns the current navigation state (canGoBack/canGoForward).
+func (h *Handler) GetNavigationState(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.GetNavigationState(ctx, sessionID)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to get navigation state")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	driverResp := NavigationStateResponse{
+		SessionID:    sessionID,
+		URL:          resp.URL,
+		Title:        resp.Title,
+		CanGoBack:    resp.CanGoBack,
+		CanGoForward: resp.CanGoForward,
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// GetNavigationStack handles GET /api/v1/recordings/live/{sessionId}/navigation-stack
+// Returns the navigation history stack for back/forward popup.
+func (h *Handler) GetNavigationStack(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.GetNavigationStack(ctx, sessionID)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to get navigation stack")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, resp)
 }
 
 // CaptureRecordingScreenshot handles POST /api/v1/recordings/live/{sessionId}/screenshot

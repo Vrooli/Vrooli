@@ -23,8 +23,9 @@ import { createMockPage } from '../../helpers';
 describe('Recording Lifecycle Idempotency', () => {
   let mockPage: ReturnType<typeof createMockPage>;
   let mockSession: Partial<SessionState>;
-  let mockRecordingController: {
+  let mockPipelineManager: {
     isRecording: jest.Mock;
+    getRecordingId: jest.Mock;
     getState: jest.Mock;
     startRecording: jest.Mock;
     stopRecording: jest.Mock;
@@ -35,13 +36,12 @@ describe('Recording Lifecycle Idempotency', () => {
   beforeEach(() => {
     mockPage = createMockPage();
 
-    mockRecordingController = {
+    mockPipelineManager = {
       isRecording: jest.fn().mockReturnValue(false),
+      getRecordingId: jest.fn().mockReturnValue(undefined),
       getState: jest.fn().mockReturnValue({
-        isRecording: false,
-        sessionId,
-        actionCount: 0,
-        startedAt: '2024-01-01T00:00:00.000Z',
+        phase: 'ready',
+        recording: undefined,
       }),
       startRecording: jest.fn().mockResolvedValue('recording-123'),
       stopRecording: jest.fn().mockResolvedValue({
@@ -54,8 +54,7 @@ describe('Recording Lifecycle Idempotency', () => {
       id: sessionId,
       page: mockPage as any,
       phase: 'ready',
-      recordingController: mockRecordingController as any,
-      recordingId: undefined,
+      pipelineManager: mockPipelineManager as any,
     };
   });
 
@@ -64,14 +63,15 @@ describe('Recording Lifecycle Idempotency', () => {
       // Scenario: Recording is active with recording_id 'recording-123'
       // Request: Start recording with recording_id 'recording-123'
       // Expected: Idempotent - return success without restarting
-      mockRecordingController.isRecording.mockReturnValue(true);
-      mockSession.recordingId = 'recording-123';
+      mockPipelineManager.isRecording.mockReturnValue(true);
+      mockPipelineManager.getRecordingId.mockReturnValue('recording-123');
 
       const requestRecordingId = 'recording-123';
+      const currentRecordingId = mockPipelineManager.getRecordingId();
       const isIdempotentStart =
-        mockRecordingController.isRecording() &&
+        mockPipelineManager.isRecording() &&
         requestRecordingId &&
-        mockSession.recordingId === requestRecordingId;
+        currentRecordingId === requestRecordingId;
 
       expect(isIdempotentStart).toBe(true);
     });
@@ -80,16 +80,17 @@ describe('Recording Lifecycle Idempotency', () => {
       // Scenario: Recording is active with recording_id 'recording-existing'
       // Request: Start recording with recording_id 'recording-new'
       // Expected: Conflict - cannot start new recording while another is active
-      mockRecordingController.isRecording.mockReturnValue(true);
-      mockSession.recordingId = 'recording-existing';
+      mockPipelineManager.isRecording.mockReturnValue(true);
+      mockPipelineManager.getRecordingId.mockReturnValue('recording-existing');
 
       const requestRecordingId = 'recording-new';
+      const currentRecordingId = mockPipelineManager.getRecordingId();
       const isIdempotentStart =
-        mockRecordingController.isRecording() &&
+        mockPipelineManager.isRecording() &&
         requestRecordingId &&
-        mockSession.recordingId === requestRecordingId;
+        currentRecordingId === requestRecordingId;
       const isConflict =
-        mockRecordingController.isRecording() && !isIdempotentStart;
+        mockPipelineManager.isRecording() && !isIdempotentStart;
 
       expect(isConflict).toBe(true);
     });
@@ -98,10 +99,10 @@ describe('Recording Lifecycle Idempotency', () => {
       // Scenario: Recording is not active
       // Request: Stop recording
       // Expected: Idempotent - return success with action_count: 0
-      mockRecordingController.isRecording.mockReturnValue(false);
-      mockSession.recordingId = 'previous-recording';
+      mockPipelineManager.isRecording.mockReturnValue(false);
+      mockPipelineManager.getRecordingId.mockReturnValue('previous-recording');
 
-      const isIdempotentStop = !mockRecordingController.isRecording();
+      const isIdempotentStop = !mockPipelineManager.isRecording();
 
       expect(isIdempotentStop).toBe(true);
     });
@@ -110,10 +111,10 @@ describe('Recording Lifecycle Idempotency', () => {
       // Scenario: Recording is active
       // Request: Stop recording
       // Expected: Actually stop recording
-      mockRecordingController.isRecording.mockReturnValue(true);
-      mockSession.recordingId = 'active-recording';
+      mockPipelineManager.isRecording.mockReturnValue(true);
+      mockPipelineManager.getRecordingId.mockReturnValue('active-recording');
 
-      const needsActualStop = mockRecordingController.isRecording();
+      const needsActualStop = mockPipelineManager.isRecording();
 
       expect(needsActualStop).toBe(true);
     });
@@ -122,13 +123,14 @@ describe('Recording Lifecycle Idempotency', () => {
   describe('idempotency edge cases', () => {
     it('should handle missing recording_id in request during active recording', () => {
       // Request without recording_id when recording is active should be conflict
-      mockRecordingController.isRecording.mockReturnValue(true);
-      mockSession.recordingId = 'recording-existing';
+      mockPipelineManager.isRecording.mockReturnValue(true);
+      mockPipelineManager.getRecordingId.mockReturnValue('recording-existing');
 
       const requestRecordingId = undefined;
+      const currentRecordingId = mockPipelineManager.getRecordingId();
       const isIdempotentStart =
         requestRecordingId &&
-        mockSession.recordingId === requestRecordingId;
+        currentRecordingId === requestRecordingId;
 
       // Without request recording_id, cannot be idempotent
       expect(isIdempotentStart).toBeFalsy();
@@ -136,22 +138,22 @@ describe('Recording Lifecycle Idempotency', () => {
 
     it('should handle undefined session recording_id', () => {
       // Session without recording_id (first recording)
-      mockRecordingController.isRecording.mockReturnValue(false);
-      mockSession.recordingId = undefined;
+      mockPipelineManager.isRecording.mockReturnValue(false);
+      mockPipelineManager.getRecordingId.mockReturnValue(undefined);
 
       // When not recording, a new recording can be started
-      const isNewRecording = !mockRecordingController.isRecording();
+      const isNewRecording = !mockPipelineManager.isRecording();
 
       expect(isNewRecording).toBe(true);
     });
 
     it('should return consistent state after multiple getState calls', () => {
       // State should be consistent across multiple reads
-      mockRecordingController.isRecording.mockReturnValue(true);
+      mockPipelineManager.isRecording.mockReturnValue(true);
 
-      const state1 = mockRecordingController.isRecording();
-      const state2 = mockRecordingController.isRecording();
-      const state3 = mockRecordingController.isRecording();
+      const state1 = mockPipelineManager.isRecording();
+      const state2 = mockPipelineManager.isRecording();
+      const state3 = mockPipelineManager.isRecording();
 
       expect(state1).toBe(state2);
       expect(state2).toBe(state3);

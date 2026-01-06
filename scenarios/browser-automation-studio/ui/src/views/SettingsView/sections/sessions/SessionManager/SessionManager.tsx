@@ -1,18 +1,23 @@
-import { X, Loader2, AlertCircle, Cookie, Database, Trash2, Cog } from 'lucide-react';
-import { useState } from 'react';
+import { X, Loader2, AlertCircle, Cookie, Database, Trash2, Cog, History, Settings } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
 import { useSessionManager } from './useSessionManager';
+import { useHistory } from '@/domains/recording/hooks/useHistory';
 import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection, ExtraHeadersSection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
 import { ServiceWorkersTable } from '../storage/ServiceWorkersTable';
+import { HistoryTable } from '../storage/HistoryTable';
+import { HistorySettings } from '../storage/HistorySettings';
 
 interface SessionManagerProps {
   profileId: string;
   profileName: string;
   initialProfile?: BrowserProfile;
   hasStorageState?: boolean;
+  /** Section to open when the dialog first opens */
+  initialSection?: 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history';
   onSave: (profile: BrowserProfile) => Promise<void>;
   onClose: () => void;
 }
@@ -22,6 +27,7 @@ export function SessionManager({
   profileName,
   initialProfile,
   hasStorageState,
+  initialSection,
   onSave,
   onClose,
 }: SessionManagerProps) {
@@ -64,20 +70,82 @@ export function SessionManager({
     handleSave,
   } = useSessionManager({ profileId, initialProfile, onSave });
 
+  // History hook
+  const {
+    history,
+    loading: historyLoading,
+    error: historyError,
+    deleting: historyDeleting,
+    navigating: historyNavigating,
+    fetchHistory,
+    clear: clearHistoryState,
+    clearAllHistory,
+    deleteHistoryEntry,
+    updateSettings: updateHistorySettings,
+    navigateToUrl: navigateToHistoryUrl,
+  } = useHistory();
+
+  // Set initial section on mount if provided
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection, setActiveSection]);
+
+  // Fetch history when the history section is activated (refetch every time, like other storage tabs)
+  useEffect(() => {
+    const isHistorySection = activeSection === 'history' || initialSection === 'history';
+    if (isHistorySection) {
+      fetchHistory(profileId);
+    }
+    return () => {
+      if (isHistorySection) {
+        clearHistoryState();
+      }
+    };
+  }, [activeSection, initialSection, profileId, fetchHistory, clearHistoryState]);
+
   // Determine if there's an active session (service workers data has a non-empty session_id)
   const hasActiveSession = !!serviceWorkers?.session_id;
 
   // Confirmation modal state for clear all operations
-  const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | 'history' | null>(null);
+
+  // History settings modal state
+  const [showHistorySettings, setShowHistorySettings] = useState(false);
 
   const handleConfirmClearAll = async () => {
     if (confirmClearAll === 'cookies') {
       await clearAllCookies();
     } else if (confirmClearAll === 'localStorage') {
       await clearAllLocalStorage();
+    } else if (confirmClearAll === 'history') {
+      await clearAllHistory(profileId);
     }
     setConfirmClearAll(null);
   };
+
+  // Wrapper callbacks for history operations
+  const handleDeleteHistoryEntry = useCallback(
+    async (entryId: string) => {
+      return deleteHistoryEntry(profileId, entryId);
+    },
+    [deleteHistoryEntry, profileId]
+  );
+
+  const handleNavigateToHistoryUrl = useCallback(
+    async (url: string) => {
+      return navigateToHistoryUrl(profileId, url);
+    },
+    [navigateToHistoryUrl, profileId]
+  );
+
+  const handleUpdateHistorySettings = useCallback(
+    async (settings: Parameters<typeof updateHistorySettings>[1]) => {
+      return updateHistorySettings(profileId, settings);
+    },
+    [updateHistorySettings, profileId]
+  );
 
   const handleClose = () => {
     if (isDirty) {
@@ -126,6 +194,7 @@ export function SessionManager({
             cookieCount={storageState?.stats.cookieCount}
             localStorageCount={storageState?.stats.localStorageCount}
             serviceWorkerCount={serviceWorkers?.workers?.length}
+            historyCount={history?.stats.totalEntries}
             hasActiveSession={hasActiveSession}
           />
 
@@ -266,6 +335,51 @@ export function SessionManager({
                 </StorageContent>
               </div>
             )}
+
+            {activeSection === 'history' && (
+              <div className="space-y-4">
+                {/* Header with Settings and Clear All buttons */}
+                {history && history.entries && history.entries.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {history.stats.totalEntries} entr{history.stats.totalEntries !== 1 ? 'ies' : 'y'}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowHistorySettings(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Settings size={14} />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => setConfirmClearAll('history')}
+                        disabled={historyDeleting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <StorageContent
+                  loading={historyLoading}
+                  error={historyError}
+                  emptyMessage="No navigation history yet."
+                >
+                  {history && (
+                    <HistoryTable
+                      entries={history.entries ?? []}
+                      deleting={historyDeleting}
+                      navigating={historyNavigating}
+                      onDelete={handleDeleteHistoryEntry}
+                      onNavigate={hasActiveSession ? handleNavigateToHistoryUrl : undefined}
+                    />
+                  )}
+                </StorageContent>
+              </div>
+            )}
           </div>
         </div>
 
@@ -303,6 +417,17 @@ export function SessionManager({
               )}
             </div>
           )}
+          {!isSettingsView && activeSection === 'history' && history && (
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <History size={12} />
+                {history.stats.totalEntries} entr{history.stats.totalEntries !== 1 ? 'ies' : 'y'}
+              </span>
+              <span className="text-gray-400 dark:text-gray-500">
+                Max: {history.settings.maxEntries} | TTL: {history.settings.retentionDays > 0 ? `${history.settings.retentionDays}d` : 'unlimited'}
+              </span>
+            </div>
+          )}
           {isSettingsView && <div />}
 
           {/* Action buttons */}
@@ -336,11 +461,11 @@ export function SessionManager({
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Clear All {confirmClearAll === 'cookies' ? 'Cookies' : 'LocalStorage'}?
+                Clear All {confirmClearAll === 'cookies' ? 'Cookies' : confirmClearAll === 'localStorage' ? 'LocalStorage' : 'History'}?
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 This will permanently delete all{' '}
-                {confirmClearAll === 'cookies' ? 'cookies' : 'localStorage data'} from this session.
+                {confirmClearAll === 'cookies' ? 'cookies' : confirmClearAll === 'localStorage' ? 'localStorage data' : 'navigation history'} from this session.
                 This action cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
@@ -352,14 +477,24 @@ export function SessionManager({
                 </button>
                 <button
                   onClick={handleConfirmClearAll}
-                  disabled={storageDeleting}
+                  disabled={confirmClearAll === 'history' ? historyDeleting : storageDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
-                  {storageDeleting ? 'Deleting...' : 'Clear All'}
+                  {(confirmClearAll === 'history' ? historyDeleting : storageDeleting) ? 'Deleting...' : 'Clear All'}
                 </button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* History Settings Modal */}
+        {showHistorySettings && history && (
+          <HistorySettings
+            settings={history.settings}
+            loading={historyLoading}
+            onUpdate={handleUpdateHistorySettings}
+            onClose={() => setShowHistorySettings(false)}
+          />
         )}
       </div>
     </div>

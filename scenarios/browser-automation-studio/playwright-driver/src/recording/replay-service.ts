@@ -4,9 +4,8 @@
  * Executes recorded timeline entries for preview/testing before saving.
  *
  * RESPONSIBILITY:
- * This service owns the replay execution logic, extracted from RecordModeController
- * to provide cleaner separation of concerns:
- * - RecordModeController: Recording lifecycle and event capture
+ * This service owns the replay execution logic, providing clean separation:
+ * - RecordingPipelineManager: Recording lifecycle and event capture
  * - ReplayPreviewService: Replay execution and result collection
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐

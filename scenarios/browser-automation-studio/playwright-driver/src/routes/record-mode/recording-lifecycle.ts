@@ -16,7 +16,6 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, metrics, scopedLog, LogContext } from '../../utils';
-import { createRecordModeController } from '../../recording/controller';
 import {
   initRecordingBuffer,
   bufferTimelineEntry,
@@ -25,7 +24,7 @@ import {
   clearTimelineEntries,
 } from '../../recording/buffer';
 import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
-import { runRecordingPipelineTest, TEST_PAGE_URL } from '../../recording/self-test';
+import { runRecordingPipelineTest, runExternalUrlInjectionTest, TEST_PAGE_URL } from '../../recording/self-test';
 import type { Page } from 'rebrowser-playwright';
 import type {
   StartRecordingRequest,
@@ -43,6 +42,7 @@ import {
   updateFrameStreamSettings,
   getFrameStreamSettings,
 } from '../../frame-streaming';
+import { emitHistoryCallback, captureThumbnail } from './recording-interaction';
 
 // =============================================================================
 // Circuit Breaker for Callback Streaming
@@ -140,7 +140,8 @@ async function sendPageEvent(
 function setupPageLifecycleListeners(
   sessionId: string,
   session: ReturnType<SessionManager['getSession']>,
-  pageCallbackUrl: string
+  pageCallbackUrl: string,
+  config: Config
 ): () => void {
   const context = session.context;
 
@@ -216,6 +217,14 @@ function setupPageLifecycleListeners(
       };
 
       await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
+
+      // Emit history callback for session profile history tracking
+      const thumbnail = config.history.thumbnailEnabled
+        ? await captureThumbnail(newPage, config.history.thumbnailQuality)
+        : undefined;
+      emitHistoryCallback(config, sessionId, navUrl, navTitle, 'navigate', thumbnail).catch(() => {
+        // Error already logged in emitHistoryCallback
+      });
     });
 
     // Set up close listener for this page
@@ -284,20 +293,28 @@ export async function handleRecordStart(
     const body = await parseJsonBody(req, config);
     const request = body as unknown as StartRecordingRequest;
 
+    // Get pipeline manager (single source of truth for recording state)
+    const pipelineManager = session.pipelineManager;
+    if (!pipelineManager) {
+      throw new Error('Pipeline manager not set on session - context may not have been initialized properly');
+    }
+
     // Idempotency: Check if already recording
-    if (session.recordingController?.isRecording()) {
+    if (pipelineManager.isRecording()) {
+      const currentRecordingId = pipelineManager.getRecordingId();
       // If the same recording_id is provided, this is an idempotent retry - return success
-      if (request.recording_id && session.recordingId === request.recording_id) {
+      if (request.recording_id && currentRecordingId === request.recording_id) {
+        const recordingData = pipelineManager.getRecordingData();
         logger.info(scopedLog(LogContext.RECORDING, 'idempotent start - already recording'), {
           sessionId,
-          recordingId: session.recordingId,
+          recordingId: currentRecordingId,
           hint: 'Treating as successful retry of previous request',
         });
 
         const response: StartRecordingResponse = {
-          recording_id: session.recordingId || request.recording_id,
+          recording_id: currentRecordingId || request.recording_id,
           session_id: sessionId,
-          started_at: session.recordingController.getState().startedAt || new Date().toISOString(),
+          started_at: recordingData?.startedAt || new Date().toISOString(),
         };
 
         sendJson(res, 200, response);
@@ -307,30 +324,17 @@ export async function handleRecordStart(
       // Different recording_id or no recording_id provided - this is a conflict
       logger.warn(scopedLog(LogContext.RECORDING, 'already in progress'), {
         sessionId,
-        recordingId: session.recordingId,
+        recordingId: currentRecordingId,
         requestedRecordingId: request.recording_id,
         hint: 'Call /record/stop to end the current recording before starting a new one',
       });
       sendJson(res, 409, {
         error: 'RECORDING_IN_PROGRESS',
         message: 'Recording is already in progress for this session',
-        recording_id: session.recordingId,
+        recording_id: currentRecordingId,
         hint: 'Call /record/stop to end the current recording before starting a new one',
       });
       return;
-    }
-
-    // Create recording controller if not exists
-    if (!session.recordingController) {
-      if (!session.recordingInitializer) {
-        throw new Error('Recording initializer not set on session - context may not have been initialized properly');
-      }
-      session.recordingController = createRecordModeController(
-        session.page,
-        session.context,
-        session.recordingInitializer,
-        sessionId
-      );
     }
 
     // Initialize action buffer for this session
@@ -342,9 +346,10 @@ export async function handleRecordStart(
       currentUrl: session.page?.url?.() || '(unknown)',
     });
 
-    // Start recording with callback to buffer entries
-    const recordingId = await session.recordingController.startRecording({
+    // Start recording with callback to buffer entries (using pipelineManager directly)
+    const recordingId = await pipelineManager.startRecording({
       sessionId,
+      recordingId: request.recording_id,
       onEntry: async (entry: TimelineEntry) => {
         // Buffer the entry (proto TimelineEntry)
         bufferTimelineEntry(sessionId, entry);
@@ -357,7 +362,7 @@ export async function handleRecordStart(
 
         logger.debug(scopedLog(LogContext.RECORDING, 'entry captured'), {
           sessionId,
-          recordingId,
+          recordingId: pipelineManager.getRecordingId(),
           actionType: actionTypeName,
           sequenceNum: entry.sequenceNum,
           confidence: entry.action?.metadata?.confidence,
@@ -371,15 +376,12 @@ export async function handleRecordStart(
       onError: (error: Error) => {
         logger.error(scopedLog(LogContext.RECORDING, 'capture error'), {
           sessionId,
-          recordingId,
+          recordingId: pipelineManager.getRecordingId(),
           error: error.message,
           hint: 'Recording may have encountered a page issue or event listener failure',
         });
       },
     });
-
-    // Store recording ID on session
-    session.recordingId = recordingId;
 
     // Update session phase
     sessionManager.setSessionPhase(sessionId, 'recording');
@@ -402,7 +404,8 @@ export async function handleRecordStart(
       session.pageLifecycleCleanup = setupPageLifecycleListeners(
         sessionId,
         session,
-        request.page_callback_url
+        request.page_callback_url,
+        config
       );
 
       // Send initial page's page_created event
@@ -456,7 +459,29 @@ export async function handleRecordStart(
           };
 
           await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
+
+          // Emit history callback for session profile history tracking
+          const thumbnail = config.history.thumbnailEnabled
+            ? await captureThumbnail(session.page, config.history.thumbnailQuality)
+            : undefined;
+          emitHistoryCallback(config, sessionId, navUrl, navTitle, 'navigate', thumbnail).catch(() => {
+            // Error already logged in emitHistoryCallback
+          });
         });
+      }
+    }
+
+    // Get verification info for response (helps diagnose "no events" issues)
+    const verificationData = pipelineManager.getVerification();
+    const warnings: string[] = [];
+
+    // Generate warnings based on verification data
+    if (verificationData) {
+      if (!verificationData.inMainContext) {
+        warnings.push('Script not in MAIN context - History API events will NOT be captured');
+      }
+      if (verificationData.handlersCount < 7) {
+        warnings.push(`Low handler count (${verificationData.handlersCount}) - some events may not be captured`);
       }
     }
 
@@ -467,12 +492,24 @@ export async function handleRecordStart(
       url: session.page?.url?.() || '(unknown)',
       frameStreaming: !!request.frame_callback_url,
       pageTracking: !!request.page_callback_url,
+      verification: verificationData,
+      warnings: warnings.length > 0 ? warnings : undefined,
     });
 
     const response: StartRecordingResponse = {
       recording_id: recordingId,
       session_id: sessionId,
       started_at: new Date().toISOString(),
+      verification: verificationData
+        ? {
+            script_loaded: verificationData.scriptLoaded,
+            script_ready: verificationData.scriptReady,
+            in_main_context: verificationData.inMainContext,
+            handlers_count: verificationData.handlersCount,
+            version: verificationData.version,
+            warnings: warnings.length > 0 ? warnings : undefined,
+          }
+        : undefined,
     };
 
     sendJson(res, 200, response);
@@ -504,9 +541,17 @@ export async function handleRecordStop(
   try {
     const session = sessionManager.getSession(sessionId);
 
+    // Get pipeline manager (single source of truth for recording state)
+    const pipelineManager = session.pipelineManager;
+    if (!pipelineManager) {
+      throw new Error('Pipeline manager not set on session');
+    }
+
     // Idempotency: If not recording, treat as successful no-op
     // This handles retries where the first request succeeded but response was lost
-    if (!session.recordingController?.isRecording()) {
+    if (!pipelineManager.isRecording()) {
+      // Get last known recording ID from pipeline state if available
+      const lastRecordingId = pipelineManager.getRecordingId();
       logger.info(scopedLog(LogContext.RECORDING, 'idempotent stop - no active recording'), {
         sessionId,
         phase: session.phase,
@@ -514,9 +559,8 @@ export async function handleRecordStop(
       });
 
       // Return success with zero action count
-      // Use the last known recording ID if available
       const response: StopRecordingResponse = {
-        recording_id: session.recordingId || 'unknown',
+        recording_id: lastRecordingId || 'unknown',
         session_id: sessionId,
         action_count: 0,
         stopped_at: new Date().toISOString(),
@@ -526,8 +570,8 @@ export async function handleRecordStop(
       return;
     }
 
-    const recordingId = session.recordingId;
-    const result = await session.recordingController.stopRecording();
+    const recordingId = pipelineManager.getRecordingId();
+    const result = await pipelineManager.stopRecording();
 
     // Stop frame streaming if active
     await stopFrameStreaming(sessionId);
@@ -554,9 +598,6 @@ export async function handleRecordStop(
       phase: 'ready',
       finalUrl: session.page?.url?.() || '(unknown)',
     });
-
-    // Clear recording ID from session
-    session.recordingId = undefined;
 
     const response: StopRecordingResponse = {
       recording_id: recordingId || result.recordingId,
@@ -587,15 +628,17 @@ export async function handleRecordStatus(
   try {
     const session = sessionManager.getSession(sessionId);
 
-    const state = session.recordingController?.getState();
+    // Use pipelineManager as single source of truth
+    const pipelineManager = session.pipelineManager;
+    const pipelineState = pipelineManager?.getState();
     const bufferedCount = getTimelineEntryCount(sessionId);
 
     const response: RecordingStatusResponse = {
       session_id: sessionId,
-      is_recording: state?.isRecording || false,
-      recording_id: state?.recordingId,
-      action_count: bufferedCount || state?.actionCount || 0,
-      started_at: state?.startedAt,
+      is_recording: pipelineState?.phase === 'recording',
+      recording_id: pipelineState?.recording?.recordingId,
+      action_count: bufferedCount || pipelineState?.recording?.actionCount || 0,
+      started_at: pipelineState?.recording?.startedAt,
     };
 
     sendJson(res, 200, response);
@@ -872,9 +915,13 @@ export async function handleRecordDebug(
   try {
     const session = sessionManager.getSession(sessionId);
 
-    // Server-side state
-    const isRecording = session.recordingController?.isRecording() ?? false;
-    const recordingId = session.recordingId;
+    // Server-side state (using pipelineManager as single source of truth)
+    const pipelineManager = session.pipelineManager;
+    const pipelineState = pipelineManager?.getState();
+    const isRecording = pipelineState?.phase === 'recording';
+    const recordingId = pipelineState?.recording?.recordingId;
+    const pipelinePhase = pipelineState?.phase;
+    const pipelineVerification = pipelineState?.verification;
     const hasEventHandler = session.recordingInitializer?.hasEventHandler() ?? false;
     const routeHandlerStats = session.recordingInitializer?.getRouteHandlerStats();
     const injectionStats = session.recordingInitializer?.getInjectionStats();
@@ -955,6 +1002,24 @@ export async function handleRecordDebug(
         phase: session.phase,
         current_url: session.page?.url?.() || null,
       },
+      pipeline: {
+        phase: pipelinePhase,
+        action_count: pipelineState?.recording?.actionCount ?? 0,
+        generation: pipelineState?.recording?.generation ?? 0,
+        verification: pipelineVerification ? {
+          script_loaded: pipelineVerification.scriptLoaded,
+          script_ready: pipelineVerification.scriptReady,
+          in_main_context: pipelineVerification.inMainContext,
+          handlers_count: pipelineVerification.handlersCount,
+          event_route_active: pipelineVerification.eventRouteActive,
+          verified_at: pipelineVerification.verifiedAt,
+        } : null,
+        error: pipelineState?.error ? {
+          code: pipelineState.error.code,
+          message: pipelineState.error.message,
+          recoverable: pipelineState.error.recoverable,
+        } : null,
+      },
       route_handler: routeHandlerStats ? {
         events_received: routeHandlerStats.eventsReceived,
         events_processed: routeHandlerStats.eventsProcessed,
@@ -1033,8 +1098,9 @@ export async function handleRecordPipelineTest(
   try {
     const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config).catch(() => ({}));
-    const request = body as { timeout_ms?: number; return_to_original?: boolean };
+    const request = body as { test_url?: string; timeout_ms?: number; return_to_original?: boolean };
 
+    const testUrl = request.test_url; // undefined = use default (example.com)
     const timeoutMs = request.timeout_ms ?? 30000;
     const returnToOriginal = request.return_to_original ?? true;
 
@@ -1045,10 +1111,10 @@ export async function handleRecordPipelineTest(
       sessionId,
       originalUrl: originalUrl.slice(0, 80),
       timeoutMs,
-      testPageUrl: TEST_PAGE_URL,
+      testUrl: testUrl || 'default (example.com)',
     });
 
-    // Ensure we have a recording initializer
+    // Ensure we have a recording initializer and pipeline manager
     if (!session.recordingInitializer) {
       sendJson(res, 500, {
         error: 'MISSING_INITIALIZER',
@@ -1058,12 +1124,24 @@ export async function handleRecordPipelineTest(
       return;
     }
 
-    // Run the pipeline test
+    if (!session.pipelineManager) {
+      sendJson(res, 500, {
+        error: 'MISSING_PIPELINE_MANAGER',
+        message: 'Pipeline manager not set on session',
+        hint: 'The session may not have been properly initialized for recording',
+      });
+      return;
+    }
+
+    // Run the pipeline test using the REAL recording path
+    // This tests pipelineManager.startRecording() → onEntry callback flow
     const result = await runRecordingPipelineTest(
       session.page,
       session.context,
+      session.pipelineManager,
       session.recordingInitializer,
       {
+        testUrl,
         timeoutMs,
         captureConsole: true,
       }
@@ -1136,5 +1214,139 @@ export async function handleRecordPipelineTest(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/pipeline-test`);
+  }
+}
+
+/**
+ * External URL injection test endpoint
+ *
+ * POST /session/:id/record/external-url-test
+ *
+ * Tests the ACTUAL injection path that real users experience when navigating
+ * to external URLs. This is critical because the standard pipeline test uses
+ * an internal test page that bypasses the real injection mechanism.
+ *
+ * This test:
+ * 1. Navigates to a real external URL (default: https://example.com)
+ * 2. Tests the full route.fetch() → modify HTML → route.fulfill() path
+ * 3. Verifies script injection worked in the browser
+ * 4. Reports specific failure points if injection fails
+ *
+ * Request body (optional):
+ * {
+ *   "test_url": "https://example.com",  // URL to test (default: example.com)
+ *   "timeout_ms": 30000,                // Test timeout (default: 30000)
+ *   "return_to_original": true,         // Navigate back after test (default: true)
+ * }
+ *
+ * Response:
+ * {
+ *   "success": boolean,
+ *   "tested_url": string,
+ *   "failure_point": string,           // fetch|modify|fulfill|script_load|script_ready|context_wrong|network|timeout
+ *   "failure_message": string,
+ *   "suggestions": string[],
+ *   "verification": {...},             // Script verification results
+ *   "injection_stats": {...},          // Injection statistics
+ * }
+ */
+export async function handleRecordExternalUrlTest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config).catch(() => ({}));
+    const request = body as { test_url?: string; timeout_ms?: number; return_to_original?: boolean };
+
+    const testUrl = request.test_url ?? 'https://example.com';
+    const timeoutMs = request.timeout_ms ?? 30000;
+    const returnToOriginal = request.return_to_original ?? true;
+
+    // Store original URL to navigate back after test
+    const originalUrl = session.page.url();
+
+    logger.info(scopedLog(LogContext.RECORDING, 'starting external URL injection test'), {
+      sessionId,
+      testUrl,
+      originalUrl: originalUrl.slice(0, 80),
+      timeoutMs,
+    });
+
+    // Ensure we have a recording initializer
+    if (!session.recordingInitializer) {
+      sendJson(res, 500, {
+        error: 'MISSING_INITIALIZER',
+        message: 'Recording initializer not set on session',
+        hint: 'The session may not have been properly initialized for recording',
+      });
+      return;
+    }
+
+    // Run the external URL injection test
+    const result = await runExternalUrlInjectionTest(
+      session.page,
+      session.recordingInitializer,
+      {
+        testUrl,
+        timeoutMs,
+      }
+    );
+
+    // Navigate back to original URL if requested and we were on a real page
+    if (returnToOriginal && originalUrl && !originalUrl.startsWith('about:')) {
+      try {
+        await session.page.goto(originalUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
+        logger.debug(scopedLog(LogContext.RECORDING, 'returned to original URL after external test'), {
+          sessionId,
+          originalUrl: originalUrl.slice(0, 80),
+        });
+      } catch (navError) {
+        logger.warn(scopedLog(LogContext.RECORDING, 'failed to return to original URL'), {
+          sessionId,
+          originalUrl: originalUrl.slice(0, 80),
+          error: navError instanceof Error ? navError.message : String(navError),
+        });
+      }
+    }
+
+    // Log result summary
+    if (result.success) {
+      logger.info(scopedLog(LogContext.RECORDING, 'external URL injection test PASSED'), {
+        sessionId,
+        testUrl,
+        durationMs: result.durationMs,
+        handlersCount: result.verification?.handlersCount,
+      });
+    } else {
+      logger.warn(scopedLog(LogContext.RECORDING, 'external URL injection test FAILED'), {
+        sessionId,
+        testUrl,
+        durationMs: result.durationMs,
+        failurePoint: result.failurePoint,
+        failureMessage: result.failureMessage,
+        suggestions: result.suggestions,
+      });
+    }
+
+    // Build response
+    const response = {
+      success: result.success,
+      timestamp: result.timestamp,
+      duration_ms: result.durationMs,
+      tested_url: result.testedUrl,
+      failure_point: result.failurePoint,
+      failure_message: result.failureMessage,
+      suggestions: result.suggestions,
+      verification: result.verification,
+      injection_stats: result.injectionStats,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/external-url-test`);
   }
 }

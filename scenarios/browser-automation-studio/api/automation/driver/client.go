@@ -464,6 +464,51 @@ func (c *Client) Navigate(ctx context.Context, sessionID string, req *NavigateRe
 	return &resp, nil
 }
 
+// Reload reloads the current page (recording mode).
+func (c *Client) Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error) {
+	var resp ReloadResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/reload", url.PathEscape(sessionID)), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GoBack navigates back in browser history (recording mode).
+func (c *Client) GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error) {
+	var resp GoBackResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-back", url.PathEscape(sessionID)), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GoForward navigates forward in browser history (recording mode).
+func (c *Client) GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error) {
+	var resp GoForwardResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-forward", url.PathEscape(sessionID)), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetNavigationState retrieves the current navigation state (recording mode).
+func (c *Client) GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error) {
+	var resp NavigationStateResponse
+	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-state", url.PathEscape(sessionID)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetNavigationStack retrieves the navigation history stack for back/forward popup.
+func (c *Client) GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error) {
+	var resp NavigationStackResponse
+	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-stack", url.PathEscape(sessionID)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // UpdateViewport updates the viewport dimensions.
 func (c *Client) UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error) {
 	var resp UpdateViewportResponse

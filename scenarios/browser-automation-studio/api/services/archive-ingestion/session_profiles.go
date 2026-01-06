@@ -17,13 +17,15 @@ import (
 
 // SessionProfile captures a persisted Playwright storage state along with metadata.
 type SessionProfile struct {
-	ID             string          `json:"id"`
-	Name           string          `json:"name"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	LastUsedAt     time.Time       `json:"last_used_at"`
-	StorageState   json.RawMessage `json:"storage_state,omitempty"`
-	BrowserProfile *BrowserProfile `json:"browser_profile,omitempty"`
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
+	LastUsedAt      time.Time        `json:"last_used_at"`
+	StorageState    json.RawMessage  `json:"storage_state,omitempty"`
+	BrowserProfile  *BrowserProfile  `json:"browser_profile,omitempty"`
+	History         []HistoryEntry   `json:"history,omitempty"`          // Navigation history entries (newest first)
+	HistorySettings *HistorySettings `json:"history_settings,omitempty"` // History capture configuration
 }
 
 // BrowserProfile contains anti-detection and fingerprint settings for browser automation.
@@ -133,6 +135,31 @@ type ProxySettings struct {
 	Bypass   string `json:"bypass,omitempty"`   // Comma-separated domains to bypass proxy
 	Username string `json:"username,omitempty"` // Proxy authentication username
 	Password string `json:"password,omitempty"` // Proxy authentication password
+}
+
+// HistoryEntry represents a single navigation event in the browser history.
+type HistoryEntry struct {
+	ID        string `json:"id"`                  // Unique identifier for this entry
+	URL       string `json:"url"`                 // Page URL
+	Title     string `json:"title"`               // Page title at time of navigation
+	Timestamp string `json:"timestamp"`           // ISO 8601 timestamp when navigation occurred
+	Thumbnail string `json:"thumbnail,omitempty"` // Base64-encoded JPEG thumbnail (~150x100)
+}
+
+// HistorySettings configures history capture behavior.
+type HistorySettings struct {
+	MaxEntries        int  `json:"maxEntries"`        // Maximum number of entries to retain (default: 100)
+	RetentionDays     int  `json:"retentionDays"`     // TTL in days - entries older than this are pruned (default: 30, 0 = no TTL)
+	CaptureThumbnails bool `json:"captureThumbnails"` // Whether to capture thumbnails (default: true)
+}
+
+// DefaultHistorySettings returns the default history configuration.
+func DefaultHistorySettings() *HistorySettings {
+	return &HistorySettings{
+		MaxEntries:        100,
+		RetentionDays:     30,
+		CaptureThumbnails: true,
+	}
 }
 
 // Preset names for browser profiles
@@ -734,4 +761,182 @@ func (s *SessionProfileStore) GetSessionForProfile(profileID string) string {
 		}
 	}
 	return ""
+}
+
+// ========================================================================
+// Browser History Management
+// ========================================================================
+
+// AddHistoryEntry appends a history entry to the profile, pruning if necessary.
+// Entries are stored newest-first. Pruning by max entries and TTL is applied automatically.
+func (s *SessionProfileStore) AddHistoryEntry(id string, entry HistoryEntry) (*SessionProfile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// Get settings (use defaults if not set)
+	settings := profile.HistorySettings
+	if settings == nil {
+		settings = DefaultHistorySettings()
+	}
+
+	// Prepend new entry (newest first)
+	profile.History = append([]HistoryEntry{entry}, profile.History...)
+
+	// Prune to maxEntries
+	if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
+		profile.History = profile.History[:settings.MaxEntries]
+	}
+
+	// Prune by TTL
+	profile.History = pruneHistoryByTTL(profile.History, settings)
+
+	profile.UpdatedAt = time.Now().UTC()
+
+	if err := s.saveProfileLocked(profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// ClearHistory removes all history entries from a profile.
+func (s *SessionProfileStore) ClearHistory(id string) (*SessionProfile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, err
+	}
+
+	profile.History = nil
+	profile.UpdatedAt = time.Now().UTC()
+
+	if err := s.saveProfileLocked(profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// DeleteHistoryEntry removes a single entry by ID.
+func (s *SessionProfileStore) DeleteHistoryEntry(id, entryID string) (*SessionProfile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// Find and remove the entry
+	found := false
+	newHistory := make([]HistoryEntry, 0, len(profile.History))
+	for _, entry := range profile.History {
+		if entry.ID == entryID {
+			found = true
+			continue
+		}
+		newHistory = append(newHistory, entry)
+	}
+
+	if !found {
+		return nil, fmt.Errorf("history entry not found: %s", entryID)
+	}
+
+	profile.History = newHistory
+	profile.UpdatedAt = time.Now().UTC()
+
+	if err := s.saveProfileLocked(profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// UpdateHistorySettings updates the history configuration.
+// Also triggers pruning if maxEntries is lowered.
+func (s *SessionProfileStore) UpdateHistorySettings(id string, settings *HistorySettings) (*SessionProfile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate settings
+	if settings != nil {
+		if settings.MaxEntries < 0 || settings.MaxEntries > 10000 {
+			return nil, fmt.Errorf("max_entries must be between 0 and 10000")
+		}
+		if settings.RetentionDays < 0 || settings.RetentionDays > 3650 {
+			return nil, fmt.Errorf("retention_days must be between 0 and 3650")
+		}
+	}
+
+	profile.HistorySettings = settings
+
+	// Apply pruning if we have history and settings
+	if len(profile.History) > 0 && settings != nil {
+		// Prune to maxEntries
+		if settings.MaxEntries > 0 && len(profile.History) > settings.MaxEntries {
+			profile.History = profile.History[:settings.MaxEntries]
+		}
+		// Prune by TTL
+		profile.History = pruneHistoryByTTL(profile.History, settings)
+	}
+
+	profile.UpdatedAt = time.Now().UTC()
+
+	if err := s.saveProfileLocked(profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// GetHistoryWithPruning returns the history with TTL pruning applied (but doesn't save).
+// Use this for read-only access where you want to filter expired entries.
+func (s *SessionProfileStore) GetHistoryWithPruning(id string) ([]HistoryEntry, *HistorySettings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	settings := profile.HistorySettings
+	if settings == nil {
+		settings = DefaultHistorySettings()
+	}
+
+	// Apply TTL pruning for display (doesn't persist)
+	entries := pruneHistoryByTTL(profile.History, settings)
+
+	return entries, settings, nil
+}
+
+// pruneHistoryByTTL removes entries older than the retention period.
+func pruneHistoryByTTL(entries []HistoryEntry, settings *HistorySettings) []HistoryEntry {
+	if settings == nil || settings.RetentionDays <= 0 || len(entries) == 0 {
+		return entries
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -settings.RetentionDays)
+	result := make([]HistoryEntry, 0, len(entries))
+	for _, entry := range entries {
+		t, err := time.Parse(time.RFC3339, entry.Timestamp)
+		if err != nil {
+			// Keep entries with unparseable timestamps
+			result = append(result, entry)
+			continue
+		}
+		if t.After(cutoff) {
+			result = append(result, entry)
+		}
+	}
+	return result
 }

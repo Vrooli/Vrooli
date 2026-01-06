@@ -1,6 +1,6 @@
 import type { Page, BrowserContext, Browser, Frame } from 'rebrowser-playwright';
-import type { RecordModeController } from '../recording/controller';
 import type { RecordingContextInitializer } from '../recording/context-initializer';
+import type { RecordingPipelineManager } from '../recording/pipeline-manager';
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
@@ -201,9 +201,12 @@ export interface SessionState {
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
 
-  // Recording state (Record Mode)
-  recordingController?: RecordModeController;
-  recordingId?: string;
+  /**
+   * Recording pipeline manager for this session.
+   * Manages recording state via unified state machine.
+   * Single source of truth for all recording operations.
+   */
+  pipelineManager?: RecordingPipelineManager;
 
   /**
    * Cleanup function for page lifecycle listeners.

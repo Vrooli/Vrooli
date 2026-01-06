@@ -18,6 +18,13 @@ type (
 	// Request/Response type aliases for handler backward compatibility
 	NavigateRequest              = driver.NavigateRequest
 	NavigateResponse             = driver.NavigateResponse
+	ReloadRequest                = driver.ReloadRequest
+	ReloadResponse               = driver.ReloadResponse
+	GoBackRequest                = driver.GoBackRequest
+	GoBackResponse               = driver.GoBackResponse
+	GoForwardRequest             = driver.GoForwardRequest
+	GoForwardResponse            = driver.GoForwardResponse
+	NavigationStateResponse      = driver.NavigationStateResponse
 	ReplayPreviewRequest         = driver.ReplayPreviewRequest
 	ReplayPreviewResponse        = driver.ReplayPreviewResponse
 	CaptureScreenshotRequest     = driver.CaptureScreenshotRequest

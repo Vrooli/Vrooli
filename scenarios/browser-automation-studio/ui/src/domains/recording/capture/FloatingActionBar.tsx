@@ -40,8 +40,6 @@ interface FloatingActionBarProps {
   onPreviewUrlChange: (url: string) => void;
   /** Callback when user navigates to URL */
   onNavigate: (url: string) => void;
-  /** Callback for refresh */
-  onRefresh: () => void;
   /** Session ID for stream settings */
   sessionId?: string | null;
   /** Stream settings preset */
@@ -103,7 +101,6 @@ export function FloatingActionBar({
   previewUrl,
   onPreviewUrlChange,
   onNavigate,
-  onRefresh,
   sessionId,
   streamPreset,
   onStreamPresetChange,
@@ -250,7 +247,6 @@ export function FloatingActionBar({
               value={previewUrl}
               onChange={onPreviewUrlChange}
               onNavigate={onNavigate}
-              onRefresh={onRefresh}
               placeholder="Search or enter URL"
               pageTitle={pageTitle}
             />

@@ -10,10 +10,13 @@
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │                                                                         │
  * │ UNDERSTANDING THE SYSTEM:                                               │
- * │   controller.ts           - Main orchestrator (start/stop, replay)      │
+ * │   state-machine.ts        - Core state machine (single source of truth) │
+ * │   pipeline-manager.ts     - Main orchestrator (start/stop, state)       │
  * │   context-initializer.ts  - Context-level setup (binding + init script) │
  * │   init-script-generator.ts- Generates init script for addInitScript()   │
  * │   action-executor.ts      - Proto-native action execution               │
+ * │   replay-service.ts       - Replay preview for testing recorded entries │
+ * │   selector-service.ts     - Selector validation on pages                │
  * │   ../proto/recording.ts   - Proto conversion (RawBrowserEvent→Timeline) │
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
@@ -36,12 +39,12 @@
  *
  * Context Setup (once per context)    Recording Sessions (per session)
  * ┌───────────────────────────────┐   ┌─────────────────────────────────────┐
- * │  RecordingContextInitializer  │   │  RecordModeController               │
- * │  ├─ context.exposeBinding()   │   │  ├─ activateRecordingOnPage()       │
- * │  └─ context.addInitScript()   │   │  │   └─ postMessage(start)          │
+ * │  RecordingContextInitializer  │   │  RecordingPipelineManager           │
+ * │  ├─ context.exposeBinding()   │   │  ├─ state-machine.ts (state)        │
+ * │  └─ context.addInitScript()   │   │  ├─ startRecording() / stopRecording│
  * └───────────────────────────────┘   │  ├─ handleRawEvent()                │
  *                                      │  │   └─ rawBrowserEventToTimeline() │
- * Browser Page (MAIN context)         │  └─ deactivateRecordingOnAllPages() │
+ * Browser Page (MAIN context)         │  └─ verifyPipeline()                │
  * ┌─────────────────────────────┐     └───────────────┬─────────────────────┘
  * │ recording-script.js         │                     │
  * │ ├─ Listens for activation   │     ┌─────────────────────────────────────┐
@@ -86,12 +89,49 @@ export { SelectorType } from './types';
 // RECORDING-SPECIFIC TYPES
 // =============================================================================
 
-export type {
-  RecordingState,
-  SelectorGeneratorOptions,
-} from './types';
-
+export type { SelectorGeneratorOptions } from './types';
 export { DEFAULT_SELECTOR_OPTIONS } from './types';
+
+// =============================================================================
+// STATE MACHINE (Single Source of Truth)
+// =============================================================================
+
+export type {
+  RecordingPipelineState,
+  RecordingPipelinePhase,
+  PipelineVerification,
+  PipelineError,
+  PipelineErrorCode,
+  RecordingData,
+  LoopDetectionState,
+  RecordingTransition,
+  StateListener,
+  RecordingStateMachine,
+} from './state-machine';
+
+export {
+  createRecordingStateMachine,
+  recordingReducer,
+  createInitialState,
+  isValidTransition,
+  RECOVERABLE_ERRORS,
+} from './state-machine';
+
+// =============================================================================
+// PIPELINE MANAGER (Orchestration Layer)
+// =============================================================================
+
+export {
+  RecordingPipelineManager,
+  createRecordingPipelineManager,
+} from './pipeline-manager';
+
+export type {
+  StartRecordingOptions as PipelineStartOptions,
+  StopRecordingResult,
+  VerifyPipelineOptions,
+  PipelineManagerOptions,
+} from './pipeline-manager';
 
 // =============================================================================
 // ACTION EXECUTOR (Proto-Native)
@@ -154,20 +194,6 @@ export {
   DEFAULT_RECORDING_BINDING_NAME,
   clearScriptCache,
 } from './init-script-generator';
-
-// =============================================================================
-// CONTROLLER
-// =============================================================================
-
-export {
-  RecordModeController,
-  createRecordModeController,
-} from './controller';
-
-export type {
-  RecordEntryCallback,
-  StartRecordingOptions,
-} from './controller';
 
 // =============================================================================
 // REPLAY PREVIEW SERVICE
@@ -256,6 +282,7 @@ export type {
 
 export {
   runRecordingPipelineTest,
+  runExternalUrlInjectionTest,
   TEST_PAGE_HTML,
   TEST_PAGE_URL,
 } from './self-test';
@@ -265,4 +292,5 @@ export type {
   PipelineFailurePoint,
   PipelineStepResult,
   PipelineTestDiagnostics,
+  ExternalUrlTestResult,
 } from './self-test';

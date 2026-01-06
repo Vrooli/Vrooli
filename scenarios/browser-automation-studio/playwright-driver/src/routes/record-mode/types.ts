@@ -35,6 +35,25 @@ export interface StartRecordingResponse {
   recording_id: string;
   session_id: string;
   started_at: string;
+  /**
+   * Pipeline verification performed before recording started.
+   * Always present when auto_verify is true (default).
+   * Use this to diagnose issues if recording appears to work but captures no events.
+   */
+  verification?: {
+    /** Recording script loaded on page */
+    script_loaded: boolean;
+    /** Recording script fully initialized */
+    script_ready: boolean;
+    /** Script running in MAIN context (required for History API) */
+    in_main_context: boolean;
+    /** Number of event handlers registered (expect 7+) */
+    handlers_count: number;
+    /** Script version */
+    version?: string | null;
+    /** Any warnings about the verification */
+    warnings?: string[];
+  };
 }
 
 /**
@@ -118,7 +137,69 @@ export interface NavigateRequest {
 export interface NavigateResponse {
   session_id: string;
   url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
   screenshot?: string;
+}
+
+/**
+ * POST /session/:id/record/reload
+ */
+export interface ReloadRequest {
+  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+  timeout_ms?: number;
+}
+
+export interface ReloadResponse {
+  session_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
+}
+
+/**
+ * POST /session/:id/record/go-back
+ */
+export interface GoBackRequest {
+  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+  timeout_ms?: number;
+}
+
+export interface GoBackResponse {
+  session_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
+}
+
+/**
+ * POST /session/:id/record/go-forward
+ */
+export interface GoForwardRequest {
+  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+  timeout_ms?: number;
+}
+
+export interface GoForwardResponse {
+  session_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
+}
+
+/**
+ * GET /session/:id/record/navigation-state
+ */
+export interface NavigationStateResponse {
+  session_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
 }
 
 /**
@@ -273,4 +354,47 @@ export interface DriverPageEvent {
   openerDriverPageId?: string;
   /** ISO 8601 timestamp */
   timestamp: string;
+}
+
+// ========================================================================
+// Browser History Types
+// ========================================================================
+
+/**
+ * A single entry in the browser navigation history.
+ */
+export interface HistoryEntry {
+  /** Unique ID for this entry */
+  id: string;
+  /** Page URL */
+  url: string;
+  /** Page title at time of navigation */
+  title: string;
+  /** ISO 8601 timestamp when navigation occurred */
+  timestamp: string;
+  /** Optional base64-encoded JPEG thumbnail (~150x100, quality 60) */
+  thumbnail?: string;
+}
+
+/**
+ * Settings for history capture behavior.
+ */
+export interface HistorySettings {
+  /** Maximum number of entries to retain (default: 100) */
+  maxEntries: number;
+  /** TTL in days - entries older than this are pruned (default: 30, 0 = no TTL) */
+  retentionDays: number;
+  /** Whether to capture thumbnails (default: true) */
+  captureThumbnails: boolean;
+}
+
+/**
+ * Callback payload for history entry events.
+ * Sent to the API when navigation occurs to persist history.
+ */
+export interface HistoryEntryCallback {
+  session_id: string;
+  entry: HistoryEntry;
+  /** Navigation type: 'navigate' | 'back' | 'forward' */
+  navigation_type: 'navigate' | 'back' | 'forward';
 }

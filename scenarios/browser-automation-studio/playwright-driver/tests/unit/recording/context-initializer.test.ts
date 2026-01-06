@@ -121,25 +121,14 @@ describe('RecordingContextInitializer', () => {
   });
 
   describe('initialization', () => {
-    it('should set up route interception for event URL', async () => {
+    it('should set up context-level route for HTML injection', async () => {
       const { context, routeHandlers } = createMockContext();
 
       await initializer.initialize(context);
 
-      // Should have set up routes
-      expect(context.route).toHaveBeenCalledTimes(2);
-
-      // Should have event route
-      const eventRoutePattern = Array.from(routeHandlers.keys()).find(
-        (k) => k.includes('__vrooli_recording_event__')
-      );
-      expect(eventRoutePattern).toBeDefined();
-    });
-
-    it('should set up route for HTML injection', async () => {
-      const { context, routeHandlers } = createMockContext();
-
-      await initializer.initialize(context);
+      // Should have set up HTML injection route on context
+      // Note: Event route is now set up per-page via page.route(), not context.route()
+      expect(context.route).toHaveBeenCalledTimes(1);
 
       // Should have catch-all route for HTML injection
       const catchAllPattern = Array.from(routeHandlers.keys()).find(
@@ -148,14 +137,33 @@ describe('RecordingContextInitializer', () => {
       expect(catchAllPattern).toBeDefined();
     });
 
+    it('should set up page-level event route on existing pages', async () => {
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
+
+      await initializer.initialize(mockContext);
+
+      // Should have set up event route on page (not context)
+      expect(page.route).toHaveBeenCalled();
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
+        (k) => k.includes('__vrooli_recording_event__')
+      );
+      expect(eventRoutePattern).toBeDefined();
+    });
+
     it('should be idempotent (safe to call multiple times)', async () => {
       const { context } = createMockContext();
 
       await initializer.initialize(context);
       await initializer.initialize(context);
 
-      // Should only set up routes once
-      expect(context.route).toHaveBeenCalledTimes(2);
+      // Should only set up HTML injection route once
+      expect(context.route).toHaveBeenCalledTimes(1);
     });
 
     it('should mark as initialized after setup', async () => {
@@ -374,19 +382,26 @@ describe('RecordingContextInitializer', () => {
 
   describe('event handling', () => {
     it('should parse events from POST data', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
 
-      await initializer.initialize(context);
+      await initializer.initialize(mockContext);
 
       const receivedEvents: RawBrowserEvent[] = [];
       initializer.setEventHandler((event) => {
         receivedEvents.push(event);
       });
 
-      const eventRoutePattern = Array.from(routeHandlers.keys()).find(
+      // Event route is now on page, not context
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
         (k) => k.includes('__vrooli_recording_event__')
       );
-      const handler = routeHandlers.get(eventRoutePattern!);
+      const handler = pageRouteHandlers.get(eventRoutePattern!);
 
       const eventData: RawBrowserEvent = {
         actionType: 'click',
@@ -413,17 +428,24 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should call event handler with parsed event', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
 
-      await initializer.initialize(context);
+      await initializer.initialize(mockContext);
 
       const eventHandler = jest.fn<RecordingEventHandler>();
       initializer.setEventHandler(eventHandler);
 
-      const eventRoutePattern = Array.from(routeHandlers.keys()).find(
+      // Event route is now on page, not context
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
         (k) => k.includes('__vrooli_recording_event__')
       );
-      const handler = routeHandlers.get(eventRoutePattern!);
+      const handler = pageRouteHandlers.get(eventRoutePattern!);
 
       const { route } = createMockRoute({
         url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
@@ -444,17 +466,24 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should handle malformed event data gracefully', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
 
-      await initializer.initialize(context);
+      await initializer.initialize(mockContext);
 
       const eventHandler = jest.fn<RecordingEventHandler>();
       initializer.setEventHandler(eventHandler);
 
-      const eventRoutePattern = Array.from(routeHandlers.keys()).find(
+      // Event route is now on page, not context
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
         (k) => k.includes('__vrooli_recording_event__')
       );
-      const handler = routeHandlers.get(eventRoutePattern!);
+      const handler = pageRouteHandlers.get(eventRoutePattern!);
 
       const { route } = createMockRoute({
         url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
@@ -470,18 +499,25 @@ describe('RecordingContextInitializer', () => {
     });
 
     it('should clear event handler when requested', async () => {
-      const { context, routeHandlers } = createMockContext();
+      const { page, pageRouteHandlers } = createMockPage();
+      const mockContext = {
+        route: jest.fn(),
+        pages: jest.fn().mockReturnValue([page]),
+        on: jest.fn(),
+        off: jest.fn(),
+      } as unknown as jest.Mocked<BrowserContext>;
 
-      await initializer.initialize(context);
+      await initializer.initialize(mockContext);
 
       const eventHandler = jest.fn<RecordingEventHandler>();
       initializer.setEventHandler(eventHandler);
       initializer.clearEventHandler();
 
-      const eventRoutePattern = Array.from(routeHandlers.keys()).find(
+      // Event route is now on page, not context
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
         (k) => k.includes('__vrooli_recording_event__')
       );
-      const handler = routeHandlers.get(eventRoutePattern!);
+      const handler = pageRouteHandlers.get(eventRoutePattern!);
 
       const { route } = createMockRoute({
         url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,

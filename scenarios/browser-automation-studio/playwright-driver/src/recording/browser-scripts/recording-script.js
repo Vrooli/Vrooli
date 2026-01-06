@@ -86,9 +86,104 @@
     eventsSent: 0,           // sendEvent called
     eventsSendSuccess: 0,    // fetch succeeded (no error)
     eventsSendFailed: 0,     // fetch failed
+    eventsQueued: 0,         // events added to queue (when send fails)
+    eventsDequeued: 0,       // events successfully sent from queue
     lastEventAt: null,       // timestamp of last event
     lastEventType: null,     // type of last event (click, input, etc.)
     lastError: null,         // last error message
+  };
+
+  // ============================================================================
+  // SECTION 1.5: Event Queue (for reliability during transient failures)
+  // ============================================================================
+
+  /**
+   * Event queue for resilience during transient failures.
+   * Events are queued when fetch fails and retried later.
+   * This ensures events survive brief handler unavailability.
+   */
+  var EVENT_QUEUE_MAX_SIZE = 100;
+  var EVENT_QUEUE_RETRY_INTERVAL_MS = 1000;
+  var eventQueue = [];
+  var queueRetryTimer = null;
+
+  /**
+   * Add an event to the queue for later retry.
+   */
+  function enqueueEvent(eventData) {
+    if (eventQueue.length >= EVENT_QUEUE_MAX_SIZE) {
+      // Drop oldest event to make room
+      eventQueue.shift();
+      console.warn('[Recording] Event queue full, dropped oldest event');
+    }
+    eventQueue.push({
+      data: eventData,
+      queuedAt: Date.now(),
+      retryCount: 0
+    });
+    window.__vrooli_recording_telemetry.eventsQueued++;
+
+    // Start retry timer if not already running
+    if (!queueRetryTimer) {
+      queueRetryTimer = setInterval(processEventQueue, EVENT_QUEUE_RETRY_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Process queued events, trying to send them.
+   */
+  function processEventQueue() {
+    if (eventQueue.length === 0) {
+      // No events to process, stop timer
+      if (queueRetryTimer) {
+        clearInterval(queueRetryTimer);
+        queueRetryTimer = null;
+      }
+      return;
+    }
+
+    // Try to send the oldest event
+    var item = eventQueue[0];
+
+    // Give up on events that have been queued too long (30 seconds)
+    if (Date.now() - item.queuedAt > 30000) {
+      eventQueue.shift();
+      console.warn('[Recording] Dropped stale queued event (>30s old)');
+      return;
+    }
+
+    // Try to send
+    fetch(RECORDING_EVENT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item.data),
+      keepalive: true,
+    }).then(function() {
+      // Success! Remove from queue
+      eventQueue.shift();
+      window.__vrooli_recording_telemetry.eventsDequeued++;
+      console.log('[Recording] Queued event sent successfully, queue size:', eventQueue.length);
+    }).catch(function() {
+      // Still failing, increment retry count
+      item.retryCount++;
+      if (item.retryCount > 10) {
+        // Too many retries, give up on this event
+        eventQueue.shift();
+        console.warn('[Recording] Dropped event after 10 retries');
+      }
+    });
+  }
+
+  /**
+   * Get current queue status for diagnostics.
+   */
+  window.__vrooli_recording_getQueueStatus = function() {
+    return {
+      queueSize: eventQueue.length,
+      maxSize: EVENT_QUEUE_MAX_SIZE,
+      retryTimerActive: !!queueRetryTimer,
+      oldestEventAge: eventQueue.length > 0 ? Date.now() - eventQueue[0].queuedAt : null
+    };
   };
 
   // Track all registered event listeners for cleanup
@@ -130,8 +225,9 @@
     }).catch(function(e) {
       window.__vrooli_recording_telemetry.eventsSendFailed++;
       window.__vrooli_recording_telemetry.lastError = e.message;
-      // Log warning (page might be navigating)
-      console.warn('[Recording] Failed to send event:', e.message);
+      // Queue for retry instead of just logging
+      enqueueEvent(eventData);
+      console.warn('[Recording] Failed to send event, queued for retry:', e.message);
     });
   }
 
@@ -1364,6 +1460,13 @@
     if (typeof hoverTimeout !== 'undefined' && hoverTimeout) {
       clearTimeout(hoverTimeout);
     }
+
+    // Clear event queue retry timer
+    if (queueRetryTimer) {
+      clearInterval(queueRetryTimer);
+      queueRetryTimer = null;
+    }
+    eventQueue = [];
 
     // Restore original History API methods
     if (originalPushState) {

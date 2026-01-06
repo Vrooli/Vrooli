@@ -442,7 +442,7 @@ export function isXPathSelector(selector: string): boolean {
 /**
  * Validate a selector on a page without requiring a full SelectorService.
  *
- * This is a convenience function for contexts (like RecordModeController) that
+ * This is a convenience function for contexts (like RecordingPipelineManager) that
  * need selector validation but don't have access to the full Config object.
  *
  * @param page - Playwright page to validate against

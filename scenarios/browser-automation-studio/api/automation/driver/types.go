@@ -215,10 +215,81 @@ type NavigateRequest struct {
 
 // NavigateResponse is the response from navigation.
 type NavigateResponse struct {
-	URL        string `json:"url"`
-	Title      string `json:"title"`
-	StatusCode int    `json:"status_code,omitempty"`
-	Screenshot string `json:"screenshot,omitempty"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+	StatusCode   int    `json:"status_code,omitempty"`
+	Screenshot   string `json:"screenshot,omitempty"`
+}
+
+// ReloadRequest is the request to reload the current page.
+type ReloadRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// ReloadResponse is the response from page reload.
+type ReloadResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// GoBackRequest is the request to navigate back in browser history.
+type GoBackRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// GoBackResponse is the response from navigating back.
+type GoBackResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// GoForwardRequest is the request to navigate forward in browser history.
+type GoForwardRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// GoForwardResponse is the response from navigating forward.
+type GoForwardResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// NavigationStateResponse is the response containing current navigation state.
+type NavigationStateResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// NavigationStackEntry represents a single entry in the navigation history stack.
+type NavigationStackEntry struct {
+	URL       string `json:"url"`
+	Title     string `json:"title"`
+	Timestamp string `json:"timestamp"`
+}
+
+// NavigationStackResponse is the response containing the navigation history stack.
+type NavigationStackResponse struct {
+	SessionID    string                 `json:"session_id"`
+	BackStack    []NavigationStackEntry `json:"back_stack"`
+	Current      *NavigationStackEntry  `json:"current"`
+	ForwardStack []NavigationStackEntry `json:"forward_stack"`
 }
 
 // UpdateViewportRequest is the request to update viewport.

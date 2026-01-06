@@ -10,7 +10,6 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, scopedLog, LogContext } from '../../utils';
-import { createRecordModeController } from '../../recording/controller';
 import type {
   ValidateSelectorRequest,
   ValidateSelectorResponse,
@@ -45,20 +44,12 @@ export async function handleValidateSelector(
       return;
     }
 
-    // Create controller if needed for validation
-    if (!session.recordingController) {
-      if (!session.recordingInitializer) {
-        throw new Error('Recording initializer not set on session');
-      }
-      session.recordingController = createRecordModeController(
-        session.page,
-        session.context,
-        session.recordingInitializer,
-        sessionId
-      );
+    // Use pipeline manager for validation
+    if (!session.pipelineManager) {
+      throw new Error('Pipeline manager not set on session');
     }
 
-    const validation = await session.recordingController.validateSelector(request.selector);
+    const validation = await session.pipelineManager.validateSelector(request.selector);
 
     const response: ValidateSelectorResponse = {
       valid: validation.valid,
@@ -100,17 +91,9 @@ export async function handleReplayPreview(
       return;
     }
 
-    // Create controller if needed
-    if (!session.recordingController) {
-      if (!session.recordingInitializer) {
-        throw new Error('Recording initializer not set on session');
-      }
-      session.recordingController = createRecordModeController(
-        session.page,
-        session.context,
-        session.recordingInitializer,
-        sessionId
-      );
+    // Use pipeline manager for replay
+    if (!session.pipelineManager) {
+      throw new Error('Pipeline manager not set on session');
     }
 
     logger.info(scopedLog(LogContext.RECORDING, 'replay started'), {
@@ -121,7 +104,7 @@ export async function handleReplayPreview(
     });
 
     // Execute replay
-    const result = await session.recordingController.replayPreview({
+    const result = await session.pipelineManager.replayPreview({
       entries: request.entries,
       limit: request.limit,
       stopOnFailure: request.stop_on_failure ?? true,

@@ -493,3 +493,45 @@ export interface ReplayPreviewResponse {
   total_duration_ms: number;
   stopped_early: boolean;
 }
+
+// ========================================================================
+// Browser History Types
+// ========================================================================
+
+/**
+ * A single entry in the browser navigation history.
+ */
+export interface HistoryEntry {
+  id: string;
+  url: string;
+  title: string;
+  timestamp: string;
+  thumbnail?: string;
+}
+
+/**
+ * Settings for history capture behavior.
+ */
+export interface HistorySettings {
+  maxEntries: number;
+  retentionDays: number;
+  captureThumbnails: boolean;
+}
+
+/**
+ * Statistics about the history.
+ */
+export interface HistoryStats {
+  totalEntries: number;
+  oldestEntry?: string;
+  newestEntry?: string;
+}
+
+/**
+ * API response for history endpoints.
+ */
+export interface HistoryResponse {
+  entries: HistoryEntry[];
+  settings: HistorySettings;
+  stats: HistoryStats;
+}

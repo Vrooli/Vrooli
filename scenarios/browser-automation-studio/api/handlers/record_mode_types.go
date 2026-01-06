@@ -210,11 +210,67 @@ type NavigateRecordingRequest struct {
 
 // NavigateRecordingResponse is the response from navigating the recording session.
 type NavigateRecordingResponse struct {
-	SessionID  string `json:"session_id"`
-	URL        string `json:"url"`
-	Title      string `json:"title,omitempty"`
-	StatusCode int    `json:"status_code,omitempty"`
-	Screenshot string `json:"screenshot,omitempty"`
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title,omitempty"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+	StatusCode   int    `json:"status_code,omitempty"`
+	Screenshot   string `json:"screenshot,omitempty"`
+}
+
+// ReloadRecordingRequest is the request body for reloading the current page.
+type ReloadRecordingRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// ReloadRecordingResponse is the response from reloading the page.
+type ReloadRecordingResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// GoBackRecordingRequest is the request body for navigating back in history.
+type GoBackRecordingRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// GoBackRecordingResponse is the response from navigating back.
+type GoBackRecordingResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// GoForwardRecordingRequest is the request body for navigating forward in history.
+type GoForwardRecordingRequest struct {
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+}
+
+// GoForwardRecordingResponse is the response from navigating forward.
+type GoForwardRecordingResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
+}
+
+// NavigationStateResponse is the response for getting current navigation state.
+type NavigationStateResponse struct {
+	SessionID    string `json:"session_id"`
+	URL          string `json:"url"`
+	Title        string `json:"title"`
+	CanGoBack    bool   `json:"can_go_back"`
+	CanGoForward bool   `json:"can_go_forward"`
 }
 
 // RecordingScreenshotResponse is the response for capturing a screenshot from the recording session.

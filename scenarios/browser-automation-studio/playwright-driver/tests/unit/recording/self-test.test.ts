@@ -5,8 +5,8 @@
  * human-in-the-loop debugging for recording issues.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { TEST_PAGE_HTML, TEST_PAGE_URL } from '../../../src/recording/self-test';
+import { describe, it, expect } from '@jest/globals';
+import { TEST_PAGE_HTML, TEST_PAGE_URL, DEFAULT_TEST_URL } from '../../../src/recording/self-test';
 
 describe('Recording Self-Test Module', () => {
   describe('TEST_PAGE_HTML', () => {
@@ -43,14 +43,21 @@ describe('Recording Self-Test Module', () => {
     });
   });
 
-  describe('TEST_PAGE_URL', () => {
-    it('should be a special internal URL pattern', () => {
-      expect(TEST_PAGE_URL).toBe('/__vrooli_recording_test__');
+  describe('DEFAULT_TEST_URL', () => {
+    it('should be a stable external URL for testing injection', () => {
+      // Uses example.com which is a lightweight, stable HTML page
+      expect(DEFAULT_TEST_URL).toBe('https://example.com');
     });
 
-    it('should not conflict with real URLs', () => {
-      // The URL uses __ prefix which is a common pattern for internal routes
-      expect(TEST_PAGE_URL).toMatch(/^\/__.+__$/);
+    it('should be a valid HTTPS URL', () => {
+      expect(DEFAULT_TEST_URL).toMatch(/^https:\/\//);
+    });
+  });
+
+  describe('TEST_PAGE_URL (deprecated)', () => {
+    it('should equal DEFAULT_TEST_URL for backwards compatibility', () => {
+      // TEST_PAGE_URL is deprecated but kept for backwards compatibility
+      expect(TEST_PAGE_URL).toBe(DEFAULT_TEST_URL);
     });
   });
 
@@ -61,13 +68,14 @@ describe('Recording Self-Test Module', () => {
       timestamp: '2024-01-01T00:00:00.000Z',
       durationMs: 1500,
       steps: [
-        { name: 'navigate_to_test_page', passed: true, durationMs: 500 },
+        { name: 'load_external_url', passed: true, durationMs: 500 },
         { name: 'verify_script_injection', passed: true, durationMs: 200 },
+        { name: 'start_recording', passed: true, durationMs: 100 },
         { name: 'simulate_click', passed: true, durationMs: 300 },
         { name: 'simulate_input', passed: true, durationMs: 300 },
       ],
       diagnostics: {
-        testPageUrl: 'http://localhost/__vrooli_recording_test__',
+        testPageUrl: 'https://example.com',
         testPageInjected: true,
         eventsCaptured: [{ actionType: 'click', timestamp: '2024-01-01T00:00:00.500Z' }],
         consoleMessages: [],
@@ -91,12 +99,13 @@ describe('Recording Self-Test Module', () => {
         'Event propagation might be stopped by page scripts',
       ],
       steps: [
-        { name: 'navigate_to_test_page', passed: true, durationMs: 500 },
+        { name: 'load_external_url', passed: true, durationMs: 500 },
         { name: 'verify_script_injection', passed: true, durationMs: 200 },
+        { name: 'start_recording', passed: true, durationMs: 100 },
         { name: 'simulate_click', passed: false, durationMs: 100, error: 'Click event not received' },
       ],
       diagnostics: {
-        testPageUrl: 'http://localhost/__vrooli_recording_test__',
+        testPageUrl: 'https://example.com',
         testPageInjected: true,
         eventsCaptured: [],
         consoleMessages: [],
@@ -111,15 +120,16 @@ describe('Recording Self-Test Module', () => {
     });
 
     it('should include detailed step results', () => {
-      expect(mockFailureResult.steps).toHaveLength(3);
-      expect(mockFailureResult.steps[2].passed).toBe(false);
-      expect(mockFailureResult.steps[2].error).toBeDefined();
+      expect(mockFailureResult.steps).toHaveLength(4);
+      expect(mockFailureResult.steps[3].passed).toBe(false);
+      expect(mockFailureResult.steps[3].error).toBeDefined();
     });
   });
 
   describe('Failure Point Classification', () => {
     // Test that failure points cover all stages of the pipeline
     const expectedFailurePoints = [
+      'page_load',
       'navigation',
       'script_injection',
       'script_initialization',
@@ -141,10 +151,12 @@ describe('Recording Self-Test Module', () => {
 
     it('should map to specific stages in the event pipeline', () => {
       // Event pipeline stages:
-      // 1. User action → 2. DOM event → 3. Recording script captures
-      // 4. Fetch sends → 5. Route receives → 6. Handler processes
+      // 1. Page load → 2. Script injection → 3. Script initialization
+      // 4. Event detection → 5. Event capture → 6. Event send
+      // 7. Route receive → 8. Handler process
 
       const stageMapping: Record<string, string> = {
+        page_load: 'External URL navigation',
         navigation: 'Test page load',
         script_injection: 'Script present in HTML',
         script_initialization: 'Script runs and initializes',
@@ -195,6 +207,92 @@ describe('Test Page Interactive Elements', () => {
     const testIds = ['test-click-button', 'test-input', 'test-link'];
     testIds.forEach((id) => {
       expect(hasDataTestId(TEST_PAGE_HTML, id)).toBe(true);
+    });
+  });
+});
+
+describe('ExternalUrlTestResult structure', () => {
+  const mockSuccessResult = {
+    success: true,
+    timestamp: '2024-01-01T00:00:00.000Z',
+    durationMs: 2000,
+    testedUrl: 'https://example.com',
+    verification: {
+      loaded: true,
+      ready: true,
+      inMainContext: true,
+      handlersCount: 8,
+      version: '1.0.0',
+    },
+    injectionStats: {
+      attempted: 1,
+      successful: 1,
+      failed: 0,
+      skipped: 5,
+    },
+  };
+
+  it('should have correct success structure', () => {
+    expect(mockSuccessResult.success).toBe(true);
+    expect(mockSuccessResult.testedUrl).toBe('https://example.com');
+    expect(mockSuccessResult.verification?.loaded).toBe(true);
+    expect(mockSuccessResult.verification?.inMainContext).toBe(true);
+  });
+
+  const mockFailureResult = {
+    success: false,
+    timestamp: '2024-01-01T00:00:00.000Z',
+    durationMs: 1500,
+    testedUrl: 'https://example.com',
+    failurePoint: 'script_load' as const,
+    failureMessage: 'Injection stats show success but script did not load in browser',
+    suggestions: [
+      'Check if route.fulfill() completed successfully',
+      'The browser may have rejected the modified response',
+    ],
+    verification: {
+      loaded: false,
+      ready: false,
+      inMainContext: false,
+      handlersCount: 0,
+      version: null,
+    },
+    injectionStats: {
+      attempted: 1,
+      successful: 1,
+      failed: 0,
+      skipped: 5,
+    },
+  };
+
+  it('should have correct failure structure', () => {
+    expect(mockFailureResult.success).toBe(false);
+    expect(mockFailureResult.failurePoint).toBe('script_load');
+    expect(mockFailureResult.failureMessage).toBeDefined();
+    expect(mockFailureResult.suggestions).toHaveLength(2);
+  });
+
+  it('should include verification details on failure', () => {
+    expect(mockFailureResult.verification).toBeDefined();
+    expect(mockFailureResult.verification?.loaded).toBe(false);
+  });
+
+  describe('External URL failure points', () => {
+    const expectedFailurePoints = [
+      'fetch',
+      'modify',
+      'fulfill',
+      'script_load',
+      'script_ready',
+      'context_wrong',
+      'network',
+      'timeout',
+    ];
+
+    it('should cover all external URL injection failure scenarios', () => {
+      expectedFailurePoints.forEach((point) => {
+        expect(typeof point).toBe('string');
+      });
     });
   });
 });

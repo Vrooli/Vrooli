@@ -313,6 +313,16 @@ func main() {
 		r.Delete("/recordings/sessions/{profileId}/service-workers", handler.ClearAllServiceWorkers)
 		r.Delete("/recordings/sessions/{profileId}/service-workers/{scopeURL}", handler.DeleteServiceWorker)
 
+		// Browser history management
+		r.Get("/recordings/sessions/{profileId}/history", handler.GetHistory)
+		r.Delete("/recordings/sessions/{profileId}/history", handler.ClearHistory)
+		r.Delete("/recordings/sessions/{profileId}/history/{entryId}", handler.DeleteHistoryEntry)
+		r.Patch("/recordings/sessions/{profileId}/history/settings", handler.UpdateHistorySettings)
+		r.Post("/recordings/sessions/{profileId}/history/navigate", handler.NavigateToHistoryURL)
+
+		// Internal callback for history events from playwright driver
+		r.Post("/internal/history-callback", handler.HistoryCallback)
+
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
@@ -359,6 +369,11 @@ func main() {
 		r.Post("/recordings/live/{sessionId}/action", handler.ReceiveRecordingAction) // Callback for driver action streaming
 		r.Post("/recordings/live/{sessionId}/frame", handler.ReceiveRecordingFrame)   // Callback for driver frame streaming
 		r.Post("/recordings/live/{sessionId}/navigate", handler.NavigateRecordingSession)
+		r.Post("/recordings/live/{sessionId}/reload", handler.ReloadRecordingSession)
+		r.Post("/recordings/live/{sessionId}/go-back", handler.GoBackRecordingSession)
+		r.Post("/recordings/live/{sessionId}/go-forward", handler.GoForwardRecordingSession)
+		r.Get("/recordings/live/{sessionId}/navigation-state", handler.GetNavigationState)
+		r.Get("/recordings/live/{sessionId}/navigation-stack", handler.GetNavigationStack)
 		r.Post("/recordings/live/{sessionId}/viewport", handler.UpdateRecordingViewport)
 		r.Post("/recordings/live/{sessionId}/input", handler.ForwardRecordingInput)
 		r.Post("/recordings/live/{sessionId}/stream-settings", handler.UpdateStreamSettings)

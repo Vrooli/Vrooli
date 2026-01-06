@@ -252,7 +252,6 @@ function AIPromptModal({
                 value={url}
                 onChange={setUrl}
                 onNavigate={handleUrlNavigate}
-                onRefresh={() => {}}
                 placeholder="Enter website URL (e.g., example.com)"
               />
             </div>

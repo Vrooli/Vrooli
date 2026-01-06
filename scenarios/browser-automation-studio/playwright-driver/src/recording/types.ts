@@ -53,20 +53,34 @@ export type {
 } from './action-executor';
 
 // =============================================================================
-// RECORDING-SPECIFIC TYPES (driver-only, not in proto)
+// STATE MACHINE TYPES (Single Source of Truth)
 // =============================================================================
 
-/**
- * Recording session state.
- * Tracks the current state of a recording session in the driver.
- */
-export interface RecordingState {
-  isRecording: boolean;
-  recordingId?: string;
-  sessionId: string;
-  actionCount: number;
-  startedAt?: string;
-}
+// Re-export state machine types - these are the canonical recording state types
+export type {
+  RecordingPipelineState,
+  RecordingPipelinePhase,
+  PipelineVerification,
+  PipelineError,
+  PipelineErrorCode,
+  RecordingData,
+  LoopDetectionState,
+  RecordingTransition,
+  StateListener,
+  RecordingStateMachine,
+} from './state-machine';
+
+export {
+  createRecordingStateMachine,
+  recordingReducer,
+  createInitialState,
+  isValidTransition,
+  RECOVERABLE_ERRORS,
+} from './state-machine';
+
+// =============================================================================
+// RECORDING-SPECIFIC TYPES (driver-only, not in proto)
+// =============================================================================
 
 /**
  * Selector generation options.

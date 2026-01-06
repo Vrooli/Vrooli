@@ -164,6 +164,8 @@ export function RecordModePage({
   const [isGenerating, setIsGenerating] = useState(false);
   // Session settings modal state
   const [configuringProfile, setConfiguringProfile] = useState<RecordingSessionProfile | null>(null);
+  // Initial section to open in session settings dialog (e.g., 'history' when opening from navigation popup)
+  const [configuringSection, setConfiguringSection] = useState<'history' | undefined>(undefined);
   // Initialize previewUrl from template's initialUrl if provided
   const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
@@ -172,6 +174,118 @@ export function RecordModePage({
   const handleBrowserViewportChange = useCallback((viewport: { width: number; height: number }) => {
     setPreviewViewport(viewport);
   }, []);
+
+  // Navigation handlers for browser back/forward/refresh
+  const handleGoBack = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/go-back`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewUrl(data.url || '');
+        setCanGoBack(data.can_go_back ?? false);
+        setCanGoForward(data.can_go_forward ?? false);
+      }
+    } catch (err) {
+      console.warn('Failed to go back:', err);
+    }
+  }, [sessionId]);
+
+  const handleGoForward = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/go-forward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewUrl(data.url || '');
+        setCanGoBack(data.can_go_back ?? false);
+        setCanGoForward(data.can_go_forward ?? false);
+      }
+    } catch (err) {
+      console.warn('Failed to go forward:', err);
+    }
+  }, [sessionId]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/reload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCanGoBack(data.can_go_back ?? false);
+        setCanGoForward(data.can_go_forward ?? false);
+        // Trigger a refresh of the frame display
+        setRefreshToken((t) => t + 1);
+      }
+    } catch (err) {
+      console.warn('Failed to refresh:', err);
+    }
+  }, [sessionId]);
+
+  // Fetch navigation stack for right-click popup
+  const handleFetchNavigationStack = useCallback(async () => {
+    if (!sessionId) return null;
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigation-stack`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return {
+        backStack: data.back_stack || [],
+        current: data.current || null,
+        forwardStack: data.forward_stack || [],
+      };
+    } catch (err) {
+      console.warn('Failed to fetch navigation stack:', err);
+      return null;
+    }
+  }, [sessionId]);
+
+  // Navigate to a specific delta (e.g., -2 for 2 steps back, +3 for 3 steps forward)
+  const handleNavigateToIndex = useCallback(async (delta: number) => {
+    if (!sessionId || delta === 0) return;
+    try {
+      const config = await getConfig();
+      // For multiple steps, we call go-back or go-forward multiple times
+      const endpoint = delta < 0 ? 'go-back' : 'go-forward';
+      const steps = Math.abs(delta);
+
+      let lastResponse: { url?: string; can_go_back?: boolean; can_go_forward?: boolean } | null = null;
+
+      for (let i = 0; i < steps; i++) {
+        const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (!response.ok) break;
+        lastResponse = await response.json();
+      }
+
+      if (lastResponse) {
+        setPreviewUrl(lastResponse.url || '');
+        setCanGoBack(lastResponse.can_go_back ?? false);
+        setCanGoForward(lastResponse.can_go_forward ?? false);
+      }
+    } catch (err) {
+      console.warn('Failed to navigate to index:', err);
+    }
+  }, [sessionId]);
 
   const autoStartedRef = useRef(false);
 
@@ -210,6 +324,9 @@ export function RecordModePage({
   const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
   const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  // Navigation history state for back/forward buttons
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
 
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
@@ -759,6 +876,17 @@ export function RecordModePage({
           signal: abortController.signal,
         });
 
+        // Update navigation state from response
+        if (response.ok && !cancelled) {
+          try {
+            const data = await response.json();
+            setCanGoBack(data.can_go_back ?? false);
+            setCanGoForward(data.can_go_forward ?? false);
+          } catch {
+            // Ignore JSON parse errors
+          }
+        }
+
         // Mark initial navigation as complete if this was the initial navigation
         // and it succeeded (or at least didn't throw)
         if (isInitialNavigation && !cancelled && response.ok) {
@@ -858,9 +986,22 @@ export function RecordModePage({
   const handleConfigureSession = useCallback((profileId: string) => {
     const profile = sessionProfiles.profiles.find((p) => p.id === profileId);
     if (profile) {
+      setConfiguringSection(undefined);
       setConfiguringProfile(profile);
     }
   }, [sessionProfiles.profiles]);
+
+  // Open history settings for the current session profile
+  const handleOpenHistorySettings = useCallback(() => {
+    // Find the current profile from the session (use selectedProfileId as fallback
+    // since sessionProfileId may not be set until a session is fully started)
+    const profileId = sessionProfileId || selectedProfileId;
+    const currentProfile = sessionProfiles.profiles.find((p) => p.id === profileId);
+    if (currentProfile) {
+      setConfiguringSection('history');
+      setConfiguringProfile(currentProfile);
+    }
+  }, [sessionProfiles.profiles, sessionProfileId, selectedProfileId]);
 
   const handleNavigateToSessionSettings = useCallback(() => {
     navigate('/settings?tab=sessions');
@@ -1239,7 +1380,14 @@ export function RecordModePage({
                   previewUrl={previewUrl}
                   onPreviewUrlChange={setPreviewUrl}
                   onNavigate={setPreviewUrl}
-                  onRefresh={() => setRefreshToken((t) => t + 1)}
+                  onGoBack={handleGoBack}
+                  onGoForward={handleGoForward}
+                  onRefresh={handleRefresh}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
+                  onFetchNavigationStack={handleFetchNavigationStack}
+                  onNavigateToIndex={handleNavigateToIndex}
+                  onOpenHistorySettings={handleOpenHistorySettings}
                   pageTitle={recordingPageTitle || undefined}
                   placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
                   frameStats={recordingFrameStats}
@@ -1314,8 +1462,12 @@ export function RecordModePage({
           profileName={configuringProfile.name}
           initialProfile={configuringProfile.browser_profile}
           hasStorageState={configuringProfile.has_storage_state}
+          initialSection={configuringSection}
           onSave={handleSaveBrowserProfile}
-          onClose={() => setConfiguringProfile(null)}
+          onClose={() => {
+            setConfiguringProfile(null);
+            setConfiguringSection(undefined);
+          }}
         />
       )}
 

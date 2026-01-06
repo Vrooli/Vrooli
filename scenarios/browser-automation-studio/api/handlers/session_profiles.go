@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
@@ -812,4 +813,306 @@ func (h *Handler) getSessionForProfile(profileID string) string {
 		return ""
 	}
 	return h.sessionProfiles.GetSessionForProfile(profileID)
+}
+
+// ========================================================================
+// Browser History Management
+// ========================================================================
+
+// historyResponse is the API response for GET /recordings/sessions/{profileId}/history.
+type historyResponse struct {
+	Entries  []archiveingestion.HistoryEntry   `json:"entries"`
+	Settings *archiveingestion.HistorySettings `json:"settings"`
+	Stats    historyStats                      `json:"stats"`
+}
+
+type historyStats struct {
+	TotalEntries int    `json:"totalEntries"`
+	OldestEntry  string `json:"oldestEntry,omitempty"`
+	NewestEntry  string `json:"newestEntry,omitempty"`
+}
+
+// GetHistory returns the navigation history for a session profile.
+// GET /recordings/sessions/{profileId}/history
+func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	entries, settings, err := h.sessionProfiles.GetHistoryWithPruning(profileID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Ensure entries is never nil (nil marshals to null, empty slice marshals to [])
+	if entries == nil {
+		entries = []archiveingestion.HistoryEntry{}
+	}
+
+	// Build stats
+	stats := historyStats{TotalEntries: len(entries)}
+	if len(entries) > 0 {
+		stats.NewestEntry = entries[0].Timestamp
+		stats.OldestEntry = entries[len(entries)-1].Timestamp
+	}
+
+	h.respondSuccess(w, http.StatusOK, historyResponse{
+		Entries:  entries,
+		Settings: settings,
+		Stats:    stats,
+	})
+}
+
+// ClearHistory removes all history entries from a session profile.
+// DELETE /recordings/sessions/{profileId}/history
+func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	if _, err := h.sessionProfiles.ClearHistory(profileID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "cleared",
+	})
+}
+
+// DeleteHistoryEntry removes a specific history entry by ID.
+// DELETE /recordings/sessions/{profileId}/history/{entryId}
+func (h *Handler) DeleteHistoryEntry(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	entryID := chi.URLParam(r, "entryId")
+
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+	if strings.TrimSpace(entryID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "entryId",
+		}))
+		return
+	}
+
+	if _, err := h.sessionProfiles.DeleteHistoryEntry(profileID, entryID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage(err.Error()))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "deleted",
+		"id":     entryID,
+	})
+}
+
+// UpdateHistorySettings updates the history retention settings.
+// PATCH /recordings/sessions/{profileId}/history/settings
+func (h *Handler) UpdateHistorySettings(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	var req archiveingestion.HistorySettings
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	profile, err := h.sessionProfiles.UpdateHistorySettings(profileID, &req)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		if strings.Contains(err.Error(), "must be between") {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"error": err.Error(),
+			}))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Return the updated settings and current history count
+	historyCount := len(profile.History)
+	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"settings":     profile.HistorySettings,
+		"historyCount": historyCount,
+	})
+}
+
+// NavigateToHistoryURL navigates to a URL from history.
+// POST /recordings/sessions/{profileId}/history/navigate
+func (h *Handler) NavigateToHistoryURL(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	var req struct {
+		URL       string `json:"url"`
+		WaitUntil string `json:"wait_until,omitempty"`
+		TimeoutMs int    `json:"timeout_ms,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	if strings.TrimSpace(req.URL) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "url",
+		}))
+		return
+	}
+
+	// Look up active session for this profile
+	sessionID := h.getSessionForProfile(profileID)
+	if sessionID == "" {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("No active session for this profile"))
+		return
+	}
+
+	// Navigate using the record mode service
+	resp, err := h.recordModeService.Navigate(r.Context(), sessionID, &driver.NavigateRequest{
+		URL:       req.URL,
+		WaitUntil: req.WaitUntil,
+		TimeoutMs: req.TimeoutMs,
+	})
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"url":            resp.URL,
+		"title":          resp.Title,
+		"can_go_back":    resp.CanGoBack,
+		"can_go_forward": resp.CanGoForward,
+	})
+}
+
+// HistoryCallback receives history entries from the playwright driver.
+// POST /internal/history-callback
+func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	var req struct {
+		SessionID      string                        `json:"session_id"`
+		Entry          archiveingestion.HistoryEntry `json:"entry"`
+		NavigationType string                        `json:"navigation_type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	if strings.TrimSpace(req.SessionID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "session_id",
+		}))
+		return
+	}
+
+	// Look up profile for this session
+	profileID := h.sessionProfiles.GetActiveSession(req.SessionID)
+	if profileID == "" {
+		// No profile associated with this session - might be execution mode
+		h.respondSuccess(w, http.StatusOK, map[string]string{
+			"status":  "ignored",
+			"message": "No profile associated with session",
+		})
+		return
+	}
+
+	// Add the history entry
+	if _, err := h.sessionProfiles.AddHistoryEntry(profileID, req.Entry); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status":     "added",
+		"profile_id": profileID,
+	})
 }

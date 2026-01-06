@@ -91,6 +91,50 @@ function createMockResponse(): ServerResponse & {
   return res;
 }
 
+// Helper to create mock pipeline manager
+function createMockPipelineManager(overrides?: Partial<{
+  isRecording: boolean;
+  recordingId: string | undefined;
+  phase: string;
+  actionCount: number;
+  startedAt: string;
+}>) {
+  const defaults = {
+    isRecording: false,
+    recordingId: undefined,
+    phase: 'ready',
+    actionCount: 0,
+    startedAt: '2024-01-01T00:00:00.000Z',
+  };
+  const config = { ...defaults, ...overrides };
+
+  return {
+    isRecording: jest.fn().mockReturnValue(config.isRecording),
+    getRecordingId: jest.fn().mockReturnValue(config.recordingId),
+    getRecordingData: jest.fn().mockReturnValue(
+      config.isRecording ? { startedAt: config.startedAt } : undefined
+    ),
+    getState: jest.fn().mockReturnValue({
+      phase: config.isRecording ? 'recording' : config.phase,
+      recording: config.isRecording ? {
+        recordingId: config.recordingId,
+        actionCount: config.actionCount,
+        startedAt: config.startedAt,
+      } : undefined,
+    }),
+    startRecording: jest.fn().mockResolvedValue(config.recordingId || 'recording-123'),
+    stopRecording: jest.fn().mockResolvedValue({
+      recordingId: config.recordingId || 'recording-123',
+      actionCount: config.actionCount,
+    }),
+    validateSelector: jest.fn().mockResolvedValue({
+      valid: true,
+      matchCount: 1,
+      selector: 'button#submit',
+    }),
+  };
+}
+
 // Helper to create mock session manager
 function createMockSessionManager(session?: unknown): SessionManager {
   const mockSession = session || {
@@ -101,8 +145,7 @@ function createMockSessionManager(session?: unknown): SessionManager {
       }),
       evaluate: jest.fn().mockResolvedValue(1),
     },
-    recordingController: null,
-    recordingId: undefined,
+    pipelineManager: createMockPipelineManager(),
     phase: 'ready',
   };
 
@@ -128,14 +171,13 @@ describe('Record Mode Routes', () => {
 
   describe('POST /session/:id/record/start', () => {
     it('should start recording successfully', async () => {
-      const mockController = {
-        isRecording: jest.fn().mockReturnValue(false),
-        startRecording: jest.fn().mockResolvedValue('recording-123'),
-      };
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: false,
+        recordingId: 'recording-123',
+      });
 
       const mockSession = {
-        recordingController: mockController,
-        recordingId: undefined,
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -152,13 +194,13 @@ describe('Record Mode Routes', () => {
     });
 
     it('should return 409 if already recording', async () => {
-      const mockController = {
-        isRecording: jest.fn().mockReturnValue(true),
-      };
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: true,
+        recordingId: 'existing-recording',
+      });
 
       const mockSession = {
-        recordingController: mockController,
-        recordingId: 'existing-recording',
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -172,42 +214,17 @@ describe('Record Mode Routes', () => {
       expect(data.error).toBe('RECORDING_IN_PROGRESS');
     });
 
-    it('should create controller if not exists', async () => {
-      const mockPage = {
-        url: jest.fn().mockReturnValue('https://example.com'),
-        exposeFunction: jest.fn().mockResolvedValue(undefined),
-        evaluate: jest.fn().mockResolvedValue(undefined),
-        on: jest.fn(),
-        off: jest.fn(),
-      };
-
-      const mockContext = {
-        on: jest.fn(),
-        off: jest.fn(),
-        once: jest.fn(),
-      };
-
-      // Mock recording initializer required for controller creation
-      const mockRecordingInitializer = {
-        setEventHandler: jest.fn(),
-        clearEventHandler: jest.fn(),
-        getBindingName: jest.fn().mockReturnValue('__vrooli_recordAction'),
-        initialize: jest.fn().mockResolvedValue(undefined),
-        getInjectionStats: jest.fn().mockReturnValue({
-          attempted: 0,
-          successful: 0,
-          failed: 0,
-          skipped: 0,
-          methods: { head: 0, HEAD: 0, doctype: 0, prepend: 0 },
-        }),
-      };
+    it('should use existing pipeline manager from session', async () => {
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: false,
+        recordingId: 'new-recording-456',
+      });
 
       const mockSession = {
-        page: mockPage,
-        context: mockContext,
-        recordingController: null, // No controller yet
-        recordingId: undefined,
-        recordingInitializer: mockRecordingInitializer,
+        page: {
+          url: jest.fn().mockReturnValue('https://example.com'),
+        },
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -217,24 +234,21 @@ describe('Record Mode Routes', () => {
       await handleRecordStart(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(200);
-      // Controller should have been created
-      expect(mockSession.recordingController).toBeDefined();
+      // Pipeline manager should have been used
+      expect(mockPipelineManager.startRecording).toHaveBeenCalled();
     });
   });
 
   describe('POST /session/:id/record/stop', () => {
     it('should stop recording successfully', async () => {
-      const mockController = {
-        isRecording: jest.fn().mockReturnValue(true),
-        stopRecording: jest.fn().mockResolvedValue({
-          recordingId: 'recording-123',
-          actionCount: 5,
-        }),
-      };
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: true,
+        recordingId: 'recording-123',
+        actionCount: 5,
+      });
 
       const mockSession = {
-        recordingController: mockController,
-        recordingId: 'recording-123',
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -254,13 +268,14 @@ describe('Record Mode Routes', () => {
       // Idempotency: Calling stop when not recording is a successful no-op
       // This allows safe retries when the first stop request succeeded
       // but the response was lost due to network issues
-      const mockController = {
-        isRecording: jest.fn().mockReturnValue(false),
-      };
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: false,
+        recordingId: 'previous-recording', // From a prior recording
+      });
 
       const mockSession = {
-        recordingController: mockController,
-        recordingId: 'previous-recording', // From a prior recording
+        pipelineManager: mockPipelineManager,
+        phase: 'ready',
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -280,17 +295,15 @@ describe('Record Mode Routes', () => {
 
   describe('GET /session/:id/record/status', () => {
     it('should return recording status', async () => {
-      const mockController = {
-        getState: jest.fn().mockReturnValue({
-          isRecording: true,
-          recordingId: 'recording-123',
-          actionCount: 3,
-          startedAt: '2024-01-01T00:00:00.000Z',
-        }),
-      };
+      const mockPipelineManager = createMockPipelineManager({
+        isRecording: true,
+        recordingId: 'recording-123',
+        actionCount: 3,
+        startedAt: '2024-01-01T00:00:00.000Z',
+      });
 
       const mockSession = {
-        recordingController: mockController,
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -307,9 +320,9 @@ describe('Record Mode Routes', () => {
       expect(data.action_count).toBe(3);
     });
 
-    it('should handle no controller', async () => {
+    it('should handle no pipeline manager', async () => {
       const mockSession = {
-        recordingController: null,
+        pipelineManager: null,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -364,17 +377,16 @@ describe('Record Mode Routes', () => {
 
   describe('POST /session/:id/record/validate-selector', () => {
     it('should validate CSS selector', async () => {
-      const mockController = {
-        validateSelector: jest.fn().mockResolvedValue({
-          valid: true,
-          matchCount: 1,
-          selector: 'button#submit',
-        }),
-      };
+      const mockPipelineManager = createMockPipelineManager();
+      mockPipelineManager.validateSelector.mockResolvedValue({
+        valid: true,
+        matchCount: 1,
+        selector: 'button#submit',
+      });
 
       const mockSession = {
         page: { url: jest.fn().mockReturnValue('https://example.com') },
-        recordingController: mockController,
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -402,18 +414,17 @@ describe('Record Mode Routes', () => {
     });
 
     it('should report invalid selector', async () => {
-      const mockController = {
-        validateSelector: jest.fn().mockResolvedValue({
-          valid: false,
-          matchCount: 0,
-          selector: 'div.nonexistent',
-          error: 'No elements found',
-        }),
-      };
+      const mockPipelineManager = createMockPipelineManager();
+      mockPipelineManager.validateSelector.mockResolvedValue({
+        valid: false,
+        matchCount: 0,
+        selector: 'div.nonexistent',
+        error: 'No elements found',
+      });
 
       const mockSession = {
         page: { url: jest.fn().mockReturnValue('https://example.com') },
-        recordingController: mockController,
+        pipelineManager: mockPipelineManager,
       };
 
       const sessionManager = createMockSessionManager(mockSession);

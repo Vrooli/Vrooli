@@ -57,6 +57,7 @@ export { usePerfStats } from './hooks/usePerfStats';
 export { useRecordModeLayout } from './hooks/useRecordModeLayout';
 export { useStorageState } from './hooks/useStorageState';
 export { useServiceWorkers } from './hooks/useServiceWorkers';
+export { useHistory } from './hooks/useHistory';
 export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
 export type { UseStorageStateResult } from './hooks/useStorageState';
 export type {
@@ -65,6 +66,7 @@ export type {
   ServiceWorkerControl,
   ServiceWorkersResponse,
 } from './hooks/useServiceWorkers';
+export type { UseHistoryResult } from './hooks/useHistory';
 
 // Utilities
 export { mergeConsecutiveActions, getMergeDescription } from './utils/mergeActions';
@@ -104,6 +106,11 @@ export type {
   BehaviorSettings,
   AntiDetectionSettings,
   BrowserProfile,
+  // History types
+  HistoryEntry,
+  HistorySettings,
+  HistoryStats,
+  HistoryResponse,
 } from './types/types';
 
 // Unified Timeline Types

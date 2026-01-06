@@ -155,7 +155,6 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
               value={url}
               onChange={setUrl}
               onNavigate={handleUrlNavigate}
-              onRefresh={() => {}}
               placeholder="Enter website URL (e.g., example.com)"
             />
           </div>

@@ -100,8 +100,15 @@ func (p *NodeProcess) Start() error {
 	p.cmd.Dir = workDir
 
 	// Set environment variables
+	// Include HISTORY_CALLBACK_URL so the driver can send history entries back to the API
+	apiPort := os.Getenv("API_PORT")
+	historyCallbackURL := ""
+	if apiPort != "" {
+		historyCallbackURL = fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
+	}
 	p.cmd.Env = append(os.Environ(),
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
+		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
 	)
 
 	// Capture stdout/stderr for logging

@@ -86,7 +86,7 @@ export async function handleHealth(
   for (const id of sessionIds) {
     try {
       const session = sessionManager.getSession(id);
-      if (session.recordingController?.isRecording()) {
+      if (session.pipelineManager?.isRecording()) {
         activeRecordings++;
       }
     } catch {

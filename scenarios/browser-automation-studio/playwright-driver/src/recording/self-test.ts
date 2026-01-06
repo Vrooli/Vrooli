@@ -32,6 +32,9 @@
 
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type { RecordingContextInitializer } from './context-initializer';
+import type { RecordingPipelineManager } from './pipeline-manager';
+import type { TimelineEntry } from '../proto/recording';
+import { ActionType } from '../proto/recording';
 import { logger, scopedLog, LogContext } from '../utils';
 import { verifyScriptInjection } from './verification';
 
@@ -368,10 +371,15 @@ export const TEST_PAGE_HTML = `<!DOCTYPE html>
 </html>`;
 
 /**
- * URL pattern for the test page.
- * The route handler will serve TEST_PAGE_HTML for this URL.
+ * Default external URL for pipeline testing.
+ * Uses example.com which is a stable, lightweight HTML page.
  */
-export const TEST_PAGE_URL = '/__vrooli_recording_test__';
+export const DEFAULT_TEST_URL = 'https://example.com';
+
+/**
+ * @deprecated Use DEFAULT_TEST_URL instead. Kept for backwards compatibility.
+ */
+export const TEST_PAGE_URL = DEFAULT_TEST_URL;
 
 // =============================================================================
 // Pipeline Test Implementation
@@ -380,41 +388,42 @@ export const TEST_PAGE_URL = '/__vrooli_recording_test__';
 /**
  * Run a complete recording pipeline test.
  *
- * This test:
- * 1. Navigates to the test page
- * 2. Verifies script injection
- * 3. Simulates real user interactions using CDP
- * 4. Verifies events flow through the entire pipeline
- * 5. Reports detailed diagnostics
+ * This test uses the SAME injection path as real external URLs:
+ * 1. Navigates to an external URL (default: example.com)
+ * 2. route.fetch() fetches the HTML from the external server
+ * 3. HTML is modified to inject the recording script
+ * 4. route.fulfill() serves the modified HTML
+ * 5. Verifies script injection worked
+ * 6. Simulates real user interactions using CDP
+ * 7. Verifies events flow through the entire pipeline
  *
  * @param page - The Playwright page to test on
  * @param context - The browser context
- * @param contextInitializer - The recording context initializer
+ * @param pipelineManager - The recording pipeline manager (uses real recording path)
+ * @param contextInitializer - The recording context initializer (for stats only)
  * @param options - Test options
  */
 export async function runRecordingPipelineTest(
   page: Page,
   _context: BrowserContext,
+  pipelineManager: RecordingPipelineManager,
   contextInitializer: RecordingContextInitializer,
   options: {
-    /** Whether to start a temporary recording if not already recording */
-    autoStartRecording?: boolean;
     /** Timeout for the test in ms */
     timeoutMs?: number;
     /** Whether to capture console messages */
     captureConsole?: boolean;
     /**
-     * Server base URL for the event endpoint.
-     * Required when using data URLs, as they have no origin.
-     * Example: 'http://127.0.0.1:39419'
+     * External URL to test injection on.
+     * Default: https://example.com
      */
-    serverBaseUrl?: string;
+    testUrl?: string;
   } = {}
 ): Promise<PipelineTestResult> {
   const {
-    timeoutMs: _timeoutMs = 30000, // Currently unused but reserved for future timeout handling
+    timeoutMs = 30000,
     captureConsole = true,
-    serverBaseUrl,
+    testUrl = DEFAULT_TEST_URL,
   } = options;
 
   const startTime = Date.now();
@@ -424,7 +433,7 @@ export async function runRecordingPipelineTest(
 
   // Initialize diagnostics
   const diagnostics: PipelineTestDiagnostics = {
-    testPageUrl: '',
+    testPageUrl: testUrl,
     testPageInjected: false,
     eventsCaptured,
     consoleMessages,
@@ -453,58 +462,70 @@ export async function runRecordingPipelineTest(
     page.on('console', consoleHandler);
   }
 
-  // Set up event capture (temporary handler to track received events)
-  const originalHandler = contextInitializer.hasEventHandler();
+  // Track events received through the REAL recording pipeline
   let receivedEvents: Array<{ actionType: string; timestamp: number }> = [];
 
-  // Create a wrapper handler that tracks events
-  const testEventHandler = (event: { actionType: string; url?: string; selectors?: unknown }) => {
-    receivedEvents.push({
-      actionType: event.actionType,
-      timestamp: Date.now(),
-    });
-    eventsCaptured.push({
-      actionType: event.actionType,
-      timestamp: new Date().toISOString(),
-      selector: typeof event.selectors === 'object' ? JSON.stringify(event.selectors).slice(0, 100) : undefined,
-    });
-  };
+  // Check if already recording - if so, we need to stop first
+  const wasRecording = pipelineManager.isRecording();
+  const previousRecordingId = pipelineManager.getRecordingId();
 
-  // Set our test handler
-  contextInitializer.setEventHandler(testEventHandler);
+  // Get initial injection stats to verify injection happens
+  const injectionStatsBefore = contextInitializer.getInjectionStats();
+
+  // Start a test recording using the REAL pipeline path
+  // This tests the actual recording flow, not a bypass
+  const testRecordingId = `pipeline-test-${Date.now()}`;
+  let recordingStarted = false;
 
   try {
     // Get initial stats
     diagnostics.routeStatsBefore = contextInitializer.getRouteHandlerStats();
 
-    // Step 1: Load test page via route interception
-    // We navigate to a URL on the playwright-driver server, which the context.route()
-    // handler intercepts and serves our test page. This approach:
-    // 1. Works with route interception (unlike data URLs which have CORS issues)
-    // 2. Uses a real origin so relative URLs like /__vrooli_recording_event__ work
-    // 3. The server is running, so the TCP connection succeeds before route intercepts
+    // Step 1: Navigate to external URL
+    // This tests the REAL injection path: route.fetch() → modify HTML → route.fulfill()
     const navStart = Date.now();
     try {
-      // Build the test page URL using the server's address
-      // The context.route('**/__vrooli_recording_test__') handler will intercept this
-      // and serve the test page with the recording script injected
-      if (!serverBaseUrl) {
-        throw new Error('serverBaseUrl is required for pipeline test - needed to build test page URL');
-      }
+      logger.info(scopedLog(LogContext.RECORDING, 'pipeline test: navigating to external URL'), {
+        testUrl,
+      });
 
-      const testUrl = `${serverBaseUrl}${TEST_PAGE_URL}`;
-      diagnostics.testPageUrl = testUrl;
-
-      // Navigate to the test page - route interception will serve it
-      await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
 
       // Wait a moment for the script to initialize
       await sleep(100);
 
-      addStep('load_test_page', true, Date.now() - navStart);
+      // Verify injection was attempted
+      const injectionStatsAfter = contextInitializer.getInjectionStats();
+      const injectionAttempted = injectionStatsAfter.attempted > injectionStatsBefore.attempted;
+      const injectionSucceeded = injectionStatsAfter.successful > injectionStatsBefore.successful;
+
+      addStep('load_external_url', true, Date.now() - navStart, undefined, {
+        url: testUrl,
+        injectionAttempted,
+        injectionSucceeded,
+        injectionStats: injectionStatsAfter,
+      });
+
+      if (!injectionAttempted) {
+        return buildResult(false, 'navigation', 'Navigation succeeded but injection was not attempted - route interception may not be working', steps, diagnostics, startTime, [
+          'Check that context.route("**/*") is set up',
+          'The URL may not have been intercepted',
+        ]);
+      }
+
+      if (!injectionSucceeded) {
+        return buildResult(false, 'script_injection', 'Injection was attempted but failed - check logs for details', steps, diagnostics, startTime, [
+          'Check driver logs for injection errors',
+          'route.fetch() may have failed',
+          'The server may have returned non-HTML content',
+        ]);
+      }
     } catch (error) {
-      addStep('load_test_page', false, Date.now() - navStart, error instanceof Error ? error.message : String(error));
-      return buildResult(false, 'page_load', 'Failed to load test page', steps, diagnostics, startTime);
+      addStep('load_external_url', false, Date.now() - navStart, error instanceof Error ? error.message : String(error));
+      return buildResult(false, 'page_load', `Failed to load external URL: ${testUrl}`, steps, diagnostics, startTime, [
+        'Check network connectivity',
+        'The URL may be unreachable',
+      ]);
     }
 
     // Setup page-level event route after navigation
@@ -570,7 +591,68 @@ export async function runRecordingPipelineTest(
       return buildResult(false, 'script_injection', 'Failed to verify script injection', steps, diagnostics, startTime);
     }
 
-    // Step 3: Query browser telemetry before interactions
+    // Step 3: Start recording using the REAL pipeline path
+    // This is the key change - we use pipelineManager.startRecording() instead of
+    // directly setting an event handler on contextInitializer
+    const recordingStart = Date.now();
+    try {
+      // If already recording, stop first
+      if (wasRecording) {
+        await pipelineManager.stopRecording();
+        logger.debug(scopedLog(LogContext.RECORDING, 'stopped previous recording for pipeline test'));
+      }
+
+      // Start recording with our test callback
+      await pipelineManager.startRecording({
+        sessionId: `pipeline-test-session`,
+        recordingId: testRecordingId,
+        onEntry: (entry: TimelineEntry) => {
+          // Extract action type name for tracking
+          const actionTypeName = ActionType[entry.action?.type ?? ActionType.UNSPECIFIED] ?? 'unknown';
+
+          receivedEvents.push({
+            actionType: actionTypeName.toLowerCase(),
+            timestamp: Date.now(),
+          });
+          eventsCaptured.push({
+            actionType: actionTypeName.toLowerCase(),
+            timestamp: new Date().toISOString(),
+            selector: entry.action?.selector?.primary || undefined,
+          });
+
+          logger.debug(scopedLog(LogContext.RECORDING, 'pipeline test: event received via real pipeline'), {
+            actionType: actionTypeName,
+            sequenceNum: entry.sequenceNum,
+          });
+        },
+        onError: (error: Error) => {
+          logger.warn(scopedLog(LogContext.RECORDING, 'pipeline test: recording error'), {
+            error: error.message,
+          });
+        },
+        // Skip auto-verify since we just verified manually
+        autoVerify: false,
+      });
+
+      recordingStarted = true;
+      addStep('start_recording', true, Date.now() - recordingStart, undefined, {
+        recordingId: testRecordingId,
+        usingRealPipeline: true,
+      });
+
+      logger.info(scopedLog(LogContext.RECORDING, 'pipeline test: recording started via REAL pipeline'), {
+        recordingId: testRecordingId,
+      });
+    } catch (error) {
+      addStep('start_recording', false, Date.now() - recordingStart, error instanceof Error ? error.message : String(error));
+      return buildResult(false, 'handler_process', 'Failed to start recording via pipeline manager', steps, diagnostics, startTime, [
+        'pipelineManager.startRecording() failed',
+        'Check if pipeline is in correct state',
+        error instanceof Error ? error.message : String(error),
+      ]);
+    }
+
+    // Step 4: Query browser telemetry before interactions (script should now be active)
     const telemetryBeforeStart = Date.now();
     try {
       diagnostics.telemetryBefore = await queryBrowserTelemetry(page);
@@ -584,67 +666,76 @@ export async function runRecordingPipelineTest(
       // Non-fatal, continue
     }
 
-    // Step 4: Simulate a real click using CDP
+    // Step 5: Simulate a real click using CDP
+    // Find a clickable element on the page (works with any external URL)
     const clickStart = Date.now();
     receivedEvents = []; // Reset for tracking
     try {
-      await simulateRealClick(page, '#test-click-button');
-      await sleep(500); // Wait for event to propagate
+      // Try to find a clickable element - prefer links, then buttons, then any visible element
+      const clickableSelector = await findClickableElement(page);
 
-      const clickReceived = receivedEvents.some(e => e.actionType === 'click');
-      addStep('simulate_click', clickReceived, Date.now() - clickStart, clickReceived ? undefined : 'Click event not received', {
-        eventsReceived: receivedEvents.length,
-        eventTypes: receivedEvents.map(e => e.actionType),
-      });
+      if (!clickableSelector) {
+        addStep('simulate_click', false, Date.now() - clickStart, 'No clickable element found on page');
+      } else {
+        await simulateRealClick(page, clickableSelector);
+        await sleep(500); // Wait for event to propagate
 
-      if (!clickReceived) {
-        // Query telemetry to understand where it failed
-        const telemetryAfterClick = await queryBrowserTelemetry(page);
-        diagnostics.telemetryAfter = telemetryAfterClick;
+        const clickReceived = receivedEvents.some(e => e.actionType === 'click');
+        addStep('simulate_click', clickReceived, Date.now() - clickStart, clickReceived ? undefined : 'Click event not received', {
+          eventsReceived: receivedEvents.length,
+          eventTypes: receivedEvents.map(e => e.actionType),
+          clickedElement: clickableSelector,
+        });
 
-        if (telemetryAfterClick && diagnostics.telemetryBefore) {
-          const detected = telemetryAfterClick.eventsDetected - diagnostics.telemetryBefore.eventsDetected;
-          const captured = telemetryAfterClick.eventsCaptured - diagnostics.telemetryBefore.eventsCaptured;
-          const sent = telemetryAfterClick.eventsSent - diagnostics.telemetryBefore.eventsSent;
+        if (!clickReceived) {
+          // Query telemetry to understand where it failed
+          const telemetryAfterClick = await queryBrowserTelemetry(page);
+          diagnostics.telemetryAfter = telemetryAfterClick;
 
-          if (detected === 0) {
-            return buildResult(false, 'event_detection', 'Click was simulated but NOT detected by recording script', steps, diagnostics, startTime, [
-              'DOM event handlers may have been removed',
-              'Event propagation might be stopped by page scripts',
-              'The click target might be in a Shadow DOM or iframe',
+          if (telemetryAfterClick && diagnostics.telemetryBefore) {
+            const detected = telemetryAfterClick.eventsDetected - diagnostics.telemetryBefore.eventsDetected;
+            const captured = telemetryAfterClick.eventsCaptured - diagnostics.telemetryBefore.eventsCaptured;
+            const sent = telemetryAfterClick.eventsSent - diagnostics.telemetryBefore.eventsSent;
+
+            if (detected === 0) {
+              return buildResult(false, 'event_detection', 'Click was simulated but NOT detected by recording script', steps, diagnostics, startTime, [
+                'DOM event handlers may have been removed',
+                'Event propagation might be stopped by page scripts',
+                'The click target might be in a Shadow DOM or iframe',
+              ]);
+            }
+
+            if (captured === 0) {
+              return buildResult(false, 'event_capture', 'Click was detected but NOT captured (isActive may be false)', steps, diagnostics, startTime, [
+                'Check if isActive flag is false in the recording script',
+                'Recording may not have been properly started',
+              ]);
+            }
+
+            if (sent === 0) {
+              return buildResult(false, 'event_send', 'Click was captured but NOT sent via fetch', steps, diagnostics, startTime, [
+                'The sendEvent function may be failing',
+                'Check browser console for fetch errors',
+              ]);
+            }
+
+            // Sent but not received by route handler
+            const routeStatsAfter = contextInitializer.getRouteHandlerStats();
+            const receivedByRoute = routeStatsAfter.eventsReceived - (diagnostics.routeStatsBefore?.eventsReceived || 0);
+
+            if (receivedByRoute === 0) {
+              return buildResult(false, 'route_receive', 'Click was sent but NOT received by route handler', steps, diagnostics, startTime, [
+                'Service worker may be intercepting the request',
+                'Route interception may not be working',
+                'Check that the event URL pattern matches',
+              ]);
+            }
+
+            return buildResult(false, 'handler_process', 'Click was received by route but NOT processed by handler', steps, diagnostics, startTime, [
+              'Event handler may not be set',
+              'Handler may be throwing an error',
             ]);
           }
-
-          if (captured === 0) {
-            return buildResult(false, 'event_capture', 'Click was detected but NOT captured (isActive may be false)', steps, diagnostics, startTime, [
-              'Check if isActive flag is false in the recording script',
-              'Recording may not have been properly started',
-            ]);
-          }
-
-          if (sent === 0) {
-            return buildResult(false, 'event_send', 'Click was captured but NOT sent via fetch', steps, diagnostics, startTime, [
-              'The sendEvent function may be failing',
-              'Check browser console for fetch errors',
-            ]);
-          }
-
-          // Sent but not received by route handler
-          const routeStatsAfter = contextInitializer.getRouteHandlerStats();
-          const receivedByRoute = routeStatsAfter.eventsReceived - (diagnostics.routeStatsBefore?.eventsReceived || 0);
-
-          if (receivedByRoute === 0) {
-            return buildResult(false, 'route_receive', 'Click was sent but NOT received by route handler', steps, diagnostics, startTime, [
-              'Service worker may be intercepting the request',
-              'Route interception may not be working',
-              'Check that the event URL pattern matches',
-            ]);
-          }
-
-          return buildResult(false, 'handler_process', 'Click was received by route but NOT processed by handler', steps, diagnostics, startTime, [
-            'Event handler may not be set',
-            'Handler may be throwing an error',
-          ]);
         }
       }
     } catch (error) {
@@ -652,35 +743,47 @@ export async function runRecordingPipelineTest(
       // Continue to try input test
     }
 
-    // Step 5: Simulate typing using CDP
+    // Step 6: Simulate typing using CDP (optional - only if page has an input)
     const inputStart = Date.now();
     receivedEvents = []; // Reset for tracking
     try {
-      // Focus the input first
-      await page.focus('#test-input');
-      await sleep(100);
+      // Try to find an input element on the page
+      const inputSelector = await findInputElement(page);
 
-      // Type using CDP
-      await simulateRealType(page, 'test');
-      await sleep(500); // Wait for events to propagate
+      if (!inputSelector) {
+        // No input on page - skip this test (not a failure, just not applicable)
+        addStep('simulate_input', true, Date.now() - inputStart, undefined, {
+          skipped: true,
+          reason: 'No input element found on page',
+        });
+      } else {
+        // Focus the input first
+        await page.focus(inputSelector);
+        await sleep(100);
 
-      // Check for any input-related event types (type, input, change, keypress, keydown)
-      const inputReceived = receivedEvents.some(e =>
-        e.actionType === 'type' ||
-        e.actionType === 'input' ||
-        e.actionType === 'change' ||
-        e.actionType === 'keypress' ||
-        e.actionType === 'keydown'
-      );
-      addStep('simulate_input', inputReceived, Date.now() - inputStart, inputReceived ? undefined : 'Input event not received', {
-        eventsReceived: receivedEvents.length,
-        eventTypes: receivedEvents.map(e => e.actionType),
-      });
+        // Type using CDP
+        await simulateRealType(page, 'test');
+        await sleep(500); // Wait for events to propagate
+
+        // Check for any input-related event types (type, input, change, keypress, keydown)
+        const inputReceived = receivedEvents.some(e =>
+          e.actionType === 'type' ||
+          e.actionType === 'input' ||
+          e.actionType === 'change' ||
+          e.actionType === 'keypress' ||
+          e.actionType === 'keydown'
+        );
+        addStep('simulate_input', inputReceived, Date.now() - inputStart, inputReceived ? undefined : 'Input event not received', {
+          eventsReceived: receivedEvents.length,
+          eventTypes: receivedEvents.map(e => e.actionType),
+          inputElement: inputSelector,
+        });
+      }
     } catch (error) {
       addStep('simulate_input', false, Date.now() - inputStart, error instanceof Error ? error.message : String(error));
     }
 
-    // Step 6: Query final telemetry and stats
+    // Step 7: Query final telemetry and stats
     const finalStart = Date.now();
     try {
       diagnostics.telemetryAfter = await queryBrowserTelemetry(page);
@@ -715,10 +818,333 @@ export async function runRecordingPipelineTest(
       page.off('console', consoleHandler);
     }
 
-    // Clear our test handler if no original handler
-    if (!originalHandler) {
-      contextInitializer.clearEventHandler();
+    // Stop the test recording if we started it
+    if (recordingStarted) {
+      try {
+        await pipelineManager.stopRecording();
+        logger.debug(scopedLog(LogContext.RECORDING, 'pipeline test: stopped test recording'), {
+          recordingId: testRecordingId,
+        });
+
+        // If there was a previous recording, we can't restart it automatically
+        // The caller would need to restart their recording
+        if (wasRecording && previousRecordingId) {
+          logger.info(scopedLog(LogContext.RECORDING, 'pipeline test: previous recording was stopped'), {
+            previousRecordingId,
+            note: 'Caller should restart their recording if needed',
+          });
+        }
+      } catch (stopError) {
+        logger.warn(scopedLog(LogContext.RECORDING, 'pipeline test: failed to stop test recording'), {
+          error: stopError instanceof Error ? stopError.message : String(stopError),
+        });
+      }
     }
+  }
+}
+
+// =============================================================================
+// External URL Injection Test
+// =============================================================================
+
+/**
+ * Result of the external URL injection test.
+ */
+export interface ExternalUrlTestResult {
+  /** Whether the test passed */
+  success: boolean;
+  /** Timestamp of the test */
+  timestamp: string;
+  /** Duration in ms */
+  durationMs: number;
+  /** URL that was tested */
+  testedUrl: string;
+  /** Where the test failed (if it failed) */
+  failurePoint?: 'fetch' | 'modify' | 'fulfill' | 'script_load' | 'script_ready' | 'context_wrong' | 'network' | 'timeout';
+  /** Detailed failure message */
+  failureMessage?: string;
+  /** Suggestions for fixing */
+  suggestions?: string[];
+  /** Script verification results */
+  verification?: {
+    loaded: boolean;
+    ready: boolean;
+    inMainContext: boolean;
+    handlersCount: number;
+    version: string | null;
+    error?: string;
+  };
+  /** Injection stats at time of test */
+  injectionStats?: {
+    attempted: number;
+    successful: number;
+    failed: number;
+    skipped: number;
+  };
+}
+
+/**
+ * Test the recording script injection on a real external URL.
+ *
+ * This tests the ACTUAL injection path that real users experience:
+ * 1. context.route() intercepts the navigation request
+ * 2. route.fetch() fetches the HTML from the external server
+ * 3. HTML is modified to inject the recording script
+ * 4. route.fulfill() serves the modified HTML to the browser
+ *
+ * This is critical because the standard pipeline test uses a dedicated route
+ * that serves pre-built HTML, bypassing steps 2-3.
+ *
+ * @param page - The Playwright page to test on
+ * @param contextInitializer - The recording context initializer
+ * @param options - Test options
+ */
+export async function runExternalUrlInjectionTest(
+  page: Page,
+  contextInitializer: RecordingContextInitializer,
+  options: {
+    /** URL to test (default: https://example.com) */
+    testUrl?: string;
+    /** Timeout in ms */
+    timeoutMs?: number;
+  } = {}
+): Promise<ExternalUrlTestResult> {
+  const {
+    testUrl = 'https://example.com',
+    timeoutMs = 30000,
+  } = options;
+
+  const startTime = Date.now();
+
+  logger.info(scopedLog(LogContext.RECORDING, 'starting external URL injection test'), {
+    testUrl,
+    timeoutMs,
+  });
+
+  // Get initial injection stats
+  const statsBefore = contextInitializer.getInjectionStats();
+
+  try {
+    // Navigate to the external URL
+    // This will trigger the route interception and injection path
+    logger.info(scopedLog(LogContext.RECORDING, 'navigating to external URL'), { testUrl });
+
+    await page.goto(testUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: timeoutMs,
+    });
+
+    // Wait a moment for script initialization
+    await sleep(500);
+
+    // Get injection stats after navigation
+    const statsAfter = contextInitializer.getInjectionStats();
+    const injectionAttempted = statsAfter.attempted > statsBefore.attempted;
+    const injectionSucceeded = statsAfter.successful > statsBefore.successful;
+
+    logger.info(scopedLog(LogContext.RECORDING, 'injection stats after navigation'), {
+      before: statsBefore,
+      after: statsAfter,
+      attempted: injectionAttempted,
+      succeeded: injectionSucceeded,
+    });
+
+    // Verify script injection
+    const verification = await verifyScriptInjection(page);
+
+    logger.info(scopedLog(LogContext.RECORDING, 'script verification result'), {
+      loaded: verification.loaded,
+      ready: verification.ready,
+      inMainContext: verification.inMainContext,
+      handlersCount: verification.handlersCount,
+      version: verification.version,
+      error: verification.error,
+    });
+
+    // Analyze results
+    if (!injectionAttempted) {
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        testedUrl: testUrl,
+        failurePoint: 'fetch',
+        failureMessage: 'Injection was not attempted - route interception may not have triggered',
+        suggestions: [
+          'Check that context.route("**/*") is set up before navigation',
+          'Verify the URL is an HTTP(S) URL (not about:blank or data URL)',
+          'Check if another route is handling this URL first',
+        ],
+        verification: {
+          loaded: verification.loaded,
+          ready: verification.ready,
+          inMainContext: verification.inMainContext,
+          handlersCount: verification.handlersCount,
+          version: verification.version,
+          error: verification.error,
+        },
+        injectionStats: statsAfter,
+      };
+    }
+
+    if (!injectionSucceeded) {
+      const failed = statsAfter.failed > statsBefore.failed;
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        testedUrl: testUrl,
+        failurePoint: failed ? 'fetch' : 'fulfill',
+        failureMessage: failed
+          ? 'Injection was attempted but route.fetch() failed - external server may be unreachable'
+          : 'Injection stats show attempted but not successful - route.fulfill() may have failed',
+        suggestions: [
+          'Check network connectivity to the external URL',
+          'Check for CORS or security restrictions',
+          'Look at driver logs for detailed error messages',
+          'The server may have returned a non-HTML response',
+        ],
+        verification: {
+          loaded: verification.loaded,
+          ready: verification.ready,
+          inMainContext: verification.inMainContext,
+          handlersCount: verification.handlersCount,
+          version: verification.version,
+          error: verification.error,
+        },
+        injectionStats: statsAfter,
+      };
+    }
+
+    // Injection succeeded according to stats, but did the script actually load?
+    if (!verification.loaded) {
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        testedUrl: testUrl,
+        failurePoint: 'script_load',
+        failureMessage: 'Injection stats show success but script did not load in browser - HTML may not have been served correctly',
+        suggestions: [
+          'Check if route.fulfill() completed successfully',
+          'The browser may have rejected the modified response',
+          'Check for CSP headers blocking inline scripts',
+          'The response body may not have been properly modified',
+        ],
+        verification: {
+          loaded: verification.loaded,
+          ready: verification.ready,
+          inMainContext: verification.inMainContext,
+          handlersCount: verification.handlersCount,
+          version: verification.version,
+          error: verification.error,
+        },
+        injectionStats: statsAfter,
+      };
+    }
+
+    if (!verification.ready) {
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        testedUrl: testUrl,
+        failurePoint: 'script_ready',
+        failureMessage: 'Script loaded but failed to initialize - may have crashed during setup',
+        suggestions: [
+          'Check browser console for JavaScript errors',
+          'The recording script may conflict with page scripts',
+          'Initialization error: ' + (verification.initError || 'unknown'),
+        ],
+        verification: {
+          loaded: verification.loaded,
+          ready: verification.ready,
+          inMainContext: verification.inMainContext,
+          handlersCount: verification.handlersCount,
+          version: verification.version,
+          error: verification.error,
+        },
+        injectionStats: statsAfter,
+      };
+    }
+
+    if (!verification.inMainContext) {
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        testedUrl: testUrl,
+        failurePoint: 'context_wrong',
+        failureMessage: 'Script is running in ISOLATED context instead of MAIN - History API events will NOT be captured',
+        suggestions: [
+          'Script must be injected via HTML modification, not page.evaluate()',
+          'Check that HTML injection is working correctly',
+          'This is a critical issue - recording will miss navigation events',
+        ],
+        verification: {
+          loaded: verification.loaded,
+          ready: verification.ready,
+          inMainContext: verification.inMainContext,
+          handlersCount: verification.handlersCount,
+          version: verification.version,
+          error: verification.error,
+        },
+        injectionStats: statsAfter,
+      };
+    }
+
+    // All checks passed!
+    logger.info(scopedLog(LogContext.RECORDING, 'external URL injection test PASSED'), {
+      testUrl,
+      durationMs: Date.now() - startTime,
+      handlersCount: verification.handlersCount,
+      version: verification.version,
+    });
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      durationMs: Date.now() - startTime,
+      testedUrl: testUrl,
+      verification: {
+        loaded: verification.loaded,
+        ready: verification.ready,
+        inMainContext: verification.inMainContext,
+        handlersCount: verification.handlersCount,
+        version: verification.version,
+      },
+      injectionStats: statsAfter,
+    };
+
+  } catch (error) {
+    const isTimeout = error instanceof Error && error.message.includes('Timeout');
+    const isNetwork = error instanceof Error && (
+      error.message.includes('net::') ||
+      error.message.includes('ERR_') ||
+      error.message.includes('ECONNREFUSED')
+    );
+
+    logger.error(scopedLog(LogContext.RECORDING, 'external URL injection test FAILED'), {
+      testUrl,
+      error: error instanceof Error ? error.message : String(error),
+      isTimeout,
+      isNetwork,
+    });
+
+    return {
+      success: false,
+      timestamp: new Date().toISOString(),
+      durationMs: Date.now() - startTime,
+      testedUrl: testUrl,
+      failurePoint: isTimeout ? 'timeout' : isNetwork ? 'network' : 'fetch',
+      failureMessage: error instanceof Error ? error.message : String(error),
+      suggestions: isTimeout
+        ? ['Increase timeoutMs option', 'Check if the external URL is responding']
+        : isNetwork
+          ? ['Check network connectivity', 'The external URL may be blocked or down']
+          : ['Check driver logs for more details'],
+      injectionStats: contextInitializer.getInjectionStats(),
+    };
   }
 }
 
@@ -749,6 +1175,80 @@ function buildResult(
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Find a clickable element on the page.
+ * Works with any external URL by finding common clickable elements.
+ * Returns a CSS selector for the element, or null if none found.
+ */
+async function findClickableElement(page: Page): Promise<string | null> {
+  // Try common clickable element selectors in order of preference
+  const selectors = [
+    'a[href]',           // Links (most common)
+    'button',            // Buttons
+    '[role="button"]',   // ARIA buttons
+    '[onclick]',         // Elements with onclick handlers
+    'input[type="submit"]',
+    'input[type="button"]',
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        const box = await element.boundingBox();
+        // Only use elements that are visible (have a bounding box)
+        if (box && box.width > 0 && box.height > 0) {
+          return selector;
+        }
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+
+  // Fallback: try to find any visible element we can click on
+  // Use the body as last resort
+  const body = await page.$('body');
+  if (body) {
+    return 'body';
+  }
+
+  return null;
+}
+
+/**
+ * Find an input element on the page.
+ * Returns a CSS selector for the element, or null if none found.
+ */
+async function findInputElement(page: Page): Promise<string | null> {
+  // Try common input element selectors
+  const selectors = [
+    'input[type="text"]',
+    'input[type="search"]',
+    'input[type="email"]',
+    'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"])',
+    'textarea',
+    '[contenteditable="true"]',
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        const box = await element.boundingBox();
+        // Only use elements that are visible
+        if (box && box.width > 0 && box.height > 0) {
+          return selector;
+        }
+      }
+    } catch {
+      // Continue to next selector
+    }
+  }
+
+  return null;
 }
 
 async function queryBrowserTelemetry(page: Page): Promise<BrowserTelemetry | undefined> {

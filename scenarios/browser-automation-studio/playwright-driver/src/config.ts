@@ -154,6 +154,11 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   AI_CALLBACK_RETRY_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'AI callback retry delay', dataType: 'integer', min: 100, max: 5000, editable: true },
   AI_MAX_ELEMENTS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements to extract per page', dataType: 'integer', min: 1, max: 500, editable: true },
   AI_MAX_TEXT_LENGTH: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max text length per element', dataType: 'integer', min: 10, max: 1000, editable: true },
+
+  // === History Callback ===
+  HISTORY_CALLBACK_URL: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'URL to POST history entries when navigation occurs', dataType: 'string', editable: false },
+  HISTORY_THUMBNAIL_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Capture thumbnails for history entries', dataType: 'boolean', editable: true },
+  HISTORY_THUMBNAIL_QUALITY: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'JPEG quality for history thumbnails', dataType: 'integer', min: 10, max: 100, editable: true },
 };
 
 const ConfigSchema = z.object({
@@ -366,6 +371,21 @@ const ConfigSchema = z.object({
     /** Number of frame timings to retain for percentile analysis */
     bufferSize: z.number().min(1).max(1000).default(100),
   }),
+  /**
+   * History Callback Configuration
+   *
+   * Controls how navigation history is reported to the Go API for persistence.
+   * When a callback URL is configured, navigation events are POSTed to that URL
+   * with page title, URL, timestamp, and optional thumbnail.
+   */
+  history: z.object({
+    /** URL to POST history entries when navigation occurs (empty = disabled) */
+    callbackUrl: z.string().default(''),
+    /** Whether to capture thumbnails for history entries */
+    thumbnailEnabled: z.boolean().default(true),
+    /** JPEG quality for history thumbnails (10-100) */
+    thumbnailQuality: z.number().min(10).max(100).default(60),
+  }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -574,6 +594,11 @@ export function loadConfig(): Config {
       includeTimingHeaders: process.env.PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS !== 'false',
       logSummaryInterval: parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL, 60),
       bufferSize: parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE, 100),
+    },
+    history: {
+      callbackUrl: process.env.HISTORY_CALLBACK_URL || '',
+      thumbnailEnabled: process.env.HISTORY_THUMBNAIL_ENABLED !== 'false',
+      thumbnailQuality: parseEnvInt(process.env.HISTORY_THUMBNAIL_QUALITY, 60),
     },
   };
 

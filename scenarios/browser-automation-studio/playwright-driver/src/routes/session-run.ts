@@ -196,7 +196,7 @@ export async function handleSessionRun(
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
         sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
       });
-      sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
+      sessionManager.setSessionPhase(sessionId, session.pipelineManager?.isRecording() ? 'recording' : 'ready');
       if (idempotencyKey) {
         idempotencyCache.store(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
       }
@@ -235,7 +235,7 @@ export async function handleSessionRun(
     // [PRESENTATION] Send response
     // ─────────────────────────────────────────────────────────────────────────
     recordExecutedInstruction(session, instructionKey, driverOutcome, success, completedAt);
-    sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
+    sessionManager.setSessionPhase(sessionId, session.pipelineManager?.isRecording() ? 'recording' : 'ready');
     if (idempotencyKey) {
       idempotencyCache.store(idempotencyKey, sessionId, instructionKey, driverOutcome);
     }

@@ -7,6 +7,7 @@ import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, L
 import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer } from '../recording/buffer';
+import { RecordingPipelineManager } from '../recording/pipeline-manager';
 import { cleanupSession } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
@@ -268,6 +269,13 @@ export class SessionManager {
     // Network events are collected by telemetry, not logged individually
     // (reduces noise while still capturing data for debugging)
 
+    // Create recording pipeline manager (eager instantiation)
+    // This allows early verification and ensures the pipeline is ready before recording starts
+    const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
+      sessionId,
+      logger,
+    });
+
     // Create session state
     const session: SessionState = {
       id: sessionId,
@@ -296,6 +304,8 @@ export class SessionManager {
       serviceWorkerController,
       // Recording context initializer (binding + init script)
       recordingInitializer,
+      // Recording pipeline manager (single source of truth for recording state)
+      pipelineManager,
     };
 
     // Assign an ID to the initial page and track it
@@ -308,6 +318,32 @@ export class SessionManager {
     // Setup diagnostic logging for redirect loop debugging
     // Enable with DIAGNOSTIC_LOGGING=true environment variable
     setupDiagnosticLogging(context, sessionId);
+
+    // Initialize recording pipeline (early verification)
+    // This runs injection and verification so the pipeline is ready before recording starts
+    // Errors are logged but don't fail session creation - recording can retry verification later
+    pipelineManager.initialize().then(() => {
+      return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
+    }).then((verification) => {
+      if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
+        logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+          sessionId,
+          handlersCount: verification.handlersCount,
+        });
+      } else {
+        logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
+          sessionId,
+          verification,
+          hint: 'Recording may require re-verification on first use',
+        });
+      }
+    }).catch((err) => {
+      logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
+        sessionId,
+        error: err instanceof Error ? err.message : String(err),
+        hint: 'Recording will retry initialization when started',
+      });
+    });
 
     // Enable service worker monitoring and handle unregisterOnStart
     await serviceWorkerController.enable(page);
@@ -478,7 +514,7 @@ export class SessionManager {
       instructionCount: session.instructionCount,
       createdAt: session.createdAt.toISOString(),
       lastUsedAt: session.lastUsedAt.toISOString(),
-      isRecording: session.recordingController?.isRecording() ?? false,
+      isRecording: session.pipelineManager?.isRecording() ?? false,
       url: currentUrl,
     };
   }
@@ -600,12 +636,12 @@ export class SessionManager {
 
     let videoPaths: string[] = [];
     try {
-      // Stop recording if active
-      if (session.recordingController?.isRecording()) {
-        await session.recordingController.stopRecording().catch((err) => {
+      // Stop recording if active (use pipelineManager as single source of truth)
+      if (session.pipelineManager?.isRecording()) {
+        await session.pipelineManager.stopRecording().catch((err) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'recording stop failed'), {
             sessionId,
-            error: err.message,
+            error: err instanceof Error ? err.message : String(err),
           });
           metrics.cleanupFailures.inc({ operation: 'recording_stop' });
         });
@@ -773,7 +809,7 @@ export class SessionManager {
         idle++;
       }
 
-      if (session.recordingController?.isRecording()) {
+      if (session.pipelineManager?.isRecording()) {
         activeRecordings++;
       }
     }
@@ -836,7 +872,7 @@ export class SessionManager {
         last_used_at: session.lastUsedAt.toISOString(),
         idle_time_ms: idleTimeMs,
         is_idle: idleTimeMs >= this.config.session.idleTimeoutMs,
-        is_recording: session.recordingController?.isRecording() ?? false,
+        is_recording: session.pipelineManager?.isRecording() ?? false,
         instruction_count: session.instructionCount,
         workflow_id: session.spec.workflow_id,
         current_url: currentUrl,
