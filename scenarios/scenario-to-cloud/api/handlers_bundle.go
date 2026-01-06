@@ -314,7 +314,9 @@ func (s *Server) cleanupVPSBundles(ctx context.Context, req BundleCleanupRequest
 // parseBytes parses a byte count string, returning 0 on error.
 func parseBytes(s string) int64 {
 	var n int64
-	fmt.Sscanf(s, "%d", &n)
+	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
+		return 0
+	}
 	return n
 }
 

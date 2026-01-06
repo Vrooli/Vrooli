@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,7 +149,7 @@ func RunVPSSetupWithProgress(
 		}
 		hub.Broadcast(deploymentID, event)
 		if err := repo.UpdateDeploymentProgress(ctx, deploymentID, stepID, *progress); err != nil {
-			// Log but don't fail
+			log.Printf("setup progress update failed (step=%s): %v", stepID, err)
 		}
 	}
 

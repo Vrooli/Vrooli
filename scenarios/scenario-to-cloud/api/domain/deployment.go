@@ -150,7 +150,9 @@ type CreateDeploymentRequest struct {
 
 // ExecuteDeploymentRequest is the request body for executing a deployment.
 type ExecuteDeploymentRequest struct {
-	ProvidedSecrets map[string]string `json:"provided_secrets,omitempty"` // User-provided secrets (user_prompt class)
+	ProvidedSecrets  map[string]string `json:"provided_secrets,omitempty"`  // User-provided secrets (user_prompt class)
+	RunPreflight     bool              `json:"run_preflight,omitempty"`     // Run VPS preflight checks before deployment
+	ForceBundleBuild bool              `json:"force_bundle_build,omitempty"` // Build a new bundle even if one exists
 }
 
 // UpdateDeploymentStatusRequest is used to update deployment status.

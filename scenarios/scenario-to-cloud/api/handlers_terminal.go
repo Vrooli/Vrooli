@@ -229,19 +229,27 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 					}
 				case "resize":
 					if msg.Cols > 0 && msg.Rows > 0 {
-						session.WindowChange(msg.Rows, msg.Cols)
+						if err := session.WindowChange(msg.Rows, msg.Cols); err != nil {
+							log.Printf("Terminal: resize error: %v", err)
+						}
 					}
 				case "ping":
 					// Respond with pong
 					pong := TerminalMessage{Type: "pong"}
-					conn.WriteJSON(pong)
+					if err := conn.WriteJSON(pong); err != nil {
+						log.Printf("Terminal: pong write error: %v", err)
+						cancel()
+						return
+					}
 				}
 			}
 		}
 	}()
 
 	// Wait for session to complete
-	session.Wait()
+	if err := session.Wait(); err != nil {
+		log.Printf("Terminal: session wait error: %v", err)
+	}
 	cancel()
 	wg.Wait()
 }
@@ -334,7 +342,9 @@ func sendTerminalError(conn *websocket.Conn, message string) {
 		Type: "error",
 		Data: message,
 	}
-	conn.WriteJSON(msg)
+	if err := conn.WriteJSON(msg); err != nil {
+		log.Printf("Terminal: error write failed: %v", err)
+	}
 }
 
 // readSSHPrivateKey reads an SSH private key from a file.

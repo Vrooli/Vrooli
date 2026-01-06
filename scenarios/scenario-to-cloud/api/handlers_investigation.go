@@ -64,9 +64,11 @@ func (s *Server) handleInvestigateDeployment(w http.ResponseWriter, r *http.Requ
 	// Return the investigation
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"investigation": inv,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // handleListInvestigations returns all investigations for a deployment.
@@ -107,9 +109,11 @@ func (s *Server) handleListInvestigations(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"investigations": summaries,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // handleGetInvestigation returns a single investigation by ID.
@@ -140,9 +144,11 @@ func (s *Server) handleGetInvestigation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"investigation": inv,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // handleStopInvestigation stops a running investigation.
@@ -176,10 +182,12 @@ func (s *Server) handleStopInvestigation(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Investigation stopped",
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // handleApplyFixes applies selected fixes from a completed investigation.
@@ -238,9 +246,11 @@ func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"investigation": fixInv,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // handleCheckAgentManagerStatus returns the status of agent-manager.
@@ -248,21 +258,25 @@ func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCheckAgentManagerStatus(w http.ResponseWriter, r *http.Request) {
 	if s.agentSvc == nil {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"enabled":   false,
 			"available": false,
 			"message":   "Agent manager integration is not configured",
-		})
+		}); err != nil {
+			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		}
 		return
 	}
 
 	available := s.agentSvc.IsAvailable(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"enabled":   s.agentSvc.IsEnabled(),
 		"available": available,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // parseIntParam is a helper to parse integer query parameters.

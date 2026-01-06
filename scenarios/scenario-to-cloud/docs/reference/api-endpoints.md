@@ -193,6 +193,17 @@ Delete a deployment.
 
 Execute deployment (setup + deploy).
 
+**Request Body** (optional):
+```json
+{
+  "run_preflight": true,
+  "force_bundle_build": false,
+  "provided_secrets": {
+    "KEY": "value"
+  }
+}
+```
+
 **Response**:
 ```json
 {

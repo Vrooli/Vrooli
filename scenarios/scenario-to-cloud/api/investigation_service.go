@@ -122,7 +122,9 @@ func (s *InvestigationService) runInvestigation(
 	}
 
 	// Update progress
-	s.repo.UpdateInvestigationProgress(ctx, invID, 10)
+	if err := s.repo.UpdateInvestigationProgress(ctx, invID, 10); err != nil {
+		log.Printf("[investigation] failed to update progress to 10: %v", err)
+	}
 	s.broadcastProgress(deployment.ID, invID, "investigation_progress", 10, "Agent executing investigation...")
 
 	// Execute via agent-manager
@@ -151,7 +153,9 @@ func (s *InvestigationService) runInvestigation(
 	}
 
 	// Poll for completion
-	s.repo.UpdateInvestigationProgress(ctx, invID, 20)
+	if err := s.repo.UpdateInvestigationProgress(ctx, invID, 20); err != nil {
+		log.Printf("[investigation] failed to update progress to 20: %v", err)
+	}
 	s.broadcastProgress(deployment.ID, invID, "investigation_progress", 20, "Agent investigating VPS...")
 
 	result, err := s.pollForCompletion(execCtx, invID, deployment.ID, runID)
@@ -236,7 +240,9 @@ func (s *InvestigationService) pollForCompletion(
 			// Update progress periodically
 			if stepIdx < len(progressSteps) {
 				progress := progressSteps[stepIdx]
-				s.repo.UpdateInvestigationProgress(ctx, invID, progress)
+				if err := s.repo.UpdateInvestigationProgress(ctx, invID, progress); err != nil {
+					log.Printf("[investigation] failed to update progress to %d: %v", progress, err)
+				}
 				s.broadcastProgress(deploymentID, invID, "investigation_progress", float64(progress), "Agent investigating...")
 				stepIdx++
 			}
@@ -609,7 +615,9 @@ func (s *InvestigationService) runFixApplication(
 	}
 
 	// Update progress
-	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 10)
+	if err := s.repo.UpdateInvestigationProgress(ctx, fixInvID, 10); err != nil {
+		log.Printf("[fix-application] failed to update progress to 10: %v", err)
+	}
 	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 10, "Agent applying fixes...")
 
 	// Execute via agent-manager
@@ -650,7 +658,9 @@ func (s *InvestigationService) runFixApplication(
 	}
 
 	// Poll for completion
-	s.repo.UpdateInvestigationProgress(ctx, fixInvID, 20)
+	if err := s.repo.UpdateInvestigationProgress(ctx, fixInvID, 20); err != nil {
+		log.Printf("[fix-application] failed to update progress to 20: %v", err)
+	}
 	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 20, "Agent working on fixes...")
 
 	result, err := s.pollForCompletion(execCtx, fixInvID, deployment.ID, runID)

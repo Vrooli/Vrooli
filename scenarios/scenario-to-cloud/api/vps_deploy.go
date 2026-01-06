@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -262,6 +265,12 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			Description: "Checks https://<domain>/health via Caddy + Let's Encrypt. On failure, provides detailed diagnostics.",
 			Command:     localSSHCommand(cfg, fmt.Sprintf("curl https://%s/health (with detailed error reporting)", manifest.Edge.Domain)),
 		},
+		VPSPlanStep{
+			ID:          "verify_public",
+			Title:       "Verify public reachability",
+			Description: "Checks https://<domain>/health from the deployment runner (outside the VPS).",
+			Command:     fmt.Sprintf("curl https://%s/health (from deployment runner)", manifest.Edge.Domain),
+		},
 	)
 
 	return steps, nil
@@ -325,7 +334,7 @@ func RunVPSDeployWithProgress(
 		}
 		hub.Broadcast(deploymentID, event)
 		if err := repo.UpdateDeploymentProgress(ctx, deploymentID, stepID, *progress); err != nil {
-			// Log but don't fail
+			log.Printf("deployment progress update failed (step=%s): %v", stepID, err)
 		}
 	}
 
@@ -504,6 +513,14 @@ func RunVPSDeployWithProgress(
 	*progress += StepWeights["verify_https"]
 	emit("step_completed", "verify_https", "Verifying HTTPS")
 
+	// Step: verify_public - Verify public reachability from deployment runner
+	emit("step_started", "verify_public", "Verifying public reachability")
+	if err := checkPublicHealth(ctx, httpsHealthURL, 10*time.Second); err != nil {
+		return failStep("verify_public", "Verifying public reachability", err.Error())
+	}
+	*progress += StepWeights["verify_public"]
+	emit("step_completed", "verify_public", "Verifying public reachability")
+
 	return VPSDeployResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 
@@ -628,6 +645,28 @@ esac
 
 exit 1
 `, url, timeoutSecs, checkType)
+}
+
+func checkPublicHealth(ctx context.Context, url string, timeout time.Duration) error {
+	client := &http.Client{Timeout: timeout}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("build public health request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("public health check failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		msg := strings.TrimSpace(string(body))
+		if msg != "" {
+			return fmt.Errorf("public health check returned %s: %s", resp.Status, msg)
+		}
+		return fmt.Errorf("public health check returned %s", resp.Status)
+	}
+	return nil
 }
 
 // buildWaitForPortScript returns a shell script that waits for a TCP port to be listening.

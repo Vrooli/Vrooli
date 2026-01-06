@@ -7,11 +7,57 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { selectors } from "./consts/selectors";
 
+const SAVED_DEPLOYMENT_KEY = "scenario-to-cloud:deployment";
+
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
     headers: { "Content-Type": "application/json" }
   });
+}
+
+function seedSavedDeployment() {
+  const manifest = {
+    version: "1.0.0",
+    target: {
+      type: "vps",
+      vps: {
+        host: "203.0.113.10",
+      },
+    },
+    scenario: {
+      id: "demo-scenario",
+    },
+    dependencies: {
+      scenarios: ["demo-scenario"],
+      resources: [],
+    },
+    bundle: {
+      include_packages: true,
+      include_autoheal: true,
+    },
+    ports: {
+      ui: 3000,
+      api: 3001,
+      ws: 3002,
+    },
+    edge: {
+      domain: "example.com",
+      caddy: {
+        enabled: true,
+        email: "",
+      },
+    },
+  };
+
+  localStorage.setItem(
+    SAVED_DEPLOYMENT_KEY,
+    JSON.stringify({
+      manifestJson: JSON.stringify(manifest, null, 2),
+      currentStep: 0,
+      timestamp: Date.now(),
+    })
+  );
 }
 
 function renderApp() {
@@ -31,6 +77,7 @@ function renderApp() {
 
 describe("Dashboard", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "#dashboard");
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/health")) {
@@ -62,6 +109,7 @@ describe("Dashboard", () => {
 
 describe("Deployment Wizard", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "#dashboard");
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/health")) {
@@ -69,6 +117,20 @@ describe("Deployment Wizard", () => {
       }
       if (url.includes("/manifest/validate")) {
         return jsonResponse({ valid: true, issues: [], timestamp: "2025-01-01T00:00:00Z" });
+      }
+      if (url.includes("/secrets/")) {
+        return jsonResponse({
+          secrets: {
+            bundle_secrets: [],
+            summary: {
+              total_secrets: 0,
+              infrastructure: 0,
+              per_install_generated: 0,
+              user_prompt: 0,
+              remote_fetch: 0,
+            }
+          }
+        });
       }
       if (url.includes("/plan")) {
         return jsonResponse({
@@ -85,6 +147,7 @@ describe("Deployment Wizard", () => {
       return jsonResponse({ error: { message: "not found" } }, 404);
     }));
     localStorage.clear();
+    seedSavedDeployment();
   });
 
   async function navigateToWizard() {
@@ -98,52 +161,44 @@ describe("Deployment Wizard", () => {
     // [REQ:STC-P0-001] cloud manifest validation is exposed through the UI
     await navigateToWizard();
 
-    // Navigate to validate step by clicking Continue
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
-
     // Validation runs automatically on step entry
     // Wait for validation to complete and show result
-    await waitFor(async () => {
-      expect(await screen.findByTestId(selectors.manifest.validateResult)).toHaveTextContent(
-        "Manifest is Valid"
-      );
-    });
+    expect(await screen.findByText("Manifest is valid")).toBeInTheDocument();
   });
 
-  test("generates deployment plan", async () => {
+  test("advances to secrets step after validation", async () => {
     await navigateToWizard();
 
-    // Navigate to validate step
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
-
     // Wait for validation to complete
-    await screen.findByTestId(selectors.manifest.validateResult);
+    await screen.findByText("Manifest is valid");
 
-    // Navigate to plan step
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
+    // Navigate to secrets step
+    const nextButton = screen.getByTestId(selectors.wizard.nextButton);
+    await waitFor(() => expect(nextButton).toBeEnabled());
+    await userEvent.click(nextButton);
 
-    // Plan generates automatically on step entry
-    // Wait for plan to generate
-    await waitFor(async () => {
-      expect(await screen.findByTestId(selectors.manifest.planResult)).toHaveTextContent(
-        "Upload bundle"
-      );
-    });
+    // Secrets step should render
+    expect(await screen.findByRole("heading", { name: "Secrets" })).toBeInTheDocument();
   });
 
   test("builds bundle and shows artifact details", async () => {
     await navigateToWizard();
 
-    // Navigate to validate step
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
-    await screen.findByTestId(selectors.manifest.validateResult);
+    // Wait for validation to complete
+    await screen.findByText("Manifest is valid");
 
-    // Navigate to plan step
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
-    await screen.findByTestId(selectors.manifest.planResult);
+    // Navigate to secrets step
+    const nextButton = screen.getByTestId(selectors.wizard.nextButton);
+    await waitFor(() => expect(nextButton).toBeEnabled());
+    await userEvent.click(nextButton);
+    await screen.findByRole("heading", { name: "Secrets" });
 
     // Navigate to build step
-    await userEvent.click(screen.getByTestId(selectors.wizard.nextButton));
+    const nextFromSecrets = screen.getByTestId(selectors.wizard.nextButton);
+    await waitFor(() => expect(nextFromSecrets).toBeEnabled());
+    await userEvent.click(nextFromSecrets);
+
+    await screen.findByTestId(selectors.manifest.bundleBuildButton);
 
     // Click build button
     await userEvent.click(screen.getByTestId(selectors.manifest.bundleBuildButton));

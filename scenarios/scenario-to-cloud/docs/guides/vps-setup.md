@@ -85,7 +85,7 @@ sudo ufw enable
 
 ### Disable Password Auth
 
-Edit `/etc/ssh/sshd_config`:
+Edit `etc/ssh/sshd_config` (path may vary by distro):
 
 ```
 PasswordAuthentication no

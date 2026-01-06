@@ -587,14 +587,26 @@ export async function getDeployment(id: string): Promise<DeploymentResponse> {
   return res.json() as Promise<DeploymentResponse>;
 }
 
+export type ExecuteDeploymentOptions = {
+  providedSecrets?: ProvidedSecrets;
+  runPreflight?: boolean;
+  forceBundleBuild?: boolean;
+};
+
 export async function executeDeployment(
   id: string,
-  options?: { providedSecrets?: ProvidedSecrets }
+  options?: ExecuteDeploymentOptions
 ): Promise<ExecuteDeploymentResponse> {
   const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/execute`, { baseUrl: API_BASE });
   const body: Record<string, unknown> = {};
   if (options?.providedSecrets && Object.keys(options.providedSecrets).length > 0) {
     body.provided_secrets = options.providedSecrets;
+  }
+  if (typeof options?.runPreflight === "boolean") {
+    body.run_preflight = options.runPreflight;
+  }
+  if (typeof options?.forceBundleBuild === "boolean") {
+    body.force_bundle_build = options.forceBundleBuild;
   }
   const res = await fetch(url, {
     method: "POST",

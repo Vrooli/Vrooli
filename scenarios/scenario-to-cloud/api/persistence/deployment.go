@@ -160,7 +160,6 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 	if filter.ScenarioID != nil {
 		q += fmt.Sprintf(" AND scenario_id = $%d", argNum)
 		args = append(args, *filter.ScenarioID)
-		argNum++
 	}
 
 	q += " ORDER BY created_at DESC"

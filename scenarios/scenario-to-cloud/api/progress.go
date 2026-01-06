@@ -25,24 +25,26 @@ type ProgressEmitter interface {
 // StepWeights defines the percentage weight for each deployment step.
 // These sum to 100%.
 var StepWeights = map[string]float64{
+	"preflight":         2,
 	"bundle_build":      5,
 	"mkdir":             0, // Trivial, no weight
 	"bootstrap":         5, // apt update + install prereqs
-	"upload":            18,
+	"upload":            17,
 	"extract":           5,
-	"setup":             12, // Reduced from 15 (bootstrap handles some work now)
+	"setup":             11, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,
 	"verify_setup":      1, // Reduced from 3
 	"scenario_stop":     3, // Stop existing scenario before deployment
 	"caddy_install":     5,
 	"caddy_config":      5,
 	"secrets_provision": 5, // Generate and write secrets before resource start
-	"resource_start":    10,
+	"resource_start":    9,
 	"scenario_deps":     10,
 	"scenario_target":   9,
 	"wait_for_ui":       1,
-	"verify_local":      2,
-	"verify_https":      2,
+	"verify_local":      1,
+	"verify_https":      1,
+	"verify_public":     3,
 }
 
 // StepInfo provides metadata for each deployment step.
@@ -75,11 +77,13 @@ var DeploySteps = []StepInfo{
 	{ID: "wait_for_ui", Title: "Waiting for UI to listen", Weight: StepWeights["wait_for_ui"]},
 	{ID: "verify_local", Title: "Verifying local health", Weight: StepWeights["verify_local"]},
 	{ID: "verify_https", Title: "Verifying HTTPS", Weight: StepWeights["verify_https"]},
+	{ID: "verify_public", Title: "Verifying public reachability", Weight: StepWeights["verify_public"]},
 }
 
 // AllSteps returns all deployment steps in order.
 func AllSteps() []StepInfo {
 	steps := []StepInfo{
+		{ID: "preflight", Title: "Running preflight checks", Weight: StepWeights["preflight"]},
 		{ID: "bundle_build", Title: "Building bundle", Weight: StepWeights["bundle_build"]},
 	}
 	steps = append(steps, SetupSteps...)

@@ -336,7 +336,9 @@ func getKeyFingerprint(pubKeyPath string) (fingerprint string, keyType SSHKeyTyp
 	}
 
 	// Parse bits
-	fmt.Sscanf(parts[0], "%d", &bits)
+	if _, err := fmt.Sscanf(parts[0], "%d", &bits); err != nil {
+		bits = 0
+	}
 
 	// Parse fingerprint
 	fingerprint = parts[1]
@@ -841,9 +843,7 @@ func DeleteSSHKey(req DeleteSSHKeyRequest) DeleteSSHKeyResponse {
 	}
 
 	// Ensure we're not deleting .pub file directly - we want the base key path
-	if strings.HasSuffix(keyPath, ".pub") {
-		keyPath = strings.TrimSuffix(keyPath, ".pub")
-	}
+	keyPath = strings.TrimSuffix(keyPath, ".pub")
 
 	// Don't allow deleting special files
 	baseName := filepath.Base(keyPath)

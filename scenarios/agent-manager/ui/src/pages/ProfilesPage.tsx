@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   Bot,
@@ -117,6 +118,8 @@ export function ProfilesPage({
 
   // Selection state
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const profileIdParam = searchParams.get("profileId");
 
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -147,6 +150,12 @@ export function ProfilesPage({
     () => profiles.find((p) => p.id === selectedProfileId) || null,
     [profiles, selectedProfileId]
   );
+
+  useEffect(() => {
+    if (profileIdParam) {
+      setSelectedProfileId(profileIdParam);
+    }
+  }, [profileIdParam]);
 
   const resetForm = () => {
     setFormData({

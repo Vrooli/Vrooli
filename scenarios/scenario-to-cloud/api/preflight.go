@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ const (
 	preflightDNSEdgeApex = domain.PreflightDNSEdgeApexID
 	preflightDNSEdgeWWW  = domain.PreflightDNSEdgeWWWID
 	preflightDNSDoOrigin = domain.PreflightDNSDoOriginID
+	preflightFirewall    = domain.PreflightFirewallID
 )
 
 func RunVPSPreflight(
@@ -162,6 +164,68 @@ func RunVPSPreflight(
 		)
 	} else {
 		pass("ports_80_443", "Ports 80/443 availability", "Ports 80/443 appear free", nil)
+	}
+
+	ufwRes, ufwErr := sshRunner.Run(ctx, cfg, "ufw status")
+	if ufwErr != nil {
+		warn(
+			preflightFirewall,
+			"Inbound firewall rules",
+			"Unable to check UFW status",
+			"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
+			map[string]string{"stderr": ufwRes.Stderr},
+		)
+	} else {
+		statusLine := ""
+		lines := strings.Split(strings.TrimSpace(ufwRes.Stdout), "\n")
+		if len(lines) > 0 {
+			statusLine = strings.ToLower(strings.TrimSpace(lines[0]))
+		}
+		if strings.Contains(statusLine, "inactive") {
+			pass(preflightFirewall, "Inbound firewall rules", "UFW is inactive", nil)
+		} else if strings.Contains(statusLine, "active") {
+			allow80 := false
+			allow443 := false
+			for _, line := range lines[1:] {
+				line = strings.ToLower(line)
+				if !strings.Contains(line, "allow") {
+					continue
+				}
+				if ufwAllowsPort(line, 80) {
+					allow80 = true
+				}
+				if ufwAllowsPort(line, 443) {
+					allow443 = true
+				}
+			}
+			if allow80 && allow443 {
+				pass(preflightFirewall, "Inbound firewall rules", "UFW allows inbound 80/443", nil)
+			} else {
+				fail(
+					preflightFirewall,
+					"Inbound firewall rules",
+					"UFW is active but does not allow inbound 80/443",
+					"Run: sudo ufw allow 80/tcp && sudo ufw allow 443/tcp (or update firewall/security group rules).",
+					map[string]string{"ufw_status": ufwRes.Stdout},
+				)
+			}
+		} else if strings.Contains(strings.ToLower(ufwRes.Stderr), "command not found") {
+			warn(
+				preflightFirewall,
+				"Inbound firewall rules",
+				"UFW not installed",
+				"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
+				nil,
+			)
+		} else {
+			warn(
+				preflightFirewall,
+				"Inbound firewall rules",
+				"Unable to determine firewall status",
+				"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
+				map[string]string{"ufw_status": ufwRes.Stdout},
+			)
+		}
 	}
 
 	netRes, netErr := sshRunner.Run(ctx, cfg, `curl -fsS --max-time 5 https://example.com >/dev/null`)
@@ -296,6 +360,12 @@ func RunVPSPreflight(
 		Checks:    checks,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
+}
+
+func ufwAllowsPort(line string, port int) bool {
+	pattern := fmt.Sprintf(`(^|[^0-9])%d([^0-9]|$)`, port)
+	re := regexp.MustCompile(pattern)
+	return re.MatchString(line)
 }
 
 func parseOSRelease(contents string) (id, versionID string) {

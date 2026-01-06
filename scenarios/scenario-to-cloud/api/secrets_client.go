@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -233,7 +234,7 @@ func transformSecrets(secrets []SecretsManagerSecret, tier string) []BundleSecre
 		// Add generator config for per_install_generated secrets
 		if class == "per_install_generated" {
 			// Use generator_template from secrets-manager if available
-			if s.GeneratorTemplate != nil && len(s.GeneratorTemplate) > 0 {
+			if len(s.GeneratorTemplate) > 0 {
 				plan.Generator = s.GeneratorTemplate
 			} else {
 				// Fallback to inferred generator config
@@ -322,11 +323,24 @@ func isPasswordSecret(secretType, key string) bool {
 func formatSecretLabel(key, resource string) string {
 	// Convert POSTGRES_PASSWORD -> "PostgreSQL Password"
 	label := strings.ReplaceAll(key, "_", " ")
-	label = strings.Title(strings.ToLower(label))
+	label = titleCaseWords(strings.ToLower(label))
 	if resource != "" && !strings.Contains(strings.ToLower(label), strings.ToLower(resource)) {
 		return resource + " " + label
 	}
 	return label
+}
+
+func titleCaseWords(input string) string {
+	words := strings.Fields(input)
+	for i, word := range words {
+		runes := []rune(word)
+		if len(runes) == 0 {
+			continue
+		}
+		runes[0] = unicode.ToUpper(runes[0])
+		words[i] = string(runes)
+	}
+	return strings.Join(words, " ")
 }
 
 // inferGeneratorType determines what kind of generator to use for a secret.

@@ -2,15 +2,10 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"path"
 	"strconv"
 	"strings"
 )
-
-func isIPLiteral(host string) bool {
-	return net.ParseIP(strings.TrimSpace(host)) != nil
-}
 
 func shellQuoteSingle(s string) string {
 	if s == "" {

@@ -58,6 +58,7 @@ export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "wait_for_ui", title: "Waiting for UI to listen" },
   { id: "verify_local", title: "Verifying local health" },
   { id: "verify_https", title: "Verifying HTTPS" },
+  { id: "verify_public", title: "Verifying public reachability" },
 ];
 
 /**

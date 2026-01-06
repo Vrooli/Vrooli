@@ -48,6 +48,7 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
 			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
 			"ss -ltnH '( sport = :80 or sport = :443 )'":            {ExitCode: 0, Stdout: ""},
+			"ufw status":                                          {ExitCode: 0, Stdout: "Status: inactive\n"},
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
@@ -64,8 +65,8 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 	if !resp.OK {
 		t.Fatalf("expected OK, got: %+v", resp)
 	}
-	if len(resp.Checks) < 15 {
-		t.Fatalf("expected at least 15 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
+	if len(resp.Checks) < 17 {
+		t.Fatalf("expected at least 17 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
 	}
 }
 
@@ -102,6 +103,7 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
 			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
 			"ss -ltnH '( sport = :80 or sport = :443 )'":            {ExitCode: 0, Stdout: ""},
+			"ufw status":                                          {ExitCode: 0, Stdout: "Status: inactive\n"},
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
@@ -168,6 +170,7 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
 			"cat /etc/os-release": {ExitCode: 0, Stdout: "ID=ubuntu\nVERSION_ID=\"24.04\"\n"},
 			"ss -ltnH '( sport = :80 or sport = :443 )'":            {ExitCode: 0, Stdout: ""},
+			"ufw status":                                          {ExitCode: 0, Stdout: "Status: inactive\n"},
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},

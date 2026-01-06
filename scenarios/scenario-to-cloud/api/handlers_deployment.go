@@ -414,7 +414,11 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	})
 
 	// Start deployment in background with the run_id for tracking
-	go s.runDeploymentPipeline(id, runID, normalized, deployment.BundlePath, req.ProvidedSecrets)
+	options := ExecuteDeploymentOptions{
+		RunPreflight:     req.RunPreflight,
+		ForceBundleBuild: req.ForceBundleBuild,
+	}
+	go s.runDeploymentPipeline(id, runID, normalized, deployment.BundlePath, req.ProvidedSecrets, options)
 
 	writeJSON(w, http.StatusAccepted, map[string]interface{}{
 		"deployment": deployment,
@@ -424,9 +428,21 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// ExecuteDeploymentOptions controls which steps run during execution.
+type ExecuteDeploymentOptions struct {
+	RunPreflight     bool
+	ForceBundleBuild bool
+}
+
 // runDeploymentPipeline executes the full deployment with progress tracking.
 // The runID parameter uniquely identifies this execution for idempotency tracking.
-func (s *Server) runDeploymentPipeline(id, runID string, manifest CloudManifest, existingBundlePath *string, providedSecrets map[string]string) {
+func (s *Server) runDeploymentPipeline(
+	id, runID string,
+	manifest CloudManifest,
+	existingBundlePath *string,
+	providedSecrets map[string]string,
+	options ExecuteDeploymentOptions,
+) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
@@ -479,10 +495,33 @@ func (s *Server) runDeploymentPipeline(id, runID string, manifest CloudManifest,
 		return // Error already logged and emitted
 	}
 
+	// Optional preflight checks
+	if options.RunPreflight {
+		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
+		preflightResp := RunVPSPreflight(ctx, manifest, s.dnsService, s.sshRunner)
+		if !preflightResp.OK {
+			failCount := 0
+			for _, check := range preflightResp.Checks {
+				if check.Status == PreflightFail {
+					failCount++
+				}
+			}
+			errMsg := "Preflight checks failed"
+			if failCount > 0 {
+				errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
+			}
+			setDeploymentError(s.repo, ctx, id, "preflight", errMsg)
+			emitError("preflight", "Running preflight checks", errMsg)
+			return
+		}
+		progress += StepWeights["preflight"]
+		emitProgress("step_completed", "preflight", "Running preflight checks", progress, "")
+	}
+
 	// Step 1: Build bundle (if not already built)
 	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
 
-	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, id, emitError)
+	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, options.ForceBundleBuild, id, emitError)
 	if err != nil {
 		return // Error already logged and emitted
 	}
@@ -677,11 +716,12 @@ func (s *Server) ensureBundleBuilt(
 	ctx context.Context,
 	manifest CloudManifest,
 	existingBundlePath *string,
+	forceBundleBuild bool,
 	deploymentID string,
 	emitError func(step, stepTitle, errMsg string),
 ) (string, error) {
 	// Use existing bundle if provided
-	if existingBundlePath != nil && *existingBundlePath != "" {
+	if !forceBundleBuild && existingBundlePath != nil && *existingBundlePath != "" {
 		return *existingBundlePath, nil
 	}
 
@@ -736,4 +776,11 @@ func (s *Server) cleanupOldBundles(bundlesDir, scenarioID string) {
 			"count":       len(deleted),
 		})
 	}
+}
+
+func pluralize(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
 }

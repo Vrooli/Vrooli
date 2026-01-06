@@ -1,6 +1,7 @@
 // Profile Activity Table - sortable table with profile metrics
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useProfileBreakdown } from "../../hooks/useProfileBreakdown";
 import {
   formatPercent,
@@ -150,9 +151,13 @@ export function ProfileActivityTable() {
                     className="border-b border-border last:border-0"
                   >
                     <td className="py-2 pr-4 font-medium">
-                      <span className="truncate max-w-[150px] inline-block" title={profile.profileName}>
+                      <Link
+                        to={`/profiles?profileId=${encodeURIComponent(profile.profileId)}`}
+                        className="truncate max-w-[150px] inline-block hover:underline"
+                        title={profile.profileName}
+                      >
                         {profile.profileName}
-                      </span>
+                      </Link>
                     </td>
                     <td className="py-2 pr-4 tabular-nums">
                       {formatNumber(profile.runCount)}

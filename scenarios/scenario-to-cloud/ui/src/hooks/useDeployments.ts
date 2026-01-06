@@ -9,6 +9,7 @@ import {
   deleteDeployment,
   type DeploymentSummary,
   type Deployment,
+  type ExecuteDeploymentOptions,
 } from "../lib/api";
 
 /**
@@ -82,13 +83,19 @@ export function useCreateDeployment() {
 export function useExecuteDeployment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await executeDeployment(id);
+    mutationFn: async ({
+      id,
+      options,
+    }: {
+      id: string;
+      options?: ExecuteDeploymentOptions;
+    }) => {
+      const res = await executeDeployment(id, options);
       return res;
     },
-    onSuccess: (_, id) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["deployments"] });
-      queryClient.invalidateQueries({ queryKey: ["deployment", id] });
+      queryClient.invalidateQueries({ queryKey: ["deployment", variables.id] });
     },
   });
 }

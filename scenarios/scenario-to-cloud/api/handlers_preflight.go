@@ -540,8 +540,11 @@ func (s *Server) stopAllVrooliProcesses(ctx context.Context, cfg SSHConfig, work
 
 	// Kill orphaned processes that may not be managed by vrooli lifecycle
 	killOrphansCmd := "pkill -f 'pm2' 2>/dev/null; pkill -f '-api$' 2>/dev/null; pkill -f 'scenario.*api' 2>/dev/null; true"
-	s.sshRunner.Run(ctx, cfg, killOrphansCmd)
-	outputs = append(outputs, "Killed orphaned processes")
+	if _, err := s.sshRunner.Run(ctx, cfg, killOrphansCmd); err != nil {
+		outputs = append(outputs, "Failed to kill orphaned processes: "+err.Error())
+	} else {
+		outputs = append(outputs, "Killed orphaned processes")
+	}
 
 	return outputs
 }

@@ -50,6 +50,7 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 		warn(domain.PreflightDNSEdgeWWWID, "WWW domain", "DNS checks skipped by policy", skippedHint, nil)
 		warn(domain.PreflightDNSDoOriginID, "Origin domain", "DNS checks skipped by policy", skippedHint, nil)
 		warn(domain.PreflightDNSOGWorkerID, "OG worker readiness", "DNS checks skipped by policy", skippedHint, nil)
+		warn(domain.PreflightDNSEdgeIPv6ID, "Edge IPv6 records", "DNS checks skipped by policy", skippedHint, nil)
 		return checks
 	}
 
@@ -207,6 +208,43 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 			break
 		}
 	}
+
+	edgeIPv6Issues := []string{}
+	edgeIPv6Data := map[string]string{}
+	vpsIPv6 := filterIPv6(vpsLookup.IPs)
+	for _, status := range statuses {
+		if status.role != "apex" && status.role != "www" {
+			continue
+		}
+		if status.proxied {
+			continue
+		}
+		edgeIPv6 := filterIPv6(status.lookup.IPs)
+		if len(edgeIPv6) == 0 {
+			continue
+		}
+		if vpsLookup.Error != nil || len(vpsIPv6) == 0 || !intersects(edgeIPv6, vpsIPv6) {
+			edgeIPv6Issues = append(edgeIPv6Issues, fmt.Sprintf("%s -> %s", status.host, strings.Join(edgeIPv6, ", ")))
+			edgeIPv6Data[status.host] = strings.Join(edgeIPv6, ",")
+		}
+	}
+
+	if len(edgeIPv6Issues) > 0 {
+		warn(
+			domain.PreflightDNSEdgeIPv6ID,
+			"Edge IPv6 records",
+			fmt.Sprintf("IPv6 records detected without matching VPS IPv6: %s", strings.Join(edgeIPv6Issues, " | ")),
+			"Remove AAAA records or configure IPv6 on the VPS to match. Clients preferring IPv6 may time out if AAAA points to a non-serving host.",
+			edgeIPv6Data,
+		)
+	} else {
+		pass(
+			domain.PreflightDNSEdgeIPv6ID,
+			"Edge IPv6 records",
+			"No mismatched IPv6 records detected",
+			nil,
+		)
+	}
 	if wwwDomain == apexDomain {
 		wwwProxied = apexProxied
 	}
@@ -236,6 +274,16 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 	}
 
 	return checks
+}
+
+func filterIPv6(ips []string) []string {
+	out := make([]string, 0, len(ips))
+	for _, ip := range ips {
+		if strings.Contains(ip, ":") {
+			out = append(out, ip)
+		}
+	}
+	return out
 }
 
 // BaseDomain returns the canonical base domain for edge DNS checks.

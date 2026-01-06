@@ -16,6 +16,8 @@ const (
 	PreflightDNSEdgeWWWID  = "dns_edge_www"
 	PreflightDNSDoOriginID = "dns_do_origin"
 	PreflightDNSOGWorkerID = "dns_og_worker_ready"
+	PreflightDNSEdgeIPv6ID = "dns_edge_ipv6"
+	PreflightFirewallID    = "firewall_inbound"
 )
 
 // PreflightCheck represents a single preflight validation result.

@@ -63,7 +63,12 @@ func StopExistingScenario(
 		for _, pid := range pids {
 			// Try graceful kill first, then SIGKILL as fallback
 			killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null || kill -9 %s 2>/dev/null || true", pid, pid, pid)
-			sshRunner.Run(ctx, cfg, killCmd)
+			if _, err := sshRunner.Run(ctx, cfg, killCmd); err != nil {
+				result.OK = false
+				if result.Error == "" {
+					result.Error = err.Error()
+				}
+			}
 			result.PortKills++
 		}
 	}
