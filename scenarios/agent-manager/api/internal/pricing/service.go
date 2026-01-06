@@ -401,28 +401,35 @@ func (s *pricingService) ListModelsWithPricing(ctx context.Context) ([]*ModelPri
 
 	result := make([]*ModelPricingListItem, 0, len(allPricing))
 	for _, p := range allPricing {
+		// Apply fallback chain (manual overrides > provider > historical) for each model
+		resolved, err := s.applyFallbacks(ctx, p.Clone(), p.CanonicalModelName)
+		if err != nil {
+			s.log.WithError(err).WithField("model", p.CanonicalModelName).Warn("Failed to apply fallbacks")
+			resolved = p
+		}
+
 		item := &ModelPricingListItem{
-			Model:         p.CanonicalModelName, // TODO: reverse lookup runner model
-			CanonicalName: p.CanonicalModelName,
-			Provider:      p.Provider,
-			InputSource:   p.InputTokenSource,
-			OutputSource:  p.OutputTokenSource,
+			Model:         resolved.CanonicalModelName, // TODO: reverse lookup runner model
+			CanonicalName: resolved.CanonicalModelName,
+			Provider:      resolved.Provider,
+			InputSource:   resolved.InputTokenSource,
+			OutputSource:  resolved.OutputTokenSource,
 		}
 
 		// Convert per-token to per-million for display
-		if p.InputTokenPrice != nil {
-			item.InputPricePer1M = TokensToMillion(*p.InputTokenPrice)
+		if resolved.InputTokenPrice != nil {
+			item.InputPricePer1M = TokensToMillion(*resolved.InputTokenPrice)
 		}
-		if p.OutputTokenPrice != nil {
-			item.OutputPricePer1M = TokensToMillion(*p.OutputTokenPrice)
+		if resolved.OutputTokenPrice != nil {
+			item.OutputPricePer1M = TokensToMillion(*resolved.OutputTokenPrice)
 		}
-		if p.CacheReadPrice != nil {
-			item.CacheReadPricePer1M = TokensToMillion(*p.CacheReadPrice)
-			item.CacheReadSource = p.CacheReadSource
+		if resolved.CacheReadPrice != nil {
+			item.CacheReadPricePer1M = TokensToMillion(*resolved.CacheReadPrice)
+			item.CacheReadSource = resolved.CacheReadSource
 		}
-		if p.CacheCreationPrice != nil {
-			item.CacheCreatePricePer1M = TokensToMillion(*p.CacheCreationPrice)
-			item.CacheCreateSource = p.CacheCreationSource
+		if resolved.CacheCreationPrice != nil {
+			item.CacheCreatePricePer1M = TokensToMillion(*resolved.CacheCreationPrice)
+			item.CacheCreateSource = resolved.CacheCreationSource
 		}
 
 		if !p.FetchedAt.IsZero() {

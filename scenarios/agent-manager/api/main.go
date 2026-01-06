@@ -96,11 +96,14 @@ func NewServer() (*Server, error) {
 	})
 	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
 
+	// UseEncodedPath tells mux to match routes against the raw URL path (e.g., keeping %2F
+	// as-is instead of decoding to /). This is required for model names containing slashes
+	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
 		config:               cfg,
 		db:                   db,
 		logger:               logger,
-		router:               mux.NewRouter(),
+		router:               mux.NewRouter().UseEncodedPath(),
 		orchestrator:         deps.orchestrator,
 		investigationService: deps.investigationService,
 		statsService:         deps.statsService,

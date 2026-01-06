@@ -94,7 +94,7 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} contentClassName="max-w-5xl">
+      <Dialog open={open} onOpenChange={onOpenChange} contentClassName="max-w-7xl">
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
