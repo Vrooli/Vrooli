@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
 import { MaintenanceTab } from "./MaintenanceTab";
+import { ModelPricingTab } from "./ModelPricingTab";
 import { ModelRegistryTab } from "./ModelRegistryTab";
 import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
 import { useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
@@ -101,8 +102,9 @@ export function SettingsDialog({
           </DialogHeader>
           <DialogBody className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="models">Model Registry</TabsTrigger>
+                <TabsTrigger value="pricing">Model Pricing</TabsTrigger>
                 <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               </TabsList>
               <TabsContent value="models" className="mt-4">
@@ -124,6 +126,9 @@ export function SettingsDialog({
                   onUpdateModel={editor.updateModel}
                   onUpdatePreset={editor.updatePreset}
                 />
+              </TabsContent>
+              <TabsContent value="pricing" className="mt-4">
+                <ModelPricingTab />
               </TabsContent>
               <TabsContent value="maintenance" className="mt-4">
                 <MaintenanceTab

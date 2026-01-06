@@ -202,3 +202,101 @@ export interface ApplyFixesRequest {
   recommendation_ids: string[];
   note?: string;
 }
+
+// =============================================================================
+// Pricing Types
+// =============================================================================
+
+export type PricingSource = "manual_override" | "provider_api" | "historical_average" | "unknown";
+
+export type PricingComponent =
+  | "input_tokens"
+  | "output_tokens"
+  | "cache_read"
+  | "cache_creation"
+  | "web_search"
+  | "server_tool_use";
+
+export interface ModelPricingListItem {
+  model: string;
+  canonicalName?: string;
+  provider: string;
+  inputPricePer1M: number;
+  outputPricePer1M: number;
+  cacheReadPricePer1M?: number;
+  cacheCreatePricePer1M?: number;
+  inputSource: PricingSource;
+  outputSource: PricingSource;
+  cacheReadSource?: PricingSource;
+  cacheCreateSource?: PricingSource;
+  fetchedAt?: string;
+  expiresAt?: string;
+  pricingVersion?: string;
+}
+
+export interface ModelPricingListResponse {
+  models: ModelPricingListItem[];
+  total: number;
+}
+
+export interface PriceOverride {
+  component: PricingComponent;
+  priceUsd: number;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+export interface OverridesResponse {
+  overrides: PriceOverride[];
+}
+
+export interface SetOverrideRequest {
+  component: PricingComponent;
+  priceUsd: number;
+  expiresAt?: string;
+}
+
+export interface ModelAlias {
+  runnerModel: string;
+  runnerType: string;
+  canonicalModel: string;
+  provider: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AliasesResponse {
+  aliases: ModelAlias[];
+  total: number;
+}
+
+export interface CreateAliasRequest {
+  runnerModel: string;
+  runnerType: string;
+  canonicalModel: string;
+  provider?: string;
+}
+
+export interface PricingSettings {
+  historicalAverageDays: number;
+  providerCacheTtlSeconds: number;
+}
+
+export interface UpdatePricingSettingsRequest {
+  historicalAverageDays?: number;
+  providerCacheTtlSeconds?: number;
+}
+
+export interface ProviderCacheStatus {
+  provider: string;
+  modelCount: number;
+  lastFetchedAt: string;
+  expiresAt: string;
+  isStale: boolean;
+}
+
+export interface CacheStatusResponse {
+  totalModels: number;
+  expiredCount: number;
+  providers: ProviderCacheStatus[];
+}

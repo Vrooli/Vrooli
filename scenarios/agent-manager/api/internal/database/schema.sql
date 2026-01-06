@@ -217,6 +217,100 @@ CREATE INDEX IF NOT EXISTS idx_investigations_agent_run_id ON investigations(age
 CREATE INDEX IF NOT EXISTS idx_investigations_source_id ON investigations(source_investigation_id);
 
 -- ============================================================================
+-- Model Pricing - Cached pricing data from providers
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS model_pricing (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    canonical_model_name VARCHAR(255) NOT NULL,
+    provider VARCHAR(100) NOT NULL,
+
+    -- Per-component pricing (USD per token)
+    input_token_price NUMERIC(20, 12),
+    output_token_price NUMERIC(20, 12),
+    cache_read_price NUMERIC(20, 12),
+    cache_creation_price NUMERIC(20, 12),
+    web_search_price NUMERIC(20, 12),
+    server_tool_use_price NUMERIC(20, 12),
+
+    -- Per-component sources (manual_override, provider_api, historical_average, unknown)
+    input_token_source VARCHAR(50) DEFAULT 'unknown',
+    output_token_source VARCHAR(50) DEFAULT 'unknown',
+    cache_read_source VARCHAR(50),
+    cache_creation_source VARCHAR(50),
+    web_search_source VARCHAR(50),
+    server_tool_use_source VARCHAR(50),
+
+    -- Metadata
+    fetched_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    pricing_version VARCHAR(100),
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(canonical_model_name, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_pricing_model ON model_pricing(canonical_model_name);
+CREATE INDEX IF NOT EXISTS idx_model_pricing_provider ON model_pricing(provider);
+CREATE INDEX IF NOT EXISTS idx_model_pricing_expires ON model_pricing(expires_at);
+
+-- ============================================================================
+-- Model Aliases - Maps runner model names to canonical names
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS model_aliases (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    runner_model VARCHAR(255) NOT NULL,
+    runner_type VARCHAR(100) NOT NULL,
+    canonical_model VARCHAR(255) NOT NULL,
+    provider VARCHAR(100) NOT NULL,
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(runner_model, runner_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_aliases_runner ON model_aliases(runner_model, runner_type);
+CREATE INDEX IF NOT EXISTS idx_model_aliases_canonical ON model_aliases(canonical_model);
+
+-- ============================================================================
+-- Manual Price Overrides - User-specified pricing overrides
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS manual_price_overrides (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    canonical_model_name VARCHAR(255) NOT NULL,
+    component VARCHAR(50) NOT NULL,
+    price_usd NUMERIC(20, 12) NOT NULL,
+    note TEXT,
+    created_by VARCHAR(255),
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ,
+
+    UNIQUE(canonical_model_name, component)
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_overrides_model ON manual_price_overrides(canonical_model_name);
+CREATE INDEX IF NOT EXISTS idx_manual_overrides_expires ON manual_price_overrides(expires_at);
+
+-- ============================================================================
+-- Pricing Settings - Global pricing configuration (singleton table)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS pricing_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    historical_average_days INTEGER DEFAULT 7,
+    provider_cache_ttl_seconds INTEGER DEFAULT 21600,
+
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default settings if not exists
+INSERT INTO pricing_settings (id, historical_average_days, provider_cache_ttl_seconds)
+VALUES (1, 7, 21600)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
 -- Triggers for automatic updated_at
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -254,6 +348,27 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_policies_updated_at') THEN
         CREATE TRIGGER update_policies_updated_at
             BEFORE UPDATE ON policies
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    -- Model Pricing
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_model_pricing_updated_at') THEN
+        CREATE TRIGGER update_model_pricing_updated_at
+            BEFORE UPDATE ON model_pricing
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    -- Model Aliases
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_model_aliases_updated_at') THEN
+        CREATE TRIGGER update_model_aliases_updated_at
+            BEFORE UPDATE ON model_aliases
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    -- Pricing Settings
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_pricing_settings_updated_at') THEN
+        CREATE TRIGGER update_pricing_settings_updated_at
+            BEFORE UPDATE ON pricing_settings
             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END;

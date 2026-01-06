@@ -88,27 +88,73 @@ type CodexToolEvent struct {
 
 // CodexRunner implements the Runner interface for OpenAI Codex CLI.
 type CodexRunner struct {
-	binaryPath    string // resource-codex wrapper path
-	codexCLIPath  string // direct codex CLI path (for JSON streaming)
-	available     bool
-	message       string
-	installHint   string
-	mu            sync.Mutex
-	runs          map[uuid.UUID]*exec.Cmd
-	useJSONStream bool // whether to use direct codex CLI with --json
+	binaryPath     string // resource-codex wrapper path
+	codexCLIPath   string // direct codex CLI path (for JSON streaming)
+	available      bool
+	message        string
+	installHint    string
+	mu             sync.Mutex
+	runs           map[uuid.UUID]*exec.Cmd
+	useJSONStream  bool // whether to use direct codex CLI with --json
+	pricingService PricingService
+	runModels      map[uuid.UUID]string
+}
+
+// PricingService defines the interface for pricing calculations.
+// This allows decoupling from the concrete pricing.Service implementation.
+type PricingService interface {
+	CalculateCost(ctx context.Context, req PricingCostRequest) (*PricingCostCalculation, error)
+}
+
+// PricingCostRequest contains inputs for cost calculation.
+type PricingCostRequest struct {
+	Model               string
+	RunnerType          string
+	InputTokens         int
+	OutputTokens        int
+	CacheReadTokens     int
+	CacheCreationTokens int
+}
+
+// PricingCostCalculation contains calculated costs with provenance.
+type PricingCostCalculation struct {
+	InputCostUSD         float64
+	OutputCostUSD        float64
+	CacheReadCostUSD     float64
+	CacheCreationCostUSD float64
+	TotalCostUSD         float64
+	CostSource           string
+	Provider             string
+	CanonicalModel       string
+	PricingFetchedAt     time.Time
+	PricingVersion       string
+}
+
+// CodexRunnerOption configures a CodexRunner.
+type CodexRunnerOption func(*CodexRunner)
+
+// WithPricingService sets the pricing service for cost calculations.
+func WithPricingService(svc PricingService) CodexRunnerOption {
+	return func(r *CodexRunner) {
+		r.pricingService = svc
+	}
 }
 
 // NewCodexRunner creates a new Codex runner.
-func NewCodexRunner() (*CodexRunner, error) {
+func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
 	// Look for resource-codex in PATH (the Vrooli wrapper)
 	binaryPath, err := exec.LookPath(CodexResourceCommand)
 	if err != nil {
-		return &CodexRunner{
+		runner := &CodexRunner{
 			available:   false,
 			message:     "resource-codex not found in PATH",
 			installHint: "Run: vrooli resource install codex",
 			runs:        make(map[uuid.UUID]*exec.Cmd),
-		}, nil
+		}
+		for _, opt := range opts {
+			opt(runner)
+		}
+		return runner, nil
 	}
 
 	// Also check for direct codex CLI for JSON streaming
@@ -122,6 +168,10 @@ func NewCodexRunner() (*CodexRunner, error) {
 		message:       "resource-codex available",
 		runs:          make(map[uuid.UUID]*exec.Cmd),
 		useJSONStream: codexCLIPath != "", // Enable JSON streaming if codex CLI is available
+		runModels:     make(map[uuid.UUID]string),
+	}
+	for _, opt := range opts {
+		opt(runner)
 	}
 
 	// Quick health check via status command
@@ -217,6 +267,8 @@ func (r *CodexRunner) Execute(ctx context.Context, req ExecuteRequest) (*Execute
 			IsTransient: false,
 		}
 	}
+	r.trackRunModel(req.RunID, req.GetConfig().Model)
+	defer r.clearRunModel(req.RunID)
 
 	// Use JSON streaming if available, otherwise fall back to wrapper
 	if r.useJSONStream {
@@ -757,20 +809,7 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 
 	case "turn.completed":
 		if streamEvent.Usage != nil {
-			// Create cost event with detailed token breakdown and estimated cost
-			costEvent := &domain.RunEvent{
-				ID:        uuid.New(),
-				RunID:     runID,
-				EventType: domain.EventTypeMetric,
-				Timestamp: time.Now(),
-				Data: &domain.CostEventData{
-					InputTokens:     streamEvent.Usage.InputTokens,
-					OutputTokens:    streamEvent.Usage.OutputTokens,
-					CacheReadTokens: streamEvent.Usage.CachedInputTokens,
-					TotalCostUSD:    estimateCodexCost(streamEvent.Usage),
-					Model:           "o4-mini", // Codex default model
-				},
-			}
+			costEvent := r.buildCodexCostEvent(runID, streamEvent.Usage)
 			return []*domain.RunEvent{costEvent}
 		}
 
@@ -874,25 +913,55 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 	return nil
 }
 
-// estimateCodexCost estimates the USD cost for Codex token usage.
-// Uses o4-mini pricing as the default (Codex typically uses o4-mini).
-func estimateCodexCost(usage *CodexUsage) float64 {
-	// o4-mini pricing (as of 2025)
-	// Input: $0.00015 per 1K tokens
-	// Output: $0.0006 per 1K tokens
-	// Cached input: 50% discount
-	const (
-		inputCostPer1K       = 0.00015
-		outputCostPer1K      = 0.0006
-		cachedInputCostPer1K = 0.000075 // 50% of input cost
-	)
+func (r *CodexRunner) buildCodexCostEvent(runID uuid.UUID, usage *CodexUsage) *domain.RunEvent {
+	if usage == nil {
+		return nil
+	}
+	model := r.modelForRun(runID)
+	costData := &domain.CostEventData{
+		InputTokens:     usage.InputTokens,
+		OutputTokens:    usage.OutputTokens,
+		CacheReadTokens: usage.CachedInputTokens,
+		Model:           model,
+		CostSource:      domain.CostSourceUnknown,
+	}
 
-	inputCost := float64(usage.InputTokens) / 1000.0 * inputCostPer1K
-	outputCost := float64(usage.OutputTokens) / 1000.0 * outputCostPer1K
-	cachedCost := float64(usage.CachedInputTokens) / 1000.0 * cachedInputCostPer1K
+	// Use pricing service if available
+	if r.pricingService != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	return inputCost + outputCost + cachedCost
+		calc, err := r.pricingService.CalculateCost(ctx, PricingCostRequest{
+			Model:           model,
+			RunnerType:      string(domain.RunnerTypeCodex),
+			InputTokens:     usage.InputTokens,
+			OutputTokens:    usage.OutputTokens,
+			CacheReadTokens: usage.CachedInputTokens,
+		})
+		if err == nil && calc != nil {
+			costData.InputCostUSD = calc.InputCostUSD
+			costData.OutputCostUSD = calc.OutputCostUSD
+			costData.CacheReadCostUSD = calc.CacheReadCostUSD
+			costData.TotalCostUSD = calc.TotalCostUSD
+			costData.CostSource = calc.CostSource
+			costData.PricingProvider = calc.Provider
+			costData.PricingModel = calc.CanonicalModel
+			if !calc.PricingFetchedAt.IsZero() {
+				costData.PricingFetchedAt = &calc.PricingFetchedAt
+			}
+			costData.PricingVersion = calc.PricingVersion
+		}
+	}
+
+	return &domain.RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: domain.EventTypeMetric,
+		Timestamp: time.Now(),
+		Data:      costData,
+	}
 }
+
 
 // updateCodexMetrics updates execution metrics based on parsed events.
 func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *ExecutionMetrics, lastAssistant *string) {
@@ -922,4 +991,25 @@ func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *Execut
 			metrics.TokensOutput = totalTokens
 		}
 	}
+}
+
+func (r *CodexRunner) trackRunModel(runID uuid.UUID, model string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.runModels == nil {
+		r.runModels = make(map[uuid.UUID]string)
+	}
+	r.runModels[runID] = strings.TrimSpace(model)
+}
+
+func (r *CodexRunner) clearRunModel(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.runModels, runID)
+}
+
+func (r *CodexRunner) modelForRun(runID uuid.UUID) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.runModels[runID]
 }

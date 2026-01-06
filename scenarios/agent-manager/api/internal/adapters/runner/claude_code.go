@@ -1068,6 +1068,8 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 				CacheReadTokens:     event.Usage.CacheReadInputTokens,
 				TotalCostUSD:        event.TotalCostUSD,
 				ServiceTier:         event.ServiceTier,
+				CostSource:          domain.CostSourceRunnerReported,
+				PricingProvider:     "claude-code",
 			},
 		}
 		if event.Usage.ServerToolUse != nil {

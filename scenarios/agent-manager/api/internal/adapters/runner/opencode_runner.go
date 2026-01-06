@@ -1003,6 +1003,8 @@ func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePar
 			CacheCreationTokens: cacheWrite,
 			CacheReadTokens:     cacheRead,
 			TotalCostUSD:        part.Cost,
+			CostSource:          domain.CostSourceRunnerReported,
+			PricingProvider:     "opencode",
 		},
 	}
 	return costEvent, nil

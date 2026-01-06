@@ -21,6 +21,8 @@ import (
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/toolregistry"
 
@@ -48,6 +50,7 @@ type Server struct {
 	orchestrator           orchestration.Service
 	investigationService   orchestration.InvestigationService
 	statsService           orchestration.StatsService
+	pricingService         pricing.Service
 	wsHub                  *handlers.WebSocketHub
 	reconciler             *orchestration.Reconciler
 	toolRegistry           *toolregistry.Registry
@@ -101,6 +104,7 @@ func NewServer() (*Server, error) {
 		orchestrator:         deps.orchestrator,
 		investigationService: deps.investigationService,
 		statsService:         deps.statsService,
+		pricingService:       deps.pricingService,
 		wsHub:                wsHub,
 		reconciler:           deps.reconciler,
 		toolRegistry:         toolReg,
@@ -122,6 +126,7 @@ type orchestratorDeps struct {
 	orchestrator         orchestration.Service
 	investigationService orchestration.InvestigationService
 	statsService         orchestration.StatsService
+	pricingService       pricing.Service
 	reconciler           *orchestration.Reconciler
 }
 
@@ -331,11 +336,23 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	// Create stats service for analytics
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
 
+	// Create pricing service for model pricing management
+	var pricingRepo pricing.Repository
+	if useInMemory || db == nil {
+		pricingRepo = pricing.NewMemoryRepository()
+	} else {
+		pricingRepo = database.NewPricingRepository(db, logger)
+	}
+	openRouterProvider := providers.NewOpenRouterProvider()
+	pricingProviders := []pricing.Provider{openRouterProvider}
+	pricingSvc := pricing.NewService(pricingRepo, pricingProviders, logger)
+
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
 	return orchestratorDeps{
 		orchestrator:         orch,
 		investigationService: investigationSvc,
 		statsService:         statsSvc,
+		pricingService:       pricingSvc,
 		reconciler:           reconciler,
 	}
 }
@@ -377,6 +394,13 @@ func (s *Server) setupRoutes() {
 		statsHandler := handlers.NewStatsHandler(s.statsService)
 		statsHandler.RegisterRoutes(s.router)
 		log.Printf("Stats endpoints available at /api/v1/stats/*")
+	}
+
+	// Register pricing routes
+	if s.pricingService != nil {
+		pricingHandler := handlers.NewPricingHandler(s.pricingService)
+		pricingHandler.RegisterRoutes(s.router)
+		log.Printf("Pricing endpoints available at /api/v1/pricing/*")
 	}
 
 	// Register tool discovery routes

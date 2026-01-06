@@ -27,10 +27,10 @@ type AgentProfile struct {
 	Description string    `json:"description,omitempty" db:"description"`
 
 	// Runner configuration
-	RunnerType  RunnerType   `json:"runnerType" db:"runner_type"`
-	Model       string       `json:"model,omitempty" db:"model"`
-	ModelPreset ModelPreset  `json:"modelPreset,omitempty" db:"model_preset"`
-	MaxTurns    int          `json:"maxTurns,omitempty" db:"max_turns"`
+	RunnerType  RunnerType    `json:"runnerType" db:"runner_type"`
+	Model       string        `json:"model,omitempty" db:"model"`
+	ModelPreset ModelPreset   `json:"modelPreset,omitempty" db:"model_preset"`
+	MaxTurns    int           `json:"maxTurns,omitempty" db:"max_turns"`
 	Timeout     time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 	// Ordered runner fallback list (used when primary runner is unavailable)
 	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty" db:"fallback_runner_types"`
@@ -215,8 +215,8 @@ type Run struct {
 	Tag string `json:"tag,omitempty" db:"tag"`
 
 	// Sandbox integration
-	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
-	RunMode   RunMode    `json:"runMode" db:"run_mode"`
+	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
+	RunMode       RunMode        `json:"runMode" db:"run_mode"`
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
 
 	// Execution state
@@ -344,10 +344,10 @@ type RunSummary struct {
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
 	// Runner configuration
-	RunnerType  RunnerType   `json:"runnerType"`
-	Model       string       `json:"model,omitempty"`
-	ModelPreset ModelPreset  `json:"modelPreset,omitempty"`
-	MaxTurns    int          `json:"maxTurns,omitempty"`
+	RunnerType  RunnerType    `json:"runnerType"`
+	Model       string        `json:"model,omitempty"`
+	ModelPreset ModelPreset   `json:"modelPreset,omitempty"`
+	MaxTurns    int           `json:"maxTurns,omitempty"`
 	Timeout     time.Duration `json:"timeout,omitempty"`
 	// Ordered runner fallback list (used when primary runner is unavailable)
 	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty"`
@@ -397,11 +397,11 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 // DefaultRunConfig returns sensible defaults for run configuration.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:           RunnerTypeClaudeCode,
-		MaxTurns:             30,
-		Timeout:              30 * time.Minute,
-		RequiresSandbox:      true,
-		RequiresApproval:     true,
+		RunnerType:       RunnerTypeClaudeCode,
+		MaxTurns:         30,
+		Timeout:          30 * time.Minute,
+		RequiresSandbox:  true,
+		RequiresApproval: true,
 	}
 }
 
@@ -697,19 +697,36 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 
 // CostEventData contains data for cost/usage tracking events.
 type CostEventData struct {
-	InputTokens           int     `json:"inputTokens"`
-	OutputTokens          int     `json:"outputTokens"`
-	CacheCreationTokens   int     `json:"cacheCreationTokens,omitempty"`
-	CacheReadTokens       int     `json:"cacheReadTokens,omitempty"`
-	TotalCostUSD          float64 `json:"totalCostUsd"`
-	ServiceTier           string  `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
-	Model                 string  `json:"model,omitempty"`
-	WebSearchRequests     int     `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests int     `json:"serverToolUseRequests,omitempty"`
+	InputTokens           int        `json:"inputTokens"`
+	OutputTokens          int        `json:"outputTokens"`
+	CacheCreationTokens   int        `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens       int        `json:"cacheReadTokens,omitempty"`
+	InputCostUSD          float64    `json:"inputCostUsd,omitempty"`
+	OutputCostUSD         float64    `json:"outputCostUsd,omitempty"`
+	CacheCreationCostUSD  float64    `json:"cacheCreationCostUsd,omitempty"`
+	CacheReadCostUSD      float64    `json:"cacheReadCostUsd,omitempty"`
+	TotalCostUSD          float64    `json:"totalCostUsd"`
+	ServiceTier           string     `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
+	Model                 string     `json:"model,omitempty"`
+	CostSource            string     `json:"costSource,omitempty"`
+	PricingProvider       string     `json:"pricingProvider,omitempty"`
+	PricingModel          string     `json:"pricingModel,omitempty"`
+	PricingFetchedAt      *time.Time `json:"pricingFetchedAt,omitempty"`
+	PricingVersion        string     `json:"pricingVersion,omitempty"`
+	WebSearchRequests     int        `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests int        `json:"serverToolUseRequests,omitempty"`
 }
 
 func (d *CostEventData) EventType() RunEventType { return EventTypeMetric }
 func (d *CostEventData) isEventPayload()         {}
+
+// Cost source identifiers for cost provenance tracking.
+const (
+	CostSourceRunnerReported       = "runner_reported"
+	CostSourceProviderUsageAPI     = "provider_usage_api"
+	CostSourcePricingTableEstimate = "pricing_table_estimate"
+	CostSourceUnknown              = "unknown"
+)
 
 // NewCostEvent creates a new cost tracking event.
 func NewCostEvent(runID uuid.UUID, inputTokens, outputTokens int, costUSD float64) *RunEvent {
@@ -722,6 +739,7 @@ func NewCostEvent(runID uuid.UUID, inputTokens, outputTokens int, costUSD float6
 			InputTokens:  inputTokens,
 			OutputTokens: outputTokens,
 			TotalCostUSD: costUSD,
+			CostSource:   CostSourceUnknown,
 		},
 	}
 }

@@ -127,8 +127,17 @@ Emitted for usage and cost data.
 | outputTokens | int | Yes | Output tokens generated |
 | cacheReadTokens | int | No | Tokens read from cache |
 | cacheCreationTokens | int | No | Tokens written to cache |
+| inputCostUsd | float | No | Cost attributed to input tokens |
+| outputCostUsd | float | No | Cost attributed to output tokens |
+| cacheReadCostUsd | float | No | Cost attributed to cache read tokens |
+| cacheCreationCostUsd | float | No | Cost attributed to cache write tokens |
 | totalCostUsd | float | Yes | Estimated cost in USD |
 | model | string | No | Model used (if available) |
+| costSource | string | No | Cost provenance (runner_reported, provider_usage_api, pricing_table_estimate, unknown) |
+| pricingProvider | string | No | Pricing source for estimates (e.g., openrouter) |
+| pricingModel | string | No | Model ID used for pricing lookup |
+| pricingFetchedAt | string | No | Timestamp when pricing was fetched |
+| pricingVersion | string | No | Optional pricing version identifier |
 
 **Example:**
 ```json
@@ -139,7 +148,8 @@ Emitted for usage and cost data.
     "outputTokens": 401,
     "cacheReadTokens": 6144,
     "cacheCreationTokens": 0,
-    "totalCostUsd": 0.00197528
+    "totalCostUsd": 0.00197528,
+    "costSource": "runner_reported"
   }
 }
 ```

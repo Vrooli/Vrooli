@@ -1,13 +1,42 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
+
+// mockPricingService is a test implementation of PricingService.
+type mockPricingService struct {
+	pricing map[string]*PricingCostCalculation
+}
+
+func (m *mockPricingService) CalculateCost(ctx context.Context, req PricingCostRequest) (*PricingCostCalculation, error) {
+	// Look up by canonical model first
+	if calc, ok := m.pricing[req.Model]; ok {
+		// Calculate costs based on token counts and pricing
+		inputPrice := 0.00000025  // Default input price per token
+		outputPrice := 0.000002   // Default output price per token
+		cacheReadPrice := 0.000000025
+
+		return &PricingCostCalculation{
+			InputCostUSD:     float64(req.InputTokens) * inputPrice,
+			OutputCostUSD:    float64(req.OutputTokens) * outputPrice,
+			CacheReadCostUSD: float64(req.CacheReadTokens) * cacheReadPrice,
+			TotalCostUSD:     float64(req.InputTokens)*inputPrice + float64(req.OutputTokens)*outputPrice + float64(req.CacheReadTokens)*cacheReadPrice,
+			CostSource:       calc.CostSource,
+			Provider:         calc.Provider,
+			CanonicalModel:   calc.CanonicalModel,
+			PricingFetchedAt: calc.PricingFetchedAt,
+		}, nil
+	}
+	return nil, nil
+}
 
 // =============================================================================
 // CODEX JSON OUTPUT SAMPLES - CAPTURED 2025-12-19
@@ -41,9 +70,28 @@ var codexSamples = map[string]string{
 
 	"error": `{"type":"error","error":{"code":"RATE_LIMIT","message":"Rate limit exceeded, please try again later"}}`,
 
-	"data_prefix_tool_call": `data: {"type":"item.started","item":{"id":"item_3","type":"tool_call","name":"bash","input":{"command":"ls -la"}}}`,
-	"command_execution_started": `{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}`,
+	"data_prefix_tool_call":       `data: {"type":"item.started","item":{"id":"item_3","type":"tool_call","name":"bash","input":{"command":"ls -la"}}}`,
+	"command_execution_started":   `{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}`,
 	"command_execution_completed": `{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"test\n","exit_code":0,"status":"completed"}}`,
+}
+
+func newCodexRunnerWithPricing(runID uuid.UUID) *CodexRunner {
+	mockSvc := &mockPricingService{
+		pricing: map[string]*PricingCostCalculation{
+			"gpt-5.1-codex-mini": {
+				CostSource:       domain.CostSourcePricingTableEstimate,
+				Provider:         "openrouter",
+				CanonicalModel:   "openai/gpt-5.1-codex-mini",
+				PricingFetchedAt: time.Now().UTC(),
+			},
+		},
+	}
+	runner := &CodexRunner{
+		pricingService: mockSvc,
+		runModels:      make(map[uuid.UUID]string),
+	}
+	runner.trackRunModel(runID, "gpt-5.1-codex-mini")
+	return runner
 }
 
 // =============================================================================
@@ -251,8 +299,8 @@ func TestCodexRunner_ParseStreamEvent_AgentMessage(t *testing.T) {
 }
 
 func TestCodexRunner_ParseStreamEvent_TurnCompleted(t *testing.T) {
-	runner := &CodexRunner{}
 	runID := uuid.New()
+	runner := newCodexRunnerWithPricing(runID)
 
 	event := runner.parseCodexStreamEvent(runID, codexSamples["turn.completed"])
 
@@ -275,13 +323,22 @@ func TestCodexRunner_ParseStreamEvent_TurnCompleted(t *testing.T) {
 	if costData.OutputTokens != 83 {
 		t.Errorf("OutputTokens = %d, want 83", costData.OutputTokens)
 	}
-	// Check cost is non-zero (calculated by estimateCodexCost)
+	// Check cost is non-zero (calculated by pricing lookup)
 	if costData.TotalCostUSD <= 0 {
 		t.Errorf("TotalCostUSD = %f, want > 0", costData.TotalCostUSD)
 	}
-	// Check model is set
-	if costData.Model != "o4-mini" {
-		t.Errorf("Model = %s, want o4-mini", costData.Model)
+	if costData.CostSource != domain.CostSourcePricingTableEstimate {
+		t.Errorf("CostSource = %s, want %s", costData.CostSource, domain.CostSourcePricingTableEstimate)
+	}
+	if costData.PricingProvider != "openrouter" {
+		t.Errorf("PricingProvider = %s, want openrouter", costData.PricingProvider)
+	}
+	if costData.PricingModel != "openai/gpt-5.1-codex-mini" {
+		t.Errorf("PricingModel = %s, want openai/gpt-5.1-codex-mini", costData.PricingModel)
+	}
+	// Check model is set to the requested config
+	if costData.Model != "gpt-5.1-codex-mini" {
+		t.Errorf("Model = %s, want gpt-5.1-codex-mini", costData.Model)
 	}
 }
 
@@ -519,8 +576,8 @@ func TestCodexRunner_UpdateMetrics_Message(t *testing.T) {
 }
 
 func TestCodexRunner_UpdateMetrics_Tokens(t *testing.T) {
-	runner := &CodexRunner{}
 	runID := uuid.New()
+	runner := newCodexRunnerWithPricing(runID)
 	metrics := &ExecutionMetrics{}
 	lastAssistant := ""
 
@@ -544,8 +601,8 @@ func TestCodexRunner_UpdateMetrics_Tokens(t *testing.T) {
 // =============================================================================
 
 func TestCodexRunner_ParseFullStream(t *testing.T) {
-	runner := &CodexRunner{}
 	runID := uuid.New()
+	runner := newCodexRunnerWithPricing(runID)
 
 	// Simulate a full Codex stream in order
 	streamLines := []string{

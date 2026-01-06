@@ -168,6 +168,13 @@ func (r *statsRepository) GetCostStats(ctx context.Context, filter repository.St
 		query = `
 			SELECT
 				COALESCE(SUM((e.data->>'totalCostUsd')::numeric), 0) as total_cost_usd,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' IN ('runner_reported', 'provider_usage_api') THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_authoritative,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' = 'pricing_table_estimate' THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_estimated,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' IS NULL OR e.data->>'costSource' = '' OR e.data->>'costSource' = 'unknown' THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_unknown,
+				COALESCE(SUM((e.data->>'inputCostUsd')::numeric), 0) as input_cost_usd,
+				COALESCE(SUM((e.data->>'outputCostUsd')::numeric), 0) as output_cost_usd,
+				COALESCE(SUM((e.data->>'cacheReadCostUsd')::numeric), 0) as cache_read_cost_usd,
+				COALESCE(SUM((e.data->>'cacheCreationCostUsd')::numeric), 0) as cache_creation_cost_usd,
 				COALESCE(AVG((e.data->>'totalCostUsd')::numeric), 0) as avg_cost_usd,
 				COALESCE(SUM((e.data->>'inputTokens')::bigint), 0) as input_tokens,
 				COALESCE(SUM((e.data->>'outputTokens')::bigint), 0) as output_tokens,
@@ -180,6 +187,13 @@ func (r *statsRepository) GetCostStats(ctx context.Context, filter repository.St
 		query = `
 			SELECT
 				COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IN ('runner_reported', 'provider_usage_api') THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_authoritative,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') = 'pricing_table_estimate' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_estimated,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IS NULL OR json_extract(e.data, '$.costSource') = '' OR json_extract(e.data, '$.costSource') = 'unknown' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_unknown,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.inputCostUsd') AS REAL)), 0) as input_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.outputCostUsd') AS REAL)), 0) as output_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL)), 0) as cache_read_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL)), 0) as cache_creation_cost_usd,
 				COALESCE(AVG(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as avg_cost_usd,
 				COALESCE(SUM(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER)), 0) as input_tokens,
 				COALESCE(SUM(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER)), 0) as output_tokens,
@@ -336,6 +350,13 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 				COUNT(*) as run_count,
 				COUNT(*) FILTER (WHERE r.status = 'complete') as success_count,
 				COALESCE(SUM((e.data->>'totalCostUsd')::numeric), 0) as total_cost_usd,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' IN ('runner_reported', 'provider_usage_api') THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_authoritative,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' = 'pricing_table_estimate' THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_estimated,
+				COALESCE(SUM(CASE WHEN e.data->>'costSource' IS NULL OR e.data->>'costSource' = '' OR e.data->>'costSource' = 'unknown' THEN (e.data->>'totalCostUsd')::numeric ELSE 0 END), 0) as total_cost_usd_unknown,
+				COALESCE(SUM((e.data->>'inputCostUsd')::numeric), 0) as input_cost_usd,
+				COALESCE(SUM((e.data->>'outputCostUsd')::numeric), 0) as output_cost_usd,
+				COALESCE(SUM((e.data->>'cacheReadCostUsd')::numeric), 0) as cache_read_cost_usd,
+				COALESCE(SUM((e.data->>'cacheCreationCostUsd')::numeric), 0) as cache_creation_cost_usd,
 				COALESCE(SUM(COALESCE((e.data->>'inputTokens')::bigint, 0) + COALESCE((e.data->>'outputTokens')::bigint, 0)), 0) as total_tokens
 			FROM runs r
 			LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
@@ -352,6 +373,13 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 				COUNT(*) as run_count,
 				SUM(CASE WHEN r.status = 'complete' THEN 1 ELSE 0 END) as success_count,
 				COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IN ('runner_reported', 'provider_usage_api') THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_authoritative,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') = 'pricing_table_estimate' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_estimated,
+				COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IS NULL OR json_extract(e.data, '$.costSource') = '' OR json_extract(e.data, '$.costSource') = 'unknown' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_unknown,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.inputCostUsd') AS REAL)), 0) as input_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.outputCostUsd') AS REAL)), 0) as output_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL)), 0) as cache_read_cost_usd,
+				COALESCE(SUM(CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL)), 0) as cache_creation_cost_usd,
 				COALESCE(SUM(
 					COALESCE(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER), 0) +
 					COALESCE(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER), 0)
