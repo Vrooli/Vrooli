@@ -2,7 +2,7 @@ import { CheckCircle2, Circle, Loader2, XCircle, WifiOff } from "lucide-react";
 import { Alert } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
-import { type StepStatus, DEPLOYMENT_STEPS } from "../../types/progress";
+import { type DeploymentProgress as DeploymentProgressState, type StepStatus, DEPLOYMENT_STEPS } from "../../types/progress";
 
 interface DeploymentProgressProps {
   deploymentId: string;
@@ -22,7 +22,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   }
 }
 
-function getStepStatus(
+export function getStepStatusFromProgress(
   progress: { steps: Array<{ id: string; status: StepStatus }> } | null,
   stepId: string,
 ): StepStatus {
@@ -31,11 +31,17 @@ function getStepStatus(
   return step?.status ?? "pending";
 }
 
-export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgressProps) {
-  const { progress, isConnected, connectionError } = useDeploymentProgress(deploymentId, {
-    onComplete,
-  });
+interface DeploymentProgressViewProps {
+  progress: DeploymentProgressState | null;
+  isConnected: boolean;
+  connectionError: string | null;
+}
 
+export function DeploymentProgressView({
+  progress,
+  isConnected,
+  connectionError,
+}: DeploymentProgressViewProps) {
   const progressPercent = progress?.progress ?? 0;
   const currentTitle = progress?.currentStepTitle ?? "Initializing...";
   const isComplete = progress?.isComplete ?? false;
@@ -91,7 +97,7 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
           {/* Step list */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {DEPLOYMENT_STEPS.map((step) => {
-              const status = getStepStatus(progress, step.id);
+              const status = getStepStatusFromProgress(progress, step.id);
               return (
                 <div
                   key={step.id}
@@ -126,5 +132,19 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
         </div>
       )}
     </div>
+  );
+}
+
+export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgressProps) {
+  const { progress, isConnected, connectionError } = useDeploymentProgress(deploymentId, {
+    onComplete,
+  });
+
+  return (
+    <DeploymentProgressView
+      progress={progress}
+      isConnected={isConnected}
+      connectionError={connectionError}
+    />
   );
 }

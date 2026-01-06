@@ -16,13 +16,15 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		INSERT INTO deployments (
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
+			preflight_result,
 			error_message, error_step,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
-			$9, $10,
-			$11, $12
+			$9,
+			$10, $11,
+			$12, $13
 		)
 	`
 	_, err := r.db.ExecContext(ctx, q,
@@ -34,6 +36,7 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		d.BundlePath,
 		d.BundleSHA256,
 		d.BundleSizeBytes,
+		d.PreflightResult,
 		d.ErrorMessage,
 		d.ErrorStep,
 		d.CreatedAt,
@@ -51,7 +54,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -70,6 +73,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		&d.BundleSizeBytes,
 		&d.SetupResult,
 		&d.DeployResult,
+		&d.PreflightResult,
 		&d.LastInspectResult,
 		&d.ErrorMessage,
 		&d.ErrorStep,
@@ -95,7 +99,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -117,6 +121,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		&d.BundleSizeBytes,
 		&d.SetupResult,
 		&d.DeployResult,
+		&d.PreflightResult,
 		&d.LastInspectResult,
 		&d.ErrorMessage,
 		&d.ErrorStep,
@@ -142,7 +147,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -191,6 +196,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 			&d.BundleSizeBytes,
 			&d.SetupResult,
 			&d.DeployResult,
+			&d.PreflightResult,
 			&d.LastInspectResult,
 			&d.ErrorMessage,
 			&d.ErrorStep,
@@ -226,12 +232,13 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 			bundle_size_bytes = $8,
 			setup_result = $9,
 			deploy_result = $10,
-			last_inspect_result = $11,
-			error_message = $12,
-			error_step = $13,
-			updated_at = $14,
-			last_deployed_at = $15,
-			last_inspected_at = $16
+			preflight_result = $11,
+			last_inspect_result = $12,
+			error_message = $13,
+			error_step = $14,
+			updated_at = $15,
+			last_deployed_at = $16,
+			last_inspected_at = $17
 		WHERE id = $1
 	`
 	result, err := r.db.ExecContext(ctx, q,
@@ -245,6 +252,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 		d.BundleSizeBytes,
 		d.SetupResult,
 		d.DeployResult,
+		d.PreflightResult,
 		d.LastInspectResult,
 		d.ErrorMessage,
 		d.ErrorStep,
@@ -328,6 +336,22 @@ func (r *Repository) UpdateDeploymentDeployResult(ctx context.Context, id string
 	_, err := r.db.ExecContext(ctx, q, id, result, status, now)
 	if err != nil {
 		return fmt.Errorf("failed to update deploy result: %w", err)
+	}
+	return nil
+}
+
+// UpdateDeploymentPreflightResult stores the latest preflight result.
+func (r *Repository) UpdateDeploymentPreflightResult(ctx context.Context, id string, result json.RawMessage) error {
+	const q = `
+		UPDATE deployments SET
+			preflight_result = $2,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, q, id, result, now)
+	if err != nil {
+		return fmt.Errorf("failed to update preflight result: %w", err)
 	}
 	return nil
 }
@@ -487,6 +511,7 @@ func (r *Repository) StartDeploymentRun(ctx context.Context, id, runID string) e
 			status = 'setup_running',
 			error_message = NULL,
 			error_step = NULL,
+			preflight_result = NULL,
 			progress_step = NULL,
 			progress_percent = 0,
 			updated_at = $3

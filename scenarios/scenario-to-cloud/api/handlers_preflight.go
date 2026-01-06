@@ -44,14 +44,14 @@ func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
 
 // StopPortServicesRequest is the request body for stopping services on ports 80/443
 type StopPortServicesRequest struct {
-	Host              string `json:"host"`
-	Port              int    `json:"port,omitempty"`
-	User              string `json:"user,omitempty"`
-	KeyPath            string `json:"key_path"`
-	Ports             []int  `json:"ports,omitempty"`
-	PIDs              []int  `json:"pids,omitempty"`
+	Host              string   `json:"host"`
+	Port              int      `json:"port,omitempty"`
+	User              string   `json:"user,omitempty"`
+	KeyPath           string   `json:"key_path"`
+	Ports             []int    `json:"ports,omitempty"`
+	PIDs              []int    `json:"pids,omitempty"`
 	Services          []string `json:"services,omitempty"`
-	PreferServiceStop *bool  `json:"prefer_service_stop,omitempty"`
+	PreferServiceStop *bool    `json:"prefer_service_stop,omitempty"`
 }
 
 // StopPortServicesResponse is the response from stopping port services
@@ -108,6 +108,24 @@ type DiskCleanupResponse struct {
 	ActionsRun    []string `json:"actions_run"`
 	ActionsFailed []string `json:"actions_failed,omitempty"`
 	Timestamp     string   `json:"timestamp"`
+}
+
+// FirewallFixRequest is the request body for opening firewall ports via UFW.
+type FirewallFixRequest struct {
+	Host    string `json:"host"`
+	Port    int    `json:"port,omitempty"`
+	User    string `json:"user,omitempty"`
+	KeyPath string `json:"key_path"`
+	Ports   []int  `json:"ports,omitempty"`
+}
+
+// FirewallFixResponse is the response from opening firewall ports.
+type FirewallFixResponse struct {
+	OK        bool   `json:"ok"`
+	Message   string `json:"message"`
+	Ports     []int  `json:"ports"`
+	Status    string `json:"status,omitempty"`
+	Timestamp string `json:"timestamp"`
 }
 
 func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) {
@@ -207,6 +225,70 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 		Stopped:   stopped,
 		Failed:    failed,
 		Message:   msg,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleOpenFirewallPorts(w http.ResponseWriter, r *http.Request) {
+	var req FirewallFixRequest
+	if !decodeRequestBody(w, r, &req) {
+		return
+	}
+
+	cfg := NewSSHConfig(req.Host, req.Port, req.User, req.KeyPath)
+	ports := req.Ports
+	if len(ports) == 0 {
+		ports = []int{80, 443}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	checkRes, checkErr := s.sshRunner.Run(ctx, cfg, "command -v ufw >/dev/null")
+	if checkErr != nil || checkRes.ExitCode != 0 {
+		writeJSON(w, http.StatusOK, FirewallFixResponse{
+			OK:        false,
+			Message:   "UFW not installed or not available on target host",
+			Ports:     ports,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	commands := make([]string, 0, len(ports))
+	for _, port := range ports {
+		if port <= 0 {
+			continue
+		}
+		commands = append(commands, fmt.Sprintf("ufw allow %d/tcp", port))
+	}
+	if len(commands) == 0 {
+		writeJSON(w, http.StatusOK, FirewallFixResponse{
+			OK:        false,
+			Message:   "No valid ports provided",
+			Ports:     ports,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	allowCmd := strings.Join(commands, " && ")
+	if _, err := s.sshRunner.Run(ctx, cfg, allowCmd); err != nil {
+		writeJSON(w, http.StatusOK, FirewallFixResponse{
+			OK:        false,
+			Message:   "Failed to update UFW rules: " + err.Error(),
+			Ports:     ports,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	statusRes, _ := s.sshRunner.Run(ctx, cfg, "ufw status")
+	writeJSON(w, http.StatusOK, FirewallFixResponse{
+		OK:        true,
+		Message:   "Firewall rules updated",
+		Ports:     ports,
+		Status:    strings.TrimSpace(statusRes.Stdout),
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }

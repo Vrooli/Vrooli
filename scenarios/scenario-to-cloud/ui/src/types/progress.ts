@@ -2,11 +2,14 @@
  * Progress tracking types for deployment SSE streaming.
  */
 
+import type { PreflightResponse } from "../lib/api";
+
 export type ProgressEventType =
   | "step_started"
   | "step_completed"
   | "progress_update"
   | "deployment_error"
+  | "preflight_result"
   | "completed";
 
 export interface ProgressEvent {
@@ -16,6 +19,7 @@ export interface ProgressEvent {
   progress: number; // 0-100
   message?: string;
   error?: string;
+  preflight_result?: PreflightResponse;
   timestamp: string;
 }
 
@@ -33,6 +37,7 @@ export interface DeploymentProgress {
   progress: number;
   steps: DeploymentStep[];
   error?: string;
+  preflightResult?: PreflightResponse;
   isComplete: boolean;
 }
 
@@ -58,6 +63,7 @@ export const DEPLOYMENT_STEPS: { id: string; title: string }[] = [
   { id: "wait_for_ui", title: "Waiting for UI to listen" },
   { id: "verify_local", title: "Verifying local health" },
   { id: "verify_https", title: "Verifying HTTPS" },
+  { id: "verify_origin", title: "Verifying origin reachability" },
   { id: "verify_public", title: "Verifying public reachability" },
 ];
 

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -266,6 +268,12 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			Command:     localSSHCommand(cfg, fmt.Sprintf("curl https://%s/health (with detailed error reporting)", manifest.Edge.Domain)),
 		},
 		VPSPlanStep{
+			ID:          "verify_origin",
+			Title:       "Verify origin reachability",
+			Description: "Checks https://<domain>/health against the VPS origin directly (bypasses proxy).",
+			Command:     fmt.Sprintf("curl --resolve %s:443:%s https://%s/health (from deployment runner)", manifest.Edge.Domain, manifest.Target.VPS.Host, manifest.Edge.Domain),
+		},
+		VPSPlanStep{
 			ID:          "verify_public",
 			Title:       "Verify public reachability",
 			Description: "Checks https://<domain>/health from the deployment runner (outside the VPS).",
@@ -513,6 +521,14 @@ func RunVPSDeployWithProgress(
 	*progress += StepWeights["verify_https"]
 	emit("step_completed", "verify_https", "Verifying HTTPS")
 
+	// Step: verify_origin - Verify reachability to origin directly (bypasses proxy)
+	emit("step_started", "verify_origin", "Verifying origin reachability")
+	if err := checkOriginHealth(ctx, manifest.Edge.Domain, manifest.Target.VPS.Host, 10*time.Second); err != nil {
+		return failStep("verify_origin", "Verifying origin reachability", err.Error())
+	}
+	*progress += StepWeights["verify_origin"]
+	emit("step_completed", "verify_origin", "Verifying origin reachability")
+
 	// Step: verify_public - Verify public reachability from deployment runner
 	emit("step_started", "verify_public", "Verifying public reachability")
 	if err := checkPublicHealth(ctx, httpsHealthURL, 10*time.Second); err != nil {
@@ -667,6 +683,69 @@ func checkPublicHealth(ctx context.Context, url string, timeout time.Duration) e
 		return fmt.Errorf("public health check returned %s", resp.Status)
 	}
 	return nil
+}
+
+func checkOriginHealth(ctx context.Context, domain, host string, timeout time.Duration) error {
+	if strings.TrimSpace(domain) == "" {
+		return fmt.Errorf("origin health check failed: domain is empty")
+	}
+	ip, err := resolveHostIP(ctx, host)
+	if err != nil {
+		return fmt.Errorf("origin health check failed: resolve VPS host %q: %w", host, err)
+	}
+	targetURL := fmt.Sprintf("https://%s/health", domain)
+	dialer := &net.Dialer{Timeout: timeout}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, net.JoinHostPort(ip, "443"))
+		},
+		TLSClientConfig: &tls.Config{
+			ServerName: strings.TrimSpace(domain),
+		},
+	}
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	if err != nil {
+		return fmt.Errorf("origin health check failed: build request: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("origin health check failed for %s via %s: %w", domain, ip, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		msg := strings.TrimSpace(string(body))
+		if msg != "" {
+			return fmt.Errorf("origin health check returned %s via %s: %s", resp.Status, ip, msg)
+		}
+		return fmt.Errorf("origin health check returned %s via %s", resp.Status, ip)
+	}
+	return nil
+}
+
+func resolveHostIP(ctx context.Context, host string) (string, error) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return "", fmt.Errorf("host is empty")
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.String(), nil
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	for _, ip := range ips {
+		if ip.IP != nil {
+			return ip.IP.String(), nil
+		}
+	}
+	return "", fmt.Errorf("no IPs found for host")
 }
 
 // buildWaitForPortScript returns a shell script that waits for a TCP port to be listening.

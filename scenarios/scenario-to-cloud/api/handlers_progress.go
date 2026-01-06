@@ -56,9 +56,32 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		flusher.Flush()
 	}
 
+	var preflightResult *domain.PreflightResponse
+	if deployment.PreflightResult.Valid && len(deployment.PreflightResult.Data) > 0 {
+		var result domain.PreflightResponse
+		if err := json.Unmarshal(deployment.PreflightResult.Data, &result); err == nil {
+			preflightResult = &result
+		}
+	}
+
+	sendPreflightResult := func() {
+		if preflightResult == nil {
+			return
+		}
+		sendEvent(ProgressEvent{
+			Type:            "preflight_result",
+			Step:            "preflight",
+			StepTitle:       "Running preflight checks",
+			PreflightResult: preflightResult,
+			Progress:        deployment.ProgressPercent,
+			Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+
 	// Check if deployment is already complete
 	switch deployment.Status {
 	case domain.StatusDeployed:
+		sendPreflightResult()
 		sendEvent(ProgressEvent{
 			Type:      "completed",
 			Progress:  100,
@@ -68,6 +91,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		return
 
 	case domain.StatusFailed:
+		sendPreflightResult()
 		errMsg := "Deployment failed"
 		if deployment.ErrorMessage != nil {
 			errMsg = *deployment.ErrorMessage
@@ -87,6 +111,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		return
 
 	case domain.StatusStopped:
+		sendPreflightResult()
 		sendEvent(ProgressEvent{
 			Type:      "deployment_error",
 			Error:     "Deployment was stopped",
@@ -105,6 +130,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 	}
+	sendPreflightResult()
 
 	// Subscribe to live updates
 	ch := s.progressHub.Subscribe(id)

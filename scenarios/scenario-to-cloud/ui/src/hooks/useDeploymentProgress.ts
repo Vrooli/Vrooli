@@ -50,6 +50,7 @@ export function useDeploymentProgress(
       currentStepTitle: "Initializing...",
       progress: 0,
       steps: getInitialSteps(),
+      preflightResult: undefined,
       isComplete: false,
     });
     setConnectionError(null);
@@ -77,6 +78,7 @@ export function useDeploymentProgress(
           currentStepTitle: data.step_title || data.step,
           progress: data.progress,
           steps: updateStepStatus(prev?.steps, data.step, "running"),
+          preflightResult: prev?.preflightResult,
           isComplete: false,
         }));
       } catch {
@@ -93,6 +95,7 @@ export function useDeploymentProgress(
           currentStepTitle: prev?.currentStepTitle ?? data.step_title ?? "",
           progress: data.progress,
           steps: updateStepStatus(prev?.steps, data.step, "completed"),
+          preflightResult: prev?.preflightResult,
           isComplete: false,
         }));
       } catch {
@@ -124,9 +127,28 @@ export function useDeploymentProgress(
             currentStepTitle: data.step_title || data.step,
             progress: data.progress,
             steps,
+            preflightResult: prev?.preflightResult,
             isComplete: false,
           };
         });
+      } catch {
+        // Ignore parse errors
+      }
+    });
+
+    // Handle preflight_result events
+    eventSource.addEventListener("preflight_result", (e) => {
+      try {
+        const data = JSON.parse(e.data) as ProgressEvent;
+        setProgress((prev) => ({
+          currentStep: prev?.currentStep ?? "",
+          currentStepTitle: prev?.currentStepTitle ?? "",
+          progress: prev?.progress ?? 0,
+          steps: prev?.steps ?? getInitialSteps(),
+          preflightResult: data.preflight_result,
+          error: prev?.error,
+          isComplete: prev?.isComplete ?? false,
+        }));
       } catch {
         // Ignore parse errors
       }
@@ -141,6 +163,7 @@ export function useDeploymentProgress(
           currentStepTitle: data.message || "Deployment complete",
           progress: 100,
           steps: prev?.steps.map((s) => ({ ...s, status: "completed" as StepStatus })) ?? [],
+          preflightResult: prev?.preflightResult,
           isComplete: true,
         }));
         eventSource.close();
@@ -178,6 +201,7 @@ export function useDeploymentProgress(
             progress: data.progress,
             steps,
             error: data.error,
+            preflightResult: prev?.preflightResult,
             isComplete: true,
           };
         });

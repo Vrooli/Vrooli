@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
 import type { PreflightCheck, PreflightCheckStatus, DiskUsageResponse, DiskUsageEntry } from "../../lib/api";
-import { stopPortServices, getDiskUsage, runDiskCleanup, stopScenarioProcesses } from "../../lib/api";
+import { stopPortServices, getDiskUsage, runDiskCleanup, stopScenarioProcesses, openFirewallPorts } from "../../lib/api";
 import { DEFAULT_VPS_WORKDIR } from "../../lib/constants";
 
 interface StepPreflightProps {
@@ -41,7 +41,7 @@ const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
 };
 
 // Check definitions - used for preview and running states
-const CHECK_DEFINITIONS = [
+export const CHECK_DEFINITIONS = [
   { id: "dns_vps_host", title: "Resolve VPS host", description: "Verify VPS hostname resolves to IP" },
   { id: "dns_edge_apex", title: "Apex domain", description: "Verify apex domain resolves to VPS or proxy" },
   { id: "dns_edge_www", title: "WWW domain", description: "Verify www domain resolves to VPS or proxy" },
@@ -68,7 +68,7 @@ const CHECK_DEFINITIONS = [
   { id: "postgres_credentials", title: "PostgreSQL credentials", description: "Verify database credentials" },
 ];
 
-type CheckState = "pending" | "running" | PreflightCheckStatus;
+export type CheckState = "pending" | "running" | PreflightCheckStatus;
 
 interface PortBindingInfo {
   port: number;
@@ -175,6 +175,53 @@ function getStatusColor(state: CheckState) {
         border: "border-slate-700",
       };
   }
+}
+
+export interface PreflightDisplayCheck {
+  id: string;
+  title: string;
+  description: string;
+  state: CheckState;
+  details?: string;
+  hint?: string;
+  data?: Record<string, string>;
+}
+
+export function buildChecksToDisplay(
+  preflightChecks: PreflightCheck[] | null,
+  isRunningPreflight: boolean,
+): PreflightDisplayCheck[] {
+  return CHECK_DEFINITIONS.map((def) => {
+    const realCheck = preflightChecks?.find((check) => check.id === def.id);
+
+    let state: CheckState;
+    if (realCheck) {
+      state = realCheck.status;
+    } else if (isRunningPreflight) {
+      state = "running";
+    } else {
+      state = "pending";
+    }
+
+    return {
+      id: def.id,
+      title: realCheck?.title || def.title,
+      description: def.description,
+      state,
+      details: realCheck?.details,
+      hint: realCheck?.hint,
+      data: realCheck?.data,
+    };
+  });
+}
+
+export function buildReadOnlyChecks(state: CheckState): PreflightDisplayCheck[] {
+  return CHECK_DEFINITIONS.map((def) => ({
+    id: def.id,
+    title: def.title,
+    description: def.description,
+    state,
+  }));
 }
 
 interface ActionButtonProps {
@@ -498,9 +545,21 @@ interface CheckItemProps {
   data?: Record<string, string>;
   onAction?: (action: string) => void;
   actionLoading?: boolean;
+  readOnly?: boolean;
 }
 
-function CheckItem({ id, title, description, state, details, hint, data, onAction, actionLoading }: CheckItemProps) {
+function CheckItem({
+  id,
+  title,
+  description,
+  state,
+  details,
+  hint,
+  data,
+  onAction,
+  actionLoading,
+  readOnly,
+}: CheckItemProps) {
   const [expanded, setExpanded] = useState(false);
   const Icon = CHECK_ICONS[id] || Server;
   const StatusIcon = getStatusIcon(state);
@@ -510,6 +569,7 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
   // Determine if this check has actions available
   const hasPortsAction = id === "ports_80_443" && state === "fail" && portBindings.length > 0;
   const hasDiskAction = id === "disk_free" && (state === "fail" || state === "warn");
+  const hasFirewallAction = id === "firewall_inbound" && state === "fail";
   const hasDNSInstructions =
     (id === "dns_edge_apex" || id === "dns_edge_www" || id === "dns_do_origin") &&
     state === "fail" &&
@@ -548,7 +608,7 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
           {/* Action buttons */}
-          {hasPortsAction && onAction && (
+          {!readOnly && hasPortsAction && onAction && (
             <ActionButton
               onClick={() => onAction("stop_ports")}
               loading={actionLoading}
@@ -557,7 +617,7 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
               Review & Stop
             </ActionButton>
           )}
-          {hasDiskAction && onAction && (
+          {!readOnly && hasDiskAction && onAction && (
             <ActionButton
               onClick={() => onAction("show_disk")}
               loading={actionLoading}
@@ -567,7 +627,16 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
               Details
             </ActionButton>
           )}
-          {hasStaleProcessesAction && onAction && (
+          {!readOnly && hasFirewallAction && onAction && (
+            <ActionButton
+              onClick={() => onAction("open_firewall")}
+              loading={actionLoading}
+              icon={Shield}
+            >
+              Open 80/443
+            </ActionButton>
+          )}
+          {!readOnly && hasStaleProcessesAction && onAction && (
             <>
               <ActionButton
                 onClick={() => onAction("stop_scenario")}
@@ -646,6 +715,45 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
   );
 }
 
+export interface PreflightChecksPanelProps {
+  checksToDisplay: PreflightDisplayCheck[];
+  actionLoading?: string | null;
+  onAction?: (checkId: string, action: string) => void;
+  readOnly?: boolean;
+}
+
+export function PreflightChecksPanel({
+  checksToDisplay,
+  actionLoading,
+  onAction,
+  readOnly,
+}: PreflightChecksPanelProps) {
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-medium text-slate-300">
+        Preflight Checks ({checksToDisplay.length})
+      </h4>
+      <ul className="space-y-2">
+        {checksToDisplay.map((check) => (
+          <CheckItem
+            key={check.id}
+            id={check.id}
+            title={check.title}
+            description={check.description}
+            state={check.state}
+            details={check.details}
+            hint={check.hint}
+            data={check.data}
+            onAction={onAction ? (action) => onAction(check.id, action) : undefined}
+            actionLoading={actionLoading?.startsWith(`${check.id}:`)}
+            readOnly={readOnly}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function StepPreflight({ deployment }: StepPreflightProps) {
   const {
     preflightPassed,
@@ -705,6 +813,17 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
       if (action === "stop_ports") {
         setPortSelections(buildPortSelections(portBindings));
         setShowPortModal(true);
+        return;
+      } else if (action === "open_firewall") {
+        const result = await openFirewallPorts({
+          ...sshConfig,
+          ports: [80, 443],
+        });
+        if (result.ok) {
+          runPreflight();
+        } else {
+          setActionError(result.message || "Failed to update firewall rules.");
+        }
         return;
       } else if (action === "show_disk") {
         const usage = await getDiskUsage(sshConfig);
@@ -816,28 +935,7 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
   };
 
   // Build the display list: merge definitions with real results
-  const checksToDisplay = CHECK_DEFINITIONS.map((def) => {
-    const realCheck = preflightChecks?.find(c => c.id === def.id);
-
-    let state: CheckState;
-    if (realCheck) {
-      state = realCheck.status;
-    } else if (isRunningPreflight) {
-      state = "running";
-    } else {
-      state = "pending";
-    }
-
-    return {
-      id: def.id,
-      title: realCheck?.title || def.title,
-      description: def.description,
-      state,
-      details: realCheck?.details,
-      hint: realCheck?.hint,
-      data: realCheck?.data,
-    };
-  });
+  const checksToDisplay = buildChecksToDisplay(preflightChecks, isRunningPreflight);
 
   return (
     <div className="space-y-6">
@@ -906,27 +1004,11 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
       )}
 
       {/* Preflight Checks List - Always visible */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-slate-300">
-          Preflight Checks ({checksToDisplay.length})
-        </h4>
-        <ul className="space-y-2">
-          {checksToDisplay.map((check) => (
-            <CheckItem
-              key={check.id}
-              id={check.id}
-              title={check.title}
-              description={check.description}
-              state={check.state}
-              details={check.details}
-              hint={check.hint}
-              data={check.data}
-              onAction={(action) => handleAction(check.id, action)}
-              actionLoading={actionLoading?.startsWith(`${check.id}:`)}
-            />
-          ))}
-        </ul>
-      </div>
+      <PreflightChecksPanel
+        checksToDisplay={checksToDisplay}
+        actionLoading={actionLoading}
+        onAction={handleAction}
+      />
 
       {/* Override checkbox - shown when preflight fails but checks have run */}
       {preflightPassed === false && preflightChecks !== null && !isRunningPreflight && (

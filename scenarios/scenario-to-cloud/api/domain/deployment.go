@@ -89,6 +89,7 @@ type Deployment struct {
 	// Results from each deployment phase (stored as JSON for flexibility)
 	SetupResult       NullRawMessage `json:"setup_result,omitempty"`
 	DeployResult      NullRawMessage `json:"deploy_result,omitempty"`
+	PreflightResult   NullRawMessage `json:"preflight_result,omitempty"`
 	LastInspectResult NullRawMessage `json:"last_inspect_result,omitempty"`
 
 	// Deployment history (timeline of events)

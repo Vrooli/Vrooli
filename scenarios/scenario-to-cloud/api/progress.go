@@ -3,17 +3,20 @@ package main
 import (
 	"sync"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 // ProgressEvent represents a single progress update sent via SSE.
 type ProgressEvent struct {
-	Type      string  `json:"type"`                 // "step_started", "step_completed", "error", "completed", "progress_update"
-	Step      string  `json:"step"`                 // Step ID (e.g., "upload", "setup")
-	StepTitle string  `json:"step_title,omitempty"` // Human-readable title
-	Progress  float64 `json:"progress"`             // 0-100 percentage
-	Message   string  `json:"message,omitempty"`    // Optional message
-	Error     string  `json:"error,omitempty"`      // Error details if type is "error"
-	Timestamp string  `json:"timestamp"`            // ISO8601 timestamp
+	Type            string                    `json:"type"`                 // "step_started", "step_completed", "error", "completed", "progress_update"
+	Step            string                    `json:"step"`                 // Step ID (e.g., "upload", "setup")
+	StepTitle       string                    `json:"step_title,omitempty"` // Human-readable title
+	Progress        float64                   `json:"progress"`             // 0-100 percentage
+	Message         string                    `json:"message,omitempty"`    // Optional message
+	Error           string                    `json:"error,omitempty"`      // Error details if type is "error"
+	PreflightResult *domain.PreflightResponse `json:"preflight_result,omitempty"`
+	Timestamp       string                    `json:"timestamp"` // ISO8601 timestamp
 }
 
 // ProgressEmitter is an interface for emitting progress events.
@@ -44,7 +47,8 @@ var StepWeights = map[string]float64{
 	"wait_for_ui":       1,
 	"verify_local":      1,
 	"verify_https":      1,
-	"verify_public":     3,
+	"verify_origin":     1,
+	"verify_public":     2,
 }
 
 // StepInfo provides metadata for each deployment step.
@@ -77,6 +81,7 @@ var DeploySteps = []StepInfo{
 	{ID: "wait_for_ui", Title: "Waiting for UI to listen", Weight: StepWeights["wait_for_ui"]},
 	{ID: "verify_local", Title: "Verifying local health", Weight: StepWeights["verify_local"]},
 	{ID: "verify_https", Title: "Verifying HTTPS", Weight: StepWeights["verify_https"]},
+	{ID: "verify_origin", Title: "Verifying origin reachability", Weight: StepWeights["verify_origin"]},
 	{ID: "verify_public", Title: "Verifying public reachability", Weight: StepWeights["verify_public"]},
 }
 

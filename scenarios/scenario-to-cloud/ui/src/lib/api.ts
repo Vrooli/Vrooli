@@ -459,6 +459,7 @@ export type Deployment = {
   bundle_size_bytes?: number;
   setup_result?: unknown;
   deploy_result?: unknown;
+  preflight_result?: PreflightResponse;
   last_inspect_result?: VPSInspectResult;
   error_message?: string;
   error_step?: string;
@@ -878,6 +879,22 @@ export interface DiskCleanupResponse {
   timestamp: string;
 }
 
+export interface FirewallFixRequest {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+  ports?: number[];
+}
+
+export interface FirewallFixResponse {
+  ok: boolean;
+  message: string;
+  ports: number[];
+  status?: string;
+  timestamp: string;
+}
+
 /**
  * Stop services using ports 80/443
  */
@@ -895,6 +912,25 @@ export async function stopPortServices(
     throw new Error(`Failed to stop port services: ${res.status} ${text}`);
   }
   return res.json() as Promise<StopPortServicesResponse>;
+}
+
+/**
+ * Open firewall ports via UFW
+ */
+export async function openFirewallPorts(
+  request: FirewallFixRequest
+): Promise<FirewallFixResponse> {
+  const url = buildApiUrl("/preflight/fix/firewall", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to open firewall ports: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<FirewallFixResponse>;
 }
 
 /**

@@ -7,20 +7,36 @@ export interface Step {
   description?: string;
 }
 
+export type StepperStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+
 interface StepperProps extends React.HTMLAttributes<HTMLElement> {
   steps: Step[];
   currentStep: number;
   onStepClick?: (stepIndex: number) => void;
+  stepStates?: StepperStatus[];
+  allowFutureClicks?: boolean;
 }
 
-export function Stepper({ steps, currentStep, onStepClick, className, ...props }: StepperProps) {
+export function Stepper({
+  steps,
+  currentStep,
+  onStepClick,
+  stepStates,
+  allowFutureClicks,
+  className,
+  ...props
+}: StepperProps) {
   return (
     <nav aria-label="Progress" className={cn("w-full", className)} {...props}>
       <ol className="flex items-center">
         {steps.map((step, index) => {
-          const isCompleted = index < currentStep;
-          const isCurrent = index === currentStep;
-          const isClickable = onStepClick && index <= currentStep;
+          const status = stepStates?.[index];
+          const isCompleted = status ? status === "completed" : index < currentStep;
+          const isCurrent = status ? status === "running" : index === currentStep;
+          const isSkipped = status === "skipped";
+          const isClickable = Boolean(
+            onStepClick && (allowFutureClicks || index <= currentStep),
+          );
 
           return (
             <li
@@ -39,7 +55,7 @@ export function Stepper({ steps, currentStep, onStepClick, className, ...props }
                   <div
                     className={cn(
                       "h-full transition-colors duration-300",
-                      isCompleted ? "bg-emerald-500" : "bg-slate-700"
+                      isCompleted ? "bg-emerald-500" : isSkipped ? "bg-slate-500/70" : "bg-slate-700"
                     )}
                   />
                 </div>
@@ -61,7 +77,8 @@ export function Stepper({ steps, currentStep, onStepClick, className, ...props }
                     "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-300",
                     isCompleted && "bg-emerald-500 border-emerald-500",
                     isCurrent && "bg-slate-900 border-blue-500 ring-4 ring-blue-500/20",
-                    !isCompleted && !isCurrent && "bg-slate-900 border-slate-600",
+                    isSkipped && "bg-slate-800 border-slate-500",
+                    !isCompleted && !isCurrent && !isSkipped && "bg-slate-900 border-slate-600",
                     isClickable && !isCurrent && "group-hover:border-slate-400"
                   )}
                 >
@@ -71,7 +88,7 @@ export function Stepper({ steps, currentStep, onStepClick, className, ...props }
                     <span
                       className={cn(
                         "text-sm font-medium",
-                        isCurrent ? "text-blue-400" : "text-slate-400"
+                        isCurrent ? "text-blue-400" : isSkipped ? "text-slate-300" : "text-slate-400"
                       )}
                     >
                       {index + 1}
@@ -85,7 +102,8 @@ export function Stepper({ steps, currentStep, onStepClick, className, ...props }
                     "mt-2 text-xs font-medium text-center transition-colors hidden sm:block",
                     isCompleted && "text-emerald-400",
                     isCurrent && "text-blue-400",
-                    !isCompleted && !isCurrent && "text-slate-500"
+                    isSkipped && "text-slate-400",
+                    !isCompleted && !isCurrent && !isSkipped && "text-slate-500"
                   )}
                 >
                   {step.label}

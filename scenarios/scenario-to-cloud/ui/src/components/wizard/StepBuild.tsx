@@ -42,6 +42,154 @@ function formatDate(isoString: string): string {
   });
 }
 
+export interface BuildStatusPanelProps {
+  mode?: "interactive" | "readonly";
+  isBuilding: boolean;
+  bundleArtifact: { path: string; sha256: string; size_bytes: number } | null;
+  bundleError?: string | null;
+  canBuild?: boolean;
+  onBuild?: () => void;
+  onClearBundle?: () => void;
+  bundlePathFallback?: string | null;
+  bundleShaFallback?: string | null;
+  bundleSizeBytesFallback?: number | null;
+  buildButtonTestId?: string;
+  bundleResultTestId?: string;
+}
+
+export function BuildStatusPanel({
+  mode = "interactive",
+  isBuilding,
+  bundleArtifact,
+  bundleError,
+  canBuild = false,
+  onBuild,
+  onClearBundle,
+  bundlePathFallback,
+  bundleShaFallback,
+  bundleSizeBytesFallback,
+  buildButtonTestId,
+  bundleResultTestId,
+}: BuildStatusPanelProps) {
+  const isInteractive = mode === "interactive";
+  const bundlePath = bundleArtifact?.path ?? bundlePathFallback ?? null;
+  const bundleSha = bundleArtifact?.sha256 ?? bundleShaFallback ?? null;
+  const bundleSizeBytes = bundleArtifact?.size_bytes ?? bundleSizeBytesFallback ?? null;
+  const hasBundleDetails = Boolean(bundlePath || bundleSha || bundleSizeBytes);
+
+  return (
+    <div className="space-y-4">
+      {isInteractive && (
+        <div className="flex items-center gap-3">
+          <Button
+            data-testid={buildButtonTestId}
+            onClick={onBuild}
+            disabled={isBuilding || !canBuild}
+          >
+            <Play className="h-4 w-4 mr-1.5" />
+            {isBuilding ? "Building..." : "Build New Bundle"}
+          </Button>
+          {!bundleArtifact && !isBuilding && (
+            <span className="text-sm text-slate-400">
+              Creates a fresh deployable tarball with required dependencies
+            </span>
+          )}
+        </div>
+      )}
+
+      {isBuilding && (
+        <LoadingState message="Building mini-Vrooli bundle..." />
+      )}
+
+      {bundleError && (
+        <Alert variant="error" title="Bundle Build Failed">
+          {bundleError}
+        </Alert>
+      )}
+
+      {!isBuilding && !bundleError && !hasBundleDetails && (
+        <Alert variant="info" title="Bundle Status">
+          {isInteractive
+            ? "Build a new bundle or select an existing one to continue."
+            : "Bundle details will appear here once the build completes."}
+        </Alert>
+      )}
+
+      {hasBundleDetails && !isBuilding && (
+        <div data-testid={bundleResultTestId} className="space-y-4">
+          <Alert variant="success" title="Bundle Ready" className="flex-1">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              {isInteractive
+                ? "Your deployment bundle is ready for upload to the target server."
+                : "Bundle is ready for deployment."}
+            </div>
+          </Alert>
+
+          {isInteractive && onClearBundle && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearBundle}
+              className="text-slate-400"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1.5" />
+              Change Build
+            </Button>
+          )}
+
+          <Card>
+            <CardContent className="py-4">
+              <h4 className="text-sm font-medium text-slate-300 mb-4">Bundle Artifact</h4>
+
+              <div className="space-y-4">
+                {bundlePath && (
+                  <div className="flex items-start gap-3">
+                    <FileArchive className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-500 mb-1">File Path</p>
+                      <code className="block text-sm text-slate-200 font-mono break-all bg-slate-800/50 rounded px-2 py-1">
+                        {bundlePath}
+                      </code>
+                    </div>
+                  </div>
+                )}
+
+                {bundleSha && (
+                  <div className="flex items-start gap-3">
+                    <Hash className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-500 mb-1">SHA256 Checksum</p>
+                      <code className="block text-sm text-slate-200 font-mono break-all bg-slate-800/50 rounded px-2 py-1">
+                        {bundleSha}
+                      </code>
+                    </div>
+                  </div>
+                )}
+
+                {typeof bundleSizeBytes === "number" && (
+                  <div className="flex items-start gap-3">
+                    <HardDrive className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-500 mb-1">Bundle Size</p>
+                      <p className="text-sm text-slate-200">
+                        {formatBytes(bundleSizeBytes)}
+                        <span className="text-slate-500 text-xs ml-2">
+                          ({bundleSizeBytes.toLocaleString()} bytes)
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StepBuild({ deployment }: StepBuildProps) {
   const {
     bundleArtifact,
@@ -473,102 +621,17 @@ export function StepBuild({ deployment }: StepBuildProps) {
         </div>
       )}
 
-      {/* Build Button */}
-      <div className="flex items-center gap-3">
-        <Button
-          data-testid={selectors.manifest.bundleBuildButton}
-          onClick={build}
-          disabled={isBuildingBundle || !parsedManifest.ok}
-        >
-          <Play className="h-4 w-4 mr-1.5" />
-          {isBuildingBundle ? "Building..." : "Build New Bundle"}
-        </Button>
-        {!bundleArtifact && !isBuildingBundle && (
-          <span className="text-sm text-slate-400">
-            Creates a fresh deployable tarball with required dependencies
-          </span>
-        )}
-      </div>
-
-      {/* Loading State */}
-      {isBuildingBundle && (
-        <LoadingState message="Building mini-Vrooli bundle..." />
-      )}
-
-      {/* Error */}
-      {bundleError && (
-        <Alert variant="error" title="Bundle Build Failed">
-          {bundleError}
-        </Alert>
-      )}
-
-      {/* Bundle Artifact */}
-      {bundleArtifact && !isBuildingBundle && (
-        <div data-testid={selectors.manifest.bundleBuildResult} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Alert variant="success" title="Bundle Ready" className="flex-1">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                Your deployment bundle is ready for upload to the target server.
-              </div>
-            </Alert>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setBundleArtifact(null)}
-            className="text-slate-400"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Change Build
-          </Button>
-
-          <Card>
-            <CardContent className="py-4">
-              <h4 className="text-sm font-medium text-slate-300 mb-4">Bundle Artifact</h4>
-
-              <div className="space-y-4">
-                {/* Path */}
-                <div className="flex items-start gap-3">
-                  <FileArchive className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-500 mb-1">File Path</p>
-                    <code className="block text-sm text-slate-200 font-mono break-all bg-slate-800/50 rounded px-2 py-1">
-                      {bundleArtifact.path}
-                    </code>
-                  </div>
-                </div>
-
-                {/* SHA256 */}
-                <div className="flex items-start gap-3">
-                  <Hash className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-500 mb-1">SHA256 Checksum</p>
-                    <code className="block text-sm text-slate-200 font-mono break-all bg-slate-800/50 rounded px-2 py-1">
-                      {bundleArtifact.sha256}
-                    </code>
-                  </div>
-                </div>
-
-                {/* Size */}
-                <div className="flex items-start gap-3">
-                  <HardDrive className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-500 mb-1">Bundle Size</p>
-                    <p className="text-sm text-slate-200">
-                      {formatBytes(bundleArtifact.size_bytes)}
-                      <span className="text-slate-500 ml-2">
-                        ({bundleArtifact.size_bytes.toLocaleString()} bytes)
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <BuildStatusPanel
+        mode="interactive"
+        isBuilding={isBuildingBundle}
+        bundleArtifact={bundleArtifact}
+        bundleError={bundleError}
+        canBuild={parsedManifest.ok}
+        onBuild={build}
+        onClearBundle={() => setBundleArtifact(null)}
+        buildButtonTestId={selectors.manifest.bundleBuildButton}
+        bundleResultTestId={selectors.manifest.bundleBuildResult}
+      />
     </div>
   );
 }

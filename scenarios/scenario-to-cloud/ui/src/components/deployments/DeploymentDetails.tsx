@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Server,
@@ -29,14 +29,21 @@ import {
   useExecuteDeployment,
   getStatusInfo,
 } from "../../hooks/useDeployments";
+import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import { cn } from "../../lib/utils";
 import type { Deployment } from "../../lib/api";
+import type { StepStatus } from "../../types/progress";
 import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
+import { Alert } from "../ui/alert";
+import { Stepper, type StepperStatus } from "../ui/stepper";
 import { InvestigateButton } from "../wizard/InvestigateButton";
 import { InvestigationProgress } from "../wizard/InvestigationProgress";
 import { InvestigationReport } from "../wizard/InvestigationReport";
+import { BuildStatusPanel } from "../wizard/StepBuild";
+import { buildChecksToDisplay, buildReadOnlyChecks, PreflightChecksPanel, type CheckState } from "../wizard/StepPreflight";
+import { DeploymentProgressView, getStepStatusFromProgress } from "../wizard/DeploymentProgress";
 
 interface DeploymentDetailsProps {
   deploymentId: string;
@@ -58,9 +65,155 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showRedeployDialog, setShowRedeployDialog] = useState(false);
   const [buildNewBundle, setBuildNewBundle] = useState(false);
   const [runPreflight, setRunPreflight] = useState(false);
+  const [redeployActive, setRedeployActive] = useState(false);
+  const [redeployOptionsSnapshot, setRedeployOptionsSnapshot] = useState<{
+    runPreflight: boolean;
+    forceBundleBuild: boolean;
+  } | null>(null);
+  const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
+
+  const {
+    progress: redeployProgress,
+    isConnected: redeployConnected,
+    connectionError: redeployConnectionError,
+    reset: resetRedeployProgress,
+  } = useDeploymentProgress(redeployActive ? deploymentId : null);
 
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
+
+  const deploymentRecord = deployment ?? null;
+  const statusInfo = getStatusInfo(deploymentRecord?.status ?? "pending");
+  const manifest = (deploymentRecord?.manifest ?? {}) as {
+    scenario?: { id: string };
+    edge?: { domain: string };
+    target?: { vps?: { host: string } };
+    dependencies?: { resources?: string[]; scenarios?: string[] };
+  };
+
+  const isInProgress =
+    deploymentRecord?.status === "pending" ||
+    deploymentRecord?.status === "setup_running" ||
+    deploymentRecord?.status === "deploying";
+
+  const canRedeploy =
+    deploymentRecord?.status === "deployed" ||
+    deploymentRecord?.status === "failed" ||
+    deploymentRecord?.status === "stopped";
+
+  const canStop = deploymentRecord?.status === "deployed";
+  const hasExistingBundle = Boolean(deploymentRecord?.bundle_path);
+  const redeployOptions = redeployOptionsSnapshot ?? {
+    runPreflight,
+    forceBundleBuild: buildNewBundle,
+  };
+  const bundlePathFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_path ?? null;
+  const bundleShaFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_sha256 ?? null;
+  const bundleSizeFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_size_bytes ?? null;
+  const redeployPreflightEnabled = redeployOptions.runPreflight;
+  const buildStepStatus = getStepStatusFromProgress(redeployProgress, "bundle_build");
+  const buildStatus: StepStatus =
+    redeployActive && executeMutation.isPending && buildStepStatus === "pending"
+      ? "running"
+      : buildStepStatus;
+  const buildError =
+    redeployProgress?.error && redeployProgress.currentStep === "bundle_build"
+      ? redeployProgress.error
+      : null;
+
+  const preflightStepStatus = useMemo<StepStatus>(() => {
+    if (!redeployPreflightEnabled) {
+      return buildStatus === "completed" && redeployActive ? "completed" : "pending";
+    }
+    if (!redeployProgress) return "pending";
+    if (redeployProgress.error && redeployProgress.currentStep === "preflight") return "failed";
+    if (redeployProgress.currentStep === "preflight") return "running";
+    if (
+      redeployProgress.currentStep &&
+      redeployProgress.currentStep !== "bundle_build" &&
+      redeployProgress.currentStep !== "preflight"
+    ) {
+      return "completed";
+    }
+    if (redeployProgress.isComplete && !redeployProgress.error) return "completed";
+    return "pending";
+  }, [buildStatus, redeployActive, redeployPreflightEnabled, redeployProgress]);
+
+  const deploymentStepStatus = useMemo<StepStatus>(() => {
+    if (!redeployProgress) return "pending";
+    const isDeployStep =
+      redeployProgress.currentStep !== "" &&
+      redeployProgress.currentStep !== "bundle_build" &&
+      redeployProgress.currentStep !== "preflight";
+    const hasDeploymentProgress = redeployProgress.steps?.some(
+      (step) => step.id !== "bundle_build" && step.status !== "pending",
+    );
+    if (redeployProgress.error && isDeployStep) return "failed";
+    if (redeployProgress.isComplete && !redeployProgress.error) return "completed";
+    if (hasDeploymentProgress || isDeployStep) return "running";
+    return "pending";
+  }, [redeployProgress]);
+
+  const redeployStepStatuses: StepStatus[] = [buildStatus, preflightStepStatus, deploymentStepStatus];
+  const currentRedeployStepIndex = useMemo(() => {
+    const firstActive = redeployStepStatuses.findIndex((status) => status !== "completed");
+    return firstActive === -1 ? redeployStepStatuses.length - 1 : firstActive;
+  }, [redeployStepStatuses]);
+
+  const preflightCheckState: CheckState =
+    preflightStepStatus === "completed"
+      ? "pass"
+      : preflightStepStatus === "failed"
+        ? "fail"
+        : preflightStepStatus === "running"
+          ? "running"
+          : "pending";
+  const preflightChecks = useMemo(() => {
+    const liveResult = redeployProgress?.preflightResult;
+    if (liveResult?.checks?.length) {
+      return buildChecksToDisplay(liveResult.checks, false);
+    }
+    const storedResult = deploymentRecord?.preflight_result;
+    if (storedResult?.checks?.length) {
+      return buildChecksToDisplay(storedResult.checks, false);
+    }
+    return buildReadOnlyChecks(preflightCheckState);
+  }, [deploymentRecord?.preflight_result, preflightCheckState, redeployProgress?.preflightResult]);
+  const redeploySteps = useMemo(
+    () => [
+      { id: "build", label: "Build" },
+      { id: "preflight", label: "Preflight" },
+      { id: "deploy", label: "Deployment" },
+    ],
+    [],
+  );
+  const stepperStates = useMemo<StepperStatus[]>(() => {
+    const preflightState: StepperStatus =
+      !redeployPreflightEnabled && (redeployActive || executeMutation.isPending)
+        ? "skipped"
+        : preflightStepStatus;
+    return [buildStatus, preflightState, deploymentStepStatus];
+  }, [
+    buildStatus,
+    deploymentStepStatus,
+    executeMutation.isPending,
+    preflightStepStatus,
+    redeployActive,
+    redeployPreflightEnabled,
+  ]);
+  const viewedStepIndex = redeployViewStep ?? currentRedeployStepIndex;
+  const redeployStartError =
+    executeMutation.error instanceof Error ? executeMutation.error.message : null;
+  const isInvestigationOutdated = (inv?: { deployment_run_id?: string; created_at: string } | null) => {
+    if (!inv) return false;
+    if (deploymentRecord?.run_id && inv.deployment_run_id) {
+      return inv.deployment_run_id !== deploymentRecord.run_id;
+    }
+    if (deploymentRecord?.last_deployed_at) {
+      return new Date(inv.created_at).getTime() < new Date(deploymentRecord.last_deployed_at).getTime();
+    }
+    return false;
+  };
 
   if (isLoading) {
     return (
@@ -70,7 +223,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     );
   }
 
-  if (error || !deployment) {
+  if (error || !deploymentRecord) {
     return (
       <div className="space-y-4">
         <button
@@ -90,41 +243,34 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     );
   }
 
-  const statusInfo = getStatusInfo(deployment.status);
-  const manifest = deployment.manifest as {
-    scenario?: { id: string };
-    edge?: { domain: string };
-    target?: { vps?: { host: string } };
-    dependencies?: { resources?: string[]; scenarios?: string[] };
-  };
-
-  const isInProgress =
-    deployment.status === "pending" ||
-    deployment.status === "setup_running" ||
-    deployment.status === "deploying";
-
-  const canRedeploy =
-    deployment.status === "deployed" ||
-    deployment.status === "failed" ||
-    deployment.status === "stopped";
-
-  const canStop = deployment.status === "deployed";
-  const hasExistingBundle = Boolean(deployment.bundle_path);
-  const isInvestigationOutdated = (inv?: { deployment_run_id?: string; created_at: string } | null) => {
-    if (!inv) return false;
-    if (deployment.run_id && inv.deployment_run_id) {
-      return inv.deployment_run_id !== deployment.run_id;
-    }
-    if (deployment.last_deployed_at) {
-      return new Date(inv.created_at).getTime() < new Date(deployment.last_deployed_at).getTime();
-    }
-    return false;
-  };
-
   const openRedeployDialog = () => {
     setBuildNewBundle(!hasExistingBundle);
     setRunPreflight(false);
+    setRedeployActive(false);
+    setRedeployOptionsSnapshot(null);
+    setRedeployViewStep(null);
+    resetRedeployProgress();
     setShowRedeployDialog(true);
+  };
+
+  const startRedeploy = () => {
+    const snapshot = { runPreflight, forceBundleBuild: buildNewBundle };
+    setRedeployOptionsSnapshot(snapshot);
+    setRedeployActive(true);
+    executeMutation.mutate(
+      {
+        id: deploymentId,
+        options: {
+          runPreflight: snapshot.runPreflight,
+          forceBundleBuild: snapshot.forceBundleBuild,
+        },
+      },
+      {
+        onError: () => {
+          setRedeployActive(false);
+        },
+      },
+    );
   };
 
   return (
@@ -227,7 +373,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
       {showRedeployDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-lg rounded-lg border border-white/10 bg-slate-900 p-6 shadow-xl">
+          <div className="w-full max-w-5xl rounded-lg border border-white/10 bg-slate-900 p-6 shadow-xl max-h-[90vh] flex flex-col">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-white">Re-deploy configuration</h3>
               <p className="text-sm text-slate-400 mt-1">
@@ -235,80 +381,169 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Bundle</p>
-                <SwitchRow
-                  label="Build a new bundle"
-                  description={
-                    hasExistingBundle
-                      ? "Creates a fresh bundle before setup."
-                      : "No existing bundle found. A new bundle is required."
-                  }
-                  checked={buildNewBundle}
-                  disabled={!hasExistingBundle}
-                  onChange={() => setBuildNewBundle(!buildNewBundle)}
-                />
+            {!deploymentRecord && (
+              <div className="flex items-center justify-center py-10 text-slate-400">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Loading deployment details...
+              </div>
+            )}
+
+            {deploymentRecord && (
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr] overflow-y-auto pr-1">
+              <div className="space-y-4">
+                {redeployStartError && (
+                  <Alert variant="error" title="Failed to start redeploy">
+                    {redeployStartError}
+                  </Alert>
+                )}
+
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Bundle</p>
+                  <SwitchRow
+                    label="Build a new bundle"
+                    description={
+                      hasExistingBundle
+                        ? "Creates a fresh bundle before setup."
+                        : "No existing bundle found. A new bundle is required."
+                    }
+                    checked={buildNewBundle}
+                    disabled={!hasExistingBundle || executeMutation.isPending || redeployActive}
+                    onChange={() => setBuildNewBundle(!buildNewBundle)}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Checks</p>
+                  <SwitchRow
+                    label="Run preflight checks"
+                    description="Validates DNS, SSH, OS, and prerequisites before deployment."
+                    checked={runPreflight}
+                    disabled={executeMutation.isPending || redeployActive}
+                    onChange={() => setRunPreflight(!runPreflight)}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Deployment</p>
+                  <SwitchRow
+                    label="Deploy to VPS"
+                    description="Always runs. This step cannot be skipped."
+                    checked={true}
+                    disabled={true}
+                    onChange={() => {}}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">What will happen</p>
+                  <p className="text-sm text-slate-300">
+                    {runPreflight ? "Run preflight checks, then " : "Skip preflight checks, then "}
+                    {buildNewBundle ? "build a new bundle" : "reuse the existing bundle"}, then run VPS setup and deploy.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowRedeployDialog(false)}
+                    disabled={executeMutation.isPending}
+                    className="px-4 py-2 rounded-lg font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={startRedeploy}
+                    disabled={executeMutation.isPending || redeployActive}
+                    className="px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {executeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {executeMutation.isPending ? "Starting..." : "Re-deploy"}
+                  </button>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Checks</p>
-                <SwitchRow
-                  label="Run preflight checks"
-                  description="Validates DNS, SSH, OS, and prerequisites before deployment."
-                  checked={runPreflight}
-                  onChange={() => setRunPreflight(!runPreflight)}
-                />
+              <div className="space-y-4">
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Progress</p>
+                  <Stepper
+                    steps={redeploySteps}
+                    currentStep={currentRedeployStepIndex}
+                    stepStates={stepperStates}
+                    allowFutureClicks
+                    onStepClick={(index) => setRedeployViewStep(index)}
+                  />
+                </div>
+
+                {viewedStepIndex === 0 && (
+                  <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Build</p>
+                    <p className="text-xs text-slate-400">
+                      {redeployOptions.forceBundleBuild
+                        ? "Building a fresh bundle for this run."
+                        : "Reusing the most recent bundle unless a new build is required."}
+                    </p>
+                    <BuildStatusPanel
+                      mode="readonly"
+                      isBuilding={buildStatus === "running"}
+                      bundleArtifact={null}
+                      bundleError={buildError}
+                      bundlePathFallback={bundlePathFallback}
+                      bundleShaFallback={bundleShaFallback}
+                      bundleSizeBytesFallback={bundleSizeFallback}
+                    />
+                  </div>
+                )}
+
+                {viewedStepIndex === 1 && (
+                  <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Preflight</p>
+                    {!redeployPreflightEnabled && (
+                      <Alert variant="info" title="Preflight skipped">
+                        This redeploy will proceed without preflight checks.
+                      </Alert>
+                    )}
+                    {redeployPreflightEnabled && preflightStepStatus === "running" && (
+                      <Alert variant="info" title="Preflight running">
+                        Running preflight checks against the target VPS.
+                      </Alert>
+                    )}
+                    {redeployPreflightEnabled && preflightStepStatus === "completed" && (
+                      <Alert variant="success" title="Preflight complete">
+                        Preflight checks passed for this redeploy.
+                      </Alert>
+                    )}
+                    {redeployPreflightEnabled && preflightStepStatus === "failed" && (
+                      <Alert variant="error" title="Preflight failed">
+                        Preflight checks did not pass. Review the deployment errors for details.
+                      </Alert>
+                    )}
+                    {redeployPreflightEnabled && preflightStepStatus === "pending" && (
+                      <Alert variant="info" title="Preflight queued">
+                        Preflight checks will run after the bundle step completes.
+                      </Alert>
+                    )}
+                    <PreflightChecksPanel checksToDisplay={preflightChecks} readOnly />
+                  </div>
+                )}
+
+                {viewedStepIndex === 2 && (
+                  <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Deployment</p>
+                    {redeployActive || executeMutation.isPending ? (
+                      <DeploymentProgressView
+                        progress={redeployProgress}
+                        isConnected={redeployConnected}
+                        connectionError={redeployConnectionError}
+                      />
+                    ) : (
+                      <Alert variant="info" title="Ready to deploy">
+                        Start the redeploy to stream live deployment progress here.
+                      </Alert>
+                    )}
+                  </div>
+                )}
               </div>
-
-              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-3">Deployment</p>
-                <SwitchRow
-                  label="Deploy to VPS"
-                  description="Always runs. This step cannot be skipped."
-                  checked={true}
-                  disabled={true}
-                  onChange={() => {}}
-                />
-              </div>
             </div>
-
-            <div className="mt-5 rounded-lg border border-white/10 bg-slate-900/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">What will happen</p>
-              <p className="text-sm text-slate-300">
-                {runPreflight ? "Run preflight checks, then " : "Skip preflight checks, then "}
-                {buildNewBundle ? "build a new bundle" : "reuse the existing bundle"}, then run VPS setup and deploy.
-              </p>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setShowRedeployDialog(false)}
-                disabled={executeMutation.isPending}
-                className="px-4 py-2 rounded-lg font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  executeMutation.mutate(
-                    {
-                      id: deploymentId,
-                      options: {
-                        runPreflight,
-                        forceBundleBuild: buildNewBundle,
-                      },
-                    },
-                    { onSuccess: () => setShowRedeployDialog(false) }
-                  )
-                }
-                disabled={executeMutation.isPending}
-                className="px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {executeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {executeMutation.isPending ? "Starting..." : "Re-deploy"}
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}

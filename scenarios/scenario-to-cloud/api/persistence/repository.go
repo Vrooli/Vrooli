@@ -56,6 +56,7 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		-- Results (JSONB for flexibility)
 		setup_result JSONB,
 		deploy_result JSONB,
+		preflight_result JSONB,
 		last_inspect_result JSONB,
 
 		-- Error tracking
@@ -119,6 +120,9 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS completed_steps JSONB DEFAULT '[]'::jsonb;
 			-- UUID for the current execution run; changes on each fresh execution
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS run_id TEXT;
+		`},
+		{"add_preflight_result", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS preflight_result JSONB;
 		`},
 	}
 

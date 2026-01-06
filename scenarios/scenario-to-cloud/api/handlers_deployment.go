@@ -514,6 +514,18 @@ func (s *Server) runDeploymentPipeline(
 
 		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
 		preflightResp := RunVPSPreflight(ctx, manifest, s.dnsService, s.sshRunner)
+		preflightJSON, _ := json.Marshal(preflightResp)
+		if err := s.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
+			s.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
+		}
+		s.progressHub.Broadcast(id, ProgressEvent{
+			Type:            "preflight_result",
+			Step:            "preflight",
+			StepTitle:       "Running preflight checks",
+			Progress:        progress,
+			PreflightResult: &preflightResp,
+			Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		})
 		if !preflightResp.OK {
 			failCount := 0
 			for _, check := range preflightResp.Checks {
