@@ -810,6 +810,10 @@ export interface StopPortServicesRequest {
   port?: number;
   user?: string;
   key_path: string;
+  ports?: number[];
+  pids?: number[];
+  services?: string[];
+  prefer_service_stop?: boolean;
 }
 
 export interface StopPortServicesResponse {

@@ -44,10 +44,14 @@ func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
 
 // StopPortServicesRequest is the request body for stopping services on ports 80/443
 type StopPortServicesRequest struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port,omitempty"`
-	User    string `json:"user,omitempty"`
-	KeyPath string `json:"key_path"`
+	Host              string `json:"host"`
+	Port              int    `json:"port,omitempty"`
+	User              string `json:"user,omitempty"`
+	KeyPath            string `json:"key_path"`
+	Ports             []int  `json:"ports,omitempty"`
+	PIDs              []int  `json:"pids,omitempty"`
+	Services          []string `json:"services,omitempty"`
+	PreferServiceStop *bool  `json:"prefer_service_stop,omitempty"`
 }
 
 // StopPortServicesResponse is the response from stopping port services
@@ -117,8 +121,9 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	// First, get list of processes on ports 80/443
-	ssRes, err := s.sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
+	preferServiceStop := req.PreferServiceStop == nil || *req.PreferServiceStop
+
+	pids, portsDetected, err := s.collectPortStopPIDs(ctx, cfg, req)
 	if err != nil {
 		writeJSON(w, http.StatusOK, StopPortServicesResponse{
 			OK:        false,
@@ -128,7 +133,10 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if strings.TrimSpace(ssRes.Stdout) == "" {
+	var stopped, failed []string
+	stoppedUnits := make(map[string]bool)
+
+	if len(pids) == 0 && len(req.Services) == 0 && len(req.Ports) == 0 && !portsDetected {
 		writeJSON(w, http.StatusOK, StopPortServicesResponse{
 			OK:        true,
 			Stopped:   []string{},
@@ -138,44 +146,58 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Parse PIDs from ss output
-	pids := extractPIDsFromSS(ssRes.Stdout)
-
-	var stopped, failed []string
-
-	// Try to stop each process
-	for _, pid := range pids {
-		killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
-		_, err := s.sshRunner.Run(ctx, cfg, killCmd)
-		if err != nil {
-			// Try SIGKILL
-			killCmd = fmt.Sprintf("kill -9 %s 2>/dev/null", pid)
-			_, err = s.sshRunner.Run(ctx, cfg, killCmd)
-			if err != nil {
-				failed = append(failed, "pid "+pid)
-				continue
-			}
+	for _, svc := range req.Services {
+		unit := normalizeServiceName(svc)
+		if unit == "" {
+			continue
 		}
-		stopped = append(stopped, "pid "+pid)
+		if stopUnit(ctx, s.sshRunner, cfg, unit) {
+			stoppedUnits[unit] = true
+			stopped = append(stopped, "service "+trimServiceSuffix(unit))
+		} else {
+			failed = append(failed, "service "+trimServiceSuffix(unit))
+		}
 	}
 
-	// Also try to stop common services
-	commonServices := []string{"nginx", "apache2", "httpd", "caddy"}
-	for _, svc := range commonServices {
-		checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", svc)
-		checkRes, _ := s.sshRunner.Run(ctx, cfg, checkCmd)
-		if strings.TrimSpace(checkRes.Stdout) == "active" {
-			stopCmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", svc)
-			_, err := s.sshRunner.Run(ctx, cfg, stopCmd)
-			if err != nil {
-				failed = append(failed, svc)
-			} else {
-				stopped = append(stopped, svc)
+	for _, pid := range pids {
+		if preferServiceStop {
+			unit := resolveUnitForPID(ctx, s.sshRunner, cfg, pid)
+			if unit != "" {
+				if stoppedUnits[unit] {
+					continue
+				}
+				if stopUnit(ctx, s.sshRunner, cfg, unit) {
+					stoppedUnits[unit] = true
+					stopped = append(stopped, fmt.Sprintf("service %s (pid %s)", trimServiceSuffix(unit), pid))
+					continue
+				}
+			}
+		}
+		if stopPID(ctx, s.sshRunner, cfg, pid) {
+			stopped = append(stopped, "pid "+pid)
+		} else {
+			failed = append(failed, "pid "+pid)
+		}
+	}
+
+	if len(req.Services) == 0 && len(req.PIDs) == 0 && len(req.Ports) == 0 {
+		commonServices := []string{"nginx", "apache2", "httpd", "caddy"}
+		for _, svc := range commonServices {
+			unit := normalizeServiceName(svc)
+			if unit == "" || stoppedUnits[unit] {
+				continue
+			}
+			if stopUnitIfActive(ctx, s.sshRunner, cfg, unit) {
+				stoppedUnits[unit] = true
+				stopped = append(stopped, "service "+trimServiceSuffix(unit))
 			}
 		}
 	}
 
 	msg := "Ports 80/443 should now be free"
+	if len(req.Services) > 0 || len(req.PIDs) > 0 || len(req.Ports) > 0 {
+		msg = "Requested stop actions completed"
+	}
 	if len(failed) > 0 {
 		msg = "Some processes could not be stopped"
 	}
@@ -187,6 +209,109 @@ func (s *Server) handleStopPortServices(w http.ResponseWriter, r *http.Request) 
 		Message:   msg,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) collectPortStopPIDs(ctx context.Context, cfg SSHConfig, req StopPortServicesRequest) ([]string, bool, error) {
+	if len(req.Ports) == 0 && len(req.PIDs) == 0 && len(req.Services) == 0 {
+		ssRes, err := s.sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
+		if err != nil {
+			return nil, false, err
+		}
+		if strings.TrimSpace(ssRes.Stdout) == "" {
+			return nil, false, nil
+		}
+		return extractPIDsFromSS(ssRes.Stdout), true, nil
+	}
+
+	seen := make(map[string]bool)
+	var pids []string
+	for _, pid := range req.PIDs {
+		pidStr := strconv.Itoa(pid)
+		if !seen[pidStr] {
+			seen[pidStr] = true
+			pids = append(pids, pidStr)
+		}
+	}
+
+	for _, port := range req.Ports {
+		cmd := fmt.Sprintf("ss -ltnpH 'sport = :%d' 2>/dev/null || ss -ltnH 'sport = :%d'", port, port)
+		res, err := s.sshRunner.Run(ctx, cfg, cmd)
+		if err != nil {
+			return nil, true, err
+		}
+		for _, pid := range extractPIDsFromSS(res.Stdout) {
+			if !seen[pid] {
+				seen[pid] = true
+				pids = append(pids, pid)
+			}
+		}
+	}
+
+	return pids, len(req.Ports) > 0 || len(req.PIDs) > 0 || len(req.Services) > 0, nil
+}
+
+func resolveUnitForPID(ctx context.Context, runner SSHRunner, cfg SSHConfig, pid string) string {
+	cmd := fmt.Sprintf("systemctl status %s --no-pager 2>/dev/null | head -n 1", pid)
+	res, err := runner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return ""
+	}
+	line := strings.TrimSpace(res.Stdout)
+	if line == "" {
+		return ""
+	}
+	for _, field := range strings.Fields(line) {
+		if strings.HasSuffix(field, ".service") {
+			return strings.TrimPrefix(field, "●")
+		}
+	}
+	return ""
+}
+
+func stopUnit(ctx context.Context, runner SSHRunner, cfg SSHConfig, unit string) bool {
+	cmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", unit)
+	res, err := runner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return false
+	}
+	return res.ExitCode == 0
+}
+
+func stopUnitIfActive(ctx context.Context, runner SSHRunner, cfg SSHConfig, unit string) bool {
+	checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", unit)
+	checkRes, _ := runner.Run(ctx, cfg, checkCmd)
+	if strings.TrimSpace(checkRes.Stdout) != "active" {
+		return false
+	}
+	return stopUnit(ctx, runner, cfg, unit)
+}
+
+func stopPID(ctx context.Context, runner SSHRunner, cfg SSHConfig, pid string) bool {
+	killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
+	_, err := runner.Run(ctx, cfg, killCmd)
+	if err != nil {
+		killCmd = fmt.Sprintf("kill -9 %s 2>/dev/null", pid)
+		_, err = runner.Run(ctx, cfg, killCmd)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeServiceName(service string) string {
+	service = strings.TrimSpace(service)
+	if service == "" {
+		return ""
+	}
+	if strings.HasSuffix(service, ".service") {
+		return service
+	}
+	return service + ".service"
+}
+
+func trimServiceSuffix(service string) string {
+	return strings.TrimSuffix(service, ".service")
 }
 
 func (s *Server) handleDiskUsage(w http.ResponseWriter, r *http.Request) {

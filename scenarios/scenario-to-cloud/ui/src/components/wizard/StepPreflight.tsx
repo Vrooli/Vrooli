@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
@@ -65,6 +65,63 @@ const CHECK_DEFINITIONS = [
 ];
 
 type CheckState = "pending" | "running" | PreflightCheckStatus;
+
+interface PortBindingInfo {
+  port: number;
+  process?: string;
+  pid?: number;
+  service?: string;
+}
+
+function parsePortBindings(data?: Record<string, string>): PortBindingInfo[] {
+  if (!data?.port_bindings) return [];
+  try {
+    const parsed = JSON.parse(data.port_bindings);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((binding) => ({
+        port: Number(binding.port),
+        process: typeof binding.process === "string" ? binding.process : undefined,
+        pid: typeof binding.pid === "number" ? binding.pid : undefined,
+        service: typeof binding.service === "string" ? binding.service : undefined,
+      }))
+      .filter((binding) => Number.isFinite(binding.port));
+  } catch {
+    return [];
+  }
+}
+
+function formatPortBinding(binding: PortBindingInfo): string {
+  const parts: string[] = [];
+  parts.push(`port ${binding.port}`);
+  if (binding.process) {
+    parts.push(binding.process);
+  }
+  if (binding.pid) {
+    parts.push(`pid ${binding.pid}`);
+  }
+  if (binding.service && binding.service !== binding.process) {
+    parts.push(`service ${binding.service}`);
+  }
+  return parts.join(" - ");
+}
+
+function buildPortSelections(bindings: PortBindingInfo[]) {
+  const services: Record<string, boolean> = {};
+  const pids: Record<number, boolean> = {};
+
+  bindings.forEach((binding) => {
+    if (binding.service) {
+      services[binding.service] = true;
+      return;
+    }
+    if (binding.pid) {
+      pids[binding.pid] = true;
+    }
+  });
+
+  return { services, pids };
+}
 
 function getStatusIcon(state: CheckState) {
   switch (state) {
@@ -296,6 +353,137 @@ function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoading }: 
   );
 }
 
+interface PortStopModalProps {
+  bindings: PortBindingInfo[];
+  selections: { services: Record<string, boolean>; pids: Record<number, boolean> };
+  loading: boolean;
+  onToggleService: (service: string) => void;
+  onTogglePID: (pid: number) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+function PortStopModal({
+  bindings,
+  selections,
+  loading,
+  onToggleService,
+  onTogglePID,
+  onConfirm,
+  onClose,
+}: PortStopModalProps) {
+  const services = Array.from(
+    new Set(bindings.map((binding) => binding.service).filter(Boolean))
+  ) as string[];
+  const pidLabels = new Map<number, string>();
+
+  bindings.forEach((binding) => {
+    if (!binding.pid || pidLabels.has(binding.pid)) {
+      return;
+    }
+    const details: string[] = [];
+    if (binding.process) {
+      details.push(binding.process);
+    }
+    if (binding.port) {
+      details.push(`port ${binding.port}`);
+    }
+    const suffix = details.length > 0 ? ` - ${details.join(", ")}` : "";
+    pidLabels.set(binding.pid, `PID ${binding.pid}${suffix}`);
+  });
+
+  const selectedServices = Object.values(selections.services).some(Boolean);
+  const selectedPIDs = Object.values(selections.pids).some(Boolean);
+  const hasSelections = selectedServices || selectedPIDs;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-slate-800 rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+            <Network className="h-5 w-5" />
+            Stop Services on Ports 80/443
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-200"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="text-xs text-slate-400">
+            Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges.
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-slate-300 mb-2">Detected listeners</h4>
+            <div className="bg-slate-900/50 rounded-lg p-3 space-y-1 text-xs text-slate-300">
+              {bindings.map((binding, index) => (
+                <div key={`${binding.port}-${binding.pid ?? index}`}>
+                  {formatPortBinding(binding)}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-slate-300 mb-2">Stop actions</h4>
+            {services.length === 0 && pidLabels.size === 0 ? (
+              <div className="text-xs text-slate-400">
+                No actionable service or PID data was detected. Re-run preflight with SSH access that can read process info, or stop the listener manually.
+              </div>
+            ) : (
+              <div className="space-y-2 text-xs text-slate-300">
+                {services.map((service) => (
+                  <label key={service} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selections.services[service] ?? false}
+                      onChange={() => onToggleService(service)}
+                      className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span>Stop service {service}</span>
+                  </label>
+                ))}
+                {Array.from(pidLabels.entries()).map(([pid, label]) => (
+                  <label key={pid} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selections.pids[pid] ?? false}
+                      onChange={() => onTogglePID(pid)}
+                      className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="text-xs text-slate-400">
+            We try to stop systemd services first when possible, then fall back to terminating specific PIDs.
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={!hasSelections || loading}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-1.5" />
+            )}
+            Stop Selected
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface CheckItemProps {
   id: string;
   title: string;
@@ -313,9 +501,10 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
   const Icon = CHECK_ICONS[id] || Server;
   const StatusIcon = getStatusIcon(state);
   const colors = getStatusColor(state);
+  const portBindings = id === "ports_80_443" ? parsePortBindings(data) : [];
 
   // Determine if this check has actions available
-  const hasPortsAction = id === "ports_80_443" && state === "fail" && data?.processes;
+  const hasPortsAction = id === "ports_80_443" && state === "fail" && portBindings.length > 0;
   const hasDiskAction = id === "disk_free" && (state === "fail" || state === "warn");
   const hasDNSInstructions =
     (id === "dns_edge_apex" || id === "dns_edge_www" || id === "dns_do_origin") &&
@@ -340,6 +529,18 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
           <p className="text-xs text-slate-400 mt-0.5">
             {details || description}
           </p>
+          {id === "ports_80_443" && portBindings.length > 0 && state === "fail" && (
+            <div className="mt-2 text-xs text-slate-300">
+              <div className="font-medium text-slate-400">Detected listeners</div>
+              <div className="mt-1 space-y-1">
+                {portBindings.map((binding, index) => (
+                  <div key={`${binding.port}-${binding.pid ?? index}`} className="text-slate-300">
+                    {formatPortBinding(binding)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
           {/* Action buttons */}
@@ -349,7 +550,7 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
               loading={actionLoading}
               icon={Zap}
             >
-              Free Ports
+              Review & Stop
             </ActionButton>
           )}
           {hasDiskAction && onAction && (
@@ -462,9 +663,18 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
   const [diskUsage, setDiskUsage] = useState<DiskUsageResponse | null>(null);
   const [showDiskModal, setShowDiskModal] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [portSelections, setPortSelections] = useState<{ services: Record<string, boolean>; pids: Record<number, boolean> }>({
+    services: {},
+    pids: {},
+  });
 
   const failCount = preflightChecks?.filter(c => c.status === "fail").length ?? 0;
   const warnCount = preflightChecks?.filter(c => c.status === "warn").length ?? 0;
+  const portBindings = useMemo(() => {
+    const portsCheck = preflightChecks?.find((check) => check.id === "ports_80_443");
+    return parsePortBindings(portsCheck?.data);
+  }, [preflightChecks]);
 
   // Get SSH config from manifest (use sshKeyPath state as fallback for key_path)
   const getSSHConfig = () => {
@@ -489,11 +699,9 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
 
     try {
       if (action === "stop_ports") {
-        const result = await stopPortServices(sshConfig);
-        if (result.ok) {
-          // Re-run preflight to verify
-          runPreflight();
-        }
+        setPortSelections(buildPortSelections(portBindings));
+        setShowPortModal(true);
+        return;
       } else if (action === "show_disk") {
         const usage = await getDiskUsage(sshConfig);
         setDiskUsage(usage);
@@ -521,6 +729,67 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handlePortStop = async () => {
+    const sshConfig = getSSHConfig();
+    if (!sshConfig.host || !sshConfig.key_path) {
+      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
+      return;
+    }
+
+    const services = Object.entries(portSelections.services)
+      .filter(([, selected]) => selected)
+      .map(([service]) => service);
+    const pids = Object.entries(portSelections.pids)
+      .filter(([, selected]) => selected)
+      .map(([pid]) => Number(pid));
+
+    if (services.length === 0 && pids.length === 0) {
+      setActionError("Select at least one service or PID to stop.");
+      return;
+    }
+
+    setActionLoading("ports_80_443:stop_ports");
+    try {
+      const result = await stopPortServices({
+        ...sshConfig,
+        services,
+        pids,
+        prefer_service_stop: true,
+      });
+      if (result.ok) {
+        setShowPortModal(false);
+        runPreflight();
+      } else {
+        setActionError(result.message || "Failed to stop services on ports 80/443.");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setActionError(`Action failed: ${errorMessage}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const togglePortService = (service: string) => {
+    setPortSelections((prev) => ({
+      ...prev,
+      services: {
+        ...prev.services,
+        [service]: !prev.services[service],
+      },
+    }));
+  };
+
+  const togglePortPID = (pid: number) => {
+    setPortSelections((prev) => ({
+      ...prev,
+      pids: {
+        ...prev.pids,
+        [pid]: !prev.pids[pid],
+      },
+    }));
   };
 
   const handleCleanup = async (actions: string[]) => {
@@ -686,6 +955,19 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
           onClose={() => setShowDiskModal(false)}
           onCleanup={handleCleanup}
           cleanupLoading={cleanupLoading}
+        />
+      )}
+
+      {/* Port Stop Modal */}
+      {showPortModal && (
+        <PortStopModal
+          bindings={portBindings}
+          selections={portSelections}
+          loading={actionLoading === "ports_80_443:stop_ports"}
+          onToggleService={togglePortService}
+          onTogglePID={togglePortPID}
+          onConfirm={handlePortStop}
+          onClose={() => setShowPortModal(false)}
         />
       )}
     </div>

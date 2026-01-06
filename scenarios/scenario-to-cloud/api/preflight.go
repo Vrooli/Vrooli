@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -135,18 +136,29 @@ func RunVPSPreflight(
 			map[string]string{"stderr": portsRes.Stderr},
 		)
 	} else if strings.TrimSpace(portsRes.Stdout) != "" {
-		// Parse the ss output to identify what's running
-		processes := parsePortProcesses(portsRes.Stdout)
-		hint := "Stop the service(s) using these ports before deploying."
-		if len(processes) > 0 {
-			hint = fmt.Sprintf("Services using ports: %s. Run: sudo systemctl stop <service> or sudo kill <pid>", strings.Join(processes, ", "))
+		bindings := parsePortBindings(portsRes.Stdout)
+		details := "Port 80 and/or 443 appears to already be in use"
+		if len(bindings) > 0 {
+			details = fmt.Sprintf("Ports in use: %s", formatPortBindings(bindings))
+		}
+		hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
+		if len(bindings) > 0 {
+			hint = hint + " Use the Free Ports action or run: sudo systemctl stop <service> or sudo kill <pid>."
+		}
+		data := map[string]string{"ss": portsRes.Stdout}
+		if len(bindings) > 0 {
+			if encoded, err := json.Marshal(bindings); err == nil {
+				data["port_bindings"] = string(encoded)
+			}
+			data["ports_in_use"] = strings.Join(portBindingPorts(bindings), ",")
+			data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
 		}
 		fail(
 			"ports_80_443",
 			"Ports 80/443 availability",
-			"Port 80 and/or 443 appears to already be in use",
+			details,
 			hint,
-			map[string]string{"ss": portsRes.Stdout, "processes": strings.Join(processes, ",")},
+			data,
 		)
 	} else {
 		pass("ports_80_443", "Ports 80/443 availability", "Ports 80/443 appear free", nil)
@@ -301,61 +313,121 @@ func parseOSRelease(contents string) (id, versionID string) {
 
 // parsePortProcesses extracts process names from ss -ltnp output
 // Example line: LISTEN 0 4096 *:80 *:* users:(("nginx",pid=1234,fd=6))
-func parsePortProcesses(ssOutput string) []string {
-	var processes []string
-	seen := make(map[string]bool)
+type EdgePortBinding struct {
+	Port    int    `json:"port"`
+	Process string `json:"process,omitempty"`
+	PID     int    `json:"pid,omitempty"`
+	Service string `json:"service,omitempty"`
+}
+
+func parsePortBindings(ssOutput string) []EdgePortBinding {
+	bindings := parseSSOutput(ssOutput)
+	filtered := make([]EdgePortBinding, 0, len(bindings))
+
+	for _, binding := range bindings {
+		if binding.Port != 80 && binding.Port != 443 {
+			continue
+		}
+		edge := EdgePortBinding{
+			Port:    binding.Port,
+			Process: binding.Process,
+		}
+		if binding.PID != nil {
+			edge.PID = *binding.PID
+		}
+		if edge.Process != "" {
+			edge.Service = serviceFromProcess(edge.Process)
+		}
+		filtered = append(filtered, edge)
+	}
+
+	if len(filtered) == 0 {
+		filtered = append(filtered, fallbackEdgeBindings(ssOutput)...)
+	}
+
+	return filtered
+}
+
+func fallbackEdgeBindings(ssOutput string) []EdgePortBinding {
+	var bindings []EdgePortBinding
+	seen := map[int]bool{}
 
 	for _, line := range strings.Split(ssOutput, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-
-		// Look for users:(("name",pid=N,fd=N)) pattern
-		if idx := strings.Index(line, "users:(("); idx != -1 {
-			rest := line[idx+8:] // Skip "users:(("
-			if endIdx := strings.Index(rest, `"`); endIdx > 0 {
-				// Find the process name between quotes
-				if startQuote := strings.Index(rest, `"`); startQuote == 0 {
-					nameEnd := strings.Index(rest[1:], `"`)
-					if nameEnd > 0 {
-						name := rest[1 : nameEnd+1]
-						if !seen[name] {
-							seen[name] = true
-							// Also try to get pid
-							if pidIdx := strings.Index(rest, "pid="); pidIdx != -1 {
-								pidEnd := strings.IndexAny(rest[pidIdx+4:], ",)")
-								if pidEnd > 0 {
-									pid := rest[pidIdx+4 : pidIdx+4+pidEnd]
-									processes = append(processes, fmt.Sprintf("%s (pid %s)", name, pid))
-								} else {
-									processes = append(processes, name)
-								}
-							} else {
-								processes = append(processes, name)
-							}
-						}
-					}
-				}
-			}
-		} else {
-			// No process info available, just note the port
-			fields := strings.Fields(line)
-			if len(fields) >= 4 {
-				localAddr := fields[3]
-				if strings.HasSuffix(localAddr, ":80") && !seen["port80"] {
-					seen["port80"] = true
-					processes = append(processes, "unknown on :80")
-				}
-				if strings.HasSuffix(localAddr, ":443") && !seen["port443"] {
-					seen["port443"] = true
-					processes = append(processes, "unknown on :443")
-				}
-			}
+		if strings.Contains(line, ":80") && !seen[80] {
+			seen[80] = true
+			bindings = append(bindings, EdgePortBinding{Port: 80})
+		}
+		if strings.Contains(line, ":443") && !seen[443] {
+			seen[443] = true
+			bindings = append(bindings, EdgePortBinding{Port: 443})
 		}
 	}
 
+	return bindings
+}
+
+func formatPortBindings(bindings []EdgePortBinding) string {
+	var parts []string
+	for _, binding := range bindings {
+		part := fmt.Sprintf("port %d", binding.Port)
+		if binding.Process != "" {
+			part = fmt.Sprintf("%s: %s", part, binding.Process)
+		}
+		if binding.PID > 0 {
+			part = fmt.Sprintf("%s (pid %d)", part, binding.PID)
+		}
+		if binding.Service != "" && binding.Service != binding.Process {
+			part = fmt.Sprintf("%s [service %s]", part, binding.Service)
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, " | ")
+}
+
+func portBindingProcessList(bindings []EdgePortBinding) []string {
+	var processes []string
+	for _, binding := range bindings {
+		if binding.Process != "" {
+			if binding.PID > 0 {
+				processes = append(processes, fmt.Sprintf("%s (pid %d)", binding.Process, binding.PID))
+			} else {
+				processes = append(processes, binding.Process)
+			}
+			continue
+		}
+		processes = append(processes, fmt.Sprintf("port %d", binding.Port))
+	}
 	return processes
+}
+
+func portBindingPorts(bindings []EdgePortBinding) []string {
+	seen := map[int]bool{}
+	var ports []string
+	for _, binding := range bindings {
+		if seen[binding.Port] {
+			continue
+		}
+		seen[binding.Port] = true
+		ports = append(ports, strconv.Itoa(binding.Port))
+	}
+	return ports
+}
+
+func serviceFromProcess(process string) string {
+	switch strings.ToLower(process) {
+	case "nginx":
+		return "nginx"
+	case "apache2", "httpd":
+		return "apache2"
+	case "caddy":
+		return "caddy"
+	default:
+		return ""
+	}
 }
 
 // formatBytes converts bytes to human-readable format
