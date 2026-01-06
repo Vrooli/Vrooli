@@ -16,6 +16,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
+import { MarkdownRenderer } from "./markdown";
 import type {
   ApplyFixesRequest,
   Investigation,
@@ -118,7 +119,9 @@ export function InvestigationReport({
             expanded={expandedSections.has("summary")}
             onToggle={() => toggleSection("summary")}
           >
-            <p className="text-sm">{findings.summary}</p>
+            <div className="text-sm">
+              <MarkdownRenderer content={findings.summary} />
+            </div>
           </CollapsibleSection>
 
           {/* Root Cause */}
@@ -135,7 +138,9 @@ export function InvestigationReport({
               }
             >
               <div className="space-y-4">
-                <p className="text-sm">{findings.root_cause.description}</p>
+                <div className="text-sm">
+                  <MarkdownRenderer content={findings.root_cause.description} />
+                </div>
 
                 {findings.root_cause.evidence.length > 0 && (
                   <div className="space-y-2">
@@ -164,7 +169,9 @@ export function InvestigationReport({
                             </Button>
                           )}
                         </div>
-                        <p>{evidence.description}</p>
+                        <div className="text-sm">
+                          <MarkdownRenderer content={evidence.description} />
+                        </div>
                         {evidence.snippet && (
                           <pre className="mt-2 text-[11px] bg-background rounded p-2 overflow-x-auto">
                             {evidence.snippet}
@@ -317,7 +324,9 @@ function RecommendationCard({
             <Badge variant="outline">{recommendation.action_type.replace("_", " ")}</Badge>
           </div>
           <h4 className="font-medium text-sm">{recommendation.title}</h4>
-          <p className="text-sm text-muted-foreground">{recommendation.description}</p>
+          <div className="text-sm">
+            <MarkdownRenderer content={recommendation.description} />
+          </div>
         </div>
       </div>
     </div>

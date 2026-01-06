@@ -32,6 +32,7 @@ import type {
 } from "../types";
 import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus } from "../types";
 import { KPICard } from "../features/stats/components/kpi/KPICard";
+import { MarkdownRenderer } from "./markdown";
 
 interface RunDetailProps {
   run: Run;
@@ -425,8 +426,8 @@ export function RunDetail({
                     {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Copy failed" : "Copy"}
                   </Button>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-card/50 p-4 text-sm whitespace-pre-wrap">
-                  {finalResponse.content}
+                <div className="rounded-lg border border-border/60 bg-card/50 p-4 text-sm">
+                  <MarkdownRenderer content={finalResponse.content} />
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {formatDate(finalResponse.timestamp)}

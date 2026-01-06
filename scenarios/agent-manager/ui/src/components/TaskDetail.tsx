@@ -1,6 +1,7 @@
 import { Edit, FolderOpen, Play, Trash2, XCircle } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { MarkdownRenderer } from "./markdown";
 import { formatDate, formatRelativeTime } from "../lib/utils";
 import type { Task } from "../types";
 import { TaskStatus } from "../types";
@@ -62,9 +63,13 @@ export function TaskDetail({
             {taskStatusLabel(task.status).replace("_", " ")}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {task.description || "No description provided"}
-        </p>
+        {task.description ? (
+          <div className="text-sm text-muted-foreground">
+            <MarkdownRenderer content={task.description} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No description provided</p>
+        )}
       </div>
 
       {/* Actions */}
