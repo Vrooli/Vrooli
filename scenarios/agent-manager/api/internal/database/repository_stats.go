@@ -409,9 +409,11 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 	args := []interface{}{filter.Window.Start, filter.Window.End}
 
 	if r.db.Dialect() == DialectPostgres {
+		// Use NULLIF to convert empty string to NULL, then COALESCE to convert NULL to 'unknown'
+		// This normalizes both NULL and empty string toolNames to 'unknown'
 		query = `
 			SELECT
-				e.data->>'toolName' as tool_name,
+				COALESCE(NULLIF(e.data->>'toolName', ''), 'unknown') as tool_name,
 				COUNT(*) as call_count,
 				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
 				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
@@ -419,15 +421,19 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 			JOIN runs r ON e.run_id = r.id
 			WHERE r.created_at >= $1 AND r.created_at < $2
 			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND e.data->>'toolName' IS NOT NULL
-			GROUP BY e.data->>'toolName'
+			GROUP BY COALESCE(NULLIF(e.data->>'toolName', ''), 'unknown')
 			ORDER BY call_count DESC
 			LIMIT $3`
 		args = append(args, limit)
 	} else {
+		// SQLite: Use CASE to normalize empty/NULL to 'unknown'
 		query = `
 			SELECT
-				json_extract(e.data, '$.toolName') as tool_name,
+				CASE
+					WHEN json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = ''
+					THEN 'unknown'
+					ELSE json_extract(e.data, '$.toolName')
+				END as tool_name,
 				COUNT(*) as call_count,
 				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
 				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
@@ -435,8 +441,11 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 			JOIN runs r ON e.run_id = r.id
 			WHERE r.created_at >= ? AND r.created_at < ?
 			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND json_extract(e.data, '$.toolName') IS NOT NULL
-			GROUP BY json_extract(e.data, '$.toolName')
+			GROUP BY CASE
+				WHEN json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = ''
+				THEN 'unknown'
+				ELSE json_extract(e.data, '$.toolName')
+			END
 			ORDER BY call_count DESC
 			LIMIT ?`
 		args = append(args, limit)
@@ -515,56 +524,116 @@ func (r *statsRepository) GetModelRunUsage(ctx context.Context, filter repositor
 // GetToolRunUsage returns run-level usage for a specific tool.
 func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error) {
 	var query string
-	args := []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+	var args []interface{}
+
+	// When toolName is "unknown", match events where toolName is NULL, empty, or "unknown"
+	// This corresponds to the normalization done in GetToolUsageStats
+	isUnknown := toolName == "unknown"
 
 	if r.db.Dialect() == DialectPostgres {
-		query = `
-			SELECT
-				r.id as run_id,
-				r.task_id as task_id,
-				COALESCE(t.title, 'Unknown Task') as task_title,
-				r.agent_profile_id as profile_id,
-				COALESCE(p.name, 'Unknown Profile') as profile_name,
-				r.status as status,
-				r.created_at as created_at,
-				COALESCE(r.resolved_config->>'model', 'unknown') as model,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			LEFT JOIN tasks t ON r.task_id = t.id
-			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-			WHERE r.created_at >= $1 AND r.created_at < $2
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND e.data->>'toolName' = $3
-			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
-			ORDER BY call_count DESC, r.created_at DESC
-			LIMIT $4`
+		if isUnknown {
+			args = []interface{}{filter.Window.Start, filter.Window.End, limit}
+			query = `
+				SELECT
+					r.id as run_id,
+					r.task_id as task_id,
+					COALESCE(t.title, 'Unknown Task') as task_title,
+					r.agent_profile_id as profile_id,
+					COALESCE(p.name, 'Unknown Profile') as profile_name,
+					r.status as status,
+					r.created_at as created_at,
+					COALESCE(r.resolved_config->>'model', 'unknown') as model,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				LEFT JOIN tasks t ON r.task_id = t.id
+				LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+				WHERE r.created_at >= $1 AND r.created_at < $2
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND (e.data->>'toolName' IS NULL OR e.data->>'toolName' = '' OR e.data->>'toolName' = 'unknown')
+				GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+				ORDER BY call_count DESC, r.created_at DESC
+				LIMIT $3`
+		} else {
+			args = []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+			query = `
+				SELECT
+					r.id as run_id,
+					r.task_id as task_id,
+					COALESCE(t.title, 'Unknown Task') as task_title,
+					r.agent_profile_id as profile_id,
+					COALESCE(p.name, 'Unknown Profile') as profile_name,
+					r.status as status,
+					r.created_at as created_at,
+					COALESCE(r.resolved_config->>'model', 'unknown') as model,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				LEFT JOIN tasks t ON r.task_id = t.id
+				LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+				WHERE r.created_at >= $1 AND r.created_at < $2
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND e.data->>'toolName' = $3
+				GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+				ORDER BY call_count DESC, r.created_at DESC
+				LIMIT $4`
+		}
 	} else {
-		query = `
-			SELECT
-				r.id as run_id,
-				r.task_id as task_id,
-				COALESCE(t.title, 'Unknown Task') as task_title,
-				r.agent_profile_id as profile_id,
-				COALESCE(p.name, 'Unknown Profile') as profile_name,
-				r.status as status,
-				r.created_at as created_at,
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			LEFT JOIN tasks t ON r.task_id = t.id
-			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND json_extract(e.data, '$.toolName') = ?
-			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
-			ORDER BY call_count DESC, r.created_at DESC
-			LIMIT ?`
+		if isUnknown {
+			args = []interface{}{filter.Window.Start, filter.Window.End, limit}
+			query = `
+				SELECT
+					r.id as run_id,
+					r.task_id as task_id,
+					COALESCE(t.title, 'Unknown Task') as task_title,
+					r.agent_profile_id as profile_id,
+					COALESCE(p.name, 'Unknown Profile') as profile_name,
+					r.status as status,
+					r.created_at as created_at,
+					COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+					SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				LEFT JOIN tasks t ON r.task_id = t.id
+				LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+				WHERE r.created_at >= ? AND r.created_at < ?
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND (json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = '' OR json_extract(e.data, '$.toolName') = 'unknown')
+				GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+				ORDER BY call_count DESC, r.created_at DESC
+				LIMIT ?`
+		} else {
+			args = []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+			query = `
+				SELECT
+					r.id as run_id,
+					r.task_id as task_id,
+					COALESCE(t.title, 'Unknown Task') as task_title,
+					r.agent_profile_id as profile_id,
+					COALESCE(p.name, 'Unknown Profile') as profile_name,
+					r.status as status,
+					r.created_at as created_at,
+					COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+					SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				LEFT JOIN tasks t ON r.task_id = t.id
+				LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
+				WHERE r.created_at >= ? AND r.created_at < ?
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND json_extract(e.data, '$.toolName') = ?
+				GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
+				ORDER BY call_count DESC, r.created_at DESC
+				LIMIT ?`
+		}
 	}
 
 	query = r.db.Rebind(query)
@@ -579,40 +648,84 @@ func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository
 // GetToolUsageByModel returns tool usage grouped by model.
 func (r *statsRepository) GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error) {
 	var query string
-	args := []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+	var args []interface{}
+
+	// When toolName is "unknown", match events where toolName is NULL, empty, or "unknown"
+	// This corresponds to the normalization done in GetToolUsageStats
+	isUnknown := toolName == "unknown"
 
 	if r.db.Dialect() == DialectPostgres {
-		query = `
-			SELECT
-				COALESCE(r.resolved_config->>'model', 'unknown') as model,
-				COUNT(DISTINCT r.id) as run_count,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
-				COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE r.created_at >= $1 AND r.created_at < $2
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND e.data->>'toolName' = $3
-			GROUP BY r.resolved_config->>'model'
-			ORDER BY call_count DESC
-			LIMIT $4`
+		if isUnknown {
+			args = []interface{}{filter.Window.Start, filter.Window.End, limit}
+			query = `
+				SELECT
+					COALESCE(r.resolved_config->>'model', 'unknown') as model,
+					COUNT(DISTINCT r.id) as run_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				WHERE r.created_at >= $1 AND r.created_at < $2
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND (e.data->>'toolName' IS NULL OR e.data->>'toolName' = '' OR e.data->>'toolName' = 'unknown')
+				GROUP BY r.resolved_config->>'model'
+				ORDER BY call_count DESC
+				LIMIT $3`
+		} else {
+			args = []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+			query = `
+				SELECT
+					COALESCE(r.resolved_config->>'model', 'unknown') as model,
+					COUNT(DISTINCT r.id) as run_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_call') as call_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = true) as success_count,
+					COUNT(*) FILTER (WHERE e.event_type = 'tool_result' AND (e.data->>'success')::boolean = false) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				WHERE r.created_at >= $1 AND r.created_at < $2
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND e.data->>'toolName' = $3
+				GROUP BY r.resolved_config->>'model'
+				ORDER BY call_count DESC
+				LIMIT $4`
+		}
 	} else {
-		query = `
-			SELECT
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				COUNT(DISTINCT r.id) as run_count,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND json_extract(e.data, '$.toolName') = ?
-			GROUP BY json_extract(r.resolved_config, '$.model')
-			ORDER BY call_count DESC
-			LIMIT ?`
+		if isUnknown {
+			args = []interface{}{filter.Window.Start, filter.Window.End, limit}
+			query = `
+				SELECT
+					COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+					COUNT(DISTINCT r.id) as run_count,
+					SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				WHERE r.created_at >= ? AND r.created_at < ?
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND (json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = '' OR json_extract(e.data, '$.toolName') = 'unknown')
+				GROUP BY json_extract(r.resolved_config, '$.model')
+				ORDER BY call_count DESC
+				LIMIT ?`
+		} else {
+			args = []interface{}{filter.Window.Start, filter.Window.End, toolName, limit}
+			query = `
+				SELECT
+					COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+					COUNT(DISTINCT r.id) as run_count,
+					SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
+					SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
+				FROM run_events e
+				JOIN runs r ON e.run_id = r.id
+				WHERE r.created_at >= ? AND r.created_at < ?
+				  AND e.event_type IN ('tool_call', 'tool_result')
+				  AND json_extract(e.data, '$.toolName') = ?
+				GROUP BY json_extract(r.resolved_config, '$.model')
+				ORDER BY call_count DESC
+				LIMIT ?`
+		}
 	}
 
 	query = r.db.Rebind(query)
