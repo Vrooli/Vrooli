@@ -39,9 +39,10 @@ func (s *Server) handleInvestigateDeployment(w http.ResponseWriter, r *http.Requ
 
 	// Trigger investigation
 	inv, err := s.investigationSvc.TriggerInvestigation(r.Context(), TriggerInvestigationRequest{
-		DeploymentID: deploymentID,
-		AutoFix:      req.AutoFix,
-		Note:         req.Note,
+		DeploymentID:    deploymentID,
+		AutoFix:         req.AutoFix,
+		Note:            req.Note,
+		IncludeContexts: req.IncludeContexts,
 	})
 	if err != nil {
 		// Check for specific error types

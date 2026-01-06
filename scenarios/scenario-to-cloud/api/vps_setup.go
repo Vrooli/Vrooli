@@ -24,6 +24,15 @@ type (
 const bootstrapCommand = `export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a && ` +
 	`apt-get update -qq && ` +
 	`apt-get install -y -qq curl git unzip tar jq ca-certificates gnupg lsb-release`
+const firewallInboundCommand = "command -v ufw >/dev/null 2>/dev/null && { ufw allow 80/tcp; ufw allow 443/tcp; ufw reload; } || true"
+
+func buildBootstrapCommand(manifest CloudManifest) string {
+	command := bootstrapCommand
+	if manifest.Edge.Caddy.Enabled {
+		command = fmt.Sprintf("%s && %s", command, firewallInboundCommand)
+	}
+	return command
+}
 
 // VPSSetupRequest is the request body for VPS setup.
 type VPSSetupRequest struct {
@@ -54,7 +63,7 @@ func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep
 			ID:          "bootstrap",
 			Title:       "Install system prerequisites",
 			Description: "Update apt and install required packages (curl, git, unzip, etc.)",
-			Command:     localSSHCommand(cfg, bootstrapCommand),
+			Command:     localSSHCommand(cfg, buildBootstrapCommand(manifest)),
 		},
 		{
 			ID:          "upload",
@@ -182,7 +191,7 @@ func RunVPSSetupWithProgress(
 
 	// Step: bootstrap
 	emit("step_started", "bootstrap", "Installing prerequisites")
-	if err := run(bootstrapCommand); err != nil {
+	if err := run(buildBootstrapCommand(manifest)); err != nil {
 		return failStep("bootstrap", "Installing prerequisites", err.Error())
 	}
 	*progress += StepWeights["bootstrap"]

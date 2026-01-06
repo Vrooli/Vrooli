@@ -213,6 +213,14 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			}, " && ")),
 		},
 	}
+	if manifest.Edge.Caddy.Enabled {
+		steps = append(steps, VPSPlanStep{
+			ID:          "firewall_inbound",
+			Title:       "Open inbound HTTP/HTTPS",
+			Description: "Allow inbound 80/443 so Caddy can complete ACME validation.",
+			Command:     localSSHCommand(cfg, firewallInboundCommand),
+		})
+	}
 
 	// Add secrets provisioning step if secrets are present
 	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
@@ -415,6 +423,18 @@ func RunVPSDeployWithProgress(
 	*progress += StepWeights["caddy_config"]
 	emit("step_completed", "caddy_config", "Configuring Caddy")
 
+	if manifest.Edge.Caddy.Enabled {
+		emit("step_started", "firewall_inbound", "Opening inbound HTTP/HTTPS")
+		firewallCmd := firewallInboundCommand
+		if err := run(firewallCmd); err != nil {
+			return failStep("firewall_inbound", "Opening inbound HTTP/HTTPS", err.Error())
+		}
+		*progress += StepWeights["firewall_inbound"]
+		emit("step_completed", "firewall_inbound", "Opening inbound HTTP/HTTPS")
+	} else {
+		*progress += StepWeights["firewall_inbound"]
+	}
+
 	// Step: secrets_provision - Generate and write secrets BEFORE resource startup
 	if manifest.Secrets != nil && len(manifest.Secrets.BundleSecrets) > 0 {
 		emit("step_started", "secrets_provision", "Provisioning secrets")
@@ -524,6 +544,11 @@ func RunVPSDeployWithProgress(
 	// Step: verify_origin - Verify reachability to origin directly (bypasses proxy)
 	emit("step_started", "verify_origin", "Verifying origin reachability")
 	if err := checkOriginHealth(ctx, manifest.Edge.Domain, manifest.Target.VPS.Host, 10*time.Second); err != nil {
+		if manifest.Edge.Caddy.Enabled {
+			if hint := caddyACMEOriginUnreachableHint(fetchCaddyLogs(ctx, sshRunner, cfg, 200)); hint != "" {
+				return failStep("verify_origin", "Verifying origin reachability", hint)
+			}
+		}
 		return failStep("verify_origin", "Verifying origin reachability", err.Error())
 	}
 	*progress += StepWeights["verify_origin"]
@@ -726,6 +751,56 @@ func checkOriginHealth(ctx context.Context, domain, host string, timeout time.Du
 		return fmt.Errorf("origin health check returned %s via %s", resp.Status, ip)
 	}
 	return nil
+}
+
+func fetchCaddyLogs(ctx context.Context, sshRunner SSHRunner, cfg SSHConfig, lines int) string {
+	if lines <= 0 {
+		lines = 200
+	}
+	cmd := fmt.Sprintf("journalctl -u caddy --no-pager -n %d 2>/dev/null || true", lines)
+	res, err := sshRunner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return ""
+	}
+	return res.Stdout
+}
+
+func caddyACMEOriginUnreachableHint(logs string) string {
+	if strings.TrimSpace(logs) == "" {
+		return ""
+	}
+	lower := strings.ToLower(logs)
+	if !strings.Contains(lower, "acme") {
+		return ""
+	}
+	if !strings.Contains(lower, "522") && !strings.Contains(lower, "403") {
+		return ""
+	}
+
+	var matches []string
+	for _, line := range strings.Split(logs, "\n") {
+		lineLower := strings.ToLower(line)
+		if strings.Contains(lineLower, "acme") && (strings.Contains(lineLower, "522") || strings.Contains(lineLower, "403")) {
+			matches = append(matches, strings.TrimSpace(line))
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Caddy ACME validation shows origin unreachable (522/403). ")
+	sb.WriteString("Open inbound 80/443 or use DNS-01/DNS-only during issuance.")
+	if len(matches) > 0 {
+		sb.WriteString(" Recent Caddy logs: ")
+		for i, line := range matches {
+			if i >= 3 {
+				break
+			}
+			if i > 0 {
+				sb.WriteString(" | ")
+			}
+			sb.WriteString(line)
+		}
+	}
+	return sb.String()
 }
 
 func resolveHostIP(ctx context.Context, host string) (string, error) {

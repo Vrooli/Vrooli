@@ -44,6 +44,7 @@ export interface InvestigationSummary {
 export interface CreateInvestigationRequest {
   auto_fix?: boolean;
   note?: string;
+  include_contexts?: string[];
 }
 
 export interface ApplyFixesRequest {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Server,
@@ -72,13 +72,15 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     forceBundleBuild: boolean;
   } | null>(null);
   const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
+  const redeployRunId = deployment?.run_id ?? null;
+  const lastBundleRefreshRunRef = useRef<string | null>(null);
 
   const {
     progress: redeployProgress,
     isConnected: redeployConnected,
     connectionError: redeployConnectionError,
     reset: resetRedeployProgress,
-  } = useDeploymentProgress(redeployActive ? deploymentId : null);
+  } = useDeploymentProgress(redeployActive ? deploymentId : null, { runId: redeployRunId });
 
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
@@ -105,13 +107,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const canStop = deploymentRecord?.status === "deployed";
   const hasExistingBundle = Boolean(deploymentRecord?.bundle_path);
   const canViewRedeployProgress = redeployActive || isInProgress;
+  const redeployLocked = executeMutation.isPending || isInProgress;
   const redeployOptions = redeployOptionsSnapshot ?? {
     runPreflight,
     forceBundleBuild: buildNewBundle,
   };
-  const bundlePathFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_path ?? null;
-  const bundleShaFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_sha256 ?? null;
-  const bundleSizeFallback = redeployOptions.forceBundleBuild ? null : deploymentRecord?.bundle_size_bytes ?? null;
   const redeployPreflightEnabled = redeployOptions.runPreflight;
   const includeBuildStep = redeployOptions.forceBundleBuild;
   const includePreflightStep = redeployPreflightEnabled;
@@ -124,6 +124,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     redeployProgress?.error && redeployProgress.currentStep === "bundle_build"
       ? redeployProgress.error
       : null;
+  const shouldHideBundleFallback =
+    redeployOptions.forceBundleBuild && (!redeployActive || buildStatus !== "completed");
+  const bundlePathFallback = shouldHideBundleFallback ? null : deploymentRecord?.bundle_path ?? null;
+  const bundleShaFallback = shouldHideBundleFallback ? null : deploymentRecord?.bundle_sha256 ?? null;
+  const bundleSizeFallback = shouldHideBundleFallback ? null : deploymentRecord?.bundle_size_bytes ?? null;
 
   const preflightStepStatus = useMemo<StepStatus>(() => {
     if (!redeployPreflightEnabled) {
@@ -249,6 +254,22 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       hydrateRedeployOptions();
     }
   }, [hydrateRedeployOptions, redeployActive, redeployOptionsSnapshot]);
+
+  useEffect(() => {
+    if (!includeBuildStep || buildStatus !== "completed") return;
+    if (deploymentRecord?.bundle_path) return;
+    const runKey = redeployRunId ?? deploymentRecord?.run_id ?? "unknown";
+    if (lastBundleRefreshRunRef.current === runKey) return;
+    lastBundleRefreshRunRef.current = runKey;
+    void refetch();
+  }, [
+    buildStatus,
+    deploymentRecord?.bundle_path,
+    deploymentRecord?.run_id,
+    includeBuildStep,
+    redeployRunId,
+    refetch,
+  ]);
 
   const isInvestigationOutdated = (inv?: { deployment_run_id?: string; created_at: string } | null) => {
     if (!inv) return false;
@@ -487,7 +508,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                         : "No existing bundle found. A new bundle is required."
                     }
                     checked={buildNewBundle}
-                    disabled={!hasExistingBundle || executeMutation.isPending || redeployActive}
+                    disabled={!hasExistingBundle || redeployLocked}
                     onChange={() => setBuildNewBundle(!buildNewBundle)}
                   />
                 </div>
@@ -498,7 +519,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                     label="Run preflight checks"
                     description="Validates DNS, SSH, OS, and prerequisites before deployment."
                     checked={runPreflight}
-                    disabled={executeMutation.isPending || redeployActive}
+                    disabled={redeployLocked}
                     onChange={() => setRunPreflight(!runPreflight)}
                   />
                 </div>
@@ -531,7 +552,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                   </button>
                   <button
                     onClick={startRedeploy}
-                    disabled={executeMutation.isPending || redeployActive}
+                    disabled={redeployLocked}
                     className="px-4 py-2 rounded-lg font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {executeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}

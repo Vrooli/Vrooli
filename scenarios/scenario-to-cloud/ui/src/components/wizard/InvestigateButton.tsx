@@ -1,8 +1,63 @@
 import { useState } from "react";
-import { Search, Loader2, AlertCircle, Bot, X } from "lucide-react";
+import { Search, Loader2, AlertCircle, Bot, X, Check } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+
+// Context items that can be included in investigations
+const CONTEXT_OPTIONS = [
+  {
+    key: "error-info",
+    label: "Error Information",
+    description: "Failed step and error message",
+    defaultChecked: true,
+    recommended: true,
+  },
+  {
+    key: "deployment-manifest",
+    label: "Deployment Manifest",
+    description: "Full dependency and target configuration",
+    defaultChecked: true,
+  },
+  {
+    key: "vps-connection",
+    label: "VPS Connection Details",
+    description: "SSH command, host, credentials",
+    defaultChecked: true,
+  },
+  {
+    key: "deployment-history",
+    label: "Deployment History",
+    description: "Timeline of deployment events",
+    defaultChecked: true,
+  },
+  {
+    key: "preflight-results",
+    label: "Preflight Results",
+    description: "VPS capability check results",
+    defaultChecked: false,
+  },
+  {
+    key: "setup-results",
+    label: "Setup Results",
+    description: "Vrooli installation phase output",
+    defaultChecked: false,
+  },
+  {
+    key: "deploy-results",
+    label: "Deploy Results",
+    description: "Deployment execution phase output",
+    defaultChecked: false,
+  },
+  {
+    key: "architecture-guide",
+    label: "Architecture Guide",
+    description: "How Vrooli deployments work",
+    defaultChecked: true,
+  },
+] as const;
+
+type ContextKey = typeof CONTEXT_OPTIONS[number]["key"];
 
 interface InvestigateButtonProps {
   deploymentId: string;
@@ -18,6 +73,9 @@ export function InvestigateButton({
   const [showOptions, setShowOptions] = useState(false);
   const [autoFix, setAutoFix] = useState(false);
   const [note, setNote] = useState("");
+  const [selectedContexts, setSelectedContexts] = useState<Set<ContextKey>>(
+    () => new Set(CONTEXT_OPTIONS.filter(o => o.defaultChecked).map(o => o.key))
+  );
 
   const {
     isAgentAvailable,
@@ -44,12 +102,18 @@ export function InvestigateButton({
 
   const handleTrigger = async () => {
     try {
-      const inv = await trigger({ auto_fix: autoFix, note: note.trim() || undefined });
+      const inv = await trigger({
+        auto_fix: autoFix,
+        note: note.trim() || undefined,
+        include_contexts: Array.from(selectedContexts),
+      });
       if (inv) {
         onInvestigationStarted?.(inv.id);
         setShowOptions(false);
         setAutoFix(false);
         setNote("");
+        // Reset to defaults
+        setSelectedContexts(new Set(CONTEXT_OPTIONS.filter(o => o.defaultChecked).map(o => o.key)));
       }
     } catch (e) {
       // Error is captured in triggerError
@@ -60,6 +124,20 @@ export function InvestigateButton({
     setShowOptions(false);
     setAutoFix(false);
     setNote("");
+    // Reset to defaults
+    setSelectedContexts(new Set(CONTEXT_OPTIONS.filter(o => o.defaultChecked).map(o => o.key)));
+  };
+
+  const toggleContext = (key: ContextKey) => {
+    setSelectedContexts(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   };
 
   // Agent not configured
@@ -108,7 +186,7 @@ export function InvestigateButton({
             </div>
 
             {/* Content */}
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
               {!isAgentAvailable && (
                 <Alert variant="warning" title="Agent Manager Unavailable">
                   The agent-manager service is not running. Start it to enable investigations.
@@ -121,10 +199,56 @@ export function InvestigateButton({
                 </Alert>
               )}
 
+              {/* Context selection */}
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">
+                  Context to Include
+                </label>
+                <div className="space-y-1">
+                  {CONTEXT_OPTIONS.map((option) => (
+                    <label
+                      key={option.key}
+                      className="flex items-start gap-3 p-2 rounded-md cursor-pointer hover:bg-slate-800/50 transition-colors"
+                    >
+                      <div className="relative flex items-center justify-center mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={selectedContexts.has(option.key)}
+                          onChange={() => toggleContext(option.key)}
+                          className="sr-only"
+                        />
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                            selectedContexts.has(option.key)
+                              ? "bg-blue-500 border-blue-500"
+                              : "bg-slate-800 border-slate-600"
+                          }`}
+                        >
+                          {selectedContexts.has(option.key) && (
+                            <Check className="h-3 w-3 text-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-200">{option.label}</span>
+                          {"recommended" in option && option.recommended && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                              recommended
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">{option.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Note input */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">
-                  Context for the investigation
+                  Additional Notes
                 </label>
                 <textarea
                   value={note}

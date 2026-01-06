@@ -13,6 +13,7 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 export interface UseDeploymentProgressOptions {
   onComplete?: (success: boolean, error?: string) => void;
   onError?: (error: string) => void;
+  runId?: string | null;
 }
 
 export function useDeploymentProgress(
@@ -23,7 +24,7 @@ export function useDeploymentProgress(
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { onComplete, onError } = options;
+  const { onComplete, onError, runId } = options;
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -220,7 +221,7 @@ export function useDeploymentProgress(
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [deploymentId, disconnect, onComplete, onError]);
+  }, [deploymentId, runId, disconnect, onComplete, onError]);
 
   const reset = useCallback(() => {
     disconnect();

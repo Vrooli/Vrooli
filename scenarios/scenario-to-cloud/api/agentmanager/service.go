@@ -179,6 +179,8 @@ type ExecuteRequest struct {
 	RunnerType *domainpb.RunnerType
 	// Optional override for model (uses profile default if empty)
 	Model string
+	// Context attachments for structured context (optional)
+	ContextAttachments []*domainpb.ContextAttachment
 }
 
 // ExecuteResult contains the result of agent execution.
@@ -202,11 +204,12 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 
 	// Create task for this investigation
 	task := &domainpb.Task{
-		Title:       fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
-		Description: req.Prompt,
-		ScopePath:   req.WorkingDir,
-		ProjectRoot: req.WorkingDir,
-		CreatedBy:   "scenario-to-cloud",
+		Title:              fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
+		Description:        req.Prompt,
+		ScopePath:          req.WorkingDir,
+		ProjectRoot:        req.WorkingDir,
+		CreatedBy:          "scenario-to-cloud",
+		ContextAttachments: req.ContextAttachments,
 	}
 
 	createdTask, err := s.client.CreateTask(ctx, task)
@@ -287,11 +290,12 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 
 	// Create task
 	task := &domainpb.Task{
-		Title:       fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
-		Description: req.Prompt,
-		ScopePath:   req.WorkingDir,
-		ProjectRoot: req.WorkingDir,
-		CreatedBy:   "scenario-to-cloud",
+		Title:              fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
+		Description:        req.Prompt,
+		ScopePath:          req.WorkingDir,
+		ProjectRoot:        req.WorkingDir,
+		CreatedBy:          "scenario-to-cloud",
+		ContextAttachments: req.ContextAttachments,
 	}
 
 	createdTask, err := s.client.CreateTask(ctx, task)

@@ -50,8 +50,9 @@ type InvestigationDetails struct {
 
 // CreateInvestigationRequest is the request body for triggering an investigation.
 type CreateInvestigationRequest struct {
-	AutoFix bool   `json:"auto_fix,omitempty"` // Whether to attempt automatic fixes
-	Note    string `json:"note,omitempty"`     // User-provided context
+	AutoFix         bool     `json:"auto_fix,omitempty"`         // Whether to attempt automatic fixes
+	Note            string   `json:"note,omitempty"`             // User-provided context
+	IncludeContexts []string `json:"include_contexts,omitempty"` // Which context items to include (e.g., "error-info", "deployment-manifest")
 }
 
 // ApplyFixesRequest is the request body for applying fixes from an investigation.

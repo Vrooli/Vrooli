@@ -40,9 +40,10 @@ func NewInvestigationService(
 
 // TriggerInvestigationRequest contains parameters for triggering an investigation.
 type TriggerInvestigationRequest struct {
-	DeploymentID string
-	AutoFix      bool
-	Note         string
+	DeploymentID    string
+	AutoFix         bool
+	Note            string
+	IncludeContexts []string // Context items to include (e.g., "error-info", "deployment-manifest")
 }
 
 // TriggerInvestigation starts a new investigation for a failed deployment.
@@ -91,7 +92,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, req Tri
 	}
 
 	// Start background investigation
-	go s.runInvestigation(inv.ID, deployment, req.AutoFix, req.Note)
+	go s.runInvestigation(inv.ID, deployment, req.AutoFix, req.Note, req.IncludeContexts)
 
 	return inv, nil
 }
@@ -102,6 +103,7 @@ func (s *InvestigationService) runInvestigation(
 	deployment *domain.Deployment,
 	autoFix bool,
 	note string,
+	includeContexts []string,
 ) {
 	ctx := context.Background()
 
@@ -114,8 +116,8 @@ func (s *InvestigationService) runInvestigation(
 	// Broadcast investigation started
 	s.broadcastProgress(deployment.ID, invID, "investigation_started", 0, "Starting deployment investigation...")
 
-	// Build the investigation prompt
-	prompt, err := s.buildPrompt(deployment, autoFix, note)
+	// Build the investigation prompt and context attachments
+	prompt, contextAttachments, err := s.buildPromptAndContext(deployment, autoFix, note, includeContexts)
 	if err != nil {
 		s.handleInvestigationError(ctx, invID, deployment.ID, fmt.Sprintf("failed to build prompt: %v", err))
 		return
@@ -138,9 +140,10 @@ func (s *InvestigationService) runInvestigation(
 	defer cancel()
 
 	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
-		InvestigationID: invID,
-		Prompt:          prompt,
-		WorkingDir:      workingDir,
+		InvestigationID:    invID,
+		Prompt:             prompt,
+		WorkingDir:         workingDir,
+		ContextAttachments: contextAttachments,
 	})
 	if err != nil {
 		s.handleInvestigationError(ctx, invID, deployment.ID, fmt.Sprintf("failed to start agent: %v", err))
@@ -294,16 +297,46 @@ func (s *InvestigationService) broadcastProgress(deploymentID, invID, eventType 
 	})
 }
 
-// buildPrompt constructs the investigation prompt with deployment context.
-func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFix bool, note string) (string, error) {
+// Default context items to include if none specified
+var defaultIncludeContexts = []string{
+	"error-info",
+	"deployment-manifest",
+	"vps-connection",
+	"deployment-history",
+	"architecture-guide",
+}
+
+// containsContext checks if a context key is in the include list.
+func containsContext(includeContexts []string, key string) bool {
+	for _, c := range includeContexts {
+		if c == key {
+			return true
+		}
+	}
+	return false
+}
+
+// buildPromptAndContext constructs the base prompt and context attachments for investigation.
+// Returns the base prompt (task instructions) and context attachments (selectable data).
+func (s *InvestigationService) buildPromptAndContext(
+	deployment *domain.Deployment,
+	autoFix bool,
+	note string,
+	includeContexts []string,
+) (string, []*domainpb.ContextAttachment, error) {
+	// Use defaults if none specified
+	if len(includeContexts) == 0 {
+		includeContexts = defaultIncludeContexts
+	}
+
 	// Parse the manifest to get VPS details
 	var manifest CloudManifest
 	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		return "", fmt.Errorf("failed to parse manifest: %w", err)
+		return "", nil, fmt.Errorf("failed to parse manifest: %w", err)
 	}
 
 	if manifest.Target.VPS == nil {
-		return "", fmt.Errorf("deployment has no VPS target")
+		return "", nil, fmt.Errorf("deployment has no VPS target")
 	}
 
 	vps := manifest.Target.VPS
@@ -316,7 +349,7 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 		sshUser = "root"
 	}
 
-	// Build the prompt
+	// Build the base prompt (task instructions - always included)
 	var sb strings.Builder
 
 	sb.WriteString("# Deployment Investigation\n\n")
@@ -332,78 +365,16 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	}
 	sb.WriteString("\n")
 
-	sb.WriteString("## Error Information\n")
-	if deployment.ErrorStep != nil {
-		sb.WriteString(fmt.Sprintf("- Failed Step: %s\n", *deployment.ErrorStep))
-	}
-	if deployment.ErrorMessage != nil {
-		sb.WriteString(fmt.Sprintf("- Error Message:\n```\n%s\n```\n", *deployment.ErrorMessage))
-	}
-	sb.WriteString("\n")
-
-	// Include the full deployment manifest for reference
-	sb.WriteString("## Deployment Manifest\n")
-	sb.WriteString("This is the manifest that was used for deployment. Use it to verify dependencies.\n")
-	sb.WriteString("```json\n")
-	manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
-	sb.WriteString(string(manifestJSON))
-	sb.WriteString("\n```\n\n")
-
-	sb.WriteString("## VPS Connection\n")
-	sb.WriteString("To investigate the VPS, use SSH commands:\n")
-	sb.WriteString("```bash\n")
-	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n", vps.KeyPath, sshPort, sshUser, vps.Host))
-	sb.WriteString("```\n\n")
-
-	sb.WriteString("## Deployment Configuration\n")
-	sb.WriteString(fmt.Sprintf("- VPS Host: %s\n", vps.Host))
-	sb.WriteString(fmt.Sprintf("- SSH User: %s\n", sshUser))
-	sb.WriteString(fmt.Sprintf("- SSH Port: %d\n", sshPort))
-	sb.WriteString(fmt.Sprintf("- SSH Key Path: %s\n", vps.KeyPath))
-	if vps.Workdir != "" {
-		sb.WriteString(fmt.Sprintf("- VPS Workdir: %s\n", vps.Workdir))
-	}
-	if manifest.Edge.Domain != "" {
-		sb.WriteString(fmt.Sprintf("- Domain: %s\n", manifest.Edge.Domain))
-	}
-	sb.WriteString("\n")
-
-	if len(manifest.Ports) > 0 {
-		sb.WriteString("## Expected Ports\n")
-		for name, port := range manifest.Ports {
-			sb.WriteString(fmt.Sprintf("- %s: %d\n", name, port))
-		}
-		sb.WriteString("\n")
-	}
-
-	// Add Vrooli architecture context
-	sb.WriteString("## Vrooli Deployment Architecture\n")
-	sb.WriteString("Understanding how Vrooli deployments work will help you diagnose the root cause:\n\n")
-	sb.WriteString("### How Dependencies Work\n")
-	sb.WriteString("1. Each scenario declares its dependencies in `.vrooli/service.json` under `dependencies.resources` and `dependencies.scenarios`\n")
-	sb.WriteString("2. The `scenario-dependency-analyzer` scans the scenario and its dependencies to build the manifest\n")
-	sb.WriteString("3. The deployment pipeline (`vps_deploy.go`) executes these steps in order:\n")
-	sb.WriteString("   - Install and configure Caddy (reverse proxy)\n")
-	sb.WriteString("   - Start each resource in `manifest.dependencies.resources` via `vrooli resource start <name>`\n")
-	sb.WriteString("   - Start each dependent scenario in `manifest.dependencies.scenarios`\n")
-	sb.WriteString("   - Start the target scenario with port assignments\n")
-	sb.WriteString("   - Run health checks\n\n")
-	sb.WriteString("### Common Failure Patterns\n")
-	sb.WriteString("- **Resource missing from manifest**: The scenario's `.vrooli/service.json` may not declare the resource, or the analyzer didn't pick it up\n")
-	sb.WriteString("- **Resource in manifest but failed to start**: The `vrooli resource start` command failed on the VPS (check logs in `~/.vrooli/logs/`)\n")
-	sb.WriteString("- **Resource started but not ready**: The scenario started before the resource was fully initialized (timing/health check issue)\n")
-	sb.WriteString("- **VPS missing Vrooli installation**: The mini-Vrooli install may be incomplete or corrupted\n\n")
-
 	sb.WriteString("## Diagnostic Questions\n")
 	sb.WriteString("As you investigate, answer these questions to identify the root cause:\n\n")
-	sb.WriteString("1. **Is the failing dependency in the manifest?** Check `dependencies.resources` and `dependencies.scenarios` above\n")
+	sb.WriteString("1. **Is the failing dependency in the manifest?** Check the deployment-manifest context attachment\n")
 	sb.WriteString("2. **If yes, did the resource/scenario start step succeed?** Check `~/.vrooli/logs/` for resource and scenario start logs\n")
 	sb.WriteString("3. **If no, is it declared in the scenario's service.json?** Check `<workdir>/scenarios/<scenario>/.vrooli/service.json`\n")
 	sb.WriteString("4. **Is the Vrooli CLI working?** Run `vrooli --version` and `vrooli resource list`\n")
 	sb.WriteString("5. **Is this a configuration issue or transient failure?** Would a simple restart fix it, or is there a deeper problem?\n\n")
 
 	sb.WriteString("## Your Task\n")
-	sb.WriteString("1. SSH into the VPS to investigate the deployment failure\n")
+	sb.WriteString("1. SSH into the VPS to investigate the deployment failure (see vps-connection context)\n")
 	sb.WriteString("2. Check relevant logs:\n")
 	sb.WriteString("   - Vrooli logs: `~/.vrooli/logs/` (resource and scenario logs)\n")
 	sb.WriteString("   - `journalctl -u <service>` for systemd services\n")
@@ -424,12 +395,6 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 		sb.WriteString("7. If safe, attempt to fix the issue (restart services, clear disk, etc.)\n")
 	}
 	sb.WriteString("\n")
-
-	if note != "" {
-		sb.WriteString("## User Note\n")
-		sb.WriteString(note)
-		sb.WriteString("\n\n")
-	}
 
 	sb.WriteString("## Report Format\n")
 	sb.WriteString("Please provide a structured report with:\n\n")
@@ -457,7 +422,158 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	sb.WriteString("### Prevention\n")
 	sb.WriteString("Recommendations for monitoring, alerts, or deployment pipeline improvements that would catch this issue earlier or prevent it entirely.\n")
 
-	return sb.String(), nil
+	basePrompt := sb.String()
+
+	// Build context attachments based on selection
+	var attachments []*domainpb.ContextAttachment
+
+	// Error Information
+	if containsContext(includeContexts, "error-info") {
+		var errorContent strings.Builder
+		if deployment.ErrorStep != nil {
+			errorContent.WriteString(fmt.Sprintf("Failed Step: %s\n", *deployment.ErrorStep))
+		}
+		if deployment.ErrorMessage != nil {
+			errorContent.WriteString(fmt.Sprintf("Error Message:\n%s", *deployment.ErrorMessage))
+		}
+		if errorContent.Len() > 0 {
+			attachments = append(attachments, &domainpb.ContextAttachment{
+				Type:    "note",
+				Key:     "error-info",
+				Tags:    []string{"error", "diagnosis"},
+				Label:   "Error Information",
+				Content: errorContent.String(),
+			})
+		}
+	}
+
+	// Deployment Manifest
+	if containsContext(includeContexts, "deployment-manifest") {
+		manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "deployment-manifest",
+			Tags:    []string{"config", "dependencies"},
+			Label:   "Deployment Manifest",
+			Content: string(manifestJSON),
+		})
+	}
+
+	// VPS Connection Details
+	if containsContext(includeContexts, "vps-connection") {
+		var vpsContent strings.Builder
+		vpsContent.WriteString("SSH Command:\n")
+		vpsContent.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+		vpsContent.WriteString(fmt.Sprintf("Host: %s\n", vps.Host))
+		vpsContent.WriteString(fmt.Sprintf("User: %s\n", sshUser))
+		vpsContent.WriteString(fmt.Sprintf("Port: %d\n", sshPort))
+		vpsContent.WriteString(fmt.Sprintf("Key Path: %s\n", vps.KeyPath))
+		if vps.Workdir != "" {
+			vpsContent.WriteString(fmt.Sprintf("Workdir: %s\n", vps.Workdir))
+		}
+		if manifest.Edge.Domain != "" {
+			vpsContent.WriteString(fmt.Sprintf("Domain: %s\n", manifest.Edge.Domain))
+		}
+		if len(manifest.Ports) > 0 {
+			vpsContent.WriteString("\nExpected Ports:\n")
+			for name, port := range manifest.Ports {
+				vpsContent.WriteString(fmt.Sprintf("- %s: %d\n", name, port))
+			}
+		}
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "vps-connection",
+			Tags:    []string{"ssh", "access"},
+			Label:   "VPS Connection Details",
+			Content: vpsContent.String(),
+		})
+	}
+
+	// Deployment History
+	if containsContext(includeContexts, "deployment-history") && deployment.DeploymentHistory.Valid {
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "deployment-history",
+			Tags:    []string{"timeline", "events"},
+			Label:   "Deployment History",
+			Content: string(deployment.DeploymentHistory.Data),
+		})
+	}
+
+	// Preflight Results
+	if containsContext(includeContexts, "preflight-results") && deployment.PreflightResult.Valid {
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "preflight-results",
+			Tags:    []string{"preflight", "checks"},
+			Label:   "Preflight Results",
+			Content: string(deployment.PreflightResult.Data),
+		})
+	}
+
+	// Setup Results
+	if containsContext(includeContexts, "setup-results") && deployment.SetupResult.Valid {
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "setup-results",
+			Tags:    []string{"setup", "installation"},
+			Label:   "Setup Results",
+			Content: string(deployment.SetupResult.Data),
+		})
+	}
+
+	// Deploy Results
+	if containsContext(includeContexts, "deploy-results") && deployment.DeployResult.Valid {
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "deploy-results",
+			Tags:    []string{"deployment", "execution"},
+			Label:   "Deploy Results",
+			Content: string(deployment.DeployResult.Data),
+		})
+	}
+
+	// Architecture Guide
+	if containsContext(includeContexts, "architecture-guide") {
+		var archContent strings.Builder
+		archContent.WriteString("## Vrooli Deployment Architecture\n")
+		archContent.WriteString("Understanding how Vrooli deployments work will help you diagnose the root cause:\n\n")
+		archContent.WriteString("### How Dependencies Work\n")
+		archContent.WriteString("1. Each scenario declares its dependencies in `.vrooli/service.json` under `dependencies.resources` and `dependencies.scenarios`\n")
+		archContent.WriteString("2. The `scenario-dependency-analyzer` scans the scenario and its dependencies to build the manifest\n")
+		archContent.WriteString("3. The deployment pipeline (`vps_deploy.go`) executes these steps in order:\n")
+		archContent.WriteString("   - Install and configure Caddy (reverse proxy)\n")
+		archContent.WriteString("   - Start each resource in `manifest.dependencies.resources` via `vrooli resource start <name>`\n")
+		archContent.WriteString("   - Start each dependent scenario in `manifest.dependencies.scenarios`\n")
+		archContent.WriteString("   - Start the target scenario with port assignments\n")
+		archContent.WriteString("   - Run health checks\n\n")
+		archContent.WriteString("### Common Failure Patterns\n")
+		archContent.WriteString("- **Resource missing from manifest**: The scenario's `.vrooli/service.json` may not declare the resource, or the analyzer didn't pick it up\n")
+		archContent.WriteString("- **Resource in manifest but failed to start**: The `vrooli resource start` command failed on the VPS (check logs in `~/.vrooli/logs/`)\n")
+		archContent.WriteString("- **Resource started but not ready**: The scenario started before the resource was fully initialized (timing/health check issue)\n")
+		archContent.WriteString("- **VPS missing Vrooli installation**: The mini-Vrooli install may be incomplete or corrupted\n")
+
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "architecture-guide",
+			Tags:    []string{"documentation", "reference"},
+			Label:   "Vrooli Architecture Guide",
+			Content: archContent.String(),
+		})
+	}
+
+	// User Note
+	if note != "" {
+		attachments = append(attachments, &domainpb.ContextAttachment{
+			Type:    "note",
+			Key:     "user-note",
+			Tags:    []string{"user", "context"},
+			Label:   "User Note",
+			Content: note,
+		})
+	}
+
+	return basePrompt, attachments, nil
 }
 
 // GetInvestigation retrieves an investigation by ID scoped to a deployment.

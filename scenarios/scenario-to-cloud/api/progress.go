@@ -40,8 +40,9 @@ var StepWeights = map[string]float64{
 	"scenario_stop":     3, // Stop existing scenario before deployment
 	"caddy_install":     5,
 	"caddy_config":      5,
+	"firewall_inbound":  1,
 	"secrets_provision": 5, // Generate and write secrets before resource start
-	"resource_start":    9,
+	"resource_start":    8,
 	"scenario_deps":     10,
 	"scenario_target":   9,
 	"wait_for_ui":       1,
@@ -74,6 +75,7 @@ var DeploySteps = []StepInfo{
 	{ID: "scenario_stop", Title: "Stopping existing scenario", Weight: StepWeights["scenario_stop"]},
 	{ID: "caddy_install", Title: "Installing Caddy", Weight: StepWeights["caddy_install"]},
 	{ID: "caddy_config", Title: "Configuring Caddy", Weight: StepWeights["caddy_config"]},
+	{ID: "firewall_inbound", Title: "Opening inbound HTTP/HTTPS", Weight: StepWeights["firewall_inbound"]},
 	{ID: "secrets_provision", Title: "Provisioning secrets", Weight: StepWeights["secrets_provision"]},
 	{ID: "resource_start", Title: "Starting resources", Weight: StepWeights["resource_start"]},
 	{ID: "scenario_deps", Title: "Starting dependencies", Weight: StepWeights["scenario_deps"]},
