@@ -14,8 +14,10 @@ interface StepPreflightProps {
 // Map check IDs to icons
 const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   dns_vps_host: Globe,
-  dns_edge_domain: Globe,
-  dns_points_to_vps: Network,
+  dns_edge_apex: Globe,
+  dns_edge_www: Globe,
+  dns_do_origin: Globe,
+  dns_og_worker_ready: Zap,
   ssh_connect: Key,
   os_release: Server,
   ports_80_443: Network,
@@ -39,8 +41,10 @@ const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
 // Check definitions - used for preview and running states
 const CHECK_DEFINITIONS = [
   { id: "dns_vps_host", title: "Resolve VPS host", description: "Verify VPS hostname resolves to IP" },
-  { id: "dns_edge_domain", title: "Resolve edge domain", description: "Verify domain resolves to IP" },
-  { id: "dns_points_to_vps", title: "DNS points to VPS", description: "Confirm domain points to VPS IP" },
+  { id: "dns_edge_apex", title: "Apex domain", description: "Verify apex domain resolves to VPS or proxy" },
+  { id: "dns_edge_www", title: "WWW domain", description: "Verify www domain resolves to VPS or proxy" },
+  { id: "dns_do_origin", title: "Origin domain", description: "Verify do-origin points to VPS" },
+  { id: "dns_og_worker_ready", title: "OG worker readiness", description: "Check proxy + origin routing for OG worker" },
   { id: "ssh_connect", title: "SSH connectivity", description: "Test SSH connection to server" },
   { id: "os_release", title: "Ubuntu version", description: "Check Ubuntu version" },
   { id: "ports_80_443", title: "Ports 80/443 availability", description: "Verify ports are free for Caddy" },
@@ -313,7 +317,11 @@ function CheckItem({ id, title, description, state, details, hint, data, onActio
   // Determine if this check has actions available
   const hasPortsAction = id === "ports_80_443" && state === "fail" && data?.processes;
   const hasDiskAction = id === "disk_free" && (state === "fail" || state === "warn");
-  const hasDNSInstructions = id === "dns_points_to_vps" && state === "fail" && hint && hint.includes("\n");
+  const hasDNSInstructions =
+    (id === "dns_edge_apex" || id === "dns_edge_www" || id === "dns_do_origin") &&
+    state === "fail" &&
+    hint &&
+    hint.includes("\n");
   const hasStaleProcessesAction = id === "stale_processes" && state === "warn";
 
   // Check if hint is multi-line (for expandable display)

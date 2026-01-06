@@ -174,6 +174,7 @@ func (s *Server) setupRoutes() {
 
 	// Edge/TLS Management (Ground Truth Redesign - Enhancement)
 	api.HandleFunc("/deployments/{id}/edge/dns-check", s.handleDNSCheck).Methods("GET")
+	api.HandleFunc("/deployments/{id}/edge/dns-records", s.handleDNSRecords).Methods("GET")
 	api.HandleFunc("/deployments/{id}/edge/caddy", s.handleCaddyControl).Methods("POST")
 	api.HandleFunc("/deployments/{id}/edge/tls", s.handleTLSInfo).Methods("GET")
 	api.HandleFunc("/deployments/{id}/edge/tls/renew", s.handleTLSRenew).Methods("POST")

@@ -11,9 +11,11 @@ const (
 )
 
 const (
-	PreflightDNSVPSHostID     = "dns_vps_host"
-	PreflightDNSEdgeDomainID  = "dns_edge_domain"
-	PreflightDNSPointsToVPSID = "dns_points_to_vps"
+	PreflightDNSVPSHostID  = "dns_vps_host"
+	PreflightDNSEdgeApexID = "dns_edge_apex"
+	PreflightDNSEdgeWWWID  = "dns_edge_www"
+	PreflightDNSDoOriginID = "dns_do_origin"
+	PreflightDNSOGWorkerID = "dns_og_worker_ready"
 )
 
 // PreflightCheck represents a single preflight validation result.

@@ -26,9 +26,10 @@ const (
 )
 
 const (
-	preflightDNSVPSHost     = domain.PreflightDNSVPSHostID
-	preflightDNSEdgeDomain  = domain.PreflightDNSEdgeDomainID
-	preflightDNSPointsToVPS = domain.PreflightDNSPointsToVPSID
+	preflightDNSVPSHost  = domain.PreflightDNSVPSHostID
+	preflightDNSEdgeApex = domain.PreflightDNSEdgeApexID
+	preflightDNSEdgeWWW  = domain.PreflightDNSEdgeWWWID
+	preflightDNSDoOrigin = domain.PreflightDNSDoOriginID
 )
 
 func RunVPSPreflight(

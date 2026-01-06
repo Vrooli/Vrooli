@@ -39,8 +39,10 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 		ctx,
 		manifest,
 		dns.NewService(&dns.FakeResolver{Hosts: map[string][]string{
-			"203.0.113.10": {"203.0.113.10"},
-			"example.com":  {"203.0.113.10"},
+			"203.0.113.10":          {"203.0.113.10"},
+			"example.com":           {"203.0.113.10"},
+			"www.example.com":       {"203.0.113.10"},
+			"do-origin.example.com": {"203.0.113.10"},
 		}}),
 		&FakeSSHRunner{Responses: map[string]SSHResult{
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
@@ -62,8 +64,8 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 	if !resp.OK {
 		t.Fatalf("expected OK, got: %+v", resp)
 	}
-	if len(resp.Checks) < 12 {
-		t.Fatalf("expected at least 12 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
+	if len(resp.Checks) < 15 {
+		t.Fatalf("expected at least 15 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
 	}
 }
 
@@ -91,8 +93,10 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 		ctx,
 		manifest,
 		dns.NewService(&dns.FakeResolver{Hosts: map[string][]string{
-			"203.0.113.10": {"203.0.113.10"},
-			"example.com":  {"198.51.100.5"},
+			"203.0.113.10":          {"203.0.113.10"},
+			"example.com":           {"198.51.100.5"},
+			"www.example.com":       {"198.51.100.5"},
+			"do-origin.example.com": {"203.0.113.10"},
 		}}),
 		&FakeSSHRunner{Responses: map[string]SSHResult{
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
@@ -113,10 +117,10 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 
 	var found bool
 	for _, c := range resp.Checks {
-		if c.ID == preflightDNSPointsToVPS {
+		if c.ID == preflightDNSEdgeApex {
 			found = true
 			if c.Status != PreflightFail {
-				t.Fatalf("expected dns_points_to_vps to fail, got: %+v", c)
+				t.Fatalf("expected dns_edge_apex to fail, got: %+v", c)
 			}
 			if !strings.Contains(c.Hint, "Update DNS") {
 				t.Fatalf("expected actionable hint, got: %q", c.Hint)
@@ -124,7 +128,7 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected dns_points_to_vps check")
+		t.Fatalf("expected dns_edge_apex check")
 	}
 }
 
@@ -155,8 +159,10 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 		ctx,
 		manifest,
 		dns.NewService(&dns.FakeResolver{Hosts: map[string][]string{
-			"203.0.113.10": {"203.0.113.10"},
-			"example.com":  {"198.51.100.5"},
+			"203.0.113.10":          {"203.0.113.10"},
+			"example.com":           {"198.51.100.5"},
+			"www.example.com":       {"198.51.100.5"},
+			"do-origin.example.com": {"203.0.113.10"},
 		}}),
 		&FakeSSHRunner{Responses: map[string]SSHResult{
 			"echo ok":             {ExitCode: 0, Stdout: "ok"},
@@ -176,16 +182,16 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 
 	var pointsCheck *PreflightCheck
 	for i := range resp.Checks {
-		if resp.Checks[i].ID == preflightDNSPointsToVPS {
+		if resp.Checks[i].ID == preflightDNSEdgeApex {
 			pointsCheck = &resp.Checks[i]
 			break
 		}
 	}
 	if pointsCheck == nil {
-		t.Fatalf("expected dns_points_to_vps check")
+		t.Fatalf("expected dns_edge_apex check")
 	}
 	if pointsCheck.Status != PreflightWarn {
-		t.Fatalf("expected dns_points_to_vps to warn, got: %+v", pointsCheck)
+		t.Fatalf("expected dns_edge_apex to warn, got: %+v", pointsCheck)
 	}
 	if !resp.OK {
 		t.Fatalf("expected OK when DNS policy is warn, got: %+v", resp)

@@ -52,6 +52,30 @@ type DNSARecordHint struct {
 	PropagationNote string   `json:"propagation_note,omitempty"`
 }
 
+// DNSRecordValue captures a DNS record value with TTL.
+type DNSRecordValue struct {
+	Value string `json:"value"`
+	TTL   uint32 `json:"ttl,omitempty"`
+}
+
+// DNSMXRecord captures an MX record with priority.
+type DNSMXRecord struct {
+	Host     string `json:"host"`
+	Priority uint16 `json:"priority"`
+	TTL      uint32 `json:"ttl,omitempty"`
+}
+
+// DNSRecordSet groups records by type for a domain.
+type DNSRecordSet struct {
+	Domain string           `json:"domain"`
+	A      []DNSRecordValue `json:"a,omitempty"`
+	AAAA   []DNSRecordValue `json:"aaaa,omitempty"`
+	CNAME  []DNSRecordValue `json:"cname,omitempty"`
+	MX     []DNSMXRecord    `json:"mx,omitempty"`
+	TXT    []DNSRecordValue `json:"txt,omitempty"`
+	NS     []DNSRecordValue `json:"ns,omitempty"`
+}
+
 // ReachabilityResult represents the result of a single reachability check.
 type ReachabilityResult struct {
 	Target    string             `json:"target"`

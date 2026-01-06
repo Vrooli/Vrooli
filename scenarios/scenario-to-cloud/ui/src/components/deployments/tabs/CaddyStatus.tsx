@@ -31,7 +31,7 @@ interface CaddyStatusProps {
 
 export function CaddyStatus({ caddy, deploymentId }: CaddyStatusProps) {
   const [showRoutes, setShowRoutes] = useState(true);
-  const [showDNSHint, setShowDNSHint] = useState(false);
+  const [showDNSHint, setShowDNSHint] = useState<string | null>(null);
 
   // Fetch DNS check status
   const { data: dnsCheck, isLoading: dnsLoading, refetch: refetchDNS } = useDNSCheck(deploymentId);
@@ -240,54 +240,100 @@ export function CaddyStatus({ caddy, deploymentId }: CaddyStatusProps) {
               Checking DNS...
             </div>
           ) : dnsCheck ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div
                 className={cn(
                   "flex items-center gap-2 text-sm",
-                  dnsCheck.points_to_vps ? "text-emerald-400" : "text-amber-400"
+                  dnsCheck.ok ? "text-emerald-400" : "text-amber-400"
                 )}
               >
-                {dnsCheck.points_to_vps ? (
+                {dnsCheck.ok ? (
                   <>
                     <Wifi className="h-4 w-4" />
-                    <span>Domain points to VPS</span>
+                    <span>DNS checks passed</span>
                   </>
                 ) : (
                   <>
                     <WifiOff className="h-4 w-4" />
-                    <span>Domain does not point to VPS</span>
+                    <span>DNS checks need attention</span>
                   </>
                 )}
               </div>
 
-              {dnsCheck.domain_ips && dnsCheck.domain_ips.length > 0 && (
-                <div className="text-xs text-slate-400">
-                  Domain IPs: <span className="text-slate-300">{dnsCheck.domain_ips.join(", ")}</span>
-                </div>
-              )}
               {dnsCheck.vps_ips && dnsCheck.vps_ips.length > 0 && (
                 <div className="text-xs text-slate-400">
                   VPS IPs: <span className="text-slate-300">{dnsCheck.vps_ips.join(", ")}</span>
                 </div>
               )}
 
-              {!dnsCheck.points_to_vps && dnsCheck.hint && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => setShowDNSHint(!showDNSHint)}
-                    className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    <Info className="h-3 w-3" />
-                    {showDNSHint ? "Hide" : "Show"} how to fix
-                    {showDNSHint ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                  {showDNSHint && (
-                    <pre className="mt-2 p-2 rounded bg-slate-800 text-xs text-slate-300 whitespace-pre-wrap">
-                      {dnsCheck.hint}
-                    </pre>
-                  )}
-                </div>
-              )}
+              <div className="space-y-3">
+                {dnsCheck.domains.map((domainCheck) => {
+                  const label =
+                    domainCheck.role === "apex"
+                      ? "Apex"
+                      : domainCheck.role === "www"
+                      ? "WWW"
+                      : "Origin";
+
+                  return (
+                    <div key={domainCheck.domain} className="rounded border border-white/5 bg-slate-900/40 p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs text-slate-400">
+                          <span className="text-slate-200">{label}</span> •{" "}
+                          <span className="font-mono text-slate-300">{domainCheck.domain}</span>
+                        </div>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                            domainCheck.ok
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : "bg-amber-500/10 text-amber-400"
+                          )}
+                        >
+                          {domainCheck.ok ? "OK" : "Check"}
+                        </span>
+                      </div>
+
+                      <div className="mt-1 text-xs text-slate-400">{domainCheck.message}</div>
+
+                      {domainCheck.domain_ips && domainCheck.domain_ips.length > 0 && (
+                        <div className="mt-1 text-xs text-slate-400">
+                          Domain IPs:{" "}
+                          <span className="text-slate-300">{domainCheck.domain_ips.join(", ")}</span>
+                        </div>
+                      )}
+
+                      {domainCheck.proxied && (
+                        <div className="mt-1 text-xs text-blue-400">Proxied via Cloudflare</div>
+                      )}
+
+                      {!domainCheck.ok && domainCheck.hint && (
+                        <div className="mt-2">
+                          <button
+                            onClick={() =>
+                              setShowDNSHint(showDNSHint === domainCheck.domain ? null : domainCheck.domain)
+                            }
+                            className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            <Info className="h-3 w-3" />
+                            {showDNSHint === domainCheck.domain ? "Hide" : "Show"} how to fix
+                            {showDNSHint === domainCheck.domain ? (
+                              <ChevronUp className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
+                          </button>
+                          {showDNSHint === domainCheck.domain && (
+                            <pre className="mt-2 p-2 rounded bg-slate-800 text-xs text-slate-300 whitespace-pre-wrap">
+                              {domainCheck.hint}
+                            </pre>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </div>

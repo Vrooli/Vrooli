@@ -19,16 +19,40 @@ import (
 
 // DNSCheckResponse is the response from the DNS check endpoint.
 type DNSCheckResponse struct {
-	OK          bool                   `json:"ok"`
+	OK        bool             `json:"ok"`
+	VPSHost   string           `json:"vps_host"`
+	VPSIPs    []string         `json:"vps_ips"`
+	Domains   []DNSDomainCheck `json:"domains"`
+	Message   string           `json:"message"`
+	Timestamp string           `json:"timestamp"`
+}
+
+// DNSDomainCheck describes DNS status for a single domain variant.
+type DNSDomainCheck struct {
 	Domain      string                 `json:"domain"`
-	VPSHost     string                 `json:"vps_host"`
-	DomainIPs   []string               `json:"domain_ips"`
-	VPSIPs      []string               `json:"vps_ips"`
+	Role        string                 `json:"role"` // apex, www, origin
+	OK          bool                   `json:"ok"`
+	DomainIPs   []string               `json:"domain_ips,omitempty"`
 	PointsToVPS bool                   `json:"points_to_vps"`
+	Proxied     bool                   `json:"proxied"`
 	Message     string                 `json:"message"`
 	Hint        string                 `json:"hint,omitempty"`
 	HintData    *domain.DNSARecordHint `json:"hint_data,omitempty"`
-	Timestamp   string                 `json:"timestamp"`
+}
+
+// DNSRecordsResponse is the response from the DNS records endpoint.
+type DNSRecordsResponse struct {
+	OK        bool                 `json:"ok"`
+	Domains   []DNSRecordSetResult `json:"domains"`
+	Message   string               `json:"message"`
+	Timestamp string               `json:"timestamp"`
+}
+
+// DNSRecordSetResult contains DNS records for a single domain.
+type DNSRecordSetResult struct {
+	Domain  string               `json:"domain"`
+	Records *domain.DNSRecordSet `json:"records,omitempty"`
+	Error   string               `json:"error,omitempty"`
 }
 
 // CaddyControlRequest is the request body for Caddy control actions.
@@ -105,51 +129,175 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	vpsHost := normalized.Target.VPS.Host
 	domain := normalized.Edge.Domain
 
-	compare := s.dnsService.CompareDomainToVPS(ctx, domain, vpsHost)
-	resp := buildDNSCheckResponse(compare)
+	resp := buildDNSCheckResponse(ctx, s.dnsService, domain, vpsHost)
 	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func buildDNSCheckResponse(compare domain.DNSComparisonResult) DNSCheckResponse {
-	response := DNSCheckResponse{
-		Domain:      compare.Domain.Host,
-		VPSHost:     compare.VPS.Host,
-		DomainIPs:   compare.Domain.IPs,
-		VPSIPs:      compare.VPS.IPs,
-		PointsToVPS: compare.PointsToVPS,
+// handleDNSRecords returns common DNS records for the edge domain variants.
+// GET /api/v1/deployments/{id}/edge/dns-records
+func (s *Server) handleDNSRecords(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		return
+	}
+	if deployment == nil {
+		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		return
 	}
 
-	if compare.VPS.Error != nil {
-		response.OK = false
-		response.Message = fmt.Sprintf("Failed to resolve VPS host: %s", compare.VPS.Error.Message)
-		return response
+	var manifest CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+		return
 	}
 
-	if compare.Domain.Error != nil {
-		response.OK = false
-		response.Message = fmt.Sprintf("Failed to resolve domain: %s", compare.Domain.Error.Message)
-		if len(compare.VPS.IPs) > 0 {
-			hint, hintData := dns.BuildARecordHint(compare.Domain.Host, compare.VPS.IPs[0])
-			response.Hint = hint
-			response.HintData = &hintData
+	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	if strings.TrimSpace(normalized.Edge.Domain) == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Deployment does not have an edge domain"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	baseDomain := dns.BaseDomain(normalized.Edge.Domain)
+	domains := []string{baseDomain}
+	wwwDomain := "www." + baseDomain
+	if wwwDomain != baseDomain {
+		domains = append(domains, wwwDomain)
+	}
+	domains = append(domains, "do-origin."+baseDomain)
+
+	resp := DNSRecordsResponse{
+		OK:      true,
+		Domains: make([]DNSRecordSetResult, 0, len(domains)),
+	}
+
+	for _, domainName := range domains {
+		records, err := dns.LookupRecordSet(ctx, domainName)
+		if err != nil {
+			resp.OK = false
+			resp.Domains = append(resp.Domains, DNSRecordSetResult{
+				Domain: domainName,
+				Error:  err.Error(),
+			})
+			continue
 		}
-		return response
+		resp.Domains = append(resp.Domains, DNSRecordSetResult{
+			Domain:  domainName,
+			Records: &records,
+		})
 	}
+
+	if resp.OK {
+		resp.Message = "DNS records fetched"
+	} else {
+		resp.Message = "Some DNS records could not be fetched"
+	}
+	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func buildDNSCheckResponse(ctx context.Context, svc dns.Service, domainName, vpsHost string) DNSCheckResponse {
+	vpsLookup := svc.ResolveHost(ctx, vpsHost)
+	baseDomain := dns.BaseDomain(domainName)
+	apexDomain := baseDomain
+	wwwDomain := "www." + baseDomain
+	doOriginDomain := "do-origin." + baseDomain
+
+	response := DNSCheckResponse{
+		VPSHost: vpsLookup.Host,
+		VPSIPs:  vpsLookup.IPs,
+		Domains: make([]DNSDomainCheck, 0, 3),
+	}
+
+	var checks []DNSDomainCheck
+	checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, apexDomain, "apex", true))
+	if wwwDomain != apexDomain {
+		checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, wwwDomain, "www", true))
+	}
+	checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, doOriginDomain, "origin", false))
+
+	response.Domains = checks
 
 	response.OK = true
-	if compare.PointsToVPS {
-		response.Message = fmt.Sprintf("Domain %s correctly points to VPS (%s)", compare.Domain.Host, strings.Join(compare.Domain.IPs, ", "))
-	} else {
-		response.Message = fmt.Sprintf("Domain %s resolves to %s, not your VPS (%s)", compare.Domain.Host, strings.Join(compare.Domain.IPs, ", "), strings.Join(compare.VPS.IPs, ", "))
-		if len(compare.VPS.IPs) > 0 {
-			hint, hintData := dns.BuildARecordHint(compare.Domain.Host, compare.VPS.IPs[0])
-			response.Hint = hint
-			response.HintData = &hintData
+	if vpsLookup.Error != nil {
+		response.OK = false
+		response.Message = fmt.Sprintf("Failed to resolve VPS host: %s", vpsLookup.Error.Message)
+		return response
+	}
+	for _, check := range checks {
+		if !check.OK {
+			response.OK = false
+			break
 		}
 	}
-
+	if response.OK {
+		response.Message = "DNS checks passed"
+	} else {
+		response.Message = "DNS checks need attention"
+	}
 	return response
+}
+
+func buildDomainCheck(ctx context.Context, svc dns.Service, vpsLookup domain.DNSLookupResult, domainName, role string, allowProxy bool) DNSDomainCheck {
+	lookup := svc.ResolveHost(ctx, domainName)
+	check := DNSDomainCheck{
+		Domain:    lookup.Host,
+		Role:      role,
+		DomainIPs: lookup.IPs,
+	}
+	if lookup.Error != nil {
+		check.OK = false
+		check.Message = fmt.Sprintf("Failed to resolve %s: %s", domainName, lookup.Error.Message)
+		return check
+	}
+
+	check.Proxied = allowProxy && dns.AreCloudflareIPs(lookup.IPs)
+	if check.Proxied {
+		check.OK = true
+		check.Message = fmt.Sprintf("%s resolves to Cloudflare proxy", lookup.Host)
+		return check
+	}
+
+	if vpsLookup.Error != nil {
+		check.OK = false
+		check.Message = fmt.Sprintf("VPS host unresolved; cannot verify %s", lookup.Host)
+		return check
+	}
+
+	check.PointsToVPS = dnsIPIntersection(vpsLookup.IPs, lookup.IPs)
+	if check.PointsToVPS {
+		check.OK = true
+		check.Message = fmt.Sprintf("%s points to the VPS", lookup.Host)
+		return check
+	}
+
+	check.OK = false
+	check.Message = fmt.Sprintf("%s resolves to %s, not your VPS (%s)", lookup.Host, strings.Join(lookup.IPs, ", "), strings.Join(vpsLookup.IPs, ", "))
+	if len(vpsLookup.IPs) > 0 {
+		hint, hintData := dns.BuildARecordHint(lookup.Host, vpsLookup.IPs[0])
+		check.Hint = hint
+		check.HintData = &hintData
+	}
+	return check
+}
+
+func dnsIPIntersection(a, b []string) bool {
+	set := map[string]struct{}{}
+	for _, v := range a {
+		set[v] = struct{}{}
+	}
+	for _, v := range b {
+		if _, ok := set[v]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // handleCaddyControl handles Caddy service control actions.

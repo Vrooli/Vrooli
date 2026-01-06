@@ -1465,16 +1465,58 @@ export type DNSARecordHint = {
   propagation_note?: string;
 };
 
-export type DNSCheckResponse = {
-  ok: boolean;
+export type DNSDomainCheck = {
   domain: string;
-  vps_host: string;
+  role: "apex" | "www" | "origin";
+  ok: boolean;
   domain_ips?: string[];
-  vps_ips?: string[];
   points_to_vps: boolean;
+  proxied: boolean;
   message: string;
   hint?: string;
   hint_data?: DNSARecordHint;
+};
+
+export type DNSCheckResponse = {
+  ok: boolean;
+  vps_host: string;
+  vps_ips?: string[];
+  domains: DNSDomainCheck[];
+  message: string;
+  timestamp: string;
+};
+
+export type DNSRecordValue = {
+  value: string;
+  ttl?: number;
+};
+
+export type DNSMXRecord = {
+  host: string;
+  priority: number;
+  ttl?: number;
+};
+
+export type DNSRecordSet = {
+  domain: string;
+  a?: DNSRecordValue[];
+  aaaa?: DNSRecordValue[];
+  cname?: DNSRecordValue[];
+  mx?: DNSMXRecord[];
+  txt?: DNSRecordValue[];
+  ns?: DNSRecordValue[];
+};
+
+export type DNSRecordSetResult = {
+  domain: string;
+  records?: DNSRecordSet;
+  error?: string;
+};
+
+export type DNSRecordsResponse = {
+  ok: boolean;
+  domains: DNSRecordSetResult[];
+  message: string;
   timestamp: string;
 };
 
@@ -1529,6 +1571,22 @@ export async function checkDNS(deploymentId: string): Promise<DNSCheckResponse> 
     throw new Error(`Failed to check DNS: ${res.status} ${text}`);
   }
   return res.json() as Promise<DNSCheckResponse>;
+}
+
+/**
+ * Fetch DNS records for edge domain variants.
+ */
+export async function getDNSRecords(deploymentId: string): Promise<DNSRecordsResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/edge/dns-records`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get DNS records: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DNSRecordsResponse>;
 }
 
 /**
