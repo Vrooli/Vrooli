@@ -34,6 +34,7 @@ import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus } from "../ty
 import { KPICard } from "../features/stats/components/kpi/KPICard";
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
+import { ModelCostComparison } from "./ModelCostComparison";
 
 interface RunDetailProps {
   run: Run;
@@ -484,6 +485,10 @@ export function RunDetail({
                 />
               </div>
               <CostBreakdown totals={costTotals} />
+              <ModelCostComparison
+                costTotals={costTotals}
+                actualModel={costTotals.models[0] || run.resolvedConfig?.model || ""}
+              />
             </div>
           )}
         </div>

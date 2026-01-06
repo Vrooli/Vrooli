@@ -509,5 +509,108 @@ func (r *MemoryStatsRepository) runMatchesFilter(run *domain.Run, filter StatsFi
 	return true
 }
 
+// GetPopularModels returns the most used models by run count within a time window.
+func (r *MemoryStatsRepository) GetPopularModels(ctx context.Context, since time.Time, limit int) ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Need run repository to compute
+	if r.RunRepo == nil {
+		return []string{}, nil
+	}
+
+	runs, err := r.RunRepo.List(ctx, RunListFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Count runs per model
+	modelCounts := make(map[string]int)
+	for _, run := range runs {
+		if run.CreatedAt.Before(since) {
+			continue
+		}
+		if run.ResolvedConfig == nil {
+			continue
+		}
+		model := run.ResolvedConfig.Model
+		if model == "" {
+			continue
+		}
+		modelCounts[model]++
+	}
+
+	// Sort by count descending
+	type modelCount struct {
+		model string
+		count int
+	}
+	counts := make([]modelCount, 0, len(modelCounts))
+	for m, c := range modelCounts {
+		counts = append(counts, modelCount{model: m, count: c})
+	}
+	sort.Slice(counts, func(i, j int) bool {
+		return counts[i].count > counts[j].count
+	})
+
+	// Take top N
+	result := make([]string, 0, limit)
+	for i := 0; i < len(counts) && i < limit; i++ {
+		result = append(result, counts[i].model)
+	}
+	return result, nil
+}
+
+// GetRecentModels returns recently used models ordered by most recent use.
+func (r *MemoryStatsRepository) GetRecentModels(ctx context.Context, limit int) ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Need run repository to compute
+	if r.RunRepo == nil {
+		return []string{}, nil
+	}
+
+	runs, err := r.RunRepo.List(ctx, RunListFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Track most recent use per model
+	modelLastUsed := make(map[string]time.Time)
+	for _, run := range runs {
+		if run.ResolvedConfig == nil {
+			continue
+		}
+		model := run.ResolvedConfig.Model
+		if model == "" {
+			continue
+		}
+		if existing, ok := modelLastUsed[model]; !ok || run.CreatedAt.After(existing) {
+			modelLastUsed[model] = run.CreatedAt
+		}
+	}
+
+	// Sort by recency descending
+	type modelTime struct {
+		model    string
+		lastUsed time.Time
+	}
+	models := make([]modelTime, 0, len(modelLastUsed))
+	for m, t := range modelLastUsed {
+		models = append(models, modelTime{model: m, lastUsed: t})
+	}
+	sort.Slice(models, func(i, j int) bool {
+		return models[i].lastUsed.After(models[j].lastUsed)
+	})
+
+	// Take top N
+	result := make([]string, 0, limit)
+	for i := 0; i < len(models) && i < limit; i++ {
+		result = append(result, models[i].model)
+	}
+	return result, nil
+}
+
 // Verify interface compliance
 var _ StatsRepository = (*MemoryStatsRepository)(nil)

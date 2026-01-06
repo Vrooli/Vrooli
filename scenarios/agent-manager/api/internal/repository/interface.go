@@ -483,4 +483,10 @@ type StatsRepository interface {
 
 	// GetTimeSeries returns time-bucketed data for charts.
 	GetTimeSeries(ctx context.Context, filter StatsFilter, bucketDuration time.Duration) ([]*TimeSeriesBucket, error)
+
+	// GetPopularModels returns the most used models by run count within a time window.
+	GetPopularModels(ctx context.Context, since time.Time, limit int) ([]string, error)
+
+	// GetRecentModels returns recently used models ordered by most recent use (system-wide).
+	GetRecentModels(ctx context.Context, limit int) ([]string, error)
 }

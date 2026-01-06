@@ -6,23 +6,26 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/repository"
 
 	"github.com/gorilla/mux"
 )
 
 // PricingHandler provides HTTP handlers for pricing endpoints.
 type PricingHandler struct {
-	svc pricing.Service
+	svc       pricing.Service
+	statsRepo repository.StatsRepository
 }
 
 // NewPricingHandler creates a new pricing handler.
-func NewPricingHandler(svc pricing.Service) *PricingHandler {
-	return &PricingHandler{svc: svc}
+func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository) *PricingHandler {
+	return &PricingHandler{svc: svc, statsRepo: statsRepo}
 }
 
 // RegisterRoutes registers pricing API routes on the given router.
@@ -48,6 +51,9 @@ func (h *PricingHandler) RegisterRoutes(r *mux.Router) {
 
 	// Refresh endpoint
 	r.HandleFunc("/api/v1/pricing/refresh", h.RefreshAll).Methods("POST")
+
+	// Comparison endpoint
+	r.HandleFunc("/api/v1/pricing/compare", h.CompareModels).Methods("POST")
 }
 
 // =============================================================================
@@ -130,6 +136,35 @@ type ProviderCacheStatusItem struct {
 	LastFetchedAt time.Time `json:"lastFetchedAt"`
 	ExpiresAt     time.Time `json:"expiresAt"`
 	IsStale       bool      `json:"isStale"`
+}
+
+// CompareModelsRequest is the HTTP request for comparing model costs.
+type CompareModelsRequest struct {
+	InputTokens         int     `json:"inputTokens"`
+	OutputTokens        int     `json:"outputTokens"`
+	CacheReadTokens     int     `json:"cacheReadTokens"`
+	CacheCreationTokens int     `json:"cacheCreationTokens"`
+	WebSearchRequests   int     `json:"webSearchRequests"`
+	ServerToolUseCount  int     `json:"serverToolUseCount"`
+	ActualCostUSD       float64 `json:"actualCostUsd"`
+	ActualModel         string  `json:"actualModel"`
+	ModelList           string  `json:"modelList"` // "popular" or "recent"
+}
+
+// CompareModelsResponse is the HTTP response for model cost comparison.
+type CompareModelsResponse struct {
+	Comparisons []ModelCostComparison `json:"comparisons"`
+}
+
+// ModelCostComparison represents a single model's cost comparison.
+type ModelCostComparison struct {
+	Model             string  `json:"model"`
+	CanonicalModel    string  `json:"canonicalModel,omitempty"`
+	EstimatedCostUSD  float64 `json:"estimatedCostUsd"`
+	DifferenceUSD     float64 `json:"differenceUsd"`
+	DifferencePercent float64 `json:"differencePercent"`
+	IsActualModel     bool    `json:"isActualModel"`
+	PriceSource       string  `json:"priceSource,omitempty"`
 }
 
 // =============================================================================
@@ -450,6 +485,92 @@ func (h *PricingHandler) RefreshAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "refreshed"})
+}
+
+// CompareModels handles POST /api/v1/pricing/compare
+// Returns cost comparisons for a run's token usage across multiple models.
+func (h *PricingHandler) CompareModels(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req CompareModelsRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Validate request
+	if req.InputTokens+req.OutputTokens == 0 {
+		writeSimpleError(w, r, "tokens", "at least inputTokens or outputTokens must be greater than 0")
+		return
+	}
+
+	// Get model list based on request
+	var models []string
+	ctx := r.Context()
+
+	switch req.ModelList {
+	case "recent":
+		models, err = h.statsRepo.GetRecentModels(ctx, 10)
+	case "popular", "":
+		// Default to popular if not specified
+		since := time.Now().AddDate(0, 0, -30) // Last 30 days
+		models, err = h.statsRepo.GetPopularModels(ctx, since, 10)
+	default:
+		writeSimpleError(w, r, "modelList", "modelList must be 'popular' or 'recent'")
+		return
+	}
+
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Build comparisons
+	comparisons := make([]ModelCostComparison, 0, len(models))
+
+	for _, model := range models {
+		costReq := pricing.CostRequest{
+			Model:               model,
+			InputTokens:         req.InputTokens,
+			OutputTokens:        req.OutputTokens,
+			CacheReadTokens:     req.CacheReadTokens,
+			CacheCreationTokens: req.CacheCreationTokens,
+			WebSearchRequests:   req.WebSearchRequests,
+			ServerToolUseCount:  req.ServerToolUseCount,
+		}
+
+		calc, err := h.svc.CalculateCost(ctx, costReq)
+		if err != nil {
+			// Skip models that fail to calculate (may not have pricing)
+			continue
+		}
+
+		diff := calc.TotalCostUSD - req.ActualCostUSD
+		diffPercent := 0.0
+		if req.ActualCostUSD > 0 {
+			diffPercent = (diff / req.ActualCostUSD) * 100
+		}
+
+		comparisons = append(comparisons, ModelCostComparison{
+			Model:             model,
+			CanonicalModel:    calc.CanonicalModel,
+			EstimatedCostUSD:  calc.TotalCostUSD,
+			DifferenceUSD:     diff,
+			DifferencePercent: diffPercent,
+			IsActualModel:     model == req.ActualModel,
+		})
+	}
+
+	// Sort by estimated cost ascending
+	sort.Slice(comparisons, func(i, j int) bool {
+		return comparisons[i].EstimatedCostUSD < comparisons[j].EstimatedCostUSD
+	})
+
+	writeJSON(w, http.StatusOK, CompareModelsResponse{Comparisons: comparisons})
 }
 
 // =============================================================================

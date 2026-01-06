@@ -916,3 +916,83 @@ func (r *statsRepository) appendFiltersWithAlias(query string, args []interface{
 
 	return query, args
 }
+
+// GetPopularModels returns the most used models by run count within a time window.
+func (r *statsRepository) GetPopularModels(ctx context.Context, since time.Time, limit int) ([]string, error) {
+	var query string
+	args := []interface{}{since, limit}
+
+	if r.db.Dialect() == DialectPostgres {
+		query = `
+			SELECT COALESCE(resolved_config->>'model', 'unknown') as model
+			FROM runs
+			WHERE created_at >= $1
+			  AND resolved_config IS NOT NULL
+			  AND resolved_config->>'model' IS NOT NULL
+			  AND resolved_config->>'model' != ''
+			GROUP BY resolved_config->>'model'
+			ORDER BY COUNT(*) DESC
+			LIMIT $2`
+	} else {
+		query = `
+			SELECT COALESCE(json_extract(resolved_config, '$.model'), 'unknown') as model
+			FROM runs
+			WHERE created_at >= ?
+			  AND resolved_config IS NOT NULL
+			  AND json_extract(resolved_config, '$.model') IS NOT NULL
+			  AND json_extract(resolved_config, '$.model') != ''
+			GROUP BY json_extract(resolved_config, '$.model')
+			ORDER BY COUNT(*) DESC
+			LIMIT ?`
+	}
+
+	query = r.db.Rebind(query)
+
+	var models []string
+	if err := r.db.SelectContext(ctx, &models, query, args...); err != nil {
+		return nil, wrapDBError("get_popular_models", "Stats", "", err)
+	}
+	return models, nil
+}
+
+// GetRecentModels returns recently used models ordered by most recent use (system-wide).
+func (r *statsRepository) GetRecentModels(ctx context.Context, limit int) ([]string, error) {
+	var query string
+	args := []interface{}{limit}
+
+	if r.db.Dialect() == DialectPostgres {
+		// Get distinct models ordered by their most recent use
+		query = `
+			SELECT model FROM (
+				SELECT DISTINCT ON (resolved_config->>'model')
+					COALESCE(resolved_config->>'model', 'unknown') as model,
+					created_at
+				FROM runs
+				WHERE resolved_config IS NOT NULL
+				  AND resolved_config->>'model' IS NOT NULL
+				  AND resolved_config->>'model' != ''
+				ORDER BY resolved_config->>'model', created_at DESC
+			) sub
+			ORDER BY created_at DESC
+			LIMIT $1`
+	} else {
+		// SQLite: Group by model, get max created_at, order by that
+		query = `
+			SELECT COALESCE(json_extract(resolved_config, '$.model'), 'unknown') as model
+			FROM runs
+			WHERE resolved_config IS NOT NULL
+			  AND json_extract(resolved_config, '$.model') IS NOT NULL
+			  AND json_extract(resolved_config, '$.model') != ''
+			GROUP BY json_extract(resolved_config, '$.model')
+			ORDER BY MAX(created_at) DESC
+			LIMIT ?`
+	}
+
+	query = r.db.Rebind(query)
+
+	var models []string
+	if err := r.db.SelectContext(ctx, &models, query, args...); err != nil {
+		return nil, wrapDBError("get_recent_models", "Stats", "", err)
+	}
+	return models, nil
+}

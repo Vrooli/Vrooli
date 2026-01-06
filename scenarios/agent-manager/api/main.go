@@ -50,6 +50,7 @@ type Server struct {
 	orchestrator           orchestration.Service
 	investigationService   orchestration.InvestigationService
 	statsService           orchestration.StatsService
+	statsRepo              repository.StatsRepository
 	pricingService         pricing.Service
 	wsHub                  *handlers.WebSocketHub
 	reconciler             *orchestration.Reconciler
@@ -107,6 +108,7 @@ func NewServer() (*Server, error) {
 		orchestrator:         deps.orchestrator,
 		investigationService: deps.investigationService,
 		statsService:         deps.statsService,
+		statsRepo:            deps.statsRepo,
 		pricingService:       deps.pricingService,
 		wsHub:                wsHub,
 		reconciler:           deps.reconciler,
@@ -129,6 +131,7 @@ type orchestratorDeps struct {
 	orchestrator         orchestration.Service
 	investigationService orchestration.InvestigationService
 	statsService         orchestration.StatsService
+	statsRepo            repository.StatsRepository
 	pricingService       pricing.Service
 	reconciler           *orchestration.Reconciler
 }
@@ -355,6 +358,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestrator:         orch,
 		investigationService: investigationSvc,
 		statsService:         statsSvc,
+		statsRepo:            statsRepo,
 		pricingService:       pricingSvc,
 		reconciler:           reconciler,
 	}
@@ -400,8 +404,8 @@ func (s *Server) setupRoutes() {
 	}
 
 	// Register pricing routes
-	if s.pricingService != nil {
-		pricingHandler := handlers.NewPricingHandler(s.pricingService)
+	if s.pricingService != nil && s.statsRepo != nil {
+		pricingHandler := handlers.NewPricingHandler(s.pricingService, s.statsRepo)
 		pricingHandler.RegisterRoutes(s.router)
 		log.Printf("Pricing endpoints available at /api/v1/pricing/*")
 	}

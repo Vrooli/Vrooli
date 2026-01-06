@@ -2,6 +2,8 @@
 
 import { STATS_ENDPOINTS } from "./endpoints";
 import type {
+  CompareModelsRequest,
+  CompareModelsResponse,
   CostResponse,
   DurationResponse,
   ErrorPatternsResponse,
@@ -152,6 +154,21 @@ export async function fetchTimeSeries(
   return fetchJson<TimeSeriesResponse>(url);
 }
 
+export async function fetchModelCostComparison(
+  request: CompareModelsRequest
+): Promise<CompareModelsResponse> {
+  const response = await fetch("/api/v1/pricing/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API error ${response.status}: ${errorText}`);
+  }
+  return response.json() as Promise<CompareModelsResponse>;
+}
+
 // =============================================================================
 // Query Keys (for React Query)
 // =============================================================================
@@ -174,4 +191,15 @@ export const statsQueryKeys = {
     [...statsQueryKeys.all, "toolRuns", filter, toolName, limit] as const,
   errors: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "errors", filter, limit] as const,
   timeSeries: (filter: StatsFilter, bucket?: string) => [...statsQueryKeys.all, "timeSeries", filter, bucket] as const,
+  modelCostComparison: (request: CompareModelsRequest) =>
+    [
+      "pricing",
+      "compare",
+      request.modelList,
+      request.actualModel,
+      request.inputTokens,
+      request.outputTokens,
+      request.cacheReadTokens,
+      request.cacheCreationTokens,
+    ] as const,
 } as const;

@@ -205,3 +205,33 @@ export interface TimeSeriesResponse {
   buckets: TimeSeriesBucket[];
   bucketDuration: string;
 }
+
+// =============================================================================
+// Model Cost Comparison Types
+// =============================================================================
+
+export interface ModelCostComparison {
+  model: string;
+  canonicalModel?: string;
+  estimatedCostUsd: number;
+  differenceUsd: number;
+  differencePercent: number;
+  isActualModel: boolean;
+  priceSource?: string;
+}
+
+export interface CompareModelsRequest {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  webSearchRequests: number;
+  serverToolUseCount: number;
+  actualCostUsd: number;
+  actualModel: string;
+  modelList: "popular" | "recent";
+}
+
+export interface CompareModelsResponse {
+  comparisons: ModelCostComparison[];
+}
