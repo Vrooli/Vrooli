@@ -100,6 +100,32 @@ func TestHandler_WithVersion(t *testing.T) {
 	}
 }
 
+func TestHandler_WithCheckerFunc(t *testing.T) {
+	called := false
+	handler := New("test").
+		Check(CheckerFunc(func(ctx context.Context) CheckResult {
+			called = true
+			return CheckResult{Name: "custom", Connected: true}
+		}), Optional).
+		Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if !called {
+		t.Error("expected checker func to be called")
+	}
+
+	var resp Response
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if _, ok := resp.Dependencies["custom"]; !ok {
+		t.Error("expected custom dependency")
+	}
+}
+
 // mockChecker is a test checker that returns configurable results.
 type mockChecker struct {
 	name      string
@@ -249,6 +275,93 @@ func TestHandlerFunc_Shorthand(t *testing.T) {
 	}
 	if _, ok := resp.Dependencies["db"]; !ok {
 		t.Error("expected db dependency")
+	}
+}
+
+func TestFuncHelper_Success(t *testing.T) {
+	handler := New("test").
+		Check(Func("cache", func(ctx context.Context) error {
+			return nil
+		}), Optional).
+		Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var resp Response
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	cache := resp.Dependencies["cache"]
+	if !cache.Connected {
+		t.Error("expected cache connected")
+	}
+	if cache.Latency == nil {
+		t.Error("expected cache latency")
+	}
+}
+
+func TestFuncHelper_Error(t *testing.T) {
+	handler := New("test").
+		Check(Func("cache", func(ctx context.Context) error {
+			return errTest
+		}), Optional).
+		Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var resp Response
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	cache := resp.Dependencies["cache"]
+	if cache.Connected {
+		t.Error("expected cache not connected")
+	}
+	if cache.Error != "test error" {
+		t.Errorf("expected cache error to be %q, got %v", "test error", cache.Error)
+	}
+}
+
+func TestNewErrorDetail(t *testing.T) {
+	handler := New("test").
+		Check(CheckerFunc(func(ctx context.Context) CheckResult {
+			return CheckResult{
+				Name:      "storage",
+				Connected: false,
+				Error:     NewErrorDetail("STORAGE_DOWN", "storage is unavailable", "resource", true),
+			}
+		}), Optional).
+		Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var resp Response
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	storage := resp.Dependencies["storage"]
+	if storage.Connected {
+		t.Error("expected storage not connected")
+	}
+
+	errorMap, ok := storage.Error.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected error to be a map, got %T", storage.Error)
+	}
+	if errorMap["code"] != "STORAGE_DOWN" {
+		t.Errorf("expected error code STORAGE_DOWN, got %v", errorMap["code"])
+	}
+	if errorMap["category"] != "resource" {
+		t.Errorf("expected error category resource, got %v", errorMap["category"])
+	}
+	if errorMap["retryable"] != true {
+		t.Errorf("expected error retryable true, got %v", errorMap["retryable"])
 	}
 }
 

@@ -475,8 +475,11 @@ type AntiDetectionSettings struct {
 	// - ads_only: Block advertisements only (EasyList + uBlock filters)
 	// - ads_and_tracking: Block ads + tracking scripts (includes privacy lists)
 	AdBlockingMode *string `protobuf:"bytes,9,opt,name=ad_blocking_mode,json=adBlockingMode,proto3,oneof" json:"ad_blocking_mode,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Domains to exclude from ad blocking (e.g., "google.com", "gstatic.com").
+	// Wildcards supported: "*.google.com" matches all subdomains.
+	AdBlockingWhitelist []string `protobuf:"bytes,15,rep,name=ad_blocking_whitelist,json=adBlockingWhitelist,proto3" json:"ad_blocking_whitelist,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *AntiDetectionSettings) Reset() {
@@ -605,6 +608,13 @@ func (x *AntiDetectionSettings) GetAdBlockingMode() string {
 		return *x.AdBlockingMode
 	}
 	return ""
+}
+
+func (x *AntiDetectionSettings) GetAdBlockingWhitelist() []string {
+	if x != nil {
+		return x.AdBlockingWhitelist
+	}
+	return nil
 }
 
 // ProxySettings controls routing browser traffic through a proxy server.
@@ -781,7 +791,7 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\x14_micro_pause_enabledB\x15\n" +
 	"\x13_micro_pause_min_msB\x15\n" +
 	"\x13_micro_pause_max_msB\x18\n" +
-	"\x16_micro_pause_frequency\"\xdd\b\n" +
+	"\x16_micro_pause_frequency\"\x91\t\n" +
 	"\x15AntiDetectionSettings\x12G\n" +
 	"\x1ddisable_automation_controlled\x18\x01 \x01(\bH\x00R\x1bdisableAutomationControlled\x88\x01\x01\x12*\n" +
 	"\x0edisable_webrtc\x18\x02 \x01(\bH\x01R\rdisableWebrtc\x88\x01\x01\x12?\n" +
@@ -800,7 +810,8 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"R\x15patchScreenProperties\x88\x01\x01\x12/\n" +
 	"\x11patch_battery_api\x18\r \x01(\bH\vR\x0fpatchBatteryApi\x88\x01\x01\x125\n" +
 	"\x14patch_connection_api\x18\x0e \x01(\bH\fR\x12patchConnectionApi\x88\x01\x01\x12-\n" +
-	"\x10ad_blocking_mode\x18\t \x01(\tH\rR\x0eadBlockingMode\x88\x01\x01B \n" +
+	"\x10ad_blocking_mode\x18\t \x01(\tH\rR\x0eadBlockingMode\x88\x01\x01\x122\n" +
+	"\x15ad_blocking_whitelist\x18\x0f \x03(\tR\x13adBlockingWhitelistB \n" +
 	"\x1e_disable_automation_controlledB\x11\n" +
 	"\x0f_disable_webrtcB\x1c\n" +
 	"\x1a_patch_navigator_webdriverB\x1a\n" +

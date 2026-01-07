@@ -1,7 +1,7 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -115,6 +115,7 @@ class AntiDetectionSettings(_message.Message):
     PATCH_BATTERY_API_FIELD_NUMBER: _ClassVar[int]
     PATCH_CONNECTION_API_FIELD_NUMBER: _ClassVar[int]
     AD_BLOCKING_MODE_FIELD_NUMBER: _ClassVar[int]
+    AD_BLOCKING_WHITELIST_FIELD_NUMBER: _ClassVar[int]
     disable_automation_controlled: bool
     disable_webrtc: bool
     patch_navigator_webdriver: bool
@@ -129,7 +130,8 @@ class AntiDetectionSettings(_message.Message):
     patch_battery_api: bool
     patch_connection_api: bool
     ad_blocking_mode: str
-    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., patch_audio_context: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., patch_fonts: _Optional[bool] = ..., patch_screen_properties: _Optional[bool] = ..., patch_battery_api: _Optional[bool] = ..., patch_connection_api: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ...) -> None: ...
+    ad_blocking_whitelist: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., patch_audio_context: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., patch_fonts: _Optional[bool] = ..., patch_screen_properties: _Optional[bool] = ..., patch_battery_api: _Optional[bool] = ..., patch_connection_api: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ..., ad_blocking_whitelist: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ProxySettings(_message.Message):
     __slots__ = ()

@@ -19,6 +19,26 @@
 //	    health.HTTP("redis", "http://localhost:6379"),
 //	))
 //
+// With custom checks:
+//
+//	router.HandleFunc("/health", health.Handler(
+//	    health.Func("storage", func(ctx context.Context) error {
+//	        return storage.HealthCheck(ctx)
+//	    }),
+//	))
+//
+// With structured error details:
+//
+//	router.HandleFunc("/health", health.Handler(
+//	    health.CheckerFunc(func(ctx context.Context) health.CheckResult {
+//	        return health.CheckResult{
+//	            Name:      "automation_engine",
+//	            Connected: false,
+//	            Error:     health.NewErrorDetail("AUTOMATION_ENGINE_ERROR", "automation engine unreachable", "resource", true),
+//	        }
+//	    }),
+//	))
+//
 // With explicit configuration:
 //
 //	router.HandleFunc("/health", health.New("my-scenario-api").

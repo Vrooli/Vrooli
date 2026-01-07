@@ -44,12 +44,16 @@ class ContextAttachment(_message.Message):
     URL_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
     type: str
     path: str
     url: str
     content: str
     label: str
-    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ...) -> None: ...
+    key: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ScopeLock(_message.Message):
     __slots__ = ()

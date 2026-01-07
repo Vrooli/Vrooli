@@ -192,7 +192,14 @@ type ContextAttachment struct {
 	// Also used for file content preview or link description.
 	Content string `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	// Optional label for the attachment.
-	Label         string `protobuf:"bytes,5,opt,name=label,proto3" json:"label,omitempty"`
+	Label string `protobuf:"bytes,5,opt,name=label,proto3" json:"label,omitempty"`
+	// Unique identifier for this context item.
+	// Used for structured referencing, deduplication, and analytics.
+	// @constraint optional, lowercase alphanumeric with hyphens/underscores, max 128 chars
+	Key string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
+	// Categorization tags for filtering and grouping.
+	// @constraint optional, max 10 tags, each max 64 chars
+	Tags          []string `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -260,6 +267,20 @@ func (x *ContextAttachment) GetLabel() string {
 		return x.Label
 	}
 	return ""
+}
+
+func (x *ContextAttachment) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ContextAttachment) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
 }
 
 // ScopeLock represents an exclusive lock on a path scope.
@@ -666,13 +687,15 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x96\x01\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xbc\x01\n" +
 	"\x11ContextAttachment\x12+\n" +
 	"\x04type\x18\x01 \x01(\tB\x17\xbaH\x14r\x12R\x04fileR\x04linkR\x04noteR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12\x14\n" +
-	"\x05label\x18\x05 \x01(\tR\x05label\"\xec\x01\n" +
+	"\x05label\x18\x05 \x01(\tR\x05label\x12\x10\n" +
+	"\x03key\x18\x06 \x01(\tR\x03key\x12\x12\n" +
+	"\x04tags\x18\a \x03(\tR\x04tags\"\xec\x01\n" +
 	"\tScopeLock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1d\n" +
