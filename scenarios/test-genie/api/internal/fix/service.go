@@ -35,6 +35,7 @@ func NewService(agentSvc *agentmanager.AgentService) *Service {
 type SpawnRequest struct {
 	ScenarioName string
 	Phases       []PhaseInfo
+	Message      string
 }
 
 // SpawnResult contains the result of spawning a fix agent.
@@ -70,6 +71,7 @@ func (s *Service) Spawn(ctx context.Context, req SpawnRequest) (*SpawnResult, er
 		ID:           fixID,
 		ScenarioName: req.ScenarioName,
 		Phases:       req.Phases,
+		Message:      req.Message,
 		Status:       StatusPending,
 		Tag:          tag,
 		StartedAt:    time.Now(),
@@ -100,6 +102,7 @@ func (s *Service) runFix(record *Record) {
 		ScenarioName: record.ScenarioName,
 		ScenarioPath: scenarioPath,
 		Phases:       record.Phases,
+		Message:      record.Message,
 	})
 
 	// Build safety preamble

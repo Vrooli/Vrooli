@@ -36,6 +36,7 @@ type SpawnRequest struct {
 	ScenarioName string
 	Requirements []RequirementInfo
 	ActionType   ActionType
+	Message      string
 }
 
 // SpawnResult contains the result of spawning a requirements improve agent.
@@ -72,6 +73,7 @@ func (s *Service) Spawn(ctx context.Context, req SpawnRequest) (*SpawnResult, er
 		ScenarioName: req.ScenarioName,
 		Requirements: req.Requirements,
 		ActionType:   req.ActionType,
+		Message:      req.Message,
 		Status:       StatusPending,
 		Tag:          tag,
 		StartedAt:    time.Now(),
@@ -103,6 +105,7 @@ func (s *Service) runImprove(record *Record) {
 		ScenarioPath: scenarioPath,
 		Requirements: record.Requirements,
 		ActionType:   record.ActionType,
+		Message:      record.Message,
 	})
 
 	// Build safety preamble

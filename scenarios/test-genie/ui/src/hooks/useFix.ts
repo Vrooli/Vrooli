@@ -37,8 +37,12 @@ export function useFix(scenarioName: string) {
   });
 
   // Mutation for spawning a fix
-  const spawnMutation = useMutation<SpawnFixResponse, Error, FixPhaseInfo[]>({
-    mutationFn: (phases) => spawnFix(scenarioName, phases),
+  const spawnMutation = useMutation<
+    SpawnFixResponse,
+    Error,
+    { phases: FixPhaseInfo[]; message?: string }
+  >({
+    mutationFn: ({ phases, message }) => spawnFix(scenarioName, phases, message),
     onSuccess: () => {
       // Invalidate active fix query to refetch
       queryClient.invalidateQueries({ queryKey: ["fix", "active", scenarioName] });
@@ -55,8 +59,8 @@ export function useFix(scenarioName: string) {
   });
 
   const spawn = useCallback(
-    (phases: FixPhaseInfo[]) => {
-      return spawnMutation.mutateAsync(phases);
+    (phases: FixPhaseInfo[], message?: string) => {
+      return spawnMutation.mutateAsync({ phases, message });
     },
     [spawnMutation]
   );

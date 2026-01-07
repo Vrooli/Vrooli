@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, useCallback } from "react";
 import { ArrowLeft, Bot } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { MessagePopover } from "../../components/ui/MessagePopover";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
 import { ScenarioDetailTabNav } from "../../components/layout/ScenarioDetailTabNav";
 import { StatusPill } from "../../components/cards/StatusPill";
@@ -179,6 +180,7 @@ interface OverviewTabProps {
 function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onExecutionSuccess }: OverviewTabProps) {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
+  const [fixMessage, setFixMessage] = useState("");
   const [dismissedFixId, setDismissedFixId] = useState<string | null>(null);
 
   const { activeFix, isActive, spawn, stop, isSpawning, isStopping } = useFix(scenarioName);
@@ -201,6 +203,7 @@ function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onEx
   const exitSelectionMode = useCallback(() => {
     setIsSelectionMode(false);
     setSelectedPhases([]);
+    setFixMessage("");
   }, []);
 
   const togglePhase = useCallback((phaseName: string) => {
@@ -226,12 +229,12 @@ function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onEx
       }));
 
     try {
-      await spawn(phases);
+      await spawn(phases, fixMessage || undefined);
       exitSelectionMode();
     } catch (err) {
       console.error("Failed to spawn fix agent:", err);
     }
-  }, [selectedPhases, scenario?.lastExecutionPhases, spawn, exitSelectionMode]);
+  }, [selectedPhases, scenario?.lastExecutionPhases, spawn, fixMessage, exitSelectionMode]);
 
   const handleStopFix = useCallback(() => {
     if (activeFix?.id) {
@@ -275,10 +278,17 @@ function OverviewTab({ scenario, scenarioName, scenarioOptions, datalistId, onEx
               </Button>
             )}
             {isSelectionMode && (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={exitSelectionMode}>
                   Cancel
                 </Button>
+                <MessagePopover
+                  message={fixMessage}
+                  onChange={setFixMessage}
+                  disabled={isSpawning}
+                  placeholder="Add context for the fix agent..."
+                  data-testid={selectors.runs.fixMessagePopover}
+                />
                 <Button
                   onClick={handleStartFix}
                   disabled={selectedPhases.length === 0 || isSpawning}

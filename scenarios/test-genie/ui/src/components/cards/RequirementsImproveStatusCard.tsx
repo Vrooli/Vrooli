@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, X, ChevronDown, ChevronUp, Square, Loader2 } from "lucide-react";
+import { Bot, X, ChevronDown, ChevronUp, Square, Loader2, MessageSquare } from "lucide-react";
 import type { RequirementsImproveRecord } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -27,6 +27,7 @@ export function RequirementsImproveStatusCard({
   className
 }: RequirementsImproveStatusCardProps) {
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
+  const [isMessageExpanded, setIsMessageExpanded] = useState(false);
 
   const isTerminal =
     improve.status === "completed" ||
@@ -147,6 +148,30 @@ export function RequirementsImproveStatusCard({
           </span>
         ))}
       </div>
+
+      {/* User message context */}
+      {improve.message && (
+        <div className="mt-4">
+          <button
+            onClick={() => setIsMessageExpanded(!isMessageExpanded)}
+            className="flex items-center gap-2 text-sm text-violet-400 transition-colors hover:text-violet-300"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span>User Context</span>
+            {isMessageExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+
+          {isMessageExpanded && (
+            <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+              <p className="whitespace-pre-wrap text-sm text-slate-300">{improve.message}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error message */}
       {improve.error && (

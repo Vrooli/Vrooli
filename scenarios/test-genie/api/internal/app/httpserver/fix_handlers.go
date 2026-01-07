@@ -16,7 +16,8 @@ import (
 
 // spawnFixRequest is the request body for spawning a fix agent.
 type spawnFixRequest struct {
-	Phases []fix.PhaseInfo `json:"phases"`
+	Phases  []fix.PhaseInfo `json:"phases"`
+	Message string          `json:"message,omitempty"`
 }
 
 // spawnFixResponse is the response for a spawned fix agent.
@@ -59,6 +60,7 @@ func (s *Server) handleSpawnFix(w http.ResponseWriter, r *http.Request) {
 	result, err := s.fixService.Spawn(r.Context(), fix.SpawnRequest{
 		ScenarioName: scenarioName,
 		Phases:       req.Phases,
+		Message:      req.Message,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusConflict, err.Error())
@@ -79,6 +81,7 @@ type fixResponse struct {
 	ID           string          `json:"id"`
 	ScenarioName string          `json:"scenarioName"`
 	Phases       []fix.PhaseInfo `json:"phases"`
+	Message      string          `json:"message,omitempty"`
 	Status       fix.Status      `json:"status"`
 	RunID        string          `json:"runId,omitempty"`
 	Tag          string          `json:"tag,omitempty"`
@@ -93,6 +96,7 @@ func recordToResponse(record *fix.Record) fixResponse {
 		ID:           record.ID,
 		ScenarioName: record.ScenarioName,
 		Phases:       record.Phases,
+		Message:      record.Message,
 		Status:       record.Status,
 		RunID:        record.RunID,
 		Tag:          record.Tag,

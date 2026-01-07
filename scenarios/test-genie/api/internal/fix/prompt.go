@@ -12,6 +12,7 @@ type PromptConfig struct {
 	ScenarioName string
 	ScenarioPath string
 	Phases       []PhaseInfo
+	Message      string
 }
 
 // BuildPrompt constructs the prompt for the fix agent.
@@ -187,6 +188,13 @@ func BuildPrompt(cfg PromptConfig) string {
 	sb.WriteString("- No regressions introduced to other tests\n")
 	sb.WriteString("- Changes are minimal and focused on the fix\n")
 	sb.WriteString("- Test assertions remain meaningful (no weakening)\n\n")
+
+	// User Message (if provided)
+	if cfg.Message != "" {
+		sb.WriteString("## Additional Context from User\n\n")
+		sb.WriteString(cfg.Message)
+		sb.WriteString("\n\n")
+	}
 
 	// Output Format
 	sb.WriteString("## Final Output\n\n")

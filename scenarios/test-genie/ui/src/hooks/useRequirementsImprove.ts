@@ -41,10 +41,10 @@ export function useRequirementsImprove(scenarioName: string) {
   const spawnMutation = useMutation<
     SpawnRequirementsImproveResponse,
     Error,
-    { requirements: RequirementImproveInfo[]; actionType: ImproveActionType }
+    { requirements: RequirementImproveInfo[]; actionType: ImproveActionType; message?: string }
   >({
-    mutationFn: ({ requirements, actionType }) =>
-      spawnRequirementsImprove(scenarioName, requirements, actionType),
+    mutationFn: ({ requirements, actionType, message }) =>
+      spawnRequirementsImprove(scenarioName, requirements, actionType, message),
     onSuccess: () => {
       // Invalidate active improve query to refetch
       queryClient.invalidateQueries({
@@ -69,8 +69,8 @@ export function useRequirementsImprove(scenarioName: string) {
   });
 
   const spawn = useCallback(
-    (requirements: RequirementImproveInfo[], actionType: ImproveActionType) => {
-      return spawnMutation.mutateAsync({ requirements, actionType });
+    (requirements: RequirementImproveInfo[], actionType: ImproveActionType, message?: string) => {
+      return spawnMutation.mutateAsync({ requirements, actionType, message });
     },
     [spawnMutation]
   );

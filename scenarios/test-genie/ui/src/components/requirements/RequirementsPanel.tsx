@@ -9,6 +9,7 @@ import { RequirementsTree } from "./RequirementsTree";
 import { ActionTypeSelector } from "./ActionTypeSelector";
 import { RequirementsImproveStatusCard } from "../cards/RequirementsImproveStatusCard";
 import { Button } from "../ui/button";
+import { MessagePopover } from "../ui/MessagePopover";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
 import type {
@@ -39,6 +40,7 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
     Map<string, RequirementImproveInfo>
   >(new Map());
   const [actionType, setActionType] = useState<ImproveActionType>("write_tests");
+  const [improveMessage, setImproveMessage] = useState("");
   const [dismissedImproveId, setDismissedImproveId] = useState<string | null>(
     null
   );
@@ -118,6 +120,7 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
   const exitSelectionMode = useCallback(() => {
     setSelectedRequirements(new Map());
     setIsSelectionMode(false);
+    setImproveMessage("");
   }, []);
 
   const toggleRequirementSelection = useCallback(
@@ -154,13 +157,17 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
     if (selectedRequirements.size === 0) return;
 
     try {
-      await spawn(Array.from(selectedRequirements.values()), actionType);
+      await spawn(
+        Array.from(selectedRequirements.values()),
+        actionType,
+        improveMessage || undefined
+      );
       exitSelectionMode();
       setDismissedImproveId(null);
     } catch (err) {
       console.error("Failed to spawn improve agent:", err);
     }
-  }, [selectedRequirements, actionType, spawn, exitSelectionMode]);
+  }, [selectedRequirements, actionType, improveMessage, spawn, exitSelectionMode]);
 
   const handleStopImprove = useCallback(() => {
     if (activeImprove) {
@@ -313,6 +320,13 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
                 ? "Deselect All"
                 : "Select All"}
             </Button>
+            <MessagePopover
+              message={improveMessage}
+              onChange={setImproveMessage}
+              disabled={isSpawning}
+              placeholder="Add context for the improve agent..."
+              data-testid={selectors.requirements.improveMessagePopover}
+            />
             <Button
               variant="outline"
               size="sm"

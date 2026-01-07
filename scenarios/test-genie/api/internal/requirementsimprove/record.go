@@ -52,6 +52,7 @@ type Record struct {
 	ScenarioName string            `json:"scenarioName"`
 	Requirements []RequirementInfo `json:"requirements"`
 	ActionType   ActionType        `json:"actionType"`
+	Message      string            `json:"message,omitempty"`
 	Status       Status            `json:"status"`
 	RunID        string            `json:"runId,omitempty"`
 	Tag          string            `json:"tag,omitempty"`

@@ -291,6 +291,7 @@ const literalSelectors: LiteralSelectorTree = {
     // Fix agent selectors
     fixWithAiButton: "test-genie-fix-with-ai-button",
     startFixButton: "test-genie-start-fix-button",
+    fixMessagePopover: "test-genie-fix-message-popover",
     phaseCard: "test-genie-phase-card",
     fixAgentStatus: "test-genie-fix-agent-status"
   },
@@ -314,6 +315,7 @@ const literalSelectors: LiteralSelectorTree = {
     startImproveButton: "test-genie-start-improve-button",
     cancelImproveButton: "test-genie-cancel-improve-button",
     selectAllButton: "test-genie-select-all-button",
+    improveMessagePopover: "test-genie-improve-message-popover",
     actionTypeSelector: "test-genie-action-type-selector",
     improveStatus: "test-genie-requirements-improve-status"
   },
@@ -406,6 +408,7 @@ export const selectors = registry.selectors as unknown as {
     scenarioTabHistory: string;
     fixWithAiButton: string;
     startFixButton: string;
+    fixMessagePopover: string;
     phaseCard: string;
     fixAgentStatus: string;
   };
@@ -426,6 +429,7 @@ export const selectors = registry.selectors as unknown as {
     startImproveButton: string;
     cancelImproveButton: string;
     selectAllButton: string;
+    improveMessagePopover: string;
     actionTypeSelector: string;
     improveStatus: string;
   };

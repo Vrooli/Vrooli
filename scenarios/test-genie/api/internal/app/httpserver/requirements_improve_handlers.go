@@ -18,6 +18,7 @@ import (
 type spawnRequirementsImproveRequest struct {
 	Requirements []requirementsimprove.RequirementInfo `json:"requirements"`
 	ActionType   requirementsimprove.ActionType        `json:"actionType"`
+	Message      string                                `json:"message,omitempty"`
 }
 
 // spawnRequirementsImproveResponse is the response for a spawned requirements improve agent.
@@ -66,6 +67,7 @@ func (s *Server) handleSpawnRequirementsImprove(w http.ResponseWriter, r *http.R
 		ScenarioName: scenarioName,
 		Requirements: req.Requirements,
 		ActionType:   req.ActionType,
+		Message:      req.Message,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusConflict, err.Error())
@@ -87,6 +89,7 @@ type requirementsImproveResponse struct {
 	ScenarioName string                                `json:"scenarioName"`
 	Requirements []requirementsimprove.RequirementInfo `json:"requirements"`
 	ActionType   requirementsimprove.ActionType        `json:"actionType"`
+	Message      string                                `json:"message,omitempty"`
 	Status       requirementsimprove.Status            `json:"status"`
 	RunID        string                                `json:"runId,omitempty"`
 	Tag          string                                `json:"tag,omitempty"`
@@ -102,6 +105,7 @@ func requirementsImproveRecordToResponse(record *requirementsimprove.Record) req
 		ScenarioName: record.ScenarioName,
 		Requirements: record.Requirements,
 		ActionType:   record.ActionType,
+		Message:      record.Message,
 		Status:       record.Status,
 		RunID:        record.RunID,
 		Tag:          record.Tag,

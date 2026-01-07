@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, X, ChevronDown, ChevronUp, Square, Loader2 } from "lucide-react";
+import { Bot, X, ChevronDown, ChevronUp, Square, Loader2, MessageSquare } from "lucide-react";
 import type { FixRecord } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -21,6 +21,7 @@ export function FixAgentStatusCard({
   className
 }: FixAgentStatusCardProps) {
   const [isOutputExpanded, setIsOutputExpanded] = useState(false);
+  const [isMessageExpanded, setIsMessageExpanded] = useState(false);
 
   const isTerminal = fix.status === "completed" || fix.status === "failed" || fix.status === "cancelled";
   const isRunning = fix.status === "pending" || fix.status === "running";
@@ -119,6 +120,30 @@ export function FixAgentStatusCard({
           </span>
         ))}
       </div>
+
+      {/* User message context */}
+      {fix.message && (
+        <div className="mt-4">
+          <button
+            onClick={() => setIsMessageExpanded(!isMessageExpanded)}
+            className="flex items-center gap-2 text-sm text-violet-400 transition-colors hover:text-violet-300"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span>User Context</span>
+            {isMessageExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+
+          {isMessageExpanded && (
+            <div className="mt-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+              <p className="text-sm text-slate-300 whitespace-pre-wrap">{fix.message}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error message */}
       {fix.error && (

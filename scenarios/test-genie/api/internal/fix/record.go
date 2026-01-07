@@ -30,6 +30,7 @@ type Record struct {
 	ID           string      `json:"id"`
 	ScenarioName string      `json:"scenarioName"`
 	Phases       []PhaseInfo `json:"phases"`
+	Message      string      `json:"message,omitempty"`
 	Status       Status      `json:"status"`
 	RunID        string      `json:"runId,omitempty"`
 	Tag          string      `json:"tag,omitempty"`

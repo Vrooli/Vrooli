@@ -13,6 +13,7 @@ type PromptConfig struct {
 	ScenarioPath string
 	Requirements []RequirementInfo
 	ActionType   ActionType
+	Message      string
 }
 
 // BuildPrompt constructs the prompt for the requirements improve agent.
@@ -270,6 +271,13 @@ func BuildPrompt(cfg PromptConfig) string {
 	}
 	sb.WriteString("- No regressions in existing tests\n")
 	sb.WriteString("- Changes are minimal and focused\n\n")
+
+	// User Message (if provided)
+	if cfg.Message != "" {
+		sb.WriteString("## Additional Context from User\n\n")
+		sb.WriteString(cfg.Message)
+		sb.WriteString("\n\n")
+	}
 
 	// Output Format
 	sb.WriteString("## Final Output\n\n")

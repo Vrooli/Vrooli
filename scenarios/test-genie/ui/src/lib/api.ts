@@ -750,6 +750,7 @@ export interface FixRecord {
   id: string;
   scenarioName: string;
   phases: FixPhaseInfo[];
+  message?: string;
   status: FixStatus;
   runId?: string;
   tag?: string;
@@ -761,6 +762,7 @@ export interface FixRecord {
 
 export interface SpawnFixRequest {
   phases: FixPhaseInfo[];
+  message?: string;
 }
 
 export interface SpawnFixResponse {
@@ -781,12 +783,20 @@ export interface ActiveFixResponse {
   fix?: FixRecord;
 }
 
-export async function spawnFix(scenarioName: string, phases: FixPhaseInfo[]): Promise<SpawnFixResponse> {
+export async function spawnFix(
+  scenarioName: string,
+  phases: FixPhaseInfo[],
+  message?: string
+): Promise<SpawnFixResponse> {
   const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fix`, { baseUrl: API_BASE });
+  const body: SpawnFixRequest = { phases };
+  if (message) {
+    body.message = message;
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phases })
+    body: JSON.stringify(body)
   });
   return parseResponse<SpawnFixResponse>(res);
 }
@@ -858,6 +868,7 @@ export interface RequirementsImproveRecord {
   scenarioName: string;
   requirements: RequirementImproveInfo[];
   actionType: ImproveActionType;
+  message?: string;
   status: ImproveStatus;
   runId?: string;
   tag?: string;
@@ -870,6 +881,7 @@ export interface RequirementsImproveRecord {
 export interface SpawnRequirementsImproveRequest {
   requirements: RequirementImproveInfo[];
   actionType: ImproveActionType;
+  message?: string;
 }
 
 export interface SpawnRequirementsImproveResponse {
@@ -893,16 +905,21 @@ export interface ActiveRequirementsImproveResponse {
 export async function spawnRequirementsImprove(
   scenarioName: string,
   requirements: RequirementImproveInfo[],
-  actionType: ImproveActionType
+  actionType: ImproveActionType,
+  message?: string
 ): Promise<SpawnRequirementsImproveResponse> {
   const url = buildApiUrl(
     `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve`,
     { baseUrl: API_BASE }
   );
+  const body: SpawnRequirementsImproveRequest = { requirements, actionType };
+  if (message) {
+    body.message = message;
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ requirements, actionType })
+    body: JSON.stringify(body)
   });
   return parseResponse<SpawnRequirementsImproveResponse>(res);
 }
