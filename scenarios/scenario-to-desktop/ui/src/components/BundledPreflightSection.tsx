@@ -107,6 +107,15 @@ const PREFLIGHT_STEP_STYLES: Record<PreflightStepState, string> = {
   skipped: "border-slate-800/70 bg-slate-950/60 text-slate-300"
 };
 
+const PREFLIGHT_STEP_CIRCLE_STYLES: Record<PreflightStepState, string> = {
+  pending: "border-slate-800/70 bg-slate-950 text-slate-200",
+  testing: "border-blue-800/70 bg-blue-950/60 text-blue-200",
+  pass: "border-emerald-800/70 bg-emerald-950/40 text-emerald-200",
+  fail: "border-red-800/70 bg-red-950/60 text-red-200",
+  warning: "border-amber-800/70 bg-amber-950/60 text-amber-200",
+  skipped: "border-slate-800/70 bg-slate-950/60 text-slate-300"
+};
+
 const PREFLIGHT_CHECK_STYLES: Record<BundlePreflightCheck["status"], string> = {
   pass: "border-emerald-800/70 text-emerald-200",
   fail: "border-red-800/70 text-red-200",
@@ -132,7 +141,7 @@ function PreflightStepHeader({ index, title, status, subtitle }: PreflightStepHe
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-xs font-semibold text-slate-200">
+        <div className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${PREFLIGHT_STEP_CIRCLE_STYLES[status.state]}`}>
           {index}
         </div>
         <div>
@@ -205,17 +214,8 @@ const COVERAGE_COLUMNS: CoverageCell[] = [
 
 const COVERAGE_ROWS = [
   {
-    id: "dry",
-    label: "Dry run",
-    note: "Runtime + validation",
-    cells: COVERAGE_COLUMNS.map((cell) => ({
-      ...cell,
-      active: cell.label === "Services" || cell.label === "Electron UI" ? false : true
-    }))
-  },
-  {
-    id: "services",
-    label: "Start services",
+    id: "preflight",
+    label: "Preflight",
     note: "Runtime + services + logs",
     cells: COVERAGE_COLUMNS.map((cell) => ({
       ...cell,
@@ -342,17 +342,11 @@ interface BundledPreflightSectionProps {
   secretInputs: Record<string, string>;
   preflightOk: boolean;
   preflightOverride: boolean;
-  preflightStartServices: boolean;
-  preflightAutoRefresh: boolean;
   preflightSessionTTL: number;
   preflightSessionId?: string | null;
   preflightSessionExpiresAt?: string | null;
   preflightLogTails?: BundlePreflightLogTail[];
-  deploymentManagerUrl?: string | null;
-  onReexportBundle?: () => void;
   onOverrideChange: (value: boolean) => void;
-  onStartServicesChange: (value: boolean) => void;
-  onAutoRefreshChange: (value: boolean) => void;
   onSessionTTLChange: (value: number) => void;
   onSecretChange: (id: string, value: string) => void;
   onRun: (secretsOverride?: Record<string, string>) => void;
@@ -367,17 +361,11 @@ export function BundledPreflightSection({
   secretInputs,
   preflightOk,
   preflightOverride,
-  preflightStartServices,
-  preflightAutoRefresh,
   preflightSessionTTL,
   preflightSessionId,
   preflightSessionExpiresAt,
   preflightLogTails,
-  deploymentManagerUrl,
-  onReexportBundle,
   onOverrideChange,
-  onStartServicesChange,
-  onAutoRefreshChange,
   onSessionTTLChange,
   onSecretChange,
   onRun
@@ -420,22 +408,22 @@ export function BundledPreflightSection({
   const preflightPayload = useMemo(
     () => ({
       bundle_manifest_path: bundleManifestPath,
-      start_services: preflightStartServices,
+      start_services: true,
       result: preflightResult,
       error: preflightError || undefined,
       missing_secrets: missingSecrets
     }),
-    [bundleManifestPath, preflightStartServices, preflightResult, preflightError, missingSecrets]
+    [bundleManifestPath, preflightResult, preflightError, missingSecrets]
   );
   const hasRun = Boolean(preflightResult || preflightError);
 
   useEffect(() => {
-    if (!preflightStartServices || !preflightResult) {
+    if (!preflightResult) {
       return;
     }
     const interval = window.setInterval(() => setTick(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [preflightStartServices, preflightResult]);
+  }, [preflightResult]);
 
   const toggleHealthPeek = async (serviceId: string, healthURL: string | null) => {
     if (!healthURL) {
@@ -570,9 +558,6 @@ export function BundledPreflightSection({
   })();
 
   const stepServicesStatus: PreflightStepStatus = (() => {
-    if (!preflightStartServices) {
-      return { state: "skipped", label: "Skipped" };
-    }
     if (preflightPending) {
       return { state: "testing", label: "Starting" };
     }
@@ -667,17 +652,6 @@ export function BundledPreflightSection({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-        <Checkbox
-          checked={preflightStartServices}
-          onChange={(e) => onStartServicesChange(e.target.checked)}
-          label="Start services to capture log tails + readiness (slower)"
-        />
-        <Checkbox
-          checked={preflightAutoRefresh}
-          onChange={(e) => onAutoRefreshChange(e.target.checked)}
-          disabled={!preflightStartServices}
-          label="Auto-refresh readiness (every 10s)"
-        />
         <div className="flex items-center gap-2">
           <Label htmlFor="preflight-session-ttl" className="text-[11px] text-slate-400">
             Session TTL (s)
@@ -696,7 +670,6 @@ export function BundledPreflightSection({
               onSessionTTLChange(Math.min(900, Math.max(30, next)));
             }}
             className="h-7 w-20 text-xs"
-            disabled={!preflightStartServices}
           />
         </div>
       </div>
@@ -714,23 +687,7 @@ export function BundledPreflightSection({
       {(preflightResult || preflightError) && viewMode === "summary" && (
         <div className="space-y-4">
           <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold text-slate-100">Bundle context</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {onReexportBundle && (
-                  <Button type="button" size="xs" variant="outline" onClick={onReexportBundle}>
-                    Re-export bundle.json
-                  </Button>
-                )}
-                {deploymentManagerUrl && (
-                  <Button type="button" size="xs" variant="outline" asChild>
-                    <a href={deploymentManagerUrl} target="_blank" rel="noreferrer">
-                      Open deployment-manager
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </div>
+            <p className="font-semibold text-slate-100">Bundle context</p>
             <div className="space-y-1 text-[11px] text-slate-300">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-slate-400">Manifest</span>
@@ -961,12 +918,7 @@ export function BundledPreflightSection({
                 subtitle="Optional service startup + readiness checks"
                 status={stepServicesStatus}
               />
-              {!preflightStartServices && (
-                <p className="text-[11px] text-slate-400">
-                  Skipped in dry run. Enable "Start services" to test readiness and capture log tails.
-                </p>
-              )}
-              {preflightStartServices && readiness && readinessDetails.length > 0 && (
+              {readiness && readinessDetails.length > 0 && (
                 <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200" open={!readiness.ready}>
                   <summary className="cursor-pointer text-xs font-semibold text-slate-100">
                     Readiness details
@@ -977,7 +929,7 @@ export function BundledPreflightSection({
                     {typeof readiness?.waited_seconds === "number" && readiness.waited_seconds > 0
                       ? ` Waited ${readiness.waited_seconds}s before capturing status.`
                       : ""}
-                    {preflightAutoRefresh ? " Auto-refresh is updating this snapshot." : ""}
+                    Auto-refresh updates this snapshot every 10s while the session is active.
                   </p>
                   {(preflightSessionId || preflightSessionExpiresAt) && (
                     <p className="mt-1 text-[11px] text-slate-500">
@@ -1109,7 +1061,7 @@ export function BundledPreflightSection({
                   )}
                 </details>
               )}
-              {preflightStartServices && (!readiness || readinessDetails.length === 0) && (
+              {(!readiness || readinessDetails.length === 0) && (
                 <p className="text-[11px] text-slate-400">
                   No service readiness details yet. Re-run preflight or verify the bundle defines services for this target.
                 </p>
@@ -1200,13 +1152,12 @@ export function BundledPreflightSection({
           <details className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200">
             <summary className="cursor-pointer text-xs font-semibold text-slate-100">Coverage map</summary>
             <p className="mt-2 text-[11px] text-slate-400">
-              Dry run starts the runtime supervisor, validates bundle files, and checks secrets without starting services.
-              Start services adds service startup, readiness checks, and log tails. The Electron UI is not started during
-              preflight.
+              Preflight starts the runtime supervisor, validates bundle files, applies secrets, starts services, and
+              captures readiness plus log tails. The Electron UI is not started during preflight.
             </p>
             <div className="mt-3 space-y-2">
               {COVERAGE_ROWS.map((row) => {
-                const isActive = row.id === (preflightStartServices ? "services" : "dry");
+                const isActive = row.id === "preflight";
                 return (
                   <div
                     key={row.id}

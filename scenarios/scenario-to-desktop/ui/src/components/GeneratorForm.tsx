@@ -231,8 +231,8 @@ function normalizeDraftOnLoad(draft: GeneratorDraftState): GeneratorDraftState {
     ...draft,
     preflightSessionId: sessionValid ? draft.preflightSessionId : null,
     preflightSessionExpiresAt: sessionValid ? draft.preflightSessionExpiresAt : null,
-    preflightAutoRefresh: sessionValid ? draft.preflightAutoRefresh : false,
-    preflightStartServices: sessionValid ? draft.preflightStartServices : false
+    preflightAutoRefresh: true,
+    preflightStartServices: true
   };
 }
 
@@ -693,8 +693,8 @@ export function GeneratorForm({
   const [preflightPending, setPreflightPending] = useState(false);
   const [preflightOverride, setPreflightOverride] = useState(false);
   const [preflightSecrets, setPreflightSecrets] = useState<Record<string, string>>({});
-  const [preflightStartServices, setPreflightStartServices] = useState(false);
-  const [preflightAutoRefresh, setPreflightAutoRefresh] = useState(false);
+  const [preflightStartServices, setPreflightStartServices] = useState(true);
+  const [preflightAutoRefresh, setPreflightAutoRefresh] = useState(true);
   const [preflightSessionId, setPreflightSessionId] = useState<string | null>(null);
   const [preflightSessionExpiresAt, setPreflightSessionExpiresAt] = useState<string | null>(null);
   const [preflightSessionTTL, setPreflightSessionTTL] = useState(120);
@@ -813,8 +813,8 @@ export function GeneratorForm({
     setPreflightPending(false);
     setPreflightOverride(false);
     setPreflightSecrets({});
-    setPreflightStartServices(false);
-    setPreflightAutoRefresh(false);
+    setPreflightStartServices(true);
+    setPreflightAutoRefresh(true);
     setPreflightSessionId(null);
     setPreflightSessionExpiresAt(null);
     setPreflightSessionTTL(120);
@@ -854,8 +854,8 @@ export function GeneratorForm({
     setPreflightPending(false);
     setPreflightOverride(draft.preflightOverride ?? false);
     setPreflightSecrets(draft.preflightSecrets ?? {});
-    setPreflightStartServices(draft.preflightStartServices ?? false);
-    setPreflightAutoRefresh(draft.preflightAutoRefresh ?? false);
+    setPreflightStartServices(true);
+    setPreflightAutoRefresh(true);
     setPreflightSessionId(draft.preflightSessionId ?? null);
     setPreflightSessionExpiresAt(draft.preflightSessionExpiresAt ?? null);
     setPreflightSessionTTL(draft.preflightSessionTTL ?? 120);
@@ -1036,7 +1036,7 @@ export function GeneratorForm({
   };
 
   useEffect(() => {
-    if (!preflightAutoRefresh || !preflightStartServices || preflightPending) {
+    if (!preflightAutoRefresh || preflightPending) {
       return;
     }
     const manifestPath = bundleManifestPath.trim();
@@ -1047,14 +1047,7 @@ export function GeneratorForm({
       void refreshPreflightStatus();
     }, 10000);
     return () => window.clearInterval(interval);
-  }, [preflightAutoRefresh, preflightStartServices, preflightPending, bundleManifestPath, preflightSecrets, preflightResult, preflightSessionId]);
-
-  useEffect(() => {
-    if (!preflightStartServices) {
-      setPreflightAutoRefresh(false);
-      void stopPreflightSession();
-    }
-  }, [preflightStartServices]);
+  }, [preflightAutoRefresh, preflightPending, bundleManifestPath, preflightSecrets, preflightResult, preflightSessionId]);
 
   const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
   const iconPreviewUrl = useMemo(
@@ -1580,17 +1573,11 @@ export function GeneratorForm({
               secretInputs={preflightSecrets}
               preflightOk={preflightOk}
               preflightOverride={preflightOverride}
-              preflightStartServices={preflightStartServices}
-              preflightAutoRefresh={preflightAutoRefresh}
               preflightSessionTTL={preflightSessionTTL}
               preflightSessionId={preflightSessionId}
               preflightSessionExpiresAt={preflightSessionExpiresAt}
               preflightLogTails={preflightResult?.log_tails}
-              deploymentManagerUrl={deploymentManagerUrl}
-              onReexportBundle={() => bundleHelperRef.current?.exportBundle()}
               onOverrideChange={setPreflightOverride}
-              onStartServicesChange={setPreflightStartServices}
-              onAutoRefreshChange={setPreflightAutoRefresh}
               onSessionTTLChange={setPreflightSessionTTL}
               onSecretChange={(id, value) => {
                 setPreflightSecrets((prev) => ({ ...prev, [id]: value }));

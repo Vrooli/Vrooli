@@ -220,9 +220,77 @@ func main() {
 
 	// Routes
 	// Health endpoint using api-core/health for standardized response format
+	playwrightURL := os.Getenv(driver.PlaywrightDriverEnv)
+	if playwrightURL == "" {
+		playwrightURL = driver.DefaultDriverURL
+	}
+
 	healthHandler := health.New().
 		Version("1.0.0").
 		Check(health.DB(db.RawDB()), health.Critical).
+		Check(health.Func("storage", func(ctx context.Context) error {
+			if deps.Storage == nil {
+				return health.NewErrorDetail(
+					"STORAGE_NOT_INITIALIZED",
+					"storage client not initialized - screenshot/artifact storage unavailable",
+					"internal",
+					false,
+				)
+			}
+			if err := deps.Storage.HealthCheck(ctx); err != nil {
+				return health.NewErrorDetail(
+					"STORAGE_CONNECTION_ERROR",
+					fmt.Sprintf("storage health check failed: %v", err),
+					"resource",
+					true,
+				)
+			}
+			return nil
+		}), health.Optional).
+		Check(health.CheckerFunc(func(ctx context.Context) health.CheckResult {
+			if deps.CatalogService == nil {
+				return health.CheckResult{
+					Name:      "automation_engine",
+					Connected: false,
+					Error: health.NewErrorDetail(
+						"AUTOMATION_ENGINE_NOT_INITIALIZED",
+						"automation workflow service not initialized",
+						"internal",
+						false,
+					),
+				}
+			}
+			ok, err := deps.CatalogService.CheckAutomationHealth(ctx)
+			if err != nil {
+				return health.CheckResult{
+					Name:      "automation_engine",
+					Connected: false,
+					Error: health.NewErrorDetail(
+						"AUTOMATION_ENGINE_ERROR",
+						fmt.Sprintf("automation engine health check failed: %v", err),
+						"resource",
+						true,
+					),
+				}
+			}
+			if !ok {
+				return health.CheckResult{
+					Name:      "automation_engine",
+					Connected: false,
+					Error: health.NewErrorDetail(
+						"AUTOMATION_ENGINE_UNHEALTHY",
+						"automation engine reported unhealthy",
+						"resource",
+						true,
+					),
+				}
+			}
+			return health.CheckResult{
+				Name:      "automation_engine",
+				Connected: true,
+			}
+		}), health.Optional).
+		Check(health.HTTP("playwright_driver", playwrightURL+"/health"), health.Optional).
 		Handler()
 	r.Get("/health", healthHandler)
 	r.Get("/ws", handler.HandleWebSocket)                                                 // WebSocket endpoint for browser clients

@@ -135,17 +135,6 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 	return config.EventBufferLimitsFromConfig()
 }
 
-// HealthResponse represents the health check response following Vrooli standards
-type HealthResponse struct {
-	Status       string         `json:"status"`
-	Service      string         `json:"service"`
-	Timestamp    string         `json:"timestamp"`
-	Readiness    bool           `json:"readiness"`
-	Version      string         `json:"version,omitempty"`
-	Dependencies map[string]any `json:"dependencies,omitempty"`
-	Metrics      map[string]any `json:"metrics,omitempty"`
-}
-
 // HandlerDeps holds all dependencies for the Handler.
 // This struct separates dependency wiring from handler construction.
 type HandlerDeps struct {
