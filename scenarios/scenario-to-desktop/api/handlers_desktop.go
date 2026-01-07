@@ -1199,7 +1199,12 @@ func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtime
 		for serviceID, status := range ready.Details {
 			checkStatus := "pass"
 			detail := status.Message
-			if !status.Ready {
+			if status.Skipped {
+				checkStatus = "skipped"
+				if detail == "" {
+					detail = "service skipped"
+				}
+			} else if !status.Ready {
 				checkStatus = "fail"
 				if detail == "" {
 					detail = "service not ready"

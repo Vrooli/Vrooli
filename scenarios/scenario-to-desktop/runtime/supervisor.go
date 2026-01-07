@@ -577,12 +577,20 @@ func (s *Supervisor) IsStarted() bool {
 func (s *Supervisor) AllServicesReady() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	hasReadyCandidate := false
 	for _, st := range s.serviceStatus {
+		if st.Skipped {
+			continue
+		}
+		hasReadyCandidate = true
 		if !st.Ready {
 			return false
 		}
 	}
-	return len(s.serviceStatus) > 0
+	if !hasReadyCandidate {
+		return false
+	}
+	return true
 }
 
 // ServiceStatuses returns a copy of all service statuses.

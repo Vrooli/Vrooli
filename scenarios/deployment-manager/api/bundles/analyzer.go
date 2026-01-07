@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"deployment-manager/shared"
@@ -91,5 +92,41 @@ func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error
 	if manifest.Ports != nil && manifest.Ports.Reserved == nil {
 		manifest.Ports.Reserved = []int{}
 	}
+	applyOnDemandCLIMetadata(&manifest)
 	return &manifest, nil
+}
+
+func applyOnDemandCLIMetadata(manifest *Manifest) {
+	if manifest == nil {
+		return
+	}
+	for i := range manifest.Services {
+		svc := &manifest.Services[i]
+		if !isCLIService(*svc) {
+			continue
+		}
+		if svc.Metadata == nil {
+			svc.Metadata = map[string]interface{}{}
+		}
+		if _, ok := svc.Metadata["run_mode"]; !ok {
+			svc.Metadata["run_mode"] = "on_demand"
+		}
+		if _, ok := svc.Metadata["skip_reason"]; !ok {
+			svc.Metadata["skip_reason"] = "CLI is invoked on demand"
+		}
+	}
+}
+
+func isCLIService(svc ServiceEntry) bool {
+	id := strings.ToLower(svc.ID)
+	if strings.Contains(id, "cli") {
+		return true
+	}
+	if svc.Build != nil {
+		base := strings.ToLower(filepath.Base(svc.Build.SourceDir))
+		if base == "cli" {
+			return true
+		}
+	}
+	return false
 }

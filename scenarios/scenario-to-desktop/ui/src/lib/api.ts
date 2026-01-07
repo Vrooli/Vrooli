@@ -166,6 +166,7 @@ export interface BundlePreflightReady {
   ready: boolean;
   details: Record<string, {
     ready: boolean;
+    skipped?: boolean;
     message?: string;
     exit_code?: number;
     started_at?: string;

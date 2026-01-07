@@ -102,6 +102,7 @@ type ServiceEntry struct {
 	Assets       []Asset                  `json:"assets,omitempty"`
 	GPU          *GPUConfig               `json:"gpu,omitempty"`
 	Critical     *bool                    `json:"critical,omitempty"`
+	Metadata     map[string]interface{}   `json:"metadata,omitempty"`
 }
 
 // BuildConfig specifies how to compile a service binary when not pre-built.

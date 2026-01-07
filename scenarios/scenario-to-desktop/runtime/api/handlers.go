@@ -177,11 +177,19 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	statuses := s.runtime.ServiceStatuses()
 	allReady := true
+	hasReadyCandidate := false
 	for _, st := range statuses {
+		if st.Skipped {
+			continue
+		}
+		hasReadyCandidate = true
 		if !st.Ready {
 			allReady = false
 			break
 		}
+	}
+	if !hasReadyCandidate {
+		allReady = false
 	}
 
 	gpuStatus := s.runtime.GPUStatus()

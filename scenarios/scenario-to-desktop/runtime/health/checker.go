@@ -17,6 +17,7 @@ import (
 // Status represents the current state of a service.
 type Status struct {
 	Ready     bool      `json:"ready"`
+	Skipped   bool      `json:"skipped,omitempty"`
 	Message   string    `json:"message,omitempty"`
 	ExitCode  *int      `json:"exit_code,omitempty"`
 	StartedAt time.Time `json:"started_at,omitempty"`

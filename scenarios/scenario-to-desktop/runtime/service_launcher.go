@@ -98,6 +98,17 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 			continue
 		}
 
+		if skip, reason := shouldSkipService(*svc); skip {
+			status := ServiceStatus{Ready: false, Skipped: true}
+			if reason != "" {
+				status.Message = fmt.Sprintf("skipped: %s", reason)
+			} else {
+				status.Message = "skipped: on-demand service"
+			}
+			s.setStatus(svc.ID, status)
+			continue
+		}
+
 		// Ensure dependencies are ready before starting.
 		if err := s.healthChecker.WaitForDependencies(ctx, svc); err != nil {
 			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
@@ -118,6 +129,20 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func shouldSkipService(svc manifest.Service) (bool, string) {
+	if len(svc.Metadata) == 0 {
+		return false, ""
+	}
+	runMode, ok := svc.Metadata["run_mode"].(string)
+	if !ok || !strings.EqualFold(runMode, "on_demand") {
+		return false, ""
+	}
+	if reason, ok := svc.Metadata["skip_reason"].(string); ok && strings.TrimSpace(reason) != "" {
+		return true, reason
+	}
+	return true, ""
 }
 
 // startService launches a single service and sets up monitoring.

@@ -12,48 +12,83 @@ const CONTEXT_OPTIONS = [
     description: "Failed step and error message",
     defaultChecked: true,
     recommended: true,
+    details: [
+      "Failed step name (if available)",
+      "Raw error message text (if available)",
+    ],
   },
   {
     key: "deployment-manifest",
     label: "Deployment Manifest",
     description: "Full dependency and target configuration",
     defaultChecked: true,
+    details: [
+      "Scenario ID and target VPS settings",
+      "Dependencies (resources and scenarios)",
+      "Ports and edge configuration",
+    ],
   },
   {
     key: "vps-connection",
     label: "VPS Connection Details",
     description: "SSH command, host, credentials",
     defaultChecked: true,
+    details: [
+      "SSH command template",
+      "Host, user, port, key path, workdir",
+      "Domain and expected ports (if defined)",
+    ],
   },
   {
     key: "deployment-history",
     label: "Deployment History",
     description: "Timeline of deployment events",
     defaultChecked: true,
+    details: [
+      "Event timeline JSON from previous deployment runs",
+      "Only included when history exists",
+    ],
   },
   {
     key: "preflight-results",
     label: "Preflight Results",
     description: "VPS capability check results",
     defaultChecked: false,
+    details: [
+      "Preflight checks JSON (ports, system capabilities)",
+      "Only included when preflight results exist",
+    ],
   },
   {
     key: "setup-results",
     label: "Setup Results",
     description: "Vrooli installation phase output",
     defaultChecked: false,
+    details: [
+      "Setup phase output JSON",
+      "Only included when setup results exist",
+    ],
   },
   {
     key: "deploy-results",
     label: "Deploy Results",
     description: "Deployment execution phase output",
     defaultChecked: false,
+    details: [
+      "Deployment execution output JSON",
+      "Only included when deploy results exist",
+    ],
   },
   {
     key: "architecture-guide",
     label: "Architecture Guide",
     description: "How Vrooli deployments work",
     defaultChecked: true,
+    details: [
+      "Dependency resolution flow",
+      "Deployment pipeline steps",
+      "Common failure patterns and fixes",
+    ],
   },
 ] as const;
 
@@ -173,7 +208,7 @@ export function InvestigateButton({
       {/* Options modal */}
       {showOptions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl w-[95vw] max-w-[80rem] mx-4">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
               <div className="flex items-center gap-2">
@@ -199,80 +234,102 @@ export function InvestigateButton({
                 </Alert>
               )}
 
-              {/* Context selection */}
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">
-                  Context to Include
-                </label>
-                <div className="space-y-1">
-                  {CONTEXT_OPTIONS.map((option) => (
-                    <label
-                      key={option.key}
-                      className="flex items-start gap-3 p-2 rounded-md cursor-pointer hover:bg-slate-800/50 transition-colors"
-                    >
-                      <div className="relative flex items-center justify-center mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedContexts.has(option.key)}
-                          onChange={() => toggleContext(option.key)}
-                          className="sr-only"
-                        />
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                            selectedContexts.has(option.key)
-                              ? "bg-blue-500 border-blue-500"
-                              : "bg-slate-800 border-slate-600"
-                          }`}
-                        >
-                          {selectedContexts.has(option.key) && (
-                            <Check className="h-3 w-3 text-white" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-200">{option.label}</span>
-                          {"recommended" in option && option.recommended && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
-                              recommended
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">{option.description}</p>
-                      </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="space-y-4">
+                  {/* Note input */}
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-1.5">
+                      Additional Notes
                     </label>
-                  ))}
+                    <textarea
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="E.g., 'This started failing after updating the database schema...'"
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-sm text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={6}
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Optional - provide any context that might help the investigation</p>
+                  </div>
+
+                  {/* Auto-fix toggle */}
+                  <label className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={autoFix}
+                      onChange={(e) => setAutoFix(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="text-sm text-slate-200 font-medium">Allow auto-fix</span>
+                      <p className="text-xs text-slate-400 mt-0.5">Agent may attempt safe fixes like restarting services or clearing disk space</p>
+                    </div>
+                  </label>
                 </div>
-              </div>
 
-              {/* Note input */}
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5">
-                  Additional Notes
-                </label>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="E.g., 'This started failing after updating the database schema...'"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-sm text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                />
-                <p className="text-xs text-slate-500 mt-1">Optional - provide any context that might help the investigation</p>
-              </div>
-
-              {/* Auto-fix toggle */}
-              <label className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={autoFix}
-                  onChange={(e) => setAutoFix(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
-                />
+                {/* Context selection */}
                 <div>
-                  <span className="text-sm text-slate-200 font-medium">Allow auto-fix</span>
-                  <p className="text-xs text-slate-400 mt-0.5">Agent may attempt safe fixes like restarting services or clearing disk space</p>
+                  <label className="block text-sm text-slate-300 mb-2">
+                    Context to Include
+                  </label>
+                  <div className="space-y-2">
+                    {CONTEXT_OPTIONS.map((option) => (
+                      <label
+                        key={option.key}
+                        className={`flex items-start gap-3 p-3 rounded-md cursor-pointer border transition-colors ${
+                          selectedContexts.has(option.key)
+                            ? "bg-slate-800/70 border-blue-500/60"
+                            : "bg-slate-900 border-slate-800 hover:bg-slate-800/50"
+                        }`}
+                      >
+                        <div className="relative flex items-center justify-center mt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedContexts.has(option.key)}
+                            onChange={() => toggleContext(option.key)}
+                            className="sr-only"
+                          />
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                              selectedContexts.has(option.key)
+                                ? "bg-blue-500 border-blue-500"
+                                : "bg-slate-800 border-slate-600"
+                            }`}
+                          >
+                            {selectedContexts.has(option.key) && (
+                              <Check className="h-3 w-3 text-white" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-200">{option.label}</span>
+                            {"recommended" in option && option.recommended && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                                recommended
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">{option.description}</p>
+                          <details className="group">
+                            <summary className="text-xs text-blue-400 cursor-pointer list-none flex items-center gap-2">
+                              <span className="inline-block transition-transform group-open:rotate-90">&gt;</span>
+                              View included data
+                            </summary>
+                            <div className="mt-2 text-xs text-slate-400 space-y-1">
+                              {option.details.map((detail) => (
+                                <div key={detail} className="flex gap-2">
+                                  <span className="text-slate-500">•</span>
+                                  <span>{detail}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </label>
+              </div>
             </div>
 
             {/* Footer */}
