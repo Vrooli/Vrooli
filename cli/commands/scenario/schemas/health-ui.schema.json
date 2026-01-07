@@ -92,6 +92,7 @@
         "error": {
           "oneOf": [
             {"$ref": "#/definitions/errorObject"},
+            {"type": "string"},
             {"type": "null"}
           ],
           "description": "Structured error information if connection failed, null if successful"
@@ -119,6 +120,7 @@
           "error": {
             "oneOf": [
               {"$ref": "#/definitions/errorObject"},
+              {"type": "string"},
               {"type": "null"}
             ],
             "description": "Structured error information if connection failed, null if successful"

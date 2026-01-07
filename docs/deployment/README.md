@@ -45,7 +45,7 @@ That loop is spelled out in the [Scenario Docs](./scenarios) section.
 - [Deployment Checklist](guides/deployment-checklist.md) — per-tier readiness check.
 - [Packaging Matrix](guides/packaging-matrix.md) — what `scenario-to-*` can actually produce today.
 - [Auto-Update Channels](guides/auto-updates.md) — installer formats (MSI/PKG/AppImage), update channel design (dev/beta/stable), and provider configuration (GitHub/self-hosted).
-- **Bundle manifest v0.1** — `docs/deployment/bundle-schema.desktop.v0.1.json` defines the validated `bundle.json` contract for desktop bundles; sample manifests live in `docs/deployment/examples/manifests/` for a plain SQLite build and a Playwright-enabled build.
+- **Bundle manifest v0.1** — `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` defines the validated `bundle.json` contract for desktop bundles; sample manifests live in `scenarios/deployment-manager/docs/examples/manifests/` for a plain SQLite build and a Playwright-enabled build.
 
 ## Providers & Infrastructure Notes
 

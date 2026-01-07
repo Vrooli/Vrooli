@@ -16,13 +16,12 @@ import {
   type SigningConfig,
   type SigningReadinessResponse
 } from "../lib/api";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
 import { ScenarioModal } from "./ScenarioModal";
 import { FrameworkModal } from "./FrameworkModal";
@@ -1425,41 +1424,39 @@ export function GeneratorForm({
     : null;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Rocket className="h-5 w-5" />
-          Generate Desktop App
-        </CardTitle>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          {draftCreatedLabel && (
-            <span>Draft started {draftCreatedLabel}</span>
-          )}
-          {draftUpdatedLabel && (
-            <span>Updated {draftUpdatedLabel}</span>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!scenarioName}
-            onClick={() => {
-              if (!scenarioName) return;
-              if (preflightSessionId && bundleManifestPath.trim()) {
-                void stopPreflightSession();
-              }
-              clearGeneratorDraft(scenarioName);
-              resetFormState(true);
-              setDraftTimestamps(null);
-              setDraftLoadedScenario(null);
-            }}
-          >
-            Reset progress
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {(draftCreatedLabel || draftUpdatedLabel) && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            {draftCreatedLabel && (
+              <span>Draft started {draftCreatedLabel}</span>
+            )}
+            {draftUpdatedLabel && (
+              <span>Updated {draftUpdatedLabel}</span>
+            )}
+          </div>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="sm:ml-auto"
+          disabled={!scenarioName}
+          onClick={() => {
+            if (!scenarioName) return;
+            if (preflightSessionId && bundleManifestPath.trim()) {
+              void stopPreflightSession();
+            }
+            clearGeneratorDraft(scenarioName);
+            resetFormState(true);
+            setDraftTimestamps(null);
+            setDraftLoadedScenario(null);
+          }}
+        >
+          Reset progress
+        </Button>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
             <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
               <div className="font-semibold text-blue-50">
@@ -1659,8 +1656,8 @@ export function GeneratorForm({
               <strong>Error:</strong> {(generateMutation.error as Error).message}
             </div>
           )}
-        </form>
-        <ScenarioModal
+      </form>
+      <ScenarioModal
           open={scenarioModalOpen}
           loading={loadingScenarios}
           scenarios={scenariosData?.scenarios ?? []}
@@ -1702,7 +1699,6 @@ export function GeneratorForm({
             }
           }}
         />
-      </CardContent>
-    </Card>
+    </div>
   );
 }

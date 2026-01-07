@@ -76,6 +76,9 @@ type Response struct {
 	// Version is the service version (optional).
 	Version string `json:"version,omitempty"`
 
+	// UptimeSeconds is the service uptime in seconds (optional).
+	UptimeSeconds float64 `json:"uptime_seconds,omitempty"`
+
 	// Dependencies contains the status of downstream dependencies.
 	Dependencies map[string]DependencyStatus `json:"dependencies,omitempty"`
 
@@ -92,10 +95,24 @@ type DependencyStatus struct {
 	Latency *float64 `json:"latency_ms,omitempty"`
 
 	// Error describes why the check failed (optional).
-	Error string `json:"error,omitempty"`
+	// Can be a string or a structured ErrorDetail.
+	Error any `json:"error,omitempty"`
 
 	// Database is the connected database name (for database dependencies only).
 	Database string `json:"database,omitempty"`
+}
+
+// ErrorDetail captures structured error metadata for dependency failures.
+type ErrorDetail struct {
+	Code      string         `json:"code"`
+	Message   string         `json:"message"`
+	Category  string         `json:"category"`
+	Retryable bool           `json:"retryable"`
+	Details   map[string]any `json:"details,omitempty"`
+}
+
+func (e ErrorDetail) Error() string {
+	return e.Message
 }
 
 // CheckResult is returned by a Checker after performing its health check.
@@ -228,12 +245,13 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 	now := b.nowFunc()
 
 	resp := Response{
-		Status:    StatusHealthy,
-		Service:   b.resolveService(),
-		Timestamp: now.UTC().Format(time.RFC3339),
-		Readiness: true,
-		Version:   b.version,
-		Metrics:   b.collectMetrics(now),
+		Status:        StatusHealthy,
+		Service:       b.resolveService(),
+		Timestamp:     now.UTC().Format(time.RFC3339),
+		Readiness:     true,
+		Version:       b.version,
+		UptimeSeconds: now.Sub(b.startTime).Seconds(),
+		Metrics:       b.collectMetrics(now),
 	}
 
 	if len(b.checks) > 0 {
@@ -289,7 +307,14 @@ func (b *Builder) runChecks(ctx context.Context, resp *Response) map[string]Depe
 		}
 
 		if result.Error != nil {
-			status.Error = result.Error.Error()
+			switch err := result.Error.(type) {
+			case *ErrorDetail:
+				status.Error = err
+			case ErrorDetail:
+				status.Error = &err
+			default:
+				status.Error = result.Error.Error()
+			}
 		}
 
 		// A check fails if it's not connected OR has an error

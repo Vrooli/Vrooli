@@ -37,6 +37,13 @@ validate_health_response() {
     # Basic validation using jq
     # This checks required fields and basic structure
     local validation_errors=""
+
+    # Validate structured error objects when present
+    local error_validation
+    error_validation=$(validate_error_objects "$response")
+    if [[ -n "$error_validation" ]]; then
+        validation_errors="${validation_errors}${error_validation}"
+    fi
     
     # Check required fields based on service type
     case "$service_type" in
@@ -166,6 +173,48 @@ validate_health_response() {
         echo -e "${GREEN}✅ Valid $service_type health response${NC}" >&2
         return 0
     fi
+}
+
+# Validate any structured error objects found in the response.
+# Accepts string or null error values; validates object fields when present.
+validate_error_objects() {
+    local response="$1"
+    local errors=""
+
+    local error_objects
+    error_objects=$(echo "$response" | jq -c '.. | objects | select(has("error")) | .error | select(type=="object")' 2>/dev/null || true)
+    if [[ -z "$error_objects" ]]; then
+        echo ""
+        return 0
+    fi
+
+    while IFS= read -r err; do
+        [[ -z "$err" ]] && continue
+        if ! echo "$err" | jq -e '.code' > /dev/null 2>&1; then
+            errors="${errors}Missing required error field: code\n"
+        fi
+        if ! echo "$err" | jq -e '.message' > /dev/null 2>&1; then
+            errors="${errors}Missing required error field: message\n"
+        fi
+        if ! echo "$err" | jq -e '.category' > /dev/null 2>&1; then
+            errors="${errors}Missing required error field: category\n"
+        else
+            local category
+            category=$(echo "$err" | jq -r '.category // ""' 2>/dev/null)
+            case "$category" in
+                network|configuration|authentication|resource|internal)
+                    ;;
+                *)
+                    errors="${errors}Invalid error category: $category\n"
+                    ;;
+            esac
+        fi
+        if ! echo "$err" | jq -e '.retryable' > /dev/null 2>&1; then
+            errors="${errors}Missing required error field: retryable\n"
+        fi
+    done <<< "$error_objects"
+
+    echo -e "$errors"
 }
 
 # Get health status from response

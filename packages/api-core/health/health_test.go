@@ -14,6 +14,7 @@ import (
 func TestHandler_Minimal(t *testing.T) {
 	// Create handler with no checks
 	b := New("test-service")
+	b.startTime = time.Date(2024, 1, 15, 10, 29, 50, 0, time.UTC)
 	b.nowFunc = func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }
 
 	handler := b.Handler()
@@ -43,6 +44,9 @@ func TestHandler_Minimal(t *testing.T) {
 	}
 	if resp.Timestamp != "2024-01-15T10:30:00Z" {
 		t.Errorf("expected timestamp 2024-01-15T10:30:00Z, got %s", resp.Timestamp)
+	}
+	if resp.UptimeSeconds != 10 {
+		t.Errorf("expected uptime_seconds 10, got %v", resp.UptimeSeconds)
 	}
 	if resp.Metrics == nil {
 		t.Error("expected metrics to be present")
@@ -295,6 +299,47 @@ func TestHTTPChecker_Unreachable(t *testing.T) {
 	}
 	if result.Error == nil {
 		t.Error("expected error")
+	}
+}
+
+func TestHandler_WithStructuredError(t *testing.T) {
+	handler := New("test").
+		Check(&mockChecker{
+			name:      "storage",
+			connected: false,
+			err: &ErrorDetail{
+				Code:      "STORAGE_NOT_INITIALIZED",
+				Message:   "storage client not initialized",
+				Category:  "internal",
+				Retryable: false,
+			},
+		}, Optional).
+		Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var payload map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	deps, ok := payload["dependencies"].(map[string]any)
+	if !ok {
+		t.Fatal("expected dependencies in response")
+	}
+	storage, ok := deps["storage"].(map[string]any)
+	if !ok {
+		t.Fatal("expected storage dependency in response")
+	}
+	errObj, ok := storage["error"].(map[string]any)
+	if !ok {
+		t.Fatal("expected structured error object in response")
+	}
+	if errObj["code"] != "STORAGE_NOT_INITIALIZED" {
+		t.Errorf("expected error code STORAGE_NOT_INITIALIZED, got %v", errObj["code"])
 	}
 }
 
