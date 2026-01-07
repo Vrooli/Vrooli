@@ -21,7 +21,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { useIsMobile } from "../hooks";
-import type { RepoFilesStatus } from "../lib/api";
+import type { DiffStats, RepoFilesStatus, RepoFileStats } from "../lib/api";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -39,6 +39,7 @@ export type GroupingRule = {
 
 interface FileListProps {
   files?: RepoFilesStatus;
+  fileStats?: RepoFileStats;
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
@@ -93,6 +94,7 @@ interface FileSectionProps {
   actionIcon: React.ReactNode;
   actionLabel: string;
   isLoading: boolean;
+  changeStats?: DiffStats;
   defaultExpanded?: boolean;
   onDiscard?: (path: string) => void;
   isDiscarding?: boolean;
@@ -113,6 +115,49 @@ const statusStyleMap = {
   U: "text-red-300 border-red-500/40 bg-red-500/10",
   "?": "text-slate-300 border-slate-500/40 bg-slate-500/10"
 };
+
+function summarizeFileStats(paths: string[], stats?: Record<string, DiffStats>) {
+  if (!stats) return undefined;
+  const summary = { additions: 0, deletions: 0, files: 0 };
+  let hasStats = false;
+  for (const path of paths) {
+    const entry = stats[path];
+    if (!entry) continue;
+    hasStats = true;
+    summary.additions += entry.additions;
+    summary.deletions += entry.deletions;
+    summary.files += entry.files || 1;
+  }
+  return hasStats ? summary : undefined;
+}
+
+function hasLineStats(stats?: DiffStats) {
+  return Boolean(stats && (stats.additions > 0 || stats.deletions > 0));
+}
+
+function LineStats({
+  stats,
+  compact = false
+}: {
+  stats?: DiffStats;
+  compact?: boolean;
+}) {
+  if (!hasLineStats(stats)) return null;
+  const textSize = compact ? "text-[11px]" : "text-xs";
+  const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
+  return (
+    <div className={`flex items-center gap-2 ${textSize}`}>
+      <span className="flex items-center gap-1 text-emerald-500">
+        <Plus className={iconSize} />
+        {stats?.additions ?? 0}
+      </span>
+      <span className="flex items-center gap-1 text-red-500">
+        <Minus className={iconSize} />
+        {stats?.deletions ?? 0}
+      </span>
+    </div>
+  );
+}
 
 function normalizePrefix(prefix: string) {
   const trimmed = prefix.trim();
@@ -441,6 +486,7 @@ function FileSection({
   actionIcon,
   actionLabel,
   isLoading,
+  changeStats,
   defaultExpanded = true,
   onDiscard,
   isDiscarding,
@@ -492,7 +538,10 @@ function FileSection({
         <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
           {title}
         </span>
-        <span className="text-xs text-slate-600 ml-auto">{files.length}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <LineStats stats={changeStats} compact />
+          <span className="text-xs text-slate-600">{files.length}</span>
+        </div>
       </button>
 
       {expanded && (
@@ -536,6 +585,7 @@ function FileSection({
 
 export function FileList({
   files,
+  fileStats,
   selectedFiles,
   selectedKeySet,
   selectionKey,
@@ -605,6 +655,23 @@ export function FileList({
   );
   const groupingAvailable = normalizedRules.length > 0;
   const groupingActive = groupingEnabled && groupingAvailable;
+  const totalStats = useMemo(() => {
+    if (!files) return undefined;
+    const stagedStats = summarizeFileStats(files.staged ?? [], fileStats?.staged);
+    const unstagedStats = summarizeFileStats(files.unstaged ?? [], fileStats?.unstaged);
+    const untrackedStats = summarizeFileStats(files.untracked ?? [], fileStats?.untracked);
+    const summary = { additions: 0, deletions: 0, files: 0 };
+    const sources = [stagedStats, unstagedStats, untrackedStats];
+    let hasStats = false;
+    sources.forEach((source) => {
+      if (!source) return;
+      hasStats = true;
+      summary.additions += source.additions;
+      summary.deletions += source.deletions;
+      summary.files += source.files;
+    });
+    return hasStats ? summary : undefined;
+  }, [files, fileStats]);
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
     [onDiscardFile]
@@ -759,6 +826,7 @@ export function FileList({
             )}
           </button>
           <span className="truncate">Changes</span>
+          <LineStats stats={totalStats} />
         </CardTitle>
         <div className="flex flex-wrap gap-2 justify-end min-w-0">
           {hasUnstaged && (
@@ -992,6 +1060,7 @@ export function FileList({
                         actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Stage file"
                         isLoading={isStaging}
+                        changeStats={summarizeFileStats(group.files.conflicts, fileStats?.unstaged)}
                         onIgnore={handleIgnoreFile}
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
@@ -1016,6 +1085,7 @@ export function FileList({
                         actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Unstage file"
                         isLoading={isStaging}
+                        changeStats={summarizeFileStats(group.files.staged, fileStats?.staged)}
                         onIgnore={handleIgnoreFile}
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
@@ -1040,6 +1110,7 @@ export function FileList({
                         actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Stage file"
                         isLoading={isStaging}
+                        changeStats={summarizeFileStats(group.files.unstaged, fileStats?.unstaged)}
                         onDiscard={handleDiscardUnstaged}
                         isDiscarding={isDiscarding}
                         confirmingDiscard={confirmingDiscard}
@@ -1068,6 +1139,7 @@ export function FileList({
                         actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Stage file"
                         isLoading={isStaging}
+                        changeStats={summarizeFileStats(group.files.untracked, fileStats?.untracked)}
                         defaultExpanded={false}
                         onDiscard={handleDiscardUntracked}
                         isDiscarding={isDiscarding}
@@ -1103,6 +1175,7 @@ export function FileList({
                   actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Stage file"
                   isLoading={isStaging}
+                  changeStats={summarizeFileStats(files?.conflicts ?? [], fileStats?.unstaged)}
                   onIgnore={handleIgnoreFile}
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
@@ -1128,6 +1201,7 @@ export function FileList({
                   actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Unstage file"
                   isLoading={isStaging}
+                  changeStats={summarizeFileStats(files?.staged ?? [], fileStats?.staged)}
                   onIgnore={handleIgnoreFile}
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
@@ -1153,6 +1227,7 @@ export function FileList({
                   actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Stage file"
                   isLoading={isStaging}
+                  changeStats={summarizeFileStats(files?.unstaged ?? [], fileStats?.unstaged)}
                   onDiscard={handleDiscardUnstaged}
                   isDiscarding={isDiscarding}
                   confirmingDiscard={confirmingDiscard}
@@ -1182,6 +1257,7 @@ export function FileList({
                   actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Stage file"
                   isLoading={isStaging}
+                  changeStats={summarizeFileStats(files?.untracked ?? [], fileStats?.untracked)}
                   defaultExpanded={false}
                   onDiscard={handleDiscardUntracked}
                   isDiscarding={isDiscarding}

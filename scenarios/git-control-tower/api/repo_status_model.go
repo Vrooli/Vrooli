@@ -18,6 +18,7 @@ type RepoStatus struct {
 	RepoDir   string                 `json:"repo_dir"`
 	Branch    RepoBranchStatus       `json:"branch"`
 	Files     RepoFilesStatus        `json:"files"`
+	FileStats RepoFileStats          `json:"file_stats,omitempty"`
 	Scopes    map[string][]string    `json:"scopes"`
 	Summary   RepoStatusSummary      `json:"summary"`
 	Author    RepoAuthorStatus       `json:"author"`
@@ -62,6 +63,12 @@ type RepoFilesStatus struct {
 	Binary    []string          `json:"binary,omitempty"`
 	Ignored   []string          `json:"ignored,omitempty"`
 	Statuses  map[string]string `json:"statuses,omitempty"`
+}
+
+type RepoFileStats struct {
+	Staged    map[string]DiffStats `json:"staged,omitempty"`
+	Unstaged  map[string]DiffStats `json:"unstaged,omitempty"`
+	Untracked map[string]DiffStats `json:"untracked,omitempty"`
 }
 
 type RepoStatusSummary struct {

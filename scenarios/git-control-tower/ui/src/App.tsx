@@ -1072,6 +1072,7 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
@@ -1290,6 +1291,7 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}

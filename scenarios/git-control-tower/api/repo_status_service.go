@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,6 +49,33 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		Ignored:   len(parsed.Files.Ignored),
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
+
+	stagedStats := map[string]DiffStats{}
+	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
+		stagedStats = parseNumstatOutput(numstat)
+	}
+
+	unstagedStats := map[string]DiffStats{}
+	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
+		unstagedStats = parseNumstatOutput(numstat)
+	}
+
+	untrackedStats := map[string]DiffStats{}
+	for _, path := range parsed.Files.Untracked {
+		stats, err := buildUntrackedStats(repoDir, path)
+		if err != nil {
+			continue
+		}
+		untrackedStats[path] = stats
+	}
+
+	if len(stagedStats) > 0 || len(unstagedStats) > 0 || len(untrackedStats) > 0 {
+		parsed.FileStats = RepoFileStats{
+			Staged:    stagedStats,
+			Unstaged:  unstagedStats,
+			Untracked: untrackedStats,
+		}
+	}
 
 	binarySet := map[string]struct{}{}
 	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
@@ -92,6 +124,106 @@ func addBinaryFiles(out map[string]struct{}, numstat []byte) {
 			out[path] = struct{}{}
 		}
 	}
+}
+
+func parseNumstatOutput(out []byte) map[string]DiffStats {
+	stats := map[string]DiffStats{}
+	raw := strings.TrimSpace(string(out))
+	if raw == "" {
+		return stats
+	}
+	lines := strings.Split(raw, "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		path := strings.TrimSpace(parts[2])
+		if path == "" {
+			continue
+		}
+		stats[path] = DiffStats{
+			Additions: parseNumstatValue(parts[0]),
+			Deletions: parseNumstatValue(parts[1]),
+			Files:     1,
+		}
+	}
+	return stats
+}
+
+func parseNumstatValue(value string) int {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "-" {
+		return 0
+	}
+	num, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return 0
+	}
+	if num < 0 {
+		return 0
+	}
+	return num
+}
+
+func buildUntrackedStats(repoDir string, path string) (DiffStats, error) {
+	fullPath := path
+	if !filepath.IsAbs(path) {
+		fullPath = filepath.Join(repoDir, path)
+	}
+	lines, isBinary, err := countFileLines(fullPath)
+	if err != nil {
+		return DiffStats{}, err
+	}
+	stats := DiffStats{Files: 1}
+	if !isBinary {
+		stats.Additions = lines
+	}
+	return stats, nil
+}
+
+func countFileLines(path string) (int, bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, false, err
+	}
+	defer file.Close()
+
+	buf := make([]byte, 32*1024)
+	lines := 0
+	hasContent := false
+	var lastByte byte
+
+	for {
+		n, readErr := file.Read(buf)
+		if n > 0 {
+			hasContent = true
+			if bytes.IndexByte(buf[:n], 0) >= 0 {
+				return 0, true, nil
+			}
+			for _, b := range buf[:n] {
+				if b == '\n' {
+					lines++
+				}
+			}
+			lastByte = buf[n-1]
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return 0, false, readErr
+		}
+	}
+
+	if hasContent && lastByte != '\n' {
+		lines++
+	}
+
+	return lines, false, nil
 }
 
 func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {

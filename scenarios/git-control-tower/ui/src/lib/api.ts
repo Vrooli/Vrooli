@@ -36,6 +36,12 @@ export interface RepoFilesStatus {
   statuses?: Record<string, string>;
 }
 
+export interface RepoFileStats {
+  staged?: Record<string, DiffStats>;
+  unstaged?: Record<string, DiffStats>;
+  untracked?: Record<string, DiffStats>;
+}
+
 export interface RepoStatusSummary {
   staged: number;
   unstaged: number;
@@ -48,6 +54,7 @@ export interface RepoStatus {
   repo_dir: string;
   branch: RepoBranchStatus;
   files: RepoFilesStatus;
+  file_stats?: RepoFileStats;
   scopes: Record<string, string[]>;
   summary: RepoStatusSummary;
   author: {
