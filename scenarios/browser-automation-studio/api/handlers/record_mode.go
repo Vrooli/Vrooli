@@ -59,6 +59,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	var profileID, profileName, profileLastUsed string
 	var storageState json.RawMessage
 	var browserProfile *archiveingestion.BrowserProfile
+	var openTabs []archiveingestion.TabState
 	if h.sessionProfiles != nil {
 		profile, err := h.resolveSessionProfile(req.SessionProfileID)
 		if err != nil {
@@ -71,6 +72,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 			profileLastUsed = profile.LastUsedAt.Format(time.RFC3339)
 			storageState = profile.StorageState
 			browserProfile = profile.BrowserProfile
+			openTabs = profile.OpenTabs
 		}
 	}
 
@@ -130,6 +132,51 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		h.setActiveSessionProfile(result.SessionID, profileID)
 	}
 
+	// Restore tabs if requested (default: true for recording sessions)
+	var restoredTabs []RestoredTabInfo
+	var initialURL string
+	restoreTabs := req.RestoreTabs == nil || *req.RestoreTabs // Default to true
+	h.log.WithFields(map[string]interface{}{
+		"session_id":    result.SessionID,
+		"profile_id":    profileID,
+		"restore_tabs":  restoreTabs,
+		"open_tabs_len": len(openTabs),
+	}).Info("Tab restoration check")
+	if restoreTabs && len(openTabs) > 0 {
+		// Log the tabs we're about to restore
+		for i, tab := range openTabs {
+			h.log.WithFields(map[string]interface{}{
+				"index":     i,
+				"url":       tab.URL,
+				"title":     tab.Title,
+				"is_active": tab.IsActive,
+				"order":     tab.Order,
+			}).Info("Tab to restore")
+		}
+		restorationResult, err := h.recordModeService.RestoreTabs(ctx, result.SessionID, openTabs)
+		if err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"session_id": result.SessionID,
+				"profile_id": profileID,
+				"tab_count":  len(openTabs),
+			}).Warn("Failed to restore tabs from profile")
+		} else if restorationResult != nil {
+			h.log.WithFields(map[string]interface{}{
+				"restored_count": len(restorationResult.Tabs),
+				"initial_url":    restorationResult.InitialURL,
+			}).Info("Tabs restored successfully")
+			initialURL = restorationResult.InitialURL
+			restoredTabs = make([]RestoredTabInfo, 0, len(restorationResult.Tabs))
+			for _, tab := range restorationResult.Tabs {
+				restoredTabs = append(restoredTabs, RestoredTabInfo{
+					PageID:   tab.PageID,
+					URL:      tab.URL,
+					IsActive: tab.IsActive,
+				})
+			}
+		}
+	}
+
 	// Convert actual viewport with source attribution if present
 	var actualViewport *ActualViewportWithSource
 	if result.ActualViewport != nil {
@@ -148,6 +195,8 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		SessionProfileName: profileName,
 		LastUsedAt:         profileLastUsed,
 		ActualViewport:     actualViewport,
+		RestoredTabs:       restoredTabs,
+		InitialURL:         initialURL,
 	}
 
 	if pb, err := protoconv.RecordingSessionToProto(response); err == nil && pb != nil {
@@ -171,10 +220,12 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Capture storage state before closing (for session profile persistence)
+	// Capture storage state and open tabs before closing (for session profile persistence)
 	var storageState json.RawMessage
+	var openTabs []archiveingestion.TabState
 	profileID := h.getActiveSessionProfile(sessionID)
 	if profileID != "" && h.sessionProfiles != nil {
+		// Capture storage state
 		if state, err := h.recordModeService.GetStorageState(ctx, sessionID); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
 				"session_id": sessionID,
@@ -182,6 +233,24 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 			}).Warn("Failed to capture storage state before closing session")
 		} else {
 			storageState = state
+		}
+
+		// Capture open tabs for restoration
+		if pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"session_id": sessionID,
+				"profile_id": profileID,
+			}).Warn("Failed to capture open tabs before closing session")
+		} else {
+			openTabs = make([]archiveingestion.TabState, 0, len(pages))
+			for i, page := range pages {
+				openTabs = append(openTabs, archiveingestion.TabState{
+					URL:      page.URL,
+					Title:    page.Title,
+					IsActive: page.ID == activePageID,
+					Order:    i,
+				})
+			}
 		}
 	}
 
@@ -199,13 +268,26 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Persist storage state to profile after successful close
-	if profileID != "" && h.sessionProfiles != nil && len(storageState) > 0 {
-		if _, err := h.sessionProfiles.SaveStorageState(profileID, storageState); err != nil {
-			h.log.WithError(err).WithFields(map[string]interface{}{
-				"profile_id": profileID,
-				"session_id": sessionID,
-			}).Warn("Failed to persist session profile storage state")
+	// Persist storage state and open tabs to profile after successful close
+	if profileID != "" && h.sessionProfiles != nil {
+		if len(storageState) > 0 {
+			if _, err := h.sessionProfiles.SaveStorageState(profileID, storageState); err != nil {
+				h.log.WithError(err).WithFields(map[string]interface{}{
+					"profile_id": profileID,
+					"session_id": sessionID,
+				}).Warn("Failed to persist session profile storage state")
+			}
+		}
+
+		// Save open tabs for restoration on next session start
+		if len(openTabs) > 0 {
+			if _, err := h.sessionProfiles.SaveOpenTabs(profileID, openTabs); err != nil {
+				h.log.WithError(err).WithFields(map[string]interface{}{
+					"profile_id": profileID,
+					"session_id": sessionID,
+					"tab_count":  len(openTabs),
+				}).Warn("Failed to persist session profile open tabs")
+			}
 		}
 	}
 
@@ -1769,12 +1851,43 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 	if err != nil {
 		return err
 	}
-	if len(state) == 0 {
-		return nil
+	if len(state) > 0 {
+		if _, err := h.sessionProfiles.SaveStorageState(profileID, state); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"session_id": sessionID,
+			}).Warn("Failed to persist session profile storage state")
+		}
 	}
 
-	_, err = h.sessionProfiles.SaveStorageState(profileID, state)
-	return err
+	// Also capture and save open tabs for restoration
+	// This ensures tabs are saved when the user navigates away (beforeunload),
+	// not just when they explicitly close the session
+	if pages, activePageID, err := h.recordModeService.GetOpenPages(sessionID); err != nil {
+		h.log.WithError(err).WithFields(map[string]interface{}{
+			"session_id": sessionID,
+			"profile_id": profileID,
+		}).Warn("Failed to capture open tabs during persist")
+	} else if len(pages) > 0 {
+		openTabs := make([]archiveingestion.TabState, 0, len(pages))
+		for i, page := range pages {
+			openTabs = append(openTabs, archiveingestion.TabState{
+				URL:      page.URL,
+				Title:    page.Title,
+				IsActive: page.ID == activePageID,
+				Order:    i,
+			})
+		}
+		if _, err := h.sessionProfiles.SaveOpenTabs(profileID, openTabs); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"session_id": sessionID,
+				"tab_count":  len(openTabs),
+			}).Warn("Failed to persist session profile open tabs")
+		}
+	}
+
+	return nil
 }
 
 // CreateInputForwarder returns a function that forwards input events to the playwright-driver.

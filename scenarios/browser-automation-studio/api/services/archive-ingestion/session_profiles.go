@@ -26,6 +26,7 @@ type SessionProfile struct {
 	BrowserProfile  *BrowserProfile  `json:"browser_profile,omitempty"`
 	History         []HistoryEntry   `json:"history,omitempty"`          // Navigation history entries (newest first)
 	HistorySettings *HistorySettings `json:"history_settings,omitempty"` // History capture configuration
+	OpenTabs        []TabState       `json:"open_tabs,omitempty"`        // Tabs to restore on session resume
 }
 
 // BrowserProfile contains anti-detection and fingerprint settings for browser automation.
@@ -160,6 +161,17 @@ func DefaultHistorySettings() *HistorySettings {
 		RetentionDays:     30,
 		CaptureThumbnails: true,
 	}
+}
+
+// MaxRestoredTabs limits how many tabs can be restored to prevent resource exhaustion.
+const MaxRestoredTabs = 20
+
+// TabState captures a single tab's state for restoration when resuming a session.
+type TabState struct {
+	URL      string `json:"url"`                 // URL to navigate to
+	Title    string `json:"title,omitempty"`     // Tab title (for display before load)
+	IsActive bool   `json:"is_active,omitempty"` // Whether this was the active tab
+	Order    int    `json:"order"`               // Creation order for consistent tab ordering
 }
 
 // Preset names for browser profiles
@@ -598,6 +610,32 @@ func (s *SessionProfileStore) SaveStorageState(id string, state json.RawMessage)
 	}
 	now := time.Now().UTC()
 	profile.LastUsedAt = now
+	profile.UpdatedAt = now
+
+	if err := s.saveProfileLocked(profile); err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+// SaveOpenTabs persists the tab state for session restoration.
+// Only saves up to MaxRestoredTabs tabs to prevent resource exhaustion.
+func (s *SessionProfileStore) SaveOpenTabs(id string, tabs []TabState) (*SessionProfile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile, err := s.loadProfileLocked(strings.TrimSpace(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// Limit tabs to prevent resource exhaustion
+	if len(tabs) > MaxRestoredTabs {
+		tabs = tabs[:MaxRestoredTabs]
+	}
+
+	profile.OpenTabs = tabs
+	now := time.Now().UTC()
 	profile.UpdatedAt = now
 
 	if err := s.saveProfileLocked(profile); err != nil {

@@ -388,6 +388,11 @@ func main() {
 		r.Patch("/recordings/sessions/{profileId}/history/settings", handler.UpdateHistorySettings)
 		r.Post("/recordings/sessions/{profileId}/history/navigate", handler.NavigateToHistoryURL)
 
+		// Tab management (saved tabs for session restoration)
+		r.Get("/recordings/sessions/{profileId}/tabs", handler.GetSessionTabs)
+		r.Delete("/recordings/sessions/{profileId}/tabs", handler.ClearSessionTabs)
+		r.Delete("/recordings/sessions/{profileId}/tabs/{order}", handler.DeleteSessionTab)
+
 		// Internal callback for history events from playwright driver
 		r.Post("/internal/history-callback", handler.HistoryCallback)
 

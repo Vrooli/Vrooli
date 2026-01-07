@@ -35,8 +35,8 @@ interface UseAINavigationOptions {
 interface UseAINavigationReturn {
   /** Current navigation state */
   state: AINavigationState;
-  /** Start AI navigation with a prompt */
-  startNavigation: (prompt: string, model: string, maxSteps?: number) => Promise<void>;
+  /** Start AI navigation with a prompt. Returns the navigationId on success, null on failure. */
+  startNavigation: (prompt: string, model: string, maxSteps?: number) => Promise<string | null>;
   /** Abort the current navigation */
   abortNavigation: () => Promise<void>;
   /** Resume navigation after human intervention */
@@ -85,6 +85,11 @@ export function useAINavigation({
 
     const msg = lastMessage as unknown as Record<string, unknown>;
 
+    // Log all AI navigation related messages
+    if (typeof msg.type === 'string' && msg.type.startsWith('ai_navigation')) {
+      console.log('[useAINavigation] WebSocket message received:', msg.type, msg);
+    }
+
     // Handle AI navigation step events
     if (msg.type === 'ai_navigation_step') {
       const event = msg as unknown as AINavigationStepEvent;
@@ -124,12 +129,23 @@ export function useAINavigation({
     if (msg.type === 'ai_navigation_complete') {
       const event = msg as unknown as AINavigationCompleteEvent;
 
+      console.log('[useAINavigation] Received complete event:', {
+        eventNavigationId: event.navigationId,
+        currentNavigationId: navigationIdRef.current,
+        eventStatus: event.status,
+      });
+
       // Only process events for our current navigation
-      if (event.navigationId !== navigationIdRef.current) return;
+      if (event.navigationId !== navigationIdRef.current) {
+        console.log('[useAINavigation] Ignoring complete event - navigationId mismatch');
+        return;
+      }
 
       // Defensive defaults for potentially missing fields
       const status = event.status ?? 'completed';
       const totalTokens = event.totalTokens ?? 0;
+
+      console.log('[useAINavigation] Processing complete event with status:', status);
 
       setState((prev) => ({
         ...prev,
@@ -186,13 +202,13 @@ export function useAINavigation({
   }, [sessionId]);
 
   const startNavigation = useCallback(
-    async (prompt: string, model: string, maxSteps = 20) => {
+    async (prompt: string, model: string, maxSteps = 20): Promise<string | null> => {
       if (!sessionId) {
         setState((prev) => ({
           ...prev,
           error: 'No session available',
         }));
-        return;
+        return null;
       }
 
       if (state.isNavigating) {
@@ -200,7 +216,7 @@ export function useAINavigation({
           ...prev,
           error: 'Navigation already in progress',
         }));
-        return;
+        return null;
       }
 
       setState((prev) => ({
@@ -253,6 +269,8 @@ export function useAINavigation({
           ...prev,
           navigationId: data.navigationId,
         }));
+
+        return data.navigationId;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to start navigation';
         setState((prev) => ({

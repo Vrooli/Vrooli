@@ -29,6 +29,9 @@ type CreateRecordingSessionRequest struct {
 	StreamFPS *int `json:"stream_fps,omitempty"`
 	// Scale: "css" for 1x scale, "device" for device pixel ratio (default "css")
 	StreamScale string `json:"stream_scale,omitempty"`
+	// RestoreTabs controls whether to restore tabs saved from the previous session.
+	// Default: true (restore tabs). Set to false for workflow execution to start clean.
+	RestoreTabs *bool `json:"restore_tabs,omitempty"`
 }
 
 // CreateRecordingSessionResponse is the response after creating a recording session.
@@ -39,6 +42,17 @@ type CreateRecordingSessionResponse struct {
 	SessionProfileName string                    `json:"session_profile_name,omitempty"`
 	LastUsedAt         string                    `json:"last_used_at,omitempty"`
 	ActualViewport     *ActualViewportWithSource `json:"actual_viewport,omitempty"`
+	RestoredTabs       []RestoredTabInfo         `json:"restored_tabs,omitempty"`
+	// InitialURL is the URL that the initial tab was navigated to during tab restoration.
+	// The frontend should use this to set the URL bar since WebSocket events may be missed.
+	InitialURL string `json:"initial_url,omitempty"`
+}
+
+// RestoredTabInfo contains information about a tab that was restored from a previous session.
+type RestoredTabInfo struct {
+	PageID   string `json:"page_id"`
+	URL      string `json:"url"`
+	IsActive bool   `json:"is_active"`
 }
 
 // ViewportDimensions represents width and height of a viewport.
@@ -326,4 +340,21 @@ type UpdateStreamSettingsResponse struct {
 	Updated      bool   `json:"updated"`
 	ScaleWarning string `json:"scale_warning,omitempty"`
 	PerfMode     bool   `json:"perf_mode"`
+}
+
+// =============================================================================
+// Tab Management Types
+// =============================================================================
+
+// TabInfo represents a saved tab for display in the UI.
+type TabInfo struct {
+	URL      string `json:"url"`
+	Title    string `json:"title,omitempty"`
+	IsActive bool   `json:"is_active"`
+	Order    int    `json:"order"`
+}
+
+// TabsResponse is the response for getting saved tabs from a session profile.
+type TabsResponse struct {
+	Tabs []TabInfo `json:"tabs"`
 }

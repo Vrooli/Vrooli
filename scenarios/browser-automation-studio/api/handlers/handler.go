@@ -68,8 +68,10 @@ type RecordModeService interface {
 	// Multi-page support (has business logic for page tracking)
 	GetSession(sessionID string) (*autosession.Session, bool)
 	GetPages(sessionID string) (*livecapture.PageListResult, error)
+	GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error)
 	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
 	CreatePage(ctx context.Context, sessionID string, url string) (*autodriver.CreatePageResponse, error)
+	RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*livecapture.TabRestorationResult, error)
 
 	// Timeline support (has business logic for timeline management)
 	AddTimelineAction(sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID)

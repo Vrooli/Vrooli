@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1113,6 +1114,142 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"status":     "added",
+		"profile_id": profileID,
+	})
+}
+
+// =============================================================================
+// Tab Management Handlers
+// =============================================================================
+
+// GetSessionTabs returns the saved tabs for a session profile.
+// GET /recordings/sessions/{profileId}/tabs
+func (h *Handler) GetSessionTabs(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	profile, err := h.sessionProfiles.Get(profileID)
+	if err != nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+		return
+	}
+
+	// Convert TabState to TabInfo for API response
+	tabs := make([]TabInfo, 0, len(profile.OpenTabs))
+	for _, tab := range profile.OpenTabs {
+		tabs = append(tabs, TabInfo{
+			URL:      tab.URL,
+			Title:    tab.Title,
+			IsActive: tab.IsActive,
+			Order:    tab.Order,
+		})
+	}
+
+	h.respondSuccess(w, http.StatusOK, TabsResponse{Tabs: tabs})
+}
+
+// ClearSessionTabs removes all saved tabs from a session profile.
+// DELETE /recordings/sessions/{profileId}/tabs
+func (h *Handler) ClearSessionTabs(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	// Save empty tabs array to clear all
+	if _, err := h.sessionProfiles.SaveOpenTabs(profileID, nil); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status":     "cleared",
+		"profile_id": profileID,
+	})
+}
+
+// DeleteSessionTab removes a single tab by its order from a session profile.
+// DELETE /recordings/sessions/{profileId}/tabs/{order}
+func (h *Handler) DeleteSessionTab(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	orderStr := chi.URLParam(r, "order")
+	order, err := strconv.Atoi(orderStr)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid order parameter: must be an integer",
+		}))
+		return
+	}
+
+	profile, err := h.sessionProfiles.Get(profileID)
+	if err != nil {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+		return
+	}
+
+	// Find and remove the tab with the specified order
+	var found bool
+	newTabs := make([]archiveingestion.TabState, 0, len(profile.OpenTabs))
+	for _, tab := range profile.OpenTabs {
+		if tab.Order == order {
+			found = true
+			continue // Skip this tab
+		}
+		newTabs = append(newTabs, tab)
+	}
+
+	if !found {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Tab not found"))
+		return
+	}
+
+	// Renumber remaining tabs to maintain sequential order
+	for i := range newTabs {
+		newTabs[i].Order = i
+	}
+
+	// Save the updated tabs
+	if _, err := h.sessionProfiles.SaveOpenTabs(profileID, newTabs); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status":     "deleted",
 		"profile_id": profileID,
 	})
 }

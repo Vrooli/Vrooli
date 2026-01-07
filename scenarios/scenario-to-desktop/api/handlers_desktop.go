@@ -439,7 +439,8 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 
 	healthPath := strings.TrimSpace(service.Health.Path)
 	if healthPath == "" {
-		healthPath = "/health"
+		http.Error(w, fmt.Sprintf("service %s health path is required", serviceID), http.StatusBadRequest)
+		return
 	}
 	if !strings.HasPrefix(healthPath, "/") {
 		healthPath = "/" + healthPath

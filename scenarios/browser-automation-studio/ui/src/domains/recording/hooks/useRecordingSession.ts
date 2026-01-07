@@ -39,10 +39,14 @@ interface UseRecordingSessionReturn {
   sessionError: string | null;
   /** Actual viewport from Playwright with source attribution (may differ from requested due to profile settings) */
   actualViewport: ActualViewport | null;
+  /** Initial URL from tab restoration (if tabs were restored during session creation) */
+  initialRestoredUrl: string | null;
   ensureSession: (
     viewport?: ViewportDimensions | null,
     profileId?: string | null,
-    streamSettings?: StreamSettings | null
+    streamSettings?: StreamSettings | null,
+    /** Whether to restore tabs from the previous session. Default: true */
+    restoreTabs?: boolean
   ) => Promise<string | null>;
   setSessionProfileId: (profileId: string | null) => void;
   resetSessionError: () => void;
@@ -67,6 +71,7 @@ export function useRecordingSession({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [actualViewport, setActualViewport] = useState<ActualViewport | null>(null);
+  const [initialRestoredUrl, setInitialRestoredUrl] = useState<string | null>(null);
 
   // Retry state for exponential backoff
   const [retryState, setRetryState] = useState<RetryState>({
@@ -97,6 +102,7 @@ export function useRecordingSession({
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
     setActualViewport(null);
+    setInitialRestoredUrl(null);
     pendingSessionPromiseRef.current = null;
     // Reset retry state when session ID changes externally
     retryAttemptsRef.current = 0;
@@ -115,7 +121,8 @@ export function useRecordingSession({
   const ensureSession = useCallback(async (
     viewport?: ViewportDimensions | null,
     profileId?: string | null,
-    streamSettings?: StreamSettings | null
+    streamSettings?: StreamSettings | null,
+    restoreTabs?: boolean
   ): Promise<string | null> => {
     if (sessionId) {
       return sessionId;
@@ -153,6 +160,8 @@ export function useRecordingSession({
             stream_quality: streamSettings?.quality,
             stream_fps: streamSettings?.fps,
             stream_scale: streamSettings?.scale,
+            // Tab restoration - defaults to true on server if not specified
+            restore_tabs: restoreTabs,
           }),
         });
 
@@ -189,6 +198,10 @@ export function useRecordingSession({
             source: data.actual_viewport.source ?? 'requested',
             reason: data.actual_viewport.reason ?? '',
           });
+        }
+        // Store initial URL from tab restoration (if tabs were restored)
+        if (data.initial_url) {
+          setInitialRestoredUrl(data.initial_url as string);
         }
         if (onSessionReady) {
           onSessionReady(newSessionId);
@@ -289,6 +302,7 @@ export function useRecordingSession({
     isCreatingSession,
     sessionError,
     actualViewport,
+    initialRestoredUrl,
     ensureSession,
     setSessionProfileId,
     resetSessionError,

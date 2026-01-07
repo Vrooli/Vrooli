@@ -1,6 +1,6 @@
-import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe, FileText, Cog, History } from 'lucide-react';
+import { Settings, Cookie, Database, Fingerprint, Zap, ShieldCheck, Sparkles, Globe, FileText, Cog, History, Layers } from 'lucide-react';
 
-export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history';
+export type SectionId = 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history' | 'tabs';
 
 interface SectionGroup {
   label: string;
@@ -30,6 +30,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'local-storage', label: 'LocalStorage', icon: <Database size={16} /> },
       { id: 'service-workers', label: 'Service Workers', icon: <Cog size={16} /> },
       { id: 'history', label: 'History', icon: <History size={16} /> },
+      { id: 'tabs', label: 'Tabs', icon: <Layers size={16} /> },
     ],
   },
 ];
@@ -42,6 +43,7 @@ interface SessionSidebarProps {
   localStorageCount?: number;
   serviceWorkerCount?: number;
   historyCount?: number;
+  tabsCount?: number;
   hasActiveSession?: boolean;
 }
 
@@ -53,6 +55,7 @@ export function SessionSidebar({
   localStorageCount,
   serviceWorkerCount,
   historyCount,
+  tabsCount,
   hasActiveSession,
 }: SessionSidebarProps) {
   return (
@@ -84,7 +87,9 @@ export function SessionSidebar({
                       ? serviceWorkerCount
                       : section.id === 'history'
                         ? historyCount
-                        : undefined;
+                        : section.id === 'tabs'
+                          ? tabsCount
+                          : undefined;
               const showDot = section.id === 'service-workers' && hasActiveSession;
 
               return (

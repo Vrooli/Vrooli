@@ -86,9 +86,11 @@ export function useAIConversation({
         setMessages((prev) =>
           prev.map((msg) => {
             if (msg.id !== currentAssistantIdRef.current) return msg;
+            // Preserve 'aborting' status - don't overwrite with 'running'
+            const newStatus = msg.status === 'aborting' ? 'aborting' : 'running';
             return {
               ...msg,
-              status: 'running',
+              status: newStatus,
               steps: [...(msg.steps || []), step],
               totalTokens: (msg.totalTokens || 0) + step.tokensUsed.totalTokens,
             };
@@ -98,10 +100,17 @@ export function useAIConversation({
       }
     },
     onComplete: (status, summary) => {
+      console.log('[useAIConversation] onComplete called:', {
+        status,
+        summary,
+        currentAssistantId: currentAssistantIdRef.current,
+      });
+
       // Update the current assistant message with final status
       if (currentAssistantIdRef.current) {
-        setMessages((prev) =>
-          prev.map((msg) => {
+        setMessages((prev) => {
+          console.log('[useAIConversation] Messages in state:', prev.map(m => ({ id: m.id, role: m.role, status: m.status })));
+          return prev.map((msg) => {
             if (msg.id !== currentAssistantIdRef.current) return msg;
 
             const finalStatus =
@@ -111,14 +120,16 @@ export function useAIConversation({
                   ? 'aborted'
                   : 'failed';
 
+            console.log('[useAIConversation] Setting message status to:', finalStatus);
+
             return {
               ...msg,
               status: finalStatus,
               content: summary || msg.content,
               canAbort: false,
             };
-          })
-        );
+          });
+        });
         currentAssistantIdRef.current = null;
       }
     },
@@ -190,11 +201,15 @@ export function useAIConversation({
 
       // Start navigation and create assistant message placeholder
       try {
-        await startNavigation(prompt, settings.model, settings.maxSteps);
+        const navigationId = await startNavigation(prompt, settings.model, settings.maxSteps);
 
-        // Create assistant message after navigation starts successfully
-        // Use the navigation ID from navState (it will be set after startNavigation)
-        const assistantMessage = createAssistantMessage(navState.navigationId || `nav-${Date.now()}`);
+        if (!navigationId) {
+          // startNavigation failed but didn't throw - error already set in state
+          return;
+        }
+
+        // Create assistant message with the actual navigation ID
+        const assistantMessage = createAssistantMessage(navigationId);
         currentAssistantIdRef.current = assistantMessage.id;
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
@@ -205,7 +220,7 @@ export function useAIConversation({
         setMessages((prev) => [...prev, systemMessage]);
       }
     },
-    [isNavigating, settings.model, settings.maxSteps, startNavigation, navState.navigationId]
+    [isNavigating, settings.model, settings.maxSteps, startNavigation]
   );
 
   const abortNavigation = useCallback(async () => {

@@ -278,12 +278,23 @@ function getListenURL(detail?: string) {
   return `http://localhost:${port}`;
 }
 
-function getServiceURL(serviceId: string, ports?: Record<string, Record<string, number>>) {
+function getServiceURL(
+  serviceId: string,
+  ports?: Record<string, Record<string, number>>,
+  preferredPortName?: string
+) {
   if (!ports) {
     return null;
   }
   const portMap = ports[serviceId];
   if (!portMap) {
+    return null;
+  }
+  if (preferredPortName) {
+    const port = portMap[preferredPortName];
+    if (Number.isFinite(port) && port > 0) {
+      return { url: `http://localhost:${port}`, port, portName: preferredPortName };
+    }
     return null;
   }
   const preferred = ["ui", "api", "http"];
@@ -300,6 +311,44 @@ function getServiceURL(serviceId: string, ports?: Record<string, Record<string, 
     return null;
   }
   return { url: `http://localhost:${port}`, port, portName };
+}
+
+type ManifestHealthConfig = {
+  type?: string;
+  path?: string;
+  portName?: string;
+};
+
+function getManifestHealthConfig(manifest: unknown, serviceId: string): ManifestHealthConfig | null {
+  if (!manifest || typeof manifest !== "object") {
+    return null;
+  }
+  const services = (manifest as { services?: unknown }).services;
+  if (!Array.isArray(services)) {
+    return null;
+  }
+  const service = services.find((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    const id = (entry as { id?: unknown }).id;
+    return typeof id === "string" && id === serviceId;
+  }) as { health?: { type?: unknown; path?: unknown; port_name?: unknown } } | undefined;
+  if (!service || !service.health || typeof service.health !== "object") {
+    return null;
+  }
+  const type = typeof service.health.type === "string" ? service.health.type : undefined;
+  const path = typeof service.health.path === "string" ? service.health.path : undefined;
+  const portName = typeof service.health.port_name === "string" ? service.health.port_name : undefined;
+  return { type, path, portName };
+}
+
+function normalizeHealthPath(path?: string) {
+  const trimmed = path?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
 function parseTimestamp(value?: string) {
@@ -335,6 +384,7 @@ function countLines(text?: string) {
 
 interface BundledPreflightSectionProps {
   bundleManifestPath: string;
+  bundleManifest?: unknown;
   preflightResult: BundlePreflightResponse | null;
   preflightPending: boolean;
   preflightError: string | null;
@@ -355,6 +405,7 @@ interface BundledPreflightSectionProps {
 
 export function BundledPreflightSection({
   bundleManifestPath,
+  bundleManifest,
   preflightResult,
   preflightPending,
   preflightError,
@@ -435,8 +486,12 @@ export function BundledPreflightSection({
     return () => window.clearInterval(interval);
   }, [preflightResult]);
 
-  const toggleHealthPeek = async (serviceId: string, healthURL: string | null) => {
-    if (!healthURL) {
+  const toggleHealthPeek = async (serviceId: string, healthSupported: boolean) => {
+    if (!healthSupported) {
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { open: true, status: "error", error: "Health proxy only supports http checks with a configured health path." }
+      }));
       return;
     }
     if (!preflightSessionId) {
@@ -1001,9 +1056,19 @@ export function BundledPreflightSection({
                       const readyAge = readyAt ? formatDuration(Math.max(0, referenceTs - readyAt)) : "";
                       const statusLabel = isSkipped ? "Skipped" : status.ready ? "Ready" : "Waiting";
                       const statusClass = isSkipped ? "text-slate-300" : status.ready ? "text-emerald-200" : "text-amber-200";
+                      const healthConfig = getManifestHealthConfig(bundleManifest, serviceId);
+                      const healthType = healthConfig?.type?.toLowerCase();
+                      const healthPath = normalizeHealthPath(healthConfig?.path);
+                      const healthPortName = healthConfig?.portName;
                       const portInfo = getServiceURL(serviceId, ports);
+                      const healthPortInfo = healthPortName
+                        ? getServiceURL(serviceId, ports, healthPortName)
+                        : null;
+                      const healthSupported = healthType === "http" && Boolean(healthPath) && Boolean(healthPortInfo);
                       const listenURL = portInfo?.url ?? getListenURL(status.message);
-                      const healthURL = listenURL ? `${listenURL}/health` : null;
+                      const healthURL = healthPortInfo?.url && healthPath
+                        ? `${healthPortInfo.url}${healthPath}`
+                        : null;
                       const peekState = healthPeek[serviceId];
                       return (
                         <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
@@ -1026,21 +1091,25 @@ export function BundledPreflightSection({
                               >
                                 Open
                               </a>
-                              <a
-                                className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
-                                href={healthURL ?? undefined}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Health
-                              </a>
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
-                                onClick={() => toggleHealthPeek(serviceId, healthURL)}
-                              >
-                                {peekState?.open ? "Hide" : "View"} response
-                              </button>
+                              {healthURL && (
+                                <a
+                                  className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
+                                  href={healthURL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Health
+                                </a>
+                              )}
+                              {healthSupported && (
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
+                                  onClick={() => toggleHealthPeek(serviceId, healthSupported)}
+                                >
+                                  {peekState?.open ? "Hide" : "View"} response
+                                </button>
+                              )}
                               <span className="text-slate-400">{listenURL}</span>
                               {portInfo && (
                                 <span className="text-slate-400">
@@ -1048,6 +1117,11 @@ export function BundledPreflightSection({
                                 </span>
                               )}
                             </div>
+                          )}
+                          {!healthSupported && (
+                            <p className="text-[10px] text-slate-500">
+                              Health check not configured for http proxy inspection.
+                            </p>
                           )}
                           {peekState?.open && (
                             <div className="rounded-md border border-slate-800/70 bg-slate-950/70 p-2 text-[10px] text-slate-200">

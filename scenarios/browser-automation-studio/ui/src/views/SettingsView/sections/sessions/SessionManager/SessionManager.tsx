@@ -1,15 +1,17 @@
-import { X, Loader2, AlertCircle, Cookie, Database, Trash2, Cog, History, Settings } from 'lucide-react';
+import { X, Loader2, AlertCircle, Cookie, Database, Trash2, Cog, History, Settings, Layers } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
 import { useSessionManager } from './useSessionManager';
 import { useHistory } from '@/domains/recording/hooks/useHistory';
+import { useTabs } from '@/domains/recording/hooks/useTabs';
 import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection, ExtraHeadersSection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
 import { ServiceWorkersTable } from '../storage/ServiceWorkersTable';
 import { HistoryTable } from '../storage/HistoryTable';
 import { HistorySettings } from '../storage/HistorySettings';
+import { TabsTable } from '../storage/TabsTable';
 
 interface SessionManagerProps {
   profileId: string;
@@ -17,7 +19,7 @@ interface SessionManagerProps {
   initialProfile?: BrowserProfile;
   hasStorageState?: boolean;
   /** Section to open when the dialog first opens */
-  initialSection?: 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history';
+  initialSection?: 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history' | 'tabs';
   onSave: (profile: BrowserProfile) => Promise<void>;
   onClose: () => void;
 }
@@ -85,6 +87,18 @@ export function SessionManager({
     navigateToUrl: navigateToHistoryUrl,
   } = useHistory();
 
+  // Tabs hook
+  const {
+    tabs,
+    loading: tabsLoading,
+    error: tabsError,
+    deleting: tabsDeleting,
+    fetchTabs,
+    clear: clearTabsState,
+    clearAllTabs,
+    deleteTab,
+  } = useTabs();
+
   // Set initial section on mount if provided
   useEffect(() => {
     if (initialSection) {
@@ -105,11 +119,24 @@ export function SessionManager({
     };
   }, [activeSection, initialSection, profileId, fetchHistory, clearHistoryState]);
 
+  // Fetch tabs when the tabs section is activated
+  useEffect(() => {
+    const isTabsSection = activeSection === 'tabs' || initialSection === 'tabs';
+    if (isTabsSection) {
+      fetchTabs(profileId);
+    }
+    return () => {
+      if (isTabsSection) {
+        clearTabsState();
+      }
+    };
+  }, [activeSection, initialSection, profileId, fetchTabs, clearTabsState]);
+
   // Determine if there's an active session (service workers data has a non-empty session_id)
   const hasActiveSession = !!serviceWorkers?.session_id;
 
   // Confirmation modal state for clear all operations
-  const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | 'history' | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | 'history' | 'tabs' | null>(null);
 
   // History settings modal state
   const [showHistorySettings, setShowHistorySettings] = useState(false);
@@ -121,6 +148,8 @@ export function SessionManager({
       await clearAllLocalStorage();
     } else if (confirmClearAll === 'history') {
       await clearAllHistory(profileId);
+    } else if (confirmClearAll === 'tabs') {
+      await clearAllTabs(profileId);
     }
     setConfirmClearAll(null);
   };
@@ -145,6 +174,14 @@ export function SessionManager({
       return updateHistorySettings(profileId, settings);
     },
     [updateHistorySettings, profileId]
+  );
+
+  // Wrapper callback for tab operations
+  const handleDeleteTab = useCallback(
+    async (order: number) => {
+      return deleteTab(profileId, order);
+    },
+    [deleteTab, profileId]
   );
 
   const handleClose = () => {
@@ -195,6 +232,7 @@ export function SessionManager({
             localStorageCount={storageState?.stats.localStorageCount}
             serviceWorkerCount={serviceWorkers?.workers?.length}
             historyCount={history?.stats.totalEntries}
+            tabsCount={tabs.length}
             hasActiveSession={hasActiveSession}
           />
 
@@ -380,6 +418,30 @@ export function SessionManager({
                 </StorageContent>
               </div>
             )}
+
+            {activeSection === 'tabs' && (
+              <div className="space-y-4">
+                {/* Header with Clear All button */}
+                {tabs.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {tabs.length} saved tab{tabs.length !== 1 ? 's' : ''}
+                    </h3>
+                    <button
+                      onClick={() => setConfirmClearAll('tabs')}
+                      disabled={tabsDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      Clear All
+                    </button>
+                  </div>
+                )}
+                <StorageContent loading={tabsLoading} error={tabsError} emptyMessage="No saved tabs.">
+                  <TabsTable tabs={tabs} deleting={tabsDeleting} onDelete={handleDeleteTab} />
+                </StorageContent>
+              </div>
+            )}
           </div>
         </div>
 
@@ -428,6 +490,15 @@ export function SessionManager({
               </span>
             </div>
           )}
+          {!isSettingsView && activeSection === 'tabs' && (
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <Layers size={12} />
+                {tabs.length} tab{tabs.length !== 1 ? 's' : ''} saved
+              </span>
+              <span className="text-gray-400 dark:text-gray-500">Will restore on session start</span>
+            </div>
+          )}
           {isSettingsView && <div />}
 
           {/* Action buttons */}
@@ -461,11 +532,11 @@ export function SessionManager({
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Clear All {confirmClearAll === 'cookies' ? 'Cookies' : confirmClearAll === 'localStorage' ? 'LocalStorage' : 'History'}?
+                Clear All {confirmClearAll === 'cookies' ? 'Cookies' : confirmClearAll === 'localStorage' ? 'LocalStorage' : confirmClearAll === 'tabs' ? 'Tabs' : 'History'}?
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 This will permanently delete all{' '}
-                {confirmClearAll === 'cookies' ? 'cookies' : confirmClearAll === 'localStorage' ? 'localStorage data' : 'navigation history'} from this session.
+                {confirmClearAll === 'cookies' ? 'cookies' : confirmClearAll === 'localStorage' ? 'localStorage data' : confirmClearAll === 'tabs' ? 'saved tabs' : 'navigation history'} from this session.
                 This action cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
@@ -477,10 +548,10 @@ export function SessionManager({
                 </button>
                 <button
                   onClick={handleConfirmClearAll}
-                  disabled={confirmClearAll === 'history' ? historyDeleting : storageDeleting}
+                  disabled={confirmClearAll === 'history' ? historyDeleting : confirmClearAll === 'tabs' ? tabsDeleting : storageDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
-                  {(confirmClearAll === 'history' ? historyDeleting : storageDeleting) ? 'Deleting...' : 'Clear All'}
+                  {(confirmClearAll === 'history' ? historyDeleting : confirmClearAll === 'tabs' ? tabsDeleting : storageDeleting) ? 'Deleting...' : 'Clear All'}
                 </button>
               </div>
             </div>

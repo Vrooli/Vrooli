@@ -152,6 +152,7 @@ export function RecordModePage({
     sessionProfileId,
     sessionError,
     actualViewport: sessionActualViewport,
+    initialRestoredUrl,
     ensureSession,
     setSessionProfileId,
     retryState,
@@ -668,6 +669,16 @@ export function RecordModePage({
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
+  // Set previewUrl from tab restoration when available
+  // This runs when the backend restores tabs during session creation
+  useEffect(() => {
+    if (initialRestoredUrl && !previewUrl) {
+      setPreviewUrl(initialRestoredUrl);
+      // Also update lastNavigatedUrlRef to prevent duplicate navigation
+      lastNavigatedUrlRef.current = initialRestoredUrl;
+    }
+  }, [initialRestoredUrl, previewUrl]);
+
   // Update previewUrl from last action if needed
   useEffect(() => {
     if (!previewUrl && lastActionUrl) {
@@ -696,10 +707,13 @@ export function RecordModePage({
 
     const createSessionForUrl = async () => {
       try {
+        // Restore tabs only in recording mode, not in execution mode (clean start for workflows)
+        const shouldRestoreTabs = mode === 'recording';
         const newSessionId = await ensureSession(
           previewViewport,
           selectedProfileId ?? sessionProfileId ?? null,
-          streamSettingsRef.current
+          streamSettingsRef.current,
+          shouldRestoreTabs
         );
         if (cancelled || !newSessionId) return;
         // Session is now created, the navigation effect will handle navigation
@@ -714,7 +728,7 @@ export function RecordModePage({
     return () => {
       cancelled = true;
     };
-  }, [previewUrl, sessionId, ensureSession, previewViewport, selectedProfileId, sessionProfileId]);
+  }, [previewUrl, sessionId, ensureSession, previewViewport, selectedProfileId, sessionProfileId, mode]);
 
   useEffect(() => {
     // Don't navigate if no URL or no session yet

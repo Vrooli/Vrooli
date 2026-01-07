@@ -5,6 +5,7 @@ import {
   fetchScenarioDesktopStatus,
   getIconPreviewUrl,
   generateDesktop,
+  fetchBundleManifest,
   fetchSigningConfig,
   checkSigningReadiness,
   probeEndpoints,
@@ -13,6 +14,7 @@ import {
   fetchBundlePreflightStatus,
   type BundlePreflightResponse,
   type BundlePreflightJobStatusResponse,
+  type BundleManifestResponse,
   type DesktopConfig,
   type ProbeResponse,
   type ProxyHintsResponse,
@@ -1168,6 +1170,18 @@ export function GeneratorForm({
     staleTime: 1000 * 60,
   });
 
+  const { data: bundleManifestResp } = useQuery<BundleManifestResponse | null>({
+    queryKey: ["bundle-manifest", bundleManifestPath.trim()],
+    queryFn: () => {
+      const path = bundleManifestPath.trim();
+      if (!path) {
+        return Promise.resolve(null);
+      }
+      return fetchBundleManifest({ bundle_manifest_path: path });
+    },
+    enabled: Boolean(bundleManifestPath.trim())
+  });
+
   const { data: signingConfigResp, isFetching: loadingSigningConfig, refetch: refetchSigningConfig } = useQuery({
     queryKey: ["signing-config-inline", scenarioName],
     queryFn: () => fetchSigningConfig(scenarioName),
@@ -1627,6 +1641,7 @@ export function GeneratorForm({
           {isBundled && (
               <BundledPreflightSection
                 bundleManifestPath={bundleManifestPath}
+                bundleManifest={bundleManifestResp?.manifest}
                 preflightResult={preflightResult}
                 preflightPending={preflightPending}
                 preflightError={preflightError}

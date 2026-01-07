@@ -377,6 +377,22 @@ type PageListResult struct {
 	ActivePageID string
 }
 
+// GetOpenPages returns only the open (non-closed) pages for a session.
+// This is used for capturing tab state before session close.
+func (s *Service) GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, uuid.Nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	pages := sess.Pages()
+	if pages == nil {
+		return nil, uuid.Nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
+	}
+
+	return pages.ListOpenPages(), pages.GetActivePageID(), nil
+}
+
 // ActivatePage switches the active page for a session.
 func (s *Service) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
 	sess, ok := s.sessions.Get(sessionID)
@@ -421,6 +437,142 @@ func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) 
 
 	// Call driver to create the page
 	return s.sessions.Client().CreatePage(ctx, sessionID, url)
+}
+
+// RestoredTab contains info about a tab that was restored.
+type RestoredTab struct {
+	PageID   string
+	URL      string
+	IsActive bool
+}
+
+// TabRestorationResult contains the results of tab restoration.
+type TabRestorationResult struct {
+	// InitialURL is the URL the initial tab was navigated to (first tab in the list).
+	// Empty if no navigation was performed (e.g., first tab was about:blank).
+	InitialURL string
+	// Tabs contains info about additional tabs that were created (not including the initial tab).
+	Tabs []RestoredTab
+}
+
+// RestoreTabs creates tabs from saved tab state.
+// Returns info about the tabs that were restored, including the initial URL.
+func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*TabRestorationResult, error) {
+	if _, ok := s.sessions.Get(sessionID); !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	if len(tabs) == 0 {
+		return nil, nil
+	}
+
+	s.log.WithFields(map[string]interface{}{
+		"session_id": sessionID,
+		"tab_count":  len(tabs),
+	}).Info("RestoreTabs: starting tab restoration")
+
+	result := &TabRestorationResult{
+		Tabs: make([]RestoredTab, 0, len(tabs)),
+	}
+	var activeDriverPageID string
+
+	// Create tabs in order, skipping the first one since the session already has an initial page
+	for i, tab := range tabs {
+		if i == 0 {
+			// Navigate the initial page to the first tab's URL instead of creating a new page
+			if tab.URL != "" && tab.URL != "about:blank" {
+				s.log.WithFields(map[string]interface{}{
+					"session_id": sessionID,
+					"url":        tab.URL,
+				}).Info("RestoreTabs: navigating initial page to first tab URL")
+				navReq := &driver.NavigateRequest{URL: tab.URL}
+				resp, err := s.sessions.Client().Navigate(ctx, sessionID, navReq)
+				if err != nil {
+					s.log.WithError(err).WithField("url", tab.URL).Warn("RestoreTabs: failed to navigate initial page to saved URL")
+				} else {
+					s.log.WithFields(map[string]interface{}{
+						"session_id":    sessionID,
+						"navigated_url": resp.URL,
+						"title":         resp.Title,
+					}).Info("RestoreTabs: initial page navigation successful")
+					// Store the initial URL for the response
+					result.InitialURL = resp.URL
+				}
+			} else {
+				s.log.WithFields(map[string]interface{}{
+					"session_id": sessionID,
+					"url":        tab.URL,
+				}).Info("RestoreTabs: skipping first tab navigation (empty or about:blank)")
+			}
+			// We don't know the initial page's ID here, so we skip adding to restored for the first tab
+			// The client will get the pages via WebSocket events or GetPages
+			if tab.IsActive {
+				// Mark that the first tab (initial page) should be active
+				// Since it's the only page so far, it's already active
+			}
+			continue
+		}
+
+		// Create additional tabs (skip about:blank tabs as they're not useful)
+		if tab.URL == "" || tab.URL == "about:blank" {
+			s.log.WithFields(map[string]interface{}{
+				"session_id": sessionID,
+				"index":      i,
+				"url":        tab.URL,
+			}).Info("RestoreTabs: skipping about:blank tab")
+			continue
+		}
+
+		s.log.WithFields(map[string]interface{}{
+			"session_id": sessionID,
+			"index":      i,
+			"url":        tab.URL,
+		}).Info("RestoreTabs: creating additional tab")
+
+		resp, err := s.sessions.Client().CreatePage(ctx, sessionID, tab.URL)
+		if err != nil {
+			s.log.WithError(err).WithFields(map[string]interface{}{
+				"url":   tab.URL,
+				"order": tab.Order,
+			}).Warn("RestoreTabs: failed to restore tab")
+			continue
+		}
+
+		s.log.WithFields(map[string]interface{}{
+			"session_id":     sessionID,
+			"driver_page_id": resp.DriverPageID,
+			"url":            tab.URL,
+		}).Info("RestoreTabs: additional tab created successfully")
+
+		result.Tabs = append(result.Tabs, RestoredTab{
+			PageID:   resp.DriverPageID,
+			URL:      tab.URL,
+			IsActive: tab.IsActive,
+		})
+
+		if tab.IsActive {
+			activeDriverPageID = resp.DriverPageID
+		}
+	}
+
+	// If there was an active tab that's not the first one, switch to it
+	if activeDriverPageID != "" {
+		s.log.WithFields(map[string]interface{}{
+			"session_id":     sessionID,
+			"active_page_id": activeDriverPageID,
+		}).Info("RestoreTabs: switching to active page")
+		if err := s.sessions.Client().SetActivePage(ctx, sessionID, activeDriverPageID); err != nil {
+			s.log.WithError(err).WithField("page_id", activeDriverPageID).Warn("RestoreTabs: failed to set active page after tab restoration")
+		}
+	}
+
+	s.log.WithFields(map[string]interface{}{
+		"session_id":     sessionID,
+		"restored_count": len(result.Tabs),
+		"initial_url":    result.InitialURL,
+	}).Info("RestoreTabs: tab restoration complete")
+
+	return result, nil
 }
 
 // AddTimelineAction adds a recorded action to the timeline.
