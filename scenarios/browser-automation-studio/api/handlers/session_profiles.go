@@ -1044,8 +1044,8 @@ func (h *Handler) NavigateToHistoryURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Navigate using the record mode service
-	resp, err := h.recordModeService.Navigate(r.Context(), sessionID, &driver.NavigateRequest{
+	// Navigate directly via driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().Navigate(r.Context(), sessionID, &driver.NavigateRequest{
 		URL:       req.URL,
 		WaitUntil: req.WaitUntil,
 		TimeoutMs: req.TimeoutMs,

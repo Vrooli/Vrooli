@@ -104,6 +104,8 @@ export function PlaywrightView({
   });
 
   // Input forwarding hook
+  // Pass both viewport (for output coordinates) and displayDimensions (for display calculation)
+  // This ensures accurate cursor position on HiDPI displays where frame size differs from viewport
   const {
     handlePointer: handlePointerBase,
     handleWheel: handleWheelBase,
@@ -113,6 +115,7 @@ export function PlaywrightView({
     sessionId,
     pageId,
     viewport,
+    frameDimensions: displayDimensions,
     onError: onStreamError,
   });
 
@@ -169,10 +172,22 @@ export function PlaywrightView({
   // Wrap input handlers to get canvas rect and hasFrame state
   const handlePointer = useCallback(
     (action: 'move' | 'down' | 'up' | 'click', e: React.PointerEvent<HTMLDivElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       // IMPORTANT: Use canvas rect, not container rect!
       // The canvas uses CSS object-contain which may letterbox the image.
-      const rect = canvasRef.current?.getBoundingClientRect() ?? null;
-      handlePointerBase(action, e, rect, hasFrame);
+      const rect = canvas.getBoundingClientRect();
+
+      // Get canvas internal dimensions directly from the element.
+      // This is more reliable than displayDimensions state which can be stale
+      // during the brief window after a frame is drawn but before React state updates.
+      const canvasInternalDimensions = {
+        width: canvas.width,
+        height: canvas.height,
+      };
+
+      handlePointerBase(action, e, rect, hasFrame, canvasInternalDimensions);
     },
     [canvasRef, handlePointerBase, hasFrame]
   );

@@ -2,6 +2,8 @@ package livecapture
 
 import (
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
@@ -10,15 +12,15 @@ func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
 		t.Errorf("Expected nil for nil input, got %v", result)
 	}
 
-	result = MergeConsecutiveActions([]RecordedAction{})
+	result = MergeConsecutiveActions([]driver.RecordedAction{})
 	if len(result) != 0 {
 		t.Errorf("Expected empty slice for empty input, got %v", result)
 	}
 }
 
 func TestMergeConsecutiveActions_SingleAction(t *testing.T) {
-	actions := []RecordedAction{
-		{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+	actions := []driver.RecordedAction{
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 	}
 	result := MergeConsecutiveActions(actions)
 	if len(result) != 1 {
@@ -27,8 +29,8 @@ func TestMergeConsecutiveActions_SingleAction(t *testing.T) {
 }
 
 func TestMergeConsecutiveActions_MergesConsecutiveTypeActions(t *testing.T) {
-	selector := &SelectorSet{Primary: "#input"}
-	actions := []RecordedAction{
+	selector := &driver.SelectorSet{Primary: "#input"}
+	actions := []driver.RecordedAction{
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "Hello"}},
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": " "}},
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "World"}},
@@ -45,9 +47,9 @@ func TestMergeConsecutiveActions_MergesConsecutiveTypeActions(t *testing.T) {
 }
 
 func TestMergeConsecutiveActions_DoesNotMergeTypeOnDifferentSelectors(t *testing.T) {
-	actions := []RecordedAction{
-		{ActionType: "type", Selector: &SelectorSet{Primary: "#input1"}, Payload: map[string]interface{}{"text": "First"}},
-		{ActionType: "type", Selector: &SelectorSet{Primary: "#input2"}, Payload: map[string]interface{}{"text": "Second"}},
+	actions := []driver.RecordedAction{
+		{ActionType: "type", Selector: &driver.SelectorSet{Primary: "#input1"}, Payload: map[string]interface{}{"text": "First"}},
+		{ActionType: "type", Selector: &driver.SelectorSet{Primary: "#input2"}, Payload: map[string]interface{}{"text": "Second"}},
 	}
 
 	result := MergeConsecutiveActions(actions)
@@ -58,7 +60,7 @@ func TestMergeConsecutiveActions_DoesNotMergeTypeOnDifferentSelectors(t *testing
 }
 
 func TestMergeConsecutiveActions_MergesConsecutiveScrollActions(t *testing.T) {
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 200.0}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 500.0}},
@@ -75,8 +77,8 @@ func TestMergeConsecutiveActions_MergesConsecutiveScrollActions(t *testing.T) {
 }
 
 func TestMergeConsecutiveActions_SkipsFocusBeforeType(t *testing.T) {
-	selector := &SelectorSet{Primary: "#input"}
-	actions := []RecordedAction{
+	selector := &driver.SelectorSet{Primary: "#input"}
+	actions := []driver.RecordedAction{
 		{ActionType: "focus", Selector: selector},
 		{ActionType: "type", Selector: selector, Payload: map[string]interface{}{"text": "test"}},
 	}
@@ -92,10 +94,10 @@ func TestMergeConsecutiveActions_SkipsFocusBeforeType(t *testing.T) {
 }
 
 func TestMergeConsecutiveActions_KeepsFocusWithoutFollowingType(t *testing.T) {
-	selector := &SelectorSet{Primary: "#input"}
-	actions := []RecordedAction{
+	selector := &driver.SelectorSet{Primary: "#input"}
+	actions := []driver.RecordedAction{
 		{ActionType: "focus", Selector: selector},
-		{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 	}
 
 	result := MergeConsecutiveActions(actions)
@@ -106,15 +108,15 @@ func TestMergeConsecutiveActions_KeepsFocusWithoutFollowingType(t *testing.T) {
 }
 
 func TestMergeConsecutiveActions_MixedActions(t *testing.T) {
-	inputSelector := &SelectorSet{Primary: "#input"}
-	actions := []RecordedAction{
-		{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+	inputSelector := &driver.SelectorSet{Primary: "#input"}
+	actions := []driver.RecordedAction{
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 		{ActionType: "focus", Selector: inputSelector},
 		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": "Hello"}},
 		{ActionType: "type", Selector: inputSelector, Payload: map[string]interface{}{"text": " World"}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
 		{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 300.0}},
-		{ActionType: "click", Selector: &SelectorSet{Primary: "#submit"}},
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#submit"}},
 	}
 
 	result := MergeConsecutiveActions(actions)
@@ -144,14 +146,14 @@ func TestApplyActionRange_EmptySlice(t *testing.T) {
 		t.Errorf("Expected nil for nil input, got %v", result)
 	}
 
-	result = ApplyActionRange([]RecordedAction{}, 0, 5)
+	result = ApplyActionRange([]driver.RecordedAction{}, 0, 5)
 	if len(result) != 0 {
 		t.Errorf("Expected empty slice, got %v", result)
 	}
 }
 
 func TestApplyActionRange_ValidRange(t *testing.T) {
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "a"},
 		{ActionType: "b"},
 		{ActionType: "c"},
@@ -170,7 +172,7 @@ func TestApplyActionRange_ValidRange(t *testing.T) {
 }
 
 func TestApplyActionRange_ClampsNegativeStart(t *testing.T) {
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "a"},
 		{ActionType: "b"},
 		{ActionType: "c"},
@@ -187,7 +189,7 @@ func TestApplyActionRange_ClampsNegativeStart(t *testing.T) {
 }
 
 func TestApplyActionRange_ClampsEndBeyondLength(t *testing.T) {
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "a"},
 		{ActionType: "b"},
 		{ActionType: "c"},
@@ -204,7 +206,7 @@ func TestApplyActionRange_ClampsEndBeyondLength(t *testing.T) {
 }
 
 func TestApplyActionRange_FullRange(t *testing.T) {
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "a"},
 		{ActionType: "b"},
 		{ActionType: "c"},
@@ -220,8 +222,8 @@ func TestApplyActionRange_FullRange(t *testing.T) {
 func TestSelectorsMatch(t *testing.T) {
 	tests := []struct {
 		name     string
-		a        *SelectorSet
-		b        *SelectorSet
+		a        *driver.SelectorSet
+		b        *driver.SelectorSet
 		expected bool
 	}{
 		{
@@ -233,25 +235,25 @@ func TestSelectorsMatch(t *testing.T) {
 		{
 			name:     "first nil",
 			a:        nil,
-			b:        &SelectorSet{Primary: "#test"},
+			b:        &driver.SelectorSet{Primary: "#test"},
 			expected: false,
 		},
 		{
 			name:     "second nil",
-			a:        &SelectorSet{Primary: "#test"},
+			a:        &driver.SelectorSet{Primary: "#test"},
 			b:        nil,
 			expected: false,
 		},
 		{
 			name:     "matching selectors",
-			a:        &SelectorSet{Primary: "#input"},
-			b:        &SelectorSet{Primary: "#input"},
+			a:        &driver.SelectorSet{Primary: "#input"},
+			b:        &driver.SelectorSet{Primary: "#input"},
 			expected: true,
 		},
 		{
 			name:     "different selectors",
-			a:        &SelectorSet{Primary: "#input1"},
-			b:        &SelectorSet{Primary: "#input2"},
+			a:        &driver.SelectorSet{Primary: "#input1"},
+			b:        &driver.SelectorSet{Primary: "#input2"},
 			expected: false,
 		},
 	}
@@ -268,9 +270,9 @@ func TestSelectorsMatch(t *testing.T) {
 
 func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 	gen := NewWorkflowGenerator()
-	actions := []RecordedAction{
+	actions := []driver.RecordedAction{
 		{ActionType: "navigate", URL: "https://example.com"},
-		{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+		{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 	}
 
 	result := gen.GenerateWorkflow(actions)
@@ -298,7 +300,7 @@ func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {
 
 func TestGenerateWorkflow_EmptyActions(t *testing.T) {
 	gen := NewWorkflowGenerator()
-	result := gen.GenerateWorkflow([]RecordedAction{})
+	result := gen.GenerateWorkflow([]driver.RecordedAction{})
 
 	// Verify the result has nodes and edges keys (may be nil or empty)
 	if _, ok := result["nodes"]; !ok {
@@ -351,43 +353,43 @@ func TestExtractHostname(t *testing.T) {
 func TestGenerateClickLabel(t *testing.T) {
 	tests := []struct {
 		name     string
-		action   RecordedAction
+		action   driver.RecordedAction
 		expected string
 	}{
 		{
 			name:     "no element meta",
-			action:   RecordedAction{ActionType: "click"},
+			action:   driver.RecordedAction{ActionType: "click"},
 			expected: "Click element",
 		},
 		{
 			name: "with inner text",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType:  "click",
-				ElementMeta: &ElementMeta{InnerText: "Submit", TagName: "BUTTON"},
+				ElementMeta: &driver.ElementMeta{InnerText: "Submit", TagName: "BUTTON"},
 			},
 			expected: "Click: Submit",
 		},
 		{
 			name: "with aria label",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType:  "click",
-				ElementMeta: &ElementMeta{AriaLabel: "Close dialog", TagName: "BUTTON"},
+				ElementMeta: &driver.ElementMeta{AriaLabel: "Close dialog", TagName: "BUTTON"},
 			},
 			expected: "Click: Close dialog",
 		},
 		{
 			name: "with tag name only",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType:  "click",
-				ElementMeta: &ElementMeta{TagName: "BUTTON"},
+				ElementMeta: &driver.ElementMeta{TagName: "BUTTON"},
 			},
 			expected: "Click BUTTON",
 		},
 		{
 			name: "long inner text truncated",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType:  "click",
-				ElementMeta: &ElementMeta{InnerText: "This is a very long button text that should be truncated"},
+				ElementMeta: &driver.ElementMeta{InnerText: "This is a very long button text that should be truncated"},
 			},
 			expected: "Click: This is a very long ...",
 		},

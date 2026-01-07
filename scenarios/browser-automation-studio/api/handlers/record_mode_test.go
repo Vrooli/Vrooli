@@ -15,7 +15,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/performance"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
-	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 )
 
 // createTestHandlerWithRecordMode creates a handler with mock services for record mode testing.
@@ -198,7 +197,7 @@ func TestCloseRecordingSession_NotFound(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.CloseSessionError = &livecapture.DriverError{Status: 404, Message: "session not found"}
+	mockService.CloseSessionError = &driver.Error{Status: 404, Message: "session not found"}
 
 	sessionID := "nonexistent-session"
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+sessionID+"/close", nil)
@@ -274,7 +273,7 @@ func TestStartLiveRecording_RecordingInProgress(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.StartRecordingError = &livecapture.DriverError{
+	mockService.StartRecordingError = &driver.Error{
 		Status:  409,
 		Message: "RECORDING_IN_PROGRESS",
 	}
@@ -312,7 +311,7 @@ func TestStopLiveRecording_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.StopRecordingCalled {
+	if !mockService.MockClient().StopRecordingCalled {
 		t.Fatal("expected StopRecording to be called")
 	}
 
@@ -347,7 +346,7 @@ func TestStopLiveRecording_NotFound(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.StopRecordingError = &livecapture.DriverError{Status: 404, Message: "no recording"}
+	mockService.MockClient().StopRecordingError = &driver.Error{Status: 404, Message: "no recording"}
 
 	sessionID := "nonexistent-session"
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/"+sessionID+"/stop", nil)
@@ -371,7 +370,7 @@ func TestGetRecordingStatus_Success(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.RecordingStatus = &driver.RecordingStatusResponse{
+	mockService.MockClient().RecordingStatusResponse = &driver.RecordingStatusResponse{
 		SessionID:   "test-session-123",
 		IsRecording: true,
 		ActionCount: 5,
@@ -430,7 +429,7 @@ func TestGetRecordedActions_Success(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.RecordedActions = &driver.GetActionsResponse{
+	mockService.MockClient().RecordedActionsResponse = &driver.GetActionsResponse{
 		SessionID:   "test-session-123",
 		IsRecording: false,
 		Actions: []driver.RecordedAction{
@@ -452,7 +451,7 @@ func TestGetRecordedActions_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.GetRecordedActionsCalled {
+	if !mockService.MockClient().GetRecordedActionsCalled {
 		t.Fatal("expected GetRecordedActions to be called")
 	}
 }
@@ -474,7 +473,7 @@ func TestGetRecordedActions_WithClear(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.GetRecordedActionsCalled {
+	if !mockService.MockClient().GetRecordedActionsCalled {
 		t.Fatal("expected GetRecordedActions to be called")
 	}
 }
@@ -643,12 +642,12 @@ func TestForwardRecordingInput_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	if !mockService.ForwardInputCalled {
+	if !mockService.MockClient().ForwardInputCalled {
 		t.Fatal("expected ForwardInput to be called")
 	}
 
-	if mockService.LastSessionID != sessionID {
-		t.Fatalf("expected session ID %q, got %q", sessionID, mockService.LastSessionID)
+	if mockService.MockClient().LastSessionID != sessionID {
+		t.Fatalf("expected session ID %q, got %q", sessionID, mockService.MockClient().LastSessionID)
 	}
 }
 
@@ -735,7 +734,7 @@ func TestGetRecordingFrame_NotModified(t *testing.T) {
 	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
 	defer os.RemoveAll(tempDir)
 
-	mockService.FrameResponse = &driver.GetFrameResponse{
+	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{
 		Data:        "base64-frame-data",
 		MediaType:   "image/jpeg",
 		Width:       1920,

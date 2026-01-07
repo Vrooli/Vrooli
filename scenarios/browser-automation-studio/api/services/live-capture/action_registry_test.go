@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 func TestGetActionNodeConfig_KnownTypes(t *testing.T) {
@@ -92,9 +93,9 @@ func TestTriggersDOMChanges(t *testing.T) {
 }
 
 func TestBuildClickNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "click",
-		Selector:   &SelectorSet{Primary: "#submit-btn"},
+		Selector:   &driver.SelectorSet{Primary: "#submit-btn"},
 		Payload: map[string]interface{}{
 			"button":     "left",
 			"clickCount": 2,
@@ -124,9 +125,9 @@ func TestBuildClickNode(t *testing.T) {
 }
 
 func TestBuildTypeNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "type",
-		Selector:   &SelectorSet{Primary: "#email"},
+		Selector:   &driver.SelectorSet{Primary: "#email"},
 		Payload: map[string]interface{}{
 			"text":   "test@example.com",
 			"submit": true,
@@ -155,7 +156,7 @@ func TestBuildTypeNode(t *testing.T) {
 }
 
 func TestBuildNavigateNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "navigate",
 		URL:        "https://example.com/page",
 		Payload: map[string]interface{}{
@@ -183,9 +184,9 @@ func TestBuildNavigateNode(t *testing.T) {
 }
 
 func TestBuildScrollNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "scroll",
-		Selector:   &SelectorSet{Primary: "#container"},
+		Selector:   &driver.SelectorSet{Primary: "#container"},
 		Payload: map[string]interface{}{
 			"scrollY": 500.0,
 		},
@@ -210,9 +211,9 @@ func TestBuildScrollNode(t *testing.T) {
 }
 
 func TestBuildSelectNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "select",
-		Selector:   &SelectorSet{Primary: "#country"},
+		Selector:   &driver.SelectorSet{Primary: "#country"},
 		Payload: map[string]interface{}{
 			"value": "US",
 		},
@@ -237,7 +238,7 @@ func TestBuildSelectNode(t *testing.T) {
 }
 
 func TestBuildKeypressNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "keypress",
 		Payload: map[string]interface{}{
 			"key": "Enter",
@@ -260,9 +261,9 @@ func TestBuildKeypressNode(t *testing.T) {
 }
 
 func TestBuildDefaultNode(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "custom_action",
-		Selector:   &SelectorSet{Primary: "#element"},
+		Selector:   &driver.SelectorSet{Primary: "#element"},
 	}
 
 	data, config := buildDefaultNode(action)
@@ -283,17 +284,17 @@ func TestBuildDefaultNode(t *testing.T) {
 func TestGenerateTypeLabel(t *testing.T) {
 	tests := []struct {
 		name     string
-		action   RecordedAction
+		action   driver.RecordedAction
 		expected string
 	}{
 		{
 			name:     "no payload",
-			action:   RecordedAction{ActionType: "type"},
+			action:   driver.RecordedAction{ActionType: "type"},
 			expected: "Type text",
 		},
 		{
 			name: "with text",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType: "type",
 				Payload:    map[string]interface{}{"text": "hello"},
 			},
@@ -301,7 +302,7 @@ func TestGenerateTypeLabel(t *testing.T) {
 		},
 		{
 			name: "long text truncated",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType: "type",
 				Payload:    map[string]interface{}{"text": "this is a very long text that should be truncated"},
 			},
@@ -320,7 +321,7 @@ func TestGenerateTypeLabel(t *testing.T) {
 }
 
 func TestGenerateNavigateLabel(t *testing.T) {
-	action := RecordedAction{
+	action := driver.RecordedAction{
 		ActionType: "navigate",
 		URL:        "https://example.com",
 	}
@@ -336,17 +337,17 @@ func TestGenerateNavigateLabel(t *testing.T) {
 func TestGenerateKeypressLabel(t *testing.T) {
 	tests := []struct {
 		name     string
-		action   RecordedAction
+		action   driver.RecordedAction
 		expected string
 	}{
 		{
 			name:     "no payload",
-			action:   RecordedAction{ActionType: "keypress"},
+			action:   driver.RecordedAction{ActionType: "keypress"},
 			expected: "Press key",
 		},
 		{
 			name: "with key",
-			action: RecordedAction{
+			action: driver.RecordedAction{
 				ActionType: "keypress",
 				Payload:    map[string]interface{}{"key": "Enter"},
 			},
@@ -368,37 +369,37 @@ func TestMapActionToNode_UsesRegistry(t *testing.T) {
 	// Test that mapActionToNode correctly uses the registry and outputs V2 format
 	tests := []struct {
 		name               string
-		action             RecordedAction
+		action             driver.RecordedAction
 		expectedActionType string // V2 ACTION_TYPE_* enum value
 	}{
 		{
 			name:               "click action",
-			action:             RecordedAction{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+			action:             driver.RecordedAction{ActionType: "click", Selector: &driver.SelectorSet{Primary: "#btn"}},
 			expectedActionType: "ACTION_TYPE_CLICK",
 		},
 		{
 			name:               "type action",
-			action:             RecordedAction{ActionType: "type", Selector: &SelectorSet{Primary: "#input"}, Payload: map[string]interface{}{"text": "test"}},
+			action:             driver.RecordedAction{ActionType: "type", Selector: &driver.SelectorSet{Primary: "#input"}, Payload: map[string]interface{}{"text": "test"}},
 			expectedActionType: "ACTION_TYPE_INPUT",
 		},
 		{
 			name:               "navigate action",
-			action:             RecordedAction{ActionType: "navigate", URL: "https://example.com"},
+			action:             driver.RecordedAction{ActionType: "navigate", URL: "https://example.com"},
 			expectedActionType: "ACTION_TYPE_NAVIGATE",
 		},
 		{
 			name:               "scroll action",
-			action:             RecordedAction{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
+			action:             driver.RecordedAction{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
 			expectedActionType: "ACTION_TYPE_SCROLL",
 		},
 		{
 			name:               "keyboard action",
-			action:             RecordedAction{ActionType: "keyboard", Payload: map[string]interface{}{"key": "Enter"}},
+			action:             driver.RecordedAction{ActionType: "keyboard", Payload: map[string]interface{}{"key": "Enter"}},
 			expectedActionType: "ACTION_TYPE_KEYBOARD",
 		},
 		{
 			name:               "unknown action falls back to click",
-			action:             RecordedAction{ActionType: "unknown_type"},
+			action:             driver.RecordedAction{ActionType: "unknown_type"},
 			expectedActionType: "ACTION_TYPE_CLICK",
 		},
 	}

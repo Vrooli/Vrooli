@@ -4,11 +4,28 @@
  * This module consolidates all viewport type definitions to avoid duplication
  * and ensure consistent naming across the recording domain.
  *
- * Naming conventions:
- * - ContainerBounds: The measured CSS dimensions of a container element
- * - BrowserViewport: The logical viewport size requested from/used by Playwright
- * - ActualViewport: The viewport reported by Playwright (may differ due to profile)
- * - DisplayDimensions: The rendered size of content (may include letterboxing)
+ * ## Conceptual Overview
+ *
+ * There are three distinct dimension concepts in the recording flow:
+ *
+ * 1. **BrowserViewport (Requested)**: The logical viewport size we request Playwright to use.
+ *    Derived from container bounds, clamped to valid ranges. This is the "coordinate space"
+ *    that Playwright operates in for click/input events.
+ *
+ * 2. **ActualViewport**: The viewport Playwright actually uses. May differ from requested
+ *    due to session profile fingerprint settings (e.g., device emulation).
+ *
+ * 3. **FrameDimensions**: The bitmap size of captured frames. May differ from viewport
+ *    due to device pixel ratio (e.g., 2x on HiDPI displays). A 900x700 viewport produces
+ *    an 1800x1400 frame on a 2x display.
+ *
+ * ## Coordinate Mapping
+ *
+ * When mapping user clicks on the preview to Playwright coordinates:
+ * - Use FrameDimensions for display calculation (object-contain scaling)
+ * - Use ActualViewport for output coordinates (what Playwright receives)
+ *
+ * See `coordinateMapping.ts:mapClientToViewportWithFrame` for the implementation.
  *
  * @module recording/types/viewport
  */
@@ -35,6 +52,13 @@ export type ContainerBounds = ViewportDimensions;
  * Alias for ViewportDimensions for semantic clarity in browser viewport contexts.
  */
 export type BrowserViewport = ViewportDimensions;
+
+/**
+ * Frame bitmap dimensions.
+ * May differ from viewport due to device pixel ratio.
+ * Used for display calculation in coordinate mapping.
+ */
+export type FrameDimensions = ViewportDimensions;
 
 // =============================================================================
 // Source Attribution

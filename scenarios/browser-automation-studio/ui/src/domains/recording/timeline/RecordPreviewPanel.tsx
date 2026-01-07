@@ -91,7 +91,11 @@ export function RecordPreviewPanel({
   const viewportContext = useViewportOptional();
 
   // Use context values when available, fall back to props
-  const effectiveViewport = viewportContext?.browserViewport ?? viewport;
+  // IMPORTANT: For coordinate mapping, prefer actualViewport (what Playwright actually uses)
+  // over browserViewport (what we requested). Session profiles with fingerprint settings
+  // can override the viewport, causing browserViewport to differ from actualViewport.
+  // Using actualViewport ensures cursor position accuracy when there's an override.
+  const effectiveViewport = viewportContext?.actualViewport ?? viewportContext?.browserViewport ?? viewport;
   const effectiveIsResizing = viewportContext?.syncState.isResizing ?? isResizing;
   const effectiveIsSyncing = viewportContext?.syncState.isSyncing ?? isViewportSyncing;
 

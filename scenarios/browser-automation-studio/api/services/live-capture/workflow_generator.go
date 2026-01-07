@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 // Enum normalization functions for converting lowercase strings to proto enum format.
@@ -77,7 +78,7 @@ func NewWorkflowGenerator() *WorkflowGenerator {
 
 // GenerateWorkflow converts recorded actions to a workflow flow definition.
 // It applies action merging and inserts smart wait nodes to improve reliability.
-func (g *WorkflowGenerator) GenerateWorkflow(actions []RecordedAction) map[string]interface{} {
+func (g *WorkflowGenerator) GenerateWorkflow(actions []driver.RecordedAction) map[string]interface{} {
 	// First, merge consecutive actions for cleaner workflows
 	mergedActions := MergeConsecutiveActions(actions)
 
@@ -94,12 +95,12 @@ func (g *WorkflowGenerator) GenerateWorkflow(actions []RecordedAction) map[strin
 // - Consecutive type actions on the same selector (text is concatenated)
 // - Consecutive scroll actions (uses final scroll position)
 // - Removes focus events that precede type events on the same element
-func MergeConsecutiveActions(actions []RecordedAction) []RecordedAction {
+func MergeConsecutiveActions(actions []driver.RecordedAction) []driver.RecordedAction {
 	if len(actions) <= 1 {
 		return actions
 	}
 
-	merged := make([]RecordedAction, 0, len(actions))
+	merged := make([]driver.RecordedAction, 0, len(actions))
 
 	for i := 0; i < len(actions); i++ {
 		action := actions[i]
@@ -183,7 +184,7 @@ func MergeConsecutiveActions(actions []RecordedAction) []RecordedAction {
 }
 
 // selectorsMatch checks if two SelectorSets refer to the same element
-func selectorsMatch(a, b *SelectorSet) bool {
+func selectorsMatch(a, b *driver.SelectorSet) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -191,7 +192,7 @@ func selectorsMatch(a, b *SelectorSet) bool {
 }
 
 // ApplyActionRange returns the requested action subset, clamping indices to the available actions.
-func ApplyActionRange(actions []RecordedAction, start, end int) []RecordedAction {
+func ApplyActionRange(actions []driver.RecordedAction, start, end int) []driver.RecordedAction {
 	if len(actions) == 0 {
 		return actions
 	}
@@ -256,7 +257,7 @@ func nodeTypeToV2ParamKey(nodeType string) string {
 
 // mapActionToNode converts a single recorded action to a workflow node in V2 format.
 // Uses the action registry to look up type-specific configuration.
-func mapActionToNode(action RecordedAction, nodeID string, index int) map[string]interface{} {
+func mapActionToNode(action driver.RecordedAction, nodeID string, index int) map[string]interface{} {
 	// Calculate position (vertical layout)
 	posX := 250.0
 	posY := float64(100 + index*120)
@@ -301,7 +302,7 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 }
 
 // buildV2ActionParams builds the typed params for a V2 action.
-func buildV2ActionParams(nodeType string, action RecordedAction, data map[string]interface{}) map[string]interface{} {
+func buildV2ActionParams(nodeType string, action driver.RecordedAction, data map[string]interface{}) map[string]interface{} {
 	params := make(map[string]interface{})
 
 	switch nodeType {
@@ -401,7 +402,7 @@ type WaitTemplate struct {
 // analyzeTransitionForWait examines two consecutive actions and determines
 // if a wait node should be inserted between them.
 // Returns nil if no wait is needed.
-func analyzeTransitionForWait(current, next RecordedAction) *WaitTemplate {
+func analyzeTransitionForWait(current, next driver.RecordedAction) *WaitTemplate {
 	// Check if the next action needs its selector to exist (uses action registry)
 	if NeedsSelectorWait(next.ActionType) && next.Selector != nil && next.Selector.Primary != "" {
 		// If current action might trigger DOM changes, add a wait (uses action registry)
@@ -458,7 +459,7 @@ func analyzeTransitionForWait(current, next RecordedAction) *WaitTemplate {
 }
 
 // describeElement creates a human-readable description of an element for labels.
-func describeElement(action RecordedAction) string {
+func describeElement(action driver.RecordedAction) string {
 	if action.ElementMeta != nil {
 		if action.ElementMeta.InnerText != "" {
 			text := truncateString(action.ElementMeta.InnerText, 15)
@@ -509,7 +510,7 @@ func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[str
 
 // insertSmartWaits analyzes action transitions and inserts wait nodes where needed.
 // This improves reliability of recorded workflows by ensuring elements exist before interaction.
-func insertSmartWaits(actions []RecordedAction) ([]map[string]interface{}, []map[string]interface{}) {
+func insertSmartWaits(actions []driver.RecordedAction) ([]map[string]interface{}, []map[string]interface{}) {
 	if len(actions) == 0 {
 		return nil, nil
 	}
@@ -576,7 +577,7 @@ func insertSmartWaits(actions []RecordedAction) ([]map[string]interface{}, []map
 }
 
 // generateClickLabel creates a readable label for a click action.
-func generateClickLabel(action RecordedAction) string {
+func generateClickLabel(action driver.RecordedAction) string {
 	if action.ElementMeta != nil {
 		if action.ElementMeta.InnerText != "" {
 			text := truncateString(action.ElementMeta.InnerText, 20)

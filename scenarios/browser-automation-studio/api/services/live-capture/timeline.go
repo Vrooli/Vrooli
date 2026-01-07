@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
@@ -30,7 +31,7 @@ func NewTimelineService() *TimelineService {
 // AddAction adds a recorded action to the timeline.
 // It includes deduplication logic for navigate actions to prevent double-navigation
 // flickering when both the API and browser script capture the same navigation.
-func (s *TimelineService) AddAction(sessionID string, action *RecordedAction, pageID uuid.UUID) {
+func (s *TimelineService) AddAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

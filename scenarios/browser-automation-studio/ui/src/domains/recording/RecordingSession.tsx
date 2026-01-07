@@ -29,12 +29,14 @@ import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
-import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
+import type { ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode, type InsertActionData } from './hooks/useRecordMode';
+import { useBrowserNavigation } from './hooks/useBrowserNavigation';
+import { useSessionProfileSelection } from './hooks/useSessionProfileSelection';
 import type { InsertedAction } from './InsertNodeModal';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
@@ -65,9 +67,6 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
-
-/** LocalStorage key for persisting the last selected session profile ID */
-const LAST_SELECTED_PROFILE_KEY = 'bas_last_selected_session_profile_id';
 
 /** Workflow type being created (from AI modal or template) */
 export type WorkflowTypeParam = 'action' | 'flow' | 'case';
@@ -147,7 +146,6 @@ export function RecordModePage({
   }, [mode]);
 
   const sessionProfiles = useSessionProfiles();
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
   const {
     sessionId,
@@ -158,134 +156,52 @@ export function RecordModePage({
     setSessionProfileId,
   } = useRecordingSession({ initialSessionId, onSessionReady });
 
+  // Session profile selection state and handlers (extracted to hook)
+  const {
+    selectedProfileId,
+    handleSelectSessionProfile,
+    configuringProfile,
+    configuringSection,
+    handleCreateSessionProfile,
+    handleConfigureSession,
+    handleOpenHistorySettings,
+    handleNavigateToSessionSettings,
+    handleSaveBrowserProfile,
+    closeConfigureModal,
+  } = useSessionProfileSelection({
+    sessionProfileId,
+    setSessionProfileId,
+    sessionProfiles,
+  });
+
   // Right panel view state
   const [rightPanelView, setRightPanelView] = useState<RightPanelView>('preview');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  // Session settings modal state
-  const [configuringProfile, setConfiguringProfile] = useState<RecordingSessionProfile | null>(null);
-  // Initial section to open in session settings dialog (e.g., 'history' when opening from navigation popup)
-  const [configuringSection, setConfiguringSection] = useState<'history' | undefined>(undefined);
-  // Initialize previewUrl from template's initialUrl if provided
-  const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
+
+  // Browser navigation state and handlers (extracted to hook)
+  const {
+    previewUrl,
+    setPreviewUrl,
+    canGoBack,
+    canGoForward,
+    refreshToken,
+    handleGoBack,
+    handleGoForward,
+    handleRefresh,
+    handleFetchNavigationStack,
+    handleNavigateToIndex,
+    updateNavigationState,
+  } = useBrowserNavigation({
+    sessionId,
+    initialUrl,
+  });
 
   // Handler for PreviewContainer's browser viewport changes (for session creation)
   const handleBrowserViewportChange = useCallback((viewport: { width: number; height: number }) => {
     setPreviewViewport(viewport);
   }, []);
-
-  // Navigation handlers for browser back/forward/refresh
-  const handleGoBack = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/go-back`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPreviewUrl(data.url || '');
-        setCanGoBack(data.can_go_back ?? false);
-        setCanGoForward(data.can_go_forward ?? false);
-      }
-    } catch (err) {
-      console.warn('Failed to go back:', err);
-    }
-  }, [sessionId]);
-
-  const handleGoForward = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/go-forward`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPreviewUrl(data.url || '');
-        setCanGoBack(data.can_go_back ?? false);
-        setCanGoForward(data.can_go_forward ?? false);
-      }
-    } catch (err) {
-      console.warn('Failed to go forward:', err);
-    }
-  }, [sessionId]);
-
-  const handleRefresh = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/reload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCanGoBack(data.can_go_back ?? false);
-        setCanGoForward(data.can_go_forward ?? false);
-        // Trigger a refresh of the frame display
-        setRefreshToken((t) => t + 1);
-      }
-    } catch (err) {
-      console.warn('Failed to refresh:', err);
-    }
-  }, [sessionId]);
-
-  // Fetch navigation stack for right-click popup
-  const handleFetchNavigationStack = useCallback(async () => {
-    if (!sessionId) return null;
-    try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigation-stack`);
-      if (!response.ok) return null;
-      const data = await response.json();
-      return {
-        backStack: data.back_stack || [],
-        current: data.current || null,
-        forwardStack: data.forward_stack || [],
-      };
-    } catch (err) {
-      console.warn('Failed to fetch navigation stack:', err);
-      return null;
-    }
-  }, [sessionId]);
-
-  // Navigate to a specific delta (e.g., -2 for 2 steps back, +3 for 3 steps forward)
-  const handleNavigateToIndex = useCallback(async (delta: number) => {
-    if (!sessionId || delta === 0) return;
-    try {
-      const config = await getConfig();
-      // For multiple steps, we call go-back or go-forward multiple times
-      const endpoint = delta < 0 ? 'go-back' : 'go-forward';
-      const steps = Math.abs(delta);
-
-      let lastResponse: { url?: string; can_go_back?: boolean; can_go_forward?: boolean } | null = null;
-
-      for (let i = 0; i < steps; i++) {
-        const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        if (!response.ok) break;
-        lastResponse = await response.json();
-      }
-
-      if (lastResponse) {
-        setPreviewUrl(lastResponse.url || '');
-        setCanGoBack(lastResponse.can_go_back ?? false);
-        setCanGoForward(lastResponse.can_go_forward ?? false);
-      }
-    } catch (err) {
-      console.warn('Failed to navigate to index:', err);
-    }
-  }, [sessionId]);
 
   const autoStartedRef = useRef(false);
 
@@ -323,10 +239,6 @@ export function RecordModePage({
   const [executionWorkflowName, setExecutionWorkflowName] = useState<string | null>(null);
   const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
   const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
-  const [refreshToken, setRefreshToken] = useState(0);
-  // Navigation history state for back/forward buttons
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
 
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
@@ -490,10 +402,9 @@ export function RecordModePage({
 
     // Auto-select the workflow's default session if provided
     if (defaultSessionId) {
-      setSelectedProfileId(defaultSessionId);
-      setSessionProfileId(defaultSessionId);
+      handleSelectSessionProfile(defaultSessionId);
     }
-  }, [setSessionProfileId]);
+  }, [handleSelectSessionProfile]);
 
   // Handle Run button click - start execution with optional config overrides
   const handleRun = useCallback(async (overrides?: ExecutionConfigSettings) => {
@@ -755,54 +666,7 @@ export function RecordModePage({
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
-  // Initialize profile selection - prefer localStorage, then API, then default
-  useEffect(() => {
-    // Skip if we already have a selection
-    if (selectedProfileId) return;
-    // Wait for profiles to load
-    if (sessionProfiles.profiles.length === 0) return;
-
-    // Priority 1: Check localStorage for last explicitly selected profile
-    const storedProfileId = localStorage.getItem(LAST_SELECTED_PROFILE_KEY);
-    if (storedProfileId && sessionProfiles.profiles.some((p) => p.id === storedProfileId)) {
-      setSelectedProfileId(storedProfileId);
-      setSessionProfileId(storedProfileId);
-      return;
-    }
-
-    // Priority 2: Use sessionProfileId from hook or API default
-    const maybeDefault = sessionProfileId ?? sessionProfiles.getDefaultProfileId();
-    if (maybeDefault) {
-      setSelectedProfileId(maybeDefault);
-      setSessionProfileId(maybeDefault);
-    }
-  }, [selectedProfileId, sessionProfileId, sessionProfiles.profiles, sessionProfiles.getDefaultProfileId, setSessionProfileId]);
-
-  useEffect(() => {
-    if (sessionProfileId && sessionProfileId !== selectedProfileId) {
-      setSelectedProfileId(sessionProfileId);
-    }
-  }, [sessionProfileId, selectedProfileId]);
-
-  // Handle case where selected profile no longer exists (was deleted)
-  useEffect(() => {
-    if (
-      selectedProfileId &&
-      sessionProfiles.profiles.length > 0 &&
-      !sessionProfiles.profiles.some((p) => p.id === selectedProfileId)
-    ) {
-      const fallback = sessionProfiles.getDefaultProfileId();
-      setSelectedProfileId(fallback);
-      setSessionProfileId(fallback);
-      // Update localStorage with the fallback or clear it
-      if (fallback) {
-        localStorage.setItem(LAST_SELECTED_PROFILE_KEY, fallback);
-      } else {
-        localStorage.removeItem(LAST_SELECTED_PROFILE_KEY);
-      }
-    }
-  }, [selectedProfileId, sessionProfiles.getDefaultProfileId, sessionProfiles.profiles, setSessionProfileId]);
-
+  // Update previewUrl from last action if needed
   useEffect(() => {
     if (!previewUrl && lastActionUrl) {
       setPreviewUrl(lastActionUrl);
@@ -858,15 +722,15 @@ export function RecordModePage({
     let cancelled = false;
 
     const syncPreviewToSession = async () => {
+      const isInitialNavigation = initialUrl && !initialUrlNavigatedRef.current;
+      if (isInitialNavigation) {
+        initialUrlNavigatedRef.current = true;
+      }
+
       try {
-        // For initial URL from template, add a small delay to ensure session is ready
-        // This prevents race conditions with playwright context initialization
-        const isInitialNavigation = initialUrl && !initialUrlNavigatedRef.current;
-        if (isInitialNavigation) {
-          initialUrlNavigatedRef.current = true;
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          if (cancelled) return;
-        }
+        // NOTE: No artificial delay here. The session is ready when sessionId is set
+        // (ensureSession completes before setting sessionId). The navigate endpoint
+        // waits for the page to load before returning, so no post-delay is needed either.
 
         const config = await getConfig();
         const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigate`, {
@@ -880,19 +744,14 @@ export function RecordModePage({
         if (response.ok && !cancelled) {
           try {
             const data = await response.json();
-            setCanGoBack(data.can_go_back ?? false);
-            setCanGoForward(data.can_go_forward ?? false);
+            updateNavigationState(data);
           } catch {
             // Ignore JSON parse errors
           }
-        }
 
-        // Mark initial navigation as complete if this was the initial navigation
-        // and it succeeded (or at least didn't throw)
-        if (isInitialNavigation && !cancelled && response.ok) {
-          // Add a brief delay to let the page start rendering
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          if (!cancelled) {
+          // Mark initial navigation as complete immediately on success
+          // The navigate endpoint already waits for page load, so no additional delay needed
+          if (isInitialNavigation) {
             isInitialNavigationCompleteRef.current = true;
             setIsInitialNavigationComplete(true);
           }
@@ -901,7 +760,7 @@ export function RecordModePage({
         if (abortController.signal.aborted || cancelled) return;
         console.warn('Failed to sync preview URL to recording session', err);
         // Still mark as complete on error so UI isn't stuck
-        if (initialUrl && !isInitialNavigationCompleteRef.current) {
+        if (isInitialNavigation && !isInitialNavigationCompleteRef.current) {
           isInitialNavigationCompleteRef.current = true;
           setIsInitialNavigationComplete(true);
         }
@@ -914,7 +773,7 @@ export function RecordModePage({
       cancelled = true;
       abortController.abort();
     };
-  }, [sessionId, previewUrl, initialUrl]); // Note: isInitialNavigationComplete intentionally NOT in deps to avoid re-triggering navigation
+  }, [sessionId, previewUrl, initialUrl, updateNavigationState]); // Note: isInitialNavigationComplete intentionally NOT in deps to avoid re-triggering navigation
 
   // NOTE: Viewport sync is centralized in RecordingSession via ViewportSyncManager.
   // PreviewContainer measures bounds and calls handleBrowserViewportChange.
@@ -958,64 +817,6 @@ export function RecordModePage({
     exitSelectionMode(); // Clear selection when switching sessions
     setRightPanelView('preview');
   }, [sessionId, exitSelectionMode]);
-
-  const handleSelectSessionProfile = useCallback(
-    (profileId: string | null) => {
-      setSelectedProfileId(profileId);
-      setSessionProfileId(profileId);
-      // Persist to localStorage for next visit
-      if (profileId) {
-        localStorage.setItem(LAST_SELECTED_PROFILE_KEY, profileId);
-      } else {
-        localStorage.removeItem(LAST_SELECTED_PROFILE_KEY);
-      }
-    },
-    [setSessionProfileId]
-  );
-
-  const handleCreateSessionProfile = useCallback(async () => {
-    const created = await sessionProfiles.create();
-    if (created) {
-      setSelectedProfileId(created.id);
-      setSessionProfileId(created.id);
-      // Persist newly created profile to localStorage
-      localStorage.setItem(LAST_SELECTED_PROFILE_KEY, created.id);
-    }
-  }, [sessionProfiles, setSessionProfileId]);
-
-  const handleConfigureSession = useCallback((profileId: string) => {
-    const profile = sessionProfiles.profiles.find((p) => p.id === profileId);
-    if (profile) {
-      setConfiguringSection(undefined);
-      setConfiguringProfile(profile);
-    }
-  }, [sessionProfiles.profiles]);
-
-  // Open history settings for the current session profile
-  const handleOpenHistorySettings = useCallback(() => {
-    // Find the current profile from the session (use selectedProfileId as fallback
-    // since sessionProfileId may not be set until a session is fully started)
-    const profileId = sessionProfileId || selectedProfileId;
-    const currentProfile = sessionProfiles.profiles.find((p) => p.id === profileId);
-    if (currentProfile) {
-      setConfiguringSection('history');
-      setConfiguringProfile(currentProfile);
-    }
-  }, [sessionProfiles.profiles, sessionProfileId, selectedProfileId]);
-
-  const handleNavigateToSessionSettings = useCallback(() => {
-    navigate('/settings?tab=sessions');
-  }, [navigate]);
-
-  const handleSaveBrowserProfile = useCallback(
-    async (browserProfile: BrowserProfile) => {
-      if (!configuringProfile) return;
-      await sessionProfiles.updateBrowserProfile(configuringProfile.id, browserProfile);
-      // Refresh the profile in state
-      await sessionProfiles.refresh();
-    },
-    [configuringProfile, sessionProfiles]
-  );
 
   // Flush session state when leaving the page or closing the tab
   useEffect(() => {
@@ -1464,10 +1265,7 @@ export function RecordModePage({
           hasStorageState={configuringProfile.has_storage_state}
           initialSection={configuringSection}
           onSave={handleSaveBrowserProfile}
-          onClose={() => {
-            setConfiguringProfile(null);
-            setConfiguringSection(undefined);
-          }}
+          onClose={closeConfigureModal}
         />
       )}
 

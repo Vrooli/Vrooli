@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 // ActionNodeConfig defines how to convert a recorded action type to a workflow node.
@@ -20,10 +21,10 @@ type ActionNodeConfig struct {
 
 	// BuildNode creates the node data and config for this action type.
 	// Returns (data, config) maps.
-	BuildNode func(action RecordedAction) (data map[string]any, config map[string]any)
+	BuildNode func(action driver.RecordedAction) (data map[string]any, config map[string]any)
 
 	// GenerateLabel creates a human-readable label for the action.
-	GenerateLabel func(action RecordedAction) string
+	GenerateLabel func(action driver.RecordedAction) string
 }
 
 // actionNodeRegistry maps action types to their node conversion configuration.
@@ -47,28 +48,28 @@ var actionNodeRegistry = map[actions.ActionType]ActionNodeConfig{
 	actions.Scroll: {
 		NodeType:  "scroll",
 		BuildNode: buildScrollNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Scroll"
 		},
 	},
 	actions.Select: {
 		NodeType:  "select",
 		BuildNode: buildSelectNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Select option"
 		},
 	},
 	actions.Focus: {
 		NodeType:  "click", // Focus falls back to click for execution
 		BuildNode: buildFocusNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Focus element"
 		},
 	},
 	actions.Hover: {
 		NodeType:  "hover",
 		BuildNode: buildHoverNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Hover element"
 		},
 	},
@@ -80,28 +81,28 @@ var actionNodeRegistry = map[actions.ActionType]ActionNodeConfig{
 	actions.DragDrop: {
 		NodeType:  "dragDrop",
 		BuildNode: buildDragDropNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Drag and drop"
 		},
 	},
 	actions.Wait: {
 		NodeType:  "wait",
 		BuildNode: buildWaitNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Wait"
 		},
 	},
 	actions.Assert: {
 		NodeType:  "assert",
 		BuildNode: buildAssertNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Assert"
 		},
 	},
 	actions.Screenshot: {
 		NodeType:  "screenshot",
 		BuildNode: buildScreenshotNode,
-		GenerateLabel: func(_ RecordedAction) string {
+		GenerateLabel: func(_ driver.RecordedAction) string {
 			return "Screenshot"
 		},
 	},
@@ -111,7 +112,7 @@ var actionNodeRegistry = map[actions.ActionType]ActionNodeConfig{
 var defaultActionNodeConfig = ActionNodeConfig{
 	NodeType:  "click",
 	BuildNode: buildDefaultNode,
-	GenerateLabel: func(action RecordedAction) string {
+	GenerateLabel: func(action driver.RecordedAction) string {
 		return action.ActionType
 	},
 }
@@ -139,7 +140,7 @@ func TriggersDOMChanges(actionType string) bool {
 
 // Node builder functions
 
-func buildClickNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildClickNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	config := map[string]any{}
 
@@ -167,7 +168,7 @@ func buildClickNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildTypeNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildTypeNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	config := map[string]any{}
 
@@ -189,7 +190,7 @@ func buildTypeNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildNavigateNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildNavigateNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{
 		"url": action.URL,
 	}
@@ -209,7 +210,7 @@ func buildNavigateNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildScrollNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildScrollNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Selector != nil {
 		data["selector"] = action.Selector.Primary
@@ -230,7 +231,7 @@ func buildScrollNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildSelectNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildSelectNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Selector != nil {
 		data["selector"] = action.Selector.Primary
@@ -249,7 +250,7 @@ func buildSelectNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildFocusNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildFocusNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	config := map[string]any{}
 	if action.Selector != nil {
@@ -261,7 +262,7 @@ func buildFocusNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildHoverNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildHoverNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	config := map[string]any{}
 	if action.Selector != nil {
@@ -273,7 +274,7 @@ func buildHoverNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildKeypressNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildKeypressNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Payload != nil {
 		if key, ok := action.Payload["key"].(string); ok {
@@ -289,7 +290,7 @@ func buildKeypressNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildDragDropNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildDragDropNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	config := map[string]any{}
 	if action.Selector != nil {
@@ -307,7 +308,7 @@ func buildDragDropNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildWaitNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildWaitNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Selector != nil {
 		data["selector"] = action.Selector.Primary
@@ -326,7 +327,7 @@ func buildWaitNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildAssertNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildAssertNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Selector != nil {
 		data["selector"] = action.Selector.Primary
@@ -345,7 +346,7 @@ func buildAssertNode(action RecordedAction) (map[string]any, map[string]any) {
 	return data, config
 }
 
-func buildScreenshotNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildScreenshotNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Payload != nil {
 		if name, ok := action.Payload["name"].(string); ok {
@@ -361,7 +362,7 @@ func buildScreenshotNode(action RecordedAction) (map[string]any, map[string]any)
 	return data, config
 }
 
-func buildDefaultNode(action RecordedAction) (map[string]any, map[string]any) {
+func buildDefaultNode(action driver.RecordedAction) (map[string]any, map[string]any) {
 	data := map[string]any{}
 	if action.Selector != nil {
 		data["selector"] = action.Selector.Primary
@@ -377,7 +378,7 @@ func buildDefaultNode(action RecordedAction) (map[string]any, map[string]any) {
 
 // Label generator functions
 
-func generateTypeLabel(action RecordedAction) string {
+func generateTypeLabel(action driver.RecordedAction) string {
 	if action.Payload != nil {
 		if text, ok := action.Payload["text"].(string); ok {
 			return fmt.Sprintf("Type: %q", truncateString(text, 20))
@@ -386,11 +387,11 @@ func generateTypeLabel(action RecordedAction) string {
 	return "Type text"
 }
 
-func generateNavigateLabel(action RecordedAction) string {
+func generateNavigateLabel(action driver.RecordedAction) string {
 	return fmt.Sprintf("Navigate to %s", extractHostname(action.URL))
 }
 
-func generateKeypressLabel(action RecordedAction) string {
+func generateKeypressLabel(action driver.RecordedAction) string {
 	if action.Payload != nil {
 		if key, ok := action.Payload["key"].(string); ok {
 			return fmt.Sprintf("Press %s", key)

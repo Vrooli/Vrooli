@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
-	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
 // =============================================================================
@@ -125,7 +125,7 @@ type RecordingStatusResponse struct {
 type GetActionsResponse struct {
 	SessionID   string                       `json:"session_id"`
 	IsRecording bool                         `json:"is_recording,omitempty"`
-	Actions     []livecapture.RecordedAction `json:"actions"`
+	Actions     []driver.RecordedAction `json:"actions"`
 	Count       int                          `json:"count"`
 	Entries     []json.RawMessage            `json:"entries,omitempty"`
 }
@@ -141,7 +141,7 @@ type GenerateWorkflowRequest struct {
 		End   int `json:"end"`
 	} `json:"action_range,omitempty"`
 	// Actions can be provided directly (with edits) instead of fetching from driver
-	Actions []livecapture.RecordedAction `json:"actions,omitempty"`
+	Actions []driver.RecordedAction `json:"actions,omitempty"`
 }
 
 // GenerateWorkflowResponse is the response after generating a workflow.
@@ -160,7 +160,7 @@ type GenerateWorkflowResponse struct {
 // ReplayPreviewRequest is the request body for testing recorded actions.
 type ReplayPreviewRequest struct {
 	SessionID     string                       `json:"session_id"`
-	Actions       []livecapture.RecordedAction `json:"actions"`
+	Actions       []driver.RecordedAction `json:"actions"`
 	Limit         *int                         `json:"limit,omitempty"`
 	StopOnFailure *bool                        `json:"stop_on_failure,omitempty"`
 	ActionTimeout *int                         `json:"action_timeout,omitempty"`

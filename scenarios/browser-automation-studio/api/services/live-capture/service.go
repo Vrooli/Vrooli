@@ -65,16 +65,19 @@ func NewServiceWithClient(client *driver.Client, log *logrus.Logger) *Service {
 	}
 }
 
-// GetDriverClient returns the underlying driver client for advanced operations.
-func (s *Service) GetDriverClient() *driver.Client {
+// DriverClient returns the underlying driver client for direct pass-through operations.
+// Handlers should use this for operations that don't require service-level business logic
+// (e.g., Navigate, Reload, GetFrame, ForwardInput).
+func (s *Service) DriverClient() driver.ClientInterface {
 	if s.sessions == nil {
 		return nil
 	}
 	return s.sessions.Client()
 }
 
-// GetSessionManager returns the session manager.
-func (s *Service) GetSessionManager() *session.Manager {
+// Sessions returns the session manager for direct access.
+// Deprecated: Use DriverClient() for pass-through operations.
+func (s *Service) Sessions() *session.Manager {
 	return s.sessions
 }
 
@@ -285,25 +288,10 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 	return s.sessions.Client().StartRecording(ctx, sessionID, req)
 }
 
-// StopRecording stops recording user actions.
-func (s *Service) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
-	return s.sessions.Client().StopRecording(ctx, sessionID)
-}
-
-// GetRecordingStatus gets the current recording status.
-func (s *Service) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
-	return s.sessions.Client().GetRecordingStatus(ctx, sessionID)
-}
-
-// GetRecordedActions retrieves all recorded actions.
-func (s *Service) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
-	return s.sessions.Client().GetRecordedActions(ctx, sessionID, clear)
-}
-
 // GenerateWorkflowConfig configures workflow generation.
 type GenerateWorkflowConfig struct {
 	Name        string
-	Actions     []RecordedAction
+	Actions     []driver.RecordedAction
 	ActionRange *ActionRange
 }
 
@@ -322,7 +310,7 @@ type GenerateWorkflowResult struct {
 
 // GenerateWorkflow converts recorded actions to a workflow definition.
 func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *GenerateWorkflowConfig) (*GenerateWorkflowResult, error) {
-	var actions []RecordedAction
+	var actions []driver.RecordedAction
 
 	// Use provided actions or fetch from session
 	if len(cfg.Actions) > 0 {
@@ -358,76 +346,6 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 		NodeCount:      nodeCount,
 		ActionCount:    len(actions),
 	}, nil
-}
-
-// Navigate navigates the session to a URL.
-func (s *Service) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
-	return s.sessions.Client().Navigate(ctx, sessionID, req)
-}
-
-// Reload reloads the current page.
-func (s *Service) Reload(ctx context.Context, sessionID string, req *driver.ReloadRequest) (*driver.ReloadResponse, error) {
-	return s.sessions.Client().Reload(ctx, sessionID, req)
-}
-
-// GoBack navigates back in browser history.
-func (s *Service) GoBack(ctx context.Context, sessionID string, req *driver.GoBackRequest) (*driver.GoBackResponse, error) {
-	return s.sessions.Client().GoBack(ctx, sessionID, req)
-}
-
-// GoForward navigates forward in browser history.
-func (s *Service) GoForward(ctx context.Context, sessionID string, req *driver.GoForwardRequest) (*driver.GoForwardResponse, error) {
-	return s.sessions.Client().GoForward(ctx, sessionID, req)
-}
-
-// GetNavigationState retrieves the current navigation state.
-func (s *Service) GetNavigationState(ctx context.Context, sessionID string) (*driver.NavigationStateResponse, error) {
-	return s.sessions.Client().GetNavigationState(ctx, sessionID)
-}
-
-// GetNavigationStack retrieves the navigation history stack for back/forward popup.
-func (s *Service) GetNavigationStack(ctx context.Context, sessionID string) (*driver.NavigationStackResponse, error) {
-	return s.sessions.Client().GetNavigationStack(ctx, sessionID)
-}
-
-// UpdateViewport updates the viewport dimensions.
-func (s *Service) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*driver.UpdateViewportResponse, error) {
-	return s.sessions.Client().UpdateViewport(ctx, sessionID, &driver.UpdateViewportRequest{
-		Width:  width,
-		Height: height,
-	})
-}
-
-// ValidateSelector validates a selector on the current page.
-func (s *Service) ValidateSelector(ctx context.Context, sessionID, selector string) (*driver.ValidateSelectorResponse, error) {
-	return s.sessions.Client().ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{
-		Selector: selector,
-	})
-}
-
-// ReplayPreview replays recorded actions for testing.
-func (s *Service) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
-	return s.sessions.Client().ReplayPreview(ctx, sessionID, req)
-}
-
-// UpdateStreamSettings updates stream settings for a session.
-func (s *Service) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
-	return s.sessions.Client().UpdateStreamSettings(ctx, sessionID, req)
-}
-
-// CaptureScreenshot captures a screenshot from the current page.
-func (s *Service) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
-	return s.sessions.Client().CaptureScreenshot(ctx, sessionID, req)
-}
-
-// GetFrame retrieves the current frame from the session.
-func (s *Service) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
-	return s.sessions.Client().GetFrame(ctx, sessionID, queryParams)
-}
-
-// ForwardInput forwards pointer/keyboard/wheel events to the driver.
-func (s *Service) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
-	return s.sessions.Client().ForwardInput(ctx, sessionID, body)
 }
 
 // GetSession returns the session by ID.
@@ -506,7 +424,7 @@ func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) 
 }
 
 // AddTimelineAction adds a recorded action to the timeline.
-func (s *Service) AddTimelineAction(sessionID string, action *RecordedAction, pageID uuid.UUID) {
+func (s *Service) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
 	s.timeline.AddAction(sessionID, action, pageID)
 }
 

@@ -189,7 +189,7 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 	if err := h.recordModeService.CloseSession(ctx, sessionID); err != nil {
 		h.log.WithError(err).Error("Failed to close recording session")
 		// Check for not found error
-		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.Status == 404 {
+		if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == 404 {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
 			return
 		}
@@ -255,7 +255,7 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.WithError(err).Error("Failed to start recording")
 		// Check for specific error types
-		if driverErr, ok := err.(*livecapture.DriverError); ok {
+		if driverErr, ok := err.(*driver.Error); ok {
 			if strings.Contains(driverErr.Message, "RECORDING_IN_PROGRESS") {
 				h.respondError(w, ErrConflict.WithMessage("Recording is already in progress for this session"))
 				return
@@ -294,12 +294,12 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.StopRecording(ctx, sessionID)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().StopRecording(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to stop recording")
 		// Check for not found error
-		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.Status == 404 {
+		if driverErr, ok := err.(*driver.Error); ok && driverErr.Status == 404 {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("No recording in progress for this session"))
 			return
 		}
@@ -342,8 +342,8 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	status, err := h.recordModeService.GetRecordingStatus(ctx, sessionID)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	status, err := h.recordModeService.DriverClient().GetRecordingStatus(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recording status")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -425,8 +425,8 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.GetRecordedActions(ctx, sessionID, clearActions)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID, clearActions)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recorded actions")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -563,7 +563,7 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var action livecapture.RecordedAction
+	var action driver.RecordedAction
 	var timelineEntry map[string]any
 
 	if err := json.Unmarshal(body, &action); err == nil && action.ActionType != "" {
@@ -578,7 +578,7 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 			}))
 			return
 		}
-		action = livecapture.RecordedActionFromTimelineEntry(&entry)
+		action = driver.RecordedActionFromTimelineEntry(&entry)
 		timelineEntry = h.convertRecordedActionToTimelineEntry(&action)
 		if timelineEntry == nil {
 			var entryMap map[string]any
@@ -632,10 +632,10 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// convertRecordedActionToTimelineEntry converts a livecapture.RecordedAction to a TimelineEntry proto,
+// convertRecordedActionToTimelineEntry converts a driver.RecordedAction to a TimelineEntry proto,
 // then to a map for JSON serialization over WebSocket.
-func (h *Handler) convertRecordedActionToTimelineEntry(action *livecapture.RecordedAction) map[string]any {
-	// Convert the livecapture.RecordedAction to a unified TimelineEntry proto
+func (h *Handler) convertRecordedActionToTimelineEntry(action *driver.RecordedAction) map[string]any {
+	// Convert the driver.RecordedAction to a unified TimelineEntry proto
 	timelineEntry := events.RecordedActionToTimelineEntry(action)
 	if timelineEntry == nil {
 		return nil
@@ -853,8 +853,10 @@ func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.ValidateSelector(ctx, sessionID, req.Selector)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{
+		Selector: req.Selector,
+	})
 	if err != nil {
 		h.log.WithError(err).Error("Failed to validate selector")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -913,15 +915,15 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Delegate to recordmode service
-	svcReq := &livecapture.ReplayPreviewRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	svcReq := &driver.ReplayPreviewRequest{
 		Actions:       req.Actions,
 		Limit:         req.Limit,
 		StopOnFailure: req.StopOnFailure,
 		ActionTimeout: req.ActionTimeout,
 	}
 
-	resp, err := h.recordModeService.ReplayPreview(ctx, sessionID, svcReq)
+	resp, err := h.recordModeService.DriverClient().ReplayPreview(ctx, sessionID, svcReq)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to replay preview")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1001,8 +1003,8 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.Navigate(ctx, sessionID, &livecapture.NavigateRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().Navigate(ctx, sessionID, &driver.NavigateRequest{
 		URL:       req.URL,
 		WaitUntil: req.WaitUntil,
 		TimeoutMs: req.TimeoutMs,
@@ -1078,8 +1080,8 @@ func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.Reload(ctx, sessionID, &livecapture.ReloadRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().Reload(ctx, sessionID, &driver.ReloadRequest{
 		WaitUntil: req.WaitUntil,
 		TimeoutMs: req.TimeoutMs,
 	})
@@ -1097,7 +1099,7 @@ func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request)
 		activePageID := pages.GetActivePageID()
 
 		now := time.Now()
-		reloadAction := livecapture.RecordedAction{
+		reloadAction := driver.RecordedAction{
 			ID:          uuid.NewString(),
 			SessionID:   sessionID,
 			Timestamp:   now.Format(time.RFC3339Nano),
@@ -1158,8 +1160,8 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.GoBack(ctx, sessionID, &livecapture.GoBackRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GoBack(ctx, sessionID, &driver.GoBackRequest{
 		WaitUntil: req.WaitUntil,
 		TimeoutMs: req.TimeoutMs,
 	})
@@ -1180,7 +1182,7 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
 
 		now := time.Now()
-		goBackAction := livecapture.RecordedAction{
+		goBackAction := driver.RecordedAction{
 			ID:          uuid.NewString(),
 			SessionID:   sessionID,
 			Timestamp:   now.Format(time.RFC3339Nano),
@@ -1252,8 +1254,8 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.GoForward(ctx, sessionID, &livecapture.GoForwardRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GoForward(ctx, sessionID, &driver.GoForwardRequest{
 		WaitUntil: req.WaitUntil,
 		TimeoutMs: req.TimeoutMs,
 	})
@@ -1274,7 +1276,7 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
 
 		now := time.Now()
-		goForwardAction := livecapture.RecordedAction{
+		goForwardAction := driver.RecordedAction{
 			ID:          uuid.NewString(),
 			SessionID:   sessionID,
 			Timestamp:   now.Format(time.RFC3339Nano),
@@ -1338,8 +1340,8 @@ func (h *Handler) GetNavigationState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.GetNavigationState(ctx, sessionID)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GetNavigationState(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get navigation state")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1373,8 +1375,8 @@ func (h *Handler) GetNavigationStack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.GetNavigationStack(ctx, sessionID)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GetNavigationStack(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get navigation stack")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1412,13 +1414,13 @@ func (h *Handler) CaptureRecordingScreenshot(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Delegate to recordmode service
-	svcReq := &livecapture.CaptureScreenshotRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	svcReq := &driver.CaptureScreenshotRequest{
 		Format:  reqBody.Format,
 		Quality: reqBody.Quality,
 	}
 
-	resp, err := h.recordModeService.CaptureScreenshot(ctx, sessionID, svcReq)
+	resp, err := h.recordModeService.DriverClient().CaptureScreenshot(ctx, sessionID, svcReq)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to capture screenshot")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1465,8 +1467,11 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Delegate to recordmode service
-	resp, err := h.recordModeService.UpdateViewport(ctx, sessionID, reqBody.Width, reqBody.Height)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().UpdateViewport(ctx, sessionID, &driver.UpdateViewportRequest{
+		Width:  reqBody.Width,
+		Height: reqBody.Height,
+	})
 	if err != nil {
 		h.log.WithError(err).Error("Failed to update recording viewport")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1512,15 +1517,15 @@ func (h *Handler) UpdateStreamSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service
-	svcReq := &livecapture.UpdateStreamSettingsRequest{
+	// Delegate directly to driver client (no service-layer business logic needed)
+	svcReq := &driver.UpdateStreamSettingsRequest{
 		Quality:  reqBody.Quality,
 		FPS:      reqBody.FPS,
 		Scale:    reqBody.Scale,
 		PerfMode: reqBody.PerfMode,
 	}
 
-	resp, err := h.recordModeService.UpdateStreamSettings(ctx, sessionID, svcReq)
+	resp, err := h.recordModeService.DriverClient().UpdateStreamSettings(ctx, sessionID, svcReq)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to update stream settings")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1581,8 +1586,8 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Delegate to recordmode service
-	err = h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	err = h.recordModeService.DriverClient().ForwardInput(ctx, sessionID, bodyBytes)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to forward recording input")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -1611,8 +1616,8 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to recordmode service, passing query params for filtering
-	resp, err := h.recordModeService.GetFrame(ctx, sessionID, r.URL.RawQuery)
+	// Delegate directly to driver client (no service-layer business logic needed)
+	resp, err := h.recordModeService.DriverClient().GetFrame(ctx, sessionID, r.URL.RawQuery)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get frame")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{

@@ -45,41 +45,38 @@ type replayRenderer interface {
 
 // RecordModeService defines the interface for live recording session management.
 // This interface allows for testing with mock implementations.
+//
+// Design note: Pass-through operations (Navigate, Reload, etc.) are handled directly
+// via DriverClient() to reduce unnecessary indirection. The service layer focuses on
+// operations that require business logic (session lifecycle, recording callbacks, timeline).
 type RecordModeService interface {
+	// DriverClient returns the underlying driver client for direct pass-through operations.
+	// Handlers should use this for operations that don't require service-level business logic.
+	DriverClient() autodriver.ClientInterface
+
+	// Session lifecycle
 	CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error)
 	CloseSession(ctx context.Context, sessionID string) error
 	GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error)
-	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
-	StopRecording(ctx context.Context, sessionID string) (*autodriver.StopRecordingResponse, error)
-	GetRecordingStatus(ctx context.Context, sessionID string) (*autodriver.RecordingStatusResponse, error)
-	GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*autodriver.GetActionsResponse, error)
-	GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error)
-	Navigate(ctx context.Context, sessionID string, req *autodriver.NavigateRequest) (*autodriver.NavigateResponse, error)
-	Reload(ctx context.Context, sessionID string, req *autodriver.ReloadRequest) (*autodriver.ReloadResponse, error)
-	GoBack(ctx context.Context, sessionID string, req *autodriver.GoBackRequest) (*autodriver.GoBackResponse, error)
-	GoForward(ctx context.Context, sessionID string, req *autodriver.GoForwardRequest) (*autodriver.GoForwardResponse, error)
-	GetNavigationState(ctx context.Context, sessionID string) (*autodriver.NavigationStateResponse, error)
-	GetNavigationStack(ctx context.Context, sessionID string) (*autodriver.NavigationStackResponse, error)
-	UpdateViewport(ctx context.Context, sessionID string, width, height int) (*autodriver.UpdateViewportResponse, error)
-	ValidateSelector(ctx context.Context, sessionID, selector string) (*autodriver.ValidateSelectorResponse, error)
-	ReplayPreview(ctx context.Context, sessionID string, req *autodriver.ReplayPreviewRequest) (*autodriver.ReplayPreviewResponse, error)
-	UpdateStreamSettings(ctx context.Context, sessionID string, req *autodriver.UpdateStreamSettingsRequest) (*autodriver.UpdateStreamSettingsResponse, error)
-	CaptureScreenshot(ctx context.Context, sessionID string, req *autodriver.CaptureScreenshotRequest) (*autodriver.CaptureScreenshotResponse, error)
-	GetFrame(ctx context.Context, sessionID, queryParams string) (*autodriver.GetFrameResponse, error)
-	ForwardInput(ctx context.Context, sessionID string, body []byte) error
 
-	// Multi-page support
+	// Recording lifecycle (has business logic for callback URL construction)
+	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
+
+	// Workflow generation (has business logic for action conversion)
+	GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error)
+
+	// Multi-page support (has business logic for page tracking)
 	GetSession(sessionID string) (*autosession.Session, bool)
 	GetPages(sessionID string) (*livecapture.PageListResult, error)
 	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
 	CreatePage(ctx context.Context, sessionID string, url string) (*autodriver.CreatePageResponse, error)
 
-	// Timeline support
-	AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID)
+	// Timeline support (has business logic for timeline management)
+	AddTimelineAction(sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID)
 	AddTimelinePageEvent(sessionID string, event *domain.PageEvent)
 	GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error)
 
-	// Service worker management
+	// Service worker management (requires session lookup)
 	GetServiceWorkers(ctx context.Context, sessionID string) (*autodriver.GetServiceWorkersResponse, error)
 	UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*autodriver.UnregisterServiceWorkersResponse, error)
 	UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*autodriver.UnregisterServiceWorkerResponse, error)

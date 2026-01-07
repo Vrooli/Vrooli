@@ -6,28 +6,35 @@
  *
  * Features:
  * - Coordinate mapping from screen space to viewport space
+ * - HiDPI-aware mapping (frame dimensions vs viewport dimensions)
  * - WebSocket-based input delivery (low latency)
  * - HTTP fallback when WebSocket unavailable
  * - Move event throttling (16ms ~60fps for smooth cursor tracking)
  * - Multi-tab support via pageId
  *
- * IMPORTANT: Viewport dimensions must be provided for accurate coordinate mapping.
+ * IMPORTANT: Both viewport AND frame dimensions should be provided for accurate
+ * coordinate mapping on HiDPI displays. The frame dimensions determine how the
+ * image is displayed (object-contain), while viewport dimensions are the output
+ * coordinate space for Playwright.
+ *
  * If viewport is null/undefined, pointer events will NOT be forwarded to prevent
- * incorrect cursor positions. This can happen briefly on initial render before
- * the ResizeObserver fires.
+ * incorrect cursor positions.
  */
 
 import React, { useCallback, useRef } from 'react';
 import { getConfig } from '@/config';
 import { useWebSocket } from '@/contexts/WebSocketContext';
-import { mapClientToViewport, type Rect } from '../utils/coordinateMapping';
+import { mapClientToViewportWithFrame, type Rect } from '../utils/coordinateMapping';
 
 type PointerAction = 'move' | 'down' | 'up' | 'click';
 
 export interface UseInputForwardingOptions {
   sessionId: string | null;
   pageId?: string;
+  /** Viewport dimensions (what Playwright uses - output coordinate space) */
   viewport?: { width: number; height: number } | null;
+  /** Frame dimensions (bitmap size - for display calculation on HiDPI) */
+  frameDimensions?: { width: number; height: number } | null;
   onError?: (message: string) => void;
 }
 
@@ -38,12 +45,14 @@ export interface UseInputForwardingResult {
    * @param e - The React pointer event
    * @param canvasRect - The bounding rect of the canvas element
    * @param hasFrame - Whether a frame has been received
+   * @param canvasInternalDimensions - Optional canvas internal dimensions (more reliable than state)
    */
   handlePointer: (
     action: PointerAction,
     e: React.PointerEvent<HTMLElement>,
     canvasRect: Rect | null,
-    hasFrame: boolean
+    hasFrame: boolean,
+    canvasInternalDimensions?: { width: number; height: number }
   ) => void;
 
   /**
@@ -75,6 +84,7 @@ export function useInputForwarding({
   sessionId,
   pageId,
   viewport,
+  frameDimensions,
   onError,
 }: UseInputForwardingOptions): UseInputForwardingResult {
   const lastMoveRef = useRef(0);
@@ -130,16 +140,45 @@ export function useInputForwarding({
 
   /**
    * Get scaled point from client coordinates to viewport coordinates.
+   *
+   * Uses frame dimensions for display calculation (how the image is shown with object-contain)
+   * and viewport dimensions for the output coordinate space (what Playwright uses).
+   *
+   * This correctly handles HiDPI displays where frame dimensions differ from viewport.
+   *
+   * @param clientX - X coordinate from pointer event
+   * @param clientY - Y coordinate from pointer event
+   * @param canvasRect - Bounding rect of the canvas element
+   * @param overrideFrameDimensions - Optional frame dimensions (when passed directly from canvas element)
    */
-  const getScaledPoint = useCallback(
-    (clientX: number, clientY: number, canvasRect: Rect | null, fallbackDims?: { width: number; height: number }) => {
-      const targetWidth = viewport?.width || fallbackDims?.width;
-      const targetHeight = viewport?.height || fallbackDims?.height;
-      if (!canvasRect || !targetWidth || !targetHeight) return { x: 0, y: 0 };
+  const getScaledPointWithDimensions = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      canvasRect: Rect | null,
+      overrideFrameDimensions?: { width: number; height: number } | null
+    ) => {
+      const viewportWidth = viewport?.width;
+      const viewportHeight = viewport?.height;
+      // Use override dimensions if provided, otherwise fall back to state, then to viewport
+      const frameWidth = overrideFrameDimensions?.width ?? frameDimensions?.width ?? viewportWidth;
+      const frameHeight = overrideFrameDimensions?.height ?? frameDimensions?.height ?? viewportHeight;
 
-      return mapClientToViewport(clientX, clientY, canvasRect, targetWidth, targetHeight);
+      if (!canvasRect || !viewportWidth || !viewportHeight || !frameWidth || !frameHeight) {
+        return { x: 0, y: 0 };
+      }
+
+      return mapClientToViewportWithFrame(
+        clientX,
+        clientY,
+        canvasRect,
+        frameWidth,
+        frameHeight,
+        viewportWidth,
+        viewportHeight
+      );
     },
-    [viewport?.height, viewport?.width]
+    [viewport?.width, viewport?.height, frameDimensions?.width, frameDimensions?.height]
   );
 
   const handlePointer = useCallback(
@@ -147,7 +186,8 @@ export function useInputForwarding({
       action: PointerAction,
       e: React.PointerEvent<HTMLElement>,
       canvasRect: Rect | null,
-      hasFrame: boolean
+      hasFrame: boolean,
+      canvasInternalDimensions?: { width: number; height: number }
     ) => {
       if (!hasFrame) return;
 
@@ -166,7 +206,15 @@ export function useInputForwarding({
         lastMoveRef.current = now;
       }
 
-      const point = getScaledPoint(e.clientX, e.clientY, canvasRect);
+      // Use canvas internal dimensions if provided (more reliable than state),
+      // otherwise fall back to frameDimensions state
+      const effectiveFrameDimensions = canvasInternalDimensions ?? frameDimensions;
+      const point = getScaledPointWithDimensions(
+        e.clientX,
+        e.clientY,
+        canvasRect,
+        effectiveFrameDimensions
+      );
       const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
 
       void sendInput({
@@ -180,7 +228,7 @@ export function useInputForwarding({
       e.preventDefault();
       e.stopPropagation();
     },
-    [getScaledPoint, sendInput, viewport?.width, viewport?.height]
+    [getScaledPointWithDimensions, sendInput, viewport?.width, viewport?.height, frameDimensions]
   );
 
   const handleWheel = useCallback(

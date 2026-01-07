@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapClientToViewport, type Rect } from './coordinateMapping';
+import { mapClientToViewport, mapClientToViewportWithFrame, type Rect } from './coordinateMapping';
 
 describe('mapClientToViewport', () => {
   /**
@@ -458,6 +458,252 @@ describe('mapClientToViewport', () => {
       const bottomRight = mapClientToViewport(1000, 800, container, 900, 700);
       expect(bottomRight.x).toBeCloseTo(900);
       expect(bottomRight.y).toBeCloseTo(700);
+    });
+  });
+});
+
+/**
+ * Tests for mapClientToViewportWithFrame - the recommended function for HiDPI support.
+ *
+ * This function correctly handles the case where the frame bitmap dimensions
+ * differ from the logical viewport dimensions (e.g., on HiDPI displays where
+ * the bitmap is captured at devicePixelRatio).
+ */
+describe('mapClientToViewportWithFrame', () => {
+  /**
+   * HiDPI display scenarios where frame dimensions are 2x viewport dimensions.
+   */
+  describe('HiDPI display (2x device pixel ratio)', () => {
+    it('correctly maps center click with 2x DPR frame', () => {
+      // Container: 900x700 (CSS box)
+      // Frame: 1800x1400 (2x DPR bitmap)
+      // Viewport: 900x700 (logical)
+      const container: Rect = { left: 0, top: 0, width: 900, height: 700 };
+
+      // Click at center of container
+      const point = mapClientToViewportWithFrame(450, 350, container, 1800, 1400, 900, 700);
+
+      // Should map to center of viewport (450, 350)
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('correctly maps corner clicks with 2x DPR frame', () => {
+      const container: Rect = { left: 0, top: 0, width: 900, height: 700 };
+
+      // Top-left corner
+      const topLeft = mapClientToViewportWithFrame(0, 0, container, 1800, 1400, 900, 700);
+      expect(topLeft.x).toBeCloseTo(0);
+      expect(topLeft.y).toBeCloseTo(0);
+
+      // Bottom-right corner
+      const bottomRight = mapClientToViewportWithFrame(900, 700, container, 1800, 1400, 900, 700);
+      expect(bottomRight.x).toBeCloseTo(900);
+      expect(bottomRight.y).toBeCloseTo(700);
+    });
+
+    it('correctly maps with container offset and 2x DPR frame', () => {
+      // Container positioned at (100, 50) with sidebar
+      const container: Rect = { left: 100, top: 50, width: 900, height: 700 };
+
+      // Click at document position (550, 400) = center of container
+      const point = mapClientToViewportWithFrame(550, 400, container, 1800, 1400, 900, 700);
+
+      // Should map to center of viewport
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+  });
+
+  /**
+   * HiDPI with letterboxing scenarios.
+   */
+  describe('HiDPI with letterboxing', () => {
+    it('handles 2x DPR frame in wider container (horizontal letterbox)', () => {
+      // Container: 1200x700 (wider than frame aspect ratio)
+      // Frame: 1800x1400 (2x DPR, aspect 1.286)
+      // Container aspect: 1200/700 = 1.714
+      // Frame aspect: 1800/1400 = 1.286
+      // Scale by height: 700/1400 = 0.5
+      // Displayed frame: 1800*0.5 x 1400*0.5 = 900x700
+      // Horizontal offset: (1200 - 900) / 2 = 150
+      const container: Rect = { left: 0, top: 0, width: 1200, height: 700 };
+
+      // Click at center of container (600, 350)
+      const point = mapClientToViewportWithFrame(600, 350, container, 1800, 1400, 900, 700);
+
+      // Should map to center of viewport (450, 350)
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('handles 2x DPR frame in taller container (vertical letterbox)', () => {
+      // Container: 900x900 (taller than frame aspect ratio)
+      // Frame: 1800x1400 (2x DPR)
+      // Scale by width: 900/1800 = 0.5
+      // Displayed frame: 900x700
+      // Vertical offset: (900 - 700) / 2 = 100
+      const container: Rect = { left: 0, top: 0, width: 900, height: 900 };
+
+      // Click at center of container (450, 450)
+      const point = mapClientToViewportWithFrame(450, 450, container, 1800, 1400, 900, 700);
+
+      // Should map to center of viewport (450, 350)
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('clamps clicks in letterbox area with HiDPI frame', () => {
+      // Container: 1200x700 with 150px letterbox on each side
+      const container: Rect = { left: 0, top: 0, width: 1200, height: 700 };
+
+      // Click in left letterbox area (x=50)
+      const point = mapClientToViewportWithFrame(50, 350, container, 1800, 1400, 900, 700);
+
+      // Should clamp to left edge
+      expect(point.x).toBe(0);
+      expect(point.y).toBeCloseTo(350);
+    });
+  });
+
+  /**
+   * Non-standard DPR scenarios (1.5x, 3x, etc.)
+   */
+  describe('non-standard device pixel ratios', () => {
+    it('handles 1.5x DPR frame', () => {
+      // Container: 900x700
+      // Frame: 1350x1050 (1.5x DPR)
+      // Viewport: 900x700
+      const container: Rect = { left: 0, top: 0, width: 900, height: 700 };
+
+      const point = mapClientToViewportWithFrame(450, 350, container, 1350, 1050, 900, 700);
+
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('handles 3x DPR frame (iPhone X)', () => {
+      // Container: 375x812 (iPhone X viewport scaled down)
+      // Frame: 1125x2436 (3x DPR)
+      // Viewport: 375x812
+      const container: Rect = { left: 0, top: 0, width: 375, height: 812 };
+
+      // Click at center
+      const point = mapClientToViewportWithFrame(187.5, 406, container, 1125, 2436, 375, 812);
+
+      expect(point.x).toBeCloseTo(187.5);
+      expect(point.y).toBeCloseTo(406);
+    });
+  });
+
+  /**
+   * Frame dimensions matching viewport (1x DPR fallback).
+   */
+  describe('1x DPR (frame matches viewport)', () => {
+    it('behaves identically to mapClientToViewport when frame equals viewport', () => {
+      const container: Rect = { left: 0, top: 0, width: 900, height: 700 };
+
+      const newFn = mapClientToViewportWithFrame(450, 350, container, 900, 700, 900, 700);
+      const oldFn = mapClientToViewport(450, 350, container, 900, 700);
+
+      expect(newFn.x).toBeCloseTo(oldFn.x);
+      expect(newFn.y).toBeCloseTo(oldFn.y);
+    });
+
+    it('handles letterboxing identically to deprecated function', () => {
+      const container: Rect = { left: 0, top: 0, width: 1200, height: 700 };
+
+      const newFn = mapClientToViewportWithFrame(600, 350, container, 900, 700, 900, 700);
+      const oldFn = mapClientToViewport(600, 350, container, 900, 700);
+
+      expect(newFn.x).toBeCloseTo(oldFn.x);
+      expect(newFn.y).toBeCloseTo(oldFn.y);
+    });
+  });
+
+  /**
+   * Edge cases specific to frame/viewport mismatch.
+   */
+  describe('frame/viewport edge cases', () => {
+    it('handles frame smaller than viewport (scaled up display)', () => {
+      // Frame captured at lower resolution than viewport
+      // This could happen with quality settings
+      // Frame: 450x350 (half resolution)
+      // Viewport: 900x700 (full logical)
+      const container: Rect = { left: 0, top: 0, width: 900, height: 700 };
+
+      const point = mapClientToViewportWithFrame(450, 350, container, 450, 350, 900, 700);
+
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('handles mismatched aspect ratios between frame and viewport', () => {
+      // Frame: 1600x1200 (4:3 aspect)
+      // Viewport: 900x700 (slightly different aspect)
+      // Container: 800x600
+      const container: Rect = { left: 0, top: 0, width: 800, height: 600 };
+
+      // Click at center
+      const point = mapClientToViewportWithFrame(400, 300, container, 1600, 1200, 900, 700);
+
+      // Should map to center of viewport
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+  });
+
+  /**
+   * Real-world recording scenarios with HiDPI.
+   */
+  describe('real-world HiDPI scenarios', () => {
+    it('handles MacBook Pro 2x display in typical layout', () => {
+      // Common scenario: sidebar (300px) + preview (variable)
+      // Container: 900x700 positioned at (300, 60) with header
+      // Frame: 1800x1400 (2x DPR from MacBook Pro)
+      // Viewport: 900x700
+      const container: Rect = { left: 300, top: 60, width: 900, height: 700 };
+
+      // Click at document position (750, 410) = center of preview
+      const point = mapClientToViewportWithFrame(750, 410, container, 1800, 1400, 900, 700);
+
+      expect(point.x).toBeCloseTo(450);
+      expect(point.y).toBeCloseTo(350);
+    });
+
+    it('handles 4K monitor with 2x scaling', () => {
+      // 4K monitor at 2x scaling
+      // Container takes up 1920x1080 (half of 4K)
+      // Frame: 3840x2160 (actual 4K pixels)
+      // Viewport: 1920x1080 (logical at 2x)
+      const container: Rect = { left: 0, top: 0, width: 1920, height: 1080 };
+
+      // Click at center
+      const point = mapClientToViewportWithFrame(960, 540, container, 3840, 2160, 1920, 1080);
+
+      expect(point.x).toBeCloseTo(960);
+      expect(point.y).toBeCloseTo(540);
+    });
+
+    it('handles mobile emulation with desktop 2x display', () => {
+      // Emulating iPhone viewport on desktop
+      // Container: 500x800 (mobile-like proportions in sidebar)
+      // Frame: 750x1334 (iPhone 6 at 2x, but resized to fit)
+      // Viewport: 375x667 (iPhone 6 logical)
+      const container: Rect = { left: 200, top: 50, width: 500, height: 800 };
+
+      // The frame aspect ratio (750/1334 = 0.562) determines letterboxing
+      // Container aspect: 500/800 = 0.625 (wider than frame)
+      // Scale by height: 800/1334 = 0.599
+      // Displayed frame: 750*0.599 x 1334*0.599 = 449.5x799.3
+      // Horizontal offset: (500 - 449.5) / 2 = 25.25
+
+      // Click at center of container (450, 450)
+      const point = mapClientToViewportWithFrame(450, 450, container, 750, 1334, 375, 667);
+
+      // Should map to center of viewport
+      expect(point.x).toBeCloseTo(187.5, 0);
+      expect(point.y).toBeCloseTo(333.5, 0);
     });
   });
 });

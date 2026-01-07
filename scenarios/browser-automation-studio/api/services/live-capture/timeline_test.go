@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
@@ -13,7 +14,7 @@ func TestTimelineService_AddAction(t *testing.T) {
 	sessionID := "test-session-123"
 	pageID := uuid.New()
 
-	action := &RecordedAction{
+	action := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "click",
 		URL:         "https://example.com",
@@ -85,7 +86,7 @@ func TestTimelineService_ChronologicalOrdering(t *testing.T) {
 	now := time.Now()
 
 	// Add action at T+2
-	action2 := &RecordedAction{
+	action2 := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "type",
 		SequenceNum: 2,
@@ -103,7 +104,7 @@ func TestTimelineService_ChronologicalOrdering(t *testing.T) {
 	svc.AddPageEvent(sessionID, pageEvent)
 
 	// Add action at T+0
-	action1 := &RecordedAction{
+	action1 := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "click",
 		SequenceNum: 1,
@@ -147,7 +148,7 @@ func TestTimelineService_FilterByPage(t *testing.T) {
 	page2 := uuid.New()
 
 	// Add actions to different pages
-	action1 := &RecordedAction{
+	action1 := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "click",
 		SequenceNum: 1,
@@ -155,7 +156,7 @@ func TestTimelineService_FilterByPage(t *testing.T) {
 	}
 	svc.AddAction(sessionID, action1, page1)
 
-	action2 := &RecordedAction{
+	action2 := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "type",
 		SequenceNum: 2,
@@ -163,7 +164,7 @@ func TestTimelineService_FilterByPage(t *testing.T) {
 	}
 	svc.AddAction(sessionID, action2, page2)
 
-	action3 := &RecordedAction{
+	action3 := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "scroll",
 		SequenceNum: 3,
@@ -197,7 +198,7 @@ func TestTimelineService_Pagination(t *testing.T) {
 
 	// Add 10 entries
 	for i := 0; i < 10; i++ {
-		action := &RecordedAction{
+		action := &driver.RecordedAction{
 			ID:          uuid.NewString(),
 			ActionType:  "click",
 			SequenceNum: i + 1,
@@ -236,7 +237,7 @@ func TestTimelineService_GetTimelineCount(t *testing.T) {
 
 	// Add some entries
 	for i := 0; i < 5; i++ {
-		action := &RecordedAction{
+		action := &driver.RecordedAction{
 			ID:          uuid.NewString(),
 			ActionType:  "click",
 			SequenceNum: i + 1,
@@ -256,7 +257,7 @@ func TestTimelineService_ClearSession(t *testing.T) {
 	pageID := uuid.New()
 
 	// Add some entries
-	action := &RecordedAction{
+	action := &driver.RecordedAction{
 		ID:          uuid.NewString(),
 		ActionType:  "click",
 		SequenceNum: 1,

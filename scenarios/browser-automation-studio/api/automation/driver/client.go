@@ -47,6 +47,42 @@ type HTTPDoer interface {
 // Compile-time interface enforcement
 var _ HTTPDoer = (*http.Client)(nil)
 
+// ClientInterface defines the subset of Client methods used by handlers.
+// This interface enables testing with mock implementations while allowing
+// handlers to call driver methods directly without service-layer indirection.
+type ClientInterface interface {
+	// Recording operations
+	StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error)
+	GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error)
+
+	// Navigation operations
+	Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error)
+	Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error)
+	GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error)
+	GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error)
+	GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error)
+	GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error)
+
+	// Viewport and stream operations
+	UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
+	UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
+
+	// Selector and replay operations
+	ValidateSelector(ctx context.Context, sessionID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error)
+	ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error)
+
+	// Screenshot and frame operations
+	CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
+	GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error)
+
+	// Input forwarding
+	ForwardInput(ctx context.Context, sessionID string, body []byte) error
+}
+
+// Compile-time interface enforcement for ClientInterface
+var _ ClientInterface = (*Client)(nil)
+
 // Client provides unified HTTP communication with the playwright-driver.
 // It supports both recording mode and execution mode operations.
 type Client struct {

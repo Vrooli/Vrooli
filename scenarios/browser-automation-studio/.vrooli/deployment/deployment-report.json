@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2026-01-05T15:15:28.398707297Z",
+  "generated_at": "2026-01-07T03:28:41.104221236Z",
   "dependencies": [
     {
       "name": "minio",
@@ -305,7 +305,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2026-01-05T15:15:28.398707297Z",
+    "generated_at": "2026-01-07T03:28:41.104221236Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -591,7 +591,7 @@
             "retries": 5
           },
           "readiness": {
-            "type": "port_open",
+            "type": "health_success",
             "port_name": "api",
             "timeout_ms": 30000
           }
@@ -629,7 +629,7 @@
           },
           "health": {
             "type": "http",
-            "path": "/",
+            "path": "/health",
             "port_name": "ui",
             "interval_ms": 2000,
             "timeout_ms": 10000,

@@ -900,6 +900,355 @@ func (m *MockStorage) GetBucketName() string {
 }
 
 // ============================================================================
+// Mock DriverClient (implements driver.ClientInterface)
+// ============================================================================
+
+// MockDriverClient is a test mock for driver.ClientInterface.
+// It provides configurable responses and error injection for testing handlers.
+type MockDriverClient struct {
+	mu sync.RWMutex
+
+	// Error injection
+	StopRecordingError        error
+	GetRecordingStatusError   error
+	GetRecordedActionsError   error
+	NavigateError             error
+	ReloadError               error
+	GoBackError               error
+	GoForwardError            error
+	GetNavigationStateError   error
+	GetNavigationStackError   error
+	UpdateViewportError       error
+	UpdateStreamSettingsError error
+	ValidateSelectorError     error
+	ReplayPreviewError        error
+	CaptureScreenshotError    error
+	GetFrameError             error
+	ForwardInputError         error
+
+	// Response overrides
+	StopRecordingResponse   *driver.StopRecordingResponse
+	RecordingStatusResponse *driver.RecordingStatusResponse
+	RecordedActionsResponse *driver.GetActionsResponse
+	NavigateResponse        *driver.NavigateResponse
+	ReloadResponse          *driver.ReloadResponse
+	GoBackResponse          *driver.GoBackResponse
+	GoForwardResponse       *driver.GoForwardResponse
+	NavigationStateResponse *driver.NavigationStateResponse
+	NavigationStackResponse *driver.NavigationStackResponse
+	UpdateViewportResponse  *driver.UpdateViewportResponse
+	StreamSettingsResponse  *driver.UpdateStreamSettingsResponse
+	ValidateSelectorResponse *driver.ValidateSelectorResponse
+	ReplayPreviewResponse   *driver.ReplayPreviewResponse
+	ScreenshotResponse      *driver.CaptureScreenshotResponse
+	FrameResponse           *driver.GetFrameResponse
+
+	// Call tracking
+	StopRecordingCalled      bool
+	GetRecordedActionsCalled bool
+	ForwardInputCalled       bool
+	LastSessionID            string
+	LastForwardInputBody     []byte
+}
+
+// NewMockDriverClient creates a new MockDriverClient.
+func NewMockDriverClient() *MockDriverClient {
+	return &MockDriverClient{}
+}
+
+func (m *MockDriverClient) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StopRecordingCalled = true
+	m.LastSessionID = sessionID
+
+	if m.StopRecordingError != nil {
+		return nil, m.StopRecordingError
+	}
+	if m.StopRecordingResponse != nil {
+		return m.StopRecordingResponse, nil
+	}
+	return &driver.StopRecordingResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		ActionCount: 5,
+		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetRecordingStatusError != nil {
+		return nil, m.GetRecordingStatusError
+	}
+	if m.RecordingStatusResponse != nil {
+		return m.RecordingStatusResponse, nil
+	}
+	return &driver.RecordingStatusResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		ActionCount: 0,
+		FrameCount:  0,
+	}, nil
+}
+
+func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.GetRecordedActionsCalled = true
+	m.LastSessionID = sessionID
+
+	if m.GetRecordedActionsError != nil {
+		return nil, m.GetRecordedActionsError
+	}
+	if m.RecordedActionsResponse != nil {
+		return m.RecordedActionsResponse, nil
+	}
+	return &driver.GetActionsResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		Actions:     []driver.RecordedAction{},
+	}, nil
+}
+
+func (m *MockDriverClient) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.NavigateError != nil {
+		return nil, m.NavigateError
+	}
+	if m.NavigateResponse != nil {
+		return m.NavigateResponse, nil
+	}
+	return &driver.NavigateResponse{
+		URL:        req.URL,
+		Title:      "Test Page",
+		StatusCode: 200,
+	}, nil
+}
+
+func (m *MockDriverClient) Reload(ctx context.Context, sessionID string, req *driver.ReloadRequest) (*driver.ReloadResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ReloadError != nil {
+		return nil, m.ReloadError
+	}
+	if m.ReloadResponse != nil {
+		return m.ReloadResponse, nil
+	}
+	return &driver.ReloadResponse{
+		SessionID: sessionID,
+		URL:       "https://example.com",
+		Title:     "Reloaded Page",
+	}, nil
+}
+
+func (m *MockDriverClient) GoBack(ctx context.Context, sessionID string, req *driver.GoBackRequest) (*driver.GoBackResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GoBackError != nil {
+		return nil, m.GoBackError
+	}
+	if m.GoBackResponse != nil {
+		return m.GoBackResponse, nil
+	}
+	return &driver.GoBackResponse{
+		SessionID: sessionID,
+		URL:       "https://example.com/previous",
+		Title:     "Previous Page",
+	}, nil
+}
+
+func (m *MockDriverClient) GoForward(ctx context.Context, sessionID string, req *driver.GoForwardRequest) (*driver.GoForwardResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GoForwardError != nil {
+		return nil, m.GoForwardError
+	}
+	if m.GoForwardResponse != nil {
+		return m.GoForwardResponse, nil
+	}
+	return &driver.GoForwardResponse{
+		SessionID: sessionID,
+		URL:       "https://example.com/next",
+		Title:     "Next Page",
+	}, nil
+}
+
+func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID string) (*driver.NavigationStateResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetNavigationStateError != nil {
+		return nil, m.GetNavigationStateError
+	}
+	if m.NavigationStateResponse != nil {
+		return m.NavigationStateResponse, nil
+	}
+	return &driver.NavigationStateResponse{
+		URL:          "https://example.com",
+		Title:        "Test Page",
+		CanGoBack:    false,
+		CanGoForward: false,
+	}, nil
+}
+
+func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID string) (*driver.NavigationStackResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetNavigationStackError != nil {
+		return nil, m.GetNavigationStackError
+	}
+	if m.NavigationStackResponse != nil {
+		return m.NavigationStackResponse, nil
+	}
+	return &driver.NavigationStackResponse{
+		SessionID:    sessionID,
+		BackStack:    []driver.NavigationStackEntry{},
+		ForwardStack: []driver.NavigationStackEntry{},
+	}, nil
+}
+
+func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateViewportError != nil {
+		return nil, m.UpdateViewportError
+	}
+	if m.UpdateViewportResponse != nil {
+		return m.UpdateViewportResponse, nil
+	}
+	return &driver.UpdateViewportResponse{
+		SessionID: sessionID,
+		Width:     req.Width,
+		Height:    req.Height,
+	}, nil
+}
+
+func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateStreamSettingsError != nil {
+		return nil, m.UpdateStreamSettingsError
+	}
+	if m.StreamSettingsResponse != nil {
+		return m.StreamSettingsResponse, nil
+	}
+
+	quality := 55
+	if req.Quality != nil {
+		quality = *req.Quality
+	}
+	fps := 6
+	if req.FPS != nil {
+		fps = *req.FPS
+	}
+
+	return &driver.UpdateStreamSettingsResponse{
+		SessionID:   sessionID,
+		Quality:     quality,
+		FPS:         fps,
+		CurrentFPS:  fps,
+		Scale:       req.Scale,
+		IsStreaming: true,
+		Updated:     true,
+	}, nil
+}
+
+func (m *MockDriverClient) ValidateSelector(ctx context.Context, sessionID string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ValidateSelectorError != nil {
+		return nil, m.ValidateSelectorError
+	}
+	if m.ValidateSelectorResponse != nil {
+		return m.ValidateSelectorResponse, nil
+	}
+	return &driver.ValidateSelectorResponse{
+		Valid:      true,
+		MatchCount: 1,
+		Selector:   req.Selector,
+	}, nil
+}
+
+func (m *MockDriverClient) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ReplayPreviewError != nil {
+		return nil, m.ReplayPreviewError
+	}
+	if m.ReplayPreviewResponse != nil {
+		return m.ReplayPreviewResponse, nil
+	}
+	return &driver.ReplayPreviewResponse{
+		Success:         true,
+		PassedActions:   len(req.Actions),
+		FailedActions:   0,
+		Results:         []driver.ActionResult{},
+		TotalDurationMs: 100,
+	}, nil
+}
+
+func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.CaptureScreenshotError != nil {
+		return nil, m.CaptureScreenshotError
+	}
+	if m.ScreenshotResponse != nil {
+		return m.ScreenshotResponse, nil
+	}
+	return &driver.CaptureScreenshotResponse{
+		Data: "base64-screenshot-data",
+	}, nil
+}
+
+func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetFrameError != nil {
+		return nil, m.GetFrameError
+	}
+	if m.FrameResponse != nil {
+		return m.FrameResponse, nil
+	}
+	return &driver.GetFrameResponse{
+		Data:        "base64-frame-data",
+		MediaType:   "image/jpeg",
+		Width:       1920,
+		Height:      1080,
+		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
+		ContentHash: "abc123",
+	}, nil
+}
+
+func (m *MockDriverClient) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ForwardInputCalled = true
+	m.LastSessionID = sessionID
+	m.LastForwardInputBody = body
+
+	return m.ForwardInputError
+}
+
+// Compile-time interface check
+var _ driver.ClientInterface = (*MockDriverClient)(nil)
+
+// ============================================================================
 // Mock RecordModeService
 // ============================================================================
 
@@ -911,49 +1260,43 @@ type MockRecordModeService struct {
 	// Session tracking
 	Sessions map[string]*livecapture.SessionResult
 
-	// Error injection
-	CreateSessionError        error
-	CloseSessionError         error
-	GetStorageStateError      error
-	StartRecordingError       error
-	StopRecordingError        error
-	GetRecordingStatusError   error
-	GetRecordedActionsError   error
-	GenerateWorkflowError     error
-	NavigateError             error
-	UpdateViewportError       error
-	ValidateSelectorError     error
-	ReplayPreviewError        error
-	UpdateStreamSettingsError error
-	CaptureScreenshotError    error
-	GetFrameError             error
-	ForwardInputError         error
+	// Mock driver client for pass-through operations
+	mockDriverClient *MockDriverClient
+
+	// Error injection for service-level operations
+	CreateSessionError   error
+	CloseSessionError    error
+	GetStorageStateError error
+	StartRecordingError  error
+	GenerateWorkflowError error
 
 	// Response overrides
-	RecordingStatus   *driver.RecordingStatusResponse
-	RecordedActions   *driver.GetActionsResponse
 	GeneratedWorkflow *livecapture.GenerateWorkflowResult
-	NavigateResponse  *driver.NavigateResponse
-	FrameResponse     *driver.GetFrameResponse
-	ScreenshotResponse *driver.CaptureScreenshotResponse
 	StorageState      json.RawMessage
 
 	// Call tracking
-	CreateSessionCalled        bool
-	CloseSessionCalled         bool
-	StartRecordingCalled       bool
-	StopRecordingCalled        bool
-	GetRecordedActionsCalled   bool
-	GenerateWorkflowCalled     bool
-	ForwardInputCalled         bool
-	LastSessionID              string
-	LastForwardInputBody       []byte
+	CreateSessionCalled      bool
+	CloseSessionCalled       bool
+	StartRecordingCalled     bool
+	GenerateWorkflowCalled   bool
+	LastSessionID            string
 }
 
 func NewMockRecordModeService() *MockRecordModeService {
 	return &MockRecordModeService{
-		Sessions: make(map[string]*livecapture.SessionResult),
+		Sessions:         make(map[string]*livecapture.SessionResult),
+		mockDriverClient: NewMockDriverClient(),
 	}
+}
+
+// DriverClient returns the mock driver client for testing.
+func (m *MockRecordModeService) DriverClient() driver.ClientInterface {
+	return m.mockDriverClient
+}
+
+// MockClient provides direct access to the mock driver client for test configuration.
+func (m *MockRecordModeService) MockClient() *MockDriverClient {
+	return m.mockDriverClient
 }
 
 func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
@@ -1020,65 +1363,6 @@ func (m *MockRecordModeService) StartRecording(ctx context.Context, sessionID st
 	}, nil
 }
 
-func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.StopRecordingCalled = true
-	m.LastSessionID = sessionID
-
-	if m.StopRecordingError != nil {
-		return nil, m.StopRecordingError
-	}
-
-	return &driver.StopRecordingResponse{
-		SessionID:   sessionID,
-		IsRecording: false,
-		ActionCount: 5,
-		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
-	}, nil
-}
-
-func (m *MockRecordModeService) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GetRecordingStatusError != nil {
-		return nil, m.GetRecordingStatusError
-	}
-
-	if m.RecordingStatus != nil {
-		return m.RecordingStatus, nil
-	}
-
-	return &driver.RecordingStatusResponse{
-		SessionID:   sessionID,
-		IsRecording: false,
-		ActionCount: 0,
-		FrameCount:  0,
-	}, nil
-}
-
-func (m *MockRecordModeService) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.GetRecordedActionsCalled = true
-	m.LastSessionID = sessionID
-
-	if m.GetRecordedActionsError != nil {
-		return nil, m.GetRecordedActionsError
-	}
-
-	if m.RecordedActions != nil {
-		return m.RecordedActions, nil
-	}
-
-	return &driver.GetActionsResponse{
-		SessionID:   sessionID,
-		IsRecording: false,
-		Actions:     []driver.RecordedAction{},
-	}, nil
-}
-
 func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1103,149 +1387,6 @@ func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID 
 	}, nil
 }
 
-func (m *MockRecordModeService) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.NavigateError != nil {
-		return nil, m.NavigateError
-	}
-
-	if m.NavigateResponse != nil {
-		return m.NavigateResponse, nil
-	}
-
-	return &driver.NavigateResponse{
-		URL:        req.URL,
-		Title:      "Test Page",
-		StatusCode: 200,
-	}, nil
-}
-
-func (m *MockRecordModeService) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*driver.UpdateViewportResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.UpdateViewportError != nil {
-		return nil, m.UpdateViewportError
-	}
-
-	return &driver.UpdateViewportResponse{
-		SessionID: sessionID,
-		Width:     width,
-		Height:    height,
-	}, nil
-}
-
-func (m *MockRecordModeService) ValidateSelector(ctx context.Context, sessionID, selector string) (*driver.ValidateSelectorResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.ValidateSelectorError != nil {
-		return nil, m.ValidateSelectorError
-	}
-
-	return &driver.ValidateSelectorResponse{
-		Valid:      true,
-		MatchCount: 1,
-		Selector:   selector,
-	}, nil
-}
-
-func (m *MockRecordModeService) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.ReplayPreviewError != nil {
-		return nil, m.ReplayPreviewError
-	}
-
-	return &driver.ReplayPreviewResponse{
-		Success:         true,
-		PassedActions:   len(req.Actions),
-		FailedActions:   0,
-		Results:         []driver.ActionResult{},
-		TotalDurationMs: 100,
-	}, nil
-}
-
-func (m *MockRecordModeService) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.UpdateStreamSettingsError != nil {
-		return nil, m.UpdateStreamSettingsError
-	}
-
-	quality := 55
-	if req.Quality != nil {
-		quality = *req.Quality
-	}
-	fps := 6
-	if req.FPS != nil {
-		fps = *req.FPS
-	}
-
-	return &driver.UpdateStreamSettingsResponse{
-		SessionID:   sessionID,
-		Quality:     quality,
-		FPS:         fps,
-		CurrentFPS:  fps,
-		Scale:       req.Scale,
-		IsStreaming: true,
-		Updated:     true,
-	}, nil
-}
-
-func (m *MockRecordModeService) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.CaptureScreenshotError != nil {
-		return nil, m.CaptureScreenshotError
-	}
-
-	if m.ScreenshotResponse != nil {
-		return m.ScreenshotResponse, nil
-	}
-
-	return &driver.CaptureScreenshotResponse{
-		Data: "base64-screenshot-data",
-	}, nil
-}
-
-func (m *MockRecordModeService) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if m.GetFrameError != nil {
-		return nil, m.GetFrameError
-	}
-
-	if m.FrameResponse != nil {
-		return m.FrameResponse, nil
-	}
-
-	return &driver.GetFrameResponse{
-		Data:        "base64-frame-data",
-		MediaType:   "image/jpeg",
-		Width:       1920,
-		Height:      1080,
-		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
-		ContentHash: "abc123",
-	}, nil
-}
-
-func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.ForwardInputCalled = true
-	m.LastSessionID = sessionID
-	m.LastForwardInputBody = body
-
-	return m.ForwardInputError
-}
-
 // Multi-page support methods
 
 func (m *MockRecordModeService) GetSession(sessionID string) (*autosession.Session, bool) {
@@ -1266,6 +1407,28 @@ func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID stri
 	return nil
 }
 
+// Service worker management methods
+
+func (m *MockRecordModeService) GetServiceWorkers(ctx context.Context, sessionID string) (*driver.GetServiceWorkersResponse, error) {
+	return &driver.GetServiceWorkersResponse{
+		SessionID: sessionID,
+		Workers:   []driver.ServiceWorkerInfo{},
+	}, nil
+}
+
+func (m *MockRecordModeService) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*driver.UnregisterServiceWorkersResponse, error) {
+	return &driver.UnregisterServiceWorkersResponse{
+		SessionID:         sessionID,
+		UnregisteredCount: 0,
+	}, nil
+}
+
+func (m *MockRecordModeService) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*driver.UnregisterServiceWorkerResponse, error) {
+	return &driver.UnregisterServiceWorkerResponse{
+		SessionID: sessionID,
+	}, nil
+}
+
 // Timeline support methods
 
 func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
@@ -1275,7 +1438,7 @@ func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string
 	}, nil
 }
 
-func (m *MockRecordModeService) AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID) {
+func (m *MockRecordModeService) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
 	// No-op for mock
 }
 

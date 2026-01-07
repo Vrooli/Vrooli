@@ -4,25 +4,27 @@
  * Maps screen coordinates to Playwright viewport coordinates, accounting for:
  * - CSS object-fit: contain (image is centered with letterboxing)
  * - Device pixel ratio differences between screenshots and viewport
+ * - Frame dimensions vs viewport dimensions mismatch
  *
  * ## Why This Matters
  *
  * Playwright captures screenshots at the device's pixel ratio (e.g., 2x on HiDPI).
  * A 900x700 viewport produces an 1800x1400 screenshot on a 2x display.
  *
- * When mapping user clicks to Playwright coordinates, we must use the LOGICAL
- * viewport dimensions (900x700), not the screenshot bitmap dimensions (1800x1400).
+ * When mapping user clicks to Playwright coordinates, we need TWO dimensions:
+ * 1. FRAME dimensions (1800x1400) - for calculating how the image is displayed
+ * 2. VIEWPORT dimensions (900x700) - for the final coordinates to send to Playwright
  *
- * Using bitmap dimensions would scale coordinates by the device pixel ratio,
- * causing clicks to land outside the visible viewport.
+ * The CSS object-contain scales the FRAME to fit the container, but Playwright
+ * operates in VIEWPORT coordinate space.
  *
  * @example
- * // Correct: Use viewport dimensions
- * const point = mapClientToViewport(clickX, clickY, containerRect, 900, 700);
- * // point might be { x: 450, y: 350 } - within viewport bounds
- *
- * // Wrong: Using bitmap dimensions (1800x1400)
- * // Would produce { x: 900, y: 700 } - outside viewport!
+ * // Frame is 1800x1400, viewport is 900x700, container is 800x600
+ * const point = mapClientToViewportWithFrame(
+ *   clickX, clickY, containerRect,
+ *   1800, 1400,  // frame dimensions (for display calculation)
+ *   900, 700     // viewport dimensions (for output coordinates)
+ * );
  */
 
 export interface Rect {
@@ -40,15 +42,18 @@ export interface Point {
 /**
  * Maps client (screen) coordinates to Playwright viewport coordinates.
  *
- * Assumes the image is displayed with CSS `object-fit: contain`, which:
- * - Scales the image to fit within the container while preserving aspect ratio
- * - Centers the image, potentially with letterboxing (empty space) on sides
+ * IMPORTANT: This function now accepts both frame AND viewport dimensions.
+ * Use `mapClientToViewportWithFrame` for accurate mapping when frame dimensions
+ * differ from viewport (e.g., HiDPI displays).
  *
- * @param clientX - X coordinate relative to the document (e.g., from MouseEvent.clientX)
- * @param clientY - Y coordinate relative to the document (e.g., from MouseEvent.clientY)
+ * @deprecated Use `mapClientToViewportWithFrame` for accurate HiDPI support.
+ * This function assumes frame dimensions equal viewport dimensions.
+ *
+ * @param clientX - X coordinate relative to the document
+ * @param clientY - Y coordinate relative to the document
  * @param containerRect - Bounding rect of the container element
- * @param viewportWidth - Logical viewport width (NOT screenshot bitmap width)
- * @param viewportHeight - Logical viewport height (NOT screenshot bitmap height)
+ * @param viewportWidth - Logical viewport width
+ * @param viewportHeight - Logical viewport height
  * @returns Point in viewport coordinates, clamped to viewport bounds
  */
 export function mapClientToViewport(
@@ -58,13 +63,52 @@ export function mapClientToViewport(
   viewportWidth: number,
   viewportHeight: number
 ): Point {
-  // Calculate how the image is displayed (object-contain centers the image)
-  const scale = Math.min(
-    containerRect.width / viewportWidth,
-    containerRect.height / viewportHeight
+  // Fallback: assume frame dimensions equal viewport dimensions
+  return mapClientToViewportWithFrame(
+    clientX,
+    clientY,
+    containerRect,
+    viewportWidth,
+    viewportHeight,
+    viewportWidth,
+    viewportHeight
   );
-  const displayWidth = viewportWidth * scale;
-  const displayHeight = viewportHeight * scale;
+}
+
+/**
+ * Maps client (screen) coordinates to Playwright viewport coordinates,
+ * correctly handling HiDPI displays where frame dimensions differ from viewport.
+ *
+ * Assumes the image is displayed with CSS `object-fit: contain`, which:
+ * - Scales the image to fit within the container while preserving aspect ratio
+ * - Centers the image, potentially with letterboxing (empty space) on sides
+ *
+ * @param clientX - X coordinate relative to the document (e.g., from MouseEvent.clientX)
+ * @param clientY - Y coordinate relative to the document (e.g., from MouseEvent.clientY)
+ * @param containerRect - Bounding rect of the canvas element (CSS box)
+ * @param frameWidth - Width of the frame bitmap (what's actually displayed)
+ * @param frameHeight - Height of the frame bitmap (what's actually displayed)
+ * @param viewportWidth - Logical viewport width (what Playwright uses)
+ * @param viewportHeight - Logical viewport height (what Playwright uses)
+ * @returns Point in viewport coordinates, clamped to viewport bounds
+ */
+export function mapClientToViewportWithFrame(
+  clientX: number,
+  clientY: number,
+  containerRect: Rect,
+  frameWidth: number,
+  frameHeight: number,
+  viewportWidth: number,
+  viewportHeight: number
+): Point {
+  // Calculate how the FRAME is displayed (object-contain centers the image)
+  // This uses FRAME dimensions, not viewport dimensions
+  const scale = Math.min(
+    containerRect.width / frameWidth,
+    containerRect.height / frameHeight
+  );
+  const displayWidth = frameWidth * scale;
+  const displayHeight = frameHeight * scale;
 
   // Offset due to centering (letterboxing)
   const offsetX = (containerRect.width - displayWidth) / 2;
@@ -74,11 +118,13 @@ export function mapClientToViewport(
   const relativeX = clientX - containerRect.left - offsetX;
   const relativeY = clientY - containerRect.top - offsetY;
 
-  // Clamp to image bounds
+  // Clamp to image bounds (in display coordinates)
   const clampedX = Math.max(0, Math.min(displayWidth, relativeX));
   const clampedY = Math.max(0, Math.min(displayHeight, relativeY));
 
-  // Map from display coordinates to viewport coordinates
+  // Map from display coordinates to VIEWPORT coordinates
+  // The ratio within the frame maps to the same ratio in the viewport
+  // This correctly handles HiDPI: click at 50% of frame = 50% of viewport
   return {
     x: (clampedX / displayWidth) * viewportWidth,
     y: (clampedY / displayHeight) * viewportHeight,

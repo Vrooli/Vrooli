@@ -8,8 +8,8 @@
 package events
 
 import (
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/telemetry"
-	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
@@ -17,7 +17,7 @@ import (
 // controller to the unified TimelineEntry proto format.
 //
 // This function now delegates to the telemetry package for unified conversion.
-func RecordedActionToTimelineEntry(action *livecapture.RecordedAction) *bastimeline.TimelineEntry {
+func RecordedActionToTimelineEntry(action *driver.RecordedAction) *bastimeline.TimelineEntry {
 	tel := telemetry.RecordedActionToTelemetry(action)
 	return telemetry.TelemetryToTimelineEntry(tel)
 }
