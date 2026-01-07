@@ -3,6 +3,7 @@ package bundleruntime
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -480,6 +481,153 @@ func TestStartService_HappyPath(t *testing.T) {
 	// Verify proc was tracked
 	if s.procs["api"] == nil {
 		t.Error("startService() should track the process")
+	}
+}
+
+// =============================================================================
+// startUIBundleService Readiness Tests
+// =============================================================================
+
+func TestStartUIBundleService_ReadinessSuccess(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle")
+	appData := filepath.Join(tmp, "appdata")
+
+	if err := os.MkdirAll(filepath.Join(bundlePath, "ui", "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dist dir: %v", err)
+	}
+	indexPath := filepath.Join(bundlePath, "ui", "dist", "index.html")
+	if err := os.WriteFile(indexPath, []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui index: %v", err)
+	}
+
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{
+			{
+				ID:   "ui",
+				Type: "ui-bundle",
+				Assets: []manifest.Asset{
+					{Path: filepath.ToSlash(filepath.Join("ui", "dist", "index.html"))},
+				},
+				LogDir: filepath.ToSlash(filepath.Join("logs", "ui.log")),
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "ui", Range: manifest.PortRange{Min: 24100, Max: 24200}},
+					},
+				},
+				Health: manifest.HealthCheck{
+					Type:     "http",
+					Path:     "/health",
+					PortName: "ui",
+				},
+				Readiness: manifest.ReadinessCheck{
+					Type:     "health_success",
+					PortName: "ui",
+				},
+			},
+		},
+	}
+
+	s := newTestSupervisor(t, testSupervisorConfig{
+		manifest:   m,
+		bundlePath: bundlePath,
+		appData:    appData,
+	})
+
+	realFS := RealFileSystem{}
+	s.fs = realFS
+	s.assetVerifier = assets.NewVerifier(bundlePath, realFS, s.telemetry)
+
+	if ports, ok := s.portAllocator.(*testutil.MockPortAllocator); ok {
+		ports.SetPort("ui", "ui", 0)
+	}
+
+	if err := s.startUIBundleService(context.Background(), m.Services[0]); err != nil {
+		t.Fatalf("startUIBundleService failed: %v", err)
+	}
+	s.wg.Wait()
+	defer s.stopServices(context.Background())
+
+	status := s.ServiceStatuses()["ui"]
+	if !status.Ready {
+		t.Errorf("ui service ready = false, want true")
+	}
+	if status.Message != "ready" {
+		t.Errorf("ui service message = %q, want %q", status.Message, "ready")
+	}
+}
+
+func TestStartUIBundleService_ReadinessFailure(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle")
+	appData := filepath.Join(tmp, "appdata")
+
+	if err := os.MkdirAll(filepath.Join(bundlePath, "ui", "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dist dir: %v", err)
+	}
+	indexPath := filepath.Join(bundlePath, "ui", "dist", "index.html")
+	if err := os.WriteFile(indexPath, []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui index: %v", err)
+	}
+
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{
+			{
+				ID:   "ui",
+				Type: "ui-bundle",
+				Assets: []manifest.Asset{
+					{Path: filepath.ToSlash(filepath.Join("ui", "dist", "index.html"))},
+				},
+				LogDir: filepath.ToSlash(filepath.Join("logs", "ui.log")),
+				Ports: &manifest.ServicePorts{
+					Requested: []manifest.PortRequest{
+						{Name: "ui", Range: manifest.PortRange{Min: 24100, Max: 24200}},
+					},
+				},
+				Health: manifest.HealthCheck{
+					Type:     "http",
+					Path:     "/health",
+					PortName: "ui",
+				},
+				Readiness: manifest.ReadinessCheck{
+					Type:     "health_success",
+					PortName: "ui",
+				},
+			},
+		},
+	}
+
+	s := newTestSupervisor(t, testSupervisorConfig{
+		manifest:   m,
+		bundlePath: bundlePath,
+		appData:    appData,
+	})
+
+	realFS := RealFileSystem{}
+	s.fs = realFS
+	s.assetVerifier = assets.NewVerifier(bundlePath, realFS, s.telemetry)
+
+	if ports, ok := s.portAllocator.(*testutil.MockPortAllocator); ok {
+		ports.SetPort("ui", "ui", 0)
+	}
+	if hc, ok := s.healthChecker.(*testutil.MockHealthChecker); ok {
+		hc.SetWaitReadinessErr(errors.New("health check failed"))
+	}
+
+	if err := s.startUIBundleService(context.Background(), m.Services[0]); err != nil {
+		t.Fatalf("startUIBundleService failed: %v", err)
+	}
+	s.wg.Wait()
+	defer s.stopServices(context.Background())
+
+	status := s.ServiceStatuses()["ui"]
+	if status.Ready {
+		t.Errorf("ui service ready = true, want false")
+	}
+	if !strings.Contains(status.Message, "health check failed") {
+		t.Errorf("ui service message = %q, want readiness error", status.Message)
 	}
 }
 

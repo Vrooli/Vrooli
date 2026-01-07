@@ -262,7 +262,7 @@ func buildAPISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 			Retries:  5,
 		},
 		Readiness: types.BundleSkeletonReadiness{
-			Type:     "port_open",
+			Type:     "health_success",
 			PortName: "api",
 			Timeout:  30000,
 		},
@@ -392,7 +392,7 @@ func buildUISkeletonService(scenarioName, scenarioPath string, cfg *types.Servic
 		},
 		Health: types.BundleSkeletonHealth{
 			Type:     "http",
-			Path:     "/",
+			Path:     "/health",
 			PortName: "ui",
 			Interval: 2000,
 			Timeout:  10000,

@@ -381,12 +381,32 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		_ = server.Shutdown(ctx)
 	}()
 
-	s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: fmt.Sprintf("listening on %d", port)})
-	_ = s.recordTelemetry("service_ready", map[string]interface{}{
+	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
+	_ = s.recordTelemetry("service_start", map[string]interface{}{
 		"service_id": svc.ID,
 		"port":       port,
 		"type":       "ui-bundle",
 	})
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		if err := s.healthChecker.WaitForReadiness(serverCtx, svc.ID); err != nil {
+			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
+			_ = s.recordTelemetry("service_not_ready", map[string]interface{}{
+				"service_id": svc.ID,
+				"error":      err.Error(),
+				"type":       "ui-bundle",
+			})
+			return
+		}
+		s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: "ready"})
+		_ = s.recordTelemetry("service_ready", map[string]interface{}{
+			"service_id": svc.ID,
+			"port":       port,
+			"type":       "ui-bundle",
+		})
+	}()
 
 	return nil
 }

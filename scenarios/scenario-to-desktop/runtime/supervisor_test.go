@@ -1260,7 +1260,7 @@ func TestSupervisorIntegration_LaunchesServicesAndControlAPI(t *testing.T) {
 		t.Errorf("expected telemetry to include service_ready events")
 	}
 
-	if _, err := fetchJSON(baseURL, token, "/shutdown", &map[string]string{}); err != nil {
+	if err := fetchJSON(baseURL, token, "/shutdown", &map[string]string{}); err != nil {
 		t.Fatalf("shutdown: %v", err)
 	}
 

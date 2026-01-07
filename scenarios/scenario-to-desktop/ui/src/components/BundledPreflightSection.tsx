@@ -146,17 +146,34 @@ function PreflightCheckList({ checks }: { checks: BundlePreflightCheck[] }) {
         Test cases ({checks.length})
       </summary>
       <ul className="mt-2 space-y-2">
-        {checks.map((check) => (
-          <li key={check.id} className="rounded-md border border-slate-800/70 bg-slate-950/70 px-3 py-2 space-y-1">
+        {checks.map((check) => {
+          const listenURL = getListenURL(check.detail);
+          return (
+            <li key={check.id} className="rounded-md border border-slate-800/70 bg-slate-950/70 px-3 py-2 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${PREFLIGHT_CHECK_STYLES[check.status]}`}>
                 {PREFLIGHT_CHECK_LABELS[check.status]}
               </span>
               <span className="text-slate-200">{check.name}</span>
             </div>
-            {check.detail && <p className="text-slate-400">{check.detail}</p>}
+            {check.detail && (
+              <p className="text-slate-400">
+                <span>{check.detail}</span>
+                {listenURL && (
+                  <a
+                    className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-sky-300 hover:text-sky-200"
+                    href={listenURL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open
+                  </a>
+                )}
+              </p>
+            )}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </details>
   );
@@ -232,6 +249,45 @@ function formatDuration(ms: number) {
     return `${minutes}m ${seconds}s`;
   }
   return `${seconds}s`;
+}
+
+function getListenURL(detail?: string) {
+  if (!detail) {
+    return null;
+  }
+  const match = detail.match(/listening on (\d+)/i);
+  if (!match) {
+    return null;
+  }
+  const port = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(port) || port <= 0) {
+    return null;
+  }
+  return `http://localhost:${port}`;
+}
+
+function getServiceURL(serviceId: string, ports?: Record<string, Record<string, number>>) {
+  if (!ports) {
+    return null;
+  }
+  const portMap = ports[serviceId];
+  if (!portMap) {
+    return null;
+  }
+  const preferred = ["ui", "api", "http"];
+  let portName = preferred.find((name) => Number.isFinite(portMap[name]));
+  if (!portName) {
+    const names = Object.keys(portMap);
+    portName = names.length > 0 ? names[0] : undefined;
+  }
+  if (!portName) {
+    return null;
+  }
+  const port = portMap[portName];
+  if (!Number.isFinite(port) || port <= 0) {
+    return null;
+  }
+  return { url: `http://localhost:${port}`, port, portName };
 }
 
 function parseTimestamp(value?: string) {
@@ -317,6 +373,7 @@ export function BundledPreflightSection({
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [logCopyStatus, setLogCopyStatus] = useState<Record<string, "idle" | "copied" | "error">>({});
+  const [healthPeek, setHealthPeek] = useState<Record<string, { open: boolean; status: "idle" | "loading" | "ready" | "error"; body?: string; error?: string }>>({});
   const [tick, setTick] = useState(() => Date.now());
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
@@ -367,6 +424,51 @@ export function BundledPreflightSection({
     const interval = window.setInterval(() => setTick(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [preflightStartServices, preflightResult]);
+
+  const toggleHealthPeek = async (serviceId: string, healthURL: string | null) => {
+    if (!healthURL) {
+      return;
+    }
+    const current = healthPeek[serviceId];
+    if (current?.open) {
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { ...current, open: false }
+      }));
+      return;
+    }
+    if (current?.status === "ready" && current.body) {
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { ...current, open: true }
+      }));
+      return;
+    }
+    setHealthPeek((prev) => ({
+      ...prev,
+      [serviceId]: { open: true, status: "loading" }
+    }));
+    try {
+      const response = await fetch(healthURL, { method: "GET" });
+      const raw = await response.text();
+      let body = raw.trim();
+      try {
+        const json = JSON.parse(raw);
+        body = JSON.stringify(json, null, 2);
+      } catch {
+        // Leave body as raw text when not JSON.
+      }
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { open: true, status: "ready", body }
+      }));
+    } catch (err) {
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { open: true, status: "error", error: err instanceof Error ? err.message : String(err) }
+      }));
+    }
+  };
   const portSummary = ports
     ? Object.entries(ports)
         .map(([svc, portMap]) => {
@@ -866,6 +968,10 @@ export function BundledPreflightSection({
                       const readyAge = readyAt ? formatDuration(Math.max(0, referenceTs - readyAt)) : "";
                       const statusLabel = isSkipped ? "Skipped" : status.ready ? "Ready" : "Waiting";
                       const statusClass = isSkipped ? "text-slate-300" : status.ready ? "text-emerald-200" : "text-amber-200";
+                      const portInfo = getServiceURL(serviceId, ports);
+                      const listenURL = portInfo?.url ?? getListenURL(status.message);
+                      const healthURL = listenURL ? `${listenURL}/health` : null;
+                      const peekState = healthPeek[serviceId];
                       return (
                         <div key={serviceId} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
                           <p className="text-[11px] uppercase tracking-wide text-slate-400">{serviceId}</p>
@@ -873,7 +979,58 @@ export function BundledPreflightSection({
                             {statusLabel}
                           </p>
                           {status.message && (
-                            <p className="text-[11px] text-slate-300">{status.message}</p>
+                            <p className="text-[11px] text-slate-300">
+                              <span>{status.message}</span>
+                            </p>
+                          )}
+                          {listenURL && (
+                            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                              <a
+                                className="inline-flex items-center gap-1 rounded-sm border border-sky-900/60 bg-sky-950/40 px-2 py-0.5 font-semibold uppercase tracking-wide text-sky-200 hover:text-sky-100"
+                                href={listenURL}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Open
+                              </a>
+                              <a
+                                className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
+                                href={healthURL ?? undefined}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Health
+                              </a>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-sm border border-slate-800/60 bg-slate-950/60 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-200 hover:text-slate-100"
+                                onClick={() => toggleHealthPeek(serviceId, healthURL)}
+                              >
+                                {peekState?.open ? "Hide" : "View"} response
+                              </button>
+                              <span className="text-slate-400">{listenURL}</span>
+                              {portInfo && (
+                                <span className="text-slate-400">
+                                  {portInfo.portName}:{portInfo.port}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {peekState?.open && (
+                            <div className="rounded-md border border-slate-800/70 bg-slate-950/70 p-2 text-[10px] text-slate-200">
+                              {peekState.status === "loading" && (
+                                <p className="text-slate-400">Loading health response...</p>
+                              )}
+                              {peekState.status === "error" && (
+                                <p className="text-red-200">
+                                  Failed to fetch health response. Open the Health link to inspect directly.
+                                  {peekState.error ? ` (${peekState.error})` : ""}
+                                </p>
+                              )}
+                              {peekState.status === "ready" && peekState.body && (
+                                <pre className="whitespace-pre-wrap break-words">{peekState.body}</pre>
+                              )}
+                            </div>
                           )}
                           {status.message === "pending start" && !isSkipped && (
                             <p className="text-[11px] text-slate-500">

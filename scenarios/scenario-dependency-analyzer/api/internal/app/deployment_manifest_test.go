@@ -64,9 +64,17 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 	for _, svc := range manifest.Skeleton.Services {
 		if svc.Type == "ui-bundle" {
 			foundUI = true
+			if svc.Health.Path != "/health" {
+				t.Fatalf("ui skeleton should use /health for health checks")
+			}
 		}
-		if svc.ID == "test-scenario-api" && svc.Health.PortName != "api" {
-			t.Fatalf("api skeleton should expose api port health check")
+		if svc.ID == "test-scenario-api" {
+			if svc.Health.PortName != "api" {
+				t.Fatalf("api skeleton should expose api port health check")
+			}
+			if svc.Readiness.Type != "health_success" {
+				t.Fatalf("api skeleton should use health_success readiness")
+			}
 		}
 	}
 	if !foundUI {
