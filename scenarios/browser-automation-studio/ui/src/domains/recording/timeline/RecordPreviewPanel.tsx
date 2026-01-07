@@ -55,9 +55,9 @@ interface RecordPreviewPanelProps {
 }
 
 export function RecordPreviewPanel({
-  previewUrl,
+  previewUrl: _previewUrl,
   onPreviewUrlChange,
-  actions,
+  actions: _actions,
   sessionId,
   activePageId,
   viewport,
@@ -69,21 +69,6 @@ export function RecordPreviewPanel({
   isResizing = false,
   isViewportSyncing = false,
 }: RecordPreviewPanelProps) {
-  const lastUrl = useMemo(() => {
-    if (actions.length === 0) return '';
-    return actions[actions.length - 1]?.url ?? '';
-  }, [actions]);
-
-  // Check if URL is navigable (not empty, about:blank, or chrome-error://)
-  const isNavigableUrl = (url: string) => {
-    if (!url) return false;
-    const lowerUrl = url.toLowerCase();
-    return !lowerUrl.startsWith('about:') && !lowerUrl.startsWith('chrome-error://');
-  };
-
-  const rawEffectiveUrl = previewUrl || lastUrl;
-  const effectiveUrl = isNavigableUrl(rawEffectiveUrl) ? rawEffectiveUrl : '';
-
   // Stream settings (for quality/fps)
   const { settings: streamSettings } = useStreamSettings();
 
@@ -112,9 +97,13 @@ export function RecordPreviewPanel({
   // Convert viewport to the format PlaywrightView expects
   const viewportForPlaywright = effectiveViewport ?? undefined;
 
+  // Keep PlaywrightView mounted once we have a session, even if URL is temporarily
+  // non-navigable (e.g., about:blank during redirects). Unmounting/remounting
+  // causes white flicker as the new instance starts with hasFrame=false.
+  // Only show StartRecordingState when there's no session at all.
   return (
     <div className="h-full w-full">
-      {sessionId && effectiveUrl ? (
+      {sessionId ? (
         <PlaywrightView
           sessionId={sessionId}
           pageId={activePageId ?? undefined}

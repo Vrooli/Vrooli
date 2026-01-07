@@ -700,21 +700,32 @@ export function useFrameStream({
   }, [fetchFrame, pollInterval, refreshToken, isTabVisible, isWsFrameActive]);
 
   // Reset state when session changes
+  // IMPORTANT: Only do a full reset (clear canvas, set hasFrame=false) when switching
+  // between two REAL sessions. When sessionId goes from null → real ID, that's the
+  // initial session being established, not a session switch. Resetting hasFrame in
+  // that case causes flickering if a frame has already arrived via polling.
   useEffect(() => {
     if (lastSessionRef.current !== sessionId) {
-      lastSessionRef.current = sessionId;
-      frameDimensionsRef.current = null;
-      hasFrameRef.current = false;
-      setHasFrame(false);
-      setDisplayDimensions(null);
-      setDisplayedTimestamp(null);
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const isRealSessionSwitch = lastSessionRef.current && sessionId;
+
+      if (isRealSessionSwitch) {
+        // Actual session switch - full reset
+        frameDimensionsRef.current = null;
+        hasFrameRef.current = false;
+        setHasFrame(false);
+        setDisplayDimensions(null);
+        setDisplayedTimestamp(null);
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
         }
       }
+
+      // Always reset these tracking refs for new/changed session
+      lastSessionRef.current = sessionId;
       lastETagRef.current = null;
       lastContentHashRef.current = null;
       errorRef.current = null;
