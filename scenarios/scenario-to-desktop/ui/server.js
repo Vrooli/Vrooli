@@ -10,6 +10,7 @@ const VERSION = process.env.npm_package_version || '1.0.0'
 const API_HOST = process.env.API_HOST || '127.0.0.1'
 const UI_PORT = process.env.UI_PORT || process.env.PORT
 const API_PORT = process.env.API_PORT
+const PROXY_TIMEOUT_MS = process.env.PROXY_TIMEOUT_MS
 
 function requireEnv(value, name) {
   if (!value) {
@@ -21,6 +22,7 @@ function requireEnv(value, name) {
 export function startServer() {
   const resolvedUiPort = requireEnv(UI_PORT, 'UI_PORT')
   const resolvedApiPort = requireEnv(API_PORT, 'API_PORT')
+  const proxyTimeoutMs = Number.parseInt(PROXY_TIMEOUT_MS || '', 10)
 
   return startScenarioServer({
     uiPort: resolvedUiPort,
@@ -30,6 +32,7 @@ export function startServer() {
     serviceName: SERVICE_NAME,
     version: VERSION,
     corsOrigins: '*',
+    proxyTimeoutMs: Number.isFinite(proxyTimeoutMs) ? proxyTimeoutMs : 120000,
   })
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
-import type { BundlePreflightCheck, BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
+import type { BundlePreflightCheck, BundlePreflightJobStatusResponse, BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret, BundlePreflightStep } from "../lib/api";
 import { fetchBundlePreflightHealth } from "../lib/api";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -338,6 +338,7 @@ interface BundledPreflightSectionProps {
   preflightResult: BundlePreflightResponse | null;
   preflightPending: boolean;
   preflightError: string | null;
+  preflightJobStatus?: BundlePreflightJobStatusResponse | null;
   missingSecrets: BundlePreflightSecret[];
   secretInputs: Record<string, string>;
   preflightOk: boolean;
@@ -357,6 +358,7 @@ export function BundledPreflightSection({
   preflightResult,
   preflightPending,
   preflightError,
+  preflightJobStatus,
   missingSecrets,
   secretInputs,
   preflightOk,
@@ -375,6 +377,14 @@ export function BundledPreflightSection({
   const [logCopyStatus, setLogCopyStatus] = useState<Record<string, "idle" | "copied" | "error">>({});
   const [healthPeek, setHealthPeek] = useState<Record<string, HealthPeekState>>({});
   const [tick, setTick] = useState(() => Date.now());
+  const jobSteps = preflightJobStatus?.steps ?? [];
+  const jobStepById = useMemo(() => {
+    const map = new Map<string, BundlePreflightStep>();
+    jobSteps.forEach((step) => {
+      map.set(step.id, step);
+    });
+    return map;
+  }, [jobSteps]);
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
   const ports = preflightResult?.ports;
@@ -415,7 +425,7 @@ export function BundledPreflightSection({
     }),
     [bundleManifestPath, preflightResult, preflightError, missingSecrets]
   );
-  const hasRun = Boolean(preflightResult || preflightError);
+  const hasRun = Boolean(preflightResult || preflightError || preflightJobStatus);
 
   useEffect(() => {
     if (!preflightResult) {
@@ -506,6 +516,27 @@ export function BundledPreflightSection({
   const serviceChecks = checks.filter((check) => check.step === "services");
   const diagnosticsChecks = checks.filter((check) => check.step === "diagnostics");
 
+  const resolveJobStepStatus = (stepId: string): PreflightStepStatus | null => {
+    const step = jobStepById.get(stepId);
+    if (!step) {
+      return null;
+    }
+    const state = step.state === "running" ? "testing" : step.state;
+    const labelMap: Record<BundlePreflightStep["state"], string> = {
+      pending: "Pending",
+      running: "Running",
+      pass: "Pass",
+      fail: "Fail",
+      warning: "Warning",
+      skipped: "Skipped"
+    };
+    return {
+      state: state as PreflightStepState,
+      label: labelMap[step.state]
+    };
+  };
+  const resolveJobStepDetail = (stepId: string) => jobStepById.get(stepId)?.detail;
+
   const stepValidationStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
       return { state: "testing", label: "Testing" };
@@ -524,6 +555,7 @@ export function BundledPreflightSection({
     }
     return { state: "warning", label: "Review" };
   })();
+  const resolvedValidationStatus = resolveJobStepStatus("validation") ?? stepValidationStatus;
 
   const stepSecretsStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
@@ -540,6 +572,7 @@ export function BundledPreflightSection({
     }
     return { state: "pass", label: "Ready" };
   })();
+  const resolvedSecretsStatus = resolveJobStepStatus("secrets") ?? stepSecretsStatus;
 
   const stepRuntimeStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
@@ -556,6 +589,7 @@ export function BundledPreflightSection({
     }
     return { state: "warning", label: "Unknown" };
   })();
+  const resolvedRuntimeStatus = resolveJobStepStatus("runtime") ?? stepRuntimeStatus;
 
   const stepServicesStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
@@ -575,6 +609,7 @@ export function BundledPreflightSection({
     }
     return { state: "warning", label: "Unknown" };
   })();
+  const resolvedServicesStatus = resolveJobStepStatus("services") ?? stepServicesStatus;
 
   const stepDiagnosticsStatus: PreflightStepStatus = (() => {
     if (preflightPending) {
@@ -591,6 +626,7 @@ export function BundledPreflightSection({
     }
     return { state: "warning", label: "Empty" };
   })();
+  const resolvedDiagnosticsStatus = resolveJobStepStatus("diagnostics") ?? stepDiagnosticsStatus;
 
   const copyJson = async () => {
     if (!preflightResult && !preflightError) {
@@ -684,7 +720,7 @@ export function BundledPreflightSection({
         </div>
       )}
 
-      {(preflightResult || preflightError) && viewMode === "summary" && (
+      {viewMode === "summary" && (
         <div className="space-y-4">
           <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
             <p className="font-semibold text-slate-100">Bundle context</p>
@@ -712,11 +748,16 @@ export function BundledPreflightSection({
                 index={1}
                 title="Load bundle + validate"
                 subtitle="Manifest structure and staged binaries/assets"
-                status={stepValidationStatus}
+                status={resolvedValidationStatus}
               />
               <p className="text-[11px] text-slate-400">
                 Confirms the manifest is valid and staged files exist with matching checksums.
               </p>
+              {resolveJobStepDetail("validation") && (
+                <p className="text-[11px] text-slate-300">
+                  {resolveJobStepDetail("validation")}
+                </p>
+              )}
               {validation?.valid && !preflightError && (
                 <p className="text-[11px] text-slate-300">No validation issues detected.</p>
               )}
@@ -825,11 +866,16 @@ export function BundledPreflightSection({
                 index={2}
                 title="Apply secrets"
                 subtitle="Required secrets must be present for readiness"
-                status={stepSecretsStatus}
+                status={resolvedSecretsStatus}
               />
               {!hasRun && (
                 <p className="text-[11px] text-slate-400">
                   Run preflight to detect required secrets.
+                </p>
+              )}
+              {resolveJobStepDetail("secrets") && (
+                <p className="text-[11px] text-slate-300">
+                  {resolveJobStepDetail("secrets")}
                 </p>
               )}
               {preflightError && (
@@ -886,11 +932,16 @@ export function BundledPreflightSection({
                 index={3}
                 title="Start runtime control API"
                 subtitle="IPC auth token + control API readiness"
-                status={stepRuntimeStatus}
+                status={resolvedRuntimeStatus}
               />
               {preflightPending && (
                 <p className="text-[11px] text-slate-400">
                   Starting the runtime supervisor and waiting for the control API.
+                </p>
+              )}
+              {resolveJobStepDetail("runtime") && (
+                <p className="text-[11px] text-slate-300">
+                  {resolveJobStepDetail("runtime")}
                 </p>
               )}
               {!preflightPending && preflightResult && (
@@ -916,7 +967,7 @@ export function BundledPreflightSection({
                 index={4}
                 title="Services ready"
                 subtitle="Optional service startup + readiness checks"
-                status={stepServicesStatus}
+                status={resolvedServicesStatus}
               />
               {readiness && readinessDetails.length > 0 && (
                 <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200" open={!readiness.ready}>
@@ -1066,6 +1117,11 @@ export function BundledPreflightSection({
                   No service readiness details yet. Re-run preflight or verify the bundle defines services for this target.
                 </p>
               )}
+              {resolveJobStepDetail("services") && (
+                <p className="text-[11px] text-slate-300">
+                  {resolveJobStepDetail("services")}
+                </p>
+              )}
               <PreflightCheckList checks={serviceChecks} />
             </div>
 
@@ -1074,11 +1130,16 @@ export function BundledPreflightSection({
                 index={5}
                 title="Diagnostics"
                 subtitle="Ports, telemetry, and optional log tails"
-                status={stepDiagnosticsStatus}
+                status={resolvedDiagnosticsStatus}
               />
               {!hasRun && (
                 <p className="text-[11px] text-slate-400">
                   Run preflight to collect diagnostics.
+                </p>
+              )}
+              {resolveJobStepDetail("diagnostics") && (
+                <p className="text-[11px] text-slate-300">
+                  {resolveJobStepDetail("diagnostics")}
                 </p>
               )}
               {hasRun && !diagnosticsAvailable && (

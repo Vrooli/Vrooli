@@ -145,6 +145,30 @@ type BundlePreflightResponse struct {
 	ExpiresAt  string                             `json:"expires_at,omitempty"`
 }
 
+// BundlePreflightJobStartResponse returns the job identifier for async preflight.
+type BundlePreflightJobStartResponse struct {
+	JobID string `json:"job_id"`
+}
+
+// BundlePreflightJobStatusResponse reports async preflight job progress.
+type BundlePreflightJobStatusResponse struct {
+	JobID     string                   `json:"job_id"`
+	Status    string                   `json:"status"`
+	Steps     []BundlePreflightStep    `json:"steps,omitempty"`
+	Result    *BundlePreflightResponse `json:"result,omitempty"`
+	Error     string                   `json:"error,omitempty"`
+	StartedAt string                   `json:"started_at,omitempty"`
+	UpdatedAt string                   `json:"updated_at,omitempty"`
+}
+
+// BundlePreflightStep tracks the state of a single preflight phase.
+type BundlePreflightStep struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	State  string `json:"state"`
+	Detail string `json:"detail,omitempty"`
+}
+
 // BundlePreflightCheck enumerates a single preflight test case and outcome.
 type BundlePreflightCheck struct {
 	ID     string `json:"id"`

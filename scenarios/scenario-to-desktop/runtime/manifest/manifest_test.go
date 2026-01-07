@@ -122,6 +122,17 @@ func TestManifestValidateEnforcesStructureAndPlatforms(t *testing.T) {
 			t.Fatalf("Validate() error = %v, want health/readiness requirement", err)
 		}
 	})
+
+	t.Run("requires http health port_name", func(t *testing.T) {
+		m := makeBaseManifest()
+		m.Services[0].Health = HealthCheck{Type: "http", Path: "/health"}
+		m.Services[0].Readiness = ReadinessCheck{Type: "health_success"}
+
+		err := m.Validate("windows", "amd64")
+		if err == nil || err.Error() != "service api health port_name is required for http health" {
+			t.Fatalf("Validate() error = %v, want http health port_name requirement", err)
+		}
+	})
 }
 
 func TestValidate_MissingSchemaVersion(t *testing.T) {

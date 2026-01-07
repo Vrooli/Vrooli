@@ -210,6 +210,9 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 		if svc.Health.Type == "" || svc.Readiness.Type == "" {
 			return fmt.Errorf("service %s requires health and readiness definitions", svc.ID)
 		}
+		if svc.Health.Type == "http" && strings.TrimSpace(svc.Health.PortName) == "" {
+			return fmt.Errorf("service %s health port_name is required for http health", svc.ID)
+		}
 		if len(svc.Binaries) == 0 {
 			return fmt.Errorf("service %s missing binaries", svc.ID)
 		}

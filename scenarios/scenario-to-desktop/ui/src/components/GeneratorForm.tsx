@@ -9,7 +9,10 @@ import {
   checkSigningReadiness,
   probeEndpoints,
   runBundlePreflight,
+  startBundlePreflight,
+  fetchBundlePreflightStatus,
   type BundlePreflightResponse,
+  type BundlePreflightJobStatusResponse,
   type DesktopConfig,
   type ProbeResponse,
   type ProxyHintsResponse,
@@ -695,6 +698,8 @@ export function GeneratorForm({
   const [preflightSecrets, setPreflightSecrets] = useState<Record<string, string>>({});
   const [preflightStartServices, setPreflightStartServices] = useState(true);
   const [preflightAutoRefresh, setPreflightAutoRefresh] = useState(true);
+  const [preflightJobId, setPreflightJobId] = useState<string | null>(null);
+  const [preflightJobStatus, setPreflightJobStatus] = useState<BundlePreflightJobStatusResponse | null>(null);
   const [preflightSessionId, setPreflightSessionId] = useState<string | null>(null);
   const [preflightSessionExpiresAt, setPreflightSessionExpiresAt] = useState<string | null>(null);
   const [preflightSessionTTL, setPreflightSessionTTL] = useState(120);
@@ -923,7 +928,13 @@ export function GeneratorForm({
     }
     setPreflightPending(true);
     setPreflightError(null);
+    setPreflightResult(null);
+    setPreflightJobStatus(null);
+    setPreflightJobId(null);
+    setPreflightSessionId(null);
+    setPreflightSessionExpiresAt(null);
     try {
+      const timeoutSeconds = preflightStartServices ? 120 : 15;
       const baseSecrets = overrideSecrets ?? preflightSecrets;
       const filteredSecrets = Object.entries(baseSecrets)
         .filter(([, value]) => value.trim())
@@ -931,28 +942,76 @@ export function GeneratorForm({
           acc[key] = value;
           return acc;
         }, {});
-      const result = await runBundlePreflight({
+      const job = await startBundlePreflight({
         bundle_manifest_path: manifestPath,
         secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         start_services: preflightStartServices,
+        timeout_seconds: timeoutSeconds,
         log_tail_lines: preflightStartServices ? 80 : undefined,
         session_ttl_seconds: preflightStartServices ? preflightSessionTTL : undefined,
         session_id: preflightSessionId ?? undefined
       });
-      setPreflightResult(result);
       setPreflightOverride(false);
-      setPreflightSessionId(result.session_id ?? null);
-      setPreflightSessionExpiresAt(result.expires_at ?? null);
+      setPreflightJobId(job.job_id);
     } catch (error) {
       setPreflightResult(null);
       setPreflightError((error as Error).message);
-    } finally {
       setPreflightPending(false);
     }
   };
 
+  useEffect(() => {
+    if (!preflightJobId) {
+      return;
+    }
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const poll = async () => {
+      try {
+        const status = await fetchBundlePreflightStatus({ job_id: preflightJobId });
+        if (cancelled) {
+          return;
+        }
+        setPreflightJobStatus(status);
+        setPreflightPending(status.status === "running");
+
+        if (status.result) {
+          setPreflightResult(status.result);
+          setPreflightSessionId(status.result.session_id ?? null);
+          setPreflightSessionExpiresAt(status.result.expires_at ?? null);
+        }
+        if (status.status === "failed") {
+          setPreflightError(status.error || "Preflight failed.");
+          setPreflightPending(false);
+          return;
+        }
+        if (status.status === "completed") {
+          setPreflightPending(false);
+          return;
+        }
+        timeoutId = window.setTimeout(poll, 1500);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setPreflightError((error as Error).message);
+        setPreflightPending(false);
+      }
+    };
+
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [preflightJobId]);
+
   const refreshPreflightStatus = async () => {
-    if (!preflightResult || preflightPending || !preflightSessionId) {
+    if (!preflightResult || preflightPending || !preflightSessionId || preflightJobStatus?.status === "running") {
       return;
     }
     const manifestPath = bundleManifestPath.trim();
@@ -961,6 +1020,7 @@ export function GeneratorForm({
     }
     setPreflightPending(true);
     try {
+      const timeoutSeconds = 15;
       const filteredSecrets = Object.entries(preflightSecrets)
         .filter(([, value]) => value.trim())
         .reduce<Record<string, string>>((acc, [key, value]) => {
@@ -971,6 +1031,7 @@ export function GeneratorForm({
         bundle_manifest_path: manifestPath,
         secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
         start_services: preflightStartServices,
+        timeout_seconds: timeoutSeconds,
         log_tail_lines: preflightStartServices ? 80 : undefined,
         status_only: true,
         session_id: preflightSessionId,
@@ -1564,16 +1625,17 @@ export function GeneratorForm({
           {connectionSection}
 
           {isBundled && (
-            <BundledPreflightSection
-              bundleManifestPath={bundleManifestPath}
-              preflightResult={preflightResult}
-              preflightPending={preflightPending}
-              preflightError={preflightError}
-              missingSecrets={missingPreflightSecrets}
-              secretInputs={preflightSecrets}
-              preflightOk={preflightOk}
-              preflightOverride={preflightOverride}
-              preflightSessionTTL={preflightSessionTTL}
+              <BundledPreflightSection
+                bundleManifestPath={bundleManifestPath}
+                preflightResult={preflightResult}
+                preflightPending={preflightPending}
+                preflightError={preflightError}
+                preflightJobStatus={preflightJobStatus}
+                missingSecrets={missingPreflightSecrets}
+                secretInputs={preflightSecrets}
+                preflightOk={preflightOk}
+                preflightOverride={preflightOverride}
+                preflightSessionTTL={preflightSessionTTL}
               preflightSessionId={preflightSessionId}
               preflightSessionExpiresAt={preflightSessionExpiresAt}
               preflightLogTails={preflightResult?.log_tails}

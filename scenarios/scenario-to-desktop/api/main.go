@@ -30,17 +30,19 @@ func init() {
 
 // Server represents the API server
 type Server struct {
-	router         *mux.Router
-	port           int
-	builds         *BuildStore
-	records        *DesktopRecordStore
-	wineInstalls   map[string]*WineInstallStatus
-	wineInstallMux sync.RWMutex
-	templateDir    string
-	logger         *slog.Logger
-	telemetryMux   sync.Mutex
-	preflightMux   sync.Mutex
-	preflight      map[string]*preflightSession
+	router           *mux.Router
+	port             int
+	builds           *BuildStore
+	records          *DesktopRecordStore
+	wineInstalls     map[string]*WineInstallStatus
+	wineInstallMux   sync.RWMutex
+	templateDir      string
+	logger           *slog.Logger
+	telemetryMux     sync.Mutex
+	preflightMux     sync.Mutex
+	preflight        map[string]*preflightSession
+	preflightJobs    map[string]*preflightJob
+	preflightJobsMux sync.Mutex
 }
 
 // NewServer creates a new server instance
@@ -62,14 +64,15 @@ func NewServer(port int) *Server {
 	}))
 
 	server := &Server{
-		router:       mux.NewRouter(),
-		port:         port,
-		builds:       NewBuildStore(),
-		records:      recordStore,
-		wineInstalls: make(map[string]*WineInstallStatus),
-		templateDir:  "../templates", // Templates are in parent directory when running from api/
-		logger:       logger,
-		preflight:    make(map[string]*preflightSession),
+		router:        mux.NewRouter(),
+		port:          port,
+		builds:        NewBuildStore(),
+		records:       recordStore,
+		wineInstalls:  make(map[string]*WineInstallStatus),
+		templateDir:   "../templates", // Templates are in parent directory when running from api/
+		logger:        logger,
+		preflight:     make(map[string]*preflightSession),
+		preflightJobs: make(map[string]*preflightJob),
 	}
 
 	server.startPreflightJanitor()
@@ -98,6 +101,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/desktop/generate/quick", s.quickGenerateDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/probe", s.probeEndpointsHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/preflight", s.preflightBundleHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/preflight/start", s.preflightStartHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/preflight/status", s.preflightStatusHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/preflight/health", s.preflightHealthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/bundle-manifest", s.bundleManifestHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/proxy-hints/{scenario_name}", s.proxyHintsHandler).Methods("GET")

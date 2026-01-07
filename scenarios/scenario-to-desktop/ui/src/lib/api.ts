@@ -217,9 +217,33 @@ export interface BundlePreflightResponse {
   expires_at?: string;
 }
 
+export interface BundlePreflightStep {
+  id: string;
+  name: string;
+  state: "pending" | "running" | "pass" | "fail" | "warning" | "skipped";
+  detail?: string;
+}
+
+export interface BundlePreflightJobStartResponse {
+  job_id: string;
+}
+
+export interface BundlePreflightJobStatusResponse {
+  job_id: string;
+  status: "running" | "completed" | "failed";
+  steps?: BundlePreflightStep[];
+  result?: BundlePreflightResponse;
+  error?: string;
+  started_at?: string;
+  updated_at?: string;
+}
+
 export interface BundlePreflightHealthResponse {
   service_id: string;
-  url: string;
+  supported?: boolean;
+  health_type?: string;
+  message?: string;
+  url?: string;
   status_code?: number;
   status?: string;
   body?: string;
@@ -539,6 +563,31 @@ export async function runBundlePreflight(payload: BundlePreflightRequest): Promi
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+export async function startBundlePreflight(payload: BundlePreflightRequest): Promise<BundlePreflightJobStartResponse> {
+  const response = await fetch(buildUrl("/desktop/preflight/start"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+export async function fetchBundlePreflightStatus(payload: { job_id: string }): Promise<BundlePreflightJobStatusResponse> {
+  const params = new URLSearchParams({ job_id: payload.job_id });
+  const response = await fetch(buildUrl(`/desktop/preflight/status?${params.toString()}`));
 
   if (!response.ok) {
     throw new Error(await response.text());
