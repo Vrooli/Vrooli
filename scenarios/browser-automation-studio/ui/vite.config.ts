@@ -24,6 +24,8 @@ const API_HOST = process.env.API_HOST || 'localhost';
 const bootstrapEntry = path.resolve(__dirname, 'src/bootstrap.tsx');
 const mainEntry = path.resolve(__dirname, 'index.html');
 const composerEntry = path.resolve(__dirname, 'src/export/composer.html');
+const UI_SERVICE_NAME = 'browser-automation-studio';
+const UI_VERSION = process.env.npm_package_version || '1.0.0';
 const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
 const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
 const PROJECT_BASE_TEST_CONFIG = {
@@ -51,6 +53,7 @@ interface HealthResponse {
   service: string;
   timestamp: string;
   readiness: boolean;
+  version?: string;
   api_connectivity: {
     connected: boolean;
     api_url: string | null;
@@ -73,12 +76,13 @@ const healthEndpointPlugin = (): Plugin => ({
 
       const healthResponse: HealthResponse = {
         status: 'healthy',
-        service: 'browser-automation-studio-ui',
+        service: UI_SERVICE_NAME,
         timestamp: new Date().toISOString(),
         readiness: true,
+        version: UI_VERSION,
         api_connectivity: {
           connected: false,
-          api_url: API_PORT ? `http://${API_HOST}:${API_PORT}/api/v1` : null,
+          api_url: API_PORT ? `http://${API_HOST}:${API_PORT}/health` : null,
           last_check: new Date().toISOString(),
           error: null,
           latency_ms: null,
