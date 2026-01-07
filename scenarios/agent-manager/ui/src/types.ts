@@ -1,6 +1,18 @@
 import { ModelPreset, RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
-import type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
+
+// Re-export proto type for reading Task objects from API
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
+
+// Plain object interface for form editing (no proto Message metadata required)
+export interface ContextAttachmentData {
+  type: string;      // "file" | "link" | "note"
+  key?: string;      // Unique identifier
+  tags?: string[];   // Categorization tags
+  path?: string;     // For "file" type
+  url?: string;      // For "link" type
+  content?: string;  // For "note" type, or descriptions
+  label?: string;    // Optional human-readable label
+}
 
 export {
   RunnerType,
@@ -83,7 +95,7 @@ export interface TaskFormData {
   description?: string;
   scopePath: string;
   projectRoot?: string;
-  contextAttachments?: ContextAttachment[];
+  contextAttachments?: ContextAttachmentData[];
 }
 
 export interface RunFormData {

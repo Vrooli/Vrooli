@@ -209,6 +209,43 @@ func TestTask_Validate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "type",
 		},
+		{
+			name: "duplicate context attachment keys",
+			task: &Task{
+				Title:     "Task with duplicate keys",
+				ScopePath: "src/",
+				ContextAttachments: []ContextAttachment{
+					{Type: "note", Content: "first", Key: "same-key"},
+					{Type: "note", Content: "second", Key: "same-key"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "duplicate",
+		},
+		{
+			name: "context attachments with unique keys",
+			task: &Task{
+				Title:     "Task with unique keys",
+				ScopePath: "src/",
+				ContextAttachments: []ContextAttachment{
+					{Type: "note", Content: "first", Key: "key-one"},
+					{Type: "note", Content: "second", Key: "key-two"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "context attachments without keys allowed",
+			task: &Task{
+				Title:     "Task without keys",
+				ScopePath: "src/",
+				ContextAttachments: []ContextAttachment{
+					{Type: "note", Content: "first"},
+					{Type: "note", Content: "second"},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -692,6 +729,53 @@ func TestContextAttachment_Validate(t *testing.T) {
 		{
 			name:       "note without content",
 			attachment: &ContextAttachment{Type: "note"},
+			wantErr:    true,
+		},
+		// Key validation tests
+		{
+			name:       "valid key with hyphens",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "error-logs"},
+			wantErr:    false,
+		},
+		{
+			name:       "valid key with underscores",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "error_logs"},
+			wantErr:    false,
+		},
+		{
+			name:       "valid key with numbers",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "log-2024"},
+			wantErr:    false,
+		},
+		{
+			name:       "invalid key with uppercase",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "Error-Logs"},
+			wantErr:    true,
+		},
+		{
+			name:       "invalid key with spaces",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "error logs"},
+			wantErr:    true,
+		},
+		{
+			name:       "invalid key whitespace only",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Key: "   "},
+			wantErr:    true,
+		},
+		// Tags validation tests
+		{
+			name:       "valid tags",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Tags: []string{"debug", "production"}},
+			wantErr:    false,
+		},
+		{
+			name:       "too many tags",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Tags: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}},
+			wantErr:    true,
+		},
+		{
+			name:       "empty tag in list",
+			attachment: &ContextAttachment{Type: "note", Content: "test", Tags: []string{"valid", ""}},
 			wantErr:    true,
 		},
 	}

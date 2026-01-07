@@ -37,6 +37,7 @@ import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patter
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
 import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 import { TaskDetail } from "../components/TaskDetail";
+import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -164,12 +165,14 @@ export function TasksPage({
     description: "",
     scopePath: ".",
     projectRoot: "",
+    contextAttachments: [],
   });
   const [editFormData, setEditFormData] = useState<TaskFormData>({
     title: "",
     description: "",
     scopePath: ".",
     projectRoot: "",
+    contextAttachments: [],
   });
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
@@ -218,6 +221,7 @@ export function TasksPage({
       description: "",
       scopePath: ".",
       projectRoot: "",
+      contextAttachments: [],
     });
     setShowForm(false);
   };
@@ -228,6 +232,7 @@ export function TasksPage({
       description: "",
       scopePath: ".",
       projectRoot: "",
+      contextAttachments: [],
     });
     setEditingTask(null);
   };
@@ -239,6 +244,7 @@ export function TasksPage({
       description: task.description ?? "",
       scopePath: task.scopePath,
       projectRoot: task.projectRoot ?? "",
+      contextAttachments: task.contextAttachments ?? [],
     });
   };
 
@@ -668,6 +674,12 @@ export function TasksPage({
                   />
                 </div>
               </div>
+              <ContextAttachmentEditor
+                attachments={formData.contextAttachments || []}
+                onChange={(attachments) =>
+                  setFormData({ ...formData, contextAttachments: attachments })
+                }
+              />
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={resetForm}>
@@ -746,6 +758,12 @@ export function TasksPage({
                   />
                 </div>
               </div>
+              <ContextAttachmentEditor
+                attachments={editFormData.contextAttachments || []}
+                onChange={(attachments) =>
+                  setEditFormData({ ...editFormData, contextAttachments: attachments })
+                }
+              />
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={resetEditForm}>

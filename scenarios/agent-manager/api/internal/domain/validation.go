@@ -19,6 +19,7 @@
 package domain
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -297,17 +298,30 @@ func (t *Task) Validate() error {
 	}
 
 	// Validate context attachments
+	seenKeys := make(map[string]bool)
 	for i, att := range t.ContextAttachments {
 		if err := att.Validate(); err != nil {
 			// Wrap with index for better error messages
 			if ve, ok := err.(*ValidationError); ok {
 				return &ValidationError{
-					Field:   "contextAttachments[" + string(rune('0'+i)) + "]." + ve.Field,
+					Field:   fmt.Sprintf("contextAttachments[%d].%s", i, ve.Field),
 					Message: ve.Message,
 					Hint:    ve.Hint,
 				}
 			}
 			return err
+		}
+
+		// Check for duplicate keys
+		if att.Key != "" {
+			if seenKeys[att.Key] {
+				return &ValidationError{
+					Field:   fmt.Sprintf("contextAttachments[%d].key", i),
+					Message: "duplicate key: " + att.Key,
+					Hint:    "each context attachment must have a unique key",
+				}
+			}
+			seenKeys[att.Key] = true
 		}
 	}
 
@@ -489,6 +503,35 @@ func (c *ContextAttachment) Validate() error {
 			"valid types: file, link, note")
 	}
 
+	// Key validation: optional but must be valid format if provided
+	if c.Key != "" {
+		key := strings.TrimSpace(c.Key)
+		if key == "" {
+			return NewValidationError("key", "cannot be whitespace-only")
+		}
+		if len(key) > 128 {
+			return NewValidationError("key", "must be 128 characters or less")
+		}
+		if !isValidContextKey(key) {
+			return NewValidationErrorWithHint("key", "invalid key format",
+				"use lowercase alphanumeric with hyphens or underscores (e.g., 'error-logs')")
+		}
+	}
+
+	// Tags validation
+	if len(c.Tags) > 10 {
+		return NewValidationError("tags", "cannot have more than 10 tags")
+	}
+	for i, tag := range c.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			return NewValidationError("tags", "tag cannot be empty")
+		}
+		if len(tag) > 64 {
+			return NewValidationError("tags", fmt.Sprintf("tag[%d] must be 64 characters or less", i))
+		}
+	}
+
 	switch c.Type {
 	case "file":
 		if strings.TrimSpace(c.Path) == "" {
@@ -505,6 +548,17 @@ func (c *ContextAttachment) Validate() error {
 	}
 
 	return nil
+}
+
+// isValidContextKey checks if a key follows the allowed format:
+// lowercase letters, numbers, hyphens, and underscores only.
+func isValidContextKey(key string) bool {
+	for _, r := range key {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // =============================================================================

@@ -1,4 +1,4 @@
-import { Edit, FolderOpen, Play, Trash2, XCircle } from "lucide-react";
+import { Edit, File, FolderOpen, Link2, Play, StickyNote, Tag, Trash2, XCircle } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { MarkdownRenderer } from "./markdown";
@@ -136,6 +136,52 @@ export function TaskDetail({
             <code className="text-sm bg-muted px-2 py-1 rounded">
               {task.projectRoot}
             </code>
+          </div>
+        )}
+
+        {task.contextAttachments && task.contextAttachments.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Context Attachments</h4>
+            <div className="space-y-2">
+              {task.contextAttachments.map((att, index) => (
+                <div
+                  key={index}
+                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm"
+                >
+                  {att.type === "file" && <File className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  {att.type === "link" && <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  {att.type === "note" && <StickyNote className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {att.key && (
+                        <code className="text-xs bg-background px-1 py-0.5 rounded">
+                          {att.key}
+                        </code>
+                      )}
+                      {att.label && <span className="font-medium">{att.label}</span>}
+                      {!att.key && !att.label && (
+                        <span className="text-muted-foreground capitalize">{att.type}</span>
+                      )}
+                    </div>
+                    {att.path && <p className="text-xs text-muted-foreground truncate">{att.path}</p>}
+                    {att.url && <p className="text-xs text-muted-foreground truncate">{att.url}</p>}
+                    {att.content && att.type === "note" && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{att.content}</p>
+                    )}
+                    {att.tags && att.tags.length > 0 && (
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {att.tags.map((tag, i) => (
+                          <Badge key={i} variant="outline" className="text-xs gap-1 py-0">
+                            <Tag className="h-2.5 w-2.5" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

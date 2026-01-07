@@ -193,11 +193,13 @@ const (
 
 // ContextAttachment represents additional context for a task.
 type ContextAttachment struct {
-	Type    string `json:"type"` // "file", "link", "note"
-	Path    string `json:"path,omitempty"`
-	URL     string `json:"url,omitempty"`
-	Content string `json:"content,omitempty"`
-	Label   string `json:"label,omitempty"`
+	Type    string   `json:"type"`           // "file", "link", "note"
+	Key     string   `json:"key,omitempty"`  // Unique identifier (e.g., "error-logs", "deployment-manifest")
+	Tags    []string `json:"tags,omitempty"` // Categorization tags for filtering and analytics
+	Path    string   `json:"path,omitempty"`
+	URL     string   `json:"url,omitempty"`
+	Content string   `json:"content,omitempty"`
+	Label   string   `json:"label,omitempty"`
 }
 
 // -----------------------------------------------------------------------------

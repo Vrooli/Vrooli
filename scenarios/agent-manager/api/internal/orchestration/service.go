@@ -931,6 +931,11 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		prompt = task.Description
 	}
 
+	// Append context attachments to the prompt if present
+	if len(task.ContextAttachments) > 0 {
+		prompt = domain.BuildPromptWithContext(prompt, task.ContextAttachments)
+	}
+
 	// Start execution asynchronously
 	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
 
