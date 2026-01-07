@@ -451,65 +451,33 @@ export interface SpawnAgentsResult {
 }
 
 export interface SpawnAgentsResponse {
+  batchId: string;
   items: SpawnAgentsResult[];
   count: number;
   capped?: boolean;
-  scopeConflicts?: string[];
-  validationError?: string;
+  errors?: string[];
 }
 
 export interface ActiveAgent {
   id: string;
+  runId?: string;
   sessionId?: string;
-  scenario: string;
-  scope: string[];
+  scenario?: string;
+  scope?: string[];
   phases?: string[];
-  model: string;
+  model?: string;
   status: "pending" | "running" | "completed" | "failed" | "timeout" | "stopped";
-  startedAt: string;
+  startedAt?: string;
   completedAt?: string;
-  promptHash: string;
-  promptIndex: number;
-  promptText?: string; // Full prompt text for display
   output?: string;
   error?: string;
-  // Process tracking for orphan detection
-  pid?: number;
-  hostname?: string;
-}
-
-export interface ScopeLock {
-  scenario: string;
-  paths: string[];
-  agentId: string;
-  acquiredAt: string;
-  expiresAt: string;
+  tokensUsed?: number;
+  costEstimate?: number;
 }
 
 export interface ActiveAgentsResponse {
   items: ActiveAgent[];
   count: number;
-  activeLocks: ScopeLock[];
-}
-
-export interface ConflictDetail {
-  path: string;
-  lockedBy: {
-    path: string;
-    agentId: string;
-    scenario: string;
-    startedAt: string;
-    expiresAt: string;
-    model?: string;
-    phases?: string[];
-    status?: string;
-    runningSeconds?: number;
-  };
-}
-
-export interface ScopeConflictResponse {
-  hasConflicts: boolean;
-  conflicts: ConflictDetail[];
 }
 
 export interface BlockedCommandsResponse {
@@ -609,16 +577,6 @@ export async function stopAllAgents(): Promise<StopAllAgentsResponse> {
   return parseResponse<StopAllAgentsResponse>(res);
 }
 
-export async function checkScopeConflicts(scenario: string, scope: string[]): Promise<ScopeConflictResponse> {
-  const url = buildApiUrl("/agents/check-conflicts", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenario, scope })
-  });
-  return parseResponse<ScopeConflictResponse>(res);
-}
-
 export async function fetchBlockedCommands(): Promise<BlockedCommandsResponse> {
   const url = buildApiUrl("/agents/blocked-commands", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -628,40 +586,37 @@ export async function fetchBlockedCommands(): Promise<BlockedCommandsResponse> {
   return parseResponse<BlockedCommandsResponse>(res);
 }
 
-export async function cleanupAgents(olderThanMinutes = 60): Promise<{ removed: number }> {
-  const url = buildApiUrl("/agents/cleanup", { baseUrl: API_BASE });
-  const finalUrl = `${url}?olderThanMinutes=${olderThanMinutes}`;
-  const res = await fetch(finalUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-  return parseResponse<{ removed: number }>(res);
+// Agent-manager integration
+
+export interface AgentManagerStatus {
+  enabled: boolean;
+  healthy: boolean;
+  url?: string;
+  profileId?: string;
+  error?: string;
 }
 
-// Path validation for prompts
-export interface PathValidationResult {
-  path: string;
-  description: string;
-  exists: boolean;
-  isDirectory: boolean;
-  required: boolean;
-}
-
-export interface ValidatePathsResponse {
-  valid: boolean;
-  paths: PathValidationResult[];
-  warnings: string[];
-  errors: string[];
-}
-
-export async function validatePromptPaths(scenario: string, phases: string[]): Promise<ValidatePathsResponse> {
-  const url = buildApiUrl("/agents/validate-paths", { baseUrl: API_BASE });
+export async function fetchAgentManagerStatus(): Promise<AgentManagerStatus> {
+  const url = buildApiUrl("/agents/status", { baseUrl: API_BASE });
   const res = await fetch(url, {
-    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenario, phases })
+    cache: "no-store"
   });
-  return parseResponse<ValidatePathsResponse>(res);
+  return parseResponse<AgentManagerStatus>(res);
+}
+
+export interface AgentManagerWSUrlResponse {
+  url: string;
+  enabled: boolean;
+}
+
+export async function fetchAgentManagerWSUrl(): Promise<AgentManagerWSUrlResponse> {
+  const url = buildApiUrl("/agents/ws-url", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<AgentManagerWSUrlResponse>(res);
 }
 
 // ========================================

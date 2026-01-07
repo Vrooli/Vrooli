@@ -1,36 +1,41 @@
 // Package httpserver provides HTTP API types and handlers.
 // This file contains Data Transfer Objects (DTOs) for the agent API endpoints.
-// The actual agent management logic is in the agents package (internal/agents/).
+// Agent execution is managed by agent-manager service.
 package httpserver
 
 import (
 	"time"
-
-	"test-genie/internal/agents"
 )
 
-// AgentStatus is an alias for agents.AgentStatus to simplify JSON serialization.
-// Use agents.AgentStatus as the source of truth for status values.
-type AgentStatus = agents.AgentStatus
+// AgentStatus represents the status of an agent.
+type AgentStatus string
+
+// Agent status constants
+const (
+	AgentStatusPending   AgentStatus = "pending"
+	AgentStatusRunning   AgentStatus = "running"
+	AgentStatusCompleted AgentStatus = "completed"
+	AgentStatusFailed    AgentStatus = "failed"
+	AgentStatusStopped   AgentStatus = "stopped"
+	AgentStatusTimeout   AgentStatus = "timeout"
+)
 
 // ActiveAgent represents a spawned agent in API responses.
 // This is an API DTO that provides the JSON structure for agent endpoints.
-// The actual agent model is agents.SpawnedAgent in the agents package.
+// Agent state is managed by agent-manager.
 type ActiveAgent struct {
-	ID          string      `json:"id"`
-	SessionID   string      `json:"sessionId,omitempty"`
-	Scenario    string      `json:"scenario"`
-	Scope       []string    `json:"scope"`
-	Phases      []string    `json:"phases,omitempty"`
-	Model       string      `json:"model"`
-	Status      AgentStatus `json:"status"`
-	StartedAt   time.Time   `json:"startedAt"`
-	CompletedAt *time.Time  `json:"completedAt,omitempty"`
-	PromptHash  string      `json:"promptHash"`
-	PromptIndex int         `json:"promptIndex"`
-	PromptText  string      `json:"promptText,omitempty"`
-	Output      string      `json:"output,omitempty"`
-	Error       string      `json:"error,omitempty"`
-	PID         int         `json:"pid,omitempty"`
-	Hostname    string      `json:"hostname,omitempty"`
+	ID           string      `json:"id"`
+	RunID        string      `json:"runId,omitempty"`
+	SessionID    string      `json:"sessionId,omitempty"`
+	Scenario     string      `json:"scenario,omitempty"`
+	Scope        []string    `json:"scope,omitempty"`
+	Phases       []string    `json:"phases,omitempty"`
+	Model        string      `json:"model,omitempty"`
+	Status       AgentStatus `json:"status"`
+	StartedAt    time.Time   `json:"startedAt,omitempty"`
+	CompletedAt  time.Time   `json:"completedAt,omitempty"`
+	Output       string      `json:"output,omitempty"`
+	Error        string      `json:"error,omitempty"`
+	TokensUsed   int32       `json:"tokensUsed,omitempty"`
+	CostEstimate float64     `json:"costEstimate,omitempty"`
 }

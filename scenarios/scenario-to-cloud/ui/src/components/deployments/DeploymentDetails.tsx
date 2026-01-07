@@ -33,7 +33,7 @@ import {
 import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import { cn } from "../../lib/utils";
-import type { Deployment } from "../../lib/api";
+import { runPreflight as runPreflightApi, type Deployment, type PreflightCheck, type PreflightResponse } from "../../lib/api";
 import type { StepStatus } from "../../types/progress";
 import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
@@ -43,7 +43,15 @@ import { InvestigateButton } from "../wizard/InvestigateButton";
 import { InvestigationProgress } from "../wizard/InvestigationProgress";
 import { InvestigationReport } from "../wizard/InvestigationReport";
 import { BuildStatusPanel } from "../wizard/StepBuild";
-import { buildChecksToDisplay, buildReadOnlyChecks, PreflightChecksPanel, type CheckState } from "../wizard/StepPreflight";
+import {
+  buildChecksToDisplay,
+  buildReadOnlyChecks,
+  DiskUsageModal,
+  PortStopModal,
+  PreflightChecksPanel,
+  usePreflightActions,
+  type CheckState,
+} from "../wizard/StepPreflight";
 import { DeploymentProgressView, getStepStatusFromProgress } from "../wizard/DeploymentProgress";
 
 interface DeploymentDetailsProps {
@@ -74,6 +82,9 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
   const redeployRunId = deployment?.run_id ?? null;
   const lastBundleRefreshRunRef = useRef<string | null>(null);
+  const [redeployPreflightResult, setRedeployPreflightResult] = useState<PreflightResponse | null>(null);
+  const [redeployPreflightError, setRedeployPreflightError] = useState<string | null>(null);
+  const [redeployPreflightRunning, setRedeployPreflightRunning] = useState(false);
 
   const {
     progress: redeployProgress,
@@ -189,17 +200,17 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         : preflightStepStatus === "running"
           ? "running"
           : "pending";
+  const preflightChecksRaw: PreflightCheck[] | null =
+    redeployProgress?.preflightResult?.checks ??
+    redeployPreflightResult?.checks ??
+    deploymentRecord?.preflight_result?.checks ??
+    null;
   const preflightChecks = useMemo(() => {
-    const liveResult = redeployProgress?.preflightResult;
-    if (liveResult?.checks?.length) {
-      return buildChecksToDisplay(liveResult.checks, false);
-    }
-    const storedResult = deploymentRecord?.preflight_result;
-    if (storedResult?.checks?.length) {
-      return buildChecksToDisplay(storedResult.checks, false);
+    if (preflightChecksRaw?.length) {
+      return buildChecksToDisplay(preflightChecksRaw, redeployPreflightRunning);
     }
     return buildReadOnlyChecks(preflightCheckState);
-  }, [deploymentRecord?.preflight_result, preflightCheckState, redeployProgress?.preflightResult]);
+  }, [preflightCheckState, preflightChecksRaw, redeployPreflightRunning]);
   const redeploySteps = useMemo(
     () => [
       ...(includeBuildStep ? [{ id: "build", label: "Build" }] : []),
@@ -225,6 +236,46 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const displayedStepId = redeploySteps[viewedStepIndex]?.id ?? "deploy";
   const redeployStartError =
     executeMutation.error instanceof Error ? executeMutation.error.message : null;
+
+  const runRedeployPreflight = useCallback(async () => {
+    if (!deploymentRecord?.manifest) {
+      setRedeployPreflightError("Missing deployment manifest. Please inspect the deployment and try again.");
+      return;
+    }
+    setRedeployPreflightRunning(true);
+    setRedeployPreflightError(null);
+    try {
+      const result = await runPreflightApi(deploymentRecord.manifest);
+      setRedeployPreflightResult(result);
+    } catch (err) {
+      setRedeployPreflightError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRedeployPreflightRunning(false);
+    }
+  }, [deploymentRecord?.manifest]);
+
+  const {
+    actionLoading: preflightActionLoading,
+    actionError: preflightActionError,
+    diskUsage: preflightDiskUsage,
+    showDiskModal: showPreflightDiskModal,
+    setShowDiskModal: setShowPreflightDiskModal,
+    cleanupLoading: preflightCleanupLoading,
+    showPortModal: showPreflightPortModal,
+    setShowPortModal: setShowPreflightPortModal,
+    portSelections: preflightPortSelections,
+    portBindings: preflightPortBindings,
+    handleAction: handlePreflightAction,
+    handlePortStop: handlePreflightPortStop,
+    togglePortService: togglePreflightPortService,
+    togglePortPID: togglePreflightPortPID,
+    handleCleanup: handlePreflightCleanup,
+  } = usePreflightActions({
+    manifest,
+    sshKeyPath: null,
+    preflightChecks: preflightChecksRaw,
+    onRecheck: runRedeployPreflight,
+  });
 
   const hydrateRedeployOptions = useCallback(() => {
     if (redeployOptionsSnapshot) return;
@@ -602,6 +653,16 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                         This redeploy will proceed without preflight checks.
                       </Alert>
                     )}
+                    {redeployPreflightError && (
+                      <Alert variant="error" title="Preflight failed">
+                        {redeployPreflightError}
+                      </Alert>
+                    )}
+                    {preflightActionError && (
+                      <Alert variant="error" title="Action failed">
+                        {preflightActionError}
+                      </Alert>
+                    )}
                     {redeployPreflightEnabled && preflightStepStatus === "running" && (
                       <Alert variant="info" title="Preflight running">
                         Running preflight checks against the target VPS.
@@ -624,7 +685,34 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                           : "Preflight checks will run after bundle preparation completes."}
                       </Alert>
                     )}
-                    <PreflightChecksPanel checksToDisplay={preflightChecks} readOnly />
+                    <PreflightChecksPanel
+                      checksToDisplay={preflightChecks}
+                      actionLoading={preflightActionLoading}
+                      onAction={handlePreflightAction}
+                      context="redeploy"
+                    />
+
+                    {showPreflightDiskModal && (
+                      <DiskUsageModal
+                        usage={preflightDiskUsage}
+                        loading={preflightActionLoading === "disk_free:show_disk"}
+                        onClose={() => setShowPreflightDiskModal(false)}
+                        onCleanup={handlePreflightCleanup}
+                        cleanupLoading={preflightCleanupLoading}
+                      />
+                    )}
+
+                    {showPreflightPortModal && (
+                      <PortStopModal
+                        bindings={preflightPortBindings}
+                        selections={preflightPortSelections}
+                        loading={preflightActionLoading === "ports_80_443:stop_ports"}
+                        onToggleService={togglePreflightPortService}
+                        onTogglePID={togglePreflightPortPID}
+                        onConfirm={handlePreflightPortStop}
+                        onClose={() => setShowPreflightPortModal(false)}
+                      />
+                    )}
                   </div>
                 )}
 

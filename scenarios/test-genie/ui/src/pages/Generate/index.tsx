@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { PhaseSelector } from "./PhaseSelector";
 import { PromptEditor } from "./PromptEditor";
 import { ActionButtons } from "./ActionButtons";
 import { PresetSelector } from "./PresetSelector";
 import { ScenarioTargetDialog } from "./ScenarioTargetDialog";
 import { ActiveAgentsPanel } from "./ActiveAgentsPanel";
-import { ConflictPreview } from "./ConflictPreview";
 import { ContainmentBadge } from "./ContainmentBadge";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
@@ -13,7 +12,7 @@ import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
-import { AgentModel, SpawnAgentsResult, ConflictDetail, fetchAgentModels, spawnAgents, checkScopeConflicts, fetchAppConfig, validatePromptPaths, fetchContainmentStatus, type AppConfig, type ValidatePathsResponse, type ContainmentStatus } from "../../lib/api";
+import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, fetchContainmentStatus, type AppConfig, type ContainmentStatus } from "../../lib/api";
 
 const MAX_PROMPTS = 12;
 const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
@@ -302,14 +301,10 @@ export function GeneratePage() {
   const [spawnBusy, setSpawnBusy] = useState(false);
   const [spawnStatus, setSpawnStatus] = useState<string | null>(null);
   const [spawnResults, setSpawnResults] = useState<SpawnAgentsResult[] | null>(null);
-  const [scopeConflicts, setScopeConflicts] = useState<ConflictDetail[]>([]);
-  const [conflictCheckPending, setConflictCheckPending] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
-  const [pathValidation, setPathValidation] = useState<ValidatePathsResponse | null>(null);
   const [containmentStatus, setContainmentStatus] = useState<ContainmentStatus | null>(null);
   const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
-  const conflictCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasTargets = targetPaths.length > 0;
 
@@ -399,42 +394,6 @@ export function GeneratePage() {
     };
     loadModels();
   }, [recentModels]);
-
-  // Debounced conflict check when scenario or scope changes
-  const checkForConflicts = useCallback(async () => {
-    if (!focusScenario) {
-      setScopeConflicts([]);
-      return;
-    }
-    setConflictCheckPending(true);
-    try {
-      const result = await checkScopeConflicts(focusScenario, targetPaths);
-      setScopeConflicts(result.conflicts);
-    } catch (err) {
-      console.error("Failed to check conflicts:", err);
-      setScopeConflicts([]);
-    } finally {
-      setConflictCheckPending(false);
-    }
-  }, [focusScenario, targetPaths]);
-
-  useEffect(() => {
-    // Clear any pending timeout
-    if (conflictCheckTimeout.current) {
-      clearTimeout(conflictCheckTimeout.current);
-    }
-
-    // Debounce the conflict check by 300ms
-    conflictCheckTimeout.current = setTimeout(() => {
-      checkForConflicts();
-    }, 300);
-
-    return () => {
-      if (conflictCheckTimeout.current) {
-        clearTimeout(conflictCheckTimeout.current);
-      }
-    };
-  }, [checkForConflicts]);
 
   const saveRecentModel = (model: string) => {
     if (!model) return;
@@ -556,45 +515,10 @@ export function GeneratePage() {
     const safeMaxTurns = Number.isFinite(maxTurns) ? maxTurns : 0;
     const safeTimeout = Number.isFinite(timeoutSeconds) ? timeoutSeconds : 0;
     setSpawnBusy(true);
-    setSpawnStatus("Checking for scope conflicts...");
+    setSpawnStatus("Spawning agents via agent-manager...");
     setSpawnResults(null);
-    setScopeConflicts([]);
 
     try {
-      // Check for scope conflicts before spawning (server-side)
-      if (focusScenario) {
-        const conflictCheck = await checkScopeConflicts(focusScenario, targetPaths);
-        if (conflictCheck.hasConflicts) {
-          setScopeConflicts(conflictCheck.conflicts);
-          setSpawnStatus(`Scope conflict: ${conflictCheck.conflicts.length} agent(s) already working on overlapping paths. Wait for them to complete or stop them first.`);
-          setSpawnBusy(false);
-          return;
-        }
-      }
-
-      // Pre-flight validation: check that referenced paths exist
-      setSpawnStatus("Validating prompt paths...");
-      if (focusScenario) {
-        try {
-          const validation = await validatePromptPaths(focusScenario, selectedPhases);
-          setPathValidation(validation);
-          if (!validation.valid) {
-            // Required paths missing - block spawn
-            setSpawnStatus(`Path validation failed: ${validation.errors.join("; ")}`);
-            setSpawnBusy(false);
-            return;
-          }
-          // Show warnings but continue (they're non-blocking)
-          if (validation.warnings.length > 0) {
-            console.warn("Path validation warnings:", validation.warnings);
-          }
-        } catch (err) {
-          // Log but don't block on validation errors
-          console.warn("Path validation check failed:", err);
-        }
-      }
-
-      setSpawnStatus("Spawning agents via OpenCode/OpenRouter...");
       const allowed = allowedTools
         .split(",")
         .map((t) => t.trim())
@@ -616,15 +540,6 @@ export function GeneratePage() {
         networkEnabled
       });
 
-      // Check for scope conflicts in the response (just agent IDs)
-      // If there are conflicts, re-fetch detailed conflict info
-      if (res.scopeConflicts && res.scopeConflicts.length > 0) {
-        setSpawnStatus(`Scope conflict: ${res.scopeConflicts.length} agent(s) already working on overlapping paths.`);
-        // Refresh detailed conflict info
-        checkForConflicts();
-        return;
-      }
-
       setSpawnResults(res.items ?? []);
       saveRecentModel(agentModel);
 
@@ -636,16 +551,6 @@ export function GeneratePage() {
     } finally {
       setSpawnBusy(false);
     }
-  };
-
-  const handleConflictDetected = (_conflictingAgentIds: string[]) => {
-    // Refresh detailed conflict info when conflicts are detected
-    checkForConflicts();
-  };
-
-  const handleConflictAgentStopped = (agentId: string) => {
-    // Remove conflicts related to the stopped agent and refresh
-    setScopeConflicts(prev => prev.filter(c => c.lockedBy.agentId !== agentId));
   };
 
   return (
@@ -1072,18 +977,10 @@ export function GeneratePage() {
         </div>
       </section>
 
-      {/* Pre-Spawn Conflict Preview */}
-      <ConflictPreview
-        conflicts={scopeConflicts}
-        onStopAgent={handleConflictAgentStopped}
-        onRefresh={checkForConflicts}
-      />
-
       {/* Active Agents Panel */}
       <ActiveAgentsPanel
         scenario={focusScenario}
         scope={targetPaths}
-        onConflictDetected={handleConflictDetected}
       />
 
       {/* Action Buttons */}
@@ -1102,7 +999,7 @@ export function GeneratePage() {
           prompt={currentPromptItem?.prompt ?? ""}
           allPrompts={promptItems.map((item) => item.prompt)}
           disabled={isDisabled}
-          spawnDisabled={spawnDisabled || scopeConflicts.length > 0}
+          spawnDisabled={spawnDisabled}
           spawnBusy={spawnBusy}
           onSpawnAll={handleSpawnAll}
         />

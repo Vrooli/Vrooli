@@ -1,6 +1,6 @@
-# Tunable Levers: Agents, Containment & Security Configuration
+# Tunable Levers: Containment & Agent-Manager Configuration
 
-This document describes the tunable configuration levers for the test-genie agent orchestration, containment, and security systems. These levers allow operators to adjust behavior without code changes, via environment variables.
+This document describes the tunable configuration levers for test-genie's containment system and agent-manager integration. These levers allow operators to adjust behavior without code changes, via environment variables.
 
 ## Design Principles
 
@@ -10,38 +10,33 @@ This document describes the tunable configuration levers for the test-genie agen
 4. **No silent failures**: Invalid values are clamped, not rejected, to prevent startup failures.
 5. **Validation reporting**: Configs provide warnings when non-default security settings are detected.
 
-## Agent Configuration
+## Agent-Manager Integration
 
-These levers control agent lifecycle, coordination, and execution limits.
+Agent lifecycle, coordination, and execution are now managed by the **agent-manager** service. Test-genie integrates with agent-manager via HTTP and delegates all agent spawning to it.
 
 ### Environment Variables
 
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `AGENT_LOCK_TIMEOUT_MINUTES` | 5-120 | 20 | How long scope locks remain valid before expiring |
-| `AGENT_HEARTBEAT_INTERVAL_MINUTES` | 1-LockTimeout/2 | LockTimeout/4 | How often agents renew their locks |
-| `AGENT_MAX_HEARTBEAT_FAILURES` | 1-10 | 3 | Consecutive failures before agent is stopped |
-| `AGENT_RETENTION_DAYS` | 1-365 | 7 | Days to keep completed agent records |
-| `AGENT_CLEANUP_INTERVAL_MINUTES` | 15-1440 | 60 | How often background cleanup runs |
-| `AGENT_MAX_PROMPTS` | 1-100 | 20 | Max prompts per spawn request |
-| `AGENT_MAX_CONCURRENT` | 1-20 | 10 | Max parallel agents per spawn |
-| `AGENT_DEFAULT_CONCURRENCY` | 1-MaxConcurrent | 3 | Default concurrency if not specified |
-| `AGENT_SPAWN_SESSION_TTL_MINUTES` | 5-480 | 30 | How long spawn sessions last |
-| `AGENT_IDEMPOTENCY_TTL_MINUTES` | 5-480 | 30 | How long idempotency keys are cached |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENT_MANAGER_ENABLED` | `true` | Enable agent-manager integration (set to `false` to disable) |
+| `AGENT_MANAGER_PROFILE_KEY` | `test-genie` | Profile key used for test-genie agents in agent-manager |
 
-### Tradeoff Guide
+### Agent Profile Configuration
 
-#### Lock Timeout (`AGENT_LOCK_TIMEOUT_MINUTES`)
-- **Higher (e.g., 60)**: Agents can run longer tasks without heartbeat pressure. Use for long-running test suites.
-- **Lower (e.g., 10)**: Faster recovery when agents crash/hang. Use when quick iteration matters more than long tasks.
+Agent profiles are managed in agent-manager. The default test-genie profile includes:
 
-#### Retention Days (`AGENT_RETENTION_DAYS`)
-- **Higher (e.g., 30)**: More history for debugging and auditing.
-- **Lower (e.g., 3)**: Smaller database, faster queries.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Runner Type | `CLAUDE_CODE` | The runner type for agent execution |
+| Model Preset | `SMART` | Model selection preset |
+| Max Turns | 50 | Maximum conversation turns before timeout |
+| Timeout | 15 minutes | Maximum execution time per agent |
+| Allowed Tools | Read, Write, Edit, Glob, Grep, Bash | Tools available to agents |
+| Skip Permissions | false | Require confirmation for tool operations |
+| Requires Sandbox | false | In-place execution (agent-manager handles containment) |
+| Requires Approval | false | Auto-apply test file changes |
 
-#### Max Concurrent Agents (`AGENT_MAX_CONCURRENT`)
-- **Higher (e.g., 15)**: Faster batch completion but more CPU/memory pressure.
-- **Lower (e.g., 5)**: Gentler on resources, better for constrained environments.
+To customize agent behavior, configure the profile in agent-manager directly.
 
 ## Containment Configuration
 
@@ -82,40 +77,11 @@ These levers control OS-level isolation for agent execution.
 
 ## Security Configuration
 
-These levers control bash command validation, prompt scanning, and extensibility.
-
-### Environment Variables
-
-| Variable | Range | Default | Description |
-|----------|-------|---------|-------------|
-| `SECURITY_EXTRA_ALLOWED_BASH_COMMANDS` | comma-separated | (empty) | Additional bash command prefixes to allow |
-| `SECURITY_PROMPT_VALIDATION_STRICT` | true/false | true | Enable stricter prompt pattern scanning |
-| `SECURITY_MAX_PROMPT_LENGTH` | 1000-1000000 | 100000 | Maximum prompt length in characters |
-| `SECURITY_ALLOW_GLOB_PATTERNS` | true/false | true | Allow glob patterns in allowed bash commands |
-
-### Tradeoff Guide
-
-#### Extra Allowed Bash Commands (`SECURITY_EXTRA_ALLOWED_BASH_COMMANDS`)
-- **More commands**: Agents have more flexibility to run scenario-specific operations.
-- **Fewer commands**: Tighter security, but agents may be blocked from necessary operations.
-- **Format**: Comma-separated command prefixes (e.g., `cargo test,cargo build,make deploy`)
-- **SECURITY NOTE**: These commands are ADDED to the built-in allowlist, not replacements. Be careful what you add.
-
-#### Prompt Validation Strict (`SECURITY_PROMPT_VALIDATION_STRICT`)
-- **true (default)**: More patterns are flagged as potentially dangerous.
-- **false**: Only the most obvious dangerous patterns are flagged. Use for testing or when false positives are problematic.
-
-#### Max Prompt Length (`SECURITY_MAX_PROMPT_LENGTH`)
-- **Higher (e.g., 500000)**: Agents can receive more context, useful for large codebases.
-- **Lower (e.g., 50000)**: Limits prompt injection attack surface.
-
-#### Allow Glob Patterns (`SECURITY_ALLOW_GLOB_PATTERNS`)
-- **true (default)**: Glob patterns are allowed only for safe commands (test runners, `ls`).
-- **false**: All glob patterns are rejected. Use for maximum security.
+Security for agent execution is now managed by **agent-manager** via agent profiles. The security preamble is generated by test-genie's `agentmanager` package and included as a context attachment when spawning agents.
 
 ### Built-in Bash Command Allowlist
 
-The following bash commands are always allowed (prefixes):
+The following bash commands are allowed by the test-genie safety preamble:
 - **Test runners**: `pnpm test`, `npm test`, `go test`, `vitest`, `jest`, `bats`, `make test`, `pytest`
 - **Build commands**: `pnpm build`, `npm run build`, `go build`, `make`
 - **Linters/formatters**: `eslint`, `prettier`, `gofmt`, `gofumpt`, `golangci-lint`
@@ -123,28 +89,27 @@ The following bash commands are always allowed (prefixes):
 - **Safe inspection**: `ls`, `pwd`, `which`, `wc`, `diff`
 - **Git read-only**: `git status`, `git diff`, `git log`, `git show`, `git branch`, `git remote`
 
-### Blocked Patterns (Defense-in-Depth)
+### Safety Preamble Constraints
 
-These patterns are blocked in prompts regardless of command allowlist:
-- Git destructive: `git checkout`, `git reset --hard`, `git push`, `git commit`
-- Filesystem: `rm`, `mv`, `cp`, `mkdir`, `rmdir`, `chmod`, `chown`
-- System: `sudo`, `su`, `systemctl`, `kill`, `pkill`
-- Database: `DROP`, `TRUNCATE`, `DELETE FROM`, `UPDATE SET`, `INSERT INTO`
-- Package managers: `npm install`, `pnpm add`, `go get`, `pip install`
-- Remote execution: `curl ... | sh`, `wget ... | sh`
-- Shell execution: `eval`, `exec`, `source`
+Each agent spawn includes a safety preamble that specifies:
+- Working directory (scenario path)
+- Allowed scope paths
+- Maximum files that can be modified (default: 50)
+- Maximum bytes that can be written (default: 1MB)
+- Network access status
 
 ## Programmatic Configuration
 
-All three configs can be set programmatically for testing:
+Configuration can be set programmatically for testing:
 
 ```go
-// Agent config
-cfg := agents.DefaultConfig()
-cfg.LockTimeoutMinutes = 30
-cfg.MaxConcurrentAgents = 5
-
-svc := agents.NewAgentService(repo, agents.WithConfig(cfg))
+// Agent-manager service config
+agentService := agentmanager.NewAgentService(agentmanager.Config{
+    ProfileName: "Test Genie Agent",
+    ProfileKey:  "test-genie",
+    Timeout:     30 * time.Second,
+    Enabled:     true,
+})
 
 // Containment config
 ccfg := containment.DefaultConfig()
@@ -152,37 +117,17 @@ ccfg.DockerImage = "custom:image"
 ccfg.MaxMemoryMB = 4096
 
 provider := containment.NewDockerProvider(containment.WithContainmentConfig(ccfg))
-
-// Security config
-scfg := security.LoadSecurityConfigFromEnv()
-scfg.ExtraAllowedBashCommands = []security.AllowedBashCommand{
-    {Prefix: "cargo test", Description: "Rust test runner"},
-}
-
-validator := security.NewBashCommandValidator(security.WithSecurityConfig(scfg))
 ```
 
 ## Validation Reporting
 
-All configs provide validation reports that warn about non-default or potentially insecure settings:
+Containment config provides validation reports that warn about non-default or potentially insecure settings:
 
 ```go
-// Agent config validation
-agentResult := cfg.ValidateWithReport()
-for _, warning := range agentResult.Warnings {
-    log.Printf("Agent config warning: %s", warning)
-}
-
 // Containment config validation
 containmentResult := ccfg.ValidateWithReport()
 for _, warning := range containmentResult.Warnings {
     log.Printf("Containment config warning: %s", warning)
-}
-
-// Security config validation
-securityWarnings, err := scfg.Validate()
-for _, warning := range securityWarnings {
-    log.Printf("Security config warning: %s", warning)
 }
 ```
 
@@ -202,54 +147,37 @@ for _, warning := range securityWarnings {
 
 ### Development Environment
 ```bash
-# More permissive for faster iteration
-export AGENT_LOCK_TIMEOUT_MINUTES=10
-export AGENT_RETENTION_DAYS=1
-export CONTAINMENT_ALLOW_FALLBACK=true
+# Enable agent-manager integration (default)
+export AGENT_MANAGER_ENABLED=true
 
-# Allow additional commands for Rust development
-export SECURITY_EXTRA_ALLOWED_BASH_COMMANDS="cargo test,cargo build,cargo clippy"
+# Allow fallback containment for development
+export CONTAINMENT_ALLOW_FALLBACK=true
 ```
 
 ### Production Environment
 ```bash
-# Stricter security, longer retention
-export AGENT_LOCK_TIMEOUT_MINUTES=30
-export AGENT_RETENTION_DAYS=30
+# Enable agent-manager integration
+export AGENT_MANAGER_ENABLED=true
+
+# Strict containment - no fallback
 export CONTAINMENT_ALLOW_FALLBACK=false
 export CONTAINMENT_MAX_MEMORY_MB=4096
-
-# Tighter security controls
-export SECURITY_PROMPT_VALIDATION_STRICT=true
-export SECURITY_MAX_PROMPT_LENGTH=50000
 ```
 
 ### CI/CD Environment
 ```bash
-# Fast startup, minimal resources
-export AGENT_MAX_CONCURRENT=2
-export AGENT_LOCK_TIMEOUT_MINUTES=15
+# Fast containment availability check
 export CONTAINMENT_AVAILABILITY_TIMEOUT_SECONDS=2
 
-# Disable glob patterns in CI for predictability
-export SECURITY_ALLOW_GLOB_PATTERNS=false
+# Allow fallback in CI where Docker may not be available
+export CONTAINMENT_ALLOW_FALLBACK=true
 ```
 
 ### High-Security Environment
 ```bash
-# Maximum isolation
+# Maximum containment isolation
 export CONTAINMENT_ALLOW_FALLBACK=false
 export CONTAINMENT_DROP_ALL_CAPABILITIES=true
 export CONTAINMENT_NO_NEW_PRIVILEGES=true
 export CONTAINMENT_READ_ONLY_ROOT_FS=true
-
-# Strict agent limits
-export AGENT_DEFAULT_MAX_FILES=20
-export AGENT_DEFAULT_MAX_BYTES=524288  # 512KB
-export AGENT_DEFAULT_NETWORK_ENABLED=false
-
-# Strict security controls
-export SECURITY_PROMPT_VALIDATION_STRICT=true
-export SECURITY_MAX_PROMPT_LENGTH=25000
-export SECURITY_ALLOW_GLOB_PATTERNS=false
 ```

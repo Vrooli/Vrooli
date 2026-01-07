@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
@@ -308,7 +308,7 @@ interface DiskUsageModalProps {
   cleanupLoading: boolean;
 }
 
-function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoading }: DiskUsageModalProps) {
+export function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoading }: DiskUsageModalProps) {
   if (!usage && !loading) return null;
 
   return (
@@ -414,7 +414,7 @@ interface PortStopModalProps {
   onClose: () => void;
 }
 
-function PortStopModal({
+export function PortStopModal({
   bindings,
   selections,
   loading,
@@ -545,7 +545,7 @@ interface CheckItemProps {
   data?: Record<string, string>;
   onAction?: (action: string) => void;
   actionLoading?: boolean;
-  readOnly?: boolean;
+  context: PreflightContext;
 }
 
 function CheckItem({
@@ -558,7 +558,7 @@ function CheckItem({
   data,
   onAction,
   actionLoading,
-  readOnly,
+  context,
 }: CheckItemProps) {
   const [expanded, setExpanded] = useState(false);
   const Icon = CHECK_ICONS[id] || Server;
@@ -579,6 +579,8 @@ function CheckItem({
 
   // Check if hint is multi-line (for expandable display)
   const isMultiLineHint = hint && hint.includes("\n");
+
+  const actionsEnabled = context === "wizard" || context === "redeploy";
 
   return (
     <li className={`p-3 rounded-lg bg-slate-800/50 border ${colors.border}`}>
@@ -608,7 +610,7 @@ function CheckItem({
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
           {/* Action buttons */}
-          {!readOnly && hasPortsAction && onAction && (
+          {actionsEnabled && hasPortsAction && onAction && (
             <ActionButton
               onClick={() => onAction("stop_ports")}
               loading={actionLoading}
@@ -617,7 +619,7 @@ function CheckItem({
               Review & Stop
             </ActionButton>
           )}
-          {!readOnly && hasDiskAction && onAction && (
+          {actionsEnabled && hasDiskAction && onAction && (
             <ActionButton
               onClick={() => onAction("show_disk")}
               loading={actionLoading}
@@ -627,7 +629,7 @@ function CheckItem({
               Details
             </ActionButton>
           )}
-          {!readOnly && hasFirewallAction && onAction && (
+          {actionsEnabled && hasFirewallAction && onAction && (
             <ActionButton
               onClick={() => onAction("open_firewall")}
               loading={actionLoading}
@@ -636,7 +638,7 @@ function CheckItem({
               Open 80/443
             </ActionButton>
           )}
-          {!readOnly && hasStaleProcessesAction && onAction && (
+          {actionsEnabled && hasStaleProcessesAction && onAction && (
             <>
               <ActionButton
                 onClick={() => onAction("stop_scenario")}
@@ -715,18 +717,244 @@ function CheckItem({
   );
 }
 
+type PreflightManifest = {
+  scenario?: { id?: string };
+  target?: { vps?: { host?: string; port?: number; user?: string; key_path?: string; workdir?: string } };
+};
+
+export interface UsePreflightActionsOptions {
+  manifest: PreflightManifest | null;
+  sshKeyPath?: string | null;
+  preflightChecks: PreflightCheck[] | null;
+  onRecheck?: () => Promise<void> | void;
+}
+
+export function usePreflightActions({
+  manifest,
+  sshKeyPath,
+  preflightChecks,
+  onRecheck,
+}: UsePreflightActionsOptions) {
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [diskUsage, setDiskUsage] = useState<DiskUsageResponse | null>(null);
+  const [showDiskModal, setShowDiskModal] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [portSelections, setPortSelections] = useState<{ services: Record<string, boolean>; pids: Record<number, boolean> }>({
+    services: {},
+    pids: {},
+  });
+
+  const portBindings = useMemo(() => {
+    const portsCheck = preflightChecks?.find((check) => check.id === "ports_80_443");
+    return parsePortBindings(portsCheck?.data);
+  }, [preflightChecks]);
+
+  const getSSHConfig = useCallback(() => {
+    const vps = manifest?.target?.vps;
+    return {
+      host: vps?.host || "",
+      port: vps?.port || 22,
+      user: vps?.user || "root",
+      key_path: vps?.key_path || sshKeyPath || "",
+      workdir: vps?.workdir || DEFAULT_VPS_WORKDIR,
+    };
+  }, [manifest, sshKeyPath]);
+
+  const handleAction = useCallback(async (checkId: string, action: string) => {
+    setActionError(null);
+    const sshConfig = getSSHConfig();
+    if (!sshConfig.host || !sshConfig.key_path) {
+      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
+      return;
+    }
+
+    setActionLoading(`${checkId}:${action}`);
+
+    try {
+      if (action === "stop_ports") {
+        setPortSelections(buildPortSelections(portBindings));
+        setShowPortModal(true);
+        return;
+      }
+      if (action === "open_firewall") {
+        const result = await openFirewallPorts({
+          host: sshConfig.host,
+          port: sshConfig.port,
+          user: sshConfig.user,
+          key_path: sshConfig.key_path,
+          ports: [80, 443],
+        });
+        if (result.ok) {
+          await onRecheck?.();
+        } else {
+          setActionError(result.message || "Failed to update firewall rules.");
+        }
+        return;
+      }
+      if (action === "show_disk") {
+        const usage = await getDiskUsage({
+          host: sshConfig.host,
+          port: sshConfig.port,
+          user: sshConfig.user,
+          key_path: sshConfig.key_path,
+        });
+        setDiskUsage(usage);
+        setShowDiskModal(true);
+        return;
+      }
+      if (action === "stop_scenario" || action === "stop_all") {
+        const scenarioId = action === "stop_scenario" ? manifest?.scenario?.id : undefined;
+        const result = await stopScenarioProcesses({
+          host: sshConfig.host,
+          port: sshConfig.port,
+          user: sshConfig.user,
+          key_path: sshConfig.key_path,
+          workdir: sshConfig.workdir,
+          scenario_id: scenarioId,
+        });
+        if (result.ok) {
+          await onRecheck?.();
+        } else {
+          setActionError(result.message || "Failed to stop processes");
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setActionError(`Action failed: ${errorMessage}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [getSSHConfig, manifest?.scenario?.id, onRecheck, portBindings]);
+
+  const handlePortStop = useCallback(async () => {
+    const sshConfig = getSSHConfig();
+    if (!sshConfig.host || !sshConfig.key_path) {
+      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
+      return;
+    }
+
+    const services = Object.entries(portSelections.services)
+      .filter(([, selected]) => selected)
+      .map(([service]) => service);
+    const pids = Object.entries(portSelections.pids)
+      .filter(([, selected]) => selected)
+      .map(([pid]) => Number(pid));
+
+    if (services.length === 0 && pids.length === 0) {
+      setActionError("Select at least one service or PID to stop.");
+      return;
+    }
+
+    setActionLoading("ports_80_443:stop_ports");
+    try {
+      const result = await stopPortServices({
+        host: sshConfig.host,
+        port: sshConfig.port,
+        user: sshConfig.user,
+        key_path: sshConfig.key_path,
+        services,
+        pids,
+        prefer_service_stop: true,
+      });
+      if (result.ok) {
+        setShowPortModal(false);
+        await onRecheck?.();
+      } else {
+        setActionError(result.message || "Failed to stop services on ports 80/443.");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setActionError(`Action failed: ${errorMessage}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [getSSHConfig, onRecheck, portSelections]);
+
+  const togglePortService = useCallback((service: string) => {
+    setPortSelections((prev) => ({
+      ...prev,
+      services: {
+        ...prev.services,
+        [service]: !prev.services[service],
+      },
+    }));
+  }, []);
+
+  const togglePortPID = useCallback((pid: number) => {
+    setPortSelections((prev) => ({
+      ...prev,
+      pids: {
+        ...prev.pids,
+        [pid]: !prev.pids[pid],
+      },
+    }));
+  }, []);
+
+  const handleCleanup = useCallback(async (actions: string[]) => {
+    const sshConfig = getSSHConfig();
+    if (!sshConfig.host || !sshConfig.key_path) return;
+
+    setCleanupLoading(true);
+    try {
+      await runDiskCleanup({
+        host: sshConfig.host,
+        port: sshConfig.port,
+        user: sshConfig.user,
+        key_path: sshConfig.key_path,
+        actions,
+      });
+      const usage = await getDiskUsage({
+        host: sshConfig.host,
+        port: sshConfig.port,
+        user: sshConfig.user,
+        key_path: sshConfig.key_path,
+      });
+      setDiskUsage(usage);
+      await onRecheck?.();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setActionError(`Cleanup failed: ${errorMessage}`);
+    } finally {
+      setCleanupLoading(false);
+    }
+  }, [getSSHConfig, onRecheck]);
+
+  return {
+    actionLoading,
+    actionError,
+    diskUsage,
+    showDiskModal,
+    setShowDiskModal,
+    cleanupLoading,
+    showPortModal,
+    setShowPortModal,
+    portSelections,
+    setPortSelections,
+    portBindings,
+    handleAction,
+    handlePortStop,
+    togglePortService,
+    togglePortPID,
+    handleCleanup,
+  };
+}
+
+export type PreflightContext = "wizard" | "redeploy" | "readonly";
+
 export interface PreflightChecksPanelProps {
   checksToDisplay: PreflightDisplayCheck[];
   actionLoading?: string | null;
   onAction?: (checkId: string, action: string) => void;
-  readOnly?: boolean;
+  context?: PreflightContext;
 }
 
 export function PreflightChecksPanel({
   checksToDisplay,
   actionLoading,
   onAction,
-  readOnly,
+  context = "wizard",
 }: PreflightChecksPanelProps) {
   return (
     <div className="space-y-3">
@@ -746,7 +974,7 @@ export function PreflightChecksPanel({
             data={check.data}
             onAction={onAction ? (action) => onAction(check.id, action) : undefined}
             actionLoading={actionLoading?.startsWith(`${check.id}:`)}
-            readOnly={readOnly}
+            context={context}
           />
         ))}
       </ul>
@@ -770,169 +998,30 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
   // Get manifest from parsed result
   const manifest = parsedManifest.ok ? parsedManifest.value : null;
 
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [diskUsage, setDiskUsage] = useState<DiskUsageResponse | null>(null);
-  const [showDiskModal, setShowDiskModal] = useState(false);
-  const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [showPortModal, setShowPortModal] = useState(false);
-  const [portSelections, setPortSelections] = useState<{ services: Record<string, boolean>; pids: Record<number, boolean> }>({
-    services: {},
-    pids: {},
-  });
-
   const failCount = preflightChecks?.filter(c => c.status === "fail").length ?? 0;
   const warnCount = preflightChecks?.filter(c => c.status === "warn").length ?? 0;
-  const portBindings = useMemo(() => {
-    const portsCheck = preflightChecks?.find((check) => check.id === "ports_80_443");
-    return parsePortBindings(portsCheck?.data);
-  }, [preflightChecks]);
-
-  // Get SSH config from manifest (use sshKeyPath state as fallback for key_path)
-  const getSSHConfig = () => {
-    const vps = manifest?.target?.vps;
-    return {
-      host: vps?.host || "",
-      port: vps?.port || 22,
-      user: vps?.user || "root",
-      key_path: vps?.key_path || sshKeyPath || "",
-    };
-  };
-
-  const handleAction = async (checkId: string, action: string) => {
-    setActionError(null);
-    const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) {
-      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
-      return;
-    }
-
-    setActionLoading(`${checkId}:${action}`);
-
-    try {
-      if (action === "stop_ports") {
-        setPortSelections(buildPortSelections(portBindings));
-        setShowPortModal(true);
-        return;
-      } else if (action === "open_firewall") {
-        const result = await openFirewallPorts({
-          ...sshConfig,
-          ports: [80, 443],
-        });
-        if (result.ok) {
-          runPreflight();
-        } else {
-          setActionError(result.message || "Failed to update firewall rules.");
-        }
-        return;
-      } else if (action === "show_disk") {
-        const usage = await getDiskUsage(sshConfig);
-        setDiskUsage(usage);
-        setShowDiskModal(true);
-      } else if (action === "stop_scenario" || action === "stop_all") {
-        const vps = manifest?.target?.vps;
-        const workdir = vps?.workdir || DEFAULT_VPS_WORKDIR;
-        const scenarioId = action === "stop_scenario" ? manifest?.scenario?.id : undefined;
-        const result = await stopScenarioProcesses({
-          ...sshConfig,
-          workdir,
-          scenario_id: scenarioId,
-        });
-        if (result.ok) {
-          // Re-run preflight to verify
-          runPreflight();
-        } else {
-          // Server includes SSH details in the error message
-          setActionError(result.message || "Failed to stop processes");
-        }
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setActionError(`Action failed: ${errorMessage}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handlePortStop = async () => {
-    const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) {
-      setActionError("Missing SSH configuration. Please configure VPS host and SSH key in the Manifest step.");
-      return;
-    }
-
-    const services = Object.entries(portSelections.services)
-      .filter(([, selected]) => selected)
-      .map(([service]) => service);
-    const pids = Object.entries(portSelections.pids)
-      .filter(([, selected]) => selected)
-      .map(([pid]) => Number(pid));
-
-    if (services.length === 0 && pids.length === 0) {
-      setActionError("Select at least one service or PID to stop.");
-      return;
-    }
-
-    setActionLoading("ports_80_443:stop_ports");
-    try {
-      const result = await stopPortServices({
-        ...sshConfig,
-        services,
-        pids,
-        prefer_service_stop: true,
-      });
-      if (result.ok) {
-        setShowPortModal(false);
-        runPreflight();
-      } else {
-        setActionError(result.message || "Failed to stop services on ports 80/443.");
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setActionError(`Action failed: ${errorMessage}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const togglePortService = (service: string) => {
-    setPortSelections((prev) => ({
-      ...prev,
-      services: {
-        ...prev.services,
-        [service]: !prev.services[service],
-      },
-    }));
-  };
-
-  const togglePortPID = (pid: number) => {
-    setPortSelections((prev) => ({
-      ...prev,
-      pids: {
-        ...prev.pids,
-        [pid]: !prev.pids[pid],
-      },
-    }));
-  };
-
-  const handleCleanup = async (actions: string[]) => {
-    const sshConfig = getSSHConfig();
-    if (!sshConfig.host || !sshConfig.key_path) return;
-
-    setCleanupLoading(true);
-    try {
-      await runDiskCleanup({ ...sshConfig, actions });
-      // Refresh disk usage
-      const usage = await getDiskUsage(sshConfig);
-      setDiskUsage(usage);
-      // Re-run preflight
-      runPreflight();
-    } catch (error) {
-      console.error("Cleanup failed:", error);
-    } finally {
-      setCleanupLoading(false);
-    }
-  };
+  const {
+    actionLoading,
+    actionError,
+    diskUsage,
+    showDiskModal,
+    setShowDiskModal,
+    cleanupLoading,
+    showPortModal,
+    setShowPortModal,
+    portSelections,
+    portBindings,
+    handleAction,
+    handlePortStop,
+    togglePortService,
+    togglePortPID,
+    handleCleanup,
+  } = usePreflightActions({
+    manifest,
+    sshKeyPath,
+    preflightChecks,
+    onRecheck: runPreflight,
+  });
 
   // Build the display list: merge definitions with real results
   const checksToDisplay = buildChecksToDisplay(preflightChecks, isRunningPreflight);
@@ -1008,6 +1097,7 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
         checksToDisplay={checksToDisplay}
         actionLoading={actionLoading}
         onAction={handleAction}
+        context="wizard"
       />
 
       {/* Override checkbox - shown when preflight fails but checks have run */}

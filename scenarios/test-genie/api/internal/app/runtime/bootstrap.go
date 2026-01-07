@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
-	"test-genie/internal/agents"
+	"test-genie/agentmanager"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -24,7 +27,7 @@ type Bootstrapped struct {
 	ExecutionService *execution.SuiteExecutionService
 	ScenarioService  *scenarios.ScenarioDirectoryService
 	PhaseCatalog     phaseCatalogProvider
-	AgentService     *agents.AgentService
+	AgentService     *agentmanager.AgentService
 }
 
 type phaseCatalogProvider interface {
@@ -64,9 +67,30 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
 
-	// Create agent repository and service
-	agentRepo := agents.NewPostgresAgentRepository(db)
-	agentService := agents.NewAgentService(agentRepo)
+	// Create agent-manager service
+	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
+	profileKey := os.Getenv("AGENT_MANAGER_PROFILE_KEY")
+	if profileKey == "" {
+		profileKey = "test-genie"
+	}
+
+	agentService := agentmanager.NewAgentService(agentmanager.Config{
+		ProfileName: "Test Genie Agent",
+		ProfileKey:  profileKey,
+		Timeout:     30 * time.Second,
+		Enabled:     agentEnabled,
+	})
+
+	// Initialize profile at startup (non-blocking)
+	if agentEnabled {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := agentService.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+				log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
+			}
+		}()
+	}
 
 	return &Bootstrapped{
 		DB:               db,

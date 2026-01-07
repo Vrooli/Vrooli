@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
-	"test-genie/internal/agents"
+	"test-genie/agentmanager"
 	"test-genie/internal/containment"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
@@ -46,7 +46,7 @@ type Dependencies struct {
 	ExecutionSvc        suiteExecutor
 	Scenarios           scenarioDirectory
 	PhaseCatalog        phaseCatalog
-	AgentService        *agents.AgentService
+	AgentService        *agentmanager.AgentService
 	ContainmentSelector containment.ProviderSelector // Optional: defaults to containment.DefaultManager()
 	Logger              Logger
 }
@@ -91,9 +91,8 @@ type Server struct {
 	scenarios              scenarioDirectory
 	phaseCatalog           phaseCatalog
 	logger                 Logger
-	agentService           *agents.AgentService
+	agentService           *agentmanager.AgentService
 	containmentSelector    containment.ProviderSelector
-	wsManager              *WebSocketManager
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -137,8 +136,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		containmentSel = containment.DefaultManager()
 	}
 
-	wsManager := NewWebSocketManager()
-
 	srv := &Server{
 		config:                 config,
 		db:                     deps.DB,
@@ -151,7 +148,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		logger:                 logger,
 		agentService:           deps.AgentService,
 		containmentSelector:    containmentSel,
-		wsManager:              wsManager,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
@@ -164,8 +160,6 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.loggingMiddleware)
 	// Health endpoint at root for infrastructure agents
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	// WebSocket endpoint at root level for real-time updates
-	s.router.HandleFunc("/ws", s.wsManager.HandleWebSocket)
 
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
@@ -188,23 +182,18 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup-force", s.handlePlaybooksSeedCleanupForce).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
+
+	// Agent routes (via agent-manager)
 	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
 	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
-	apiRouter.HandleFunc("/agents/check-conflicts", s.handleCheckScopeConflicts).Methods("POST")
-	apiRouter.HandleFunc("/agents/validate-paths", s.handleValidatePromptPaths).Methods("POST")
 	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
-	apiRouter.HandleFunc("/agents/cleanup", s.handleCleanupAgents).Methods("POST")
 	apiRouter.HandleFunc("/agents/containment-status", s.handleContainmentStatus).Methods("GET")
-	apiRouter.HandleFunc("/agents/config", s.handleGetAgentConfig).Methods("GET")
+	apiRouter.HandleFunc("/agents/status", s.handleGetAgentManagerStatus).Methods("GET")
+	apiRouter.HandleFunc("/agents/ws-url", s.handleGetAgentManagerWSUrl).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
-	apiRouter.HandleFunc("/agents/{id}/heartbeat", s.handleAgentHeartbeat).Methods("POST")
 	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
-	// Server-side spawn session tracking (prevents duplicate spawns across browser tabs)
-	apiRouter.HandleFunc("/agents/spawn-sessions", s.handleGetSpawnSessions).Methods("GET")
-	apiRouter.HandleFunc("/agents/spawn-sessions/check-conflicts", s.handleCheckSpawnSessionConflicts).Methods("POST")
-	apiRouter.HandleFunc("/agents/spawn-sessions/clear", s.handleClearSpawnSessions).Methods("POST")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")

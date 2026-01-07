@@ -50,6 +50,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.31.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
@@ -71,3 +72,5 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace test-genie => ../api
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

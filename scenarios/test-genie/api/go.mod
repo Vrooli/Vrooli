@@ -17,7 +17,7 @@ require (
 
 require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto

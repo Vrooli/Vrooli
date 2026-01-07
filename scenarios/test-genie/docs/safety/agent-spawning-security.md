@@ -4,7 +4,7 @@ This document describes the security architecture for spawned AI agents in the t
 
 ## Overview
 
-The Generate tab allows spawning multiple AI agents in parallel to generate tests for scenarios. These agents run via the `resource-opencode` CLI tool and interact with the filesystem through OpenCode's tool system.
+The Generate tab allows spawning multiple AI agents in parallel to generate tests for scenarios. Agent execution is managed by the **agent-manager** service, which handles tasks, runs, profiles, and coordination.
 
 ## Security Architecture
 
@@ -14,35 +14,32 @@ The Generate tab allows spawning multiple AI agents in parallel to generate test
 ┌─────────────────────────────────────────────────────────────────┐
 │ Layer 1: UI Validation                                          │
 │ - Immutable safety preamble (locked in editor)                  │
-│ - Session-level spawn conflict tracking                         │
-│ - Scope conflict preview before spawning                        │
+│ - Real-time run status via agent-manager WebSocket              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ Layer 2: API Validation (server-side enforcement)               │
-│ - skipPermissions flag rejected (always)                        │
-│ - Tool allowlist validation (not blocklist)                     │
-│ - Scope path traversal prevention                               │
-│ - Prompt scanning for dangerous patterns                        │
-│ - Server-generated preamble (replaces client preamble)          │
-│ - Idempotency keys (prevent duplicate spawns)                   │
+│ Layer 2: Test-Genie API (spawn orchestration)                   │
+│ - Server-generated preamble (appended to prompts)               │
+│ - Batch spawning via agent-manager Tasks + Runs                 │
+│ - Model and concurrency validation                              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ Layer 3: OpenCode Tool-Level Restrictions                       │
-│ - --directory flag sets working directory                       │
-│ - Permission system for file operations                         │
-│ - Tool-specific access controls                                 │
+│ Layer 3: Agent-Manager (execution management)                   │
+│ - Profile-based configuration (tools, timeouts, permissions)    │
+│ - Task and Run lifecycle management                             │
+│ - Runner coordination (Claude Code execution)                   │
+│ - WebSocket events for real-time status                         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ Layer 4: Scope Locking (coordination)                           │
-│ - Database-backed path locks                                    │
-│ - 20-minute lock timeout with heartbeat renewal                 │
-│ - Prevents overlapping agent work                               │
+│ Layer 4: Claude Code Runner                                     │
+│ - Tool-level restrictions                                       │
+│ - Working directory scope                                       │
+│ - Permission prompts for operations                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,122 +74,63 @@ Unrestricted bash (`bash`, `bash(*)`, `*`) is explicitly rejected.
 
 ## Security Controls
 
-### 1. Tool Allowlist (Primary Defense)
+### 1. Safety Preamble (Context Attachment)
 
-The bash command validator uses an **allowlist** approach - only explicitly permitted commands are allowed.
+Each agent spawn includes a safety preamble that is appended to the prompt. This preamble specifies:
+- Working directory (scenario path)
+- Allowed scope paths
+- Maximum files that can be modified
+- Maximum bytes that can be written
+- Network access status
+- Allowed bash commands
 
-**Allowed categories:**
-- Test runners: `pnpm test`, `go test`, `vitest`, `jest`, `bats`, `pytest`
-- Build commands: `pnpm build`, `go build`, `make`
-- Linters: `eslint`, `prettier`, `gofmt`, `golangci-lint`
-- Safe inspection: `ls`, `pwd`, `cat`, `head`, `tail`, `diff`, `find`
-- Git read-only: `git status`, `git diff`, `git log`, `git show`, `git branch`
+The preamble is generated server-side by test-genie and cannot be modified by clients.
 
-**Blocked categories:**
-- Unrestricted bash access
-- Git write operations: `git push`, `git checkout`, `git commit`, `git add`
-- File modifications: `rm`, `mv`, `cp`, `mkdir`, `chmod`, `chown`
-- System commands: `sudo`, `su`, `systemctl`, `kill`
-- Package managers: `npm install`, `pip install`, `go get`
-- Network mutations: `curl -X POST`, remote script execution
+### 2. Agent Profile Configuration
 
-**Glob Pattern Restrictions:**
+Agent-manager profiles define the security constraints for execution:
+- **Allowed Tools**: Read, Write, Edit, Glob, Grep, Bash
+- **Skip Permissions**: false (agents must request permission for operations)
+- **Timeout**: 15 minutes maximum execution time
+- **Max Turns**: 50 conversation turns limit
 
-Glob patterns (`*`, `?`) are only allowed with specific safe commands to prevent file enumeration attacks:
+### 3. Bash Command Allowlist
 
-```go
-// Safe glob prefixes - only these commands can use wildcards
-safeGlobPrefixes := []string{
-    "bats", "go test", "pytest", "vitest", "jest",
-    "pnpm test", "npm test", "make test", "ls", "find",
-}
-```
+The safety preamble specifies which bash commands are allowed:
+- **Test runners**: `pnpm test`, `go test`, `vitest`, `jest`, `bats`, `pytest`
+- **Build commands**: `pnpm build`, `go build`, `make`
+- **Linters**: `eslint`, `prettier`, `gofmt`, `golangci-lint`
+- **Safe inspection**: `ls`, `pwd`, `which`, `wc`, `diff`
+- **Git read-only**: `git status`, `git diff`, `git log`, `git show`, `git branch`
 
-**Examples:**
-- ✅ `bats *.bats` - allowed (test runner)
-- ✅ `ls *.go` - allowed (directory listing)
-- ❌ `cat *.log` - blocked (could read sensitive files)
-- ❌ `echo *` - blocked (could leak directory contents)
+All other bash commands are blocked by the preamble instructions.
 
-### 2. skipPermissions Rejection
+### 4. Batch Spawning with Tags
 
-The `skipPermissions` flag is **always rejected** for spawned agents:
-
-```go
-if payload.SkipPermissions {
-    s.writeError(w, http.StatusBadRequest,
-        "skipPermissions is not allowed for spawned agents")
-    return
-}
-```
-
-This ensures agents cannot auto-approve all tool operations.
-
-### 3. Path Traversal Prevention
-
-Scope paths are validated to prevent directory escape:
-
-```go
-// Blocked patterns:
-// - ../../../etc/passwd
-// - /etc/passwd (absolute paths)
-// - ~/. ssh/id_rsa (home directory)
-// - foo/../../bar (traversal in middle)
-```
-
-### 4. Prompt Scanning
-
-Prompts are scanned for dangerous patterns before execution:
-
-- `rm -rf`, `sudo`, `chmod 777`
-- `git push --force`, `git checkout --force`
-- `DROP TABLE`, `DELETE FROM`
-- `curl | bash`, `wget | sh`
-
-### 5. Server-Generated Preamble
-
-The safety preamble is generated server-side and cannot be modified by clients:
-
-```go
-// Server always generates its own preamble
-serverPreamble := generateSafetyPreamble(scenario, scope, repoRoot)
-
-// Client-provided preamble is logged but replaced
-if payload.Preamble != "" {
-    s.log("preamble mismatch detected - using server-generated preamble", ...)
-}
-```
-
-### 6. Scope Locking
-
-Database-backed locks prevent agents from working on overlapping paths:
-
-- Locks acquired when agent is registered
-- 20-minute timeout (configurable via `AGENT_LOCK_TIMEOUT_MINUTES`)
-- Heartbeat renewal every 5 minutes while agent runs
-- Automatic release on agent completion/failure/stop
+Test-genie uses batch spawning with unique tags:
+- Each batch gets a UUID (e.g., `test-genie-{batchId}-{index}`)
+- Tags enable tracking and stopping specific runs
+- Batch status queries use tag prefix filtering
 
 ## Operational Security
 
 ### Monitoring
 
 - All agent operations are logged
-- WebSocket broadcasts agent status changes in real-time
-- Active agents panel shows running agents and their scopes
-- Scope locks are visible in the UI
+- WebSocket broadcasts agent status changes in real-time (via agent-manager)
+- Active agents panel shows running agents and their status
+- Run events available for detailed execution tracking
 
 ### Stopping Agents
 
 - Individual agents can be stopped via UI or API
-- "Stop All" button terminates all running agents
-- Process kill signals are sent to agent subprocesses
-- Locks are released on stop
+- "Stop All" button terminates all running test-genie agents
+- Agent-manager handles graceful shutdown of runners
 
 ### Cleanup
 
-- Background cleanup removes completed agents older than 7 days
-- Manual cleanup available via API endpoint
-- Orphan detection planned for future releases
+- Agent-manager manages run retention and cleanup
+- Completed runs remain queryable for debugging
 
 ## Future Improvements
 
@@ -227,23 +165,26 @@ Database-backed locks prevent agents from working on overlapping paths:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AGENT_LOCK_TIMEOUT_MINUTES` | 20 | Lock expiration time |
-| `AGENT_RETENTION_DAYS` | 7 | Days to keep completed agents |
+| `AGENT_MANAGER_ENABLED` | `true` | Enable agent-manager integration |
+| `AGENT_MANAGER_PROFILE_KEY` | `test-genie` | Profile key for test-genie agents |
 | `VROOLI_ROOT` | `$HOME/Vrooli` | Repository root for path validation |
 
 ### API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/agents/spawn` | POST | Spawn new agents |
+| `/api/v1/agents/spawn` | POST | Spawn new agents (batch) |
 | `/api/v1/agents/active` | GET | List active agents |
+| `/api/v1/agents/{id}` | GET | Get specific agent details |
 | `/api/v1/agents/{id}/stop` | POST | Stop specific agent |
-| `/api/v1/agents/stop-all` | POST | Stop all agents |
-| `/api/v1/agents/blocked-commands` | GET | Get allowlist/blocklist info |
+| `/api/v1/agents/stop-all` | POST | Stop all test-genie agents |
+| `/api/v1/agents/blocked-commands` | GET | Get security info |
+| `/api/v1/agents/containment-status` | GET | Get containment status |
+| `/api/v1/agents/status` | GET | Get agent-manager connection status |
+| `/api/v1/agents/ws-url` | GET | Get agent-manager WebSocket URL |
 
 ## References
 
-- [OpenCode Documentation](https://opencode.ai/docs/)
-- [OpenCode Sandboxing Discussion](https://github.com/sst/opencode/issues/2242)
+- [Agent-Manager Service](https://github.com/vrooli/vrooli/tree/master/scenarios/agent-manager)
 - [Test-Genie API Handlers](../../api/internal/app/httpserver/agent_handlers.go)
-- [Bash Command Validator](../../api/internal/app/httpserver/agent_registry.go)
+- [Agent-Manager Client](../../api/agentmanager/client.go)

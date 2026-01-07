@@ -11,8 +11,6 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  Lock,
-  Trash2,
   StopCircle,
   Wifi,
   WifiOff,
@@ -29,12 +27,10 @@ import {
   fetchActiveAgents,
   stopAgent,
   stopAllAgents,
-  cleanupAgents,
   spawnAgents,
   parseAgentStructuredOutput,
   hasStructuredOutput,
   type ActiveAgent,
-  type ScopeLock,
   type AgentStructuredOutput
 } from "../../lib/api";
 import { cn } from "../../lib/utils";
@@ -209,7 +205,6 @@ function StructuredOutputDisplay({ output }: { output: string }) {
 interface ActiveAgentsPanelProps {
   scenario?: string;
   scope?: string[];
-  onConflictDetected?: (conflictingAgentIds: string[]) => void;
   /** Callback when an agent's status changes to a terminal state */
   onAgentStatusChange?: (agentId: string, status: "completed" | "failed" | "timeout" | "stopped") => void;
 }
@@ -225,7 +220,7 @@ const STATUS_OPTIONS = [
 
 type StatusFilter = typeof STATUS_OPTIONS[number]["value"];
 
-export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgentStatusChange }: ActiveAgentsPanelProps) {
+export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange }: ActiveAgentsPanelProps) {
   const [showAll, setShowAll] = useState(false);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [streamingOutput, setStreamingOutput] = useState<Record<string, string>>({});
@@ -289,13 +284,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
     }
   });
 
-  const cleanupMutation = useMutation({
-    mutationFn: () => cleanupAgents(60),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["active-agents"] });
-    }
-  });
-
   // Retry mutation for re-spawning failed agents
   const retryMutation = useMutation({
     mutationFn: async (agent: ActiveAgent) => {
@@ -316,7 +304,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
   });
 
   const allAgents = data?.items ?? [];
-  const locks = data?.activeLocks ?? [];
   const activeCount = allAgents.filter(
     (a) => a.status === "running" || a.status === "pending"
   ).length;
@@ -359,29 +346,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
 
     return true;
   });
-
-  // Check for conflicts with the current scenario/scope
-  const conflictingAgents = scenario
-    ? agents.filter((a) => {
-        if (a.status !== "running" && a.status !== "pending") return false;
-        if (a.scenario !== scenario) return false;
-        if (!scope || scope.length === 0 || !a.scope || a.scope.length === 0) return false;
-        // Check for path overlap
-        return scope.some((s) =>
-          a.scope.some(
-            (as) =>
-              s === as ||
-              s.startsWith(as + "/") ||
-              as.startsWith(s + "/")
-          )
-        );
-      })
-    : [];
-
-  // Notify parent of conflicts
-  if (onConflictDetected && conflictingAgents.length > 0) {
-    onConflictDetected(conflictingAgents.map((a) => a.id));
-  }
 
   const toggleExpanded = (id: string) => {
     setExpandedAgents((prev) => {
@@ -481,17 +445,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
           >
             {showAll ? "Active only" : "Show all"}
           </Button>
-          {showAll && allAgents.some((a) => a.status !== "running" && a.status !== "pending") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => cleanupMutation.mutate()}
-              disabled={cleanupMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Cleanup
-            </Button>
-          )}
         </div>
       </div>
 
@@ -578,19 +531,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
         </div>
       )}
 
-      {conflictingAgents.length > 0 && (
-        <div className="mb-4 rounded-lg border border-amber-400/50 bg-amber-400/10 p-3">
-          <div className="flex items-center gap-2 text-amber-100">
-            <AlertTriangle className="h-4 w-4" />
-            <span className="text-sm font-medium">Scope Conflict Warning</span>
-          </div>
-          <p className="mt-1 text-xs text-amber-200/80">
-            {conflictingAgents.length} agent{conflictingAgents.length > 1 ? "s are" : " is"} already
-            working on overlapping paths. Spawning new agents for this scope may cause conflicts.
-          </p>
-        </div>
-      )}
-
       {agents.length === 0 && !isLoading && (
         <div className="text-center py-8 text-slate-400 text-sm">
           No {showAll ? "" : "active "}agents found
@@ -601,17 +541,11 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
         {agents.map((agent) => {
           const isExpanded = expandedAgents.has(agent.id);
           const isActive = agent.status === "running" || agent.status === "pending";
-          const isConflicting = conflictingAgents.some((c) => c.id === agent.id);
 
           return (
             <div
               key={agent.id}
-              className={cn(
-                "rounded-xl border p-4 transition-colors",
-                isConflicting
-                  ? "border-amber-400/50 bg-amber-400/5"
-                  : "border-white/10 bg-white/[0.02]"
-              )}
+              className="rounded-xl border p-4 transition-colors border-white/10 bg-white/[0.02]"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -789,40 +723,6 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
         })}
       </div>
 
-      {locks.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <div className="flex items-center gap-2 mb-3">
-            <Lock className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-medium text-slate-300">Active Scope Locks</span>
-          </div>
-          <div className="space-y-2">
-            {locks.map((lock) => (
-              <div
-                key={`${lock.scenario}-${lock.agentId}`}
-                className="rounded-lg border border-white/10 bg-white/[0.02] p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white">{lock.scenario}</span>
-                  <span className="text-xs text-slate-400">Agent #{lock.agentId}</span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {lock.paths.map((path) => (
-                    <span
-                      key={path}
-                      className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-200"
-                    >
-                      {path}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-2 text-[10px] text-slate-500">
-                  Expires: {new Date(lock.expiresAt).toLocaleTimeString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Prompt Viewing Modal */}
       {viewingPromptAgent && (

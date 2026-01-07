@@ -1,6 +1,6 @@
 # Test-Genie Seam Documentation
 
-This document catalogs the architectural **seams** in the test-genie codebase, specifically for the **agents** and **containment** subsystems. Seams are intentional variation points that enable testing, extension, and controlled change.
+This document catalogs the architectural **seams** in the test-genie codebase. Seams are intentional variation points that enable testing, extension, and controlled change.
 
 ## What is a Seam?
 
@@ -9,103 +9,12 @@ A seam is a place where you can alter behavior without editing the code at that 
 - **Function parameters** that accept interfaces instead of concrete types
 - **Functional options** that configure behavior at construction time
 
-## Package: `internal/agents`
+## Agent State Management
 
-### Seam: `AgentRepository` (model.go:186-266)
-
-**Purpose:** Abstracts agent persistence from business logic.
-
-**Interface:**
-```go
-type AgentRepository interface {
-    Create(ctx context.Context, input CreateAgentInput) (*SpawnedAgent, error)
-    Get(ctx context.Context, id string) (*SpawnedAgent, error)
-    ListActive(ctx context.Context) ([]*SpawnedAgent, error)
-    ListAll(ctx context.Context, limit int) ([]*SpawnedAgent, error)
-    // ... other methods
-}
-```
-
-**Production Implementation:** `PostgresAgentRepository`
-**Test Implementation:** In-memory or mock repository
-
-**Usage:**
-```go
-repo := agents.NewPostgresAgentRepository(db)
-svc := agents.NewAgentService(repo, opts...)
-```
-
-**Why this seam exists:**
-- Enables testing without a real database
-- Allows swapping to different storage backends (Redis, file-based, etc.)
-- Isolates database concerns from agent lifecycle logic
-
----
-
-### Seam: `ProcessChecker` (service.go:22-25)
-
-**Purpose:** Abstracts OS process checking for agent lifecycle management.
-
-**Interface:**
-```go
-type ProcessChecker interface {
-    ProcessExists(pid int) bool
-}
-```
-
-**Production Implementation:** `OSProcessChecker`
-**Test Implementation:** `MockProcessChecker`
-
-**Usage:**
-```go
-svc := agents.NewAgentService(repo,
-    agents.WithProcessChecker(&MockProcessChecker{exists: true}),
-)
-```
-
-**Why this seam exists:**
-- Enables testing orphan detection without real processes
-- Allows simulating various process states (running, dead, zombie)
-
----
-
-### Seam: `EnvironmentProvider` (service.go:27-30)
-
-**Purpose:** Abstracts environment variable access for hostname/PID tracking.
-
-**Interface:**
-```go
-type EnvironmentProvider interface {
-    Hostname() string
-}
-```
-
-**Production Implementation:** `OSEnvironmentProvider`
-**Test Implementation:** `MockEnvironmentProvider`
-
-**Why this seam exists:**
-- Enables consistent test output regardless of host machine
-- Allows testing multi-node scenarios with different hostnames
-
----
-
-### Seam: `TimeProvider` (service.go:32-35)
-
-**Purpose:** Abstracts time for expiration and lock management testing.
-
-**Interface:**
-```go
-type TimeProvider interface {
-    Now() time.Time
-}
-```
-
-**Production Implementation:** `RealTimeProvider`
-**Test Implementation:** `MockTimeProvider`
-
-**Why this seam exists:**
-- Enables testing time-sensitive lock expiration logic
-- Allows simulating lock renewal failures without real timeouts
+> **NOTE:** Agent state (tasks, runs, profiles) is now managed by the **agent-manager** service.
+> Test-genie uses the `agentmanager` package to communicate with agent-manager via HTTP.
+> The seams documented below are for **containment** (OS-level isolation) which test-genie
+> still manages locally as a reference for agent-manager's actual execution environment.
 
 ---
 
@@ -213,55 +122,9 @@ type CommandRunner interface {
 
 ---
 
-## Package: `internal/security`
-
-### Seam: `AllowedCommandsProvider` (bash_validator.go:25-28)
-
-**Purpose:** Abstracts the source of allowed bash command prefixes.
-
-**Interface:**
-```go
-type AllowedCommandsProvider interface {
-    GetAllowedCommands() []AllowedBashCommand
-}
-```
-
-**Production Implementation:** `DefaultAllowedCommandsProvider`
-
-**Usage:**
-```go
-validator := security.NewBashCommandValidator(
-    security.WithAllowedCommandsProvider(customProvider),
-)
-```
-
-**Why this seam exists:**
-- Enables scenario-specific command allowlists
-- Allows testing with minimal or extended command sets
-- Supports configuration-driven security policies
-
----
-
-### Seam: `BlockedPatternsProvider` (bash_validator.go:33-35)
-
-**Purpose:** Abstracts the source of blocked prompt patterns.
-
-**Interface:**
-```go
-type BlockedPatternsProvider interface {
-    GetBlockedPatterns() []BlockedPattern
-}
-```
-
-**Why this seam exists:**
-- Enables testing pattern matching without default patterns
-- Allows scenario-specific blocking rules
-
----
-
 ## Package: `internal/app/httpserver`
 
-### Seam: Server Dependencies (server.go:40-51)
+### Seam: Server Dependencies (server.go)
 
 **Purpose:** Dependency injection for all HTTP handler services.
 
@@ -274,7 +137,7 @@ type Dependencies struct {
     ExecutionSvc        suiteExecutor
     Scenarios           scenarioDirectory
     PhaseCatalog        phaseCatalog
-    AgentService        *agents.AgentService
+    AgentService        *agentmanager.AgentService  // Agent-manager integration
     ContainmentSelector containment.ProviderSelector
     Logger              Logger
 }
@@ -291,13 +154,13 @@ type Dependencies struct {
 
 ### 1. Functional Options Pattern
 
-Used in `AgentService`, `DockerProvider`, and `BashCommandValidator`:
+Used in `DockerProvider`:
 
 ```go
 // Construction with options
-svc := agents.NewAgentService(repo,
-    agents.WithProcessChecker(checker),
-    agents.WithTimeProvider(timer),
+provider := containment.NewDockerProvider(
+    containment.WithCommandLookup(mockLookup),
+    containment.WithContainmentConfig(cfg),
 )
 ```
 
@@ -308,7 +171,7 @@ Used in `Server.Dependencies`:
 ```go
 deps := httpserver.Dependencies{
     ContainmentSelector: mockSelector,
-    AgentService:        mockAgentService,
+    AgentService:        mockAgentService,  // Uses agentmanager.AgentService
 }
 ```
 
@@ -350,13 +213,11 @@ When adding a new seam:
 
 | Seam | Has Tests | Mock Impl | Production Impl | Documentation |
 |------|-----------|-----------|-----------------|---------------|
-| `AgentRepository` | Yes | Inline in tests | `PostgresAgentRepository` | Yes |
-| `ProcessChecker` | Yes | `MockProcessChecker` | `OSProcessChecker` | Yes |
-| `EnvironmentProvider` | Yes | `MockEnvironmentProvider` | `OSEnvironmentProvider` | Yes |
-| `TimeProvider` | Yes | `MockTimeProvider` | `RealTimeProvider` | Yes |
 | `Provider` | Yes | Via seams | `DockerProvider`, `FallbackProvider` | Yes |
 | `ProviderSelector` | Yes | Via seams | `Manager` | Yes |
 | `CommandLookup` | Yes | `MockCommandLookup` | `OSCommandLookup` | Yes |
 | `CommandRunner` | Yes | `MockCommandRunner` | `OSCommandRunner` | Yes |
-| `AllowedCommandsProvider` | Via handler tests | Custom providers | `DefaultAllowedCommandsProvider` | Yes |
-| `BlockedPatternsProvider` | Via handler tests | Custom providers | `DefaultBlockedPatternsProvider` | Yes |
+
+> **Note:** Agent-related seams (AgentRepository, ProcessChecker, EnvironmentProvider, TimeProvider,
+> AllowedCommandsProvider, BlockedPatternsProvider) have been removed. Agent lifecycle is now
+> managed by the agent-manager service.
