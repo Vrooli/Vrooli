@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
 import type { BundlePreflightCheck, BundlePreflightLogTail, BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
+import { fetchBundlePreflightHealth } from "../lib/api";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
@@ -84,6 +85,17 @@ type PreflightStepState = "pending" | "testing" | "pass" | "fail" | "warning" | 
 type PreflightStepStatus = {
   state: PreflightStepState;
   label: string;
+};
+
+type HealthPeekState = {
+  open: boolean;
+  status: "idle" | "loading" | "ready" | "error";
+  body?: string;
+  error?: string;
+  statusCode?: number;
+  url?: string;
+  contentType?: string;
+  truncated?: boolean;
 };
 
 const PREFLIGHT_STEP_STYLES: Record<PreflightStepState, string> = {
@@ -373,7 +385,7 @@ export function BundledPreflightSection({
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const [logCopyStatus, setLogCopyStatus] = useState<Record<string, "idle" | "copied" | "error">>({});
-  const [healthPeek, setHealthPeek] = useState<Record<string, { open: boolean; status: "idle" | "loading" | "ready" | "error"; body?: string; error?: string }>>({});
+  const [healthPeek, setHealthPeek] = useState<Record<string, HealthPeekState>>({});
   const [tick, setTick] = useState(() => Date.now());
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
@@ -429,6 +441,13 @@ export function BundledPreflightSection({
     if (!healthURL) {
       return;
     }
+    if (!preflightSessionId) {
+      setHealthPeek((prev) => ({
+        ...prev,
+        [serviceId]: { open: true, status: "error", error: "Preflight session missing. Re-run preflight with a session TTL to fetch health responses." }
+      }));
+      return;
+    }
     const current = healthPeek[serviceId];
     if (current?.open) {
       setHealthPeek((prev) => ({
@@ -449,8 +468,11 @@ export function BundledPreflightSection({
       [serviceId]: { open: true, status: "loading" }
     }));
     try {
-      const response = await fetch(healthURL, { method: "GET" });
-      const raw = await response.text();
+      const response = await fetchBundlePreflightHealth({
+        session_id: preflightSessionId,
+        service_id: serviceId
+      });
+      const raw = response.body ?? "";
       let body = raw.trim();
       try {
         const json = JSON.parse(raw);
@@ -460,7 +482,15 @@ export function BundledPreflightSection({
       }
       setHealthPeek((prev) => ({
         ...prev,
-        [serviceId]: { open: true, status: "ready", body }
+        [serviceId]: {
+          open: true,
+          status: "ready",
+          body,
+          statusCode: response.status_code,
+          url: response.url,
+          contentType: response.content_type,
+          truncated: response.truncated
+        }
       }));
     } catch (err) {
       setHealthPeek((prev) => ({
@@ -1023,12 +1053,21 @@ export function BundledPreflightSection({
                               )}
                               {peekState.status === "error" && (
                                 <p className="text-red-200">
-                                  Failed to fetch health response. Open the Health link to inspect directly.
+                                  Failed to fetch health response via the runtime proxy. Open the Health link to inspect directly.
                                   {peekState.error ? ` (${peekState.error})` : ""}
                                 </p>
                               )}
-                              {peekState.status === "ready" && peekState.body && (
-                                <pre className="whitespace-pre-wrap break-words">{peekState.body}</pre>
+                              {peekState.status === "ready" && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-slate-400">
+                                    {peekState.statusCode ? `HTTP ${peekState.statusCode}` : "HTTP response"}
+                                    {peekState.url ? ` · ${peekState.url}` : ""}
+                                    {peekState.truncated ? " · truncated" : ""}
+                                  </p>
+                                  {peekState.body && (
+                                    <pre className="whitespace-pre-wrap break-words">{peekState.body}</pre>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}

@@ -217,6 +217,18 @@ export interface BundlePreflightResponse {
   expires_at?: string;
 }
 
+export interface BundlePreflightHealthResponse {
+  service_id: string;
+  url: string;
+  status_code?: number;
+  status?: string;
+  body?: string;
+  content_type?: string;
+  truncated?: boolean;
+  fetched_at?: string;
+  elapsed_ms?: number;
+}
+
 export interface BundleManifestResponse {
   path: string;
   manifest: unknown;
@@ -529,6 +541,29 @@ export async function runBundlePreflight(payload: BundlePreflightRequest): Promi
   });
 
   if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+export async function fetchBundlePreflightHealth(payload: {
+  session_id: string;
+  service_id: string;
+}): Promise<BundlePreflightHealthResponse> {
+  const params = new URLSearchParams({
+    session_id: payload.session_id,
+    service_id: payload.service_id
+  });
+  const response = await fetch(buildUrl(`/desktop/preflight/health?${params.toString()}`));
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      const errorData = await response.json().catch(() => null);
+      const errorMessage = errorData?.error || errorData?.message || response.statusText;
+      throw new Error(errorMessage);
+    }
     throw new Error(await response.text());
   }
 

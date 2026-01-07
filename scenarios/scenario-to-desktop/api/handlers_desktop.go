@@ -323,6 +323,105 @@ func (s *Server) preflightBundleHandler(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(result)
 }
 
+// Preflight health proxy handler.
+func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) {
+	sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+	serviceID := strings.TrimSpace(r.URL.Query().Get("service_id"))
+	if sessionID == "" {
+		http.Error(w, "session_id is required", http.StatusBadRequest)
+		return
+	}
+	if serviceID == "" {
+		http.Error(w, "service_id is required", http.StatusBadRequest)
+		return
+	}
+
+	session, ok := s.getPreflightSession(sessionID)
+	if !ok {
+		http.Error(w, fmt.Sprintf("preflight session not found: %s", sessionID), http.StatusNotFound)
+		return
+	}
+	if session.manifest == nil {
+		http.Error(w, "preflight manifest missing", http.StatusNotFound)
+		return
+	}
+
+	service, ok := findManifestService(session.manifest, serviceID)
+	if !ok {
+		http.Error(w, fmt.Sprintf("service not found in manifest: %s", serviceID), http.StatusNotFound)
+		return
+	}
+	if service.Health.Type != "http" {
+		http.Error(w, fmt.Sprintf("service %s health type %q is not http", serviceID, service.Health.Type), http.StatusBadRequest)
+		return
+	}
+	if service.Health.PortName == "" {
+		http.Error(w, fmt.Sprintf("service %s health port_name is required", serviceID), http.StatusBadRequest)
+		return
+	}
+
+	healthPath := strings.TrimSpace(service.Health.Path)
+	if healthPath == "" {
+		healthPath = "/health"
+	}
+	if !strings.HasPrefix(healthPath, "/") {
+		healthPath = "/" + healthPath
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	var portsResp struct {
+		Services map[string]map[string]int `json:"services"`
+	}
+	if _, err := fetchJSON(client, session.baseURL, session.token, "/ports", http.MethodGet, nil, &portsResp, nil); err != nil {
+		http.Error(w, fmt.Sprintf("fetch ports: %v", err), http.StatusBadGateway)
+		return
+	}
+	port := portsResp.Services[serviceID][service.Health.PortName]
+	if port == 0 {
+		http.Error(w, fmt.Sprintf("port not found for service %s (%s)", serviceID, service.Health.PortName), http.StatusBadRequest)
+		return
+	}
+
+	healthURL := fmt.Sprintf("http://localhost:%d%s", port, healthPath)
+	start := time.Now()
+	req, err := http.NewRequest(http.MethodGet, healthURL, nil)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("build health request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("fetch health: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	const maxHealthBodyBytes = 64 * 1024
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxHealthBodyBytes))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("read health response: %v", err), http.StatusBadGateway)
+		return
+	}
+	bodyText := strings.TrimSpace(string(bodyBytes))
+	truncated := len(bodyBytes) >= maxHealthBodyBytes
+
+	response := map[string]interface{}{
+		"service_id":   serviceID,
+		"url":          healthURL,
+		"status_code":  resp.StatusCode,
+		"status":       resp.Status,
+		"body":         bodyText,
+		"content_type": resp.Header.Get("Content-Type"),
+		"truncated":    truncated,
+		"fetched_at":   time.Now().Format(time.RFC3339),
+		"elapsed_ms":   time.Since(start).Milliseconds(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // Bundle manifest display handler.
 func (s *Server) bundleManifestHandler(w http.ResponseWriter, r *http.Request) {
 	var request BundleManifestRequest
@@ -1036,15 +1135,28 @@ type preflightIssue struct {
 }
 
 type preflightSession struct {
-	id        string
-	manifest  *bundlemanifest.Manifest
-	bundleDir string
-	appData   string
+	id         string
+	manifest   *bundlemanifest.Manifest
+	bundleDir  string
+	appData    string
 	supervisor *bundleruntime.Supervisor
-	baseURL   string
-	token     string
-	createdAt time.Time
-	expiresAt time.Time
+	baseURL    string
+	token      string
+	createdAt  time.Time
+	expiresAt  time.Time
+}
+
+func findManifestService(manifest *bundlemanifest.Manifest, serviceID string) (*bundlemanifest.Service, bool) {
+	if manifest == nil {
+		return nil, false
+	}
+	for i := range manifest.Services {
+		service := &manifest.Services[i]
+		if service.ID == serviceID {
+			return service, true
+		}
+	}
+	return nil, false
 }
 
 func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtimeapi.BundleValidationResult, ready *BundlePreflightReady, secrets []BundlePreflightSecret, ports map[string]map[string]int, telemetry *BundlePreflightTelemetry, logTails []BundlePreflightLogTail, request BundlePreflightRequest) []BundlePreflightCheck {

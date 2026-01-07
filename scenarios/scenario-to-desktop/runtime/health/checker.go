@@ -3,7 +3,9 @@ package health
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"time"
@@ -181,7 +183,38 @@ func (m *Monitor) checkHTTPHealth(ctx context.Context, svc manifest.Service, tim
 		return false
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return false
+	}
+
+	if svc.Health.Path != "/health" {
+		return true
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return false
+	}
+	var payload struct {
+		Status    string `json:"status"`
+		Readiness *bool  `json:"readiness"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+	if payload.Status == "" && payload.Readiness == nil {
+		return false
+	}
+	if payload.Status == "unhealthy" {
+		return false
+	}
+	if payload.Readiness != nil && !*payload.Readiness {
+		return false
+	}
+	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" {
+		return false
+	}
+	return true
 }
 
 // checkTCPHealth verifies service health via TCP connection.
