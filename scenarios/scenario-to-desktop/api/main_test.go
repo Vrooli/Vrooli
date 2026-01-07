@@ -28,7 +28,7 @@ func TestHealthHandler(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/health", nil)
 		w := httptest.NewRecorder()
 
-		server.healthHandler(w, req)
+		server.router.ServeHTTP(w, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
 		assertFieldValue(t, response, "service", "scenario-to-desktop-api")
@@ -43,7 +43,7 @@ func TestHealthHandler(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			req := httptest.NewRequest("GET", "/api/v1/health", nil)
 			w := httptest.NewRecorder()
-			server.healthHandler(w, req)
+			server.router.ServeHTTP(w, req)
 			if w.Code != http.StatusOK {
 				t.Errorf("Request %d failed with status %d", i, w.Code)
 			}
@@ -1235,7 +1235,7 @@ func TestConcurrentRequests(t *testing.T) {
 			go func(id int) {
 				req := httptest.NewRequest("GET", "/api/v1/health", nil)
 				w := httptest.NewRecorder()
-				env.Server.healthHandler(w, req)
+				env.Server.router.ServeHTTP(w, req)
 				if w.Code != http.StatusOK {
 					t.Errorf("Concurrent request %d failed with status %d", id, w.Code)
 				}

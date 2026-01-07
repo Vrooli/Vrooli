@@ -188,6 +188,34 @@ export interface BundlePreflightTelemetry {
   upload_url?: string;
 }
 
+export interface BundlePreflightRuntime {
+  instance_id?: string;
+  started_at?: string;
+  app_data_dir?: string;
+  bundle_root?: string;
+  dry_run?: boolean;
+  manifest_hash?: string;
+  manifest_schema?: string;
+  target?: string;
+  app_name?: string;
+  app_version?: string;
+  ipc_host?: string;
+  ipc_port?: number;
+  runtime_version?: string;
+  build_version?: string;
+}
+
+export interface BundlePreflightServiceFingerprint {
+  service_id: string;
+  platform?: string;
+  binary_path?: string;
+  binary_resolved_path?: string;
+  binary_sha256?: string;
+  binary_size_bytes?: number;
+  binary_mtime?: string;
+  error?: string;
+}
+
 export interface BundlePreflightLogTail {
   service_id: string;
   lines: number;
@@ -212,6 +240,8 @@ export interface BundlePreflightResponse {
   telemetry?: BundlePreflightTelemetry;
   log_tails?: BundlePreflightLogTail[];
   checks?: BundlePreflightCheck[];
+  runtime?: BundlePreflightRuntime;
+  service_fingerprints?: BundlePreflightServiceFingerprint[];
   errors?: string[];
   session_id?: string;
   expires_at?: string;

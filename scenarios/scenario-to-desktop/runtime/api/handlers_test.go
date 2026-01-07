@@ -35,6 +35,7 @@ type mockRuntime struct {
 	startCalled    bool
 	telemetryLogs  []string
 	gpuStatus      gpu.Status
+	runtimeInfo    RuntimeInfo
 }
 
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
@@ -91,6 +92,10 @@ func (m *mockRuntime) ValidateBundle() *BundleValidationResult {
 	return &BundleValidationResult{Valid: true}
 }
 
+func (m *mockRuntime) RuntimeInfo() RuntimeInfo {
+	return m.runtimeInfo
+}
+
 // testRuntime creates a mock runtime configured for testing.
 func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 	t.Helper()
@@ -136,6 +141,14 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 			Available: true,
 			Method:    "mock",
 			Reason:    "test",
+		},
+		runtimeInfo: RuntimeInfo{
+			InstanceID:   "test-instance",
+			StartedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+			AppDataDir:   appData,
+			BundleRoot:   "/tmp/bundle",
+			DryRun:       false,
+			ManifestHash: "abc123",
 		},
 	}
 }
@@ -236,6 +249,44 @@ func TestHandleReady(t *testing.T) {
 			t.Errorf("handleReady() ready = %v, want false", body["ready"])
 		}
 	})
+}
+
+func TestHandleStatus(t *testing.T) {
+	rt := testRuntime(t, nil)
+	server := NewServer(rt, "test-token")
+
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req.Header.Set("Authorization", "Bearer test-token")
+	w := httptest.NewRecorder()
+
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	mux.ServeHTTP(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("handleStatus() status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if body["instance_id"] != "test-instance" {
+		t.Errorf("handleStatus() instance_id = %v, want test-instance", body["instance_id"])
+	}
+	if body["app_name"] != "test-app" {
+		t.Errorf("handleStatus() app_name = %v, want test-app", body["app_name"])
+	}
+	if body["app_version"] != "1.0.0" {
+		t.Errorf("handleStatus() app_version = %v, want 1.0.0", body["app_version"])
+	}
+	if body["manifest_hash"] != "abc123" {
+		t.Errorf("handleStatus() manifest_hash = %v, want abc123", body["manifest_hash"])
+	}
 }
 
 func TestHandlePorts(t *testing.T) {

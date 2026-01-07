@@ -141,7 +141,7 @@ sequenceDiagram
 | File | Purpose |
 |------|---------|
 | `supervisor.go` | Core `Supervisor` struct with `Start()`, `Shutdown()`, and factory functions |
-| `control_api.go` | HTTP handlers for `/healthz`, `/readyz`, `/ports`, `/logs`, `/secrets`, `/shutdown` |
+| `control_api.go` | HTTP handlers for `/healthz`, `/readyz`, `/status`, `/ports`, `/logs`, `/secrets`, `/shutdown` |
 | `service_launcher.go` | Process lifecycle: start, stop, health monitoring |
 | `migrations.go` | Migration orchestration and execution |
 | `types.go` | Type aliases re-exported from domain packages |
@@ -282,6 +282,7 @@ curl -H "Authorization: Bearer $(cat /tmp/vrooli-runtime-fixture/runtime/auth-to
 |----------|--------|------|-------------|
 | `/healthz` | GET | No | Basic runtime health (for Electron startup gate) |
 | `/readyz` | GET | Yes | Detailed service readiness status |
+| `/status` | GET | Yes | Runtime instance metadata (instance id, start time, manifest hash) |
 | `/ports` | GET | Yes | Current port allocation map |
 | `/logs/tail` | GET | Yes | Tail service log file (`?serviceId=X&lines=N`) |
 | `/secrets` | GET | Yes | List secrets with has_value status |

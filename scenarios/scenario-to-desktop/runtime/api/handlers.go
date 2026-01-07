@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +95,8 @@ type Runtime interface {
 	GPUStatus() gpu.Status
 	// ValidateBundle performs pre-flight bundle validation.
 	ValidateBundle() *BundleValidationResult
+	// RuntimeInfo returns metadata about the running runtime instance.
+	RuntimeInfo() RuntimeInfo
 }
 
 // SecretStore defines the interface for secret management used by the API.
@@ -134,6 +137,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/secrets", s.handleSecrets)
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
 	mux.HandleFunc("/validate", s.handleValidate)
+	mux.HandleFunc("/status", s.handleStatus)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -171,6 +175,84 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"services": len(statuses),
 		"runtime":  runtime.Version(),
 	})
+}
+
+// RuntimeInfo captures metadata about the running supervisor instance.
+type RuntimeInfo struct {
+	InstanceID   string    `json:"instance_id,omitempty"`
+	StartedAt    time.Time `json:"started_at,omitempty"`
+	AppDataDir   string    `json:"app_data_dir,omitempty"`
+	BundleRoot   string    `json:"bundle_root,omitempty"`
+	DryRun       bool      `json:"dry_run"`
+	ManifestHash string    `json:"manifest_hash,omitempty"`
+}
+
+// handleStatus returns runtime metadata for debugging and fingerprinting.
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	info := s.runtime.RuntimeInfo()
+	manifest := s.runtime.Manifest()
+	startedAt := ""
+	if !info.StartedAt.IsZero() {
+		startedAt = info.StartedAt.Format(time.RFC3339)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"instance_id":    info.InstanceID,
+		"started_at":     startedAt,
+		"app_data_dir":   info.AppDataDir,
+		"bundle_root":    info.BundleRoot,
+		"dry_run":        info.DryRun,
+		"manifest_hash":  info.ManifestHash,
+		"manifest_schema": func() string {
+			if manifest == nil {
+				return ""
+			}
+			return manifest.SchemaVersion
+		}(),
+		"target": func() string {
+			if manifest == nil {
+				return ""
+			}
+			return manifest.Target
+		}(),
+		"app_name": func() string {
+			if manifest == nil {
+				return ""
+			}
+			return manifest.App.Name
+		}(),
+		"app_version": func() string {
+			if manifest == nil {
+				return ""
+			}
+			return manifest.App.Version
+		}(),
+		"ipc_host": func() string {
+			if manifest == nil {
+				return ""
+			}
+			return manifest.IPC.Host
+		}(),
+		"ipc_port": func() int {
+			if manifest == nil {
+				return 0
+			}
+			return manifest.IPC.Port
+		}(),
+		"runtime_version": runtime.Version(),
+		"build_version":   runtimeBuildVersion(),
+	})
+}
+
+func runtimeBuildVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info == nil {
+		return ""
+	}
+	if info.Main.Version == "(devel)" {
+		return ""
+	}
+	return info.Main.Version
 }
 
 // handleReady returns readiness status for all services.
@@ -278,7 +360,9 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		_ = s.runtime.Shutdown(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = s.runtime.Shutdown(ctx)
 	}()
 	writeJSON(w, http.StatusOK, map[string]string{"status": "stopping"})
 }

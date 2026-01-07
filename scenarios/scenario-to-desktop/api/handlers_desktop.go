@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1643,6 +1645,33 @@ func (s *Server) runPreflightJob(jobID string, request BundlePreflightRequest) {
 	baseURL := session.baseURL
 	token := session.token
 
+	runtimeStatus, statusErr := fetchRuntimeStatus(client, baseURL, token)
+	if statusErr == nil {
+		if runtimeStatus != nil {
+			runtimeStatus.BundleRoot = bundleRoot
+		}
+		s.setPreflightJobResult(jobID, func(prev *BundlePreflightResponse) *BundlePreflightResponse {
+			return updatePreflightResult(prev, func(next *BundlePreflightResponse) {
+				next.Runtime = runtimeStatus
+			})
+		})
+	} else {
+		s.setPreflightJobResult(jobID, func(prev *BundlePreflightResponse) *BundlePreflightResponse {
+			return updatePreflightResult(prev, func(next *BundlePreflightResponse) {
+				next.Errors = append(next.Errors, fmt.Sprintf("runtime status: %v", statusErr))
+			})
+		})
+	}
+
+	fingerprints := collectServiceFingerprints(m, bundleRoot)
+	if len(fingerprints) > 0 {
+		s.setPreflightJobResult(jobID, func(prev *BundlePreflightResponse) *BundlePreflightResponse {
+			return updatePreflightResult(prev, func(next *BundlePreflightResponse) {
+				next.Fingerprints = fingerprints
+			})
+		})
+	}
+
 	s.setPreflightJobStep(jobID, "secrets", "running", "applying secrets")
 	if len(request.Secrets) > 0 {
 		filtered := map[string]string{}
@@ -1887,6 +1916,13 @@ func (s *Server) runBundlePreflight(request BundlePreflightRequest) (*BundlePref
 	baseURL := session.baseURL
 	token := session.token
 
+	runtimeStatus, statusErr := fetchRuntimeStatus(client, baseURL, token)
+	if statusErr == nil && runtimeStatus != nil {
+		runtimeStatus.BundleRoot = bundleRoot
+	}
+
+	fingerprints := collectServiceFingerprints(m, bundleRoot)
+
 	if len(request.Secrets) > 0 {
 		filtered := map[string]string{}
 		for key, value := range request.Secrets {
@@ -1965,6 +2001,14 @@ func (s *Server) runBundlePreflight(request BundlePreflightRequest) (*BundlePref
 		Telemetry:  &telemetryResp,
 		LogTails:   logTails,
 		Checks:     checks,
+		Runtime:    runtimeStatus,
+		Fingerprints: fingerprints,
+		Errors: func() []string {
+			if statusErr != nil {
+				return []string{fmt.Sprintf("runtime status: %v", statusErr)}
+			}
+			return nil
+		}(),
 		SessionID:  sessionID,
 		ExpiresAt:  expiresAt,
 	}, nil
@@ -2000,6 +2044,72 @@ func fetchReadyWithPolling(client *http.Client, baseURL, token string, request B
 		}
 	}
 	return ready, int(time.Since(start).Seconds()), nil
+}
+
+func fetchRuntimeStatus(client *http.Client, baseURL, token string) (*BundlePreflightRuntime, error) {
+	var status BundlePreflightRuntime
+	if _, err := fetchJSON(client, baseURL, token, "/status", http.MethodGet, nil, &status, nil); err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+func collectServiceFingerprints(manifest *bundlemanifest.Manifest, bundleRoot string) []BundlePreflightServiceFingerprint {
+	if manifest == nil {
+		return nil
+	}
+	platform := bundlemanifest.PlatformKey(runtime.GOOS, runtime.GOARCH)
+	results := make([]BundlePreflightServiceFingerprint, 0, len(manifest.Services))
+	for _, svc := range manifest.Services {
+		fp := BundlePreflightServiceFingerprint{
+			ServiceID: svc.ID,
+			Platform:  platform,
+		}
+		bin, ok := manifest.ResolveBinary(svc)
+		if !ok || strings.TrimSpace(bin.Path) == "" {
+			fp.Error = "binary not resolved for platform"
+			results = append(results, fp)
+			continue
+		}
+		fp.BinaryPath = bin.Path
+		resolved := bundlemanifest.ResolvePath(bundleRoot, bin.Path)
+		fp.BinaryResolvedPath = resolved
+		info, err := os.Stat(resolved)
+		if err != nil {
+			fp.Error = fmt.Sprintf("stat binary: %v", err)
+			results = append(results, fp)
+			continue
+		}
+		if info.IsDir() {
+			fp.Error = "binary path is a directory"
+			results = append(results, fp)
+			continue
+		}
+		fp.BinarySizeBytes = info.Size()
+		fp.BinaryMtime = info.ModTime().Format(time.RFC3339)
+		hash, err := sha256File(resolved)
+		if err != nil {
+			fp.Error = fmt.Sprintf("hash binary: %v", err)
+			results = append(results, fp)
+			continue
+		}
+		fp.BinarySHA256 = hash
+		results = append(results, fp)
+	}
+	return results
+}
+
+func sha256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func maxReadinessTimeout(manifest *bundlemanifest.Manifest) time.Duration {

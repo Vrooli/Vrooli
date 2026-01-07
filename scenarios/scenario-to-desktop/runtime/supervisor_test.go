@@ -167,6 +167,17 @@ func (m *mockSupervisorRuntime) ValidateBundle() *api.BundleValidationResult {
 	return &api.BundleValidationResult{Valid: true}
 }
 
+func (m *mockSupervisorRuntime) RuntimeInfo() api.RuntimeInfo {
+	return api.RuntimeInfo{
+		InstanceID:   "test-instance",
+		StartedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+		AppDataDir:   "/tmp/appdata",
+		BundleRoot:   "/tmp/bundle",
+		DryRun:       false,
+		ManifestHash: "abc123",
+	}
+}
+
 func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 	manifestData := &manifest.Manifest{
 		App: manifest.App{Name: "demo", Version: "1.0.0"},
@@ -1264,7 +1275,7 @@ func TestSupervisorIntegration_LaunchesServicesAndControlAPI(t *testing.T) {
 		t.Fatalf("shutdown: %v", err)
 	}
 
-	waitForShutdown(t, baseURL, 5*time.Second)
+	waitForShutdown(t, baseURL, 10*time.Second)
 }
 
 type readyResponse struct {
@@ -1275,16 +1286,25 @@ type readyResponse struct {
 func waitForReady(t *testing.T, baseURL, token string, timeout time.Duration) readyResponse {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
+	var lastResp readyResponse
+	var lastErr error
 	for time.Now().Before(deadline) {
 		var resp readyResponse
 		if err := fetchJSON(baseURL, token, "/readyz", &resp); err == nil {
+			lastResp = resp
+			lastErr = nil
 			if resp.Ready {
 				return resp
 			}
+		} else {
+			lastErr = err
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	t.Fatalf("timeout waiting for ready")
+	if lastErr != nil {
+		t.Fatalf("timeout waiting for ready (last error: %v, last response: %+v)", lastErr, lastResp)
+	}
+	t.Fatalf("timeout waiting for ready (last response: %+v)", lastResp)
 	return readyResponse{}
 }
 
@@ -1433,12 +1453,16 @@ func buildFixtureService(t *testing.T, bundleDir string) string {
 	source := `package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -1454,29 +1478,45 @@ func main() {
 		}
 		mux := http.NewServeMux()
 		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
+			_, _ = w.Write([]byte("{\"status\":\"healthy\"}"))
 		})
 		addr := fmt.Sprintf("127.0.0.1:%d", *port)
 		log.Printf("READY api on %s", addr)
 		server := &http.Server{Addr: addr, Handler: mux}
-		log.Fatal(server.ListenAndServe())
+		go func() {
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatal(err)
+			}
+		}()
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+		<-stop
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
 	case "worker":
 		log.Printf("READY worker")
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		if *port > 0 {
 			ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", *port))
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer ln.Close()
-			for {
-				conn, err := ln.Accept()
-				if err == nil {
+			go func() {
+				for {
+					conn, err := ln.Accept()
+					if err != nil {
+						return
+					}
 					conn.Close()
 				}
-			}
+			}()
+			defer ln.Close()
 		}
-		select {}
+		<-stop
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode: %s\n", *mode)
 		os.Exit(2)

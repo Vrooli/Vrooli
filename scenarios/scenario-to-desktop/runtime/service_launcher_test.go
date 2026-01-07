@@ -94,6 +94,7 @@ func TestStartService_DryRun(t *testing.T) {
 				},
 			},
 		},
+		clock:         RealClock{},
 		serviceStatus: make(map[string]ServiceStatus),
 	}
 
@@ -125,6 +126,7 @@ func TestStartService_NoBinary(t *testing.T) {
 				Services: []manifest.Service{},
 			},
 		},
+		clock:         RealClock{},
 		serviceStatus: make(map[string]ServiceStatus),
 	}
 

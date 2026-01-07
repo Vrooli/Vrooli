@@ -1639,18 +1639,18 @@ export function GeneratorForm({
           {connectionSection}
 
           {isBundled && (
-              <BundledPreflightSection
-                bundleManifestPath={bundleManifestPath}
-                bundleManifest={bundleManifestResp?.manifest}
-                preflightResult={preflightResult}
-                preflightPending={preflightPending}
-                preflightError={preflightError}
-                preflightJobStatus={preflightJobStatus}
-                missingSecrets={missingPreflightSecrets}
-                secretInputs={preflightSecrets}
-                preflightOk={preflightOk}
-                preflightOverride={preflightOverride}
-                preflightSessionTTL={preflightSessionTTL}
+            <BundledPreflightSection
+              bundleManifestPath={bundleManifestPath}
+              bundleManifest={bundleManifestResp?.manifest}
+              preflightResult={preflightResult}
+              preflightPending={preflightPending}
+              preflightError={preflightError}
+              preflightJobStatus={preflightJobStatus}
+              missingSecrets={missingPreflightSecrets}
+              secretInputs={preflightSecrets}
+              preflightOk={preflightOk}
+              preflightOverride={preflightOverride}
+              preflightSessionTTL={preflightSessionTTL}
               preflightSessionId={preflightSessionId}
               preflightSessionExpiresAt={preflightSessionExpiresAt}
               preflightLogTails={preflightResult?.log_tails}
@@ -1660,6 +1660,7 @@ export function GeneratorForm({
                 setPreflightSecrets((prev) => ({ ...prev, [id]: value }));
               }}
               onRun={runPreflight}
+              onStopSession={stopPreflightSession}
             />
           )}
 

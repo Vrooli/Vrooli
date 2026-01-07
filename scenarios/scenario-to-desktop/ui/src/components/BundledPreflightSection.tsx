@@ -382,6 +382,21 @@ function countLines(text?: string) {
   return last === "" ? lines.length - 1 : lines.length;
 }
 
+function formatBytes(value?: number) {
+  if (!value || value <= 0) {
+    return "";
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  const kb = value / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
+}
+
 interface BundledPreflightSectionProps {
   bundleManifestPath: string;
   bundleManifest?: unknown;
@@ -401,6 +416,7 @@ interface BundledPreflightSectionProps {
   onSessionTTLChange: (value: number) => void;
   onSecretChange: (id: string, value: string) => void;
   onRun: (secretsOverride?: Record<string, string>) => void;
+  onStopSession: () => void;
 }
 
 export function BundledPreflightSection({
@@ -421,7 +437,8 @@ export function BundledPreflightSection({
   onOverrideChange,
   onSessionTTLChange,
   onSecretChange,
-  onRun
+  onRun,
+  onStopSession
 }: BundledPreflightSectionProps) {
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -440,8 +457,11 @@ export function BundledPreflightSection({
   const readiness = preflightResult?.ready;
   const ports = preflightResult?.ports;
   const telemetry = preflightResult?.telemetry;
+  const runtimeInfo = preflightResult?.runtime;
+  const fingerprints = preflightResult?.service_fingerprints ?? [];
   const logTails = preflightLogTails ?? preflightResult?.log_tails;
   const checks = preflightResult?.checks ?? [];
+  const preflightErrors = preflightResult?.errors ?? [];
   const bundleRootPreview = bundleManifestPath.trim()
     ? bundleManifestPath.trim().replace(/[/\\][^/\\]+$/, "")
     : "";
@@ -740,6 +760,17 @@ export function BundledPreflightSection({
           >
             {preflightPending ? "Running..." : "Run preflight"}
           </Button>
+          {preflightSessionId && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onStopSession}
+              disabled={preflightPending}
+            >
+              Stop session
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
@@ -795,7 +826,76 @@ export function BundledPreflightSection({
                 and staged files sit in the same directory.
               </p>
             )}
+            {preflightErrors.length > 0 && (
+              <div className="rounded-md border border-amber-800/60 bg-amber-950/20 p-2 text-[11px] text-amber-100">
+                <p className="font-semibold text-amber-100">Preflight warnings</p>
+                <ul className="mt-1 space-y-1">
+                  {preflightErrors.map((err, idx) => (
+                    <li key={`preflight-error-${idx}`}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
+
+          {runtimeInfo && (
+            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200 space-y-2">
+              <p className="font-semibold text-slate-100">Runtime identity</p>
+              <div className="space-y-1 text-[11px] text-slate-300">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Instance</span>
+                  <span className="text-slate-200" title={runtimeInfo.instance_id || ""}>
+                    {runtimeInfo.instance_id?.slice(0, 12) || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Started</span>
+                  <span className="text-slate-200">{runtimeInfo.started_at ? formatTimestamp(runtimeInfo.started_at) : "Unknown"}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Dry run</span>
+                  <span className="text-slate-200">{runtimeInfo.dry_run ? "yes" : "no"}</span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Manifest hash</span>
+                  <span className="text-slate-200" title={runtimeInfo.manifest_hash || ""}>
+                    {runtimeInfo.manifest_hash?.slice(0, 12) || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">App</span>
+                  <span className="text-slate-200">
+                    {(runtimeInfo.app_name || "Unknown")} {runtimeInfo.app_version ? `v${runtimeInfo.app_version}` : ""}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">IPC</span>
+                  <span className="text-slate-200">
+                    {runtimeInfo.ipc_host ? `${runtimeInfo.ipc_host}:${runtimeInfo.ipc_port ?? ""}` : "Unknown"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-400">Runtime</span>
+                  <span className="text-slate-200">
+                    {runtimeInfo.runtime_version || "Unknown"}
+                    {runtimeInfo.build_version ? ` · build ${runtimeInfo.build_version}` : ""}
+                  </span>
+                </div>
+                {runtimeInfo.bundle_root && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-slate-400">Bundle root</span>
+                    <span className="text-slate-200" title={runtimeInfo.bundle_root}>{runtimeInfo.bundle_root}</span>
+                  </div>
+                )}
+                {runtimeInfo.app_data_dir && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-slate-400">App data</span>
+                    <span className="text-slate-200" title={runtimeInfo.app_data_dir}>{runtimeInfo.app_data_dir}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
@@ -1081,6 +1181,12 @@ export function BundledPreflightSection({
                               <span>{status.message}</span>
                             </p>
                           )}
+                          <div className="text-[10px] text-slate-400 space-y-0.5">
+                            {startedAt && <p>Started {new Date(startedAt).toLocaleTimeString()} ({startedAge} ago)</p>}
+                            {readyAt && <p>Ready {new Date(readyAt).toLocaleTimeString()} ({readyAge} ago)</p>}
+                            {updatedAt && <p>Updated {new Date(updatedAt).toLocaleTimeString()} ({statusAge} ago)</p>}
+                            {typeof status.exit_code === "number" && <p>Exit code {status.exit_code}</p>}
+                          </div>
                           {listenURL && (
                             <div className="flex flex-wrap items-center gap-2 text-[10px]">
                               <a
@@ -1161,19 +1267,6 @@ export function BundledPreflightSection({
                           )}
                           {!status.ready && !isSkipped && !startedAge && statusAge && (
                             <p className="text-[11px] text-slate-400">Status set {statusAge} ago</p>
-                          )}
-                          {status.updated_at && isUpdatedAhead && (
-                            <p className="text-[11px] text-amber-200/80">
-                              Last update {formatTimestamp(status.updated_at)} (ahead of local clock)
-                            </p>
-                          )}
-                          {status.updated_at && !isUpdatedAhead && formatTimestamp(status.updated_at) && (
-                            <p className="text-[11px] text-slate-500">
-                              Last update {formatTimestamp(status.updated_at)}
-                            </p>
-                          )}
-                          {typeof status.exit_code === "number" && (
-                            <p className="text-[11px] text-slate-400">Exit code: {status.exit_code}</p>
                           )}
                         </div>
                       );
@@ -1277,6 +1370,41 @@ export function BundledPreflightSection({
                         </div>
                       );
                     })}
+                  </div>
+                </details>
+              )}
+              {fingerprints.length > 0 && (
+                <details className="rounded-md border border-slate-800/70 bg-slate-950/70 p-3 text-xs text-slate-200">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+                    Service fingerprints ({fingerprints.length})
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {fingerprints.map((fp) => (
+                      <div key={`${fp.service_id}-${fp.binary_path || "unknown"}`} className="rounded-md border border-slate-800/70 bg-slate-950/80 p-2 space-y-1">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400">{fp.service_id}</p>
+                        {fp.error ? (
+                          <p className="text-[11px] text-amber-200">{fp.error}</p>
+                        ) : (
+                          <>
+                            {fp.binary_path && (
+                              <p className="text-[11px] text-slate-300" title={fp.binary_resolved_path}>
+                                {fp.binary_path}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                              {fp.platform && <span>{fp.platform}</span>}
+                              {fp.binary_size_bytes ? <span>{formatBytes(fp.binary_size_bytes)}</span> : null}
+                              {fp.binary_mtime ? <span>{formatTimestamp(fp.binary_mtime)}</span> : null}
+                            </div>
+                            {fp.binary_sha256 && (
+                              <p className="text-[10px] text-slate-500" title={fp.binary_sha256}>
+                                {fp.binary_sha256.slice(0, 16)}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </details>
               )}

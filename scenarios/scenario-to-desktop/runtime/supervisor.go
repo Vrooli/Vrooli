@@ -39,7 +39,9 @@ package bundleruntime
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -48,6 +50,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"scenario-to-desktop-runtime/api"
 	"scenario-to-desktop-runtime/assets"
@@ -135,6 +138,9 @@ type Supervisor struct {
 	appData        string
 	telemetryPath  string
 	migrationsPath string
+	instanceID     string
+	manifestHash   string
+	startedAt      time.Time
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
@@ -237,6 +243,8 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		appData:       appData,
 		serviceStatus: make(map[string]ServiceStatus),
 		procs:         make(map[string]*serviceProcess),
+		instanceID:    newInstanceID(),
+		manifestHash:  hashManifest(opts.Manifest),
 		// Create envRenderer now since all dependencies are available.
 		envRenderer: env.NewRenderer(appData, opts.BundlePath, portAllocator, envReader),
 	}
@@ -396,6 +404,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	s.server = server
 
 	s.started = true
+	s.startedAt = s.clock.Now()
 
 	// Create runtime context.
 	runtimeCtx, cancel := context.WithCancel(ctx)
@@ -443,7 +452,15 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 
 	// Stop services in reverse dependency order.
 	s.stopServices(ctx)
-	s.wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 
 	_ = s.recordTelemetry("runtime_shutdown", nil)
 
@@ -675,4 +692,36 @@ func (s *Supervisor) GPUStatus() GPUStatus {
 // PortMap returns allocated ports for all services.
 func (s *Supervisor) PortMap() map[string]map[string]int {
 	return s.portAllocator.Map()
+}
+
+// RuntimeInfo returns metadata about the running supervisor instance.
+func (s *Supervisor) RuntimeInfo() api.RuntimeInfo {
+	return api.RuntimeInfo{
+		InstanceID:   s.instanceID,
+		StartedAt:    s.startedAt,
+		AppDataDir:   s.appData,
+		BundleRoot:   s.opts.BundlePath,
+		DryRun:       s.opts.DryRun,
+		ManifestHash: s.manifestHash,
+	}
+}
+
+func newInstanceID() string {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(buf)
+}
+
+func hashManifest(m *manifest.Manifest) string {
+	if m == nil {
+		return ""
+	}
+	data, err := json.Marshal(m)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }

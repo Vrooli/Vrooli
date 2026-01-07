@@ -31,7 +31,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 		for i := 0; i < requestCount; i++ {
 			req := httptest.NewRequest("GET", "/api/v1/health", nil)
 			w := httptest.NewRecorder()
-			server.healthHandler(w, req)
+			server.router.ServeHTTP(w, req)
 
 			if w.Code != 200 {
 				t.Errorf("Request %d failed with status %d", i, w.Code)
@@ -63,7 +63,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 				for j := 0; j < requestCount/concurrency; j++ {
 					req := httptest.NewRequest("GET", "/api/v1/health", nil)
 					w := httptest.NewRecorder()
-					server.healthHandler(w, req)
+					server.router.ServeHTTP(w, req)
 
 					if w.Code != 200 {
 						t.Errorf("Worker %d request %d failed", workerID, j)
@@ -104,7 +104,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 					default:
 						req := httptest.NewRequest("GET", "/api/v1/health", nil)
 						w := httptest.NewRecorder()
-						server.healthHandler(w, req)
+						server.router.ServeHTTP(w, req)
 
 						mu.Lock()
 						requestCount++

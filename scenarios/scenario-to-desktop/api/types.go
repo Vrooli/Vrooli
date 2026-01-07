@@ -140,6 +140,8 @@ type BundlePreflightResponse struct {
 	Telemetry  *BundlePreflightTelemetry          `json:"telemetry,omitempty"`
 	LogTails   []BundlePreflightLogTail           `json:"log_tails,omitempty"`
 	Checks     []BundlePreflightCheck             `json:"checks,omitempty"`
+	Runtime    *BundlePreflightRuntime            `json:"runtime,omitempty"`
+	Fingerprints []BundlePreflightServiceFingerprint `json:"service_fingerprints,omitempty"`
 	Errors     []string                           `json:"errors,omitempty"`
 	SessionID  string                             `json:"session_id,omitempty"`
 	ExpiresAt  string                             `json:"expires_at,omitempty"`
@@ -210,6 +212,36 @@ type BundlePreflightSecret struct {
 type BundlePreflightTelemetry struct {
 	Path      string `json:"path"`
 	UploadURL string `json:"upload_url,omitempty"`
+}
+
+// BundlePreflightRuntime reports runtime instance metadata.
+type BundlePreflightRuntime struct {
+	InstanceID    string `json:"instance_id,omitempty"`
+	StartedAt     string `json:"started_at,omitempty"`
+	AppDataDir    string `json:"app_data_dir,omitempty"`
+	BundleRoot    string `json:"bundle_root,omitempty"`
+	DryRun        bool   `json:"dry_run,omitempty"`
+	ManifestHash  string `json:"manifest_hash,omitempty"`
+	ManifestSchema string `json:"manifest_schema,omitempty"`
+	Target        string `json:"target,omitempty"`
+	AppName       string `json:"app_name,omitempty"`
+	AppVersion    string `json:"app_version,omitempty"`
+	IPCHost       string `json:"ipc_host,omitempty"`
+	IPCPort       int    `json:"ipc_port,omitempty"`
+	RuntimeVersion string `json:"runtime_version,omitempty"`
+	BuildVersion  string `json:"build_version,omitempty"`
+}
+
+// BundlePreflightServiceFingerprint captures service binary metadata for debugging.
+type BundlePreflightServiceFingerprint struct {
+	ServiceID         string `json:"service_id"`
+	Platform          string `json:"platform,omitempty"`
+	BinaryPath        string `json:"binary_path,omitempty"`
+	BinaryResolvedPath string `json:"binary_resolved_path,omitempty"`
+	BinarySHA256      string `json:"binary_sha256,omitempty"`
+	BinarySizeBytes   int64  `json:"binary_size_bytes,omitempty"`
+	BinaryMtime       string `json:"binary_mtime,omitempty"`
+	Error             string `json:"error,omitempty"`
 }
 
 // BundlePreflightLogTail captures optional log tail diagnostics.
