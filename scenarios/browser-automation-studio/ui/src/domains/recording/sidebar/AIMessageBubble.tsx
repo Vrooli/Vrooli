@@ -248,6 +248,12 @@ function getStatusConfig(status: AIMessageStatus): {
         label: 'Navigating',
         className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
       };
+    case 'aborting':
+      return {
+        icon: <StopIcon className="w-3 h-3 animate-pulse" />,
+        label: 'Stopping',
+        className: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
+      };
     case 'completed':
       return {
         icon: <CheckCircleIcon className="w-3 h-3" />,
@@ -262,8 +268,8 @@ function getStatusConfig(status: AIMessageStatus): {
       };
     case 'aborted':
       return {
-        icon: <XCircleIcon className="w-3 h-3" />,
-        label: 'Aborted',
+        icon: <StopIcon className="w-3 h-3" />,
+        label: 'Stopped',
         className: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300',
       };
     case 'awaiting_human':
@@ -317,23 +323,28 @@ function SystemMessage({ message }: { message: AIMessage }) {
 interface TimelineStepProps {
   step: AINavigationStep;
   isRunning: boolean;
+  isAborting: boolean;
   isLatest: boolean;
 }
 
-function TimelineStep({ step, isRunning, isLatest }: TimelineStepProps) {
+function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const isCurrentlyRunning = isRunning && isLatest;
+  const isCurrentlyRunning = isRunning && isLatest && !isAborting;
+  const isCurrentlyAborting = isAborting && isLatest;
   const hasError = !!step.error;
   const hasReasoning = !!step.reasoning;
 
   // Determine node color and ring
   // - Error: red border
+  // - Currently aborting: orange border with ring
   // - Currently running: purple border with pulsing glow
   // - Completed (not running): purple ring (no glow)
   // - Goal achieved: green border
   // - Default: gray border
   const nodeColorClass = hasError
     ? 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20'
+    : isCurrentlyAborting
+      ? 'border-orange-500 dark:border-orange-400 ring-4 ring-orange-500/30 bg-orange-50 dark:bg-orange-900/20'
     : isCurrentlyRunning
       ? 'border-purple-500 dark:border-purple-400 ring-4 ring-purple-500/30 animate-pulse'
       : step.goalAchieved
@@ -446,7 +457,12 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
   // even if the status hasn't been updated yet
   const isDoneAction = lastStep?.action.type === 'done';
   const effectiveStatus = isDoneAction && (status === 'running' || status === 'pending') ? 'completed' : status;
+  // isRunning means we're actively navigating (show skeleton, progress bar, etc.)
   const isRunning = (effectiveStatus === 'running' || effectiveStatus === 'pending') && !isDoneAction;
+  // isAborting means we're in the process of stopping (show different UI state)
+  const isAborting = effectiveStatus === 'aborting';
+  // isInProgress means we're either running or aborting (for skeleton and progress display)
+  const isInProgress = isRunning || isAborting;
   const isAwaitingHuman = effectiveStatus === 'awaiting_human';
   const statusConfig = getStatusConfig(effectiveStatus);
 
@@ -495,8 +511,8 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
             </div>
           )}
 
-          {/* Stop button in header (visible when running) */}
-          {message.canAbort && isRunning && onAbort && (
+          {/* Stop button in header (visible when running, hidden when already aborting) */}
+          {message.canAbort && isRunning && !isAborting && onAbort && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAbort(); }}
@@ -508,8 +524,8 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
           )}
         </div>
 
-        {/* Progress bar (when running) */}
-        {isRunning && steps.length > 0 && (
+        {/* Progress bar (when in progress) */}
+        {isInProgress && steps.length > 0 && (
           <div className="mt-2 flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-purple-200 dark:bg-purple-800 rounded-full overflow-hidden">
               <div
@@ -545,13 +561,14 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
                   <TimelineStep
                     step={step}
                     isRunning={isRunning}
+                    isAborting={isAborting}
                     isLatest={index === steps.length - 1}
                   />
                 </div>
               ))}
 
-              {/* Skeleton for next step (when running) */}
-              {isRunning && (
+              {/* Skeleton for next step (when running, not when aborting) */}
+              {isRunning && !isAborting && (
                 <div className="relative ml-8 mb-3 animate-pulse">
                   <div className="absolute -left-10 top-3 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700" />
                   <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 space-y-2">
@@ -564,7 +581,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
           )}
 
           {/* Pending state (no steps yet) */}
-          {steps.length === 0 && isRunning && (
+          {steps.length === 0 && isInProgress && (
             <div className="border-l border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 px-3 py-4">
               <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
                 <LoaderIcon className="w-5 h-5 animate-spin" />
@@ -632,15 +649,23 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
               </div>
             )}
 
-            {/* Token usage (when not running) */}
-            {!isRunning && message.totalTokens && message.totalTokens > 0 && (
+            {/* Aborting message */}
+            {isAborting && (
+              <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
+                <StopIcon className="w-4 h-4 animate-pulse" />
+                <span className="text-sm">Stopping after current step...</span>
+              </div>
+            )}
+
+            {/* Token usage (when not in progress) */}
+            {!isInProgress && message.totalTokens && message.totalTokens > 0 && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {message.totalTokens.toLocaleString()} tokens used
               </p>
             )}
 
-            {/* Stop button */}
-            {message.canAbort && isRunning && onAbort && (
+            {/* Stop button (hidden when already aborting) */}
+            {message.canAbort && isRunning && !isAborting && onAbort && (
               <button
                 onClick={(e) => { e.stopPropagation(); onAbort(); }}
                 className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors border border-red-200 dark:border-red-800 flex items-center justify-center gap-1.5"

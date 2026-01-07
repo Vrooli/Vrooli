@@ -202,7 +202,7 @@ export interface AINavigationState {
   prompt: string;
   model: string;
   steps: AINavigationStep[];
-  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
+  status: 'idle' | 'navigating' | 'aborting' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   totalTokens: number;
   error: string | null;
   humanIntervention: HumanInterventionState | null;

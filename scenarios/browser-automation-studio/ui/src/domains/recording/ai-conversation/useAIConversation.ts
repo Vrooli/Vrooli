@@ -140,6 +140,22 @@ export function useAIConversation({
     }
   }, [navState.humanIntervention]);
 
+  // Sync aborting state to current message
+  useEffect(() => {
+    if (navState.status === 'aborting' && currentAssistantIdRef.current) {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== currentAssistantIdRef.current) return msg;
+          return {
+            ...msg,
+            status: 'aborting' as const,
+            canAbort: false, // Can't abort twice
+          };
+        })
+      );
+    }
+  }, [navState.status]);
+
   // Sync error state to current message
   useEffect(() => {
     if (navState.error && currentAssistantIdRef.current) {

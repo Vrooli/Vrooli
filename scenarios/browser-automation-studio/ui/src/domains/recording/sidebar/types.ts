@@ -156,7 +156,7 @@ export type AIMessageRole = 'user' | 'assistant' | 'system';
 /**
  * Status of an AI message/navigation.
  */
-export type AIMessageStatus = 'pending' | 'running' | 'completed' | 'failed' | 'aborted' | 'awaiting_human';
+export type AIMessageStatus = 'pending' | 'running' | 'aborting' | 'completed' | 'failed' | 'aborted' | 'awaiting_human';
 
 /**
  * A message in the AI conversation.

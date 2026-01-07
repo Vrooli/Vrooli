@@ -150,14 +150,22 @@ export function createVisionAgent(
         maxSteps,
       });
 
+      // Helper to check abort status
+      const checkAbort = (): boolean => {
+        if (signal.aborted) {
+          deps.logger.info('Abort signal detected', { navigationId: navConfig.navigationId });
+          return true;
+        }
+        return false;
+      };
+
       try {
         // Main navigation loop
         while (stepNumber < maxSteps) {
-          // Check for abort
-          if (signal.aborted) {
+          // Check for abort at start of iteration
+          if (checkAbort()) {
             status = 'aborted';
             error = 'Navigation aborted by user';
-            deps.logger.info('Navigation aborted', { navigationId: navConfig.navigationId });
             break;
           }
 
@@ -257,6 +265,13 @@ export function createVisionAgent(
             const observeResult = await observePhase(navConfig.page, deps, cfg);
             screenshot = observeResult.screenshot;
             elementLabels = observeResult.elementLabels.slice(0, cfg.maxElementLabels);
+
+            // Check for abort after screenshot capture
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
           } catch (observeErr) {
             // Screenshot failed - this often happens with CAPTCHAs that block page capture
             const errMsg = observeErr instanceof Error ? observeErr.message : String(observeErr);
@@ -390,6 +405,13 @@ export function createVisionAgent(
 
           totalTokens += analysisResult.tokensUsed.totalTokens;
 
+          // Check for abort after vision API call (before executing action)
+          if (checkAbort()) {
+            status = 'aborted';
+            error = 'Navigation aborted by user';
+            break;
+          }
+
           // Add assistant response to history
           conversationHistory.push({
             role: 'assistant',
@@ -494,6 +516,28 @@ export function createVisionAgent(
             analysisResult.action,
             elementLabels
           );
+
+          // Check for abort after action execution (before next iteration)
+          if (checkAbort()) {
+            // Emit the step that was just completed before aborting
+            const abortedStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: analysisResult.reasoning,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              elementLabels,
+            };
+            await safeEmit(deps, abortedStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'aborted';
+            error = 'Navigation aborted by user';
+            break;
+          }
 
           // LOOP DETECTION: Build context and check for loops
           // We do this AFTER execution so we have context (e.g., scroll position change)

@@ -287,20 +287,18 @@ export function useAINavigation({
         throw new Error(errorData.message || 'Failed to abort navigation');
       }
 
-      console.log('[useAINavigation] Abort successful');
+      console.log('[useAINavigation] Abort request sent, waiting for completion');
 
-      // Mark as aborted immediately and set isNavigating to false
-      // Don't wait for WebSocket complete event since it may be delayed
+      // Set status to 'aborting' - navigation is still in progress until server confirms
+      // The WebSocket ai_navigation_complete event will set the final 'aborted' status
       setState((prev) => ({
         ...prev,
-        isNavigating: false,
-        status: 'aborted',
+        status: 'aborting',
         humanIntervention: null,
       }));
-      navigationIdRef.current = null;
 
-      // Trigger onComplete callback so message UI updates
-      onCompleteRef.current?.('aborted', 'Navigation was aborted');
+      // Note: Don't set isNavigating to false or clear navigationIdRef yet
+      // The WebSocket complete event will handle final cleanup
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to abort navigation';
       console.error('[useAINavigation] Abort failed:', message);
