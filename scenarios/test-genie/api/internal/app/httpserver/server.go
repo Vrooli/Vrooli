@@ -23,6 +23,7 @@ import (
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
+	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
 )
 
@@ -40,16 +41,17 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB                 *sql.DB
-	SuiteQueue         suiteRequestQueue
-	Executions         execution.ExecutionHistory
-	ExecutionSvc       suiteExecutor
-	Scenarios          scenarioDirectory
-	PhaseCatalog       phaseCatalog
-	AgentService       *agentmanager.AgentService
-	FixService         fixService
-	RequirementsSyncer requirementsSyncer
-	Logger             Logger
+	DB                         *sql.DB
+	SuiteQueue                 suiteRequestQueue
+	Executions                 execution.ExecutionHistory
+	ExecutionSvc               suiteExecutor
+	Scenarios                  scenarioDirectory
+	PhaseCatalog               phaseCatalog
+	AgentService               *agentmanager.AgentService
+	FixService                 fixService
+	RequirementsImproveService requirementsImproveService
+	RequirementsSyncer         requirementsSyncer
+	Logger                     Logger
 }
 
 type suiteRequestQueue interface {
@@ -90,27 +92,37 @@ type fixService interface {
 	IsAgentAvailable(ctx context.Context) bool
 }
 
+type requirementsImproveService interface {
+	Spawn(ctx context.Context, req requirementsimprove.SpawnRequest) (*requirementsimprove.SpawnResult, error)
+	Get(id string) (*requirementsimprove.Record, bool)
+	ListByScenario(scenarioName string, limit int) []*requirementsimprove.Record
+	GetActiveForScenario(scenarioName string) *requirementsimprove.Record
+	Stop(ctx context.Context, id string) error
+	IsAgentAvailable(ctx context.Context) bool
+}
+
 type requirementsSyncer interface {
 	Sync(ctx context.Context, scenarioDir string) error
 }
 
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config                 Config
-	db                     *sql.DB
-	router                 *mux.Router
-	suiteRequests          suiteRequestQueue
-	executionHistory       execution.ExecutionHistory
-	executionSvc           suiteExecutor
-	scenarios              scenarioDirectory
-	phaseCatalog           phaseCatalog
-	logger                 Logger
-	agentService           *agentmanager.AgentService
-	fixService             fixService
-	requirementsSyncer     requirementsSyncer
-	seedSessions           map[string]*seedSession
-	seedSessionsByScenario map[string]string
-	seedSessionsMu         sync.Mutex
+	config                     Config
+	db                         *sql.DB
+	router                     *mux.Router
+	suiteRequests              suiteRequestQueue
+	executionHistory           execution.ExecutionHistory
+	executionSvc               suiteExecutor
+	scenarios                  scenarioDirectory
+	phaseCatalog               phaseCatalog
+	logger                     Logger
+	agentService               *agentmanager.AgentService
+	fixService                 fixService
+	requirementsImproveService requirementsImproveService
+	requirementsSyncer         requirementsSyncer
+	seedSessions               map[string]*seedSession
+	seedSessionsByScenario     map[string]string
+	seedSessionsMu             sync.Mutex
 }
 
 // New creates a configured HTTP server instance.
@@ -146,20 +158,21 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 
 	srv := &Server{
-		config:                 config,
-		db:                     deps.DB,
-		router:                 mux.NewRouter(),
-		suiteRequests:          deps.SuiteQueue,
-		executionHistory:       deps.Executions,
-		executionSvc:           deps.ExecutionSvc,
-		scenarios:              deps.Scenarios,
-		phaseCatalog:           deps.PhaseCatalog,
-		logger:                 logger,
-		agentService:           deps.AgentService,
-		fixService:             deps.FixService,
-		requirementsSyncer:     deps.RequirementsSyncer,
-		seedSessions:           make(map[string]*seedSession),
-		seedSessionsByScenario: make(map[string]string),
+		config:                     config,
+		db:                         deps.DB,
+		router:                     mux.NewRouter(),
+		suiteRequests:              deps.SuiteQueue,
+		executionHistory:           deps.Executions,
+		executionSvc:               deps.ExecutionSvc,
+		scenarios:                  deps.Scenarios,
+		phaseCatalog:               deps.PhaseCatalog,
+		logger:                     logger,
+		agentService:               deps.AgentService,
+		fixService:                 deps.FixService,
+		requirementsImproveService: deps.RequirementsImproveService,
+		requirementsSyncer:         deps.RequirementsSyncer,
+		seedSessions:               make(map[string]*seedSession),
+		seedSessionsByScenario:     make(map[string]string),
 	}
 
 	srv.setupRoutes()
@@ -218,6 +231,13 @@ func (s *Server) setupRoutes() {
 	// Requirements endpoints for requirements sync UI
 	apiRouter.HandleFunc("/scenarios/{name}/requirements", s.handleGetScenarioRequirements).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/sync", s.handleSyncScenarioRequirements).Methods("POST")
+
+	// Requirements improve routes (agent-based requirements improvement)
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleSpawnRequirementsImprove).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleListRequirementsImproves).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown.

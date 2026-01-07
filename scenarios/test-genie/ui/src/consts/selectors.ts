@@ -305,7 +305,17 @@ const literalSelectors: LiteralSelectorTree = {
     filterPassed: "test-genie-filter-passed",
     filterFailed: "test-genie-filter-failed",
     filterNotRun: "test-genie-filter-not-run",
-    searchInput: "test-genie-requirements-search"
+    searchInput: "test-genie-requirements-search",
+    // Help section
+    helpSection: "test-genie-requirements-help",
+    helpToggle: "test-genie-requirements-help-toggle",
+    // AI improve feature
+    improveButton: "test-genie-requirements-improve-button",
+    startImproveButton: "test-genie-start-improve-button",
+    cancelImproveButton: "test-genie-cancel-improve-button",
+    selectAllButton: "test-genie-select-all-button",
+    actionTypeSelector: "test-genie-action-type-selector",
+    improveStatus: "test-genie-requirements-improve-status"
   },
   // Generate page
   generate: {
@@ -410,6 +420,14 @@ export const selectors = registry.selectors as unknown as {
     filterFailed: string;
     filterNotRun: string;
     searchInput: string;
+    helpSection: string;
+    helpToggle: string;
+    improveButton: string;
+    startImproveButton: string;
+    cancelImproveButton: string;
+    selectAllButton: string;
+    actionTypeSelector: string;
+    improveStatus: string;
   };
   generate: {
     phaseSelector: string;

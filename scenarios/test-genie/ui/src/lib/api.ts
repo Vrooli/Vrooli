@@ -826,3 +826,141 @@ export async function stopFix(scenarioName: string, fixId: string): Promise<{ su
   });
   return parseResponse<{ success: boolean; message: string }>(res);
 }
+
+// =============================================================================
+// REQUIREMENTS IMPROVE API
+// =============================================================================
+
+export type ImproveActionType = "write_tests" | "update_requirements" | "both";
+export type ImproveStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface RequirementValidationInfo {
+  type: string;
+  ref: string;
+  phase?: string;
+  status: string;
+  liveStatus: string;
+}
+
+export interface RequirementImproveInfo {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  liveStatus: string;
+  criticality?: string;
+  modulePath: string;
+  validations?: RequirementValidationInfo[];
+}
+
+export interface RequirementsImproveRecord {
+  id: string;
+  scenarioName: string;
+  requirements: RequirementImproveInfo[];
+  actionType: ImproveActionType;
+  status: ImproveStatus;
+  runId?: string;
+  tag?: string;
+  startedAt: string;
+  completedAt?: string;
+  output?: string;
+  error?: string;
+}
+
+export interface SpawnRequirementsImproveRequest {
+  requirements: RequirementImproveInfo[];
+  actionType: ImproveActionType;
+}
+
+export interface SpawnRequirementsImproveResponse {
+  improveId: string;
+  runId?: string;
+  tag: string;
+  status: ImproveStatus;
+  error?: string;
+}
+
+export interface ListRequirementsImprovesResponse {
+  items: RequirementsImproveRecord[];
+  count: number;
+}
+
+export interface ActiveRequirementsImproveResponse {
+  active: boolean;
+  improve?: RequirementsImproveRecord;
+}
+
+export async function spawnRequirementsImprove(
+  scenarioName: string,
+  requirements: RequirementImproveInfo[],
+  actionType: ImproveActionType
+): Promise<SpawnRequirementsImproveResponse> {
+  const url = buildApiUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requirements, actionType })
+  });
+  return parseResponse<SpawnRequirementsImproveResponse>(res);
+}
+
+export async function fetchRequirementsImprove(
+  scenarioName: string,
+  improveId: string
+): Promise<RequirementsImproveRecord> {
+  const url = buildApiUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/${encodeURIComponent(improveId)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<RequirementsImproveRecord>(res);
+}
+
+export async function fetchRequirementsImproves(
+  scenarioName: string
+): Promise<ListRequirementsImprovesResponse> {
+  const url = buildApiUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<ListRequirementsImprovesResponse>(res);
+}
+
+export async function fetchActiveRequirementsImprove(
+  scenarioName: string
+): Promise<ActiveRequirementsImproveResponse> {
+  const url = buildApiUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/active`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<ActiveRequirementsImproveResponse>(res);
+}
+
+export async function stopRequirementsImprove(
+  scenarioName: string,
+  improveId: string
+): Promise<{ success: boolean; message: string }> {
+  const url = buildApiUrl(
+    `/scenarios/${encodeURIComponent(scenarioName)}/requirements/improve/${encodeURIComponent(improveId)}/stop`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  return parseResponse<{ success: boolean; message: string }>(res);
+}

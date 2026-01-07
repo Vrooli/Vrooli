@@ -25,15 +25,16 @@ func NewServer() (*httpserver.Server, error) {
 		ServiceName: "Test Genie API",
 	}
 	httpDeps := httpserver.Dependencies{
-		DB:                 deps.DB,
-		SuiteQueue:         deps.SuiteRequests,
-		Executions:         deps.ExecutionHistory,
-		ExecutionSvc:       deps.ExecutionService,
-		Scenarios:          deps.ScenarioService,
-		PhaseCatalog:       deps.PhaseCatalog,
-		AgentService:       deps.AgentService,
-		FixService:         deps.FixService,
-		RequirementsSyncer: deps.RequirementsSyncer,
+		DB:                         deps.DB,
+		SuiteQueue:                 deps.SuiteRequests,
+		Executions:                 deps.ExecutionHistory,
+		ExecutionSvc:               deps.ExecutionService,
+		Scenarios:                  deps.ScenarioService,
+		PhaseCatalog:               deps.PhaseCatalog,
+		AgentService:               deps.AgentService,
+		FixService:                 deps.FixService,
+		RequirementsImproveService: deps.RequirementsImproveService,
+		RequirementsSyncer:         deps.RequirementsSyncer,
 	}
 
 	return httpserver.New(httpCfg, httpDeps)
