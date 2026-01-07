@@ -20,6 +20,18 @@ export interface StreamSettings {
   scale: 'css' | 'device';
 }
 
+/** Retry state for session creation */
+interface RetryState {
+  /** Number of retry attempts made */
+  attempts: number;
+  /** Whether we're in a cooldown period before next retry */
+  inCooldown: boolean;
+  /** When the next retry is allowed (for cooldown display) */
+  nextRetryAt: number | null;
+  /** Whether max retries exceeded (requires manual retry) */
+  maxRetriesExceeded: boolean;
+}
+
 interface UseRecordingSessionReturn {
   sessionId: string | null;
   sessionProfileId: string | null;
@@ -34,7 +46,16 @@ interface UseRecordingSessionReturn {
   ) => Promise<string | null>;
   setSessionProfileId: (profileId: string | null) => void;
   resetSessionError: () => void;
+  /** Retry state for UI feedback */
+  retryState: RetryState;
+  /** Manual retry function (resets retry count and tries again) */
+  retrySession: () => void;
 }
+
+// Retry configuration
+const MAX_AUTO_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 1000; // 1 second
+const MAX_RETRY_DELAY_MS = 30000; // 30 seconds
 
 export function useRecordingSession({
   initialSessionId,
@@ -47,10 +68,29 @@ export function useRecordingSession({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [actualViewport, setActualViewport] = useState<ActualViewport | null>(null);
 
+  // Retry state for exponential backoff
+  const [retryState, setRetryState] = useState<RetryState>({
+    attempts: 0,
+    inCooldown: false,
+    nextRetryAt: null,
+    maxRetriesExceeded: false,
+  });
+
   // Track in-flight session creation to prevent duplicate requests.
   // We use a ref because React state updates are async and multiple calls
   // to ensureSession could race past the sessionId check before state updates.
   const pendingSessionPromiseRef = useRef<Promise<string | null> | null>(null);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryAttemptsRef = useRef(0);
+
+  // Clean up cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setSessionId(initialSessionId ?? null);
@@ -58,6 +98,18 @@ export function useRecordingSession({
     setSessionError(null);
     setActualViewport(null);
     pendingSessionPromiseRef.current = null;
+    // Reset retry state when session ID changes externally
+    retryAttemptsRef.current = 0;
+    setRetryState({
+      attempts: 0,
+      inCooldown: false,
+      nextRetryAt: null,
+      maxRetriesExceeded: false,
+    });
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    }
   }, [initialSessionId, initialSessionProfileId]);
 
   const ensureSession = useCallback(async (
@@ -72,6 +124,16 @@ export function useRecordingSession({
     // If there's already a pending session creation, wait for it instead of starting another
     if (pendingSessionPromiseRef.current) {
       return pendingSessionPromiseRef.current;
+    }
+
+    // Check if we're in cooldown or exceeded max retries
+    if (retryState.inCooldown) {
+      logger.debug('Session creation blocked: in cooldown', { component: 'useRecordingSession' });
+      return null;
+    }
+    if (retryState.maxRetriesExceeded) {
+      logger.debug('Session creation blocked: max retries exceeded', { component: 'useRecordingSession' });
+      return null;
     }
 
     setIsCreatingSession(true);
@@ -106,6 +168,15 @@ export function useRecordingSession({
           throw new Error('No session ID returned from server');
         }
 
+        // Success - reset retry state
+        retryAttemptsRef.current = 0;
+        setRetryState({
+          attempts: 0,
+          inCooldown: false,
+          nextRetryAt: null,
+          maxRetriesExceeded: false,
+        });
+
         setSessionId(newSessionId);
         if (data.session_profile_id) {
           setSessionProfileId(data.session_profile_id as string);
@@ -127,6 +198,56 @@ export function useRecordingSession({
         const message = err instanceof Error ? err.message : 'Failed to create recording session';
         setSessionError(message);
         logger.error('Failed to create recording session', { component: 'useRecordingSession', action: 'ensureSession' }, err);
+
+        // Increment retry count and apply exponential backoff
+        retryAttemptsRef.current += 1;
+        const attempts = retryAttemptsRef.current;
+
+        if (attempts >= MAX_AUTO_RETRIES) {
+          // Max retries exceeded - require manual retry
+          setRetryState({
+            attempts,
+            inCooldown: false,
+            nextRetryAt: null,
+            maxRetriesExceeded: true,
+          });
+          logger.warn('Max session creation retries exceeded', {
+            component: 'useRecordingSession',
+            attempts,
+            maxRetries: MAX_AUTO_RETRIES,
+          });
+        } else {
+          // Calculate backoff delay: 1s, 2s, 4s, 8s... capped at MAX_RETRY_DELAY_MS
+          const delay = Math.min(
+            BASE_RETRY_DELAY_MS * Math.pow(2, attempts - 1),
+            MAX_RETRY_DELAY_MS
+          );
+          const nextRetryAt = Date.now() + delay;
+
+          setRetryState({
+            attempts,
+            inCooldown: true,
+            nextRetryAt,
+            maxRetriesExceeded: false,
+          });
+
+          logger.info('Session creation failed, will retry', {
+            component: 'useRecordingSession',
+            attempts,
+            nextRetryInMs: delay,
+          });
+
+          // Clear cooldown after delay
+          cooldownTimerRef.current = setTimeout(() => {
+            setRetryState((prev) => ({
+              ...prev,
+              inCooldown: false,
+              nextRetryAt: null,
+            }));
+            cooldownTimerRef.current = null;
+          }, delay);
+        }
+
         return null;
       } finally {
         setIsCreatingSession(false);
@@ -137,7 +258,28 @@ export function useRecordingSession({
     // Store the promise so concurrent calls can wait on the same request
     pendingSessionPromiseRef.current = createSession();
     return pendingSessionPromiseRef.current;
-  }, [sessionId, sessionProfileId, onSessionReady]);
+  }, [sessionId, sessionProfileId, onSessionReady, retryState.inCooldown, retryState.maxRetriesExceeded]);
+
+  // Manual retry function - resets retry state and allows another attempt
+  const retrySession = useCallback(() => {
+    // Clear any pending cooldown timer
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    }
+
+    // Reset retry state
+    retryAttemptsRef.current = 0;
+    setRetryState({
+      attempts: 0,
+      inCooldown: false,
+      nextRetryAt: null,
+      maxRetriesExceeded: false,
+    });
+    setSessionError(null);
+
+    logger.info('Manual session retry triggered', { component: 'useRecordingSession' });
+  }, []);
 
   const resetSessionError = useCallback(() => setSessionError(null), []);
 
@@ -150,5 +292,7 @@ export function useRecordingSession({
     ensureSession,
     setSessionProfileId,
     resetSessionError,
+    retryState,
+    retrySession,
   };
 }

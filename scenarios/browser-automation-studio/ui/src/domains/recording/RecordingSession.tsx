@@ -154,6 +154,8 @@ export function RecordModePage({
     actualViewport: sessionActualViewport,
     ensureSession,
     setSessionProfileId,
+    retryState,
+    retrySession,
   } = useRecordingSession({ initialSessionId, onSessionReady });
 
   // Session profile selection state and handlers (extracted to hook)
@@ -675,6 +677,9 @@ export function RecordModePage({
 
   // Track whether initial URL navigation has been done to avoid double-navigation
   const initialUrlNavigatedRef = useRef(false);
+  // Track the last URL we actually navigated to - prevents duplicate navigation
+  // when onPageNavigated updates previewUrl to the same value
+  const lastNavigatedUrlRef = useRef<string | null>(null);
   // Track whether initial navigation is complete (for AI auto-start)
   const [isInitialNavigationComplete, setIsInitialNavigationComplete] = useState(!initialUrl);
   // Ref to avoid stale closure when setting completion state
@@ -718,6 +723,13 @@ export function RecordModePage({
       return;
     }
 
+    // CRITICAL: Skip navigation if we already navigated to this URL
+    // This prevents duplicate navigation when onPageNavigated updates previewUrl
+    // to the same value (causes flickering/white screen)
+    if (lastNavigatedUrlRef.current === previewUrl) {
+      return;
+    }
+
     const abortController = new AbortController();
     let cancelled = false;
 
@@ -726,6 +738,10 @@ export function RecordModePage({
       if (isInitialNavigation) {
         initialUrlNavigatedRef.current = true;
       }
+
+      // Mark this URL as being navigated to BEFORE the request
+      // This prevents race conditions where another update comes in
+      lastNavigatedUrlRef.current = previewUrl;
 
       try {
         // NOTE: No artificial delay here. The session is ready when sessionId is set
@@ -781,15 +797,18 @@ export function RecordModePage({
   // The browser viewport is decoupled from replay style - toggling replay style
   // does NOT change the actual browser viewport, preventing flickering.
 
-  // Auto-start recording when session is ready
+  // Auto-start recording AFTER initial navigation completes.
+  // CRITICAL: This prevents frame streaming from capturing about:blank
+  // before the page has navigated to the target URL. Without this guard,
+  // startRecording races with navigate, causing flickering/white screen.
   useEffect(() => {
-    if (sessionId && !isRecording && !autoStartedRef.current) {
+    if (sessionId && !isRecording && !autoStartedRef.current && isInitialNavigationComplete) {
       autoStartedRef.current = true;
       startRecording(sessionId).catch((err) => {
         console.error('Failed to auto-start recording:', err);
       });
     }
-  }, [sessionId, isRecording, startRecording]);
+  }, [sessionId, isRecording, startRecording, isInitialNavigationComplete]);
 
   // Auto-start AI navigation when requested (e.g., from template)
   const aiAutoStartedRef = useRef(false);
@@ -1036,8 +1055,14 @@ export function RecordModePage({
         recentActivityPageId={recentActivityPageId}
       />
 
-      {/* Error display */}
-      {displayError && <ErrorBanner message={displayError} />}
+      {/* Error display - pass retry state for session errors */}
+      {displayError && (
+        <ErrorBanner
+          message={displayError}
+          retryState={sessionError ? retryState : undefined}
+          onRetry={sessionError ? retrySession : undefined}
+        />
+      )}
 
       {/* Unstable selectors warning banner */}
       {!isRecording && lowConfidenceCount > 0 && (

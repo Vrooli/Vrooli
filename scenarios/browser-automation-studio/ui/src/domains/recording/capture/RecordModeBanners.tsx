@@ -1,8 +1,22 @@
 interface ErrorBannerProps {
   message: string;
+  /** Retry state for session creation failures */
+  retryState?: {
+    attempts: number;
+    inCooldown: boolean;
+    nextRetryAt: number | null;
+    maxRetriesExceeded: boolean;
+  };
+  /** Callback for manual retry */
+  onRetry?: () => void;
 }
 
-export function ErrorBanner({ message }: ErrorBannerProps) {
+export function ErrorBanner({ message, retryState, onRetry }: ErrorBannerProps) {
+  // Calculate seconds until next retry for display
+  const secondsUntilRetry = retryState?.nextRetryAt
+    ? Math.max(0, Math.ceil((retryState.nextRetryAt - Date.now()) / 1000))
+    : null;
+
   return (
     <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
       <div className="flex items-start gap-3">
@@ -13,16 +27,30 @@ export function ErrorBanner({ message }: ErrorBannerProps) {
             clipRule="evenodd"
           />
         </svg>
-        <div>
+        <div className="flex-1">
           <p className="text-sm font-medium text-red-800 dark:text-red-200">{message}</p>
           <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-            {message.includes('driver') || message.includes('unavailable')
-              ? 'Make sure the browser session is active and try again.'
-              : message.includes('recording')
-              ? 'Try stopping and restarting the recording.'
-              : 'Please try again. If the problem persists, refresh the page.'}
+            {retryState?.maxRetriesExceeded ? (
+              'Connection failed after multiple attempts. Check that the API and Playwright services are running.'
+            ) : retryState?.inCooldown && secondsUntilRetry !== null ? (
+              `Retrying in ${secondsUntilRetry}s... (attempt ${retryState.attempts}/3)`
+            ) : message.includes('driver') || message.includes('unavailable') ? (
+              'Make sure the browser session is active and try again.'
+            ) : message.includes('recording') ? (
+              'Try stopping and restarting the recording.'
+            ) : (
+              'Please try again. If the problem persists, refresh the page.'
+            )}
           </p>
         </div>
+        {retryState?.maxRetriesExceeded && onRetry && (
+          <button
+            onClick={onRetry}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors flex-shrink-0"
+          >
+            Retry
+          </button>
+        )}
       </div>
     </div>
   );

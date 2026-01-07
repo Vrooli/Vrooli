@@ -50,7 +50,6 @@ Key invariants:
   - [contracts/README.md](contracts/README.md)
   - [engine/README.md](engine/README.md)
   - [executor/README.md](executor/README.md)
-  - [recorder/README.md](recorder/README.md)
   - [events/README.md](events/README.md)
 
 ### Engine Configuration

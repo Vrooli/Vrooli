@@ -164,19 +164,31 @@ export function useFrameStream({
   }, []);
 
   // Handle page switching transitions
+  // IMPORTANT: Only reset hasFrame when switching between two REAL page IDs.
+  // When pageId goes from undefined → real ID, that's just the initial page ID
+  // being resolved (from the /pages API), not an actual tab switch.
+  // Resetting hasFrame in that case causes flickering during initial navigation.
   useEffect(() => {
     if (lastPageIdRef.current !== pageId) {
-      setIsPageSwitching(true);
-      lastPageIdRef.current = pageId;
-      frameDimensionsRef.current = null;
-      hasFrameRef.current = false;
-      setHasFrame(false);
+      const isRealTabSwitch = lastPageIdRef.current && pageId;
 
-      const timer = setTimeout(() => {
-        setIsPageSwitching(false);
-      }, 300);
+      if (isRealTabSwitch) {
+        // Actual tab switch - reset frame state and show transition
+        setIsPageSwitching(true);
+        frameDimensionsRef.current = null;
+        hasFrameRef.current = false;
+        setHasFrame(false);
 
-      return () => clearTimeout(timer);
+        const timer = setTimeout(() => {
+          setIsPageSwitching(false);
+        }, 300);
+
+        lastPageIdRef.current = pageId;
+        return () => clearTimeout(timer);
+      } else {
+        // Initial page ID being set or cleared - just update ref, don't reset frame
+        lastPageIdRef.current = pageId;
+      }
     }
   }, [pageId]);
 
@@ -414,6 +426,10 @@ export function useFrameStream({
       const frameId = Date.now();
       const frameSize = jpegData.byteLength;
 
+      // Mark that WebSocket has successfully delivered a frame
+      // This allows polling to stop (see polling effect guard)
+      hasReceivedWsFrameRef.current = true;
+
       // Update frame ID immediately (used for stale frame detection)
       latestFrameIdRef.current = frameId;
 
@@ -647,9 +663,16 @@ export function useFrameStream({
     }
   }, [fps, onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame]);
 
-  // Polling - runs as fallback when WebSocket not active
+  // Track if we've received at least one WebSocket frame
+  const hasReceivedWsFrameRef = useRef(false);
+
+  // Polling - runs as fallback when WebSocket hasn't delivered a frame yet
+  // CRITICAL: Don't stop polling just because WebSocket connected!
+  // Only stop when WebSocket has PROVEN it works by delivering a frame.
+  // This fixes white screen when CDP screencast doesn't send frames immediately
+  // (e.g., page is static after navigation).
   useEffect(() => {
-    if (isWsFrameActive) {
+    if (isWsFrameActive && hasReceivedWsFrameRef.current) {
       return;
     }
 
@@ -700,6 +723,7 @@ export function useFrameStream({
       isWsFrameActiveRef.current = false;
       setIsWsFrameActive(false);
       reconnectAttemptRef.current = 0; // Reset reconnect counter for new session
+      hasReceivedWsFrameRef.current = false; // Reset WS frame tracking for new session
       resetStats();
       // Reset diagnostic counters
       frameCountRef.current = 0;

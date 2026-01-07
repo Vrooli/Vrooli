@@ -228,6 +228,17 @@ export interface SessionState {
   pipelineManager?: RecordingPipelineManager;
 
   /**
+   * Promise that resolves when the recording pipeline is initialized and verified.
+   * Consumers (like frame streaming) should await this before starting operations
+   * that depend on the pipeline being ready.
+   *
+   * Resolves to:
+   * - `true` if pipeline is ready for recording
+   * - `false` if pipeline verification failed (recording may still work with auto-verify)
+   */
+  pipelineReadyPromise?: Promise<boolean>;
+
+  /**
    * Cleanup function for page lifecycle listeners.
    * Called when recording stops to remove event handlers.
    */

@@ -1504,10 +1504,9 @@ ui/src/features/record-mode/
 
 ## Appendix B: Related Documentation
 
-- [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) - Overall system architecture
-- [NODE_INDEX.md](./NODE_INDEX.md) - All supported workflow node types
-- [api/automation/contracts/contracts.go](../api/automation/contracts/contracts.go) - Core type definitions
-- [api/services/recording/](../api/services/recording/) - Existing recording import code
+- [SYSTEM_ARCHITECTURE.md](../SYSTEM_ARCHITECTURE.md) - Overall system architecture
+- [NODE_INDEX.md](../NODE_INDEX.md) - All supported workflow node types
+- [api/automation/contracts/contracts.go](../../api/automation/contracts/contracts.go) - Core type definitions
 
 ---
 

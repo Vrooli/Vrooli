@@ -220,12 +220,14 @@ export function PlaywrightView({
       onKeyDown={handleKey}
       className="relative h-full w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
-      {/* Canvas for frame rendering */}
+      {/* Canvas for frame rendering
+          IMPORTANT: Do NOT set width/height as React props!
+          Setting canvas width/height clears all content. The drawFrameToCanvas function
+          in useFrameStream handles dimensions directly on the canvas element.
+          React re-renders would clear the canvas between frames, causing white flicker. */}
       <canvas
         ref={canvasRef}
         className={`w-full h-full object-contain bg-white pointer-events-none ${hasFrame ? '' : 'hidden'}`}
-        width={displayDimensions?.width || 1280}
-        height={displayDimensions?.height || 720}
       />
 
       {/* Page switching transition overlay */}

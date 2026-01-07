@@ -103,6 +103,10 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     // Minimum change threshold to trigger restart (prevents rapid restarts during resize)
     const VIEWPORT_CHANGE_THRESHOLD = 20; // pixels
 
+    // Buffer for frames received before WebSocket is ready
+    // This prevents flickering/white screen on initial connection
+    let pendingFrame: { data: string; sessionId: number } | null = null;
+
     // Helper to restart screencast on a new page or with new viewport
     const restartScreencast = async (newPage: Page, newViewport?: { width: number; height: number }) => {
       // Stop old screencast
@@ -155,6 +159,76 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       }
     }, cdpConfig.pageCheckIntervalMs);
 
+    // Helper to send a frame (used for both live and buffered frames)
+    const sendFrame = (
+      frameData: string,
+      _frameSessionId: number,
+      isBuffered: boolean
+    ): { buffer: Buffer; decodeMs: number } | null => {
+      const ws = wsProvider.getWebSocket();
+      if (!ws || ws.readyState !== 1) {
+        return null;
+      }
+
+      const decodeStart = performance.now();
+      const buffer = Buffer.from(frameData, 'base64');
+      const decodeMs = performance.now() - decodeStart;
+
+      const sendStart = performance.now();
+
+      // Build frame with optional perf header
+      let frameToSend: Buffer;
+      if (config.includePerfHeaders) {
+        const header = {
+          frame_id: `${sessionId}-${frameCount + 1}`,
+          capture_ms: decodeMs,
+          compare_ms: 0,
+          ws_send_ms: 0,
+          frame_bytes: buffer.length,
+          sent_at: Date.now(),
+          buffered: isBuffered,
+        };
+        const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
+        const headerLen = Buffer.alloc(4);
+        headerLen.writeUInt32BE(headerJson.length, 0);
+        frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
+      } else {
+        const timestampBuffer = Buffer.alloc(8);
+        timestampBuffer.writeBigInt64BE(BigInt(Date.now()), 0);
+        frameToSend = Buffer.concat([timestampBuffer, buffer]);
+      }
+
+      ws.send(frameToSend);
+
+      // Also broadcast to direct frame server
+      const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
+      if (directServer?.hasSubscribers(sessionId)) {
+        directServer.broadcast(buffer, sessionId);
+      }
+
+      const sendMs = performance.now() - sendStart;
+
+      frameCount++;
+
+      statsReporter.onFrameSent({
+        captureMs: decodeMs,
+        wsSendMs: sendMs,
+        frameBytes: buffer.length,
+      });
+
+      metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
+      metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
+
+      if (isBuffered) {
+        logger.debug(scopedLog(LogContext.RECORDING, 'sent buffered frame'), {
+          sessionId,
+          frameBytes: buffer.length,
+        });
+      }
+
+      return { buffer, decodeMs };
+    };
+
     // Setup frame handler (extracted so we can re-attach after page switch)
     const setupFrameHandler = () => {
       cdpSession.on('Page.screencastFrame', async (event: ScreencastFrameEvent) => {
@@ -163,83 +237,42 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         const frameStart = performance.now();
 
         try {
-          // Check WebSocket before processing
+          // Check WebSocket readiness
           if (!wsProvider.isReady()) {
+            // Buffer this frame instead of dropping it
+            // Only keep the latest frame to avoid memory buildup
+            pendingFrame = { data: event.data, sessionId: event.sessionId };
             statsReporter.onFrameSkipped('ws_not_ready');
             // Still need to ACK the frame to prevent Chrome from stopping
             await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
             return;
           }
 
-          // Decode base64 to buffer (~1-2ms overhead, but CDP doesn't support binary)
-          const decodeStart = performance.now();
-          const buffer = Buffer.from(event.data, 'base64');
-          const decodeMs = performance.now() - decodeStart;
+          // WebSocket is ready - first send any buffered frame
+          if (pendingFrame) {
+            sendFrame(pendingFrame.data, pendingFrame.sessionId, true);
+            pendingFrame = null;
+          }
 
-          // Forward to WebSocket
-          const ws = wsProvider.getWebSocket();
-          if (ws && ws.readyState === 1) {
-            const sendStart = performance.now();
+          // Now send the current frame
+          const result = sendFrame(event.data, event.sessionId, false);
+          if (!result) {
+            // WebSocket closed between ready check and send
+            await ackWithTimeout(cdpSession, event.sessionId, cdpConfig.ackTimeoutMs);
+            return;
+          }
 
-            // Build frame with optional perf header
-            let frameToSend: Buffer;
-            if (config.includePerfHeaders) {
-              // Header format: [4-byte length BE][JSON header][JPEG data]
-              const header = {
-                frame_id: `${sessionId}-${frameCount + 1}`,
-                capture_ms: decodeMs,
-                compare_ms: 0,
-                ws_send_ms: 0, // Will be updated by API
-                frame_bytes: buffer.length,
-                sent_at: Date.now(), // Absolute timestamp for latency measurement
-              };
-              const headerJson = Buffer.from(JSON.stringify(header), 'utf8');
-              const headerLen = Buffer.alloc(4);
-              headerLen.writeUInt32BE(headerJson.length, 0);
-              frameToSend = Buffer.concat([headerLen, headerJson, buffer]);
-            } else {
-              // Even without full perf headers, prepend 8-byte timestamp for latency testing
-              const timestampBuffer = Buffer.alloc(8);
-              timestampBuffer.writeBigInt64BE(BigInt(Date.now()), 0);
-              frameToSend = Buffer.concat([timestampBuffer, buffer]);
-            }
+          const { buffer, decodeMs } = result;
 
-            ws.send(frameToSend);
-
-            // Also broadcast to direct frame server for latency research spike
-            // DirectFrameServer adds its own timestamp, so we pass raw buffer
-            const directServer = (global as { directFrameServer?: DirectFrameServer }).directFrameServer;
-            if (directServer?.hasSubscribers(sessionId)) {
-              directServer.broadcast(buffer, sessionId);
-            }
-
-            const sendMs = performance.now() - sendStart;
-
-            frameCount++;
-
-            // Report stats
-            statsReporter.onFrameSent({
-              captureMs: decodeMs, // For screencast, "capture" is really decode
-              wsSendMs: sendMs,
+          // Log periodically (if enabled)
+          if (cdpConfig.frameLogInterval > 0 && frameCount % cdpConfig.frameLogInterval === 0) {
+            logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
+              sessionId,
+              frameCount,
               frameBytes: buffer.length,
+              decodeMs: decodeMs.toFixed(2),
+              totalMs: (performance.now() - frameStart).toFixed(2),
             });
-
-            // Record metrics
-            metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
-            metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
-
-            // Log periodically (if enabled)
-            // DECISION: frameLogInterval=0 disables periodic logging
-            if (cdpConfig.frameLogInterval > 0 && frameCount % cdpConfig.frameLogInterval === 0) {
-              logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
-                sessionId,
-                frameCount,
-                frameBytes: buffer.length,
-                decodeMs: decodeMs.toFixed(2),
-                sendMs: sendMs.toFixed(2),
-                totalMs: (performance.now() - frameStart).toFixed(2),
-              });
-            }
           }
 
           // CRITICAL: Acknowledge frame or Chrome stops sending!

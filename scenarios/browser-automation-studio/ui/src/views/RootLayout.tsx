@@ -76,6 +76,12 @@ function RootLayoutContent() {
     void fetchScenarios();
   }, [fetchScenarios]);
 
+  useEffect(() => {
+    if (!location.pathname.startsWith('/record')) {
+      sessionStorage.setItem('bas:returnTo', `${location.pathname}${location.search}`);
+    }
+  }, [location.pathname, location.search]);
+
   // Initialize entitlement state
   useEntitlementInit();
 

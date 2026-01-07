@@ -98,7 +98,7 @@ Available callbacks:
 
 ### 1.3 Browser-Use Cloud API
 
-**Source**: [Cloud API Docs](https://docs.cloud.browser-use.com/api-reference/v-2-api-current/tasks/create-task-tasks-post)
+**Source**: [Browser-Use Cloud](https://cloud.browser-use.com/)
 
 | Feature | Status |
 |---------|--------|
@@ -420,7 +420,7 @@ This gives you:
 - [Browser-Use CDP Migration](https://browser-use.com/posts/playwright-to-cdp)
 - [Browser-Use Agent Lifecycle](https://deepwiki.com/sandeepsalwan1/browser-use/2.1-agent-lifecycle)
 - [BU-30B-A3B-Preview on Hugging Face](https://huggingface.co/browser-use/bu-30b-a3b-preview)
-- [Browser-Use Cloud API](https://docs.cloud.browser-use.com/api-reference/v-2-api-current/tasks/create-task-tasks-post)
+- [Browser-Use Cloud](https://cloud.browser-use.com/)
 - [Claude Computer Use Tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool)
 - [OpenRouter Qwen3-VL-30B](https://openrouter.ai/qwen/qwen3-vl-30b-a3b-instruct)
 - [GPT-4V-Act](https://github.com/ddupont808/GPT-4V-Act)

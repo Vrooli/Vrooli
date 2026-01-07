@@ -1,7 +1,7 @@
 /**
  * RecordModeView - Route wrapper for browser recording mode.
  */
-import { lazy, Suspense, useCallback, useState, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
@@ -20,6 +20,7 @@ export default function RecordModeView() {
   const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
   const [searchParams] = useSearchParams();
   const [sessionId, setSessionId] = useState<string | null>(routeSessionId ?? null);
+  const isClosingRef = useRef(false);
 
   // Extract query params for template-based navigation
   const templateParams = useMemo(() => {
@@ -56,7 +57,16 @@ export default function RecordModeView() {
     }
   }, [routeSessionId]);
 
+  const getReturnPath = useCallback(() => {
+    const savedPath = sessionStorage.getItem('bas:returnTo');
+    if (savedPath && !savedPath.startsWith('/record')) {
+      return savedPath;
+    }
+    return '/';
+  }, []);
+
   const handleClose = useCallback(async () => {
+    isClosingRef.current = true;
     if (sessionId) {
       try {
         const config = await getConfig();
@@ -71,17 +81,16 @@ export default function RecordModeView() {
         );
       }
     }
-    // Go back in history if possible, otherwise navigate home
-    // window.history.length > 2 accounts for the initial page load entry
-    if (window.history.length > 2) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
-  }, [sessionId, navigate]);
+    const returnPath = getReturnPath();
+    navigate(returnPath, { replace: true });
+    window.location.assign(returnPath);
+  }, [sessionId, navigate, getReturnPath]);
 
   const handleSessionReady = useCallback(
     (newSessionId: string) => {
+      if (isClosingRef.current) {
+        return;
+      }
       setSessionId(newSessionId);
       // Update URL to include session ID, preserving query params for template flow
       const currentSearch = searchParams.toString();

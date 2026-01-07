@@ -335,7 +335,7 @@ Each service is a clear, documented entity.
 
 ### 1. Move Directory
 ```bash
-cd /home/matthalloran8/Vrooli/scenarios/browser-automation-studio
+# From scenario root (browser-automation-studio/)
 
 # Move the driver to scenario root
 mv api/automation/playwright-driver ./playwright-driver

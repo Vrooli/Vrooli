@@ -167,7 +167,26 @@ export async function handleRecordStart(
     metrics.recordingSessionsActive.inc();
 
     // Start frame streaming if callback URL provided
+    // Wait for page content before streaming to avoid blank/loading frames
     if (request.frame_callback_url) {
+      // Wait for page to have content (non-blank URL and DOM loaded)
+      // This prevents flickering during initial navigation
+      const pageUrl = session.page.url();
+      const isBlankPage = !pageUrl || pageUrl === 'about:blank';
+
+      if (!isBlankPage) {
+        // Page has a URL - wait for DOM to be ready before streaming
+        try {
+          await session.page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+        } catch {
+          // Timeout is acceptable - page may be slow or have long-running scripts
+          logger.debug(scopedLog(LogContext.RECORDING, 'page load wait timed out, starting stream anyway'), {
+            sessionId,
+            url: pageUrl,
+          });
+        }
+      }
+
       startFrameStreaming(sessionId, sessionManager, {
         callbackUrl: request.frame_callback_url,
         quality: request.frame_quality,

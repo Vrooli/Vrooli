@@ -310,8 +310,8 @@ export class SessionManager {
 
     // Initialize recording pipeline (early verification)
     // This runs injection and verification so the pipeline is ready before recording starts
-    // Errors are logged but don't fail session creation - recording can retry verification later
-    pipelineManager.initialize().then(() => {
+    // The promise is stored in session.pipelineReadyPromise so consumers can await it
+    const pipelineReadyPromise = pipelineManager.initialize().then(() => {
       return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
     }).then((verification) => {
       if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
@@ -319,12 +319,14 @@ export class SessionManager {
           sessionId,
           handlersCount: verification.handlersCount,
         });
+        return true;
       } else {
         logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
           sessionId,
           verification,
           hint: 'Recording may require re-verification on first use',
         });
+        return false;
       }
     }).catch((err) => {
       logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
@@ -332,7 +334,11 @@ export class SessionManager {
         error: err instanceof Error ? err.message : String(err),
         hint: 'Recording will retry initialization when started',
       });
+      return false;
     });
+
+    // Store the promise in session state for consumers to await
+    session.pipelineReadyPromise = pipelineReadyPromise;
 
     // Enable service worker monitoring and handle unregisterOnStart
     await serviceWorkerController.enable(page);
@@ -383,6 +389,50 @@ export class SessionManager {
   async getStorageState(sessionId: string): Promise<unknown> {
     const session = this.getSession(sessionId);
     return session.context.storageState();
+  }
+
+  /**
+   * Wait for the recording pipeline to be ready.
+   *
+   * This should be called before starting operations that depend on the pipeline
+   * being initialized and verified, such as frame streaming. The pipeline is
+   * initialized asynchronously during session creation, so this method allows
+   * consumers to wait until it's ready.
+   *
+   * @param sessionId - Session ID
+   * @param timeoutMs - Maximum time to wait (default: 10000ms)
+   * @returns true if pipeline is ready, false if verification failed or timeout
+   */
+  async waitForPipelineReady(sessionId: string, timeoutMs = 10000): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return false;
+    }
+
+    // If no pipeline manager, nothing to wait for
+    if (!session.pipelineManager) {
+      return true;
+    }
+
+    // If already ready (phase check), return immediately
+    if (session.pipelineManager.isReady()) {
+      return true;
+    }
+
+    // If we have a readiness promise, wait for it with timeout
+    if (session.pipelineReadyPromise) {
+      try {
+        const result = await Promise.race([
+          session.pipelineReadyPromise,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+        ]);
+        return result;
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
   }
 
   /**
