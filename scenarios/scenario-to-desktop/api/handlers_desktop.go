@@ -757,9 +757,24 @@ func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Find built package
+	// Find built package (standard location first, then recorded outputs)
 	distPath := filepath.Join(s.standardOutputPath(scenarioName), "dist-electron")
 	packageFile, err := s.findBuiltPackage(distPath, platform)
+	if err != nil {
+		for _, rec := range s.listScenarioRecords(scenarioName) {
+			recordPath := recordOutputPath(rec)
+			if recordPath == "" {
+				continue
+			}
+			recordDistPath := filepath.Join(recordPath, "dist-electron")
+			if recordDistPath == distPath {
+				continue
+			}
+			if packageFile, err = s.findBuiltPackage(recordDistPath, platform); err == nil {
+				break
+			}
+		}
+	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Built package not found: %s. Build the desktop app first.", err), http.StatusNotFound)
 		return

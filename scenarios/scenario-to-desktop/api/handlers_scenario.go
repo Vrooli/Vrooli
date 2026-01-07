@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 // DesktopBuildArtifact describes an installer produced for a specific platform
@@ -20,21 +22,28 @@ type DesktopBuildArtifact struct {
 
 // ScenarioDesktopStatus represents the aggregated desktop build status for a scenario
 type ScenarioDesktopStatus struct {
-	Name             string                   `json:"name"`
-	DisplayName      string                   `json:"display_name,omitempty"`
-	ServiceDisplay   string                   `json:"service_display_name,omitempty"`
-	ServiceDesc      string                   `json:"service_description,omitempty"`
-	ServiceIconPath  string                   `json:"service_icon_path,omitempty"`
-	HasDesktop       bool                     `json:"has_desktop"`
-	DesktopPath      string                   `json:"desktop_path,omitempty"`
-	Version          string                   `json:"version,omitempty"`
-	Platforms        []string                 `json:"platforms,omitempty"`
-	Built            bool                     `json:"built,omitempty"`
-	DistPath         string                   `json:"dist_path,omitempty"`
-	LastModified     string                   `json:"last_modified,omitempty"`
-	PackageSize      int64                    `json:"package_size,omitempty"`
-	ConnectionConfig *DesktopConnectionConfig `json:"connection_config,omitempty"`
-	BuildArtifacts   []DesktopBuildArtifact   `json:"build_artifacts,omitempty"`
+	Name                  string                   `json:"name"`
+	DisplayName           string                   `json:"display_name,omitempty"`
+	ServiceDisplay        string                   `json:"service_display_name,omitempty"`
+	ServiceDesc           string                   `json:"service_description,omitempty"`
+	ServiceIconPath       string                   `json:"service_icon_path,omitempty"`
+	HasDesktop            bool                     `json:"has_desktop"`
+	DesktopPath           string                   `json:"desktop_path,omitempty"`
+	Version               string                   `json:"version,omitempty"`
+	Platforms             []string                 `json:"platforms,omitempty"`
+	Built                 bool                     `json:"built,omitempty"`
+	DistPath              string                   `json:"dist_path,omitempty"`
+	LastModified          string                   `json:"last_modified,omitempty"`
+	PackageSize           int64                    `json:"package_size,omitempty"`
+	ConnectionConfig      *DesktopConnectionConfig `json:"connection_config,omitempty"`
+	BuildArtifacts        []DesktopBuildArtifact   `json:"build_artifacts,omitempty"`
+	ArtifactsSource       string                   `json:"artifacts_source,omitempty"`
+	ArtifactsPath         string                   `json:"artifacts_path,omitempty"`
+	ArtifactsExpectedPath string                   `json:"artifacts_expected_path,omitempty"`
+	RecordID              string                   `json:"record_id,omitempty"`
+	RecordOutputPath      string                   `json:"record_output_path,omitempty"`
+	RecordLocationMode    string                   `json:"record_location_mode,omitempty"`
+	RecordUpdatedAt       string                   `json:"record_updated_at,omitempty"`
 }
 
 // Get scenario desktop status handler - discovers all scenarios and their desktop deployment status
@@ -96,44 +105,39 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 				}
 			}
 
-			// Check if dist-electron exists (built packages)
-			distPath := filepath.Join(electronPath, "dist-electron")
-			if distInfo, err := os.Stat(distPath); err == nil && distInfo.IsDir() {
+			status.ArtifactsExpectedPath = filepath.Join(electronPath, "dist-electron")
+			records := s.listScenarioRecords(scenarioName)
+			if len(records) > 0 {
+				record := records[0]
+				status.RecordID = record.ID
+				status.RecordOutputPath = recordOutputPath(record)
+				status.RecordLocationMode = record.LocationMode
+				status.RecordUpdatedAt = recordTimestamp(record)
+			}
+
+			if result, ok := scanDistArtifacts(status.ArtifactsExpectedPath, vrooliRoot); ok {
 				status.Built = true
-				status.DistPath = distPath
-				status.LastModified = distInfo.ModTime().Format("2006-01-02 15:04:05")
-
-				// Calculate total size of dist directory and capture artifacts per file
-				var totalSize int64
-				filepath.Walk(distPath, func(currentPath string, info os.FileInfo, walkErr error) error {
-					if walkErr != nil {
-						return nil
+				status.DistPath = status.ArtifactsExpectedPath
+				status.LastModified = result.lastModified
+				status.PackageSize = result.totalSize
+				status.BuildArtifacts = result.artifacts
+				status.Platforms = uniqueStrings(result.platforms)
+				status.ArtifactsSource = "standard"
+				status.ArtifactsPath = status.ArtifactsExpectedPath
+			} else if status.RecordOutputPath != "" {
+				recordDistPath := filepath.Join(status.RecordOutputPath, "dist-electron")
+				if recordDistPath != status.ArtifactsExpectedPath {
+					if result, ok := scanDistArtifacts(recordDistPath, vrooliRoot); ok {
+						status.Built = true
+						status.DistPath = recordDistPath
+						status.LastModified = result.lastModified
+						status.PackageSize = result.totalSize
+						status.BuildArtifacts = result.artifacts
+						status.Platforms = uniqueStrings(result.platforms)
+						status.ArtifactsSource = "record"
+						status.ArtifactsPath = recordDistPath
 					}
-					if info.IsDir() {
-						return nil
-					}
-
-					totalSize += info.Size()
-					platform := detectPlatformFromFilename(info.Name())
-					if platform != "" {
-						status.Platforms = append(status.Platforms, platform)
-					}
-
-					relative := strings.TrimPrefix(currentPath, vrooliRoot)
-					relative = strings.TrimPrefix(relative, string(os.PathSeparator))
-
-					status.BuildArtifacts = append(status.BuildArtifacts, DesktopBuildArtifact{
-						Platform:     platform,
-						FileName:     info.Name(),
-						SizeBytes:    info.Size(),
-						ModifiedAt:   info.ModTime().Format("2006-01-02 15:04:05"),
-						AbsolutePath: currentPath,
-						RelativePath: relative,
-					})
-					return nil
-				})
-				status.PackageSize = totalSize
-				status.Platforms = uniqueStrings(status.Platforms)
+				}
 			}
 		}
 
@@ -233,4 +237,102 @@ func detectPlatformFromFilename(name string) string {
 	default:
 		return ""
 	}
+}
+
+type distArtifactScan struct {
+	artifacts    []DesktopBuildArtifact
+	platforms    []string
+	totalSize    int64
+	lastModified string
+}
+
+func scanDistArtifacts(distPath, vrooliRoot string) (*distArtifactScan, bool) {
+	distInfo, err := os.Stat(distPath)
+	if err != nil || !distInfo.IsDir() {
+		return nil, false
+	}
+
+	result := &distArtifactScan{
+		lastModified: distInfo.ModTime().Format("2006-01-02 15:04:05"),
+	}
+
+	_ = filepath.Walk(distPath, func(currentPath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		result.totalSize += info.Size()
+		platform := detectPlatformFromFilename(info.Name())
+		if platform != "" {
+			result.platforms = append(result.platforms, platform)
+		}
+
+		relative := strings.TrimPrefix(currentPath, vrooliRoot)
+		relative = strings.TrimPrefix(relative, string(os.PathSeparator))
+
+		result.artifacts = append(result.artifacts, DesktopBuildArtifact{
+			Platform:     platform,
+			FileName:     info.Name(),
+			SizeBytes:    info.Size(),
+			ModifiedAt:   info.ModTime().Format("2006-01-02 15:04:05"),
+			AbsolutePath: currentPath,
+			RelativePath: relative,
+		})
+		return nil
+	})
+
+	return result, true
+}
+
+func (s *Server) listScenarioRecords(scenarioName string) []*DesktopAppRecord {
+	if s.records == nil {
+		return nil
+	}
+	var matches []*DesktopAppRecord
+	for _, rec := range s.records.List() {
+		if rec != nil && rec.ScenarioName == scenarioName {
+			matches = append(matches, rec)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		return latestRecordTime(matches[i]).After(latestRecordTime(matches[j]))
+	})
+	return matches
+}
+
+func latestRecordTime(rec *DesktopAppRecord) time.Time {
+	if rec == nil {
+		return time.Time{}
+	}
+	if !rec.UpdatedAt.IsZero() {
+		return rec.UpdatedAt
+	}
+	return rec.CreatedAt
+}
+
+func recordTimestamp(rec *DesktopAppRecord) string {
+	ts := latestRecordTime(rec)
+	if ts.IsZero() {
+		return ""
+	}
+	return ts.Format("2006-01-02 15:04:05")
+}
+
+func recordOutputPath(rec *DesktopAppRecord) string {
+	if rec == nil {
+		return ""
+	}
+	if rec.OutputPath != "" {
+		return rec.OutputPath
+	}
+	if rec.StagingPath != "" {
+		return rec.StagingPath
+	}
+	if rec.CustomPath != "" {
+		return rec.CustomPath
+	}
+	return rec.DestinationPath
 }

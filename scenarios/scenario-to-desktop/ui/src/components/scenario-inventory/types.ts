@@ -42,6 +42,13 @@ export interface ScenarioDesktopStatus {
   package_size?: number;
   connection_config?: DesktopConnectionConfig;
   build_artifacts?: DesktopBuildArtifact[];
+  artifacts_source?: string;
+  artifacts_path?: string;
+  artifacts_expected_path?: string;
+  record_id?: string;
+  record_output_path?: string;
+  record_location_mode?: string;
+  record_updated_at?: string;
 }
 
 export interface ScenariosResponse {

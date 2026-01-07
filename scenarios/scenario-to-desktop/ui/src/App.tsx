@@ -11,6 +11,7 @@ import { SigningPage } from "./components/signing";
 import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Button } from "./components/ui/button";
 import { fetchScenarioDesktopStatus } from "./lib/api";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
@@ -471,9 +472,45 @@ function AppContent() {
                           />
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-300">
-                          Build at least one installer to unlock downloads and telemetry uploads.
-                        </p>
+                        <div className="space-y-3 text-sm text-slate-300">
+                          <p>No installers detected yet for this scenario.</p>
+                          <div className="space-y-1 text-xs text-slate-400">
+                            <p>
+                              Expected output:{" "}
+                              <span className="font-mono text-slate-200">
+                                {selectedScenario.artifacts_expected_path ||
+                                  `scenarios/${selectedScenario.name}/platforms/electron/dist-electron`}
+                              </span>
+                            </p>
+                            {selectedScenario.record_output_path && (
+                              <p>
+                                Last recorded build output:{" "}
+                                <span className="font-mono text-slate-200">
+                                  {selectedScenario.record_output_path}
+                                </span>
+                                {selectedScenario.record_location_mode && (
+                                  <> ({selectedScenario.record_location_mode})</>
+                                )}
+                              </p>
+                            )}
+                            {selectedScenario.record_updated_at && (
+                              <p>Last recorded build: {selectedScenario.record_updated_at}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setViewMode("records")}>
+                              Open Records
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setActiveStep(3)}
+                            >
+                              Back to build
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </>
                   )}
