@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
+	"test-genie/internal/requirements"
 	"test-genie/internal/scenarios"
 
 	"github.com/vrooli/api-core/database"
@@ -21,15 +22,28 @@ import (
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
-	DB               *sql.DB
-	SuiteRequests    *queue.SuiteRequestService
-	ExecutionRepo    *execution.SuiteExecutionRepository
-	ExecutionHistory execution.ExecutionHistory
-	ExecutionService *execution.SuiteExecutionService
-	ScenarioService  *scenarios.ScenarioDirectoryService
-	PhaseCatalog     phaseCatalogProvider
-	AgentService     *agentmanager.AgentService
-	FixService       *fix.Service
+	DB                 *sql.DB
+	SuiteRequests      *queue.SuiteRequestService
+	ExecutionRepo      *execution.SuiteExecutionRepository
+	ExecutionHistory   execution.ExecutionHistory
+	ExecutionService   *execution.SuiteExecutionService
+	ScenarioService    *scenarios.ScenarioDirectoryService
+	PhaseCatalog       phaseCatalogProvider
+	AgentService       *agentmanager.AgentService
+	FixService         *fix.Service
+	RequirementsSyncer *RequirementsSyncerAdapter
+}
+
+// RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
+type RequirementsSyncerAdapter struct {
+	svc *requirements.Service
+}
+
+// Sync performs requirements synchronization for a scenario directory.
+func (a *RequirementsSyncerAdapter) Sync(ctx context.Context, scenarioDir string) error {
+	return a.svc.Sync(ctx, requirements.SyncInput{
+		ScenarioDir: scenarioDir,
+	})
 }
 
 type phaseCatalogProvider interface {
@@ -97,15 +111,21 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// Create fix service (for agent-based test fixing)
 	fixService := fix.NewService(agentService)
 
+	// Create requirements syncer
+	reqSyncer := &RequirementsSyncerAdapter{
+		svc: requirements.NewService(),
+	}
+
 	return &Bootstrapped{
-		DB:               db,
-		SuiteRequests:    suiteRequestService,
-		ExecutionRepo:    executionRepo,
-		ExecutionHistory: executionHistory,
-		ExecutionService: executionSvc,
-		ScenarioService:  scenarioService,
-		PhaseCatalog:     runner,
-		AgentService:     agentService,
-		FixService:       fixService,
+		DB:                 db,
+		SuiteRequests:      suiteRequestService,
+		ExecutionRepo:      executionRepo,
+		ExecutionHistory:   executionHistory,
+		ExecutionService:   executionSvc,
+		ScenarioService:    scenarioService,
+		PhaseCatalog:       runner,
+		AgentService:       agentService,
+		FixService:         fixService,
+		RequirementsSyncer: reqSyncer,
 	}, nil
 }

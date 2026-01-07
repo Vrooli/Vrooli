@@ -40,15 +40,16 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB           *sql.DB
-	SuiteQueue   suiteRequestQueue
-	Executions   execution.ExecutionHistory
-	ExecutionSvc suiteExecutor
-	Scenarios    scenarioDirectory
-	PhaseCatalog phaseCatalog
-	AgentService *agentmanager.AgentService
-	FixService   fixService
-	Logger       Logger
+	DB                 *sql.DB
+	SuiteQueue         suiteRequestQueue
+	Executions         execution.ExecutionHistory
+	ExecutionSvc       suiteExecutor
+	Scenarios          scenarioDirectory
+	PhaseCatalog       phaseCatalog
+	AgentService       *agentmanager.AgentService
+	FixService         fixService
+	RequirementsSyncer requirementsSyncer
+	Logger             Logger
 }
 
 type suiteRequestQueue interface {
@@ -89,6 +90,10 @@ type fixService interface {
 	IsAgentAvailable(ctx context.Context) bool
 }
 
+type requirementsSyncer interface {
+	Sync(ctx context.Context, scenarioDir string) error
+}
+
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
 	config                 Config
@@ -102,6 +107,7 @@ type Server struct {
 	logger                 Logger
 	agentService           *agentmanager.AgentService
 	fixService             fixService
+	requirementsSyncer     requirementsSyncer
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -151,6 +157,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		logger:                 logger,
 		agentService:           deps.AgentService,
 		fixService:             deps.FixService,
+		requirementsSyncer:     deps.RequirementsSyncer,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
