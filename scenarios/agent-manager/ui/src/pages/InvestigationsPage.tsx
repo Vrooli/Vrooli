@@ -126,13 +126,13 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
       const query = searchQuery.toLowerCase();
       result = result.filter((inv) =>
         inv.id.toLowerCase().includes(query) ||
-        inv.run_ids.some((id) => id.toLowerCase().includes(query))
+        inv.runIds.some((id) => id.toLowerCase().includes(query))
       );
     }
 
     result.sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return sortBy === "newest" ? bTime - aTime : aTime - bTime;
     });
 
@@ -229,9 +229,9 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
           }
         >
           <ListItemTitle>
-            {inv.run_ids.length} Run{inv.run_ids.length !== 1 ? "s" : ""} Analyzed
+            {inv.runIds.length} Run{inv.runIds.length !== 1 ? "s" : ""} Analyzed
           </ListItemTitle>
-          <ListItemSubtitle>{formatDate(inv.created_at)}</ListItemSubtitle>
+          <ListItemSubtitle>{formatDate(inv.createdAt)}</ListItemSubtitle>
         </ListItem>
       ))}
     </ListPanel>
@@ -276,9 +276,9 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
           <div className="flex flex-col items-center justify-center py-12">
             <XCircle className="h-12 w-12 mb-4 text-destructive" />
             <p className="text-sm font-medium">Investigation failed</p>
-            {selectedInvestigation.error_message && (
+            {selectedInvestigation.errorMessage && (
               <p className="text-xs text-muted-foreground mt-2 text-center max-w-md">
-                {selectedInvestigation.error_message}
+                {selectedInvestigation.errorMessage}
               </p>
             )}
           </div>
@@ -316,7 +316,7 @@ export function InvestigationsPage({ onViewRun }: InvestigationsPageProps) {
       onDeselect={() => navigate("/investigations")}
       detailTitle={
         selectedInvestigation
-          ? `${selectedInvestigation.run_ids.length} Run${selectedInvestigation.run_ids.length !== 1 ? "s" : ""} Analyzed`
+          ? `${selectedInvestigation.runIds.length} Run${selectedInvestigation.runIds.length !== 1 ? "s" : ""} Analyzed`
           : "Investigation Details"
       }
     />

@@ -309,6 +309,16 @@ export function RunsPage({
     refetchActiveInvestigation();
   };
 
+  const handleInvestigateFromDetail = (runId: string) => {
+    setSelectedRunIds(new Set([runId]));
+    setInvestigateModalOpen(true);
+  };
+
+  const investigateDisabled =
+    investigationLoading ||
+    (activeInvestigation !== null &&
+      (activeInvestigation.status === "pending" || activeInvestigation.status === "running"));
+
   const filteredAndSortedRuns = useMemo(() => {
     let result = [...runs];
 
@@ -515,6 +525,8 @@ export function RunsPage({
           onApprove={(req) => handleApprove(selectedRun.id, req)}
           onReject={(req) => handleReject(selectedRun.id, req)}
           onRetry={handleRetry}
+          onInvestigate={handleInvestigateFromDetail}
+          investigateDisabled={investigateDisabled}
           onDelete={handleDelete}
           deleteLoading={deleteLoading}
         />
@@ -534,7 +546,7 @@ export function RunsPage({
               <div>
                 <p className="text-sm font-medium">Investigation in progress</p>
                 <p className="text-xs text-muted-foreground">
-                  Analyzing {activeInvestigation.run_ids.length} run(s) - {activeInvestigation.progress}% complete
+                  Analyzing {activeInvestigation.runIds.length} run(s) - {activeInvestigation.progress}% complete
                 </p>
               </div>
             </div>

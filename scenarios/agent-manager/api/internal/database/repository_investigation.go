@@ -100,6 +100,7 @@ func (r *investigationRepository) Create(ctx context.Context, investigation *dom
 			progress, agent_run_id, findings, metrics, error_message,
 			source_investigation_id, created_at, started_at, completed_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query = r.db.Rebind(query)
 
 	_, err := r.db.ExecContext(ctx, query,
 		row.ID.String(),
@@ -137,6 +138,7 @@ func (r *investigationRepository) Get(ctx context.Context, id uuid.UUID) (*domai
 			source_investigation_id, created_at, started_at, completed_at
 		FROM investigations
 		WHERE id = ?`
+	query = r.db.Rebind(query)
 
 	var row investigationRow
 	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(
@@ -201,6 +203,8 @@ func (r *investigationRepository) List(ctx context.Context, filter repository.In
 		args = append(args, filter.Offset)
 	}
 
+	query = r.db.Rebind(query)
+
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, &domain.DatabaseError{
@@ -261,6 +265,7 @@ func (r *investigationRepository) GetActive(ctx context.Context) (*domain.Invest
 		WHERE status IN ('pending', 'running')
 		ORDER BY created_at DESC
 		LIMIT 1`
+	query = r.db.Rebind(query)
 
 	var row investigationRow
 	err := r.db.QueryRowContext(ctx, query).Scan(
@@ -304,6 +309,7 @@ func (r *investigationRepository) Update(ctx context.Context, investigation *dom
 			metrics = ?, error_message = ?, source_investigation_id = ?,
 			started_at = ?, completed_at = ?
 		WHERE id = ?`
+	query = r.db.Rebind(query)
 
 	result, err := r.db.ExecContext(ctx, query,
 		row.RunIDs,
@@ -345,17 +351,17 @@ func (r *investigationRepository) UpdateStatus(ctx context.Context, id uuid.UUID
 	now := time.Now()
 
 	if status == domain.InvestigationStatusRunning {
-		query = `UPDATE investigations SET status = ?, started_at = ? WHERE id = ?`
+		query = r.db.Rebind(`UPDATE investigations SET status = ?, started_at = ? WHERE id = ?`)
 		args = []interface{}{string(status), NewNullableTime(&now), id.String()}
 	} else if status == domain.InvestigationStatusCompleted || status == domain.InvestigationStatusFailed || status == domain.InvestigationStatusCancelled {
-		query = `UPDATE investigations SET status = ?, error_message = ?, completed_at = ? WHERE id = ?`
+		query = r.db.Rebind(`UPDATE investigations SET status = ?, error_message = ?, completed_at = ? WHERE id = ?`)
 		errorNullStr := sql.NullString{}
 		if errorMsg != "" {
 			errorNullStr = sql.NullString{String: errorMsg, Valid: true}
 		}
 		args = []interface{}{string(status), errorNullStr, NewNullableTime(&now), id.String()}
 	} else {
-		query = `UPDATE investigations SET status = ? WHERE id = ?`
+		query = r.db.Rebind(`UPDATE investigations SET status = ? WHERE id = ?`)
 		args = []interface{}{string(status), id.String()}
 	}
 
@@ -378,7 +384,7 @@ func (r *investigationRepository) UpdateStatus(ctx context.Context, id uuid.UUID
 
 // UpdateProgress updates the progress percentage.
 func (r *investigationRepository) UpdateProgress(ctx context.Context, id uuid.UUID, progress int) error {
-	query := `UPDATE investigations SET progress = ? WHERE id = ?`
+	query := r.db.Rebind(`UPDATE investigations SET progress = ? WHERE id = ?`)
 
 	result, err := r.db.ExecContext(ctx, query, progress, id.String())
 	if err != nil {
@@ -400,7 +406,7 @@ func (r *investigationRepository) UpdateProgress(ctx context.Context, id uuid.UU
 // UpdateFindings stores the investigation results.
 func (r *investigationRepository) UpdateFindings(ctx context.Context, id uuid.UUID, findings *domain.InvestigationReport, metrics *domain.MetricsData) error {
 	now := time.Now()
-	query := `UPDATE investigations SET findings = ?, metrics = ?, status = ?, progress = 100, completed_at = ? WHERE id = ?`
+	query := r.db.Rebind(`UPDATE investigations SET findings = ?, metrics = ?, status = ?, progress = 100, completed_at = ? WHERE id = ?`)
 
 	result, err := r.db.ExecContext(ctx, query,
 		NullableInvestigationReport{V: findings},
@@ -427,7 +433,7 @@ func (r *investigationRepository) UpdateFindings(ctx context.Context, id uuid.UU
 
 // Delete removes an investigation by ID.
 func (r *investigationRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM investigations WHERE id = ?`
+	query := r.db.Rebind(`DELETE FROM investigations WHERE id = ?`)
 
 	result, err := r.db.ExecContext(ctx, query, id.String())
 	if err != nil {

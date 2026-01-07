@@ -136,20 +136,20 @@ export interface RejectFormData {
 export type InvestigationStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
 export interface AnalysisType {
-  error_diagnosis: boolean;
-  efficiency_analysis: boolean;
-  tool_usage_patterns: boolean;
+  errorDiagnosis: boolean;
+  efficiencyAnalysis: boolean;
+  toolUsagePatterns: boolean;
 }
 
 export interface ReportSections {
-  root_cause_evidence: boolean;
+  rootCauseEvidence: boolean;
   recommendations: boolean;
-  metrics_summary: boolean;
+  metricsSummary: boolean;
 }
 
 export interface Evidence {
-  run_id: string;
-  event_seq?: number;
+  runId: string;
+  eventSeq?: number;
   description: string;
   snippet?: string;
 }
@@ -165,53 +165,53 @@ export interface Recommendation {
   priority: "critical" | "high" | "medium" | "low";
   title: string;
   description: string;
-  action_type: "prompt_change" | "profile_config" | "code_fix";
+  actionType: "prompt_change" | "profile_config" | "code_fix";
 }
 
 export interface InvestigationReport {
   summary: string;
-  root_cause?: RootCauseAnalysis;
+  rootCause?: RootCauseAnalysis;
   recommendations?: Recommendation[];
 }
 
 export interface MetricsData {
-  total_runs: number;
-  success_rate: number;
-  avg_duration_seconds: number;
-  total_tokens_used: number;
-  total_cost: number;
-  tool_usage_breakdown: Record<string, number>;
-  error_type_breakdown: Record<string, number>;
-  custom_metrics: Record<string, number>;
+  totalRuns: number;
+  successRate: number;
+  avgDurationSeconds: number;
+  totalTokensUsed: number;
+  totalCost: number;
+  toolUsageBreakdown: Record<string, number>;
+  errorTypeBreakdown: Record<string, number>;
+  customMetrics: Record<string, number>;
 }
 
 export interface Investigation {
   id: string;
-  run_ids: string[];
+  runIds: string[];
   status: InvestigationStatus;
-  analysis_type: AnalysisType;
-  report_sections: ReportSections;
-  custom_context?: string;
+  analysisType: AnalysisType;
+  reportSections: ReportSections;
+  customContext?: string;
   progress: number;
-  agent_run_id?: string;
+  agentRunId?: string;
   findings?: InvestigationReport;
   metrics?: MetricsData;
-  error_message?: string;
-  source_investigation_id?: string;
-  created_at: string;
-  started_at?: string;
-  completed_at?: string;
+  errorMessage?: string;
+  sourceInvestigationId?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface CreateInvestigationRequest {
-  run_ids: string[];
-  analysis_type: AnalysisType;
-  report_sections: ReportSections;
-  custom_context?: string;
+  runIds: string[];
+  analysisType: AnalysisType;
+  reportSections: ReportSections;
+  customContext?: string;
 }
 
 export interface ApplyFixesRequest {
-  recommendation_ids: string[];
+  recommendationIds: string[];
   note?: string;
 }
 

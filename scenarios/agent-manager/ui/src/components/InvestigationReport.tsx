@@ -40,7 +40,7 @@ export function InvestigationReport({
 }: InvestigationReportProps) {
   const [selectedRecommendations, setSelectedRecommendations] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["summary", "root_cause", "recommendations", "metrics"])
+    new Set(["summary", "rootCause", "recommendations", "metrics"])
   );
 
   const findings = investigation.findings;
@@ -73,7 +73,7 @@ export function InvestigationReport({
   const handleApplyFixes = async () => {
     if (!onApplyFixes || selectedRecommendations.size === 0) return;
     await onApplyFixes({
-      recommendation_ids: Array.from(selectedRecommendations),
+      recommendationIds: Array.from(selectedRecommendations),
     });
   };
 
@@ -125,43 +125,43 @@ export function InvestigationReport({
           </CollapsibleSection>
 
           {/* Root Cause */}
-          {findings.root_cause && (
+          {findings.rootCause && (
             <CollapsibleSection
               title="Root Cause Analysis"
               icon={<AlertTriangle className="h-4 w-4" />}
-              expanded={expandedSections.has("root_cause")}
-              onToggle={() => toggleSection("root_cause")}
+              expanded={expandedSections.has("rootCause")}
+              onToggle={() => toggleSection("rootCause")}
               badge={
-                <Badge variant={getConfidenceVariant(findings.root_cause.confidence)}>
-                  {findings.root_cause.confidence} confidence
+                <Badge variant={getConfidenceVariant(findings.rootCause.confidence)}>
+                  {findings.rootCause.confidence} confidence
                 </Badge>
               }
             >
               <div className="space-y-4">
                 <div className="text-sm">
-                  <MarkdownRenderer content={findings.root_cause.description} />
+                  <MarkdownRenderer content={findings.rootCause.description} />
                 </div>
 
-                {findings.root_cause.evidence.length > 0 && (
+                {findings.rootCause.evidence.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Evidence</h4>
-                    {findings.root_cause.evidence.map((evidence, i) => (
+                    {findings.rootCause.evidence.map((evidence, i) => (
                       <div
                         key={i}
                         className="rounded-md border border-border bg-muted/50 p-3 text-sm"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-muted-foreground">
-                            Run: <code className="text-xs">{evidence.run_id.slice(0, 8)}...</code>
-                            {evidence.event_seq !== undefined && (
-                              <> | Event #{evidence.event_seq}</>
+                            Run: <code className="text-xs">{evidence.runId.slice(0, 8)}...</code>
+                            {evidence.eventSeq !== undefined && (
+                              <> | Event #{evidence.eventSeq}</>
                             )}
                           </span>
                           {onViewRun && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => onViewRun(evidence.run_id)}
+                              onClick={() => onViewRun(evidence.runId)}
                               className="gap-1 h-6 px-2"
                             >
                               <ExternalLink className="h-3 w-3" />
@@ -321,7 +321,7 @@ function RecommendationCard({
             <Badge variant={getPriorityVariant(recommendation.priority)}>
               {recommendation.priority}
             </Badge>
-            <Badge variant="outline">{recommendation.action_type.replace("_", " ")}</Badge>
+            <Badge variant="outline">{recommendation.actionType.replace("_", " ")}</Badge>
           </div>
           <h4 className="font-medium text-sm">{recommendation.title}</h4>
           <div className="text-sm">
@@ -338,32 +338,32 @@ function MetricsDisplay({ metrics }: { metrics: MetricsData }) {
     <div className="space-y-4">
       {/* Summary Stats */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <MetricCard label="Total Runs" value={metrics.total_runs} />
+        <MetricCard label="Total Runs" value={metrics.totalRuns} />
         <MetricCard
           label="Success Rate"
-          value={`${(metrics.success_rate * 100).toFixed(1)}%`}
-          variant={metrics.success_rate >= 0.8 ? "success" : metrics.success_rate >= 0.5 ? "warning" : "destructive"}
+          value={`${(metrics.successRate * 100).toFixed(1)}%`}
+          variant={metrics.successRate >= 0.8 ? "success" : metrics.successRate >= 0.5 ? "warning" : "destructive"}
         />
         <MetricCard
           label="Avg Duration"
-          value={formatDuration(metrics.avg_duration_seconds)}
+          value={formatDuration(metrics.avgDurationSeconds)}
         />
         <MetricCard
           label="Total Tokens"
-          value={metrics.total_tokens_used.toLocaleString()}
+          value={metrics.totalTokensUsed.toLocaleString()}
         />
         <MetricCard
           label="Total Cost"
-          value={`$${metrics.total_cost.toFixed(4)}`}
+          value={`$${metrics.totalCost.toFixed(4)}`}
         />
       </div>
 
       {/* Tool Usage Breakdown */}
-      {Object.keys(metrics.tool_usage_breakdown).length > 0 && (
+      {Object.keys(metrics.toolUsageBreakdown).length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Tool Usage</h4>
           <div className="grid gap-2 sm:grid-cols-2">
-            {Object.entries(metrics.tool_usage_breakdown)
+            {Object.entries(metrics.toolUsageBreakdown)
               .sort(([, a], [, b]) => b - a)
               .slice(0, 10)
               .map(([tool, count]) => (
@@ -380,11 +380,11 @@ function MetricsDisplay({ metrics }: { metrics: MetricsData }) {
       )}
 
       {/* Error Breakdown */}
-      {Object.keys(metrics.error_type_breakdown).length > 0 && (
+      {Object.keys(metrics.errorTypeBreakdown).length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Error Types</h4>
           <div className="grid gap-2 sm:grid-cols-2">
-            {Object.entries(metrics.error_type_breakdown)
+            {Object.entries(metrics.errorTypeBreakdown)
               .sort(([, a], [, b]) => b - a)
               .map(([errorType, count]) => (
                 <div
@@ -400,11 +400,11 @@ function MetricsDisplay({ metrics }: { metrics: MetricsData }) {
       )}
 
       {/* Custom Metrics */}
-      {Object.keys(metrics.custom_metrics).length > 0 && (
+      {Object.keys(metrics.customMetrics).length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Additional Metrics</h4>
           <div className="grid gap-2 sm:grid-cols-2">
-            {Object.entries(metrics.custom_metrics).map(([name, value]) => (
+            {Object.entries(metrics.customMetrics).map(([name, value]) => (
               <div
                 key={name}
                 className="flex items-center justify-between rounded border border-border px-3 py-2 text-sm"
@@ -503,7 +503,7 @@ function formatReportAsText(investigation: Investigation): string {
 
   lines.push("# Investigation Report");
   lines.push(`Status: ${investigation.status}`);
-  lines.push(`Runs: ${investigation.run_ids.length}`);
+  lines.push(`Runs: ${investigation.runIds.length}`);
   lines.push("");
 
   if (findings) {
@@ -511,16 +511,16 @@ function formatReportAsText(investigation: Investigation): string {
     lines.push(findings.summary);
     lines.push("");
 
-    if (findings.root_cause) {
+    if (findings.rootCause) {
       lines.push("## Root Cause Analysis");
-      lines.push(`Confidence: ${findings.root_cause.confidence}`);
-      lines.push(findings.root_cause.description);
+      lines.push(`Confidence: ${findings.rootCause.confidence}`);
+      lines.push(findings.rootCause.description);
       lines.push("");
 
-      if (findings.root_cause.evidence.length > 0) {
+      if (findings.rootCause.evidence.length > 0) {
         lines.push("### Evidence");
-        findings.root_cause.evidence.forEach((e, i) => {
-          lines.push(`${i + 1}. [Run ${e.run_id.slice(0, 8)}] ${e.description}`);
+        findings.rootCause.evidence.forEach((e, i) => {
+          lines.push(`${i + 1}. [Run ${e.runId.slice(0, 8)}] ${e.description}`);
           if (e.snippet) {
             lines.push("```");
             lines.push(e.snippet);
@@ -535,7 +535,7 @@ function formatReportAsText(investigation: Investigation): string {
       lines.push("## Recommendations");
       findings.recommendations.forEach((rec, i) => {
         lines.push(`### ${i + 1}. ${rec.title} [${rec.priority}]`);
-        lines.push(`Type: ${rec.action_type}`);
+        lines.push(`Type: ${rec.actionType}`);
         lines.push(rec.description);
         lines.push("");
       });
@@ -545,11 +545,11 @@ function formatReportAsText(investigation: Investigation): string {
   if (investigation.metrics) {
     const m = investigation.metrics;
     lines.push("## Metrics");
-    lines.push(`- Total Runs: ${m.total_runs}`);
-    lines.push(`- Success Rate: ${(m.success_rate * 100).toFixed(1)}%`);
-    lines.push(`- Avg Duration: ${formatDuration(m.avg_duration_seconds)}`);
-    lines.push(`- Total Tokens: ${m.total_tokens_used.toLocaleString()}`);
-    lines.push(`- Total Cost: $${m.total_cost.toFixed(4)}`);
+    lines.push(`- Total Runs: ${m.totalRuns}`);
+    lines.push(`- Success Rate: ${(m.successRate * 100).toFixed(1)}%`);
+    lines.push(`- Avg Duration: ${formatDuration(m.avgDurationSeconds)}`);
+    lines.push(`- Total Tokens: ${m.totalTokensUsed.toLocaleString()}`);
+    lines.push(`- Total Cost: $${m.totalCost.toFixed(4)}`);
   }
 
   return lines.join("\n");

@@ -32,30 +32,30 @@ export function InvestigateModal({
   error = null,
 }: InvestigateModalProps) {
   const [analysisType, setAnalysisType] = useState<AnalysisType>({
-    error_diagnosis: true,
-    efficiency_analysis: false,
-    tool_usage_patterns: false,
+    errorDiagnosis: true,
+    efficiencyAnalysis: false,
+    toolUsagePatterns: false,
   });
 
   const [reportSections, setReportSections] = useState<ReportSections>({
-    root_cause_evidence: true,
+    rootCauseEvidence: true,
     recommendations: true,
-    metrics_summary: true,
+    metricsSummary: true,
   });
 
   const [customContext, setCustomContext] = useState("");
 
   const handleSubmit = async () => {
     await onInvestigate({
-      run_ids: selectedRunIds,
-      analysis_type: analysisType,
-      report_sections: reportSections,
-      custom_context: customContext.trim() || undefined,
+      runIds: selectedRunIds,
+      analysisType,
+      reportSections,
+      customContext: customContext.trim() || undefined,
     });
   };
 
-  const hasAnalysisType = analysisType.error_diagnosis || analysisType.efficiency_analysis || analysisType.tool_usage_patterns;
-  const hasReportSections = reportSections.root_cause_evidence || reportSections.recommendations || reportSections.metrics_summary;
+  const hasAnalysisType = analysisType.errorDiagnosis || analysisType.efficiencyAnalysis || analysisType.toolUsagePatterns;
+  const hasReportSections = reportSections.rootCauseEvidence || reportSections.recommendations || reportSections.metricsSummary;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,27 +77,27 @@ export function InvestigateModal({
             <div className="space-y-2">
               <CheckboxItem
                 id="error_diagnosis"
-                checked={analysisType.error_diagnosis}
+                checked={analysisType.errorDiagnosis}
                 onChange={(checked) =>
-                  setAnalysisType({ ...analysisType, error_diagnosis: checked })
+                  setAnalysisType({ ...analysisType, errorDiagnosis: checked })
                 }
                 label="Error Diagnosis"
                 description="Identify root causes of failures and errors"
               />
               <CheckboxItem
                 id="efficiency_analysis"
-                checked={analysisType.efficiency_analysis}
+                checked={analysisType.efficiencyAnalysis}
                 onChange={(checked) =>
-                  setAnalysisType({ ...analysisType, efficiency_analysis: checked })
+                  setAnalysisType({ ...analysisType, efficiencyAnalysis: checked })
                 }
                 label="Efficiency Analysis"
                 description="Analyze token usage, duration, and cost patterns"
               />
               <CheckboxItem
                 id="tool_usage_patterns"
-                checked={analysisType.tool_usage_patterns}
+                checked={analysisType.toolUsagePatterns}
                 onChange={(checked) =>
-                  setAnalysisType({ ...analysisType, tool_usage_patterns: checked })
+                  setAnalysisType({ ...analysisType, toolUsagePatterns: checked })
                 }
                 label="Tool Usage Patterns"
                 description="Examine tool calls and their effectiveness"
@@ -111,9 +111,9 @@ export function InvestigateModal({
             <div className="space-y-2">
               <CheckboxItem
                 id="root_cause_evidence"
-                checked={reportSections.root_cause_evidence}
+                checked={reportSections.rootCauseEvidence}
                 onChange={(checked) =>
-                  setReportSections({ ...reportSections, root_cause_evidence: checked })
+                  setReportSections({ ...reportSections, rootCauseEvidence: checked })
                 }
                 label="Root Cause + Evidence"
                 description="Detailed analysis with supporting evidence from events"
@@ -129,9 +129,9 @@ export function InvestigateModal({
               />
               <CheckboxItem
                 id="metrics_summary"
-                checked={reportSections.metrics_summary}
+                checked={reportSections.metricsSummary}
                 onChange={(checked) =>
-                  setReportSections({ ...reportSections, metrics_summary: checked })
+                  setReportSections({ ...reportSections, metricsSummary: checked })
                 }
                 label="Metrics Summary"
                 description="Quantitative analysis of run performance"

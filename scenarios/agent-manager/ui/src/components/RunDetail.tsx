@@ -12,6 +12,7 @@ import {
   FileCode,
   MessageSquare,
   RotateCcw,
+  Search,
   Terminal,
   Trash2,
   Wrench,
@@ -47,6 +48,8 @@ interface RunDetailProps {
   onApprove: (req: ApproveFormData) => Promise<void>;
   onReject: (req: RejectFormData) => Promise<void>;
   onRetry: (run: Run) => Promise<Run>;
+  onInvestigate: (runId: string) => void;
+  investigateDisabled?: boolean;
   onDelete: (run: Run) => Promise<void>;
   deleteLoading: boolean;
 }
@@ -62,6 +65,8 @@ export function RunDetail({
   onApprove,
   onReject,
   onRetry,
+  onInvestigate,
+  investigateDisabled = false,
   onDelete,
   deleteLoading,
 }: RunDetailProps) {
@@ -193,6 +198,16 @@ export function RunDetail({
             {run.approvalState !== ApprovalState.NONE && (
               <Badge variant="outline">{approvalStateLabel(run.approvalState)}</Badge>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onInvestigate(run.id)}
+              className="gap-1"
+              disabled={investigateDisabled}
+            >
+              <Search className="h-3 w-3" />
+              Investigate
+            </Button>
             {([RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.COMPLETE].includes(run.status) ||
               [ApprovalState.APPROVED, ApprovalState.REJECTED].includes(run.approvalState)) && (
               <Button
