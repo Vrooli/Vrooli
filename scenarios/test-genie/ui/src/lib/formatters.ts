@@ -7,6 +7,10 @@ export function formatRelative(timestamp?: string): string {
     return "—";
   }
   const target = new Date(timestamp).getTime();
+  // Invalid date or unreasonably old (before year 2000) - treat as never synced
+  if (!Number.isFinite(target) || target < 946684800000) {
+    return "—";
+  }
   const now = Date.now();
   const diffMs = target - now;
   const diffMinutes = Math.round(diffMs / 60000);

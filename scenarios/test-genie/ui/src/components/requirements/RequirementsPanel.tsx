@@ -31,7 +31,8 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
     syncStatus,
     modules,
     sync,
-    isSyncing
+    isSyncing,
+    lastSyncSuccess
   } = useRequirements(scenarioName);
 
   if (isLoading) {
@@ -64,8 +65,9 @@ export function RequirementsPanel({ scenarioName }: RequirementsPanelProps) {
       {/* Sync Status Banner */}
       <SyncStatusBanner
         syncStatus={syncStatus}
-        onSync={(options) => sync(options)}
+        onSync={() => sync()}
         isSyncing={isSyncing}
+        lastSyncSuccess={lastSyncSuccess}
       />
 
       {/* Coverage Stats */}

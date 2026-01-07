@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchScenarioRequirements,
@@ -18,6 +18,7 @@ export interface RequirementsCoverage {
 
 export function useRequirements(scenarioName: string | null) {
   const queryClient = useQueryClient();
+  const [lastSyncSuccess, setLastSyncSuccess] = useState(false);
 
   const query = useQuery<RequirementsSnapshot | null>({
     queryKey: ["requirements", scenarioName],
@@ -32,11 +33,16 @@ export function useRequirements(scenarioName: string | null) {
       if (!scenarioName) {
         return Promise.reject(new Error("No scenario selected"));
       }
+      setLastSyncSuccess(false);
       return syncScenarioRequirements(scenarioName, input);
     },
     onSuccess: () => {
+      setLastSyncSuccess(true);
       // Invalidate requirements query to refetch
       queryClient.invalidateQueries({ queryKey: ["requirements", scenarioName] });
+    },
+    onError: () => {
+      setLastSyncSuccess(false);
     }
   });
 
@@ -84,7 +90,8 @@ export function useRequirements(scenarioName: string | null) {
     modules,
     sync: syncMutation.mutate,
     syncAsync: syncMutation.mutateAsync,
-    isSyncing: syncMutation.isPending
+    isSyncing: syncMutation.isPending,
+    lastSyncSuccess
   };
 }
 

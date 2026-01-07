@@ -38,18 +38,20 @@ export function RequirementsTree({ modules, filter = "all", searchQuery = "" }: 
     });
   };
 
-  const filteredModules = modules.filter((module) => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      if (module.name.toLowerCase().includes(query)) return true;
-      if (module.requirements?.some((r) =>
-        r.id.toLowerCase().includes(query) ||
-        r.title.toLowerCase().includes(query)
-      )) return true;
-      return false;
-    }
-    return true;
-  });
+  const filteredModules = modules
+    .filter((module) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (module.name.toLowerCase().includes(query)) return true;
+        if (module.requirements?.some((r) =>
+          r.id.toLowerCase().includes(query) ||
+          r.title.toLowerCase().includes(query)
+        )) return true;
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (filteredModules.length === 0) {
     return (
@@ -145,6 +147,7 @@ function ModuleRow({ module, isExpanded, onToggle, expandedReqs, onToggleReq, fi
               }
               return true;
             })
+            .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
             .map((req) => (
               <RequirementRow
                 key={req.id}
