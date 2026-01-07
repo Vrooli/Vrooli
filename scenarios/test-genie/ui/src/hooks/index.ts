@@ -8,3 +8,4 @@ export type { DocsManifest, DocSection } from "./useDocs";
 export { useRequirements, useRequirementsCoverage } from "./useRequirements";
 export type { RequirementsCoverage } from "./useRequirements";
 export { useAgentUpdates } from "./useAgentUpdates";
+export { useFix, useFixDetails } from "./useFix";

@@ -10,6 +10,7 @@ import (
 
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
+	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
@@ -28,6 +29,7 @@ type Bootstrapped struct {
 	ScenarioService  *scenarios.ScenarioDirectoryService
 	PhaseCatalog     phaseCatalogProvider
 	AgentService     *agentmanager.AgentService
+	FixService       *fix.Service
 }
 
 type phaseCatalogProvider interface {
@@ -92,6 +94,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		}()
 	}
 
+	// Create fix service (for agent-based test fixing)
+	fixService := fix.NewService(agentService)
+
 	return &Bootstrapped{
 		DB:               db,
 		SuiteRequests:    suiteRequestService,
@@ -101,5 +106,6 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		ScenarioService:  scenarioService,
 		PhaseCatalog:     runner,
 		AgentService:     agentService,
+		FixService:       fixService,
 	}, nil
 }

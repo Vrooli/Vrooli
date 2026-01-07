@@ -32,6 +32,7 @@ func NewServer() (*httpserver.Server, error) {
 		Scenarios:    deps.ScenarioService,
 		PhaseCatalog: deps.PhaseCatalog,
 		AgentService: deps.AgentService,
+		FixService:   deps.FixService,
 	}
 
 	return httpserver.New(httpCfg, httpDeps)

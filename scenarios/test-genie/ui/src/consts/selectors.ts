@@ -287,7 +287,12 @@ const literalSelectors: LiteralSelectorTree = {
     scenarioDetailBack: "test-genie-scenario-detail-back",
     scenarioTabOverview: "test-genie-scenario-tab-overview",
     scenarioTabRequirements: "test-genie-scenario-tab-requirements",
-    scenarioTabHistory: "test-genie-scenario-tab-history"
+    scenarioTabHistory: "test-genie-scenario-tab-history",
+    // Fix agent selectors
+    fixWithAiButton: "test-genie-fix-with-ai-button",
+    startFixButton: "test-genie-start-fix-button",
+    phaseCard: "test-genie-phase-card",
+    fixAgentStatus: "test-genie-fix-agent-status"
   },
   // Requirements
   requirements: {
@@ -389,6 +394,10 @@ export const selectors = registry.selectors as unknown as {
     scenarioTabOverview: string;
     scenarioTabRequirements: string;
     scenarioTabHistory: string;
+    fixWithAiButton: string;
+    startFixButton: string;
+    phaseCard: string;
+    fixAgentStatus: string;
   };
   requirements: {
     panel: string;

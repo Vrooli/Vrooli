@@ -496,6 +496,68 @@ func (s *AgentService) GetRunEvents(ctx context.Context, runID string) ([]*domai
 }
 
 // =============================================================================
+// SINGLE TASK SPAWNING (for fix service)
+// =============================================================================
+
+// SpawnSingleRequest contains parameters for spawning a single agent task.
+type SpawnSingleRequest struct {
+	Task *domainpb.Task
+	Tag  string
+}
+
+// SpawnSingleResult contains the result of spawning a single agent.
+type SpawnSingleResult struct {
+	TaskID string
+	RunID  string
+	Tag    string
+	Status string
+	Error  string
+}
+
+// SpawnSingle creates a single Task and Run for agent execution.
+// This is simpler than SpawnBatch when you only need one agent.
+func (s *AgentService) SpawnSingle(ctx context.Context, req SpawnSingleRequest) (*SpawnSingleResult, error) {
+	if !s.enabled {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	result := &SpawnSingleResult{
+		Tag:    req.Tag,
+		Status: "pending",
+	}
+
+	// Create task
+	createdTask, err := s.client.CreateTask(ctx, req.Task)
+	if err != nil {
+		result.Status = "failed"
+		result.Error = fmt.Sprintf("create task: %v", err)
+		return result, err
+	}
+	result.TaskID = createdTask.Id
+
+	// Create run
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &req.Tag,
+		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:      true,
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		result.Status = "failed"
+		result.Error = fmt.Sprintf("create run: %v", err)
+		return result, err
+	}
+
+	result.RunID = run.Id
+	result.Status = MapRunStatus(run.Status)
+
+	return result, nil
+}
+
+// =============================================================================
 // STATUS MAPPING
 // =============================================================================
 

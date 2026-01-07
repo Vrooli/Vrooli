@@ -19,6 +19,7 @@ import (
 
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
+	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
@@ -46,6 +47,7 @@ type Dependencies struct {
 	Scenarios    scenarioDirectory
 	PhaseCatalog phaseCatalog
 	AgentService *agentmanager.AgentService
+	FixService   fixService
 	Logger       Logger
 }
 
@@ -78,6 +80,15 @@ type phaseCatalog interface {
 	SaveGlobalPhaseToggles(orchestrator.PhaseToggleConfig) (orchestrator.PhaseToggleConfig, error)
 }
 
+type fixService interface {
+	Spawn(ctx context.Context, req fix.SpawnRequest) (*fix.SpawnResult, error)
+	Get(id string) (*fix.Record, bool)
+	ListByScenario(scenarioName string, limit int) []*fix.Record
+	GetActiveForScenario(scenarioName string) *fix.Record
+	Stop(ctx context.Context, id string) error
+	IsAgentAvailable(ctx context.Context) bool
+}
+
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
 	config                 Config
@@ -90,6 +101,7 @@ type Server struct {
 	phaseCatalog           phaseCatalog
 	logger                 Logger
 	agentService           *agentmanager.AgentService
+	fixService             fixService
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -138,6 +150,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		phaseCatalog:           deps.PhaseCatalog,
 		logger:                 logger,
 		agentService:           deps.AgentService,
+		fixService:             deps.FixService,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
@@ -183,6 +196,13 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
 	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
+
+	// Fix routes (agent-based test fixing)
+	apiRouter.HandleFunc("/scenarios/{name}/fix", s.handleSpawnFix).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/fixes", s.handleListFixes).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/fixes/active", s.handleGetActiveFix).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}", s.handleGetFix).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}/stop", s.handleStopFix).Methods("POST")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")

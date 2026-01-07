@@ -731,3 +731,98 @@ export function hasStructuredOutput(output: string): boolean {
   if (!output) return false;
   return /```json\s*\{[\s\S]*\}\s*```/.test(output);
 }
+
+// ========================================
+// Fix API (agent-based test fixing)
+// ========================================
+
+export type FixStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface FixPhaseInfo {
+  name: string;
+  status: string;
+  error?: string;
+  durationSeconds?: number;
+  logPath?: string;
+}
+
+export interface FixRecord {
+  id: string;
+  scenarioName: string;
+  phases: FixPhaseInfo[];
+  status: FixStatus;
+  runId?: string;
+  tag?: string;
+  startedAt: string;
+  completedAt?: string;
+  output?: string;
+  error?: string;
+}
+
+export interface SpawnFixRequest {
+  phases: FixPhaseInfo[];
+}
+
+export interface SpawnFixResponse {
+  fixId: string;
+  runId?: string;
+  tag: string;
+  status: FixStatus;
+  error?: string;
+}
+
+export interface ListFixesResponse {
+  items: FixRecord[];
+  count: number;
+}
+
+export interface ActiveFixResponse {
+  active: boolean;
+  fix?: FixRecord;
+}
+
+export async function spawnFix(scenarioName: string, phases: FixPhaseInfo[]): Promise<SpawnFixResponse> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fix`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phases })
+  });
+  return parseResponse<SpawnFixResponse>(res);
+}
+
+export async function fetchFix(scenarioName: string, fixId: string): Promise<FixRecord> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/${encodeURIComponent(fixId)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<FixRecord>(res);
+}
+
+export async function fetchFixes(scenarioName: string): Promise<ListFixesResponse> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<ListFixesResponse>(res);
+}
+
+export async function fetchActiveFix(scenarioName: string): Promise<ActiveFixResponse> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/active`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<ActiveFixResponse>(res);
+}
+
+export async function stopFix(scenarioName: string, fixId: string): Promise<{ success: boolean; message: string }> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioName)}/fixes/${encodeURIComponent(fixId)}/stop`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  return parseResponse<{ success: boolean; message: string }>(res);
+}
