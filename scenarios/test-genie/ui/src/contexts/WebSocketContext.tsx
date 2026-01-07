@@ -22,7 +22,7 @@ export type WebSocketMessageType =
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
-  data?: Record<string, unknown>;
+  data?: AgentUpdateData | AgentOutputData | Record<string, unknown>;
   message?: string;
   timestamp?: number;
   [key: string]: unknown;

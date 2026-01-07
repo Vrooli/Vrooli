@@ -65,10 +65,11 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions = {}) {
 
           // Track sequence numbers to avoid duplicates
           const buffer = outputBufferRef.current[outputData.agentId] || { output: '', lastSequence: -1 };
+          const sequence = outputData.sequence ?? Date.now(); // Use timestamp as fallback sequence
 
-          if (outputData.sequence > buffer.lastSequence) {
+          if (sequence > buffer.lastSequence) {
             buffer.output += outputData.output;
-            buffer.lastSequence = outputData.sequence;
+            buffer.lastSequence = sequence;
             outputBufferRef.current[outputData.agentId] = buffer;
 
             onAgentOutput(outputData);

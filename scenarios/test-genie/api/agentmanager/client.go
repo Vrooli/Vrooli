@@ -203,21 +203,38 @@ func (c *Client) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, er
 	return result.Run, nil
 }
 
-// ListRuns lists runs with optional filtering by tag prefix and status.
-func (c *Client) ListRuns(ctx context.Context, tagPrefix string, status *domainpb.RunStatus) ([]*domainpb.Run, error) {
-	req := &apipb.ListRunsRequest{}
-	if tagPrefix != "" {
-		req.TagPrefix = &tagPrefix
+// ListRunsOptions contains optional filters for listing runs.
+type ListRunsOptions struct {
+	TagPrefix string
+	ProfileID string
+	Status    *domainpb.RunStatus
+	Limit     int
+}
+
+// ListRuns lists runs with optional filtering by tag prefix, profile ID, and status.
+// Filters are passed as query parameters (agent-manager ignores JSON body on GET).
+func (c *Client) ListRuns(ctx context.Context, opts ListRunsOptions) ([]*domainpb.Run, error) {
+	// Build query parameters
+	query := url.Values{}
+	if opts.TagPrefix != "" {
+		query.Set("tagPrefix", opts.TagPrefix)
 	}
-	if status != nil {
-		req.Status = status
+	if opts.ProfileID != "" {
+		query.Set("profileId", opts.ProfileID)
 	}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+	if opts.Status != nil {
+		query.Set("status", opts.Status.String())
+	}
+	if opts.Limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", opts.Limit))
 	}
 
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/runs", body)
+	path := "/api/v1/runs"
+	if len(query) > 0 {
+		path = path + "?" + query.Encode()
+	}
+
+	resp, err := c.doRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}

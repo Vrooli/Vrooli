@@ -366,7 +366,9 @@ func (s *AgentService) GetBatchStatus(ctx context.Context, batchID string) ([]Ru
 	}
 
 	tagPrefix := fmt.Sprintf("test-genie-%s-", batchID)
-	runs, err := s.client.ListRuns(ctx, tagPrefix, nil)
+	runs, err := s.client.ListRuns(ctx, ListRunsOptions{
+		TagPrefix: tagPrefix,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list runs: %w", err)
 	}
@@ -406,8 +408,10 @@ func (s *AgentService) ListActiveRuns(ctx context.Context) ([]*domainpb.Run, err
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	// Get all runs and filter client-side for active ones
-	runs, err := s.client.ListRuns(ctx, "test-genie-", nil)
+	// Get all runs filtered by tag prefix
+	runs, err := s.client.ListRuns(ctx, ListRunsOptions{
+		TagPrefix: "test-genie-",
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +435,9 @@ func (s *AgentService) ListAllRuns(ctx context.Context) ([]*domainpb.Run, error)
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	return s.client.ListRuns(ctx, "test-genie-", nil)
+	return s.client.ListRuns(ctx, ListRunsOptions{
+		TagPrefix: "test-genie-",
+	})
 }
 
 // GetRun returns a specific run by ID.

@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"test-genie/agentmanager"
-	"test-genie/internal/containment"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -40,15 +39,14 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB                  *sql.DB
-	SuiteQueue          suiteRequestQueue
-	Executions          execution.ExecutionHistory
-	ExecutionSvc        suiteExecutor
-	Scenarios           scenarioDirectory
-	PhaseCatalog        phaseCatalog
-	AgentService        *agentmanager.AgentService
-	ContainmentSelector containment.ProviderSelector // Optional: defaults to containment.DefaultManager()
-	Logger              Logger
+	DB           *sql.DB
+	SuiteQueue   suiteRequestQueue
+	Executions   execution.ExecutionHistory
+	ExecutionSvc suiteExecutor
+	Scenarios    scenarioDirectory
+	PhaseCatalog phaseCatalog
+	AgentService *agentmanager.AgentService
+	Logger       Logger
 }
 
 type suiteRequestQueue interface {
@@ -92,7 +90,6 @@ type Server struct {
 	phaseCatalog           phaseCatalog
 	logger                 Logger
 	agentService           *agentmanager.AgentService
-	containmentSelector    containment.ProviderSelector
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -130,12 +127,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		logger = log.Default()
 	}
 
-	// Use provided containment selector or default to standard Docker+Fallback
-	containmentSel := deps.ContainmentSelector
-	if containmentSel == nil {
-		containmentSel = containment.DefaultManager()
-	}
-
 	srv := &Server{
 		config:                 config,
 		db:                     deps.DB,
@@ -147,7 +138,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		phaseCatalog:           deps.PhaseCatalog,
 		logger:                 logger,
 		agentService:           deps.AgentService,
-		containmentSelector:    containmentSel,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
@@ -188,7 +178,6 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
 	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
 	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
-	apiRouter.HandleFunc("/agents/containment-status", s.handleContainmentStatus).Methods("GET")
 	apiRouter.HandleFunc("/agents/status", s.handleGetAgentManagerStatus).Methods("GET")
 	apiRouter.HandleFunc("/agents/ws-url", s.handleGetAgentManagerWSUrl).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")

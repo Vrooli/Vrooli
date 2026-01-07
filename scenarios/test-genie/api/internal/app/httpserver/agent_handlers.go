@@ -16,7 +16,6 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"test-genie/agentmanager"
-	"test-genie/internal/containment"
 )
 
 // =============================================================================
@@ -540,52 +539,6 @@ func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request
 		"allowedTools":  allowedCommands,
 		"securityModel": "agent-manager profiles",
 		"note":          "Security constraints are now managed by agent-manager profiles. Bash command restrictions are specified in the agent profile configuration.",
-	}
-	s.writeJSON(w, http.StatusOK, response)
-}
-
-// handleContainmentStatus returns the current OS-level containment status.
-func (s *Server) handleContainmentStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	status := s.containmentSelector.GetStatus(ctx)
-
-	providerInfos := s.containmentSelector.ListProviders(ctx)
-	providers := make([]map[string]interface{}, 0, len(providerInfos))
-	for _, info := range providerInfos {
-		providers = append(providers, map[string]interface{}{
-			"type":          string(info.Type),
-			"name":          info.Name,
-			"description":   info.Description,
-			"securityLevel": info.SecurityLevel,
-			"requirements":  info.Requirements,
-		})
-	}
-
-	available := make([]string, 0, len(status.AvailableProviders))
-	for _, p := range status.AvailableProviders {
-		available = append(available, string(p))
-	}
-
-	containmentCfg := containment.LoadConfigFromEnv()
-
-	response := map[string]interface{}{
-		"activeProvider":     string(status.ActiveProvider),
-		"availableProviders": available,
-		"securityLevel":      status.SecurityLevel,
-		"maxSecurityLevel":   10,
-		"warnings":           status.Warnings,
-		"providers":          providers,
-		"config": map[string]interface{}{
-			"dockerImage":                containmentCfg.DockerImage,
-			"maxMemoryMB":                containmentCfg.MaxMemoryMB,
-			"maxCPUPercent":              containmentCfg.MaxCPUPercent,
-			"availabilityTimeoutSeconds": containmentCfg.AvailabilityTimeoutSeconds,
-			"preferDocker":               containmentCfg.PreferDocker,
-			"allowFallback":              containmentCfg.AllowFallback,
-		},
-		"note": "Containment provides OS-level isolation for agent execution. " +
-			"Agent execution is now managed by agent-manager which handles its own containment.",
 	}
 	s.writeJSON(w, http.StatusOK, response)
 }

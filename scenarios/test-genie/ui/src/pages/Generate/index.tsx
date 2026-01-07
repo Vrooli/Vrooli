@@ -5,14 +5,13 @@ import { ActionButtons } from "./ActionButtons";
 import { PresetSelector } from "./PresetSelector";
 import { ScenarioTargetDialog } from "./ScenarioTargetDialog";
 import { ActiveAgentsPanel } from "./ActiveAgentsPanel";
-import { ContainmentBadge } from "./ContainmentBadge";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
 import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
-import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, fetchContainmentStatus, type AppConfig, type ContainmentStatus } from "../../lib/api";
+import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, type AppConfig } from "../../lib/api";
 
 const MAX_PROMPTS = 12;
 const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
@@ -303,7 +302,6 @@ export function GeneratePage() {
   const [spawnResults, setSpawnResults] = useState<SpawnAgentsResult[] | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
-  const [containmentStatus, setContainmentStatus] = useState<ContainmentStatus | null>(null);
   const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
 
   const hasTargets = targetPaths.length > 0;
@@ -348,19 +346,6 @@ export function GeneratePage() {
       }
     };
     loadConfig();
-  }, []);
-
-  // Load containment status on mount
-  useEffect(() => {
-    const loadContainment = async () => {
-      try {
-        const status = await fetchContainmentStatus();
-        setContainmentStatus(status);
-      } catch (err) {
-        console.error("Failed to load containment status:", err);
-      }
-    };
-    loadContainment();
   }, []);
 
   useEffect(() => {
@@ -932,13 +917,6 @@ export function GeneratePage() {
           </div>
         </div>
 
-        {/* Containment Warning Banner */}
-        {containmentStatus && (containmentStatus.activeProvider === "none" || containmentStatus.securityLevel === 0) && (
-          <div className="mt-4">
-            <ContainmentBadge showWarningBanner={true} />
-          </div>
-        )}
-
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
           <p className="font-semibold text-white">Dispatch summary</p>
           <p className="mt-1 text-slate-300">
@@ -985,12 +963,9 @@ export function GeneratePage() {
 
       {/* Action Buttons */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Actions</p>
-            <h3 className="mt-2 text-lg font-semibold">Use this prompt</h3>
-          </div>
-          <ContainmentBadge />
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Actions</p>
+          <h3 className="mt-2 text-lg font-semibold">Use this prompt</h3>
         </div>
         <p className="mb-4 text-sm text-slate-300">
           Copy the prompt to use with Claude, ChatGPT, or another AI assistant.

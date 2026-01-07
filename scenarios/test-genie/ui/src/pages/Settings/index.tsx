@@ -199,15 +199,15 @@ export function SettingsPage() {
           Saving updates applies globally across all scenarios.
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleReset} disabled={mutation.isLoading || isLoading} data-testid={selectors.settings.resetButton}>
+          <Button variant="outline" onClick={handleReset} disabled={mutation.isPending || isLoading} data-testid={selectors.settings.resetButton}>
             Reset
           </Button>
           <Button
             onClick={handleSave}
-            disabled={mutation.isLoading || isLoading || isError || hasValidationError}
+            disabled={mutation.isPending || isLoading || isError || hasValidationError}
             data-testid={selectors.settings.saveButton}
           >
-            {mutation.isLoading ? "Saving…" : hasValidationError ? "Add reason to save" : "Save settings"}
+            {mutation.isPending ? "Saving…" : hasValidationError ? "Add reason to save" : "Save settings"}
           </Button>
         </div>
       </div>
