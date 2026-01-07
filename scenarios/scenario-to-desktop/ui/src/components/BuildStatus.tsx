@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBuildStatus, type BuildStatus as BuildStatusType } from "../lib/api";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Terminal, CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 
 interface BuildStatusProps {
   buildId: string | null;
@@ -60,14 +59,15 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
   const progress = calculateProgress(data);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Terminal className="h-5 w-5" />
-            Build Status
-          </span>
-          {data && (
+    <div className="space-y-4">
+      <div>
+        <div className="mb-1 flex justify-between text-sm">
+          <span className="text-slate-400">Build ID:</span>
+          <span className="font-mono text-slate-300">{buildId}</span>
+        </div>
+        {data && (
+          <div className="mb-3 flex justify-between text-sm">
+            <span className="text-slate-400">Status:</span>
             <Badge
               variant={
                 data.status === "ready"
@@ -79,33 +79,25 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
             >
               {data.status}
             </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-slate-400">Build ID:</span>
-              <span className="font-mono text-slate-300">{buildId}</span>
-            </div>
-            {data && (
-              <>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="text-slate-400">Template:</span>
-                  <span className="text-slate-300">{data.template_type}</span>
-                </div>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="text-slate-400">Framework:</span>
-                  <span className="text-slate-300">{data.framework}</span>
-                </div>
-                <div className="mb-3 flex justify-between text-sm">
-                  <span className="text-slate-400">Platforms:</span>
-                  <span className="text-slate-300">{data.platforms.join(", ")}</span>
-                </div>
-              </>
-            )}
           </div>
+        )}
+        {data && (
+          <>
+            <div className="mb-1 flex justify-between text-sm">
+              <span className="text-slate-400">Template:</span>
+              <span className="text-slate-300">{data.template_type}</span>
+            </div>
+            <div className="mb-1 flex justify-between text-sm">
+              <span className="text-slate-400">Framework:</span>
+              <span className="text-slate-300">{data.framework}</span>
+            </div>
+            <div className="mb-3 flex justify-between text-sm">
+              <span className="text-slate-400">Platforms:</span>
+              <span className="text-slate-300">{data.platforms.join(", ")}</span>
+            </div>
+          </>
+        )}
+      </div>
 
           {/* Build Stages */}
           {data && data.status === "building" && (
@@ -170,20 +162,18 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
             </div>
           )}
 
-          {data?.status === "ready" && (
-            <div className="rounded-lg bg-green-900/20 p-3 text-sm text-green-300">
-              <div className="font-semibold">Build completed successfully!</div>
-              <div className="mt-1 font-mono text-xs">
-                Next steps:
-                <br />
-                cd {data.output_path}
-                <br />
-                npm install && npm run dev
-              </div>
-            </div>
-          )}
+      {data?.status === "ready" && (
+        <div className="rounded-lg bg-green-900/20 p-3 text-sm text-green-300">
+          <div className="font-semibold">Build completed successfully!</div>
+          <div className="mt-1 font-mono text-xs">
+            Next steps:
+            <br />
+            cd {data.output_path}
+            <br />
+            npm install && npm run dev
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

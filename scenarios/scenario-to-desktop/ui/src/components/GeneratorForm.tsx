@@ -651,6 +651,9 @@ interface GeneratorFormProps {
   onScenarioNameChange: (name: string) => void;
   selectionSource?: "inventory" | "manual" | null;
   onOpenSigningTab: (scenario?: string) => void;
+  formId?: string;
+  showSubmit?: boolean;
+  onGenerateStateChange?: (state: { pending: boolean; error: string | null }) => void;
 }
 
 export function GeneratorForm({
@@ -660,7 +663,10 @@ export function GeneratorForm({
   scenarioName,
   onScenarioNameChange,
   selectionSource,
-  onOpenSigningTab
+  onOpenSigningTab,
+  formId,
+  showSubmit = true,
+  onGenerateStateChange
 }: GeneratorFormProps) {
   const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
   const [appDisplayName, setAppDisplayName] = useState("");
@@ -904,6 +910,9 @@ export function GeneratorForm({
       onBuildStart(data.build_id);
     }
   });
+  const generateErrorMessage = generateMutation.isError
+    ? (generateMutation.error as Error).message
+    : null;
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
@@ -1011,6 +1020,13 @@ export function GeneratorForm({
       }
     };
   }, [preflightJobId]);
+
+  useEffect(() => {
+    if (!onGenerateStateChange) {
+      return;
+    }
+    onGenerateStateChange({ pending: generateMutation.isPending, error: generateErrorMessage });
+  }, [generateMutation.isPending, generateErrorMessage, onGenerateStateChange]);
 
   const refreshPreflightStatus = async () => {
     if (!preflightResult || preflightPending || !preflightSessionId || preflightJobStatus?.status === "running") {
@@ -1524,7 +1540,7 @@ export function GeneratorForm({
           Reset progress
         </Button>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
             <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
               <div className="font-semibold text-blue-50">
@@ -1704,22 +1720,26 @@ export function GeneratorForm({
           )}
 
           <input type="hidden" name="scenarioName" value={scenarioName} />
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={generateMutation.isPending}
-          >
-            {generateMutation.isPending
-              ? "Generating..."
-              : isUpdateMode
-                ? "Update Desktop Application"
-                : "Generate Desktop Application"}
-          </Button>
+          {showSubmit && (
+            <>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={generateMutation.isPending}
+              >
+                {generateMutation.isPending
+                  ? "Generating..."
+                  : isUpdateMode
+                    ? "Update Desktop Application"
+                    : "Generate Desktop Application"}
+              </Button>
 
-          {generateMutation.isError && (
-            <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
-              <strong>Error:</strong> {(generateMutation.error as Error).message}
-            </div>
+              {generateMutation.isError && (
+                <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
+                  <strong>Error:</strong> {(generateMutation.error as Error).message}
+                </div>
+              )}
+            </>
           )}
       </form>
       <ScenarioModal

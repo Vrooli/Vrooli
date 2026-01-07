@@ -56,6 +56,10 @@ function AppContent() {
   );
   const [activeStep, setActiveStep] = useState(storedState?.activeStep ?? 2);
   const [userPinnedStep, setUserPinnedStep] = useState(storedState?.userPinnedStep ?? false);
+  const [generateState, setGenerateState] = useState<{ pending: boolean; error: string | null }>({
+    pending: false,
+    error: null
+  });
   const overviewRef = useRef<HTMLDivElement>(null);
   const configureRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
@@ -112,6 +116,12 @@ function AppContent() {
     if (selectedScenarioName) return 2;
     return 1;
   }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+  const generatorFormId = "desktop-generator-form";
+  const baseGenerateLabel =
+    selectionSource === "inventory" ? "Update Desktop Application" : "Generate Desktop Application";
+  const hasExistingBuild = Boolean(currentBuildId) || Boolean(selectedScenario?.build_artifacts?.length);
+  const generateLabel = hasExistingBuild ? "Rebuild Desktop Application" : baseGenerateLabel;
+  const canGenerate = Boolean(selectedScenarioName);
 
   // Sync view/scenario/doc from URL on load and back/forward
   useEffect(() => {
@@ -417,6 +427,9 @@ function AppContent() {
                       }}
                       selectionSource={selectionSource}
                       onOpenSigningTab={openSigningTab}
+                      formId={generatorFormId}
+                      showSubmit={false}
+                      onGenerateStateChange={setGenerateState}
                     />
                   </CardContent>
                 </Card>
@@ -429,12 +442,30 @@ function AppContent() {
                     Step 3 · Build installers
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="submit"
+                      form={generatorFormId}
+                      disabled={!canGenerate || generateState.pending}
+                    >
+                      {generateState.pending ? "Generating..." : generateLabel}
+                    </Button>
+                    {!canGenerate && (
+                      <p className="text-xs text-slate-400">Pick a scenario in step 2 to enable builds.</p>
+                    )}
+                  </div>
+                  {generateState.error && (
+                    <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
+                      <strong>Error:</strong> {generateState.error}
+                    </div>
+                  )}
                   {currentBuildId ? (
                     <BuildStatus buildId={currentBuildId} />
                   ) : (
                     <p className="text-sm text-slate-300">
-                      Generate from step 2 to kick off a build. Progress will appear here automatically.
+                      Generate using the settings from step 2 to kick off a build. Progress will appear here
+                      automatically.
                     </p>
                   )}
                 </CardContent>
