@@ -11,12 +11,14 @@
  *
  * ROUTE PERSISTENCE:
  *   - With rebrowser-playwright, page.route() handlers do NOT persist across navigation
- *   - This module provides navigation listeners to re-register routes after navigation
+ *   - Route re-registration after navigation is handled by pipeline-manager.ts
+ *     (SINGLE SOURCE OF TRUTH for navigation handling during recording)
  *
  * EXTRACTED FROM: context-initializer.ts (881 lines → ~200 lines each)
  *
  * @see context-initializer.ts - Uses this for event route setup
  * @see html-injector.ts - Handles HTML injection (sibling module)
+ * @see pipeline-manager.ts - Handles navigation and route re-registration
  */
 
 import type { Page } from 'rebrowser-playwright';
@@ -98,8 +100,6 @@ export interface EventRouteOptions {
 export interface EventRouteManager {
   /** Set up event route on a page */
   setupPageEventRoute: (page: Page, options?: { force?: boolean }) => Promise<void>;
-  /** Set up navigation listener on a page */
-  setupPageNavigationListener: (page: Page) => void;
   /** Get current stats */
   getStats: () => RouteHandlerStats;
   /** Check if event route is set up for a page */
@@ -129,9 +129,6 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
   // Track pages that have event routes set up
   const pagesWithEventRoute: WeakSetGuard<Page> = createWeakSetGuard<Page>();
-
-  // Track pages that have navigation listeners set up
-  const pagesWithNavigationListener: WeakSetGuard<Page> = createWeakSetGuard<Page>();
 
   // Track pages currently being set up to prevent duplicate concurrent registrations
   const pagesBeingSetUp: SetGuard<Page> = createSetGuard<Page>({ name: 'pages-setup-lock' });
@@ -267,51 +264,13 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
     }
   }
 
-  /**
-   * Set up navigation listener on a page to re-register event routes after navigation.
-   *
-   * CRITICAL: With rebrowser-playwright, page.route() handlers do NOT persist across navigation.
-   * This means after every page.goto() or link click that navigates to a new URL, the
-   * event route handler is lost. This listener re-registers the route after each navigation.
-   *
-   * This is idempotent - safe to call multiple times for the same page.
-   *
-   * @param page - The page to set up the navigation listener on
-   */
-  function setupPageNavigationListener(page: Page): void {
-    // Skip if already set up for this page
-    if (pagesWithNavigationListener.has(page)) {
-      return;
-    }
-
-    // Use 'load' event to re-register routes after navigation
-    page.on('load', async () => {
-      logger.debug(scopedLog(LogContext.RECORDING, 'page load detected, re-registering event route'), {
-        url: page.url()?.slice(0, 50),
-      });
-
-      try {
-        // Force re-registration since the route was lost during navigation
-        await setupPageEventRoute(page, { force: true });
-      } catch (err) {
-        logger.warn(scopedLog(LogContext.RECORDING, 'failed to re-register event route after navigation'), {
-          url: page.url()?.slice(0, 50),
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    });
-
-    // Mark this page as having the navigation listener set up
-    pagesWithNavigationListener.add(page);
-
-    logger.debug(scopedLog(LogContext.RECORDING, 'page navigation listener set up'), {
-      url: page.url()?.slice(0, 50),
-    });
-  }
+  // NOTE: Navigation listener (page.on('load')) is NOT set up here.
+  // Route re-registration after navigation is handled by pipeline-manager.ts
+  // to avoid duplicate handlers causing race conditions. See pipeline-manager.ts
+  // createNavigationHandler() for the SINGLE SOURCE OF TRUTH for navigation handling.
 
   return {
     setupPageEventRoute,
-    setupPageNavigationListener,
     getStats: () => cloneRouteHandlerStats(stats),
     hasEventRoute: (page: Page) => pagesWithEventRoute.has(page),
   };

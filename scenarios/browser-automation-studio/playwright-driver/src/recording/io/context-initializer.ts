@@ -211,20 +211,6 @@ export class RecordingContextInitializer {
   }
 
   /**
-   * Set up navigation listener on a page to re-register event routes after navigation.
-   *
-   * Delegates to the event route manager.
-   *
-   * @param page - The page to set up the navigation listener on
-   */
-  setupPageNavigationListener(page: Page): void {
-    if (!this.eventRouteManager) {
-      throw new Error('Context not initialized. Call initialize() first.');
-    }
-    this.eventRouteManager.setupPageNavigationListener(page);
-  }
-
-  /**
    * Initialize recording capability on a browser context.
    *
    * This sets up:
@@ -274,11 +260,12 @@ export class RecordingContextInitializer {
     this.injectionStatsGetter = injectionResult.getStats;
 
     // Set up page-level event routes for all existing pages
+    // NOTE: Navigation listeners are NOT set up here - they are handled by
+    // pipeline-manager.ts during recording to avoid duplicate handlers.
     const existingPages = context.pages();
     for (const page of existingPages) {
       try {
         await this.eventRouteManager.setupPageEventRoute(page);
-        this.eventRouteManager.setupPageNavigationListener(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for existing page'), {
           url: page.url()?.slice(0, 50),
@@ -287,14 +274,14 @@ export class RecordingContextInitializer {
       }
     }
 
-    // Setup event route and navigation listener for any new pages created in this context
+    // Setup event route for any new pages created in this context
+    // NOTE: Navigation listeners are handled by pipeline-manager.ts during recording
     context.on('page', async (page: Page) => {
-      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route and navigation listener'), {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route'), {
         url: page.url()?.slice(0, 50),
       });
       try {
         await this.eventRouteManager!.setupPageEventRoute(page);
-        this.eventRouteManager!.setupPageNavigationListener(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for new page'), {
           url: page.url()?.slice(0, 50),

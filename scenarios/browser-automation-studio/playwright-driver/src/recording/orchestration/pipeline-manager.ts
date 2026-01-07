@@ -555,7 +555,10 @@ export class RecordingPipelineManager {
       // Activate recording on current page
       await this.activateRecordingOnPage(this.page, recordingId);
 
-      // Setup navigation handler
+      // SINGLE SOURCE OF TRUTH: This is the ONLY 'load' handler during recording.
+      // Navigation handling (route re-registration, script re-activation) happens here.
+      // Do NOT add additional 'load' listeners in event-route.ts or context-initializer.ts
+      // to avoid race conditions and duplicate handler issues.
       this.navigationHandler = this.createNavigationHandler(generation, recordingId);
       this.page.on('load', this.navigationHandler);
 
