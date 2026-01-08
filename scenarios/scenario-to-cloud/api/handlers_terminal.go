@@ -17,6 +17,9 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/manifest"
 )
 
 var upgrader = websocket.Upgrader{
@@ -56,14 +59,14 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
 		log.Printf("Terminal: failed to parse manifest: %v", err)
 		http.Error(w, "Failed to parse manifest", http.StatusInternalServerError)
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if normalized.Target.VPS == nil {
 		http.Error(w, "Deployment does not have a VPS target", http.StatusBadRequest)
 		return
@@ -255,7 +258,7 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 }
 
 // createSSHClient creates an SSH client connection to the VPS.
-func createSSHClient(manifest CloudManifest) (*ssh.Client, error) {
+func createSSHClient(manifest domain.CloudManifest) (*ssh.Client, error) {
 	vps := manifest.Target.VPS
 
 	// Expand ~ in key path

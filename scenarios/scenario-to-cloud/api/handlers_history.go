@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
 )
 
 // handleGetHistory returns the deployment history timeline.
@@ -22,7 +25,7 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 	// Get deployment from database
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -31,7 +34,7 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -41,7 +44,7 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 	// Get deployment history
 	history, err := s.repo.GetDeploymentHistory(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "history_failed",
 			Message: "Failed to get deployment history",
 			Hint:    err.Error(),
@@ -54,7 +57,7 @@ func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
 		return history[i].Timestamp.After(history[j].Timestamp)
 	})
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"ok":        true,
 		"history":   history,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -104,7 +107,7 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	// Get deployment
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -113,7 +116,7 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -121,9 +124,9 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "manifest_parse_failed",
 			Message: "Failed to parse deployment manifest",
 			Hint:    err.Error(),
@@ -131,9 +134,9 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "no_vps_target",
 			Message: "Deployment does not have a VPS target",
 		})
@@ -146,7 +149,7 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	// Fetch logs from VPS
 	logs, sources, err := fetchAggregatedLogs(ctx, normalized, s.sshRunner, tail, source, level, search)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "logs_failed",
 			Message: "Failed to fetch logs from VPS",
 			Hint:    err.Error(),
@@ -154,7 +157,7 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, LogsResponse{
+	httputil.WriteJSON(w, http.StatusOK, LogsResponse{
 		OK:       true,
 		Logs:     logs,
 		Total:    len(logs),
@@ -164,8 +167,8 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchAggregatedLogs fetches logs from multiple sources on the VPS.
-func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, sshRunner SSHRunner, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string, error) {
-	cfg := sshConfigFromManifest(manifest)
+func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string, error) {
+	cfg := ssh.ConfigFromManifest(manifest)
 	workdir := manifest.Target.VPS.Workdir
 	scenarioID := manifest.Scenario.ID
 
@@ -184,7 +187,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, sshRunner 
 			cmd string
 		}{
 			id:  scenarioID,
-			cmd: vrooliCommand(workdir, "vrooli scenario logs "+shellQuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
+			cmd: ssh.VrooliCommand(workdir, "vrooli scenario logs "+ssh.QuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
 		})
 	}
 
@@ -206,7 +209,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, sshRunner 
 				cmd string
 			}{
 				id:  res,
-				cmd: vrooliCommand(workdir, "vrooli resource logs "+shellQuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
+				cmd: ssh.VrooliCommand(workdir, "vrooli resource logs "+ssh.QuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 			})
 		}
 	} else {
@@ -218,7 +221,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, sshRunner 
 					cmd string
 				}{
 					id:  res,
-					cmd: vrooliCommand(workdir, "vrooli resource logs "+shellQuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
+					cmd: ssh.VrooliCommand(workdir, "vrooli resource logs "+ssh.QuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 				})
 			}
 		}
@@ -345,9 +348,9 @@ func parseLogOutput(output, source string) []LogEntry {
 func (s *Server) handleAddHistoryEvent(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	req, err := decodeJSON[domain.HistoryEvent](r.Body, 1<<20)
+	req, err := httputil.DecodeJSON[domain.HistoryEvent](r.Body, 1<<20)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_json",
 			Message: "Request body must be valid JSON",
 			Hint:    err.Error(),
@@ -358,7 +361,7 @@ func (s *Server) handleAddHistoryEvent(w http.ResponseWriter, r *http.Request) {
 	// Verify deployment exists
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -367,7 +370,7 @@ func (s *Server) handleAddHistoryEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -381,7 +384,7 @@ func (s *Server) handleAddHistoryEvent(w http.ResponseWriter, r *http.Request) {
 
 	// Append the event
 	if err := s.repo.AppendHistoryEvent(r.Context(), id, req); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "append_failed",
 			Message: "Failed to append history event",
 			Hint:    err.Error(),
@@ -389,7 +392,7 @@ func (s *Server) handleAddHistoryEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"ok":        true,
 		"event":     req,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),

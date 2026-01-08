@@ -160,3 +160,38 @@ type SwapInfo struct {
 	UsedMB       int     `json:"used_mb"`
 	UsagePercent float64 `json:"usage_percent"`
 }
+
+// DriftReport contains the drift detection results comparing manifest expectations vs actual state.
+type DriftReport struct {
+	OK        bool         `json:"ok"`
+	Timestamp string       `json:"timestamp"`
+	Summary   DriftSummary `json:"summary"`
+	Checks    []DriftCheck `json:"checks"`
+}
+
+// DriftSummary contains aggregate drift statistics.
+type DriftSummary struct {
+	Passed   int `json:"passed"`
+	Warnings int `json:"warnings"`
+	Drifts   int `json:"drifts"`
+}
+
+// DriftCheck represents a single drift check result.
+type DriftCheck struct {
+	Category string   `json:"category"` // scenarios, resources, ports, edge
+	Name     string   `json:"name"`
+	Status   string   `json:"status"` // pass, warning, drift
+	Expected string   `json:"expected"`
+	Actual   string   `json:"actual"`
+	Message  string   `json:"message,omitempty"`
+	Actions  []string `json:"actions,omitempty"`
+}
+
+// FileEntry represents a file or directory in the file explorer.
+type FileEntry struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"` // file, directory, symlink
+	SizeBytes   int64  `json:"size_bytes"`
+	Modified    string `json:"modified"`
+	Permissions string `json:"permissions"`
+}

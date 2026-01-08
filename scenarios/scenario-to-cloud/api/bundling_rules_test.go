@@ -13,6 +13,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/manifest"
 )
 
 func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosResources(t *testing.T) {
@@ -36,56 +40,56 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
 	writeFile(t, repoRoot, "resources/redis/README.md", "redis\n")
 
-	manifest := CloudManifest{
+	m := domain.CloudManifest{
 		Version: "1.0.0",
-		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
-		Scenario: ManifestScenario{
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
 			ID: "app-a",
 		},
-		Dependencies: ManifestDependencies{
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{
+		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
+		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
-	manifest.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
+	m.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
 
-	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	normalized, issues := manifest.ValidateAndNormalize(m)
 	// Warnings about missing resources are expected since the test uses a temp directory
-	// and ValidateAndNormalizeManifest looks for service.json in the real repo.
+	// and manifest.ValidateAndNormalize looks for service.json in the real repo.
 	// Only fail on blocking errors that would prevent bundling.
 	for _, issue := range issues {
-		if issue.Severity == SeverityError {
+		if issue.Severity == domain.SeverityError {
 			t.Fatalf("unexpected error: %+v", issue)
 		}
 	}
 
-	spec, err := MiniVrooliBundleSpec(repoRoot, normalized)
+	spec, err := bundle.MiniVrooliBundleSpec(repoRoot, normalized)
 	if err != nil {
 		t.Fatalf("MiniVrooliBundleSpec: %v", err)
 	}
-	if !contains(spec.IncludeRoots, "packages") {
+	if !manifest.Contains(spec.IncludeRoots, "packages") {
 		t.Fatalf("expected packages to be included")
 	}
-	if !contains(spec.IncludeRoots, filepath.ToSlash("scenarios/app-a")) {
+	if !manifest.Contains(spec.IncludeRoots, filepath.ToSlash("scenarios/app-a")) {
 		t.Fatalf("expected scenarios/app-a to be included: %v", spec.IncludeRoots)
 	}
-	if contains(spec.IncludeRoots, filepath.ToSlash("scenarios/app-b")) {
+	if manifest.Contains(spec.IncludeRoots, filepath.ToSlash("scenarios/app-b")) {
 		t.Fatalf("did not expect scenarios/app-b to be included: %v", spec.IncludeRoots)
 	}
-	if !contains(spec.IncludeRoots, filepath.ToSlash("scenarios/vrooli-autoheal")) {
+	if !manifest.Contains(spec.IncludeRoots, filepath.ToSlash("scenarios/vrooli-autoheal")) {
 		t.Fatalf("expected scenarios/vrooli-autoheal to be included")
 	}
-	if !contains(spec.IncludeRoots, filepath.ToSlash("resources/postgres")) {
+	if !manifest.Contains(spec.IncludeRoots, filepath.ToSlash("resources/postgres")) {
 		t.Fatalf("expected resources/postgres to be included")
 	}
-	if contains(spec.IncludeRoots, filepath.ToSlash("resources/redis")) {
+	if manifest.Contains(spec.IncludeRoots, filepath.ToSlash("resources/redis")) {
 		t.Fatalf("did not expect resources/redis to be included")
 	}
 }
@@ -97,26 +101,26 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
 
-	manifest := CloudManifest{
+	m := domain.CloudManifest{
 		Version: "1.0.0",
-		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
-		Scenario: ManifestScenario{
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
 			ID: "app-a",
 		},
-		Dependencies: ManifestDependencies{
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
 			Resources: []string{},
 		},
-		Bundle: ManifestBundle{
+		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
+		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
-	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
+	spec, err := bundle.MiniVrooliBundleSpec(repoRoot, m)
 	if err != nil {
 		t.Fatalf("MiniVrooliBundleSpec: %v", err)
 	}
@@ -133,19 +137,19 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 			t.Fatalf("tar entry not self-contained: %q", name)
 		}
 	}
-	if !contains(entries, "packages/pkg-a/README.md") {
+	if !manifest.Contains(entries, "packages/pkg-a/README.md") {
 		t.Fatalf("expected packages entry, got: %v", entries)
 	}
-	if !contains(entries, "scenarios/app-a/README.md") {
+	if !manifest.Contains(entries, "scenarios/app-a/README.md") {
 		t.Fatalf("expected scenario entry, got: %v", entries)
 	}
-	if !contains(entries, "scenarios/vrooli-autoheal/README.md") {
+	if !manifest.Contains(entries, "scenarios/vrooli-autoheal/README.md") {
 		t.Fatalf("expected autoheal entry, got: %v", entries)
 	}
-	if !contains(entries, ".vrooli/cloud/manifest.json") {
+	if !manifest.Contains(entries, ".vrooli/cloud/manifest.json") {
 		t.Fatalf("expected manifest embedded in bundle")
 	}
-	if !contains(entries, ".vrooli/cloud/bundle-metadata.json") {
+	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected bundle metadata embedded in bundle")
 	}
 }
@@ -162,27 +166,27 @@ func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T)
   }
 }`)
 
-	manifest := CloudManifest{
+	m := domain.CloudManifest{
 		Version: "1.0.0",
-		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
-		Scenario: ManifestScenario{
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
 			ID: "app-a",
 		},
-		Dependencies: ManifestDependencies{
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{
+		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 			Resources:       []string{"postgres"},
 		},
-		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
+		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
-	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
+	spec, err := bundle.MiniVrooliBundleSpec(repoRoot, m)
 	if err != nil {
 		t.Fatalf("MiniVrooliBundleSpec: %v", err)
 	}
@@ -250,26 +254,26 @@ use (
 	writeFile(t, repoRoot, "scenarios/app-b/api/go.mod", "module example.com/app-b\n\ngo 1.23\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/api/go.mod", "module example.com/autoheal\n\ngo 1.23\n")
 
-	manifest := CloudManifest{
+	m := domain.CloudManifest{
 		Version: "1.0.0",
-		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
-		Scenario: ManifestScenario{
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
 			ID: "app-a",
 		},
-		Dependencies: ManifestDependencies{
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
 			Resources: []string{},
 		},
-		Bundle: ManifestBundle{
+		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
+		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
-	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
+	spec, err := bundle.MiniVrooliBundleSpec(repoRoot, m)
 	if err != nil {
 		t.Fatalf("MiniVrooliBundleSpec: %v", err)
 	}
@@ -313,28 +317,28 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	writeFile(t, repoRoot, "coverage/should-not-ship.txt", "nope\n")
 	writeFile(t, repoRoot, "logs/should-not-ship.txt", "nope\n")
 
-	manifest := CloudManifest{
+	m := domain.CloudManifest{
 		Version: "1.0.0",
-		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
-		Scenario: ManifestScenario{
+		Target:  domain.ManifestTarget{Type: "vps", VPS: &domain.ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: domain.ManifestScenario{
 			ID: "app-a",
 		},
-		Dependencies: ManifestDependencies{
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"app-a"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{
+		Bundle: domain.ManifestBundle{
 			IncludePackages: true,
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 			Resources:       []string{"postgres"},
 		},
-		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
+		Ports: domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:  domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
 	}
-	manifest.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
+	m.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
 
-	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
+	artifact, err := bundle.BuildMiniVrooliBundle(repoRoot, outDir, m)
 	if err != nil {
 		t.Fatalf("BuildMiniVrooliBundle: %v", err)
 	}
@@ -357,10 +361,10 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 		}
 	}
 
-	if !contains(entries, ".vrooli/cloud/manifest.json") {
+	if !manifest.Contains(entries, ".vrooli/cloud/manifest.json") {
 		t.Fatalf("expected embedded manifest, entries=%v", entries)
 	}
-	if !contains(entries, ".vrooli/cloud/bundle-metadata.json") {
+	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected embedded bundle metadata, entries=%v", entries)
 	}
 
@@ -378,12 +382,12 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	}
 }
 
-func buildTarBytes(t *testing.T, repoRoot string, spec MiniBundleSpec) []byte {
+func buildTarBytes(t *testing.T, repoRoot string, spec bundle.MiniBundleSpec) []byte {
 	t.Helper()
 	var buf bytes.Buffer
-	_, err := writeDeterministicTarGz(&buf, repoRoot, spec)
+	_, err := bundle.WriteDeterministicTarGz(&buf, repoRoot, spec)
 	if err != nil {
-		t.Fatalf("writeDeterministicTarGz: %v", err)
+		t.Fatalf("WriteDeterministicTarGz: %v", err)
 	}
 	return buf.Bytes()
 }
@@ -553,9 +557,9 @@ func TestIsExcluded(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isExcluded(tt.path, tt.patterns)
+			got := bundle.IsExcluded(tt.path, tt.patterns)
 			if got != tt.want {
-				t.Errorf("isExcluded(%q, %v) = %v, want %v", tt.path, tt.patterns, got, tt.want)
+				t.Errorf("bundle.IsExcluded(%q, %v) = %v, want %v", tt.path, tt.patterns, got, tt.want)
 			}
 		})
 	}

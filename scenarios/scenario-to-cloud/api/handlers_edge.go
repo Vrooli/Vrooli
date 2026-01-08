@@ -15,6 +15,9 @@ import (
 
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
 )
 
 // DNSCheckResponse is the response from the DNS check endpoint.
@@ -102,24 +105,24 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	// Get deployment
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
 	}
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
 		return
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Deployment does not have a VPS target"})
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have a VPS target"})
 		return
 	}
 
@@ -127,11 +130,11 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	vpsHost := normalized.Target.VPS.Host
-	domain := normalized.Edge.Domain
+	domainName := normalized.Edge.Domain
 
-	resp := buildDNSCheckResponse(ctx, s.dnsService, domain, vpsHost)
+	resp := buildDNSCheckResponse(ctx, s.dnsService, domainName, vpsHost)
 	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
-	writeJSON(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 // handleDNSRecords returns common DNS records for the edge domain variants.
@@ -141,23 +144,23 @@ func (s *Server) handleDNSRecords(w http.ResponseWriter, r *http.Request) {
 
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
 	}
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
 		return
 	}
 
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if strings.TrimSpace(normalized.Edge.Domain) == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Deployment does not have an edge domain"})
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have an edge domain"})
 		return
 	}
 
@@ -199,7 +202,7 @@ func (s *Server) handleDNSRecords(w http.ResponseWriter, r *http.Request) {
 		resp.Message = "Some DNS records could not be fetched"
 	}
 	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
-	writeJSON(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 func buildDNSCheckResponse(ctx context.Context, svc dns.Service, domainName, vpsHost string) DNSCheckResponse {
@@ -306,7 +309,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	var req CaddyControlRequest
-	if !decodeRequestBody(w, r, &req) {
+	if !httputil.DecodeRequestBody(w, r, &req) {
 		return
 	}
 
@@ -320,7 +323,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 
 	cmd, ok := validActions[req.Action]
 	if !ok {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Message: "Invalid action",
 			Hint:    "Valid actions: start, stop, restart, reload",
 		})
@@ -330,28 +333,28 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 	// Get deployment
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
 	}
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
 		return
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Deployment does not have a VPS target"})
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have a VPS target"})
 		return
 	}
 
-	cfg := sshConfigFromManifest(normalized)
+	cfg := ssh.ConfigFromManifest(normalized)
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
@@ -376,7 +379,7 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 // handleTLSInfo retrieves detailed TLS certificate information.
@@ -387,23 +390,23 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	// Get deployment
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
 	}
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
 		return
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	domain := normalized.Edge.Domain
+	normalized, _ := manifest.ValidateAndNormalize(m)
+	domainName := normalized.Edge.Domain
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -412,14 +415,14 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	// This doesn't require SSH - it checks the public certificate
 	cmd := fmt.Sprintf(
 		"echo | timeout 10 openssl s_client -servername %s -connect %s:443 2>/dev/null | openssl x509 -noout -text 2>/dev/null",
-		domain, domain,
+		domainName, domainName,
 	)
 
 	// Try to run locally first (works if openssl is available)
 	result, err := runLocalCommand(ctx, cmd)
 
 	resp := TLSInfoResponse{
-		Domain:    domain,
+		Domain:    domainName,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -427,7 +430,7 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 		resp.OK = false
 		resp.Valid = false
 		resp.Error = "Unable to retrieve TLS certificate. The domain may not have HTTPS configured yet."
-		writeJSON(w, http.StatusOK, resp)
+		httputil.WriteJSON(w, http.StatusOK, resp)
 		return
 	}
 
@@ -435,7 +438,7 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	parseTLSCertOutput(result, &resp)
 	resp.OK = true
 
-	writeJSON(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 // handleTLSRenew forces a TLS certificate renewal via Caddy.
@@ -446,29 +449,29 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 	// Get deployment
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to get deployment"})
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
 	}
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{Message: "Deployment not found"})
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Message: "Deployment not found"})
 		return
 	}
 
 	// Parse manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{Message: "Failed to parse manifest"})
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to parse manifest"})
 		return
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{Message: "Deployment does not have a VPS target"})
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Message: "Deployment does not have a VPS target"})
 		return
 	}
 
-	domain := normalized.Edge.Domain
-	cfg := sshConfigFromManifest(normalized)
+	domainName := normalized.Edge.Domain
+	cfg := ssh.ConfigFromManifest(normalized)
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
@@ -480,13 +483,13 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 			"systemctl reload caddy && "+
 			"sleep 3 && "+
 			"curl -sf https://%s >/dev/null && echo 'Certificate valid'",
-		domain,
+		domainName,
 	)
 
 	result, err := s.sshRunner.Run(ctx, cfg, cmd)
 
 	resp := TLSRenewResponse{
-		Domain:    domain,
+		Domain:    domainName,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -507,7 +510,7 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 		resp.Output = result.Stdout
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 // parseTLSCertOutput parses openssl x509 -text output into TLSInfoResponse.

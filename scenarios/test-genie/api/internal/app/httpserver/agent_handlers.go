@@ -31,8 +31,6 @@ type agentModel struct {
 }
 
 func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
-	provider := strings.TrimSpace(r.URL.Query().Get("provider"))
-
 	if !s.agentService.IsAvailable(r.Context()) {
 		s.writeError(w, http.StatusServiceUnavailable, "agent-manager is not available")
 		return
@@ -52,9 +50,6 @@ func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
 	for _, model := range resp.GetAvailableModels() {
 		id := strings.TrimSpace(model.GetId())
 		if id == "" {
-			continue
-		}
-		if provider != "" && !strings.EqualFold(provider, model.GetProvider()) {
 			continue
 		}
 

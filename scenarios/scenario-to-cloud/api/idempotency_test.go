@@ -4,6 +4,11 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/secrets"
+	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps"
 )
 
 // TestCaddyConfigIdempotency verifies that Caddy configuration is only written
@@ -12,7 +17,7 @@ import (
 func TestCaddyConfigIdempotency(t *testing.T) {
 	// Create a fake SSH runner that tracks calls
 	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]SSHResult{
+		Responses: map[string]ssh.Result{
 			// All commands succeed
 		},
 	}
@@ -68,7 +73,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 
 			// Configure response for cat command
 			catCmd := "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"
-			fakeSSH.Responses = map[string]SSHResult{
+			fakeSSH.Responses = map[string]ssh.Result{
 				catCmd: {
 					Stdout:   tt.currentCaddyContent,
 					ExitCode: 0,
@@ -80,7 +85,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 
 			// Simulate the idempotent Caddy config logic
 			currentContent := strings.TrimSpace(tt.currentCaddyContent)
-			desiredCaddyfile := buildCaddyfile(tt.desiredDomain, tt.desiredPort)
+			desiredCaddyfile := vps.BuildCaddyfile(tt.desiredDomain, tt.desiredPort)
 			desiredContent := strings.TrimSpace(desiredCaddyfile)
 
 			needsWrite := currentContent != desiredContent
@@ -100,8 +105,8 @@ func TestBuildCaddyfileDeterministic(t *testing.T) {
 	domain := "example.com"
 	port := 3000
 
-	first := buildCaddyfile(domain, port)
-	second := buildCaddyfile(domain, port)
+	first := vps.BuildCaddyfile(domain, port)
+	second := vps.BuildCaddyfile(domain, port)
 
 	if first != second {
 		t.Errorf("buildCaddyfile not deterministic:\n  First: %q\n  Second: %q", first, second)
@@ -109,7 +114,7 @@ func TestBuildCaddyfileDeterministic(t *testing.T) {
 
 	expected := "example.com {\n  reverse_proxy 127.0.0.1:3000\n}"
 	if first != expected {
-		t.Errorf("buildCaddyfile(%q, %d) = %q, want %q", domain, port, first, expected)
+		t.Errorf("vps.BuildCaddyfile(%q, %d) = %q, want %q", domain, port, first, expected)
 	}
 }
 
@@ -121,7 +126,7 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 
 	// Fake SSH runner that returns existing secrets
 	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]SSHResult{
+		Responses: map[string]ssh.Result{
 			// Return existing secrets.json with a password
 			"cat '/root/Vrooli/.vrooli/secrets.json' 2>/dev/null || echo '{}'": {
 				Stdout: `{
@@ -136,11 +141,11 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 	// Default success for other commands
 	fakeSSH.DefaultErr = nil
 
-	cfg := SSHConfig{Host: "test", Port: 22, User: "root"}
+	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
 	workdir := "/root/Vrooli"
 
 	// Read existing secrets
-	existing, err := ReadSecretsFromVPS(ctx, fakeSSH, cfg, workdir)
+	existing, err := secrets.ReadFromVPS(ctx, fakeSSH, cfg, workdir)
 	if err != nil {
 		t.Fatalf("ReadSecretsFromVPS failed: %v", err)
 	}
@@ -151,7 +156,7 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 	}
 
 	// Now simulate the preservation logic from WriteSecretsToVPS
-	newSecrets := []GeneratedSecret{
+	newSecrets := []secrets.GeneratedSecret{
 		{ID: "pg_pass", Key: "POSTGRES_PASSWORD", Value: "new-generated-password"},
 		{ID: "api_key", Key: "API_KEY", Value: "new-api-key"},
 	}
@@ -187,23 +192,23 @@ func TestStopExistingScenarioIdempotent(t *testing.T) {
 
 	// First call: scenario running
 	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]SSHResult{},
+		Responses: map[string]ssh.Result{},
 	}
 	fakeSSH.DefaultErr = nil // All commands succeed
 
-	cfg := SSHConfig{Host: "test", Port: 22, User: "root"}
+	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
 	workdir := "/root/Vrooli"
 	scenarioID := "test-scenario"
 	ports := []int{3000, 3001}
 
 	// First stop
-	result1 := StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
+	result1 := vps.StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
 	if !result1.OK {
 		t.Errorf("First StopExistingScenario failed: %s", result1.Error)
 	}
 
 	// Second stop (should also succeed even if nothing to stop)
-	result2 := StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
+	result2 := vps.StopExistingScenario(ctx, fakeSSH, cfg, workdir, scenarioID, ports)
 	if !result2.OK {
 		t.Errorf("Second StopExistingScenario failed: %s", result2.Error)
 	}
@@ -220,7 +225,7 @@ func TestDeleteBundleIdempotent(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// First delete - file doesn't exist
-	freed1, err := DeleteBundle(tempDir, "abc123")
+	freed1, err := bundle.DeleteBundle(tempDir, "abc123")
 	if err != nil {
 		t.Errorf("First DeleteBundle failed: %v", err)
 	}
@@ -229,7 +234,7 @@ func TestDeleteBundleIdempotent(t *testing.T) {
 	}
 
 	// Second delete - still doesn't exist, should still succeed
-	freed2, err := DeleteBundle(tempDir, "abc123")
+	freed2, err := bundle.DeleteBundle(tempDir, "abc123")
 	if err != nil {
 		t.Errorf("Second DeleteBundle failed: %v", err)
 	}

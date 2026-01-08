@@ -3,35 +3,38 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/vps"
 )
 
-func TestBuildVPSDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
+func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 	// [REQ:STC-P0-005] Start resources + scenario and verify HTTPS
 	// [REQ:STC-P0-011] Caddy + Let's Encrypt configured and verified
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "landing-page-business-suite"},
-		Dependencies: ManifestDependencies{
+		Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"landing-page-business-suite", "vrooli-autoheal"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
+		Bundle: domain.ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
+		Ports:  domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:   domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
 	}
 
-	plan, err := BuildVPSDeployPlan(manifest)
+	plan, err := vps.BuildDeployPlan(manifest)
 	if err != nil {
-		t.Fatalf("BuildVPSDeployPlan: %v", err)
+		t.Fatalf("vps.BuildDeployPlan: %v", err)
 	}
 
 	var hasCaddy, hasTargetStart, hasExportedPorts, hasHTTPS bool
@@ -69,38 +72,38 @@ func TestBuildVPSDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 func TestBuildPortEnvVars(t *testing.T) {
 	tests := []struct {
 		name     string
-		ports    ManifestPorts
+		ports    domain.ManifestPorts
 		expected string
 	}{
 		{
 			name:     "empty ports",
-			ports:    ManifestPorts{},
+			ports:    domain.ManifestPorts{},
 			expected: "",
 		},
 		{
 			name:     "single port",
-			ports:    ManifestPorts{"api": 8080},
+			ports:    domain.ManifestPorts{"api": 8080},
 			expected: "export API_PORT=8080 &&",
 		},
 		{
 			name:     "multiple ports sorted",
-			ports:    ManifestPorts{"ui": 3000, "api": 8080, "ws": 9000},
+			ports:    domain.ManifestPorts{"ui": 3000, "api": 8080, "ws": 9000},
 			expected: "export API_PORT=8080 UI_PORT=3000 WS_PORT=9000 &&",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildPortEnvVars(tt.ports)
+			result := vps.BuildPortEnvVars(tt.ports)
 			if result != tt.expected {
-				t.Errorf("buildPortEnvVars(%v) = %q, want %q", tt.ports, result, tt.expected)
+				t.Errorf("BuildPortEnvVars(%v) = %q, want %q", tt.ports, result, tt.expected)
 			}
 		})
 	}
 }
 
 func TestBuildWaitForPortScriptUsesHomeEnv(t *testing.T) {
-	script := buildWaitForPortScript("127.0.0.1", 35000, 10, "UI")
+	script := vps.BuildWaitForPortScript("127.0.0.1", 35000, 10, "UI")
 	if strings.Contains(script, "~/.vrooli") {
 		t.Fatalf("expected wait script to avoid ~ expansion in logs path")
 	}

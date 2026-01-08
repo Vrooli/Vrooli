@@ -20,18 +20,18 @@ const (
 // Investigation represents an investigation record for a deployment failure.
 // Investigations are triggered by users to diagnose deployment issues via an agent.
 type Investigation struct {
-	ID           string              `json:"id"`
-	DeploymentID string              `json:"deployment_id"`
-	DeploymentRunID *string          `json:"deployment_run_id,omitempty"`
-	Status       InvestigationStatus `json:"status"`
-	Findings     *string             `json:"findings,omitempty"`
-	Progress     int                 `json:"progress"` // 0-100
-	Details      NullRawMessage      `json:"details,omitempty"`
-	AgentRunID   *string             `json:"agent_run_id,omitempty"`
-	ErrorMessage *string             `json:"error_message,omitempty"`
-	CreatedAt    time.Time           `json:"created_at"`
-	UpdatedAt    time.Time           `json:"updated_at"`
-	CompletedAt  *time.Time          `json:"completed_at,omitempty"`
+	ID              string              `json:"id"`
+	DeploymentID    string              `json:"deployment_id"`
+	DeploymentRunID *string             `json:"deployment_run_id,omitempty"`
+	Status          InvestigationStatus `json:"status"`
+	Findings        *string             `json:"findings,omitempty"`
+	Progress        int                 `json:"progress"` // 0-100
+	Details         NullRawMessage      `json:"details,omitempty"`
+	AgentRunID      *string             `json:"agent_run_id,omitempty"`
+	ErrorMessage    *string             `json:"error_message,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	UpdatedAt       time.Time           `json:"updated_at"`
+	CompletedAt     *time.Time          `json:"completed_at,omitempty"`
 }
 
 // InvestigationDetails contains structured metadata about an investigation.
@@ -80,15 +80,15 @@ type InvestigationSummary struct {
 // ToSummary converts an Investigation to its summary form.
 func (i *Investigation) ToSummary() InvestigationSummary {
 	summary := InvestigationSummary{
-		ID:           i.ID,
-		DeploymentID: i.DeploymentID,
+		ID:              i.ID,
+		DeploymentID:    i.DeploymentID,
 		DeploymentRunID: i.DeploymentRunID,
-		Status:       i.Status,
-		Progress:     i.Progress,
-		HasFindings:  i.Findings != nil && *i.Findings != "",
-		ErrorMessage: i.ErrorMessage,
-		CreatedAt:    i.CreatedAt,
-		CompletedAt:  i.CompletedAt,
+		Status:          i.Status,
+		Progress:        i.Progress,
+		HasFindings:     i.Findings != nil && *i.Findings != "",
+		ErrorMessage:    i.ErrorMessage,
+		CreatedAt:       i.CreatedAt,
+		CompletedAt:     i.CompletedAt,
 	}
 
 	// Extract source_investigation_id from details if present

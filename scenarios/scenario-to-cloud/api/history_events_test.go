@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 )
 
@@ -34,25 +35,25 @@ func TestAppendHistoryEventSetsTimestamp(t *testing.T) {
 }
 
 func TestFormatPreflightFailureDetails(t *testing.T) {
-	resp := PreflightResponse{
-		Checks: []PreflightCheck{
+	resp := domain.PreflightResponse{
+		Checks: []domain.PreflightCheck{
 			{
 				ID:      "ssh_connect",
 				Title:   "SSH connectivity",
-				Status:  PreflightFail,
+				Status:  domain.PreflightFail,
 				Details: "Unable to run a remote command over SSH",
 				Hint:    "Confirm SSH key auth works",
 			},
 			{
 				ID:      "firewall_inbound",
 				Title:   "Inbound firewall rules",
-				Status:  PreflightWarn,
+				Status:  domain.PreflightWarn,
 				Details: "UFW is inactive",
 			},
 		},
 	}
 
-	details := formatPreflightFailureDetails(resp)
+	details := deployment.FormatPreflightFailureDetails(resp)
 	if !strings.Contains(details, "SSH connectivity") {
 		t.Fatalf("expected failing check title in details, got: %s", details)
 	}

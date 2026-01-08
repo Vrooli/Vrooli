@@ -6,39 +6,43 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps"
 )
 
 func TestVPSInspectPlanAndApply(t *testing.T) {
 	// [REQ:STC-P0-006] Remote status and logs retrieval
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "landing-page-business-suite"},
-		Dependencies: ManifestDependencies{
+		Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"landing-page-business-suite"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
+		Bundle: domain.ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
+		Ports:  domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:   domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
 	}
 
-	opts, err := (VPSInspectOptionsIn{TailLines: 123}).Normalize(manifest)
+	opts, err := (vps.InspectOptionsIn{TailLines: 123}).Normalize(manifest)
 	if err != nil {
 		t.Fatalf("Normalize: %v", err)
 	}
 
-	plan, err := BuildVPSInspectPlan(manifest, opts)
+	plan, err := vps.BuildInspectPlan(manifest, opts)
 	if err != nil {
-		t.Fatalf("BuildVPSInspectPlan: %v", err)
+		t.Fatalf("vps.BuildInspectPlan: %v", err)
 	}
 	if len(plan.Steps) != 3 {
 		t.Fatalf("expected 3 steps, got: %+v", plan)
@@ -52,13 +56,13 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 
 	// Commands now include PATH setup for SSH non-interactive sessions
 	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := &FakeSSHRunner{Responses: map[string]SSHResult{
+	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json":   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
 	}}
 
-	result := RunVPSInspect(ctx, manifest, opts, runner)
+	result := vps.RunInspect(ctx, manifest, opts, runner)
 	if !result.OK {
 		t.Fatalf("expected OK, got: %+v", result)
 	}
@@ -72,45 +76,45 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 
 func TestVPSInspectOptionsNormalize(t *testing.T) {
 	// [REQ:STC-P0-006] Options validation for inspect
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version:  "1.0.0",
-		Scenario: ManifestScenario{ID: "test"},
+		Scenario: domain.ManifestScenario{ID: "test"},
 	}
 
 	tests := []struct {
 		name      string
-		in        VPSInspectOptionsIn
+		in        vps.InspectOptionsIn
 		wantLines int
 		wantErr   bool
 	}{
 		{
 			name:      "default when zero",
-			in:        VPSInspectOptionsIn{TailLines: 0},
+			in:        vps.InspectOptionsIn{TailLines: 0},
 			wantLines: 200,
 		},
 		{
 			name:      "custom value within range",
-			in:        VPSInspectOptionsIn{TailLines: 500},
+			in:        vps.InspectOptionsIn{TailLines: 500},
 			wantLines: 500,
 		},
 		{
 			name:      "minimum valid",
-			in:        VPSInspectOptionsIn{TailLines: 1},
+			in:        vps.InspectOptionsIn{TailLines: 1},
 			wantLines: 1,
 		},
 		{
 			name:      "maximum valid",
-			in:        VPSInspectOptionsIn{TailLines: 2000},
+			in:        vps.InspectOptionsIn{TailLines: 2000},
 			wantLines: 2000,
 		},
 		{
 			name:    "below minimum",
-			in:      VPSInspectOptionsIn{TailLines: -1},
+			in:      vps.InspectOptionsIn{TailLines: -1},
 			wantErr: true,
 		},
 		{
 			name:    "above maximum",
-			in:      VPSInspectOptionsIn{TailLines: 2001},
+			in:      vps.InspectOptionsIn{TailLines: 2001},
 			wantErr: true,
 		},
 	}
@@ -134,26 +138,26 @@ func TestVPSInspectOptionsNormalize(t *testing.T) {
 	}
 }
 
-func TestBuildVPSInspectPlanSteps(t *testing.T) {
+func TestBuildInspectPlanSteps(t *testing.T) {
 	// [REQ:STC-P0-006] Inspect plan contains correct steps
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "10.0.0.1",
 				Port:    22,
 				User:    "admin",
 				Workdir: "/opt/vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "my-app"},
+		Scenario: domain.ManifestScenario{ID: "my-app"},
 	}
 
-	opts := VPSInspectOptions{TailLines: 50}
-	plan, err := BuildVPSInspectPlan(manifest, opts)
+	opts := vps.InspectOptions{TailLines: 50}
+	plan, err := vps.BuildInspectPlan(manifest, opts)
 	if err != nil {
-		t.Fatalf("BuildVPSInspectPlan: %v", err)
+		t.Fatalf("vps.BuildInspectPlan: %v", err)
 	}
 
 	expectedSteps := []struct {
@@ -199,22 +203,22 @@ func TestBuildVPSInspectPlanSteps(t *testing.T) {
 	}
 }
 
-func TestRunVPSInspectHandlesErrors(t *testing.T) {
+func TestRunInspectHandlesErrors(t *testing.T) {
 	// [REQ:STC-P0-006] Inspect handles SSH errors gracefully
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "test-app"},
+		Scenario: domain.ManifestScenario{ID: "test-app"},
 	}
-	opts := VPSInspectOptions{TailLines: 100}
+	opts := vps.InspectOptions{TailLines: 100}
 
 	tests := []struct {
 		name          string
@@ -244,9 +248,9 @@ func TestRunVPSInspectHandlesErrors(t *testing.T) {
 			defer cancel()
 
 			pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-			responses := map[string]SSHResult{
-				pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test-app' --json": {ExitCode: 0, Stdout: `{}`},
-				pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":           {ExitCode: 0, Stdout: `{}`},
+			responses := map[string]ssh.Result{
+				pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test-app' --json":   {ExitCode: 0, Stdout: `{}`},
+				pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":              {ExitCode: 0, Stdout: `{}`},
 				pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100": {ExitCode: 0, Stdout: "logs"},
 			}
 			errs := map[string]error{}
@@ -262,7 +266,7 @@ func TestRunVPSInspectHandlesErrors(t *testing.T) {
 			}
 
 			runner := &FakeSSHRunner{Responses: responses, Errs: errs}
-			result := RunVPSInspect(ctx, manifest, opts, runner)
+			result := vps.RunInspect(ctx, manifest, opts, runner)
 
 			if result.OK {
 				t.Fatal("expected not OK")
@@ -274,36 +278,36 @@ func TestRunVPSInspectHandlesErrors(t *testing.T) {
 	}
 }
 
-func TestRunVPSInspectTimestamp(t *testing.T) {
+func TestRunInspectTimestamp(t *testing.T) {
 	// [REQ:STC-P0-006] Inspect result includes valid timestamp
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "test"},
+		Scenario: domain.ManifestScenario{ID: "test"},
 	}
-	opts := VPSInspectOptions{TailLines: 10}
+	opts := vps.InspectOptions{TailLines: 10}
 
 	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := &FakeSSHRunner{Responses: map[string]SSHResult{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test' --json": {ExitCode: 0, Stdout: `{}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":        {ExitCode: 0, Stdout: `{}`},
+	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
+		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test' --json":  {ExitCode: 0, Stdout: `{}`},
+		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":         {ExitCode: 0, Stdout: `{}`},
 		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test' --tail 10": {ExitCode: 0, Stdout: ""},
 	}}
 
 	// Subtract 1 second from before to allow for rounding differences in RFC3339 format
 	before := time.Now().UTC().Add(-time.Second)
-	result := RunVPSInspect(ctx, manifest, opts, runner)
+	result := vps.RunInspect(ctx, manifest, opts, runner)
 	after := time.Now().UTC().Add(time.Second)
 
 	if result.Timestamp == "" {
