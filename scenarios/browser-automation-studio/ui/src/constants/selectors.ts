@@ -342,6 +342,20 @@ const literalSelectors = {
       cancelButton: "project-modal-cancel",
       submitButton: "project-modal-submit",
     },
+    projectImport: {
+      root: "project-import-modal",
+      folderPathInput: "project-import-folder-path-input",
+      folderPathError: "project-import-folder-path-error",
+      nameInput: "project-import-name-input",
+      descriptionInput: "project-import-description-input",
+      validateButton: "project-import-validate-button",
+      cancelButton: "project-import-cancel-button",
+      importButton: "project-import-button",
+      preview: {
+        section: "project-import-preview-section",
+        alreadyIndexedWarning: "project-import-already-indexed-warning",
+      },
+    },
   },
   forms: {
     error: "form-error",

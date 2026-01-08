@@ -12,12 +12,14 @@ import {
   Play,
   Sparkles,
   Lightbulb,
+  Upload,
 } from 'lucide-react';
 import { useProjectStore, type Project } from './store';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { selectors } from '@constants/selectors';
 import { TabEmptyState, ProjectsEmptyPreview } from '@/views/DashboardView/previews';
+import ProjectImportModal from './ProjectImportModal';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;
@@ -44,6 +46,11 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [showActionsFor, setShowActionsFor] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  const handleImportSuccess = useCallback((project: Project) => {
+    onProjectSelect(project);
+  }, [onProjectSelect]);
 
   // Filter projects based on search
   const filteredProjects = projects.filter((project) => {
@@ -114,6 +121,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           New project
           <div className="hero-button-glow" />
         </button>
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors w-full sm:w-auto justify-center"
+        >
+          <Upload size={16} />
+          Import
+        </button>
       </div>
     </div>
   );
@@ -126,14 +140,23 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           <h2 className="text-lg font-semibold text-white">Your Projects</h2>
           <p className="text-sm text-gray-400">{projects.length} projects</p>
         </div>
-        <button
-          onClick={onCreateProject}
-          data-testid={selectors.dashboard.newProjectButton}
-          className="flex items-center gap-2 px-4 py-2 bg-flow-accent hover:bg-blue-600 text-white rounded-lg transition-colors"
-        >
-          <Plus size={16} />
-          New Project
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-lg transition-colors"
+          >
+            <Upload size={16} />
+            Import
+          </button>
+          <button
+            onClick={onCreateProject}
+            data-testid={selectors.dashboard.newProjectButton}
+            className="flex items-center gap-2 px-4 py-2 bg-flow-accent hover:bg-blue-600 text-white rounded-lg transition-colors"
+          >
+            <Plus size={16} />
+            New Project
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -350,6 +373,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
           })}
         </div>
       )}
+
+      {/* Import Modal */}
+      <ProjectImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={handleImportSuccess}
+      />
     </div>
   );
 };
