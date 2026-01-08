@@ -68,17 +68,27 @@ func getAgentManagerURL() (string, error) {
 
 // SpawnCodingAgent creates a new coding agent run.
 // This is a two-step process:
-// 1. Create a Task with the description
+// 1. Create a Task with the description and optional context attachments
 // 2. Create a Run referencing that task
-func (c *AgentManagerClient) SpawnCodingAgent(ctx context.Context, taskDescription, runnerType, workspacePath string, timeoutMinutes int) (map[string]interface{}, error) {
+//
+// contextAttachments are skill/context data to inject into the agent's prompt.
+// Each attachment should have: type, key, label, content, and optionally tags.
+func (c *AgentManagerClient) SpawnCodingAgent(ctx context.Context, taskDescription, runnerType, workspacePath string, timeoutMinutes int, contextAttachments []map[string]interface{}) (map[string]interface{}, error) {
 	// Step 1: Create the Task
+	taskData := map[string]interface{}{
+		"title":        "Chat-initiated task",
+		"description":  taskDescription,
+		"scope_path":   "agent-inbox/chat-tasks",
+		"project_root": workspacePath,
+	}
+
+	// Add context attachments if provided (skills converted from agent-inbox)
+	if len(contextAttachments) > 0 {
+		taskData["context_attachments"] = contextAttachments
+	}
+
 	taskReqBody := map[string]interface{}{
-		"task": map[string]interface{}{
-			"title":        "Chat-initiated task",
-			"description":  taskDescription,
-			"scope_path":   "agent-inbox/chat-tasks",
-			"project_root": workspacePath,
-		},
+		"task": taskData,
 	}
 
 	taskBody, err := json.Marshal(taskReqBody)

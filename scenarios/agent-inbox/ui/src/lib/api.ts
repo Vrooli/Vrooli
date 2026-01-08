@@ -701,6 +701,16 @@ export interface StreamingEvent {
 
 // Chat completion with streaming
 // Supports AbortController signal for cancellation on unmount or new request
+export interface SkillPayloadForAPI {
+  id: string;
+  name: string;
+  content: string;
+  key: string;
+  label: string;
+  tags?: string[];
+  targetToolId?: string;
+}
+
 export async function completeChat(
   chatId: string,
   options?: {
@@ -709,6 +719,7 @@ export async function completeChat(
     onEvent?: (event: StreamingEvent) => void;
     signal?: AbortSignal;
     forcedTool?: { scenario: string; toolName: string };
+    skills?: SkillPayloadForAPI[];
   }
 ): Promise<Message | void> {
   const stream = options?.stream ?? true;
@@ -719,9 +730,15 @@ export async function completeChat(
   }
   const url = buildApiUrl(`/chats/${chatId}/complete?${params.toString()}`, { baseUrl: API_BASE });
 
+  // Build request body with skills if provided
+  const body = options?.skills && options.skills.length > 0
+    ? JSON.stringify({ skills: options.skills })
+    : undefined;
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body,
     signal: options?.signal,
   });
 

@@ -318,9 +318,12 @@ export function useChats(options: UseChatsOptions = {}) {
       queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-      // Run AI completion with optional forced tool
+      // Run AI completion with optional forced tool and skills
       try {
-        await completion.runCompletion(chatId, { forcedTool: payload.forcedTool });
+        await completion.runCompletion(chatId, {
+          forcedTool: payload.forcedTool,
+          skills: payload.skills,
+        });
         queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
         queryClient.invalidateQueries({ queryKey: ["chats"] });
 

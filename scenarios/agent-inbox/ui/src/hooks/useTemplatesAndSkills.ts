@@ -21,10 +21,11 @@ import {
   hideBuiltInTemplate,
   unhideBuiltInTemplate,
 } from "@/data/templates";
-import { SKILLS, getSkillsByIds } from "@/data/skills";
+import { SKILLS, getSkillById, getSkillsByIds } from "@/data/skills";
 import type {
   ActiveTemplate,
   Skill,
+  SkillPayload,
   SlashCommand,
   SlashCommandType,
   Template,
@@ -71,6 +72,7 @@ export interface UseTemplatesAndSkillsReturn {
   toggleSkill: (skillId: string) => void;
   clearSkills: () => void;
   getSelectedSkills: () => Skill[];
+  buildSkillPayloads: (skillIds: string[]) => SkillPayload[];
 
   // Slash commands
   getAllCommands: () => SlashCommand[];
@@ -322,6 +324,27 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     return getSkillsByIds(selectedSkillIds);
   }, [selectedSkillIds]);
 
+  // Build full skill payloads for sending to backend
+  const buildSkillPayloads = useCallback(
+    (skillIds: string[]): SkillPayload[] => {
+      const payloads: SkillPayload[] = [];
+      for (const id of skillIds) {
+        const skill = getSkillById(id);
+        if (!skill) continue;
+        payloads.push({
+          id: skill.id,
+          name: skill.name,
+          content: skill.content,
+          key: `skill-${skill.id}`,
+          label: skill.name,
+          tags: skill.tags,
+        });
+      }
+      return payloads;
+    },
+    []
+  );
+
   // Build all slash commands
   const getAllCommands = useCallback((): SlashCommand[] => {
     const commands: SlashCommand[] = [
@@ -479,6 +502,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     toggleSkill,
     clearSkills,
     getSelectedSkills,
+    buildSkillPayloads,
 
     // Slash commands
     getAllCommands,

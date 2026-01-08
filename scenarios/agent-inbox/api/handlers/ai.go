@@ -214,6 +214,17 @@ func buildConversationSummary(messages []domain.Message, maxMessages, maxContent
 	return summary.String()
 }
 
+// SkillPayload represents a skill with its content for tool context injection.
+type SkillPayload struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Content      string   `json:"content"`
+	Key          string   `json:"key"`
+	Label        string   `json:"label"`
+	Tags         []string `json:"tags,omitempty"`
+	TargetToolID string   `json:"targetToolId,omitempty"`
+}
+
 // ChatComplete runs AI completion on a chat.
 // This is the main entry point for chat completions.
 //
@@ -229,8 +240,20 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 	// Parse optional force_tool query param (format: "scenario:tool_name")
 	forcedTool := r.URL.Query().Get("force_tool")
 
+	// Parse optional skills from request body
+	var skills []SkillPayload
+	if r.Body != nil && r.ContentLength > 0 {
+		var reqBody struct {
+			Skills []SkillPayload `json:"skills"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err == nil {
+			skills = reqBody.Skills
+		}
+	}
+
 	// Prepare completion request (validates chat exists and has messages)
 	svc := h.NewCompletionService()
+	svc.SetSkills(skills) // Pass skills to service for tool execution
 	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r), forcedTool)
 	if err != nil {
 		statusCode := mapCompletionErrorToStatus(err)

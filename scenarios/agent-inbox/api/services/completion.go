@@ -32,6 +32,17 @@ func NewToolExecutionResult(toolCallID, toolName string, record *domain.ToolCall
 	return result
 }
 
+// SkillPayload represents a skill with its content for tool context injection.
+type SkillPayload struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Content      string   `json:"content"`
+	Key          string   `json:"key"`
+	Label        string   `json:"label"`
+	Tags         []string `json:"tags,omitempty"`
+	TargetToolID string   `json:"targetToolId,omitempty"`
+}
+
 // CompletionService orchestrates AI chat completion.
 // It handles the decision flow for completing a chat with an AI model,
 // including tool execution when requested by the model.
@@ -43,6 +54,7 @@ type CompletionService struct {
 	messageConverter *MessageConverter
 	storage          StorageService
 	asyncTracker     *AsyncTrackerService
+	skills           []SkillPayload // Skills to inject into tool calls as context
 }
 
 // NewCompletionService creates a new completion service.
@@ -76,6 +88,85 @@ func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *To
 // This is called after construction to avoid circular dependencies.
 func (s *CompletionService) SetAsyncTracker(tracker *AsyncTrackerService) {
 	s.asyncTracker = tracker
+}
+
+// SetSkills sets the skills to inject into tool calls as context attachments.
+// Skills are converted to context attachments when passed to external tools like agent-manager.
+func (s *CompletionService) SetSkills(skills interface{}) {
+	// Convert from handlers.SkillPayload to services.SkillPayload
+	// This avoids circular imports between handlers and services
+	if skills == nil {
+		s.skills = nil
+		return
+	}
+
+	// Use JSON marshal/unmarshal for type conversion
+	jsonBytes, err := json.Marshal(skills)
+	if err != nil {
+		log.Printf("[WARN] Failed to marshal skills: %v", err)
+		return
+	}
+
+	var parsed []SkillPayload
+	if err := json.Unmarshal(jsonBytes, &parsed); err != nil {
+		log.Printf("[WARN] Failed to unmarshal skills: %v", err)
+		return
+	}
+
+	s.skills = parsed
+	log.Printf("[DEBUG] CompletionService: set %d skills for context injection", len(s.skills))
+}
+
+// injectSkillsIntoArgs injects skills as context_attachments into tool arguments.
+// Skills are filtered by targetToolId if specified - only skills targeting this tool
+// or skills with no target (apply to all tools) are included.
+// Returns the original arguments if no skills are set or on any error.
+func (s *CompletionService) injectSkillsIntoArgs(toolName, arguments string) string {
+	if len(s.skills) == 0 {
+		return arguments
+	}
+
+	// Parse existing arguments
+	var args map[string]interface{}
+	if err := json.Unmarshal([]byte(arguments), &args); err != nil {
+		log.Printf("[WARN] Failed to parse tool arguments for skill injection: %v", err)
+		return arguments
+	}
+
+	// Filter skills by targetToolId
+	var contextAttachments []map[string]interface{}
+	for _, skill := range s.skills {
+		// Include skill if it targets this tool or has no target (applies to all)
+		if skill.TargetToolID == "" || skill.TargetToolID == toolName {
+			attachment := map[string]interface{}{
+				"type":    "skill",
+				"key":     skill.Key,
+				"label":   skill.Label,
+				"content": skill.Content,
+			}
+			if len(skill.Tags) > 0 {
+				attachment["tags"] = skill.Tags
+			}
+			contextAttachments = append(contextAttachments, attachment)
+		}
+	}
+
+	if len(contextAttachments) == 0 {
+		return arguments
+	}
+
+	// Inject context attachments
+	args["_context_attachments"] = contextAttachments
+	log.Printf("[DEBUG] Injected %d skills as context_attachments into %s", len(contextAttachments), toolName)
+
+	// Re-serialize
+	enhanced, err := json.Marshal(args)
+	if err != nil {
+		log.Printf("[WARN] Failed to re-serialize tool arguments: %v", err)
+		return arguments
+	}
+
+	return string(enhanced)
 }
 
 // SaveCompletionResult persists a completion result to the database.
@@ -191,8 +282,11 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			continue
 		}
 
+		// Inject skills as context attachments into tool arguments
+		enhancedArgs := s.injectSkillsIntoArgs(tc.Function.Name, tc.Function.Arguments)
+
 		// Execute immediately
-		record, err := s.executor.ExecuteTool(ctx, chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
+		record, err := s.executor.ExecuteTool(ctx, chatID, tc.ID, tc.Function.Name, enhancedArgs)
 		// Track errors for aggregated reporting
 		if err != nil {
 			executionErrors = append(executionErrors, fmt.Errorf("tool %s failed: %w", tc.Function.Name, err))

@@ -26,7 +26,7 @@ import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapa
 import { getTemplateById } from "@/data/templates";
 import { getSkillById } from "@/data/skills";
 import type { Model, Message } from "../../lib/api";
-import type { SlashCommand, Template, MergeAction } from "@/lib/types/templates";
+import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
 
 export interface MessagePayload {
   content: string;
@@ -34,6 +34,8 @@ export interface MessagePayload {
   webSearchEnabled: boolean;
   forcedTool?: ForcedTool;
   skillIds?: string[];
+  skills?: SkillPayload[]; // Full skill payloads for tool context injection
+  suggestedToolIds?: string[]; // Tools suggested by template
 }
 
 interface MessageInputProps {
@@ -159,6 +161,7 @@ export function MessageInput({
     removeSkill,
     toggleSkill,
     getSelectedSkills,
+    buildSkillPayloads,
     filterCommands,
     resetAll: resetTemplatesAndSkills,
     // Navigation
@@ -286,6 +289,8 @@ export function MessageInput({
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
       forcedTool: forcedTool ?? undefined,
       skillIds: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
+      skills: selectedSkillIds.length > 0 ? buildSkillPayloads(selectedSkillIds) : undefined,
+      suggestedToolIds: activeTemplate?.template.suggestedToolIds,
     };
 
     // Call appropriate handler based on mode
@@ -334,6 +339,7 @@ export function MessageInput({
     getFilledTemplateContent,
     isTemplateValid,
     selectedSkillIds,
+    buildSkillPayloads,
     resetTemplatesAndSkills,
   ]);
 

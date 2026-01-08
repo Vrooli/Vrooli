@@ -26,6 +26,7 @@ export interface Template {
   content: string; // Template text with {{variable}} placeholders
   variables: TemplateVariable[];
   suggestedSkillIds?: string[]; // Skills that auto-attach when template selected
+  suggestedToolIds?: string[]; // Tools suggested for this template (e.g., ["spawn_coding_agent"])
   modes?: string[]; // Hierarchical path: ["Research", "Codebase Structure"]
   isBuiltIn?: boolean; // Distinguishes system vs user templates
   createdAt?: string; // ISO timestamp (user templates)
@@ -41,6 +42,26 @@ export interface Skill {
   category?: string;
   content: string; // Full methodology/knowledge content
   tags?: string[];
+}
+
+/**
+ * SkillPayload - Full skill data sent to backend for tool context injection.
+ *
+ * This is converted to ContextAttachment format in agent-manager:
+ * - type: "skill"
+ * - key: skill ID
+ * - label: skill name
+ * - content: full skill content
+ * - tags: skill tags
+ */
+export interface SkillPayload {
+  id: string;
+  name: string;
+  content: string;
+  key: string; // Unique identifier (typically "skill-{id}")
+  label: string; // Display label (typically same as name)
+  tags?: string[];
+  targetToolId?: string; // If set, skill only sent to this specific tool
 }
 
 /** Active template state with filled variables */
