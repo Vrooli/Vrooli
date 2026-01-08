@@ -13,14 +13,20 @@ import { SkillSelector } from "./SkillSelector";
 import { ToolSelector } from "./ToolSelector";
 import { TemplateVariableForm } from "./TemplateVariableForm";
 import { SlashCommandPopup } from "./SlashCommandPopup";
+import { Suggestions } from "./Suggestions";
+import { AIMergeOverlay } from "./AIMergeOverlay";
+import { TemplateEditorModal } from "./TemplateEditorModal";
 import { useAttachments } from "../../hooks/useAttachments";
 import { useTools } from "../../hooks/useTools";
 import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
+import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
+import { useModeHistory } from "../../hooks/useModeHistory";
+import { useAIMerge } from "../../hooks/useAIMerge";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import { getTemplateById } from "@/data/templates";
 import { getSkillById } from "@/data/skills";
 import type { Model, Message } from "../../lib/api";
-import type { SlashCommand, Template } from "@/lib/types/templates";
+import type { SlashCommand, Template, MergeAction } from "@/lib/types/templates";
 
 export interface MessagePayload {
   content: string;
@@ -94,8 +100,31 @@ export function MessageInput({
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
   const [slashPopupPosition, setSlashPopupPosition] = useState({ bottom: 60, left: 0 });
 
+  // AI merge overlay state
+  const [showMergeOverlay, setShowMergeOverlay] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
+  const [savedMessage, setSavedMessage] = useState("");
+
+  // Template editor state
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | undefined>(undefined);
+  const [defaultEditorModes, setDefaultEditorModes] = useState<string[]>([]);
+
   // Edit mode detection
   const isEditMode = !!editingMessage;
+
+  // Suggestions settings
+  const {
+    visible: suggestionsVisible,
+    toggleVisible: toggleSuggestionsVisible,
+    mergeModel,
+  } = useSuggestionsSettings();
+
+  // Mode history for frecency
+  const { history: modeHistory, recordUsage: recordModeUsage } = useModeHistory();
+
+  // AI merge functionality
+  const { mergeMessages, isMerging } = useAIMerge();
 
   const {
     attachments,
@@ -132,6 +161,16 @@ export function MessageInput({
     getSelectedSkills,
     filterCommands,
     resetAll: resetTemplatesAndSkills,
+    // Navigation
+    currentModePath,
+    navigateToMode,
+    navigateBack,
+    resetModePath,
+    // CRUD
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    hideTemplate,
   } = useTemplatesAndSkills();
 
   // Only use attachments if enabled
@@ -378,6 +417,73 @@ export function MessageInput({
     []
   );
 
+  // Handle template selection (may show merge overlay if message has content)
+  const handleTemplateSelect = useCallback(
+    (template: Template) => {
+      // If message has content, show merge overlay
+      if (message.trim()) {
+        setSavedMessage(message);
+        setPendingTemplate(template);
+        setShowMergeOverlay(true);
+      } else {
+        // No existing content, just set the template
+        setActiveTemplate(template);
+        setShowVariableForm(true);
+        setShouldFocusTemplateForm(true);
+      }
+    },
+    [message, setActiveTemplate]
+  );
+
+  // Handle merge overlay action
+  const handleMergeAction = useCallback(
+    async (action: MergeAction) => {
+      if (!pendingTemplate) return;
+
+      switch (action) {
+        case "overwrite":
+          // Clear message and use template
+          setMessage("");
+          setActiveTemplate(pendingTemplate);
+          setShowVariableForm(true);
+          setShouldFocusTemplateForm(true);
+          break;
+        case "merge":
+          // Use AI to merge message with template
+          if (chatId) {
+            try {
+              const filledTemplate = pendingTemplate.content; // Use unfilled template for merge
+              const mergedContent = await mergeMessages(
+                savedMessage,
+                filledTemplate,
+                mergeModel,
+                chatId
+              );
+              setMessage(mergedContent);
+              // Don't set template - the merged content is the final message
+            } catch (error) {
+              // On error, just overwrite
+              setMessage("");
+              setActiveTemplate(pendingTemplate);
+              setShowVariableForm(true);
+              setShouldFocusTemplateForm(true);
+            }
+          }
+          break;
+        case "cancel":
+          // Restore original message
+          setMessage(savedMessage);
+          break;
+      }
+
+      // Clean up overlay state
+      setShowMergeOverlay(false);
+      setPendingTemplate(null);
+      setSavedMessage("");
+    },
+    [pendingTemplate, savedMessage, chatId, mergeModel, mergeMessages, setActiveTemplate]
+  );
+
   // Handle slash command selection
   const handleSlashCommandSelect = useCallback(
     (command: SlashCommand) => {
@@ -402,20 +508,23 @@ export function MessageInput({
         case "direct-template":
           const template = getTemplateById(command.id);
           if (template) {
-            setActiveTemplate(template);
-            setShowVariableForm(true);
-            setShouldFocusTemplateForm(true);
+            handleTemplateSelect(template);
           }
           break;
         case "direct-skill":
           addSkill(command.id);
           break;
         case "tool":
-          setShowToolSelector(true);
+          // Check for suggestions toggle
+          if (command.id === "suggestions") {
+            toggleSuggestionsVisible();
+          } else {
+            setShowToolSelector(true);
+          }
           break;
       }
     },
-    [message, setActiveTemplate, addSkill]
+    [message, handleTemplateSelect, addSkill, toggleSuggestionsVisible]
   );
 
   const handleImageSelect = useCallback(
@@ -439,6 +548,40 @@ export function MessageInput({
   const handleClearForcedTool = useCallback(() => {
     setForcedTool(null);
   }, []);
+
+  // Template editor handlers
+  const handleOpenTemplateEditor = useCallback((template?: Template) => {
+    setEditingTemplate(template);
+    setDefaultEditorModes(currentModePath);
+    setShowTemplateEditor(true);
+  }, [currentModePath]);
+
+  const handleCloseTemplateEditor = useCallback(() => {
+    setShowTemplateEditor(false);
+    setEditingTemplate(undefined);
+    setDefaultEditorModes([]);
+  }, []);
+
+  const handleSaveTemplate = useCallback(
+    (templateData: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">) => {
+      if (editingTemplate) {
+        updateTemplate(editingTemplate.id, templateData);
+      } else {
+        createTemplate(templateData);
+      }
+      handleCloseTemplateEditor();
+    },
+    [editingTemplate, createTemplate, updateTemplate, handleCloseTemplateEditor]
+  );
+
+  const handleDeleteTemplateFromSuggestions = useCallback(
+    (templateId: string) => {
+      if (window.confirm("Are you sure you want to delete this template?")) {
+        deleteTemplate(templateId);
+      }
+    },
+    [deleteTemplate]
+  );
 
   // Model supports tools (required for force tool)
   const modelSupportsToolUse = supportsTools(currentModel);
@@ -490,6 +633,28 @@ export function MessageInput({
         </div>
       )}
 
+      {/* Suggestions panel */}
+      {suggestionsVisible && !isEditMode && (
+        <Suggestions
+          templates={templates}
+          currentModePath={currentModePath}
+          modeHistory={modeHistory}
+          onSelectTemplate={handleTemplateSelect}
+          onNavigateToMode={navigateToMode}
+          onNavigateBack={navigateBack}
+          onResetPath={resetModePath}
+          onEditTemplate={handleOpenTemplateEditor}
+          onDeleteTemplate={handleDeleteTemplateFromSuggestions}
+          onHideTemplate={hideTemplate}
+          onCreateTemplate={(modes) => {
+            setDefaultEditorModes(modes);
+            setEditingTemplate(undefined);
+            setShowTemplateEditor(true);
+          }}
+          onRecordModeUsage={recordModeUsage}
+        />
+      )}
+
       {/* Attachment preview area */}
       {enableAttachments && effectiveAttachments.length > 0 && (
         <div className="mb-2">
@@ -523,7 +688,16 @@ export function MessageInput({
       )}
 
       {/* Input container with buttons inside */}
-      <div className="flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
+      <div className="relative flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
+        {/* AI Merge Overlay */}
+        <AIMergeOverlay
+          isOpen={showMergeOverlay}
+          existingMessage={savedMessage}
+          templateName={pendingTemplate?.name || ""}
+          isMerging={isMerging}
+          onAction={handleMergeAction}
+        />
+
         {/* Attachment Button (inside, on left) */}
         {enableAttachments && (
           <AttachmentButton
@@ -660,9 +834,8 @@ export function MessageInput({
         }}
         templates={templates}
         onSelect={(template) => {
-          setActiveTemplate(template);
-          setShowVariableForm(true);
-          setShouldFocusTemplateForm(true);
+          setShowTemplateSelector(false);
+          handleTemplateSelect(template);
         }}
         activeTemplateId={activeTemplate?.template.id}
       />
@@ -690,6 +863,15 @@ export function MessageInput({
         forcedTool={forcedTool}
         onSelect={handleForceTool}
         onClear={handleClearForcedTool}
+      />
+
+      {/* Template Editor Modal */}
+      <TemplateEditorModal
+        open={showTemplateEditor}
+        onClose={handleCloseTemplateEditor}
+        template={editingTemplate}
+        defaultModes={defaultEditorModes}
+        onSave={handleSaveTemplate}
       />
     </div>
   );

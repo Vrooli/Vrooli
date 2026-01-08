@@ -26,6 +26,10 @@ export interface Template {
   content: string; // Template text with {{variable}} placeholders
   variables: TemplateVariable[];
   suggestedSkillIds?: string[]; // Skills that auto-attach when template selected
+  modes?: string[]; // Hierarchical path: ["Research", "Codebase Structure"]
+  isBuiltIn?: boolean; // Distinguishes system vs user templates
+  createdAt?: string; // ISO timestamp (user templates)
+  updatedAt?: string; // ISO timestamp (user templates)
 }
 
 /** Skill - Knowledge module injected into context */
@@ -62,3 +66,32 @@ export interface SlashCommand {
   icon?: string;
   category?: string;
 }
+
+/** Mode history entry for frecency-based ordering */
+export interface ModeHistoryEntry {
+  path: string; // Serialized path like "Research" or "Research/Codebase Structure"
+  count: number; // Usage count
+  lastUsed: string; // ISO timestamp
+}
+
+/** Suggestions settings stored in localStorage */
+export interface SuggestionsSettings {
+  visible: boolean;
+  mergeModel: string; // Model ID for AI merge feature
+}
+
+/** AI merge action options */
+export type MergeAction = "overwrite" | "merge" | "cancel";
+
+/** Top-level suggestion modes */
+export const SUGGESTION_MODES = [
+  "Research",
+  "Debug/Fix",
+  "Implement Feature",
+  "Refactor",
+  "Write Tests",
+  "Explain/Teach",
+  "Review/QA",
+] as const;
+
+export type SuggestionMode = (typeof SUGGESTION_MODES)[number];
