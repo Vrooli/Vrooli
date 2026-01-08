@@ -83,18 +83,24 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
         )}
         {data && (
           <>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-slate-400">Template:</span>
-              <span className="text-slate-300">{data.template_type}</span>
-            </div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-slate-400">Framework:</span>
-              <span className="text-slate-300">{data.framework}</span>
-            </div>
-            <div className="mb-3 flex justify-between text-sm">
-              <span className="text-slate-400">Platforms:</span>
-              <span className="text-slate-300">{data.platforms.join(", ")}</span>
-            </div>
+            {data.template_type && (
+              <div className="mb-1 flex justify-between text-sm">
+                <span className="text-slate-400">Template:</span>
+                <span className="text-slate-300">{data.template_type}</span>
+              </div>
+            )}
+            {data.framework && (
+              <div className="mb-1 flex justify-between text-sm">
+                <span className="text-slate-400">Framework:</span>
+                <span className="text-slate-300">{data.framework}</span>
+              </div>
+            )}
+            {data.platforms?.length > 0 && (
+              <div className="mb-3 flex justify-between text-sm">
+                <span className="text-slate-400">Platforms:</span>
+                <span className="text-slate-300">{data.platforms.join(", ")}</span>
+              </div>
+            )}
           </>
         )}
       </div>

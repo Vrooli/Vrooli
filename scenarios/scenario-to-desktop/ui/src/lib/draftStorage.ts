@@ -15,6 +15,7 @@ type GeneratorAppState = {
   selectedTemplate: string;
   selectionSource: "inventory" | "manual" | null;
   currentBuildId: string | null;
+  installerBuildId?: string | null;
   activeStep: number;
   userPinnedStep: boolean;
   docPath: string | null;

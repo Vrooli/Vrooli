@@ -11,7 +11,7 @@ import { useUIStore } from "../../stores/uiStore";
 import { formatRelative } from "../../lib/formatters";
 
 export function DashboardPage() {
-  const { setActiveTab, applyFocusScenario, setExecutionForm } = useUIStore();
+  const { setActiveTab, applyFocusScenario, setExecutionForm, navigateToScenarioDetail } = useUIStore();
 
   const { queueMetrics, heroExecution } = useHealth();
   const { actionableRequest, queuePendingCount } = useRequests();
@@ -30,8 +30,10 @@ export function DashboardPage() {
         scenarioName: lastFailedExecution.scenarioName,
         preset: lastFailedExecution.preset ?? "quick"
       });
+      navigateToScenarioDetail(lastFailedExecution.scenarioName);
+    } else {
+      setActiveTab("runs");
     }
-    setActiveTab("runs");
   };
 
   const handleRunQueuedTests = () => {

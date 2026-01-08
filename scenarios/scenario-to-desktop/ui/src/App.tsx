@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
 import { ScenarioInventory } from "./components/scenario-inventory";
+import { BuildDesktopButton } from "./components/scenario-inventory/BuildDesktopButton";
 import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons";
 import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
 import { DocsPanel } from "./components/docs/DocsPanel";
@@ -13,6 +14,7 @@ import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { fetchScenarioDesktopStatus } from "./lib/api";
+import type { BuildStatus as BuildStatusType } from "./lib/api";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/RecordsManager";
@@ -41,7 +43,8 @@ function AppContent() {
   const initialParams = useMemo(() => parseSearchParams(), []);
   const storedState = useMemo(() => loadGeneratorAppState(), []);
   const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
-  const [currentBuildId, setCurrentBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
+  const [wrapperBuildId, setWrapperBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
+  const [wrapperBuildStatus, setWrapperBuildStatus] = useState<BuildStatusType | null>(null);
   const [selectedScenarioName, setSelectedScenarioName] = useState(
     initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
   );
@@ -112,16 +115,17 @@ function AppContent() {
   const recommendedStep = useMemo(() => {
     if (viewMode !== "generator") return 2;
     if (selectedScenario?.build_artifacts?.length) return 4;
-    if (currentBuildId) return 3;
+    if (wrapperBuildId) return 3;
     if (selectedScenarioName) return 2;
     return 1;
-  }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+  }, [viewMode, selectedScenario?.build_artifacts?.length, wrapperBuildId, selectedScenarioName]);
   const generatorFormId = "desktop-generator-form";
-  const baseGenerateLabel =
-    selectionSource === "inventory" ? "Update Desktop Application" : "Generate Desktop Application";
-  const hasExistingBuild = Boolean(currentBuildId) || Boolean(selectedScenario?.build_artifacts?.length);
-  const generateLabel = hasExistingBuild ? "Rebuild Desktop Application" : baseGenerateLabel;
+  const hasWrapper = Boolean(wrapperBuildId) || Boolean(selectedScenario?.has_desktop);
+  const generateLabel = hasWrapper ? "Regenerate Wrapper" : "Generate Wrapper";
   const canGenerate = Boolean(selectedScenarioName);
+  const canBuildInstallers = Boolean(
+    selectedScenarioName && (wrapperBuildStatus?.status === "ready" || selectedScenario?.has_desktop)
+  );
 
   // Sync view/scenario/doc from URL on load and back/forward
   useEffect(() => {
@@ -168,7 +172,7 @@ function AppContent() {
       selectedScenarioName,
       selectedTemplate,
       selectionSource,
-      currentBuildId,
+      currentBuildId: wrapperBuildId,
       activeStep,
       userPinnedStep,
       docPath
@@ -178,7 +182,7 @@ function AppContent() {
     selectedScenarioName,
     selectedTemplate,
     selectionSource,
-    currentBuildId,
+    wrapperBuildId,
     activeStep,
     userPinnedStep,
     docPath
@@ -416,7 +420,7 @@ function AppContent() {
                       selectedTemplate={selectedTemplate}
                       onTemplateChange={setSelectedTemplate}
                       onBuildStart={(buildId) => {
-                        setCurrentBuildId(buildId);
+                        setWrapperBuildId(buildId);
                         setActiveStep(3);
                       }}
                       scenarioName={selectedScenarioName}
@@ -439,35 +443,69 @@ function AppContent() {
               <Card className="border-slate-800/80 bg-slate-900/70" ref={buildRef}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                    Step 3 · Build installers
+                    Step 3 · Generate wrapper & build installers
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      type="submit"
-                      form={generatorFormId}
-                      disabled={!canGenerate || generateState.pending}
-                    >
-                      {generateState.pending ? "Generating..." : generateLabel}
-                    </Button>
-                    {!canGenerate && (
-                      <p className="text-xs text-slate-400">Pick a scenario in step 2 to enable builds.</p>
+                <CardContent className="space-y-6">
+                  <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-300">
+                    <p className="font-semibold text-slate-200">Wrapper vs installer</p>
+                    <p>
+                      <span className="font-semibold text-slate-200">Wrapper</span>: Electron project scaffold stored in{" "}
+                      <span className="font-mono text-slate-200">platforms/electron</span> for development and config.
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-200">Installer</span>: Packaged distributables built into{" "}
+                      <span className="font-mono text-slate-200">dist-electron/</span> (AppImage/EXE/PKG/ZIP).
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="text-sm font-semibold text-slate-200">1) Generate wrapper</div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        type="submit"
+                        form={generatorFormId}
+                        disabled={!canGenerate || generateState.pending}
+                      >
+                        {generateState.pending ? "Generating wrapper..." : generateLabel}
+                      </Button>
+                      {!canGenerate && (
+                        <p className="text-xs text-slate-400">Pick a scenario in step 2 to enable builds.</p>
+                      )}
+                    </div>
+                    {generateState.error && (
+                      <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
+                        <strong>Error:</strong> {generateState.error}
+                      </div>
+                    )}
+                    {wrapperBuildId ? (
+                      <BuildStatus
+                        buildId={wrapperBuildId}
+                        onStatusChange={(status) => {
+                          setWrapperBuildStatus(status);
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm text-slate-300">
+                        Generate the wrapper using the settings from step 2. Progress will appear here automatically.
+                      </p>
                     )}
                   </div>
-                  {generateState.error && (
-                    <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
-                      <strong>Error:</strong> {generateState.error}
-                    </div>
-                  )}
-                  {currentBuildId ? (
-                    <BuildStatus buildId={currentBuildId} />
-                  ) : (
-                    <p className="text-sm text-slate-300">
-                      Generate using the settings from step 2 to kick off a build. Progress will appear here
-                      automatically.
-                    </p>
-                  )}
+
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-slate-200">2) Build installers</div>
+                    {selectedScenarioName ? (
+                      canBuildInstallers ? (
+                        <BuildDesktopButton scenarioName={selectedScenarioName} />
+                      ) : (
+                        <p className="text-xs text-slate-400">
+                          Generate the wrapper first so installer packaging can run.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-xs text-slate-400">Select a scenario to unlock installer builds.</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -505,6 +543,11 @@ function AppContent() {
                       ) : (
                         <div className="space-y-3 text-sm text-slate-300">
                           <p>No installers detected yet for this scenario.</p>
+                          <p className="text-xs text-slate-400">
+                            Wrappers live in{" "}
+                            <span className="font-mono text-slate-200">platforms/electron</span>; installers appear in{" "}
+                            <span className="font-mono text-slate-200">dist-electron/</span> after packaging.
+                          </p>
                           <div className="space-y-1 text-xs text-slate-400">
                             <p>
                               Expected output:{" "}
