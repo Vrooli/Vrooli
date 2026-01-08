@@ -1,20 +1,62 @@
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
 import { PHASES_FOR_GENERATION } from "../../lib/constants";
+import type { TaskType } from "./ScenarioTargetDialog";
 
 interface PhaseSelectorProps {
   selectedPhases: string[];
   onTogglePhase: (phase: string) => void;
   lockToUnit?: boolean;
+  task?: TaskType | null;
 }
 
-export function PhaseSelector({ selectedPhases, onTogglePhase, lockToUnit }: PhaseSelectorProps) {
+function getPhaseLabel(phaseKey: string, task: TaskType | null): string {
+  const baseLabels: Record<string, Record<TaskType | "default", string>> = {
+    unit: {
+      bootstrap: "Bootstrap unit tests",
+      coverage: "Add unit test coverage",
+      "fix-failing": "Fix failing unit tests",
+      default: "Unit Tests"
+    },
+    playbooks: {
+      bootstrap: "Bootstrap E2E playbooks",
+      coverage: "Add E2E playbook coverage",
+      "fix-failing": "Fix failing E2E playbooks",
+      default: "E2E Playbooks"
+    }
+  };
+  const labels = baseLabels[phaseKey];
+  if (!labels) return phaseKey;
+  return task ? (labels[task] ?? labels.default) : labels.default;
+}
+
+function getPhaseDescription(phaseKey: string, task: TaskType | null): string {
+  const baseDescriptions: Record<string, Record<TaskType | "default", string>> = {
+    unit: {
+      bootstrap: "Create initial unit tests for functions and modules",
+      coverage: "Add unit tests for specific features or edge cases",
+      "fix-failing": "Fix and improve failing unit tests",
+      default: "Unit tests for individual functions and modules"
+    },
+    playbooks: {
+      bootstrap: "Create initial E2E browser automation workflows",
+      coverage: "Add E2E playbooks for specific user flows",
+      "fix-failing": "Fix and improve failing E2E playbooks",
+      default: "End-to-end browser automation workflows"
+    }
+  };
+  const descriptions = baseDescriptions[phaseKey];
+  if (!descriptions) return "";
+  return task ? (descriptions[task] ?? descriptions.default) : descriptions.default;
+}
+
+export function PhaseSelector({ selectedPhases, onTogglePhase, lockToUnit, task }: PhaseSelectorProps) {
   return (
     <div data-testid={selectors.generate.phaseSelector}>
       <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Test phases</p>
-      <h3 className="mt-2 text-lg font-semibold">Select phases to generate</h3>
+      <h3 className="mt-2 text-lg font-semibold">Select phases</h3>
       <p className="mt-2 text-sm text-slate-300">
-        Choose which test phases to include in your generation prompt.
+        Choose which test types to include.
         {lockToUnit && " Targeting specific paths locks generation to Unit tests for safety and parallelism."}
       </p>
 
@@ -37,7 +79,7 @@ export function PhaseSelector({ selectedPhases, onTogglePhase, lockToUnit }: Pha
             disabled={lockToUnit && phase.key !== "unit"}
           >
             <div className="flex items-center justify-between">
-              <span className="font-semibold">{phase.label}</span>
+              <span className="font-semibold">{getPhaseLabel(phase.key, task ?? null)}</span>
               <span
                 className={cn(
                   "h-5 w-5 rounded border flex items-center justify-center",
@@ -58,10 +100,7 @@ export function PhaseSelector({ selectedPhases, onTogglePhase, lockToUnit }: Pha
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              {phase.key === "unit" && "Generate unit tests for individual functions and modules"}
-              {phase.key === "integration" && "Generate integration tests for component interactions"}
-              {phase.key === "playbooks" && "Generate end-to-end browser automation workflows"}
-              {phase.key === "business" && "Generate business requirement validation tests"}
+              {getPhaseDescription(phase.key, task ?? null)}
             </p>
           </button>
         ))}

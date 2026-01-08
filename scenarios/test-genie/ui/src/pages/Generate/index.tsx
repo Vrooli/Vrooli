@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { PhaseSelector } from "./PhaseSelector";
 import { PromptEditor } from "./PromptEditor";
 import { ActionButtons } from "./ActionButtons";
-import { PresetSelector } from "./PresetSelector";
-import { ScenarioTargetDialog } from "./ScenarioTargetDialog";
+import { ScenarioTargetDialog, type TaskType, type ScopeResult } from "./ScenarioTargetDialog";
 import { ActiveAgentsPanel } from "./ActiveAgentsPanel";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
@@ -12,6 +12,12 @@ import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
 import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, type AppConfig } from "../../lib/api";
+
+const TASK_LABELS: Record<TaskType, string> = {
+  bootstrap: "Bootstrap Tests",
+  coverage: "Add Coverage",
+  "fix-failing": "Fix Failing Tests"
+};
 
 const MAX_PROMPTS = 12;
 const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
@@ -279,8 +285,9 @@ export function GeneratePage() {
   const { scenarioDirectoryEntries } = useScenarios();
   const { focusScenario, setFocusScenario } = useUIStore();
 
-  const [selectedPhases, setSelectedPhases] = useState<string[]>(["unit", "integration"]);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(["unit"]);
+  const [selectedTask, setSelectedTask] = useState<TaskType | null>(null);
+  const [additionalContext, setAdditionalContext] = useState("");
   const [customPrompts, setCustomPrompts] = useState<Record<string, string>>({});
   const [targetPaths, setTargetPaths] = useState<string[]>([]);
   const [splitTargets, setSplitTargets] = useState(false);
@@ -303,6 +310,7 @@ export function GeneratePage() {
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
+  const [advancedOpen, setAdvancedOpen] = useState(false); // Collapsible advanced settings
 
   const hasTargets = targetPaths.length > 0;
 
@@ -313,11 +321,6 @@ export function GeneratePage() {
         ? prev.filter((p) => p !== phase)
         : [...prev, phase]
     );
-    setCustomPrompts({});
-  };
-
-  const handlePresetSelect = (preset: string) => {
-    setSelectedPreset((prev) => (prev === preset ? null : preset));
     setCustomPrompts({});
   };
 
@@ -393,14 +396,16 @@ export function GeneratePage() {
     });
   };
 
-  const handleScopeSave = (scenario: string, paths: string[]) => {
-    setFocusScenario(scenario);
-    setTargetPaths(paths);
+  const handleScopeSave = (result: ScopeResult) => {
+    setFocusScenario(result.scenario);
+    setSelectedTask(result.task);
+    setTargetPaths(result.targets);
+    setAdditionalContext(result.additionalContext);
     setCustomPrompts({});
-    if (paths.length > 0) {
+    if (result.targets.length > 0) {
       setSelectedPhases(["unit"]);
     } else {
-      setSelectedPhases(["unit", "integration"]);
+      setSelectedPhases(["unit"]);
     }
   };
 
@@ -436,8 +441,11 @@ export function GeneratePage() {
       const id = comboId(combo.targets, combo.phases);
       // Preamble is immutable - computed from scenario/targets/network settings
       const preamble = buildSafetyPreamble(focusScenario, combo.targets, repoRoot, networkEnabled);
-      // Body is editable - contains task details
-      const defaultBody = buildTaskBody(focusScenario, combo.phases, selectedPreset, combo.targets, repoRoot);
+      // Body is editable - contains task details (with additional context appended)
+      let defaultBody = buildTaskBody(focusScenario, combo.phases, selectedTask, combo.targets, repoRoot);
+      if (additionalContext.trim()) {
+        defaultBody += `\n\n## Additional Context\n\n${additionalContext.trim()}`;
+      }
       const body = customPrompts[id] ?? defaultBody;
       // Full prompt combines both for display/copy
       const prompt = buildFullPrompt(preamble, body);
@@ -459,7 +467,7 @@ export function GeneratePage() {
         label: `Prompt ${index + 1} • ${targetLabel} • ${phaseLabel}`
       };
     });
-  }, [cappedCombos, customPrompts, focusScenario, selectedPreset, appConfig, networkEnabled]);
+  }, [cappedCombos, customPrompts, focusScenario, selectedTask, additionalContext, appConfig, networkEnabled]);
 
   useEffect(() => {
     if (!activePromptId && promptItems.length > 0) {
@@ -485,7 +493,7 @@ export function GeneratePage() {
     });
   };
 
-  const isDisabled = !focusScenario || selectedPhases.length === 0 || !currentPromptItem;
+  const isDisabled = !focusScenario || !selectedTask || selectedPhases.length === 0 || !currentPromptItem;
   const promptCount = promptItems.length;
   const safeDisplayConcurrency = Math.max(
     1,
@@ -543,37 +551,43 @@ export function GeneratePage() {
       {/* Header */}
       <section className="rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10 p-6">
         <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Test Generation</p>
-        <h1 className="mt-2 text-2xl font-semibold">Generate test prompts</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Generate Tests</h1>
         <p className="mt-2 text-sm text-slate-300">
-          Build prompts for AI-powered test generation. Select phases, customize the prompt,
-          and copy it for use with your preferred AI assistant.
+          Spawn AI agents to generate tests for your scenario. Configure your scope, select test types,
+          and let the agents do the work.
         </p>
       </section>
 
-      {/* Scenario & Targets */}
+      {/* Scenario & Scope */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Target</p>
-            <h3 className="mt-2 text-lg font-semibold">Scenario & scope</h3>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scope</p>
+            <h3 className="mt-2 text-lg font-semibold">Scenario & Task</h3>
             <p className="mt-2 text-sm text-slate-300">
-              Choose a scenario and optionally focus on specific api/ui folders or files for targeted generation.
+              Configure what you want to generate and for which scenario.
             </p>
           </div>
           <Button onClick={() => setIsDialogOpen(true)} data-testid={selectors.generate.scopeButton}>
-            {focusScenario ? "Update selection" : "Select scenario"}
+            {focusScenario && selectedTask ? "Change scope" : "Configure scope"}
           </Button>
         </div>
 
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Current</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-white">
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
               Scenario: {focusScenario || "Not selected"}
             </span>
-            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
-              Targets: {targetPaths.length > 0 ? `${targetPaths.length} selected` : "All paths"}
-            </span>
+            {selectedTask && (
+              <span className="rounded-full border border-purple-400/50 bg-purple-400/10 px-3 py-1 text-purple-200">
+                {TASK_LABELS[selectedTask]}
+              </span>
+            )}
+            {targetPaths.length > 0 && (
+              <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {targetPaths.length} target{targetPaths.length === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
           {targetPaths.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -587,37 +601,34 @@ export function GeneratePage() {
               )}
             </div>
           )}
-        </div>
-        <div className="mt-4 flex flex-col gap-2">
-          <label className={cn(
-            "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
-            splitTargets ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
-          )}>
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4"
-              checked={splitTargets}
-              onChange={(e) => setSplitTargets(e.target.checked)}
-            />
-            <div>
-              <p className="font-semibold text-white">Split prompts by target path</p>
-              <p className="text-xs text-slate-400">
-                Generates one prompt per selected folder/file. Requires at least two targets.
-              </p>
+          {additionalContext && (
+            <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Additional Context</p>
+              <p className="text-sm text-slate-300 whitespace-pre-wrap">{additionalContext}</p>
             </div>
-          </label>
-          {targetPaths.length < 2 && splitTargets && (
-            <p className="text-xs text-amber-300">Select two or more targets to split prompts.</p>
           )}
         </div>
-      </section>
-
-      {/* Preset Templates */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <PresetSelector
-          selectedPreset={selectedPreset}
-          onSelectPreset={handlePresetSelect}
-        />
+        {targetPaths.length >= 2 && (
+          <div className="mt-4 flex flex-col gap-2">
+            <label className={cn(
+              "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+              splitTargets ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+            )}>
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={splitTargets}
+                onChange={(e) => setSplitTargets(e.target.checked)}
+              />
+              <div>
+                <p className="font-semibold text-white">Split prompts by target path</p>
+                <p className="text-xs text-slate-400">
+                  Generates one prompt per selected folder/file.
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
       </section>
 
       {/* Phase Selection */}
@@ -626,358 +637,353 @@ export function GeneratePage() {
           selectedPhases={selectedPhases}
           lockToUnit={hasTargets}
           onTogglePhase={handleTogglePhase}
+          task={selectedTask}
         />
-        <div className="mt-4 flex flex-col gap-2">
-          <label className={cn(
-            "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
-            splitPhases ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
-          )}>
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4"
-              checked={splitPhases}
-              onChange={(e) => setSplitPhases(e.target.checked)}
-            />
-            <div>
-              <p className="font-semibold text-white">Split prompts by phase</p>
-              <p className="text-xs text-slate-400">
-                Generates one prompt per selected phase. Keep integration/business combined if they share context.
-              </p>
-            </div>
-          </label>
-          {selectedPhases.length < 2 && splitPhases && (
-            <p className="text-xs text-amber-300">Select two or more phases to split prompts.</p>
-          )}
-        </div>
+        {selectedPhases.length >= 2 && (
+          <div className="mt-4 flex flex-col gap-2">
+            <label className={cn(
+              "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+              splitPhases ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+            )}>
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={splitPhases}
+                onChange={(e) => setSplitPhases(e.target.checked)}
+              />
+              <div>
+                <p className="font-semibold text-white">Split prompts by phase</p>
+                <p className="text-xs text-slate-400">
+                  Generates one prompt per selected phase.
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
       </section>
 
-      {/* Prompt Preview/Editor */}
+      {/* Generate Section */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Prompt bundle</p>
-            <h3 className="mt-2 text-lg font-semibold">
-              Generated prompts {promptCount > 1 && `(${promptCount})`}
-            </h3>
-            {isCapped && (
-              <p className="text-xs text-amber-300">
-                Showing first {MAX_PROMPTS} prompts (capped). Narrow targets/phases to see all {totalCombos}.
-              </p>
-            )}
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Generate</p>
+            <h3 className="mt-2 text-lg font-semibold">Spawn Test Agents</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Select a model and spawn agents to generate tests for your scenario.
+            </p>
           </div>
-          {promptCount > 1 && (
-            <div className="flex items-center gap-2" data-testid={selectors.generate.promptNavigator}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!currentPromptItem) return;
-                  const prevIndex = (currentPromptItem.index - 1 + promptCount) % promptCount;
-                  setActivePromptId(promptItems[prevIndex].id);
-                }}
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="space-y-2 min-w-[250px]">
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
+              <select
+                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={agentModel}
+                onChange={(e) => setAgentModel(e.target.value)}
+                disabled={modelsLoading || modelOptions.length === 0}
               >
-                Prev
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!currentPromptItem) return;
-                  const nextIndex = (currentPromptItem.index + 1) % promptCount;
-                  setActivePromptId(promptItems[nextIndex].id);
-                }}
-              >
-                Next
-              </Button>
+                {modelsLoading && <option>Loading models…</option>}
+                {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
+                {!modelsLoading &&
+                  modelOptions.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
+                    </option>
+                  ))}
+              </select>
+              {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
             </div>
-          )}
+            <Button
+              onClick={handleSpawnAll}
+              disabled={spawnDisabled}
+              className="h-10"
+            >
+              {spawnBusy ? "Generating..." : "Generate Tests"}
+            </Button>
+          </div>
         </div>
-
-        {promptCount > 1 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {promptItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition",
-                  activePromptId === item.id
-                    ? "border-cyan-400 bg-cyan-400/10 text-white"
-                    : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/30"
-                )}
-                onClick={() => setActivePromptId(item.id)}
-                data-testid={selectors.generate.promptNavItem}
-              >
-                {item.label}
-              </button>
+        {spawnStatus && (
+          <div className="mt-4 rounded-lg border border-cyan-400/40 bg-cyan-400/10 p-3">
+            <p className="text-sm text-cyan-200">{spawnStatus}</p>
+          </div>
+        )}
+        {spawnResults && spawnResults.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {spawnResults.map((res) => (
+              <div key={res.promptIndex} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-white">Prompt {res.promptIndex + 1}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-1 text-xs",
+                      res.status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-200 border border-emerald-400/40"
+                        : res.status === "timeout"
+                        ? "bg-amber-500/10 text-amber-200 border border-amber-400/40"
+                        : "bg-rose-500/10 text-rose-200 border border-rose-400/40"
+                    )}
+                  >
+                    {res.status}
+                  </span>
+                </div>
+                {res.sessionId && <p className="mt-1 text-xs text-slate-400">Session: {res.sessionId}</p>}
+                {res.error && <p className="mt-1 text-xs text-rose-300">Error: {res.error}</p>}
+              </div>
             ))}
           </div>
         )}
-
-        <div className="mt-4">
-          <PromptEditor
-            preamble={currentPromptItem?.preamble ?? ""}
-            body={currentPromptItem?.body ?? ""}
-            defaultBody={currentPromptItem?.defaultBody ?? ""}
-            onBodyChange={(value) =>
-              currentPromptItem && handleBodyChange(currentPromptItem.id, value, currentPromptItem.defaultBody)
-            }
-            fullPrompt={currentPromptItem?.prompt ?? ""}
-            titleSuffix={
-              promptCount > 1 && currentPromptItem
-                ? `Prompt ${currentPromptItem.index + 1} of ${promptCount}`
-                : undefined
-            }
-            summary={currentPromptItem?.label}
-          />
-        </div>
       </section>
 
-      {/* Agent spawn settings */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Agent spawn</p>
-        <h3 className="mt-2 text-lg font-semibold">Run prompts via OpenCode (OpenRouter)</h3>
-        <p className="mt-2 text-sm text-slate-300">
-          Spawn agents using the opencode resource (auto-wired to your OpenRouter API key). Configure the model and limits, then
-          dispatch the current prompt bundle.
-        </p>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
-            <select
-              className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              value={agentModel}
-              onChange={(e) => setAgentModel(e.target.value)}
-              disabled={modelsLoading || modelOptions.length === 0}
-            >
-              {modelsLoading && <option>Loading models…</option>}
-              {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
-              {!modelsLoading &&
-                modelOptions.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
-                  </option>
-                ))}
-            </select>
-            {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
-            {recentModels.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {recentModels.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    className="rounded-full border border-white/15 bg-white/[0.03] px-3 py-1 text-xs text-slate-200 hover:border-cyan-400"
-                    onClick={() => setAgentModel(m)}
-                  >
-                    Recent: {m}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Concurrency</label>
-              <div className="mt-1 flex items-center gap-3">
-                <input
-                  type="range"
-                  min={1}
-                  max={10}
-                  value={spawnConcurrency}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setSpawnConcurrency(Number.isFinite(next) ? next : 1);
-                  }}
-                  className="w-full accent-cyan-400"
-                />
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={spawnConcurrency}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setSpawnConcurrency(Number.isFinite(next) ? next : 1);
-                  }}
-                  className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Max parallel agent runs (cap 10). Effective: {safeDisplayConcurrency}.</p>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max turns</label>
-              <div className="mt-1 flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={24}
-                  value={maxTurns}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setMaxTurns(Number.isFinite(next) ? next : 0);
-                  }}
-                  className="w-full accent-cyan-400"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  value={maxTurns}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setMaxTurns(Number.isFinite(next) ? next : 0);
-                  }}
-                  className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">0 = unlimited (not recommended). Higher turns improve reliability but cost more.</p>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Timeout (sec)</label>
-              <div className="mt-1 flex items-center gap-3">
-                <input
-                  type="range"
-                  min={60}
-                  max={900}
-                  step={15}
-                  value={timeoutSeconds}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setTimeoutSeconds(Number.isFinite(next) ? next : 60);
-                  }}
-                  className="w-full accent-cyan-400"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  value={timeoutSeconds}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setTimeoutSeconds(Number.isFinite(next) ? next : 0);
-                  }}
-                  className="w-24 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Abort if a request exceeds this duration. Set 0 to rely on model defaults.</p>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Allowed tools</label>
-              <input
-                type="text"
-                value={allowedTools}
-                onChange={(e) => setAllowedTools(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                placeholder="read,edit,write,glob,grep"
-              />
-              <p className="mt-1 text-[11px] text-slate-400">
-                Keep <code className="font-mono">read</code> + <code className="font-mono">edit</code> enabled so agents can inspect files; add scoped bash (e.g. <code className="font-mono">bash(pnpm test|go test|vitest *)</code>) when targeting test commands.
-              </p>
-              <p className="mt-1 text-[11px] text-emerald-400">
-                Destructive commands (git checkout, rm -rf, sudo, etc.) are blocked for safety.
-              </p>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Network access</label>
-              <div className="mt-1 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNetworkEnabled(!networkEnabled)}
-                  className={cn(
-                    "relative h-6 w-11 rounded-full transition-colors",
-                    networkEnabled
-                      ? "bg-amber-500"
-                      : "bg-slate-600"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                      networkEnabled ? "left-[22px]" : "left-0.5"
-                    )}
-                  />
-                </button>
-                <span className={cn(
-                  "text-sm",
-                  networkEnabled ? "text-amber-300" : "text-slate-400"
-                )}>
-                  {networkEnabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-              <p className={cn(
-                "mt-1 text-[11px]",
-                networkEnabled ? "text-amber-400" : "text-slate-400"
-              )}>
-                {networkEnabled
-                  ? "Agents can make outbound network requests. Only enable if needed for API testing."
-                  : "Agents cannot access the network. Safest option for most test generation tasks."
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
-          <p className="font-semibold text-white">Dispatch summary</p>
-          <p className="mt-1 text-slate-300">
-            {promptCount} prompt{promptCount === 1 ? "" : "s"} • model {agentModel || "not selected"} • concurrency{" "}
-            {safeDisplayConcurrency}
-          </p>
-          <p className="text-[11px] text-slate-400">
-            Lower-cost models are fine for exploration; raise max turns/timeout for reliability but expect higher spend.
-          </p>
-          {spawnStatus && <p className="mt-2 text-xs text-cyan-300">{spawnStatus}</p>}
-          {spawnResults && spawnResults.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {spawnResults.map((res) => (
-                <div key={res.promptIndex} className="rounded-lg border border-white/10 bg-white/[0.02] p-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">Prompt {res.promptIndex + 1}</span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-1 text-[11px]",
-                        res.status === "completed"
-                          ? "bg-emerald-500/10 text-emerald-200 border border-emerald-400/40"
-                          : res.status === "timeout"
-                          ? "bg-amber-500/10 text-amber-200 border border-amber-400/40"
-                          : "bg-rose-500/10 text-rose-200 border border-rose-400/40"
-                      )}
-                    >
-                      {res.status}
-                    </span>
-                  </div>
-                  {res.sessionId && <p className="mt-1 text-slate-300">Session: {res.sessionId}</p>}
-                  {res.error && <p className="mt-1 text-rose-300">Error: {res.error}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Active Agents Panel */}
+      {/* Active Agents Panel - moved up */}
       <ActiveAgentsPanel
         scenario={focusScenario}
         scope={targetPaths}
       />
 
-      {/* Action Buttons */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="mb-4">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Actions</p>
-          <h3 className="mt-2 text-lg font-semibold">Use this prompt</h3>
-        </div>
-        <p className="mb-4 text-sm text-slate-300">
-          Copy the prompt to use with Claude, ChatGPT, or another AI assistant.
-        </p>
-        <ActionButtons
-          prompt={currentPromptItem?.prompt ?? ""}
-          allPrompts={promptItems.map((item) => item.prompt)}
-          disabled={isDisabled}
-          spawnDisabled={spawnDisabled}
-          spawnBusy={spawnBusy}
-          onSpawnAll={handleSpawnAll}
-        />
+      {/* Advanced Settings - collapsible */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02]">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen(!advancedOpen)}
+          className="flex w-full items-center justify-between p-6 text-left"
+        >
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Advanced</p>
+            <h3 className="mt-2 text-lg font-semibold">Prompt & Agent Settings</h3>
+          </div>
+          {advancedOpen ? (
+            <ChevronUp className="h-5 w-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-slate-400" />
+          )}
+        </button>
+
+        {advancedOpen && (
+          <div className="border-t border-white/10 p-6 space-y-8">
+            {/* Prompt Preview/Editor */}
+            <div>
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Prompt bundle</p>
+                  <h4 className="mt-1 font-semibold">
+                    Generated prompts {promptCount > 1 && `(${promptCount})`}
+                  </h4>
+                  {isCapped && (
+                    <p className="text-xs text-amber-300">
+                      Showing first {MAX_PROMPTS} prompts (capped). Narrow targets/phases to see all {totalCombos}.
+                    </p>
+                  )}
+                </div>
+                {promptCount > 1 && (
+                  <div className="flex items-center gap-2" data-testid={selectors.generate.promptNavigator}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!currentPromptItem) return;
+                        const prevIndex = (currentPromptItem.index - 1 + promptCount) % promptCount;
+                        setActivePromptId(promptItems[prevIndex].id);
+                      }}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!currentPromptItem) return;
+                        const nextIndex = (currentPromptItem.index + 1) % promptCount;
+                        setActivePromptId(promptItems[nextIndex].id);
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {promptCount > 1 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {promptItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs transition",
+                        activePromptId === item.id
+                          ? "border-cyan-400 bg-cyan-400/10 text-white"
+                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/30"
+                      )}
+                      onClick={() => setActivePromptId(item.id)}
+                      data-testid={selectors.generate.promptNavItem}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4">
+                <PromptEditor
+                  preamble={currentPromptItem?.preamble ?? ""}
+                  body={currentPromptItem?.body ?? ""}
+                  defaultBody={currentPromptItem?.defaultBody ?? ""}
+                  onBodyChange={(value) =>
+                    currentPromptItem && handleBodyChange(currentPromptItem.id, value, currentPromptItem.defaultBody)
+                  }
+                  fullPrompt={currentPromptItem?.prompt ?? ""}
+                  titleSuffix={
+                    promptCount > 1 && currentPromptItem
+                      ? `Prompt ${currentPromptItem.index + 1} of ${promptCount}`
+                      : undefined
+                  }
+                  summary={currentPromptItem?.label}
+                />
+              </div>
+
+              <div className="mt-4">
+                <ActionButtons
+                  prompt={currentPromptItem?.prompt ?? ""}
+                  allPrompts={promptItems.map((item) => item.prompt)}
+                  disabled={isDisabled}
+                  spawnDisabled={spawnDisabled}
+                  spawnBusy={spawnBusy}
+                  onSpawnAll={handleSpawnAll}
+                />
+              </div>
+            </div>
+
+            {/* Agent spawn settings */}
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Agent configuration</p>
+              <h4 className="mt-1 font-semibold">Spawn Settings</h4>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Concurrency</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      value={spawnConcurrency}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={spawnConcurrency}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                      }}
+                      className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Max parallel agent runs. Effective: {safeDisplayConcurrency}.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max turns</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      value={maxTurns}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setMaxTurns(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={maxTurns}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setMaxTurns(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">0 = unlimited. Higher turns cost more.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Timeout (sec)</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={60}
+                      max={900}
+                      step={15}
+                      value={timeoutSeconds}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setTimeoutSeconds(Number.isFinite(next) ? next : 60);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={timeoutSeconds}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setTimeoutSeconds(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-24 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Abort if exceeded. 0 = model defaults.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Network access</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setNetworkEnabled(!networkEnabled)}
+                      className={cn(
+                        "relative h-6 w-11 rounded-full transition-colors",
+                        networkEnabled ? "bg-amber-500" : "bg-slate-600"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                          networkEnabled ? "left-[22px]" : "left-0.5"
+                        )}
+                      />
+                    </button>
+                    <span className={cn("text-sm", networkEnabled ? "text-amber-300" : "text-slate-400")}>
+                      {networkEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <p className={cn("mt-1 text-[11px]", networkEnabled ? "text-amber-400" : "text-slate-400")}>
+                    {networkEnabled ? "Agents can make network requests." : "Network disabled (safer)."}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Allowed tools</label>
+                  <input
+                    type="text"
+                    value={allowedTools}
+                    onChange={(e) => setAllowedTools(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    placeholder="read,edit,write,glob,grep"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Comma-separated list of tools. Destructive commands are blocked.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <ScenarioTargetDialog
@@ -985,11 +991,13 @@ export function GeneratePage() {
         onClose={() => setIsDialogOpen(false)}
         scenarios={scenarioDirectoryEntries}
         initialScenario={focusScenario}
+        initialTask={selectedTask}
         initialTargets={targetPaths}
+        initialContext={additionalContext}
         onSave={handleScopeSave}
       />
     </div>
   );
 }
 
-export { PhaseSelector, PromptEditor, ActionButtons, PresetSelector };
+export { PhaseSelector, PromptEditor, ActionButtons };

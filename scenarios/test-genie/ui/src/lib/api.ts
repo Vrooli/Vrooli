@@ -417,6 +417,32 @@ export async function fetchScenarioFiles(
   return { items: payload.items ?? [], hiddenCount: payload.hiddenCount ?? 0 };
 }
 
+export interface ScenarioCoverageResult {
+  totalFiles: number;
+  coveredFiles: number;
+  overallCoverage: number;
+}
+
+export async function fetchScenarioCoverage(name: string): Promise<ScenarioCoverageResult> {
+  const trimmed = name.trim();
+  if (!trimmed) return { totalFiles: 0, coveredFiles: 0, overallCoverage: 0 };
+
+  // Try to get coverage from files endpoint with coverage data
+  const result = await fetchScenarioFiles(trimmed, { includeCoverage: true, limit: 500 });
+
+  const filesWithCoverage = result.items.filter(
+    (f) => !f.isDir && typeof f.coveragePct === "number" && f.coveragePct >= 0
+  );
+
+  const totalFiles = result.items.filter((f) => !f.isDir).length;
+  const coveredFiles = filesWithCoverage.length;
+  const overallCoverage = filesWithCoverage.length > 0
+    ? filesWithCoverage.reduce((sum, f) => sum + (f.coveragePct ?? 0), 0) / filesWithCoverage.length
+    : 0;
+
+  return { totalFiles, coveredFiles, overallCoverage };
+}
+
 export interface AgentModel {
   id: string;
   name?: string;

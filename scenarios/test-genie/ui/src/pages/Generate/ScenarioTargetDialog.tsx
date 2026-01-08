@@ -11,21 +11,34 @@ import {
   Plus,
   CornerUpLeft,
   FolderOpen,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  Crosshair
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { ScenarioDirectoryEntry } from "../../hooks/useScenarios";
-import { fetchScenarioFiles, type ScenarioFileNode } from "../../lib/api";
+import { fetchScenarioFiles, type ScenarioFileNode, fetchScenarioCoverage } from "../../lib/api";
 import { cn } from "../../lib/utils";
+
+export type TaskType = "bootstrap" | "coverage" | "fix-failing";
+
+export interface ScopeResult {
+  scenario: string;
+  task: TaskType;
+  targets: string[];
+  additionalContext: string;
+}
 
 interface ScenarioTargetDialogProps {
   open: boolean;
   onClose: () => void;
   initialScenario: string;
+  initialTask: TaskType | null;
   initialTargets: string[];
+  initialContext: string;
   scenarios: ScenarioDirectoryEntry[];
-  onSave: (scenario: string, targets: string[]) => void;
+  onSave: (result: ScopeResult) => void;
 }
 
 const normalizePath = (raw: string): string => {
@@ -574,28 +587,68 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
   );
 }
 
+type DialogStep = 1 | 2 | "targets";
+
+const TASK_OPTIONS: Array<{ key: TaskType; label: string; description: string }> = [
+  {
+    key: "bootstrap",
+    label: "Bootstrap Tests",
+    description: "Generate initial test suite for a new scenario"
+  },
+  {
+    key: "coverage",
+    label: "Add Coverage",
+    description: "Add tests for a specific feature or module"
+  },
+  {
+    key: "fix-failing",
+    label: "Fix Failing Tests",
+    description: "Generate fixes for failing test cases"
+  }
+];
+
 export function ScenarioTargetDialog({
   open,
   onClose,
   scenarios,
   initialScenario,
+  initialTask,
   initialTargets,
+  initialContext,
   onSave
 }: ScenarioTargetDialogProps) {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<DialogStep>(1);
   const [draftScenario, setDraftScenario] = useState(initialScenario);
+  const [draftTask, setDraftTask] = useState<TaskType | null>(initialTask);
   const [draftTargets, setDraftTargets] = useState<string[]>(initialTargets);
+  const [draftContext, setDraftContext] = useState(initialContext);
   const [scenarioSearch, setScenarioSearch] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "name">("recent");
+
+  // Check if scenario has existing coverage (tests already bootstrapped)
+  const { data: coverageData } = useQuery({
+    queryKey: ["scenario-coverage", draftScenario],
+    queryFn: () => fetchScenarioCoverage(draftScenario),
+    enabled: Boolean(draftScenario) && open,
+    staleTime: 30_000
+  });
+
+  const hasExistingTests = useMemo(() => {
+    if (!coverageData) return false;
+    // If we have any coverage data, tests exist
+    return coverageData.totalFiles > 0 || coverageData.overallCoverage > 0;
+  }, [coverageData]);
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setDraftScenario(initialScenario);
+      setDraftTask(initialTask);
       setDraftTargets(initialTargets);
+      setDraftContext(initialContext);
       setScenarioSearch("");
     }
-  }, [open, initialScenario, initialTargets]);
+  }, [open, initialScenario, initialTask, initialTargets, initialContext]);
 
   const sortedScenarios = useMemo(() => {
     const filtered = scenarios.filter((s) =>
@@ -610,10 +663,18 @@ export function ScenarioTargetDialog({
   const recent = useMemo(() => sortedScenarios.slice(0, 4), [sortedScenarios]);
 
   const handleSave = () => {
-    if (!draftScenario.trim()) return;
-    onSave(draftScenario.trim(), draftTargets);
+    if (!draftScenario.trim() || !draftTask) return;
+    onSave({
+      scenario: draftScenario.trim(),
+      task: draftTask,
+      targets: draftTargets,
+      additionalContext: draftContext.trim()
+    });
     onClose();
   };
+
+  const canSave = draftScenario.trim() && draftTask;
+  const showTargetButton = draftTask === "coverage" || draftTask === "fix-failing";
 
   const handleSelectScenario = (name: string) => {
     setDraftScenario(name);
@@ -639,9 +700,13 @@ export function ScenarioTargetDialog({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scope</p>
-            <h2 className="mt-1 text-xl font-semibold text-white">Select scenario & targets</h2>
+            <h2 className="mt-1 text-xl font-semibold text-white">
+              {step === "targets" ? "Select Targets" : "Configure Test Generation"}
+            </h2>
             <p className="mt-2 text-sm text-slate-300">
-              Step 1: pick a scenario. Step 2: choose files/folders under api/ or ui/ to focus test generation.
+              {step === 1 && "Step 1: Pick a scenario to generate tests for."}
+              {step === 2 && "Step 2: Choose what you want to do and optionally add context."}
+              {step === "targets" && "Select specific files or folders to focus on."}
             </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
@@ -654,9 +719,17 @@ export function ScenarioTargetDialog({
             1. Scenario
           </span>
           <ChevronRight className="h-4 w-4 text-slate-500" />
-          <span className={cn("px-3 py-1 rounded-full border", step === 2 ? "border-cyan-400 text-white" : "border-white/10 text-slate-400")}>
-            2. Targets
+          <span className={cn("px-3 py-1 rounded-full border", step === 2 || step === "targets" ? "border-cyan-400 text-white" : "border-white/10 text-slate-400")}>
+            2. Scope
           </span>
+          {step === "targets" && (
+            <>
+              <ChevronRight className="h-4 w-4 text-slate-500" />
+              <span className="px-3 py-1 rounded-full border border-cyan-400 text-white">
+                Targets
+              </span>
+            </>
+          )}
         </div>
 
         <div className="mt-5 flex-1 overflow-y-auto pr-1 space-y-6">
@@ -737,6 +810,96 @@ export function ScenarioTargetDialog({
                 </div>
               </div>
             </div>
+          ) : step === 2 ? (
+            <div className="space-y-6">
+              {/* Task Selection */}
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Task</p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {TASK_OPTIONS.map((task) => {
+                    const isSelected = draftTask === task.key;
+                    const isBootstrap = task.key === "bootstrap";
+                    const showWarning = isBootstrap && hasExistingTests;
+                    return (
+                      <button
+                        key={task.key}
+                        className={cn(
+                          "rounded-xl border p-4 text-left transition relative",
+                          isSelected
+                            ? "border-purple-400 bg-purple-400/10"
+                            : "border-white/10 bg-white/[0.02] hover:border-white/30"
+                        )}
+                        onClick={() => setDraftTask(task.key)}
+                      >
+                        <span className="font-semibold">{task.label}</span>
+                        <p className="mt-2 text-xs text-slate-400">{task.description}</p>
+                        {showWarning && (
+                          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-200">
+                              Tests already exist. Selecting this may overwrite existing work.
+                            </p>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Target Selection (for coverage/fix-failing) */}
+              {showTargetButton && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Targets (optional)</p>
+                      <p className="mt-1 text-sm text-slate-300">
+                        Focus on specific files or folders, or leave empty to target the entire scenario.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setStep("targets")}
+                      className="flex items-center gap-2"
+                    >
+                      <Crosshair className="h-4 w-4" />
+                      Select targets
+                    </Button>
+                  </div>
+                  {draftTargets.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {draftTargets.map((path) => (
+                        <span
+                          key={path}
+                          className="inline-flex items-center gap-2 rounded-full border border-cyan-400/50 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100"
+                        >
+                          {path}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePath(path)}
+                            className="text-cyan-200 hover:text-white"
+                            aria-label={`Remove ${path}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Additional Context */}
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Additional context (optional)</p>
+                <textarea
+                  className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 min-h-[100px]"
+                  placeholder="Add any specific instructions, requirements, or context for the AI agent..."
+                  value={draftContext}
+                  onChange={(e) => setDraftContext(e.target.value)}
+                />
+              </div>
+            </div>
           ) : (
             <div className="mt-2 pb-2">
               <FileBrowser
@@ -754,14 +917,27 @@ export function ScenarioTargetDialog({
             <span className="rounded-full border border-white/10 px-3 py-1">
               Scenario: {draftScenario || "Not selected"}
             </span>
-            <span className="rounded-full border border-white/10 px-3 py-1">
-              Targets: {draftTargets.length}
-            </span>
+            {draftTask && (
+              <span className="rounded-full border border-purple-400/40 bg-purple-400/10 px-3 py-1 text-purple-200">
+                Task: {TASK_OPTIONS.find(t => t.key === draftTask)?.label}
+              </span>
+            )}
+            {draftTargets.length > 0 && (
+              <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {draftTargets.length} target{draftTargets.length === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             {step === 2 && (
               <Button variant="outline" onClick={() => setStep(1)}>
                 Back
+              </Button>
+            )}
+            {step === "targets" && (
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back to Scope
               </Button>
             )}
             {step === 1 && (
@@ -773,8 +949,13 @@ export function ScenarioTargetDialog({
               </Button>
             )}
             {step === 2 && (
-              <Button onClick={handleSave} disabled={!draftScenario.trim()}>
-                Save scope
+              <Button onClick={handleSave} disabled={!canSave}>
+                Save & Continue
+              </Button>
+            )}
+            {step === "targets" && (
+              <Button onClick={() => setStep(2)}>
+                Done selecting
               </Button>
             )}
           </div>

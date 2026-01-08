@@ -55,25 +55,5 @@ export const PHASE_LABELS: Record<string, string> = {
 
 export const PHASES_FOR_GENERATION: PhaseForGeneration[] = [
   { key: "unit", label: "Unit Tests", docsPath: "/docs/phases/unit.md" },
-  { key: "integration", label: "Integration Tests", docsPath: "/docs/phases/integration.md" },
-  { key: "playbooks", label: "E2E Playbooks", docsPath: "/docs/phases/playbooks.md" },
-  { key: "business", label: "Business Validation", docsPath: "/docs/phases/business.md" }
-];
-
-export const GENERATION_PRESETS = [
-  {
-    key: "bootstrap",
-    label: "New scenario bootstrap",
-    description: "Generate initial test suite for a new scenario"
-  },
-  {
-    key: "coverage",
-    label: "Add coverage for feature",
-    description: "Add tests for a specific feature or module"
-  },
-  {
-    key: "fix-failing",
-    label: "Fix failing tests",
-    description: "Generate fixes for failing test cases"
-  }
+  { key: "playbooks", label: "E2E Playbooks", docsPath: "/docs/phases/playbooks.md" }
 ];
