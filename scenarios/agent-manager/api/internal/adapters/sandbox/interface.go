@@ -66,6 +66,9 @@ type CreateRequest struct {
 	// ScopePath is the relative path within the project to scope the sandbox.
 	ScopePath string
 
+	// NoLock disables reserved-path locking for investigative sandboxes.
+	NoLock bool
+
 	// ProjectRoot is the root directory of the project.
 	ProjectRoot string
 

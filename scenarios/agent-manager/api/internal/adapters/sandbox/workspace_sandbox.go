@@ -48,6 +48,9 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 		"ownerType":   req.OwnerType,
 		"metadata":    req.Metadata,
 	}
+	if req.NoLock {
+		body["noLock"] = true
+	}
 	if req.Behavior != nil {
 		body["behavior"] = req.Behavior
 	}

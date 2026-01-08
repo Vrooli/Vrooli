@@ -214,8 +214,8 @@ func TestDefaultExecutorConfig(t *testing.T) {
 	if config.Timeout != 30*time.Minute {
 		t.Errorf("expected default timeout 30m, got %v", config.Timeout)
 	}
-	if config.HeartbeatInterval != 30*time.Second {
-		t.Errorf("expected default heartbeat interval 30s, got %v", config.HeartbeatInterval)
+	if config.HeartbeatInterval != 15*time.Second {
+		t.Errorf("expected default heartbeat interval 15s, got %v", config.HeartbeatInterval)
 	}
 	if config.CheckpointInterval != 1*time.Minute {
 		t.Errorf("expected default checkpoint interval 1m, got %v", config.CheckpointInterval)
@@ -223,8 +223,8 @@ func TestDefaultExecutorConfig(t *testing.T) {
 	if config.MaxRetries != 3 {
 		t.Errorf("expected default max retries 3, got %d", config.MaxRetries)
 	}
-	if config.StaleThreshold != 2*time.Minute {
-		t.Errorf("expected default stale threshold 2m, got %v", config.StaleThreshold)
+	if config.StaleThreshold != 5*time.Minute {
+		t.Errorf("expected default stale threshold 5m, got %v", config.StaleThreshold)
 	}
 }
 

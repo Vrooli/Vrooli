@@ -5,24 +5,26 @@ import (
 	"testing"
 
 	"agent-manager/internal/domain"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // mockToolProvider is a test double for ToolProvider.
 type mockToolProvider struct {
 	name       string
-	tools      []domain.ToolDefinition
-	categories []domain.ToolCategory
+	tools      []*toolspb.ToolDefinition
+	categories []*toolspb.ToolCategory
 }
 
 func (m *mockToolProvider) Name() string {
 	return m.name
 }
 
-func (m *mockToolProvider) Tools(_ context.Context) []domain.ToolDefinition {
+func (m *mockToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
 	return m.tools
 }
 
-func (m *mockToolProvider) Categories(_ context.Context) []domain.ToolCategory {
+func (m *mockToolProvider) Categories(_ context.Context) []*toolspb.ToolCategory {
 	return m.categories
 }
 
@@ -52,7 +54,7 @@ func TestRegistry_RegisterProvider(t *testing.T) {
 
 	provider := &mockToolProvider{
 		name: "test-provider",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "test_tool", Description: "A test tool"},
 		},
 	}
@@ -72,13 +74,13 @@ func TestRegistry_RegisterProvider_Replaces(t *testing.T) {
 
 	provider1 := &mockToolProvider{
 		name: "same-name",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "tool_v1", Description: "Version 1"},
 		},
 	}
 	provider2 := &mockToolProvider{
 		name: "same-name",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "tool_v2", Description: "Version 2"},
 		},
 	}
@@ -122,13 +124,13 @@ func TestRegistry_GetManifest(t *testing.T) {
 
 	provider := &mockToolProvider{
 		name: "test-provider",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "tool_a", Description: "Tool A", Category: "cat1"},
 			{Name: "tool_b", Description: "Tool B", Category: "cat2"},
 		},
-		categories: []domain.ToolCategory{
-			{ID: "cat1", Name: "Category 1"},
-			{ID: "cat2", Name: "Category 2"},
+		categories: []*toolspb.ToolCategory{
+			{Id: "cat1", Name: "Category 1"},
+			{Id: "cat2", Name: "Category 2"},
 		},
 	}
 	registry.RegisterProvider(provider)
@@ -136,8 +138,8 @@ func TestRegistry_GetManifest(t *testing.T) {
 	manifest := registry.GetManifest(context.Background())
 
 	// Verify protocol version
-	if manifest.ProtocolVersion != domain.ProtocolVersion {
-		t.Errorf("expected protocol version %s, got %s", domain.ProtocolVersion, manifest.ProtocolVersion)
+	if manifest.ProtocolVersion != domain.ToolProtocolVersion {
+		t.Errorf("expected protocol version %s, got %s", domain.ToolProtocolVersion, manifest.ProtocolVersion)
 	}
 
 	// Verify scenario info
@@ -162,7 +164,7 @@ func TestRegistry_GetManifest(t *testing.T) {
 	}
 
 	// Verify GeneratedAt is set
-	if manifest.GeneratedAt.IsZero() {
+	if manifest.GeneratedAt == nil || manifest.GeneratedAt.AsTime().IsZero() {
 		t.Error("expected GeneratedAt to be set")
 	}
 }
@@ -175,20 +177,20 @@ func TestRegistry_GetManifest_MultipleProviders(t *testing.T) {
 
 	provider1 := &mockToolProvider{
 		name: "provider-1",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "tool_from_p1", Description: "From provider 1"},
 		},
-		categories: []domain.ToolCategory{
-			{ID: "shared", Name: "From P1"},
+		categories: []*toolspb.ToolCategory{
+			{Id: "shared", Name: "From P1"},
 		},
 	}
 	provider2 := &mockToolProvider{
 		name: "provider-2",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "tool_from_p2", Description: "From provider 2"},
 		},
-		categories: []domain.ToolCategory{
-			{ID: "shared", Name: "From P2"}, // Overrides P1's category
+		categories: []*toolspb.ToolCategory{
+			{Id: "shared", Name: "From P2"}, // Overrides P1's category
 		},
 	}
 
@@ -216,7 +218,7 @@ func TestRegistry_GetTool(t *testing.T) {
 
 	provider := &mockToolProvider{
 		name: "test-provider",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "my_tool", Description: "My tool description"},
 		},
 	}
@@ -246,7 +248,7 @@ func TestRegistry_ListToolNames(t *testing.T) {
 
 	provider := &mockToolProvider{
 		name: "test-provider",
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{Name: "alpha"},
 			{Name: "beta"},
 			{Name: "gamma"},

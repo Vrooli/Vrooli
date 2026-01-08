@@ -9,23 +9,26 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/toolregistry"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // mockToolProvider is a test double for toolregistry.ToolProvider.
 type mockToolProvider struct {
-	tools      []domain.ToolDefinition
-	categories []domain.ToolCategory
+	tools      []*toolspb.ToolDefinition
+	categories []*toolspb.ToolCategory
 }
 
 func (m *mockToolProvider) Name() string {
 	return "mock-provider"
 }
 
-func (m *mockToolProvider) Tools(_ context.Context) []domain.ToolDefinition {
+func (m *mockToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
 	return m.tools
 }
 
-func (m *mockToolProvider) Categories(_ context.Context) []domain.ToolCategory {
+func (m *mockToolProvider) Categories(_ context.Context) []*toolspb.ToolCategory {
 	return m.categories
 }
 
@@ -37,16 +40,16 @@ func setupTestToolsHandler() (*ToolsHandler, *toolregistry.Registry) {
 	})
 
 	provider := &mockToolProvider{
-		tools: []domain.ToolDefinition{
+		tools: []*toolspb.ToolDefinition{
 			{
 				Name:        "test_tool",
 				Description: "A test tool",
 				Category:    "testing",
-				Parameters: domain.ToolParameters{
+				Parameters: &toolspb.ToolParameters{
 					Type:       "object",
-					Properties: map[string]domain.ParameterSchema{},
+					Properties: map[string]*toolspb.ParameterSchema{},
 				},
-				Metadata: domain.ToolMetadata{
+				Metadata: &toolspb.ToolMetadata{
 					EnabledByDefault: true,
 					TimeoutSeconds:   30,
 				},
@@ -55,21 +58,21 @@ func setupTestToolsHandler() (*ToolsHandler, *toolregistry.Registry) {
 				Name:        "another_tool",
 				Description: "Another test tool",
 				Category:    "testing",
-				Parameters: domain.ToolParameters{
+				Parameters: &toolspb.ToolParameters{
 					Type: "object",
-					Properties: map[string]domain.ParameterSchema{
+					Properties: map[string]*toolspb.ParameterSchema{
 						"input": {Type: "string", Description: "Input value"},
 					},
 					Required: []string{"input"},
 				},
-				Metadata: domain.ToolMetadata{
+				Metadata: &toolspb.ToolMetadata{
 					EnabledByDefault: true,
 					TimeoutSeconds:   60,
 				},
 			},
 		},
-		categories: []domain.ToolCategory{
-			{ID: "testing", Name: "Testing", Description: "Tools for testing"},
+		categories: []*toolspb.ToolCategory{
+			{Id: "testing", Name: "Testing", Description: "Tools for testing"},
 		},
 	}
 
@@ -104,14 +107,14 @@ func TestToolsHandler_GetTools(t *testing.T) {
 	}
 
 	// Parse response
-	var manifest domain.ToolManifest
-	if err := json.Unmarshal(rec.Body.Bytes(), &manifest); err != nil {
+	var manifest toolspb.ToolManifest
+	if err := protojson.Unmarshal(rec.Body.Bytes(), &manifest); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 
 	// Verify manifest structure
-	if manifest.ProtocolVersion != domain.ProtocolVersion {
-		t.Errorf("expected protocol version %s, got %s", domain.ProtocolVersion, manifest.ProtocolVersion)
+	if manifest.ProtocolVersion != domain.ToolProtocolVersion {
+		t.Errorf("expected protocol version %s, got %s", domain.ToolProtocolVersion, manifest.ProtocolVersion)
 	}
 	if manifest.Scenario.Name != "test-scenario" {
 		t.Errorf("expected scenario name 'test-scenario', got %s", manifest.Scenario.Name)
@@ -149,8 +152,8 @@ func TestToolsHandler_GetTool_Found(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var tool domain.ToolDefinition
-	if err := json.Unmarshal(rec.Body.Bytes(), &tool); err != nil {
+	var tool toolspb.ToolDefinition
+	if err := protojson.Unmarshal(rec.Body.Bytes(), &tool); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 

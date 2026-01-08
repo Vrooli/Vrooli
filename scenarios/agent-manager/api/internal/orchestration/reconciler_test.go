@@ -16,12 +16,12 @@ func TestDefaultReconcilerConfig(t *testing.T) {
 		t.Errorf("Interval = %v, want 30s", cfg.Interval)
 	}
 
-	if cfg.StaleThreshold != 2*time.Minute {
-		t.Errorf("StaleThreshold = %v, want 2m", cfg.StaleThreshold)
+	if cfg.StaleThreshold != 5*time.Minute {
+		t.Errorf("StaleThreshold = %v, want 5m", cfg.StaleThreshold)
 	}
 
-	if cfg.OrphanGracePeriod != 5*time.Minute {
-		t.Errorf("OrphanGracePeriod = %v, want 5m", cfg.OrphanGracePeriod)
+	if cfg.OrphanGracePeriod != 10*time.Minute {
+		t.Errorf("OrphanGracePeriod = %v, want 10m", cfg.OrphanGracePeriod)
 	}
 
 	if cfg.MaxStaleRuns != 10 {
@@ -329,7 +329,7 @@ func TestReconciler_LastStats_Initial(t *testing.T) {
 
 func TestWithReconcilerConfig(t *testing.T) {
 	cfg := ReconcilerConfig{
-		Interval:   5 * time.Minute,
+		Interval:    5 * time.Minute,
 		KillOrphans: true,
 	}
 

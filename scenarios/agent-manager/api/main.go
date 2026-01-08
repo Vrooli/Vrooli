@@ -283,6 +283,10 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	}
 
 	orchConfig := orchestration.DefaultConfig()
+	baseConfig := agentconfig.Load()
+	if baseConfig != nil {
+		orchConfig.DefaultProjectRoot = strings.TrimSpace(baseConfig.Sandbox.ProjectRoot)
+	}
 	if levers != nil {
 		orchConfig.DefaultTimeout = levers.Execution.DefaultTimeout
 		orchConfig.MaxConcurrentRuns = levers.Concurrency.MaxConcurrentRuns

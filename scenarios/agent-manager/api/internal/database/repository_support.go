@@ -186,7 +186,7 @@ const idempotencyColumns = `key, status, entity_id, entity_type, created_at, exp
 func (r *idempotencyRepository) Check(ctx context.Context, key string) (*domain.IdempotencyRecord, error) {
 	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM idempotency_records WHERE key = ? AND expires_at > ?", idempotencyColumns))
 	var row idempotencyRow
-	if err := r.db.GetContext(ctx, &row, query, key, time.Now()); err != nil {
+	if err := r.db.GetContext(ctx, &row, query, key, SQLiteTime(time.Now().UTC())); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -246,7 +246,7 @@ func (r *idempotencyRepository) Fail(ctx context.Context, key string) error {
 
 func (r *idempotencyRepository) CleanupExpired(ctx context.Context) (int, error) {
 	query := r.db.Rebind(`DELETE FROM idempotency_records WHERE expires_at < ?`)
-	result, err := r.db.ExecContext(ctx, query, time.Now())
+	result, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now().UTC()))
 	if err != nil {
 		return 0, wrapDBError("cleanup_idempotency", "IdempotencyRecord", "", err)
 	}
@@ -505,7 +505,7 @@ func (r *lockRepository) Check(ctx context.Context, scopePath, projectRoot strin
 	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM scope_locks WHERE scope_path = ? AND project_root = ? AND expires_at > ?", lockColumns))
 
 	var rows []lockRow
-	if err := r.db.SelectContext(ctx, &rows, query, scopePath, projectRoot, time.Now()); err != nil {
+	if err := r.db.SelectContext(ctx, &rows, query, scopePath, projectRoot, SQLiteTime(time.Now().UTC())); err != nil {
 		return nil, wrapDBError("check_locks", "ScopeLock", "", err)
 	}
 
@@ -528,7 +528,7 @@ func (r *lockRepository) Refresh(ctx context.Context, id uuid.UUID, newExpiry in
 
 func (r *lockRepository) CleanupExpired(ctx context.Context) (int, error) {
 	query := r.db.Rebind(`DELETE FROM scope_locks WHERE expires_at < ?`)
-	result, err := r.db.ExecContext(ctx, query, time.Now())
+	result, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now().UTC()))
 	if err != nil {
 		return 0, wrapDBError("cleanup_locks", "ScopeLock", "", err)
 	}

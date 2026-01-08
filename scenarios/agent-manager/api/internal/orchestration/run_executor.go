@@ -531,6 +531,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
 		ScopePath:      e.task.ScopePath,
+		NoLock:         e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock,
 		ProjectRoot:    e.task.ProjectRoot,
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
@@ -538,7 +539,15 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		Behavior:       e.run.SandboxConfig,
 	})
 	if err != nil {
-		return err
+		if _, ok := err.(*domain.SandboxError); ok {
+			return err
+		}
+		return &domain.SandboxError{
+			Operation:   "create",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 
 	e.sandboxID = &sbx.ID
@@ -1016,6 +1025,11 @@ func (e *RunExecutor) classifyErrorOutcome(err error) domain.RunOutcome {
 	switch err := err.(type) {
 	case *domain.SandboxError:
 		return domain.RunOutcomeSandboxFail
+	case *domain.ConfigError:
+		if err.Missing && err.Setting == "sandbox" {
+			return domain.RunOutcomeSandboxFail
+		}
+		return domain.RunOutcomeException
 	case *domain.RunnerError:
 		if err.Operation == "timeout" {
 			return domain.RunOutcomeTimeout

@@ -262,11 +262,13 @@ func (o *investigationOrchestrator) runInvestigation(ctx context.Context, invest
 	prompt := o.buildInvestigationPrompt(investigation, runs, eventsMap)
 
 	// Create a task for the investigation
+	projectRoot := strings.TrimSpace(o.config.DefaultProjectRoot)
 	task := &domain.Task{
 		ID:          uuid.New(),
 		Title:       fmt.Sprintf("Investigation %s", investigation.ID.String()[:8]),
 		Description: prompt,
 		ScopePath:   ".", // Investigation doesn't need file access
+		ProjectRoot: projectRoot,
 		Status:      domain.TaskStatusQueued,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -281,10 +283,17 @@ func (o *investigationOrchestrator) runInvestigation(ctx context.Context, invest
 	_ = o.investigations.UpdateProgress(ctx, investigation.ID, 20)
 
 	// Create a run for the investigation (uses default investigator profile)
+	sandboxConfig := &domain.SandboxConfig{NoLock: true}
+	if o.config.DefaultSandboxConfig != nil {
+		clone := *o.config.DefaultSandboxConfig
+		clone.NoLock = true
+		sandboxConfig = &clone
+	}
 	runReq := CreateRunRequest{
-		TaskID: task.ID,
-		Tag:    fmt.Sprintf("investigation-%s", investigation.ID.String()[:8]),
-		Force:  true, // Investigations always run
+		TaskID:        task.ID,
+		Tag:           fmt.Sprintf("investigation-%s", investigation.ID.String()[:8]),
+		Force:         true, // Investigations always run
+		SandboxConfig: sandboxConfig,
 	}
 
 	run, err := o.CreateRun(ctx, runReq)
@@ -409,11 +418,13 @@ func (o *investigationOrchestrator) runFixApplication(ctx context.Context, inves
 	prompt := o.buildFixApplicationPrompt(investigation, recommendations)
 
 	// Create a task for applying fixes
+	projectRoot := strings.TrimSpace(o.config.DefaultProjectRoot)
 	task := &domain.Task{
 		ID:          uuid.New(),
 		Title:       fmt.Sprintf("Apply Fixes %s", investigation.ID.String()[:8]),
 		Description: prompt,
 		ScopePath:   ".", // May need access to files for code fixes
+		ProjectRoot: projectRoot,
 		Status:      domain.TaskStatusQueued,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

@@ -79,6 +79,8 @@ func setupTestHandler() (*Handler, *mux.Router) {
 	// Create router and register routes
 	r := mux.NewRouter()
 	handler.RegisterRoutes(r)
+	r.HandleFunc("/health", handler.Health).Methods("GET")
+	r.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
 	return handler, r
 }
@@ -564,13 +566,13 @@ func TestHealth_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 	}
 
-	var result orchestration.HealthStatus
-	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+	var result commonpb.HealthResponse
+	if err := protoconv.UnmarshalJSON(rr.Body.Bytes(), &result); err != nil {
 		t.Fatalf("failed to decode health response: %v", err)
 	}
 
 	// Verify required fields per health-api.schema.json
-	if result.Status == "" {
+	if result.Status == commonpb.HealthStatus_HEALTH_STATUS_UNSPECIFIED {
 		t.Error("health status should not be empty")
 	}
 	if result.Service != "agent-manager" {

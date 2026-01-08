@@ -28,17 +28,17 @@ func TestAgentToolProvider_Categories(t *testing.T) {
 	}
 
 	for _, cat := range categories {
-		if _, ok := expectedCategories[cat.ID]; !ok {
-			t.Errorf("unexpected category ID: %s", cat.ID)
+		if _, ok := expectedCategories[cat.Id]; !ok {
+			t.Errorf("unexpected category ID: %s", cat.Id)
 		}
-		expectedCategories[cat.ID] = true
+		expectedCategories[cat.Id] = true
 
 		// Verify required fields
 		if cat.Name == "" {
-			t.Errorf("category %s has empty name", cat.ID)
+			t.Errorf("category %s has empty name", cat.Id)
 		}
 		if cat.Description == "" {
-			t.Errorf("category %s has empty description", cat.ID)
+			t.Errorf("category %s has empty description", cat.Id)
 		}
 	}
 
@@ -61,11 +61,11 @@ func TestAgentToolProvider_Tools(t *testing.T) {
 		category string
 		required []string
 	}{
-		"spawn_coding_agent":   {category: "agent_lifecycle", required: []string{"task"}},
-		"check_agent_status":   {category: "agent_status", required: []string{"run_id"}},
-		"stop_agent":           {category: "agent_lifecycle", required: []string{"run_id"}},
-		"list_active_agents":   {category: "agent_status", required: []string{}},
-		"get_agent_diff":       {category: "agent_results", required: []string{"run_id"}},
+		"spawn_coding_agent":    {category: "agent_lifecycle", required: []string{"task"}},
+		"check_agent_status":    {category: "agent_status", required: []string{"run_id"}},
+		"stop_agent":            {category: "agent_lifecycle", required: []string{"run_id"}},
+		"list_active_agents":    {category: "agent_status", required: []string{}},
+		"get_agent_diff":        {category: "agent_results", required: []string{"run_id"}},
 		"approve_agent_changes": {category: "agent_results", required: []string{"run_id"}},
 	}
 
