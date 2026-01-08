@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { PhaseSelector } from "./PhaseSelector";
 import { PromptEditor } from "./PromptEditor";
 import { ActionButtons } from "./ActionButtons";
 import { ScenarioTargetDialog, type TaskType, type ScopeResult } from "./ScenarioTargetDialog";
@@ -314,16 +313,6 @@ export function GeneratePage() {
 
   const hasTargets = targetPaths.length > 0;
 
-  const handleTogglePhase = (phase: string) => {
-    if (hasTargets) return; // When targeting paths, phases are locked to Unit
-    setSelectedPhases((prev) =>
-      prev.includes(phase)
-        ? prev.filter((p) => p !== phase)
-        : [...prev, phase]
-    );
-    setCustomPrompts({});
-  };
-
   // Load app config on mount (includes repoRoot)
   useEffect(() => {
     const loadConfig = async () => {
@@ -400,13 +389,9 @@ export function GeneratePage() {
     setFocusScenario(result.scenario);
     setSelectedTask(result.task);
     setTargetPaths(result.targets);
+    setSelectedPhases(result.phases);
     setAdditionalContext(result.additionalContext);
     setCustomPrompts({});
-    if (result.targets.length > 0) {
-      setSelectedPhases(["unit"]);
-    } else {
-      setSelectedPhases(["unit"]);
-    }
   };
 
   const targetGroups = useMemo(() => {
@@ -558,6 +543,12 @@ export function GeneratePage() {
         </p>
       </section>
 
+      {/* Active Agents Panel - moved to top */}
+      <ActiveAgentsPanel
+        scenario={focusScenario}
+        scope={targetPaths}
+      />
+
       {/* Scenario & Scope */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -583,8 +574,13 @@ export function GeneratePage() {
                 {TASK_LABELS[selectedTask]}
               </span>
             )}
-            {targetPaths.length > 0 && (
+            {selectedPhases.length > 0 && (
               <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {selectedPhases.map(p => PHASE_LABELS[p] || p).join(", ")}
+              </span>
+            )}
+            {targetPaths.length > 0 && (
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-emerald-200">
                 {targetPaths.length} target{targetPaths.length === 1 ? "" : "s"}
               </span>
             )}
@@ -592,7 +588,7 @@ export function GeneratePage() {
           {targetPaths.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {targetPaths.slice(0, 6).map((path) => (
-                <span key={path} className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
+                <span key={path} className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-100">
                   {path}
                 </span>
               ))}
@@ -608,136 +604,7 @@ export function GeneratePage() {
             </div>
           )}
         </div>
-        {targetPaths.length >= 2 && (
-          <div className="mt-4 flex flex-col gap-2">
-            <label className={cn(
-              "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
-              splitTargets ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
-            )}>
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-                checked={splitTargets}
-                onChange={(e) => setSplitTargets(e.target.checked)}
-              />
-              <div>
-                <p className="font-semibold text-white">Split prompts by target path</p>
-                <p className="text-xs text-slate-400">
-                  Generates one prompt per selected folder/file.
-                </p>
-              </div>
-            </label>
-          </div>
-        )}
       </section>
-
-      {/* Phase Selection */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <PhaseSelector
-          selectedPhases={selectedPhases}
-          lockToUnit={hasTargets}
-          onTogglePhase={handleTogglePhase}
-          task={selectedTask}
-        />
-        {selectedPhases.length >= 2 && (
-          <div className="mt-4 flex flex-col gap-2">
-            <label className={cn(
-              "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
-              splitPhases ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
-            )}>
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-                checked={splitPhases}
-                onChange={(e) => setSplitPhases(e.target.checked)}
-              />
-              <div>
-                <p className="font-semibold text-white">Split prompts by phase</p>
-                <p className="text-xs text-slate-400">
-                  Generates one prompt per selected phase.
-                </p>
-              </div>
-            </label>
-          </div>
-        )}
-      </section>
-
-      {/* Generate Section */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex-1">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Generate</p>
-            <h3 className="mt-2 text-lg font-semibold">Spawn Test Agents</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              Select a model and spawn agents to generate tests for your scenario.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <div className="space-y-2 min-w-[250px]">
-              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
-              <select
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                value={agentModel}
-                onChange={(e) => setAgentModel(e.target.value)}
-                disabled={modelsLoading || modelOptions.length === 0}
-              >
-                {modelsLoading && <option>Loading models…</option>}
-                {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
-                {!modelsLoading &&
-                  modelOptions.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
-                    </option>
-                  ))}
-              </select>
-              {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
-            </div>
-            <Button
-              onClick={handleSpawnAll}
-              disabled={spawnDisabled}
-              className="h-10"
-            >
-              {spawnBusy ? "Generating..." : "Generate Tests"}
-            </Button>
-          </div>
-        </div>
-        {spawnStatus && (
-          <div className="mt-4 rounded-lg border border-cyan-400/40 bg-cyan-400/10 p-3">
-            <p className="text-sm text-cyan-200">{spawnStatus}</p>
-          </div>
-        )}
-        {spawnResults && spawnResults.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {spawnResults.map((res) => (
-              <div key={res.promptIndex} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-white">Prompt {res.promptIndex + 1}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-1 text-xs",
-                      res.status === "completed"
-                        ? "bg-emerald-500/10 text-emerald-200 border border-emerald-400/40"
-                        : res.status === "timeout"
-                        ? "bg-amber-500/10 text-amber-200 border border-amber-400/40"
-                        : "bg-rose-500/10 text-rose-200 border border-rose-400/40"
-                    )}
-                  >
-                    {res.status}
-                  </span>
-                </div>
-                {res.sessionId && <p className="mt-1 text-xs text-slate-400">Session: {res.sessionId}</p>}
-                {res.error && <p className="mt-1 text-xs text-rose-300">Error: {res.error}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Active Agents Panel - moved up */}
-      <ActiveAgentsPanel
-        scenario={focusScenario}
-        scope={targetPaths}
-      />
 
       {/* Advanced Settings - collapsible */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02]">
@@ -759,6 +626,48 @@ export function GeneratePage() {
 
         {advancedOpen && (
           <div className="border-t border-white/10 p-6 space-y-8">
+            {/* Split prompts options */}
+            <div className="flex flex-wrap gap-4">
+              {targetPaths.length >= 2 && (
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                  splitTargets ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+                )}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={splitTargets}
+                    onChange={(e) => setSplitTargets(e.target.checked)}
+                  />
+                  <div>
+                    <p className="font-semibold text-white">Split prompts by target path</p>
+                    <p className="text-xs text-slate-400">
+                      Generates one prompt per selected folder/file.
+                    </p>
+                  </div>
+                </label>
+              )}
+              {selectedPhases.length >= 2 && (
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                  splitPhases ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+                )}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={splitPhases}
+                    onChange={(e) => setSplitPhases(e.target.checked)}
+                  />
+                  <div>
+                    <p className="font-semibold text-white">Split prompts by phase</p>
+                    <p className="text-xs text-slate-400">
+                      Generates one prompt per selected phase.
+                    </p>
+                  </div>
+                </label>
+              )}
+            </div>
+
             {/* Prompt Preview/Editor */}
             <div>
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -986,6 +895,77 @@ export function GeneratePage() {
         )}
       </section>
 
+      {/* Generate Section */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Generate</p>
+            <h3 className="mt-2 text-lg font-semibold">Spawn Test Agents</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Select a model and spawn agents to generate tests for your scenario.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="space-y-2 min-w-[250px]">
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
+              <select
+                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={agentModel}
+                onChange={(e) => setAgentModel(e.target.value)}
+                disabled={modelsLoading || modelOptions.length === 0}
+              >
+                {modelsLoading && <option>Loading models…</option>}
+                {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
+                {!modelsLoading &&
+                  modelOptions.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
+                    </option>
+                  ))}
+              </select>
+              {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
+            </div>
+            <Button
+              onClick={handleSpawnAll}
+              disabled={spawnDisabled}
+              className="h-10"
+            >
+              {spawnBusy ? "Generating..." : "Generate Tests"}
+            </Button>
+          </div>
+        </div>
+        {spawnStatus && (
+          <div className="mt-4 rounded-lg border border-cyan-400/40 bg-cyan-400/10 p-3">
+            <p className="text-sm text-cyan-200">{spawnStatus}</p>
+          </div>
+        )}
+        {spawnResults && spawnResults.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {spawnResults.map((res) => (
+              <div key={res.promptIndex} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-white">Prompt {res.promptIndex + 1}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-1 text-xs",
+                      res.status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-200 border border-emerald-400/40"
+                        : res.status === "timeout"
+                        ? "bg-amber-500/10 text-amber-200 border border-amber-400/40"
+                        : "bg-rose-500/10 text-rose-200 border border-rose-400/40"
+                    )}
+                  >
+                    {res.status}
+                  </span>
+                </div>
+                {res.sessionId && <p className="mt-1 text-xs text-slate-400">Session: {res.sessionId}</p>}
+                {res.error && <p className="mt-1 text-xs text-rose-300">Error: {res.error}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <ScenarioTargetDialog
         open={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
@@ -993,6 +973,7 @@ export function GeneratePage() {
         initialScenario={focusScenario}
         initialTask={selectedTask}
         initialTargets={targetPaths}
+        initialPhases={selectedPhases}
         initialContext={additionalContext}
         onSave={handleScopeSave}
       />
@@ -1000,4 +981,4 @@ export function GeneratePage() {
   );
 }
 
-export { PhaseSelector, PromptEditor, ActionButtons };
+export { PromptEditor, ActionButtons };

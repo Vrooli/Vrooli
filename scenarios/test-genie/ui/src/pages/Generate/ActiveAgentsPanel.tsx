@@ -200,6 +200,8 @@ interface ActiveAgentsPanelProps {
   scope?: string[];
   /** Callback when an agent's status changes to a terminal state */
   onAgentStatusChange?: (agentId: string, status: "completed" | "failed" | "timeout" | "stopped") => void;
+  /** Whether the panel should start collapsed. Defaults to true. */
+  defaultCollapsed?: boolean;
 }
 
 // Status filter options
@@ -213,7 +215,8 @@ const STATUS_OPTIONS = [
 
 type StatusFilter = typeof STATUS_OPTIONS[number]["value"];
 
-export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange }: ActiveAgentsPanelProps) {
+export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaultCollapsed = true }: ActiveAgentsPanelProps) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [streamingOutput, setStreamingOutput] = useState<Record<string, string>>({});
@@ -350,78 +353,105 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange }: Acti
   };
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-      <div className="flex items-center justify-between mb-4">
+    <section className="rounded-2xl border border-white/10 bg-white/[0.02]">
+      {/* Collapsible Header */}
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="flex w-full items-center justify-between p-6 text-left"
+      >
         <div className="flex items-center gap-3">
           <Bot className="h-5 w-5 text-cyan-400" />
-          <h3 className="text-lg font-semibold text-white">Active Agents</h3>
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Agents</p>
+            <h3 className="mt-1 text-lg font-semibold text-white">Active Agents</h3>
+          </div>
           {activeCount > 0 && (
             <span className="rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 py-0.5 text-xs text-cyan-100">
               {activeCount} running
             </span>
           )}
-          {/* WebSocket connection indicator */}
-          <span
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
-              isConnected
-                ? "border border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
-                : "border border-amber-400/50 bg-amber-400/10 text-amber-200"
-            )}
-            title={isConnected ? "Real-time updates active" : "Using polling fallback"}
-          >
-            {isConnected ? (
-              <>
-                <Wifi className="h-3 w-3" />
-                Live
-              </>
-            ) : (
-              <>
-                <WifiOff className="h-3 w-3" />
-                Polling
-              </>
-            )}
-          </span>
+          {!isCollapsed && (
+            <span
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
+                isConnected
+                  ? "border border-emerald-400/50 bg-emerald-400/10 text-emerald-200"
+                  : "border border-amber-400/50 bg-amber-400/10 text-amber-200"
+              )}
+              title={isConnected ? "Real-time updates active" : "Using polling fallback"}
+            >
+              {isConnected ? (
+                <>
+                  <Wifi className="h-3 w-3" />
+                  Live
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  Polling
+                </>
+              )}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Stop All button - only show when there are active agents */}
-          {activeCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => stopAllMutation.mutate()}
-              disabled={stopAllMutation.isPending}
-              className="text-rose-400 border-rose-400/50 hover:bg-rose-400/10"
-            >
-              <StopCircle className={cn("h-4 w-4 mr-1", stopAllMutation.isPending && "animate-pulse")} />
-              Stop All ({activeCount})
-            </Button>
+          {isCollapsed ? (
+            <ChevronDown className="h-5 w-5 text-slate-400" />
+          ) : (
+            <ChevronUp className="h-5 w-5 text-slate-400" />
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setShowAll(!showAll);
-              // Reset status filter when toggling showAll
-              if (!showAll) {
-                setStatusFilter("all");
-              } else {
-                setStatusFilter("active");
-              }
-            }}
-          >
-            {showAll ? "Active only" : "Show all"}
-          </Button>
         </div>
-      </div>
+      </button>
+
+      {!isCollapsed && (
+        <div className="border-t border-white/10 p-6">
+          {/* Control bar */}
+          <div className="flex items-center justify-end gap-2 mb-4">
+            {/* Stop All button - only show when there are active agents */}
+            {activeCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stopAllMutation.mutate();
+                }}
+                disabled={stopAllMutation.isPending}
+                className="text-rose-400 border-rose-400/50 hover:bg-rose-400/10"
+              >
+                <StopCircle className={cn("h-4 w-4 mr-1", stopAllMutation.isPending && "animate-pulse")} />
+                Stop All ({activeCount})
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                refetch();
+              }}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAll(!showAll);
+                // Reset status filter when toggling showAll
+                if (!showAll) {
+                  setStatusFilter("all");
+                } else {
+                  setStatusFilter("active");
+                }
+              }}
+            >
+              {showAll ? "Active only" : "Show all"}
+            </Button>
+          </div>
 
       {/* Filter controls */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -661,7 +691,9 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange }: Acti
             </div>
           );
         })}
+        </div>
       </div>
+      )}
     </section>
   );
 }

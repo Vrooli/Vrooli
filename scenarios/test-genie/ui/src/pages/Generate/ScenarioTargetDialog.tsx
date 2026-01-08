@@ -19,6 +19,7 @@ import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { ScenarioDirectoryEntry } from "../../hooks/useScenarios";
 import { fetchScenarioFiles, type ScenarioFileNode, fetchScenarioCoverage } from "../../lib/api";
+import { PHASES_FOR_GENERATION } from "../../lib/constants";
 import { cn } from "../../lib/utils";
 
 export type TaskType = "bootstrap" | "coverage" | "fix-failing";
@@ -27,6 +28,7 @@ export interface ScopeResult {
   scenario: string;
   task: TaskType;
   targets: string[];
+  phases: string[];
   additionalContext: string;
 }
 
@@ -36,6 +38,7 @@ interface ScenarioTargetDialogProps {
   initialScenario: string;
   initialTask: TaskType | null;
   initialTargets: string[];
+  initialPhases: string[];
   initialContext: string;
   scenarios: ScenarioDirectoryEntry[];
   onSave: (result: ScopeResult) => void;
@@ -614,6 +617,7 @@ export function ScenarioTargetDialog({
   initialScenario,
   initialTask,
   initialTargets,
+  initialPhases,
   initialContext,
   onSave
 }: ScenarioTargetDialogProps) {
@@ -621,6 +625,7 @@ export function ScenarioTargetDialog({
   const [draftScenario, setDraftScenario] = useState(initialScenario);
   const [draftTask, setDraftTask] = useState<TaskType | null>(initialTask);
   const [draftTargets, setDraftTargets] = useState<string[]>(initialTargets);
+  const [draftPhases, setDraftPhases] = useState<string[]>(initialPhases);
   const [draftContext, setDraftContext] = useState(initialContext);
   const [scenarioSearch, setScenarioSearch] = useState("");
   const [sortBy, setSortBy] = useState<"recent" | "name">("recent");
@@ -641,14 +646,15 @@ export function ScenarioTargetDialog({
 
   useEffect(() => {
     if (open) {
-      setStep(1);
+      setStep(initialScenario ? 2 : 1);
       setDraftScenario(initialScenario);
       setDraftTask(initialTask);
       setDraftTargets(initialTargets);
+      setDraftPhases(initialPhases.length > 0 ? initialPhases : ["unit"]);
       setDraftContext(initialContext);
       setScenarioSearch("");
     }
-  }, [open, initialScenario, initialTask, initialTargets, initialContext]);
+  }, [open, initialScenario, initialTask, initialTargets, initialPhases, initialContext]);
 
   const sortedScenarios = useMemo(() => {
     const filtered = scenarios.filter((s) =>
@@ -663,21 +669,32 @@ export function ScenarioTargetDialog({
   const recent = useMemo(() => sortedScenarios.slice(0, 4), [sortedScenarios]);
 
   const handleSave = () => {
-    if (!draftScenario.trim() || !draftTask) return;
+    if (!draftScenario.trim() || !draftTask || draftPhases.length === 0) return;
     onSave({
       scenario: draftScenario.trim(),
       task: draftTask,
       targets: draftTargets,
+      phases: draftPhases,
       additionalContext: draftContext.trim()
     });
     onClose();
   };
 
-  const canSave = draftScenario.trim() && draftTask;
+  const canSave = draftScenario.trim() && draftTask && draftPhases.length > 0;
+
+  const handleTogglePhase = (phaseKey: string) => {
+    setDraftPhases((prev) =>
+      prev.includes(phaseKey)
+        ? prev.filter((p) => p !== phaseKey)
+        : [...prev, phaseKey]
+    );
+  };
   const showTargetButton = draftTask === "coverage" || draftTask === "fix-failing";
 
   const handleSelectScenario = (name: string) => {
     setDraftScenario(name);
+    // Auto-advance to step 2 after selecting a scenario
+    setStep(2);
   };
 
   const handleSelectPath = (path: string) => {
@@ -889,6 +906,49 @@ export function ScenarioTargetDialog({
                 </div>
               )}
 
+              {/* Test Phases */}
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Test phases</p>
+                <p className="text-sm text-slate-300">Choose which test types to generate.</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {PHASES_FOR_GENERATION.map((phase) => {
+                    const isSelected = draftPhases.includes(phase.key);
+                    return (
+                      <button
+                        key={phase.key}
+                        type="button"
+                        onClick={() => handleTogglePhase(phase.key)}
+                        className={cn(
+                          "rounded-xl border p-4 text-left transition",
+                          isSelected
+                            ? "border-cyan-400 bg-cyan-400/10"
+                            : "border-white/10 bg-black/30 hover:border-white/30"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">{phase.label}</span>
+                          <span
+                            className={cn(
+                              "h-5 w-5 rounded border flex items-center justify-center",
+                              isSelected
+                                ? "border-cyan-400 bg-cyan-400 text-black"
+                                : "border-white/30"
+                            )}
+                          >
+                            {isSelected && (
+                              <Check className="h-3 w-3" />
+                            )}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">
+                          {phase.key === "unit" ? "Unit tests for individual functions and modules" : "End-to-end browser automation workflows"}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Additional Context */}
               <div className="space-y-3">
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Additional context (optional)</p>
@@ -913,7 +973,7 @@ export function ScenarioTargetDialog({
         </div>
 
         <div className="mt-6 flex justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span className="rounded-full border border-white/10 px-3 py-1">
               Scenario: {draftScenario || "Not selected"}
             </span>
@@ -922,8 +982,13 @@ export function ScenarioTargetDialog({
                 Task: {TASK_OPTIONS.find(t => t.key === draftTask)?.label}
               </span>
             )}
-            {draftTargets.length > 0 && (
+            {draftPhases.length > 0 && (
               <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {draftPhases.map(p => PHASES_FOR_GENERATION.find(ph => ph.key === p)?.label ?? p).join(", ")}
+              </span>
+            )}
+            {draftTargets.length > 0 && (
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-emerald-200">
                 {draftTargets.length} target{draftTargets.length === 1 ? "" : "s"}
               </span>
             )}
