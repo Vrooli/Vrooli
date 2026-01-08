@@ -10,9 +10,14 @@ import {
   Copy,
   DollarSign,
   FileCode,
+  File,
+  FolderOpen,
+  Link2,
   MessageSquare,
   RotateCcw,
   Search,
+  StickyNote,
+  Tag,
   Terminal,
   Trash2,
   Wrench,
@@ -30,8 +35,9 @@ import type {
   Run,
   RunDiff,
   RunEvent,
+  Task,
 } from "../types";
-import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus } from "../types";
+import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 import { KPICard } from "../features/stats/components/kpi/KPICard";
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
@@ -43,6 +49,7 @@ interface RunDetailProps {
   diff: RunDiff | null;
   eventsLoading: boolean;
   diffLoading: boolean;
+  task?: Task | null;
   taskTitle: string;
   profileName: string;
   onApprove: (req: ApproveFormData) => Promise<void>;
@@ -60,6 +67,7 @@ export function RunDetail({
   diff,
   eventsLoading,
   diffLoading,
+  task,
   taskTitle,
   profileName,
   onApprove,
@@ -70,7 +78,7 @@ export function RunDetail({
   onDelete,
   deleteLoading,
 }: RunDetailProps) {
-  const [activeTab, setActiveTab] = useState<"events" | "diff" | "response" | "cost">("events");
+  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "response" | "cost">("events");
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
@@ -340,6 +348,18 @@ export function RunDetail({
           <button
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+              activeTab === "task"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveTab("task")}
+          >
+            <File className="h-4 w-4 inline mr-2" />
+            Task
+          </button>
+          <button
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
               activeTab === "events"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -388,7 +408,15 @@ export function RunDetail({
         </div>
 
         <div className="p-4">
-          {activeTab === "events" ? (
+          {activeTab === "task" ? (
+            task ? (
+              <TaskSummary task={task} />
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                Task details unavailable for {run.taskId}
+              </div>
+            )
+          ) : activeTab === "events" ? (
             eventsLoading ? (
               <div className="py-8 text-center text-muted-foreground">
                 Loading events...
@@ -711,6 +739,125 @@ function approvalStateLabel(state: ApprovalState): string {
     default:
       return "no approval";
   }
+}
+
+function taskStatusLabel(status: TaskStatus): string {
+  switch (status) {
+    case TaskStatus.QUEUED:
+      return "queued";
+    case TaskStatus.RUNNING:
+      return "running";
+    case TaskStatus.NEEDS_REVIEW:
+      return "needs_review";
+    case TaskStatus.APPROVED:
+      return "approved";
+    case TaskStatus.REJECTED:
+      return "rejected";
+    case TaskStatus.FAILED:
+      return "failed";
+    case TaskStatus.CANCELLED:
+      return "cancelled";
+    default:
+      return "queued";
+  }
+}
+
+function TaskSummary({ task }: { task: Task }) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="text-lg font-semibold">{task.title}</h3>
+          <Badge
+            variant={
+              taskStatusLabel(task.status) as
+                | "queued"
+                | "running"
+                | "needs_review"
+                | "approved"
+                | "rejected"
+                | "failed"
+                | "cancelled"
+            }
+          >
+            {taskStatusLabel(task.status).replace("_", " ")}
+          </Badge>
+        </div>
+        {task.description ? (
+          <div className="text-sm text-muted-foreground">
+            <MarkdownRenderer content={task.description} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No description provided</p>
+        )}
+      </div>
+
+      <div className="space-y-3 text-sm">
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Scope</h4>
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <code className="text-xs bg-muted px-2 py-1 rounded">{task.scopePath}</code>
+          </div>
+        </div>
+
+        {task.projectRoot && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Project Root</h4>
+            <code className="text-xs bg-muted px-2 py-1 rounded">{task.projectRoot}</code>
+          </div>
+        )}
+
+        {task.contextAttachments && task.contextAttachments.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Context Attachments
+            </h4>
+            <div className="space-y-2">
+              {task.contextAttachments.map((att, index) => (
+                <div
+                  key={`${att.key || att.label || att.type}-${index}`}
+                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm"
+                >
+                  {att.type === "file" && <File className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  {att.type === "link" && <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  {att.type === "note" && <StickyNote className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {att.key && (
+                        <code className="text-[10px] bg-background px-1 py-0.5 rounded">
+                          {att.key}
+                        </code>
+                      )}
+                      {att.label && <span className="font-medium">{att.label}</span>}
+                      {!att.key && !att.label && (
+                        <span className="text-muted-foreground capitalize">{att.type}</span>
+                      )}
+                    </div>
+                    {att.path && <p className="text-xs text-muted-foreground truncate">{att.path}</p>}
+                    {att.url && <p className="text-xs text-muted-foreground truncate">{att.url}</p>}
+                    {att.content && att.type === "note" && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{att.content}</p>
+                    )}
+                    {att.tags && att.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {att.tags.map((tag, i) => (
+                          <Badge key={`${tag}-${i}`} variant="outline" className="text-[10px] gap-1 py-0">
+                            <Tag className="h-2.5 w-2.5" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function EventItem({ event }: { event: RunEvent }) {

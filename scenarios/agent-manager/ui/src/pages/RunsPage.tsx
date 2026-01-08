@@ -127,6 +127,11 @@ export function RunsPage({
     [tasks]
   );
 
+  const getTaskById = useCallback(
+    (taskId: string) => tasks.find((t) => t.id === taskId) ?? null,
+    [tasks]
+  );
+
   const getProfileName = useCallback(
     (profileId?: string) =>
       profileId ? profiles.find((p) => p.id === profileId)?.name || "Unknown Profile" : "Unknown Profile",
@@ -547,6 +552,7 @@ export function RunsPage({
           diff={diff}
           eventsLoading={eventsLoading}
           diffLoading={diffLoading}
+          task={getTaskById(selectedRun.taskId)}
           taskTitle={getTaskTitle(selectedRun.taskId)}
           profileName={getProfileName(selectedRun.agentProfileId)}
           onApprove={(req) => handleApprove(selectedRun.id, req)}
