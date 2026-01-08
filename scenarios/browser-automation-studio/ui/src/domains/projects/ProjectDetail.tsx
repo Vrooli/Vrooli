@@ -240,6 +240,9 @@ function ProjectDetail({
             <ProjectFileTree
               project={project}
               onWorkflowSelect={onWorkflowSelect}
+              onCreateWorkflow={onCreateWorkflow}
+              onCreateWorkflowDirect={onCreateWorkflowDirect}
+              onStartRecording={onStartRecording}
             />
           ) : (
             <WorkflowCardGrid

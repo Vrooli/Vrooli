@@ -30,10 +30,14 @@ import {
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
 import { selectors } from "@constants/selectors";
 import { WorkflowPreviewPane } from "./WorkflowPreviewPane";
+import { EmptyWorkflowState } from "./EmptyWorkflowState";
 
 interface ProjectFileTreeProps {
   project: Project;
   onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onCreateWorkflow: () => void;
+  onCreateWorkflowDirect?: () => void;
+  onStartRecording?: () => void;
 }
 
 /**
@@ -42,6 +46,9 @@ interface ProjectFileTreeProps {
 export function ProjectFileTree({
   project,
   onWorkflowSelect,
+  onCreateWorkflow,
+  onCreateWorkflowDirect,
+  onStartRecording,
 }: ProjectFileTreeProps) {
   // Local state for inline add menu
   const [inlineAddMenuFolder, setInlineAddMenuFolder] = useState<string | null>(null);
@@ -694,17 +701,12 @@ export function ProjectFileTree({
   // Render empty state
   if (memoizedFileTree.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
-        <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
-          <div className="text-center text-gray-400 py-8">
-            <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No files indexed yet.</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Use "New" to create folders/files, or resync from disk.
-            </p>
-          </div>
-        </div>
-      </div>
+      <EmptyWorkflowState
+        error={null}
+        onCreateWorkflow={onCreateWorkflow}
+        onCreateWorkflowDirect={onCreateWorkflowDirect}
+        onStartRecording={onStartRecording}
+      />
     );
   }
 
