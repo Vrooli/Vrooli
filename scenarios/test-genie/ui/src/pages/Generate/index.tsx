@@ -359,7 +359,7 @@ export function GeneratePage() {
       setModelsLoading(true);
       setModelsError(null);
       try {
-        const models = await fetchAgentModels("openrouter");
+        const models = await fetchAgentModels();
         setModelOptions(models);
         const preferred = recentModels.find((m) => models.some((opt) => opt.id === m)) || models[0]?.id || "";
         setAgentModel(preferred);

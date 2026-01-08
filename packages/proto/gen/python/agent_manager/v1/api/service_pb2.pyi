@@ -68,11 +68,36 @@ class GetProfileRequest(_message.Message):
     profile_id: str
     def __init__(self, profile_id: _Optional[str] = ...) -> None: ...
 
+class AvailableModel(_message.Message):
+    __slots__ = ()
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    SOURCES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    label: str
+    description: str
+    provider: str
+    sources: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., provider: _Optional[str] = ..., sources: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class GetProfileResponse(_message.Message):
     __slots__ = ()
+    class ModelPresetsEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     PROFILE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_MODELS_FIELD_NUMBER: _ClassVar[int]
+    MODEL_PRESETS_FIELD_NUMBER: _ClassVar[int]
     profile: _profile_pb2.AgentProfile
-    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
+    available_models: _containers.RepeatedCompositeFieldContainer[AvailableModel]
+    model_presets: _containers.ScalarMap[str, str]
+    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., available_models: _Optional[_Iterable[_Union[AvailableModel, _Mapping]]] = ..., model_presets: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ListProfilesRequest(_message.Message):
     __slots__ = ()

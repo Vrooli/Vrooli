@@ -165,6 +165,27 @@ func (s *AgentService) GetProfileID() string {
 	return s.profileID
 }
 
+// GetProfileWithModels fetches the profile along with available models metadata.
+func (s *AgentService) GetProfileWithModels(ctx context.Context) (*apipb.GetProfileResponse, error) {
+	if !s.enabled {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	profileID := s.GetProfileID()
+	if profileID == "" {
+		if err := s.Initialize(ctx, DefaultProfileConfig()); err != nil {
+			return nil, fmt.Errorf("ensure profile: %w", err)
+		}
+		profileID = s.GetProfileID()
+	}
+
+	if profileID == "" {
+		return nil, fmt.Errorf("profile id unavailable")
+	}
+
+	return s.client.GetProfileResponse(ctx, profileID)
+}
+
 // =============================================================================
 // BATCH SPAWNING
 // =============================================================================

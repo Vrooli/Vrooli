@@ -335,10 +335,34 @@ message GetProfileRequest {
   string profile_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
+// AvailableModel describes a model option resolved for a profile.
+message AvailableModel {
+  // Model identifier.
+  string id = 1;
+
+  // Short label for display.
+  string label = 2;
+
+  // Optional description from the registry.
+  string description = 3;
+
+  // Provider inferred from the model id (when present).
+  string provider = 4;
+
+  // Sources that confirmed availability (e.g., registry, capabilities).
+  repeated string sources = 5;
+}
+
 // GetProfileResponse returns a single profile.
 message GetProfileResponse {
   // The profile.
   AgentProfile profile = 1;
+
+  // Available models for the profile's runner.
+  repeated AvailableModel available_models = 2;
+
+  // Preset-to-model mappings for the profile's runner (filtered to available models).
+  map<string, string> model_presets = 3;
 }
 
 // ListProfilesRequest filters and paginates profile listings.
