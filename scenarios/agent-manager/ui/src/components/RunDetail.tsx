@@ -49,7 +49,7 @@ interface RunDetailProps {
   onReject: (req: RejectFormData) => Promise<void>;
   onRetry: (run: Run) => Promise<Run>;
   onInvestigate: (runId: string) => void;
-  investigateDisabled?: boolean;
+  onApplyInvestigation: (runId: string) => void;
   onDelete: (run: Run) => Promise<void>;
   deleteLoading: boolean;
 }
@@ -66,7 +66,7 @@ export function RunDetail({
   onReject,
   onRetry,
   onInvestigate,
-  investigateDisabled = false,
+  onApplyInvestigation,
   onDelete,
   deleteLoading,
 }: RunDetailProps) {
@@ -89,6 +89,8 @@ export function RunDetail({
     costTotals.cacheReadTokens;
 
   const canDeleteRun = ![RunStatus.PENDING, RunStatus.STARTING, RunStatus.RUNNING].includes(run.status);
+  const isInvestigationRun = run.tag === "agent-manager-investigation";
+  const canApplyFixes = isInvestigationRun && run.status === RunStatus.COMPLETE;
   const runVariant = getRunVariant(run.status);
 
   const eventCounts = useMemo(() => {
@@ -203,11 +205,21 @@ export function RunDetail({
               size="sm"
               onClick={() => onInvestigate(run.id)}
               className="gap-1"
-              disabled={investigateDisabled}
             >
               <Search className="h-3 w-3" />
               Investigate
             </Button>
+            {canApplyFixes && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onApplyInvestigation(run.id)}
+                className="gap-1"
+              >
+                <Wrench className="h-3 w-3" />
+                Apply Fixes
+              </Button>
+            )}
             {([RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.COMPLETE].includes(run.status) ||
               [ApprovalState.APPROVED, ApprovalState.REJECTED].includes(run.approvalState)) && (
               <Button

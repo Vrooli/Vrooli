@@ -57,6 +57,8 @@ type Service interface {
 
 	// --- Run Operations ---
 	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
+	CreateInvestigationRun(ctx context.Context, runIDs []uuid.UUID, customContext string) (*domain.Run, error)
+	CreateInvestigationApplyRun(ctx context.Context, investigationRunID uuid.UUID, customContext string) (*domain.Run, error)
 	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
 	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
 	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)

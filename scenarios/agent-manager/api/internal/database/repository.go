@@ -23,7 +23,6 @@ type Repositories struct {
 	Idempotency    repository.IdempotencyRepository
 	Policies       repository.PolicyRepository
 	Locks          repository.LockRepository
-	Investigations repository.InvestigationRepository
 	Stats          repository.StatsRepository
 }
 
@@ -38,7 +37,6 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Idempotency:    &idempotencyRepository{db: db, log: log},
 		Policies:       &policyRepository{db: db, log: log},
 		Locks:          &lockRepository{db: db, log: log},
-		Investigations: &investigationRepository{db: db, log: log},
 		Stats:          &statsRepository{db: db, log: log},
 	}
 }

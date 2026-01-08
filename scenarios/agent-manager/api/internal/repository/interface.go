@@ -34,13 +34,6 @@ type RunListFilter struct {
 	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 }
 
-// InvestigationListFilter extends ListFilter with investigation-specific filters.
-type InvestigationListFilter struct {
-	ListFilter
-	Status                *domain.InvestigationStatus
-	SourceInvestigationID *uuid.UUID // For finding fix-application chains
-}
-
 // -----------------------------------------------------------------------------
 // ProfileRepository - AgentProfile persistence
 // -----------------------------------------------------------------------------
@@ -244,43 +237,6 @@ type IdempotencyRepository interface {
 
 	// CleanupExpired removes expired idempotency records.
 	CleanupExpired(ctx context.Context) (int, error)
-}
-
-// -----------------------------------------------------------------------------
-// InvestigationRepository - Investigation persistence
-// -----------------------------------------------------------------------------
-
-// InvestigationRepository provides persistence for Investigation entities.
-// Investigations allow agent-manager to analyze its own runs for errors,
-// efficiency issues, and patterns.
-type InvestigationRepository interface {
-	// Create stores a new investigation.
-	Create(ctx context.Context, investigation *domain.Investigation) error
-
-	// Get retrieves an investigation by ID.
-	Get(ctx context.Context, id uuid.UUID) (*domain.Investigation, error)
-
-	// List retrieves investigations with optional filtering.
-	List(ctx context.Context, filter InvestigationListFilter) ([]*domain.Investigation, error)
-
-	// GetActive retrieves any active (pending/running) investigation.
-	// Returns nil, nil if no active investigation exists.
-	GetActive(ctx context.Context) (*domain.Investigation, error)
-
-	// Update modifies an existing investigation.
-	Update(ctx context.Context, investigation *domain.Investigation) error
-
-	// UpdateStatus updates just the status and related fields.
-	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.InvestigationStatus, errorMsg string) error
-
-	// UpdateProgress updates the progress percentage.
-	UpdateProgress(ctx context.Context, id uuid.UUID, progress int) error
-
-	// UpdateFindings stores the investigation results.
-	UpdateFindings(ctx context.Context, id uuid.UUID, findings *domain.InvestigationReport, metrics *domain.MetricsData) error
-
-	// Delete removes an investigation by ID.
-	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // -----------------------------------------------------------------------------

@@ -104,6 +104,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Run endpoints
 	r.HandleFunc("/api/v1/runs", h.CreateRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/investigate", h.CreateInvestigationRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
 	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
@@ -1335,6 +1337,66 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
+		Run: protoconv.RunToProto(run),
+	})
+}
+
+// CreateInvestigationRun creates a new investigation run for specified run IDs.
+func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RunIDs        []string `json:"runIds"`
+		CustomContext string   `json:"customContext,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON")
+		return
+	}
+
+	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
+	for _, idStr := range req.RunIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeSimpleError(w, r, "runIds", "invalid UUID format: "+idStr)
+			return
+		}
+		runIDs = append(runIDs, id)
+	}
+
+	run, err := h.svc.CreateInvestigationRun(r.Context(), runIDs, req.CustomContext)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
+		Run: protoconv.RunToProto(run),
+	})
+}
+
+// CreateInvestigationApplyRun creates a new run to apply investigation recommendations.
+func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		InvestigationRunID string `json:"investigationRunId"`
+		CustomContext      string `json:"customContext,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON")
+		return
+	}
+
+	runID, err := uuid.Parse(req.InvestigationRunID)
+	if err != nil {
+		writeSimpleError(w, r, "investigationRunId", "invalid UUID format")
+		return
+	}
+
+	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), runID, req.CustomContext)
 	if err != nil {
 		writeError(w, r, err)
 		return

@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Cog,
   Play,
-  Search,
   Settings2,
   Wifi,
   WifiOff,
@@ -41,7 +40,6 @@ const navItems: Array<{
   { id: "profiles", label: "Profiles", icon: Settings2 },
   { id: "tasks", label: "Tasks", icon: ClipboardList },
   { id: "runs", label: "Runs", icon: Play },
-  { id: "investigations", label: "Investigations", icon: Search },
   { id: "stats", label: "Stats", icon: BarChart3 },
 ];
 

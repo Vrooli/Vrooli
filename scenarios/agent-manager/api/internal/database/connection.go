@@ -321,10 +321,6 @@ func (db *DB) initSchema() error {
 		db.log.WithError(err).Error("Failed to backfill fallback runner types column")
 		return err
 	}
-	if err := db.ensureInvestigationsTable(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to ensure investigations table")
-		return err
-	}
 
 	db.log.Info("Database schema initialized successfully")
 	return nil
@@ -449,99 +445,6 @@ func (db *DB) ensureFallbackRunnerTypesColumn(ctx context.Context) error {
 		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
 	}
 	return nil
-}
-
-func (db *DB) ensureInvestigationsTable(ctx context.Context) error {
-	// Check if table exists - if not, schema.sql will create it
-	// This migration is for existing databases that don't have the table yet
-	switch db.dialect {
-	case DialectPostgres:
-		var exists bool
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.tables
-				WHERE table_name = 'investigations'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("investigations_table_check", err)
-		}
-		if !exists {
-			// Table will be created by schema.sql on next restart
-			// For now, create it manually for existing databases
-			if _, err := db.ExecContext(ctx, `
-				CREATE TABLE IF NOT EXISTS investigations (
-					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-					run_ids JSONB NOT NULL DEFAULT '[]',
-					status VARCHAR(50) DEFAULT 'pending',
-					analysis_type JSONB NOT NULL DEFAULT '{}',
-					report_sections JSONB NOT NULL DEFAULT '{}',
-					custom_context TEXT,
-					progress INTEGER DEFAULT 0,
-					agent_run_id UUID REFERENCES runs(id) ON DELETE SET NULL,
-					findings JSONB,
-					metrics JSONB,
-					error_message TEXT,
-					source_investigation_id UUID,
-					created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-					started_at TIMESTAMPTZ,
-					completed_at TIMESTAMPTZ
-				)`); err != nil {
-				return schemaMigrationError("investigations_table_create", err)
-			}
-			// Create indexes
-			if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status)`); err != nil {
-				return schemaMigrationError("investigations_index_status", err)
-			}
-			if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_investigations_created_at ON investigations(created_at DESC)`); err != nil {
-				return schemaMigrationError("investigations_index_created_at", err)
-			}
-		}
-	case DialectSQLite:
-		exists, err := sqliteTableExists(ctx, db, "investigations")
-		if err != nil {
-			return schemaMigrationError("investigations_table_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `
-				CREATE TABLE IF NOT EXISTS investigations (
-					id TEXT PRIMARY KEY,
-					run_ids TEXT NOT NULL DEFAULT '[]',
-					status TEXT DEFAULT 'pending',
-					analysis_type TEXT NOT NULL DEFAULT '{}',
-					report_sections TEXT NOT NULL DEFAULT '{}',
-					custom_context TEXT,
-					progress INTEGER DEFAULT 0,
-					agent_run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
-					findings TEXT,
-					metrics TEXT,
-					error_message TEXT,
-					source_investigation_id TEXT,
-					created_at TEXT DEFAULT (datetime('now')),
-					started_at TEXT,
-					completed_at TEXT
-				)`); err != nil {
-				return schemaMigrationError("investigations_table_create", err)
-			}
-			if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status)`); err != nil {
-				return schemaMigrationError("investigations_index_status", err)
-			}
-			if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_investigations_created_at ON investigations(created_at)`); err != nil {
-				return schemaMigrationError("investigations_index_created_at", err)
-			}
-		}
-	default:
-		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
-	}
-	return nil
-}
-
-func sqliteTableExists(ctx context.Context, db *DB, tableName string) (bool, error) {
-	var count int
-	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, tableName).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 func schemaMigrationError(operation string, err error) error {

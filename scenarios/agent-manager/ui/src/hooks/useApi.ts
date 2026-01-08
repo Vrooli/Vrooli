@@ -623,6 +623,34 @@ export function useRuns() {
     [createRun]
   );
 
+  const investigateRuns = useCallback(
+    async (runIds: string[], customContext?: string): Promise<Run> => {
+      const created = await apiRequest<unknown>("/runs/investigate", {
+        method: "POST",
+        body: JSON.stringify({ runIds, customContext }),
+      });
+      const message = parseProto<any>(CreateRunResponseSchema, created);
+      const mapped = message.run as Run;
+      await fetchRuns();
+      return mapped;
+    },
+    [fetchRuns]
+  );
+
+  const applyInvestigation = useCallback(
+    async (investigationRunId: string, customContext?: string): Promise<Run> => {
+      const created = await apiRequest<unknown>("/runs/investigation-apply", {
+        method: "POST",
+        body: JSON.stringify({ investigationRunId, customContext }),
+      });
+      const message = parseProto<any>(CreateRunResponseSchema, created);
+      const mapped = message.run as Run;
+      await fetchRuns();
+      return mapped;
+    },
+    [fetchRuns]
+  );
+
   const getRun = useCallback(async (id: string): Promise<Run> => {
     const run = await apiRequest<unknown>("/runs/" + id);
     const message = parseProto<any>(GetRunResponseSchema, run);
@@ -707,6 +735,8 @@ export function useRuns() {
     refetch: fetchRuns,
     createRun,
     retryRun,
+    investigateRuns,
+    applyInvestigation,
     getRun,
     stopRun,
     deleteRun,

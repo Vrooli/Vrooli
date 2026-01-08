@@ -3,7 +3,6 @@ import {
   BarChart3,
   ClipboardList,
   Play,
-  Search,
   Settings2,
 } from "lucide-react";
 
@@ -12,7 +11,6 @@ export type NavSection =
   | "profiles"
   | "tasks"
   | "runs"
-  | "investigations"
   | "stats";
 
 interface MobileNavProps {
@@ -29,7 +27,6 @@ const navItems: Array<{
   { id: "profiles", label: "Profiles", icon: Settings2 },
   { id: "tasks", label: "Tasks", icon: ClipboardList },
   { id: "runs", label: "Runs", icon: Play },
-  { id: "investigations", label: "Investigate", icon: Search },
   { id: "stats", label: "Stats", icon: BarChart3 },
 ];
 

@@ -12,7 +12,6 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
-import { InvestigationsPage } from "./pages/InvestigationsPage";
 import { StatsPage } from "./features/stats";
 
 export default function App() {
@@ -35,7 +34,6 @@ export default function App() {
     if (path.startsWith("/profiles")) return "profiles";
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
-    if (path.startsWith("/investigations")) return "investigations";
     if (path.startsWith("/stats")) return "stats";
     return "dashboard";
   }, [location.pathname]);
@@ -192,19 +190,13 @@ export default function App() {
                   onGetDiff={runs.getRunDiff}
                   onApproveRun={runs.approveRun}
                   onRejectRun={runs.rejectRun}
+                  onInvestigateRuns={runs.investigateRuns}
+                  onApplyInvestigation={runs.applyInvestigation}
                   onRefresh={runs.refetch}
                   wsSubscribe={ws.subscribe}
                   wsUnsubscribe={ws.unsubscribe}
                   wsAddMessageHandler={ws.addMessageHandler}
                   wsRemoveMessageHandler={ws.removeMessageHandler}
-                />
-              }
-            />
-            <Route
-              path="/investigations/:investigationId?"
-              element={
-                <InvestigationsPage
-                  onViewRun={(runId) => navigate(`/runs/${runId}`)}
                 />
               }
             />

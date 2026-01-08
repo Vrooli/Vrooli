@@ -23,7 +23,6 @@ import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
-  CreateInvestigationRequest,
   RejectFormData,
   Run,
   RunDiff,
@@ -32,7 +31,6 @@ import type {
 } from "../types";
 import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
-import { useTriggerInvestigation, useActiveInvestigation } from "../hooks/useInvestigations";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
 
@@ -53,6 +51,8 @@ interface RunsPageProps {
   onGetDiff: (id: string) => Promise<RunDiff>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
+  onInvestigateRuns: (runIds: string[], customContext?: string) => Promise<Run>;
+  onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
@@ -88,6 +88,8 @@ export function RunsPage({
   onGetDiff,
   onApproveRun,
   onRejectRun,
+  onInvestigateRuns,
+  onApplyInvestigation,
   onRefresh,
   wsSubscribe,
   wsUnsubscribe,
@@ -113,10 +115,12 @@ export function RunsPage({
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
   const [investigateModalOpen, setInvestigateModalOpen] = useState(false);
-
-  // Investigation hooks
-  const { trigger: triggerInvestigation, loading: investigationLoading, error: investigationError } = useTriggerInvestigation();
-  const { data: activeInvestigation, refetch: refetchActiveInvestigation } = useActiveInvestigation();
+  const [investigateLoading, setInvestigateLoading] = useState(false);
+  const [investigateError, setInvestigateError] = useState<string | null>(null);
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [applyInvestigationId, setApplyInvestigationId] = useState<string | null>(null);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const getTaskTitle = useCallback(
     (taskId: string) => tasks.find((t) => t.id === taskId)?.title || "Unknown Task",
@@ -301,12 +305,20 @@ export function RunsPage({
     setSelectionMode(!selectionMode);
   };
 
-  const handleInvestigate = async (request: CreateInvestigationRequest) => {
-    await triggerInvestigation(request);
-    setInvestigateModalOpen(false);
-    setSelectedRunIds(new Set());
-    setSelectionMode(false);
-    refetchActiveInvestigation();
+  const handleInvestigate = async (customContext: string) => {
+    setInvestigateLoading(true);
+    setInvestigateError(null);
+    try {
+      const created = await onInvestigateRuns(Array.from(selectedRunIds), customContext || undefined);
+      setInvestigateModalOpen(false);
+      setSelectedRunIds(new Set());
+      setSelectionMode(false);
+      navigate(`/runs/${created.id}`);
+    } catch (err) {
+      setInvestigateError((err as Error).message);
+    } finally {
+      setInvestigateLoading(false);
+    }
   };
 
   const handleInvestigateFromDetail = (runId: string) => {
@@ -314,10 +326,26 @@ export function RunsPage({
     setInvestigateModalOpen(true);
   };
 
-  const investigateDisabled =
-    investigationLoading ||
-    (activeInvestigation !== null &&
-      (activeInvestigation.status === "pending" || activeInvestigation.status === "running"));
+  const handleApplyInvestigationFromDetail = (runId: string) => {
+    setApplyInvestigationId(runId);
+    setApplyModalOpen(true);
+  };
+
+  const handleApplyInvestigation = async (customContext: string) => {
+    if (!applyInvestigationId) return;
+    setApplyLoading(true);
+    setApplyError(null);
+    try {
+      const created = await onApplyInvestigation(applyInvestigationId, customContext || undefined);
+      setApplyModalOpen(false);
+      setApplyInvestigationId(null);
+      navigate(`/runs/${created.id}`);
+    } catch (err) {
+      setApplyError((err as Error).message);
+    } finally {
+      setApplyLoading(false);
+    }
+  };
 
   const filteredAndSortedRuns = useMemo(() => {
     let result = [...runs];
@@ -369,7 +397,6 @@ export function RunsPage({
               size="sm"
               onClick={() => setInvestigateModalOpen(true)}
               className="gap-1"
-              disabled={activeInvestigation !== null && (activeInvestigation.status === "pending" || activeInvestigation.status === "running")}
             >
               <Search className="h-4 w-4" />
               <span className="hidden sm:inline">Investigate</span> ({selectedRunIds.size})
@@ -526,7 +553,7 @@ export function RunsPage({
           onReject={(req) => handleReject(selectedRun.id, req)}
           onRetry={handleRetry}
           onInvestigate={handleInvestigateFromDetail}
-          investigateDisabled={investigateDisabled}
+          onApplyInvestigation={handleApplyInvestigationFromDetail}
           onDelete={handleDelete}
           deleteLoading={deleteLoading}
         />
@@ -534,42 +561,14 @@ export function RunsPage({
     </DetailPanel>
   );
 
-  // Build header content with banners
-  const headerContent = (
-    <>
-      {/* Active Investigation Banner */}
-      {activeInvestigation && (activeInvestigation.status === "pending" || activeInvestigation.status === "running") && (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardContent className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-3">
-              <Search className="h-4 w-4 text-primary animate-pulse" />
-              <div>
-                <p className="text-sm font-medium">Investigation in progress</p>
-                <p className="text-xs text-muted-foreground">
-                  Analyzing {activeInvestigation.runIds.length} run(s) - {activeInvestigation.progress}% complete
-                </p>
-              </div>
-            </div>
-            <div className="w-32 bg-muted rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${activeInvestigation.progress}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {error && (
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardContent className="flex items-center gap-3 py-4">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
-          </CardContent>
-        </Card>
-      )}
-    </>
-  );
+  const headerContent = error ? (
+    <Card className="border-destructive/50 bg-destructive/10">
+      <CardContent className="flex items-center gap-3 py-4">
+        <AlertCircle className="h-4 w-4 text-destructive" />
+        <p className="text-sm text-destructive">{error}</p>
+      </CardContent>
+    </Card>
+  ) : null;
 
   return (
     <>
@@ -591,11 +590,35 @@ export function RunsPage({
       {/* Investigation Modal */}
       <InvestigateModal
         open={investigateModalOpen}
-        onOpenChange={setInvestigateModalOpen}
-        selectedRunIds={Array.from(selectedRunIds)}
-        onInvestigate={handleInvestigate}
-        loading={investigationLoading}
-        error={investigationError}
+        onOpenChange={(open) => {
+          setInvestigateModalOpen(open);
+          if (!open) {
+            setInvestigateError(null);
+          }
+        }}
+        title={`Investigate ${selectedRunIds.size} Run${selectedRunIds.size !== 1 ? "s" : ""}`}
+        description="Analyze the selected runs to identify issues and recommendations."
+        confirmLabel="Start Investigation"
+        onSubmit={handleInvestigate}
+        loading={investigateLoading}
+        error={investigateError}
+      />
+
+      <InvestigateModal
+        open={applyModalOpen}
+        onOpenChange={(open) => {
+          setApplyModalOpen(open);
+          if (!open) {
+            setApplyInvestigationId(null);
+            setApplyError(null);
+          }
+        }}
+        title="Apply Investigation Fixes"
+        description="Apply recommendations from the selected investigation run."
+        confirmLabel="Apply Fixes"
+        onSubmit={handleApplyInvestigation}
+        loading={applyLoading}
+        error={applyError}
       />
     </>
   );

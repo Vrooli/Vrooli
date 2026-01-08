@@ -132,87 +132,14 @@ export interface RejectFormData {
   reason?: string;
 }
 
-// Investigation types
-export type InvestigationStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-export interface AnalysisType {
-  errorDiagnosis: boolean;
-  efficiencyAnalysis: boolean;
-  toolUsagePatterns: boolean;
-}
-
-export interface ReportSections {
-  rootCauseEvidence: boolean;
-  recommendations: boolean;
-  metricsSummary: boolean;
-}
-
-export interface Evidence {
-  runId: string;
-  eventSeq?: number;
-  description: string;
-  snippet?: string;
-}
-
-export interface RootCauseAnalysis {
-  description: string;
-  evidence: Evidence[];
-  confidence: "high" | "medium" | "low";
-}
-
-export interface Recommendation {
-  id: string;
-  priority: "critical" | "high" | "medium" | "low";
-  title: string;
-  description: string;
-  actionType: "prompt_change" | "profile_config" | "code_fix";
-}
-
-export interface InvestigationReport {
-  summary: string;
-  rootCause?: RootCauseAnalysis;
-  recommendations?: Recommendation[];
-}
-
-export interface MetricsData {
-  totalRuns: number;
-  successRate: number;
-  avgDurationSeconds: number;
-  totalTokensUsed: number;
-  totalCost: number;
-  toolUsageBreakdown: Record<string, number>;
-  errorTypeBreakdown: Record<string, number>;
-  customMetrics: Record<string, number>;
-}
-
-export interface Investigation {
-  id: string;
+export interface CreateInvestigationRunRequest {
   runIds: string[];
-  status: InvestigationStatus;
-  analysisType: AnalysisType;
-  reportSections: ReportSections;
-  customContext?: string;
-  progress: number;
-  agentRunId?: string;
-  findings?: InvestigationReport;
-  metrics?: MetricsData;
-  errorMessage?: string;
-  sourceInvestigationId?: string;
-  createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
-}
-
-export interface CreateInvestigationRequest {
-  runIds: string[];
-  analysisType: AnalysisType;
-  reportSections: ReportSections;
   customContext?: string;
 }
 
-export interface ApplyFixesRequest {
-  recommendationIds: string[];
-  note?: string;
+export interface ApplyInvestigationRunRequest {
+  investigationRunId: string;
+  customContext?: string;
 }
 
 // =============================================================================

@@ -48,7 +48,6 @@ type Server struct {
 	logger                 *logrus.Logger
 	router                 *mux.Router
 	orchestrator           orchestration.Service
-	investigationService   orchestration.InvestigationService
 	statsService           orchestration.StatsService
 	statsRepo              repository.StatsRepository
 	pricingService         pricing.Service
@@ -106,7 +105,6 @@ func NewServer() (*Server, error) {
 		logger:               logger,
 		router:               mux.NewRouter().UseEncodedPath(),
 		orchestrator:         deps.orchestrator,
-		investigationService: deps.investigationService,
 		statsService:         deps.statsService,
 		statsRepo:            deps.statsRepo,
 		pricingService:       deps.pricingService,
@@ -129,7 +127,6 @@ func NewServer() (*Server, error) {
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
 	orchestrator         orchestration.Service
-	investigationService orchestration.InvestigationService
 	statsService         orchestration.StatsService
 	statsRepo            repository.StatsRepository
 	pricingService       pricing.Service
@@ -150,7 +147,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		runRepo           repository.RunRepository
 		checkpointRepo    repository.CheckpointRepository
 		idempotencyRepo   repository.IdempotencyRepository
-		investigationRepo repository.InvestigationRepository
 		statsRepo         repository.StatsRepository
 	)
 
@@ -169,7 +165,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		runRepo = memRunRepo
 		checkpointRepo = repository.NewMemoryCheckpointRepository()
 		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
-		investigationRepo = repository.NewMemoryInvestigationRepository()
 		statsRepo = repository.NewMemoryStatsRepositoryWithRepos(memRunRepo, nil)
 	} else {
 		// PostgreSQL persistence
@@ -182,7 +177,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		runRepo = repos.Runs
 		checkpointRepo = repos.Checkpoints
 		idempotencyRepo = repos.Idempotency
-		investigationRepo = repos.Investigations
 		statsRepo = repos.Stats
 	}
 
@@ -340,9 +334,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithReconcilerBroadcaster(wsHub),
 	)
 
-	// Create investigation service for self-investigation capabilities
-	investigationSvc := orchestration.NewInvestigationOrchestrator(orch, investigationRepo)
-
 	// Create stats service for analytics
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
 
@@ -360,7 +351,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
 	return orchestratorDeps{
 		orchestrator:         orch,
-		investigationService: investigationSvc,
 		statsService:         statsSvc,
 		statsRepo:            statsRepo,
 		pricingService:       pricingSvc,
@@ -392,13 +382,6 @@ func (s *Server) setupRoutes() {
 	// Register all API routes via the handlers package
 	// WebSocket hub was created in NewServer and is shared with orchestrator
 	handler.RegisterRoutes(s.router)
-
-	// Register investigation routes
-	if s.investigationService != nil {
-		investigationHandler := handlers.NewInvestigationHandler(s.investigationService)
-		investigationHandler.RegisterRoutes(s.router)
-		log.Printf("Investigation endpoints available at /api/v1/investigations")
-	}
 
 	// Register stats routes
 	if s.statsService != nil {
