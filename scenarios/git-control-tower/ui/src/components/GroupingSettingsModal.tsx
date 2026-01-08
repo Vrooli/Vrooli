@@ -17,9 +17,15 @@ function createRule(): GroupingRule {
   return {
     id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     label: "",
-    prefix: "",
+    prefixes: [""],
     mode: "prefix"
   };
+}
+
+function getRulePrefixes(rule: GroupingRule) {
+  if (Array.isArray(rule.prefixes) && rule.prefixes.length > 0) return rule.prefixes;
+  if (typeof rule.prefix === "string" && rule.prefix.trim()) return [rule.prefix];
+  return [""];
 }
 
 export function GroupingSettingsModal({
@@ -71,7 +77,7 @@ export function GroupingSettingsModal({
             <div>
               <div className="text-sm font-semibold text-slate-200">Enable Grouping</div>
               <div className="text-xs text-slate-500 mt-1">
-                Group changes by path prefixes.
+                Group changes by path prefixes (first match wins).
               </div>
             </div>
             <button
@@ -93,7 +99,7 @@ export function GroupingSettingsModal({
               <div>
                 <h3 className="text-sm font-semibold text-slate-200">Grouping Rules</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  First match wins.
+                  Add one or more prefixes per group.
                 </p>
               </div>
               <Button
@@ -113,63 +119,135 @@ export function GroupingSettingsModal({
               </div>
             ) : (
               <div className="space-y-3">
-                {rules.map((rule, index) => (
-                  <div
-                    key={rule.id}
-                    className="rounded-xl border border-slate-800/60 bg-slate-950/50 p-4 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Rule #{index + 1}</span>
-                      <button
-                        type="button"
-                        className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
-                        onClick={() => onChangeRules(rules.filter((item) => item.id !== rule.id))}
-                        aria-label="Remove rule"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={rule.label}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id ? { ...item, label: event.target.value } : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      placeholder="Label"
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
-                    />
-                    <input
-                      type="text"
-                      value={rule.prefix}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id ? { ...item, prefix: event.target.value } : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      placeholder="Path prefix (e.g., scenarios/)"
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
-                    />
-                    <select
-                      value={rule.mode ?? "prefix"}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id
-                            ? { ...item, mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment" }
-                            : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                {rules.map((rule, index) => {
+                  const prefixes = getRulePrefixes(rule);
+                  return (
+                    <div
+                      key={rule.id}
+                      className="rounded-xl border border-slate-800/60 bg-slate-950/50 p-4 space-y-4"
                     >
-                      <option value="prefix">Prefix</option>
-                      <option value="segment">Prefix + segment</option>
-                    </select>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400">Group {index + 1}</span>
+                        <button
+                          type="button"
+                          className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+                          onClick={() => onChangeRules(rules.filter((item) => item.id !== rule.id))}
+                          aria-label="Remove group"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-slate-300">Label</div>
+                        <input
+                          type="text"
+                          value={rule.label}
+                          onChange={(event) => {
+                            const nextRules = rules.map((item) =>
+                              item.id === rule.id ? { ...item, label: event.target.value } : item
+                            );
+                            onChangeRules(nextRules);
+                          }}
+                          placeholder="Label"
+                          className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-slate-300">Grouping mode</div>
+                        <select
+                          value={rule.mode ?? "prefix"}
+                          onChange={(event) => {
+                            const nextRules = rules.map((item) =>
+                              item.id === rule.id
+                                ? {
+                                    ...item,
+                                    mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment"
+                                  }
+                                : item
+                            );
+                            onChangeRules(nextRules);
+                          }}
+                          className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                        >
+                          <option value="prefix">Prefix</option>
+                          <option value="segment">Prefix + segment</option>
+                        </select>
+                        <p className="text-xs text-slate-500">
+                          Prefix keeps each prefix as one group. Prefix + segment groups by the next
+                          path segment after the prefix (e.g., <span className="font-mono">scenarios/foo/</span>).
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs font-semibold text-slate-300">Prefixes</div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextRules = rules.map((item) =>
+                                item.id === rule.id
+                                  ? { ...item, prefixes: [...prefixes, ""], prefix: prefixes[0] ?? "" }
+                                  : item
+                              );
+                              onChangeRules(nextRules);
+                            }}
+                            className="h-9 px-3"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add prefix
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {prefixes.map((prefix, prefixIndex) => (
+                            <div key={`${rule.id}-prefix-${prefixIndex}`} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={prefix}
+                                onChange={(event) => {
+                                  const nextPrefixes = prefixes.map((item, itemIndex) =>
+                                    itemIndex === prefixIndex ? event.target.value : item
+                                  );
+                                  const nextRules = rules.map((item) =>
+                                    item.id === rule.id
+                                      ? { ...item, prefixes: nextPrefixes, prefix: nextPrefixes[0] ?? "" }
+                                      : item
+                                  );
+                                  onChangeRules(nextRules);
+                                }}
+                                placeholder="Path prefix (e.g., scenarios/)"
+                                className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                              />
+                              <button
+                                type="button"
+                                className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+                                onClick={() => {
+                                  const nextPrefixes = prefixes.filter((_, itemIndex) => itemIndex !== prefixIndex);
+                                  const normalizedPrefixes = nextPrefixes.length > 0 ? nextPrefixes : [""];
+                                  const nextRules = rules.map((item) =>
+                                    item.id === rule.id
+                                      ? {
+                                          ...item,
+                                          prefixes: normalizedPrefixes,
+                                          prefix: normalizedPrefixes[0] ?? ""
+                                        }
+                                      : item
+                                  );
+                                  onChangeRules(nextRules);
+                                }}
+                                aria-label="Remove prefix"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -242,8 +320,7 @@ export function GroupingSettingsModal({
               <div>
                 <h3 className="text-xs font-semibold text-slate-200">Grouping rules</h3>
                 <p className="text-[11px] text-slate-500">
-                  Prefix examples: <span className="font-mono">scenarios/</span>,{" "}
-                  <span className="font-mono">resources/</span>
+                  Add one or more prefixes per group.
                 </p>
               </div>
               <Button
@@ -263,65 +340,136 @@ export function GroupingSettingsModal({
               </div>
             ) : (
               <div className="space-y-2">
-                {rules.map((rule, index) => (
-                  <div
-                    key={rule.id}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800/60 bg-slate-950/50 px-3 py-2"
-                  >
-                    <div className="text-[11px] text-slate-500 w-6">#{index + 1}</div>
-                    <input
-                      type="text"
-                      value={rule.label}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id ? { ...item, label: event.target.value } : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      placeholder="Label"
-                      className="flex-1 min-w-[140px] rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                    />
-                    <input
-                      type="text"
-                      value={rule.prefix}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id ? { ...item, prefix: event.target.value } : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      placeholder="Path prefix"
-                      className="flex-1 min-w-[160px] rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                    />
-                    <select
-                      value={rule.mode ?? "prefix"}
-                      onChange={(event) => {
-                        const nextRules = rules.map((item) =>
-                          item.id === rule.id
-                            ? {
-                                ...item,
-                                mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment"
-                              }
-                            : item
-                        );
-                        onChangeRules(nextRules);
-                      }}
-                      className="rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                {rules.map((rule, index) => {
+                  const prefixes = getRulePrefixes(rule);
+                  return (
+                    <div
+                      key={rule.id}
+                      className="rounded-lg border border-slate-800/60 bg-slate-950/50 px-3 py-3 space-y-3"
                     >
-                      <option value="prefix">Prefix</option>
-                      <option value="segment">Prefix + segment</option>
-                    </select>
-                    <button
-                      type="button"
-                      className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60"
-                      onClick={() => onChangeRules(rules.filter((item) => item.id !== rule.id))}
-                      aria-label="Remove group"
-                      title="Remove group"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] text-slate-400">Group {index + 1}</div>
+                        <button
+                          type="button"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60"
+                          onClick={() => onChangeRules(rules.filter((item) => item.id !== rule.id))}
+                          aria-label="Remove group"
+                          title="Remove group"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <div className="text-[11px] font-semibold text-slate-300 mb-1">Label</div>
+                          <input
+                            type="text"
+                            value={rule.label}
+                            onChange={(event) => {
+                              const nextRules = rules.map((item) =>
+                                item.id === rule.id ? { ...item, label: event.target.value } : item
+                              );
+                              onChangeRules(nextRules);
+                            }}
+                            placeholder="Label"
+                            className="w-full rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-[11px] font-semibold text-slate-300 mb-1">Grouping mode</div>
+                          <select
+                            value={rule.mode ?? "prefix"}
+                            onChange={(event) => {
+                              const nextRules = rules.map((item) =>
+                                item.id === rule.id
+                                  ? {
+                                      ...item,
+                                      mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment"
+                                    }
+                                  : item
+                              );
+                              onChangeRules(nextRules);
+                            }}
+                            className="w-full rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                          >
+                            <option value="prefix">Prefix</option>
+                            <option value="segment">Prefix + segment</option>
+                          </select>
+                          <div className="text-[11px] text-slate-500 mt-1">
+                            Prefix keeps each prefix as one group. Prefix + segment groups by the next
+                            path segment after the prefix (e.g., <span className="font-mono">scenarios/foo/</span>).
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-[11px] font-semibold text-slate-300">Prefixes</div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const nextRules = rules.map((item) =>
+                                  item.id === rule.id
+                                    ? { ...item, prefixes: [...prefixes, ""], prefix: prefixes[0] ?? "" }
+                                    : item
+                                );
+                                onChangeRules(nextRules);
+                              }}
+                              className="h-7 px-2"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add prefix
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            {prefixes.map((prefix, prefixIndex) => (
+                              <div key={`${rule.id}-prefix-${prefixIndex}`} className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={prefix}
+                                  onChange={(event) => {
+                                    const nextPrefixes = prefixes.map((item, itemIndex) =>
+                                      itemIndex === prefixIndex ? event.target.value : item
+                                    );
+                                    const nextRules = rules.map((item) =>
+                                      item.id === rule.id
+                                        ? { ...item, prefixes: nextPrefixes, prefix: nextPrefixes[0] ?? "" }
+                                        : item
+                                    );
+                                    onChangeRules(nextRules);
+                                  }}
+                                  placeholder="Path prefix"
+                                  className="w-full rounded-md border border-slate-800 bg-slate-950/60 px-2 py-1 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                                />
+                                <button
+                                  type="button"
+                                  className="h-7 w-7 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60"
+                                  onClick={() => {
+                                    const nextPrefixes = prefixes.filter((_, itemIndex) => itemIndex !== prefixIndex);
+                                    const normalizedPrefixes = nextPrefixes.length > 0 ? nextPrefixes : [""];
+                                    const nextRules = rules.map((item) =>
+                                      item.id === rule.id
+                                        ? {
+                                            ...item,
+                                            prefixes: normalizedPrefixes,
+                                            prefix: normalizedPrefixes[0] ?? ""
+                                          }
+                                        : item
+                                    );
+                                    onChangeRules(nextRules);
+                                  }}
+                                  aria-label="Remove prefix"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

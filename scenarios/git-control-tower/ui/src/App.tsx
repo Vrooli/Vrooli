@@ -268,7 +268,7 @@ export default function App() {
       return {
         id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         label,
-        prefix,
+        prefixes: [prefix],
         mode: mode ?? "prefix"
       };
     },
@@ -278,18 +278,23 @@ export default function App() {
     (rawRules: GroupingRule[]) => {
       return rawRules
         .map((rule, index) => {
-          const prefix = typeof rule?.prefix === "string" ? rule.prefix : "";
-          if (!prefix.trim()) return null;
+          const rawPrefixes = Array.isArray(rule?.prefixes)
+            ? rule.prefixes
+            : typeof rule?.prefix === "string"
+              ? [rule.prefix]
+              : [];
+          const prefixes = rawPrefixes.map((prefix) => prefix.trim()).filter((prefix) => prefix);
+          if (prefixes.length === 0) return null;
           const label =
             typeof rule?.label === "string" && rule.label.trim()
               ? rule.label.trim()
-              : prefix.trim();
+              : prefixes[0];
           const mode = rule?.mode === "segment" ? "segment" : "prefix";
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
               : `group-${Date.now()}-${index}`;
-          return { id, label, prefix, mode } as GroupingRule;
+          return { id, label, prefixes, mode } as GroupingRule;
         })
         .filter((rule): rule is GroupingRule => Boolean(rule));
     },
