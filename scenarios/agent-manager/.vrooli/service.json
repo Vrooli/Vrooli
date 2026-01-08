@@ -138,7 +138,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./agent-manager-api",
+          "run": "cd api && PROJECT_ROOT=\"${PROJECT_ROOT:-${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}}\" ./agent-manager-api",
           "background": true,
           "description": "Start Go API server in background",
           "condition": {

@@ -156,7 +156,7 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 		INSERT INTO sandboxes (
 			id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, behavior, idempotency_key, version, base_commit_hash
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16, NULLIF($17, ''))
+		) VALUES ($1, $2, $3, NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16, NULLIF($17, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
@@ -182,9 +182,10 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 	var tags pq.StringArray
 	var activePIDs pq.Int64Array
 	var reservedPaths pq.StringArray
+	var reservedPath sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &reservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -197,6 +198,11 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 		return nil, fmt.Errorf("failed to get sandbox: %w", err)
 	}
 
+	if reservedPath.Valid {
+		s.ReservedPath = reservedPath.String
+	} else {
+		s.ReservedPath = ""
+	}
 	s.Tags = tags
 	s.ActivePIDs = make([]int, len(activePIDs))
 	for i, pid := range activePIDs {

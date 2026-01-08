@@ -207,6 +207,7 @@ func TestSandboxRepository_Get(t *testing.T) {
 		name      string
 		id        uuid.UUID
 		setupMock func(sqlmock.Sqlmock, uuid.UUID)
+		validate  func(*testing.T, *types.Sandbox)
 		wantNil   bool
 		wantErr   bool
 	}{
@@ -221,6 +222,32 @@ func TestSandboxRepository_Get(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
 						AddRow(sandboxRow(s)...))
 			},
+			validate: nil,
+			wantNil: false,
+			wantErr: false,
+		},
+		{
+			name: "found with null reserved_path",
+			id:   uuid.New(),
+			setupMock: func(mock sqlmock.Sqlmock, id uuid.UUID) {
+				s := testSandbox()
+				s.ID = id
+				s.NoLock = true
+				s.ReservedPath = ""
+				s.ReservedPaths = nil
+				row := sandboxRow(s)
+				row[2] = nil
+				row[3] = nil
+				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
+					WithArgs(id).
+					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
+						AddRow(row...))
+			},
+			validate: func(t *testing.T, s *types.Sandbox) {
+				if s.ReservedPath != "" {
+					t.Errorf("ReservedPath = %q, want empty string", s.ReservedPath)
+				}
+			},
 			wantNil: false,
 			wantErr: false,
 		},
@@ -232,6 +259,7 @@ func TestSandboxRepository_Get(t *testing.T) {
 					WithArgs(id).
 					WillReturnError(sql.ErrNoRows)
 			},
+			validate: nil,
 			wantNil: true,
 			wantErr: false,
 		},
@@ -243,6 +271,7 @@ func TestSandboxRepository_Get(t *testing.T) {
 					WithArgs(id).
 					WillReturnError(errors.New("connection failed"))
 			},
+			validate: nil,
 			wantNil: true,
 			wantErr: true,
 		},
@@ -262,6 +291,9 @@ func TestSandboxRepository_Get(t *testing.T) {
 			}
 			if (result == nil) != tt.wantNil {
 				t.Errorf("Get() result = %v, wantNil %v", result, tt.wantNil)
+			}
+			if tt.validate != nil && result != nil {
+				tt.validate(t, result)
 			}
 
 			if err := mock.ExpectationsWereMet(); err != nil {
