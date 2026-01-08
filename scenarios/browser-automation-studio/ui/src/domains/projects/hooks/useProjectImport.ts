@@ -54,7 +54,7 @@ export function useProjectImport(): UseProjectImportReturn {
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/api/v1/projects/inspect-folder`, {
+      const response = await fetch(`${apiBase}/projects/inspect-folder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folder_path: folderPath }),
@@ -86,7 +86,7 @@ export function useProjectImport(): UseProjectImportReturn {
 
     try {
       const apiBase = getApiBase();
-      const response = await fetch(`${apiBase}/api/v1/projects/import`, {
+      const response = await fetch(`${apiBase}/projects/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
