@@ -1,249 +1,185 @@
 import type { BehaviorSettings, MouseMovementStyle, ScrollStyle } from '@/domains/recording/types/types';
+import {
+  FormNumberInput,
+  FormSelect,
+  FormCheckbox,
+  FormFieldGroup,
+  FormGrid,
+} from '@/components/form';
 
 interface BehaviorSectionProps {
   behavior: BehaviorSettings;
   onChange: <K extends keyof BehaviorSettings>(key: K, value: BehaviorSettings[K]) => void;
 }
 
+const mouseMovementOptions = [
+  { value: 'linear' as MouseMovementStyle, label: 'Linear (Fast)' },
+  { value: 'bezier' as MouseMovementStyle, label: 'Bezier (Smooth)' },
+  { value: 'natural' as MouseMovementStyle, label: 'Natural (Human-like)' },
+];
+
+const scrollStyleOptions = [
+  { value: 'smooth' as ScrollStyle, label: 'Smooth (Continuous)' },
+  { value: 'stepped' as ScrollStyle, label: 'Stepped (Human-like)' },
+];
+
 export function BehaviorSection({ behavior, onChange }: BehaviorSectionProps) {
   return (
     <div className="space-y-6">
-      {/* Typing Delays - Inter-keystroke */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Typing Speed</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Delay between each keystroke</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.typing_delay_min ?? ''}
-              onChange={(e) => onChange('typing_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="50"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.typing_delay_max ?? ''}
-              onChange={(e) => onChange('typing_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="150"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Typing Start Delay */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Pre-Typing Delay</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Pause before starting to type (simulates human thinking)</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.typing_start_delay_min ?? ''}
-              onChange={(e) => onChange('typing_start_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="100"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.typing_start_delay_max ?? ''}
-              onChange={(e) => onChange('typing_start_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="300"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Typing Paste Threshold */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Paste Threshold</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Long text is pasted instead of typed (0 = always type, -1 = always paste)
-        </p>
-        <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Character Limit</label>
-          <input
-            type="number"
-            value={behavior.typing_paste_threshold ?? ''}
-            onChange={(e) => onChange('typing_paste_threshold', e.target.value ? parseInt(e.target.value) : undefined)}
-            placeholder="200"
-            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+      {/* Typing Speed */}
+      <FormFieldGroup title="Typing Speed" description="Delay between each keystroke">
+        <FormGrid cols={2}>
+          <FormNumberInput
+            value={behavior.typing_delay_min}
+            onChange={(v) => onChange('typing_delay_min', v)}
+            label="Min Delay (ms)"
+            placeholder="50"
           />
-        </div>
-      </div>
+          <FormNumberInput
+            value={behavior.typing_delay_max}
+            onChange={(v) => onChange('typing_delay_max', v)}
+            label="Max Delay (ms)"
+            placeholder="150"
+          />
+        </FormGrid>
+      </FormFieldGroup>
+
+      {/* Pre-Typing Delay */}
+      <FormFieldGroup title="Pre-Typing Delay" description="Pause before starting to type (simulates human thinking)">
+        <FormGrid cols={2}>
+          <FormNumberInput
+            value={behavior.typing_start_delay_min}
+            onChange={(v) => onChange('typing_start_delay_min', v)}
+            label="Min Delay (ms)"
+            placeholder="100"
+          />
+          <FormNumberInput
+            value={behavior.typing_start_delay_max}
+            onChange={(v) => onChange('typing_start_delay_max', v)}
+            label="Max Delay (ms)"
+            placeholder="300"
+          />
+        </FormGrid>
+      </FormFieldGroup>
+
+      {/* Paste Threshold */}
+      <FormFieldGroup
+        title="Paste Threshold"
+        description="Long text is pasted instead of typed (0 = always type, -1 = always paste)"
+      >
+        <FormNumberInput
+          value={behavior.typing_paste_threshold}
+          onChange={(v) => onChange('typing_paste_threshold', v)}
+          label="Character Limit"
+          placeholder="200"
+        />
+      </FormFieldGroup>
 
       {/* Typing Variance */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Enhanced Typing Variance</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Simulate human typing patterns (faster for common pairs, slower for capitals)
-        </p>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={behavior.typing_variance_enabled ?? false}
-            onChange={(e) => onChange('typing_variance_enabled', e.target.checked)}
-            className="rounded border-gray-300 dark:border-gray-600"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Enable character-aware typing variance</span>
-        </label>
-      </div>
+      <FormFieldGroup
+        title="Enhanced Typing Variance"
+        description="Simulate human typing patterns (faster for common pairs, slower for capitals)"
+      >
+        <FormCheckbox
+          checked={behavior.typing_variance_enabled ?? false}
+          onChange={(v) => onChange('typing_variance_enabled', v)}
+          label="Enable character-aware typing variance"
+        />
+      </FormFieldGroup>
 
       {/* Mouse Movement */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Mouse Movement</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Movement Style</label>
-            <select
-              value={behavior.mouse_movement_style ?? 'linear'}
-              onChange={(e) => onChange('mouse_movement_style', e.target.value as MouseMovementStyle)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            >
-              <option value="linear">Linear (Fast)</option>
-              <option value="bezier">Bezier (Smooth)</option>
-              <option value="natural">Natural (Human-like)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Jitter Amount (px)</label>
-            <input
-              type="number"
-              step="0.5"
-              value={behavior.mouse_jitter_amount ?? ''}
-              onChange={(e) => onChange('mouse_jitter_amount', e.target.value ? parseFloat(e.target.value) : undefined)}
-              placeholder="2"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </div>
+      <FormFieldGroup title="Mouse Movement">
+        <FormGrid cols={2}>
+          <FormSelect
+            value={behavior.mouse_movement_style ?? 'linear'}
+            onChange={(v) => onChange('mouse_movement_style', v)}
+            label="Movement Style"
+            options={mouseMovementOptions}
+          />
+          <FormNumberInput
+            value={behavior.mouse_jitter_amount}
+            onChange={(v) => onChange('mouse_jitter_amount', v)}
+            label="Jitter Amount (px)"
+            placeholder="2"
+            step={0.5}
+          />
+        </FormGrid>
+      </FormFieldGroup>
 
-      {/* Click Delays */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Click Behavior</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.click_delay_min ?? ''}
-              onChange={(e) => onChange('click_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="100"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
-            <input
-              type="number"
-              value={behavior.click_delay_max ?? ''}
-              onChange={(e) => onChange('click_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="300"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Click Behavior */}
+      <FormFieldGroup title="Click Behavior">
+        <FormGrid cols={2}>
+          <FormNumberInput
+            value={behavior.click_delay_min}
+            onChange={(v) => onChange('click_delay_min', v)}
+            label="Min Delay (ms)"
+            placeholder="100"
+          />
+          <FormNumberInput
+            value={behavior.click_delay_max}
+            onChange={(v) => onChange('click_delay_max', v)}
+            label="Max Delay (ms)"
+            placeholder="300"
+          />
+        </FormGrid>
+      </FormFieldGroup>
 
-      {/* Scroll Style */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Scroll Behavior</h4>
-        <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Scroll Style</label>
-          <select
-            value={behavior.scroll_style ?? 'smooth'}
-            onChange={(e) => onChange('scroll_style', e.target.value as ScrollStyle)}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-          >
-            <option value="smooth">Smooth (Continuous)</option>
-            <option value="stepped">Stepped (Human-like)</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-4 mt-3">
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Speed (px/step)</label>
-            <input
-              type="number"
-              value={behavior.scroll_speed_min ?? ''}
-              onChange={(e) => onChange('scroll_speed_min', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="50"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Speed (px/step)</label>
-            <input
-              type="number"
-              value={behavior.scroll_speed_max ?? ''}
-              onChange={(e) => onChange('scroll_speed_max', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="200"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Scroll Behavior */}
+      <FormFieldGroup title="Scroll Behavior">
+        <FormSelect
+          value={behavior.scroll_style ?? 'smooth'}
+          onChange={(v) => onChange('scroll_style', v)}
+          label="Scroll Style"
+          options={scrollStyleOptions}
+        />
+        <FormGrid cols={2} className="mt-3">
+          <FormNumberInput
+            value={behavior.scroll_speed_min}
+            onChange={(v) => onChange('scroll_speed_min', v)}
+            label="Min Speed (px/step)"
+            placeholder="50"
+          />
+          <FormNumberInput
+            value={behavior.scroll_speed_max}
+            onChange={(v) => onChange('scroll_speed_max', v)}
+            label="Max Speed (px/step)"
+            placeholder="200"
+          />
+        </FormGrid>
+      </FormFieldGroup>
 
       {/* Micro-pauses */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Micro-Pauses</h4>
-        <label className="flex items-center gap-2 mb-3">
-          <input
-            type="checkbox"
-            checked={behavior.micro_pause_enabled ?? false}
-            onChange={(e) => onChange('micro_pause_enabled', e.target.checked)}
-            className="rounded border-gray-300 dark:border-gray-600"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Enable random micro-pauses</span>
-        </label>
+      <FormFieldGroup title="Micro-Pauses">
+        <FormCheckbox
+          checked={behavior.micro_pause_enabled ?? false}
+          onChange={(v) => onChange('micro_pause_enabled', v)}
+          label="Enable random micro-pauses"
+          className="mb-3"
+        />
         {behavior.micro_pause_enabled && (
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min (ms)</label>
-              <input
-                type="number"
-                value={behavior.micro_pause_min_ms ?? ''}
-                onChange={(e) => onChange('micro_pause_min_ms', e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="500"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max (ms)</label>
-              <input
-                type="number"
-                value={behavior.micro_pause_max_ms ?? ''}
-                onChange={(e) => onChange('micro_pause_max_ms', e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="2000"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Frequency</label>
-              <input
-                type="number"
-                step="0.01"
-                value={behavior.micro_pause_frequency ?? ''}
-                onChange={(e) =>
-                  onChange('micro_pause_frequency', e.target.value ? parseFloat(e.target.value) : undefined)
-                }
-                placeholder="0.15"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
+          <FormGrid cols={3}>
+            <FormNumberInput
+              value={behavior.micro_pause_min_ms}
+              onChange={(v) => onChange('micro_pause_min_ms', v)}
+              label="Min (ms)"
+              placeholder="500"
+            />
+            <FormNumberInput
+              value={behavior.micro_pause_max_ms}
+              onChange={(v) => onChange('micro_pause_max_ms', v)}
+              label="Max (ms)"
+              placeholder="2000"
+            />
+            <FormNumberInput
+              value={behavior.micro_pause_frequency}
+              onChange={(v) => onChange('micro_pause_frequency', v)}
+              label="Frequency"
+              placeholder="0.15"
+              step={0.01}
+            />
+          </FormGrid>
         )}
-      </div>
+      </FormFieldGroup>
     </div>
   );
 }
