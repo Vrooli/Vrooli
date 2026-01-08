@@ -590,4 +590,4 @@ workspace-sandbox exec $sandbox_id --vrooli-aware -- \
 ## See Also
 
 - [Architecture Documentation](ARCHITECTURE.md) - System design and internals
-- [Execution Modes Plan](EXECUTION_MODES_PLAN.md) - Implementation details and future phases
+- [PRD.md](../PRD.md) - Requirements and planned phases

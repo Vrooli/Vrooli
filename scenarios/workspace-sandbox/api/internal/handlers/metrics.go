@@ -43,5 +43,7 @@ func (h *Handlers) Metrics(w http.ResponseWriter, r *http.Request, collector Met
 
 	// Default to Prometheus text format
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	w.Write([]byte(collector.ExportPrometheus()))
+	if _, err := w.Write([]byte(collector.ExportPrometheus())); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

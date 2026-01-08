@@ -97,24 +97,30 @@ type SuccessResponse struct {
 func (h *Handlers) JSONError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	if err := json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   message,
 		Code:    code,
 		Success: false,
-	})
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // JSONSuccess writes a JSON success response with the given data.
 func (h *Handlers) JSONSuccess(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // JSONCreated writes a JSON response for newly created resources.
 func (h *Handlers) JSONCreated(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // HandleDomainError writes an appropriate error response based on error type.
@@ -158,7 +164,9 @@ func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
-	json.NewEncoder(w).Encode(response)
+	if encErr := json.NewEncoder(w).Encode(response); encErr != nil {
+		http.Error(w, encErr.Error(), http.StatusInternalServerError)
+	}
 }
 
 // --- Route Registration ---

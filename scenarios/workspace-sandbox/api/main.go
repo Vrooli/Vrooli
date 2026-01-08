@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,8 +41,8 @@ type Server struct {
 	driver           driver.Driver
 	handlers         *handlers.Handlers
 	logger           *logging.Logger
-	processTracker   *process.Tracker   // OT-P0-008: Process/Session Tracking
-	gcService        *gc.Service        // OT-P1-003: GC/Prune Operations
+	processTracker   *process.Tracker // OT-P0-008: Process/Session Tracking
+	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
 	lifecycleRecon   *sandbox.LifecycleReconciler
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
 }
@@ -56,8 +57,14 @@ func NewServer() (*Server, error) {
 
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Include search_path in DSN so all pooled connections use the correct schema.
+	dsn, err := buildDSNWithSearchPath("workspace_sandbox")
+	if err != nil {
+		return nil, fmt.Errorf("failed to build database DSN: %w", err)
+	}
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
+		DSN:    dsn,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -410,8 +417,13 @@ func ensureSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to add reserved_paths column: %w", err)
 	}
 
+	// Add no_lock flag for lockless sandboxes (idempotent).
+	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS no_lock BOOLEAN NOT NULL DEFAULT FALSE`); err != nil {
+		return fmt.Errorf("failed to add no_lock column: %w", err)
+	}
+
 	// Backfill reserved_path for existing rows to preserve legacy behavior.
-	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL`); err != nil {
+	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL AND no_lock = false`); err != nil {
 		return fmt.Errorf("failed to backfill reserved_path: %w", err)
 	}
 
@@ -419,7 +431,8 @@ func ensureSchema(db *sql.DB) error {
 	if _, err := db.Exec(`
 		UPDATE sandboxes
 		SET reserved_paths = ARRAY[COALESCE(reserved_path, scope_path)]
-		WHERE reserved_paths IS NULL OR array_length(reserved_paths, 1) IS NULL OR array_length(reserved_paths, 1) = 0
+		WHERE (reserved_paths IS NULL OR array_length(reserved_paths, 1) IS NULL OR array_length(reserved_paths, 1) = 0)
+		  AND no_lock = false
 	`); err != nil {
 		return fmt.Errorf("failed to backfill reserved_paths: %w", err)
 	}
@@ -456,6 +469,7 @@ func ensureSchema(db *sql.DB) error {
 			        END
 			     ) AS existing_prefix
 			WHERE s.project_root = new_project
+			  AND s.no_lock = false
 			  AND s.status IN ('creating', 'active')
 			  AND (exclude_id IS NULL OR s.id != exclude_id)
 			  AND (
@@ -498,6 +512,80 @@ func loadSchemaSQL() (string, error) {
 	}
 
 	return "", fmt.Errorf("schema.sql not found (checked %s)", strings.Join(candidates, ", "))
+}
+
+// buildDSNWithSearchPath constructs a PostgreSQL DSN from environment variables
+// with the search_path option included. This ensures all connections from the
+// connection pool use the correct schema, avoiding issues where SET search_path
+// only affects the current session/connection.
+func buildDSNWithSearchPath(schema string) (string, error) {
+	// Check for complete URL first
+	if url := os.Getenv("POSTGRES_URL"); url != "" {
+		return appendSearchPath(url, schema), nil
+	}
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		return appendSearchPath(url, schema), nil
+	}
+
+	// Build from individual components
+	host := os.Getenv("POSTGRES_HOST")
+	port := os.Getenv("POSTGRES_PORT")
+	user := os.Getenv("POSTGRES_USER")
+	pass := os.Getenv("POSTGRES_PASSWORD")
+	dbname := os.Getenv("POSTGRES_DB")
+	sslmode := os.Getenv("POSTGRES_SSLMODE")
+
+	// Validate required fields
+	var missing []string
+	if host == "" {
+		missing = append(missing, "POSTGRES_HOST")
+	}
+	if port == "" {
+		missing = append(missing, "POSTGRES_PORT")
+	}
+	if user == "" {
+		missing = append(missing, "POSTGRES_USER")
+	}
+	if dbname == "" {
+		missing = append(missing, "POSTGRES_DB")
+	}
+
+	if len(missing) > 0 {
+		return "", fmt.Errorf(
+			"postgres connection requires environment variables: %v (are you running through the Vrooli lifecycle system?)",
+			missing,
+		)
+	}
+
+	// Default sslmode
+	if sslmode == "" {
+		sslmode = "disable"
+	}
+
+	// Build URL with search_path option
+	// The options parameter sets PostgreSQL configuration for all connections
+	// Must be URL-encoded because it contains special characters (spaces, commas)
+	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
+	if pass != "" {
+		return fmt.Sprintf(
+			"postgres://%s:%s@%s:%s/%s?sslmode=%s&options=%s",
+			user, pass, host, port, dbname, sslmode, searchPathOption,
+		), nil
+	}
+
+	return fmt.Sprintf(
+		"postgres://%s@%s:%s/%s?sslmode=%s&options=%s",
+		user, host, port, dbname, sslmode, searchPathOption,
+	), nil
+}
+
+// appendSearchPath adds the search_path option to an existing PostgreSQL URL.
+func appendSearchPath(dsn, schema string) string {
+	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
+	if strings.Contains(dsn, "?") {
+		return dsn + "&options=" + searchPathOption
+	}
+	return dsn + "?options=" + searchPathOption
 }
 
 func main() {

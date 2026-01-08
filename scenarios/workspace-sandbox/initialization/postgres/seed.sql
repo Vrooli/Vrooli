@@ -50,6 +50,14 @@ EXCEPTION
     WHEN undefined_table THEN NULL;
 END $$;
 
+-- Add no_lock flag for lockless sandboxes.
+DO $$ BEGIN
+    ALTER TABLE sandboxes
+        ADD COLUMN IF NOT EXISTS no_lock BOOLEAN NOT NULL DEFAULT FALSE;
+EXCEPTION
+    WHEN undefined_table THEN NULL;
+END $$;
+
 -- ============================================================================
 -- SANDBOXES TABLE
 -- ============================================================================
@@ -61,6 +69,7 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     -- Scope configuration
     scope_path TEXT NOT NULL,
     project_root TEXT NOT NULL,
+    no_lock BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Ownership
     owner TEXT,
@@ -190,6 +199,7 @@ BEGIN
     WHERE
         -- Only check sandboxes that still reserve work
         s.status IN ('creating', 'active', 'stopped')
+        AND s.no_lock = FALSE
         -- Same project root
         AND s.project_root = p_project_root
         -- Exclude specified ID if provided

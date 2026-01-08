@@ -60,7 +60,7 @@ func testSandbox() *types.Sandbox {
 // sandboxColumns returns the column names for sandbox queries.
 func sandboxColumns() []string {
 	return []string{
-		"id", "scope_path", "reserved_path", "reserved_paths", "project_root", "owner", "owner_type", "status", "error_message",
+		"id", "scope_path", "reserved_path", "reserved_paths", "no_lock", "project_root", "owner", "owner_type", "status", "error_message",
 		"created_at", "last_used_at", "stopped_at", "approved_at", "deleted_at",
 		"driver", "driver_version", "lower_dir", "upper_dir", "work_dir", "merged_dir",
 		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata", "behavior",
@@ -73,7 +73,7 @@ func sandboxRow(s *types.Sandbox) []driver.Value {
 	metadataJSON, _ := json.Marshal(s.Metadata)
 	behaviorJSON, _ := json.Marshal(s.Behavior)
 	return []driver.Value{
-		s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+		s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 		s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount,
@@ -125,7 +125,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				now := time.Now()
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
-						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
@@ -141,7 +141,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				now := time.Now()
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
-						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
@@ -289,7 +289,7 @@ func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
 			AddRow(
-				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{123, 456}, s.SessionCount,
@@ -1298,9 +1298,9 @@ func TestTxSandboxRepository_CheckScopeOverlap_WithLocking(t *testing.T) {
 	txRepo := &TxSandboxRepository{tx: tx}
 
 	// Should use FOR UPDATE for row locking
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, reserved_path, reserved_paths, status")).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, reserved_path, reserved_paths, no_lock, status")).
 		WithArgs("/project", nil).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "reserved_path", "reserved_paths", "status"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "reserved_path", "reserved_paths", "no_lock", "status"}))
 
 	conflicts, err := txRepo.CheckScopeOverlap(context.Background(), "/project/src", "/project", nil)
 	if err != nil {
@@ -1554,7 +1554,7 @@ func TestSandboxRepository_Get_WithEmptyMetadata(t *testing.T) {
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
 			AddRow(
-				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,

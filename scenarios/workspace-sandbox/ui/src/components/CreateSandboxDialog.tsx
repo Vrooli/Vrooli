@@ -349,6 +349,13 @@ export function CreateSandboxDialog({
   const [ownerType, setOwnerType] = useState<OwnerType>("user");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mountScopePath, setMountScopePath] = useState("");
+  const [noLock, setNoLock] = useState(false);
+
+  useEffect(() => {
+    if (!noLock) return;
+    setReservedPathInput("");
+    setReservedPaths([]);
+  }, [noLock]);
 
   // Path validation - new reserved path must be within project root and not conflict with existing sandboxes
   const existingReservedPathsKey = useMemo(() => {
@@ -385,6 +392,7 @@ export function CreateSandboxDialog({
   const effectiveScopePath = mountScopePath.trim() || effectiveProjectRoot;
 
   const reservedListValidation = useMemo<PathValidation>(() => {
+    if (noLock) return { status: "idle" };
     if (reservedPaths.length === 0) return { status: "idle" };
 
     // Basic client-side checks for the list; server will re-validate on create.
@@ -415,9 +423,10 @@ export function CreateSandboxDialog({
     }
 
     return { status: "valid", message: `${reservedPaths.length} reserved path(s)` };
-  }, [reservedPaths, effectiveProjectRoot]);
+  }, [noLock, reservedPaths, effectiveProjectRoot]);
 
   const effectiveReservedPaths = useMemo(() => {
+    if (noLock) return [];
     const result = [...reservedPaths];
     const pending = reservedPathInput.trim();
     if (pending && reservedInputValidation.status === "valid") {
@@ -425,14 +434,15 @@ export function CreateSandboxDialog({
     }
     // De-dupe while preserving order
     return result.filter((p, idx) => result.indexOf(p) === idx);
-  }, [reservedPaths, reservedPathInput, reservedInputValidation.status]);
+  }, [noLock, reservedPaths, reservedPathInput, reservedInputValidation.status]);
 
   const canSubmit =
     !!effectiveScopePath &&
-    effectiveReservedPaths.length > 0 &&
-    reservedListValidation.status !== "invalid" &&
-    reservedListValidation.status !== "conflict" &&
-    reservedListValidation.status !== "outside" &&
+    (noLock || effectiveReservedPaths.length > 0) &&
+    (noLock ||
+      (reservedListValidation.status !== "invalid" &&
+        reservedListValidation.status !== "conflict" &&
+        reservedListValidation.status !== "outside")) &&
     projectRootValidation.status !== "invalid" &&
     !isCreating;
 
@@ -453,11 +463,12 @@ export function CreateSandboxDialog({
 
     onCreate({
       scopePath,
-      reservedPath: effectiveReservedPaths[0],
-      reservedPaths: effectiveReservedPaths,
+      reservedPath: noLock ? undefined : effectiveReservedPaths[0],
+      reservedPaths: noLock ? undefined : effectiveReservedPaths,
       projectRoot: effectiveProjectRoot || undefined,
       owner: owner.trim() || undefined,
       ownerType,
+      noLock,
     });
   };
 
@@ -471,9 +482,8 @@ export function CreateSandboxDialog({
       setOwner("");
       setOwnerType("user");
       setShowAdvanced(false);
-      setShowRecentPaths(false);
-      setShowRecentProjectRoots(false);
       setMountScopePath("");
+      setNoLock(false);
     }
   };
 
@@ -537,7 +547,7 @@ export function CreateSandboxDialog({
           {/* Reserved Directory - Required */}
           <div className="space-y-2">
             <Label htmlFor="reservedPath">
-              Reserved Path(s) <span className="text-red-400">*</span>
+              Reserved Path(s) {!noLock && <span className="text-red-400">*</span>}
             </Label>
             <div className="relative">
               <div className="flex gap-2">
@@ -548,6 +558,7 @@ export function CreateSandboxDialog({
                   onChange={(e) => setReservedPathInput(e.target.value)}
                   list={recentPaths.length > 0 ? "reservedPathSuggestions" : undefined}
                   autoFocus
+                  disabled={noLock}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -569,7 +580,11 @@ export function CreateSandboxDialog({
                   type="button"
                   variant="secondary"
                   onClick={handleAddReservedPath}
-                  disabled={!reservedPathInput.trim() || reservedInputValidation.status !== "valid"}
+                  disabled={
+                    noLock ||
+                    !reservedPathInput.trim() ||
+                    reservedInputValidation.status !== "valid"
+                  }
                 >
                   Add
                 </Button>
@@ -605,6 +620,20 @@ export function CreateSandboxDialog({
                 ))}
               </div>
             )}
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={noLock}
+                onChange={(e) => setNoLock(e.target.checked)}
+                className="mt-0.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900"
+              />
+              <div>
+                <span className="text-sm text-slate-200">No-lock run (discard changes)</span>
+                <p className="text-xs text-slate-500">
+                  Use only when you plan to discard all changes. Concurrency protection is disabled.
+                </p>
+              </div>
+            </label>
             <p className="text-xs text-slate-500">
               Reserves one or more subtrees to prevent overlapping sandboxes. Approval defaults to changes under these paths unless you explicitly approve more.
             </p>
@@ -646,7 +675,7 @@ export function CreateSandboxDialog({
           </div>
 
           {/* Path Preview */}
-          {effectiveReservedPaths[0] && (
+          {!noLock && effectiveReservedPaths[0] && (
             <PathPreview
               reservedPath={effectiveReservedPaths[0]}
               projectRoot={projectRoot.trim() || defaultProjectRoot}

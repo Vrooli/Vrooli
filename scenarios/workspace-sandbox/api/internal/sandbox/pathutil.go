@@ -107,6 +107,9 @@ func FindConflicts(newScope string, existingSandboxes []*types.Sandbox) []types.
 		if !s.Status.IsActive() {
 			continue
 		}
+		if s.NoLock {
+			continue
+		}
 
 		existing := make([]string, 0, 1)
 		if len(s.ReservedPaths) > 0 {

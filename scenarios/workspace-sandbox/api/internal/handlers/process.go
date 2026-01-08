@@ -201,7 +201,10 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 
 	// Track the process if tracker is available
 	if h.ProcessTracker != nil && result.PID > 0 {
-		h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID)
+		if _, err := h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID); err != nil {
+			h.JSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Determine if process timed out
@@ -336,7 +339,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Clean up pending log if process failed to start
 		if pendingLog != nil {
-			h.ProcessLogger.AbortPendingLog(pendingLog)
+			if abortErr := h.ProcessLogger.AbortPendingLog(pendingLog); abortErr != nil {
+				h.JSONError(w, abortErr.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -345,7 +351,12 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	// Finalize log with actual PID now that process has started
 	var logPath string
 	if pendingLog != nil {
-		logPath, _ = h.ProcessLogger.FinalizeLog(pendingLog, pid)
+		var logErr error
+		logPath, logErr = h.ProcessLogger.FinalizeLog(pendingLog, pid)
+		if logErr != nil {
+			h.JSONError(w, logErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Track the process with optional name
@@ -355,7 +366,12 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		if req.Name != "" {
 			displayName = req.Name
 		}
-		trackedProc, _ = h.ProcessTracker.Track(id, pid, displayName, req.SessionID)
+		var trackErr error
+		trackedProc, trackErr = h.ProcessTracker.Track(id, pid, displayName, req.SessionID)
+		if trackErr != nil {
+			h.JSONError(w, trackErr.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	response := map[string]interface{}{

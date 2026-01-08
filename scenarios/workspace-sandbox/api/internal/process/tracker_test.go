@@ -21,7 +21,11 @@ func TestTrackerBasicOperations(t *testing.T) {
 		t.Fatalf("failed to start sleep process: %v", err)
 	}
 	pid := cmd.Process.Pid
-	defer cmd.Process.Kill()
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			t.Logf("failed to kill process: %v", err)
+		}
+	}()
 
 	// Track it
 	proc, err := tracker.Track(sandboxID, pid, "sleep 10", "session-1")
@@ -56,9 +60,16 @@ func TestTrackedProcessIsRunning(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start sleep: %v", err)
 	}
-	defer cmd.Process.Kill()
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			t.Logf("failed to kill process: %v", err)
+		}
+	}()
 
-	proc, _ := tracker.Track(sandboxID, cmd.Process.Pid, "sleep", "")
+	proc, err := tracker.Track(sandboxID, cmd.Process.Pid, "sleep", "")
+	if err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Should be running
 	if !proc.IsRunning() {
@@ -66,8 +77,14 @@ func TestTrackedProcessIsRunning(t *testing.T) {
 	}
 
 	// Kill it
-	cmd.Process.Kill()
-	cmd.Wait()
+	if err := cmd.Process.Kill(); err != nil {
+		t.Logf("failed to kill process: %v", err)
+	}
+	if err := cmd.Wait(); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			t.Fatalf("wait failed: %v", err)
+		}
+	}
 
 	// Should not be running anymore
 	// Give a moment for the OS to update state
@@ -85,9 +102,15 @@ func TestGetProcesses(t *testing.T) {
 
 	// Track some fake processes (using current PID as they'll be "running")
 	pid := os.Getpid()
-	tracker.Track(sandboxID, pid, "process1", "")
-	tracker.Track(sandboxID, pid, "process2", "")
-	tracker.Track(sandboxID, pid, "process3", "")
+	if _, err := tracker.Track(sandboxID, pid, "process1", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
+	if _, err := tracker.Track(sandboxID, pid, "process2", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
+	if _, err := tracker.Track(sandboxID, pid, "process3", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	procs := tracker.GetProcesses(sandboxID)
 	if len(procs) != 3 {
@@ -101,10 +124,14 @@ func TestGetRunningProcesses(t *testing.T) {
 	sandboxID := uuid.New()
 
 	// Track current process (running)
-	tracker.Track(sandboxID, os.Getpid(), "running", "")
+	if _, err := tracker.Track(sandboxID, os.Getpid(), "running", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Track a fake non-existent process
-	tracker.Track(sandboxID, 999999, "not-running", "")
+	if _, err := tracker.Track(sandboxID, 999999, "not-running", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	running := tracker.GetRunningProcesses(sandboxID)
 	if len(running) != 1 {
@@ -124,7 +151,9 @@ func TestKillAll(t *testing.T) {
 	ctx := context.Background()
 
 	// Track a process that doesn't exist (dead)
-	tracker.Track(sandboxID, 999999, "fake", "")
+	if _, err := tracker.Track(sandboxID, 999999, "fake", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// KillAll should handle dead processes gracefully
 	killed, errs := tracker.KillAll(ctx, sandboxID)
@@ -146,7 +175,9 @@ func TestKillProcess(t *testing.T) {
 	ctx := context.Background()
 
 	// Track a dead process
-	tracker.Track(sandboxID, 999999, "dead", "")
+	if _, err := tracker.Track(sandboxID, 999999, "dead", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// KillProcess should handle dead processes gracefully
 	err := tracker.KillProcess(ctx, sandboxID, 999999)
@@ -167,7 +198,9 @@ func TestCleanup(t *testing.T) {
 	tracker := NewTracker()
 	sandboxID := uuid.New()
 
-	tracker.Track(sandboxID, os.Getpid(), "test", "")
+	if _, err := tracker.Track(sandboxID, os.Getpid(), "test", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	procs := tracker.GetProcesses(sandboxID)
 	if len(procs) != 1 {
@@ -189,12 +222,20 @@ func TestGetAllStats(t *testing.T) {
 	sandbox2 := uuid.New()
 
 	// Track processes in two sandboxes
-	tracker.Track(sandbox1, os.Getpid(), "proc1", "")
-	tracker.Track(sandbox1, os.Getpid(), "proc2", "")
-	tracker.Track(sandbox2, os.Getpid(), "proc3", "")
+	if _, err := tracker.Track(sandbox1, os.Getpid(), "proc1", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
+	if _, err := tracker.Track(sandbox1, os.Getpid(), "proc2", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
+	if _, err := tracker.Track(sandbox2, os.Getpid(), "proc3", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Add a dead process
-	tracker.Track(sandbox2, 999999, "dead", "")
+	if _, err := tracker.Track(sandbox2, 999999, "dead", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	stats := tracker.GetAllStats()
 
@@ -262,14 +303,18 @@ func TestGetActiveCount(t *testing.T) {
 	}
 
 	// Track current process
-	tracker.Track(sandboxID, os.Getpid(), "test", "")
+	if _, err := tracker.Track(sandboxID, os.Getpid(), "test", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	if tracker.GetActiveCount(sandboxID) != 1 {
 		t.Errorf("expected 1 active count, got %d", tracker.GetActiveCount(sandboxID))
 	}
 
 	// Track dead process
-	tracker.Track(sandboxID, 999999, "dead", "")
+	if _, err := tracker.Track(sandboxID, 999999, "dead", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Still just 1 active
 	if tracker.GetActiveCount(sandboxID) != 1 {
@@ -285,13 +330,19 @@ func TestWaitForProcess(t *testing.T) {
 
 	// Start a quick process that exits immediately
 	cmd := exec.Command("true") // 'true' command exits immediately with 0
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("failed to start process: %v", err)
+	}
 	pid := cmd.Process.Pid
 
-	tracker.Track(sandboxID, pid, "true", "")
+	if _, err := tracker.Track(sandboxID, pid, "true", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Wait for the command to actually exit first
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("wait failed: %v", err)
+	}
 
 	// Now wait for our tracking to detect it's dead
 	proc, err := tracker.WaitForProcess(ctx, sandboxID, pid, 5*time.Second)
@@ -316,10 +367,18 @@ func TestWaitForProcessTimeout(t *testing.T) {
 
 	// Start a long-running process
 	cmd := exec.Command("sleep", "60")
-	cmd.Start()
-	defer cmd.Process.Kill()
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("failed to start process: %v", err)
+	}
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			t.Logf("failed to kill process: %v", err)
+		}
+	}()
 
-	tracker.Track(sandboxID, cmd.Process.Pid, "sleep", "")
+	if _, err := tracker.Track(sandboxID, cmd.Process.Pid, "sleep", ""); err != nil {
+		t.Fatalf("Track failed: %v", err)
+	}
 
 	// Wait with short timeout
 	_, err := tracker.WaitForProcess(ctx, sandboxID, cmd.Process.Pid, 100*time.Millisecond)

@@ -21,6 +21,7 @@ export interface Sandbox {
   scopePath: string;
   reservedPath: string;
   reservedPaths?: string[];
+  noLock?: boolean;
   projectRoot: string;
   owner?: string;
   ownerType: OwnerType;
@@ -164,6 +165,7 @@ export interface CreateRequest {
   scopePath: string;
   reservedPath?: string;
   reservedPaths?: string[];
+  noLock?: boolean;
   projectRoot?: string;
   owner?: string;
   ownerType?: OwnerType;

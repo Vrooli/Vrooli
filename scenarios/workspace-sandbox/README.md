@@ -132,6 +132,7 @@ The sandbox has two distinct path concepts:
 
 - **Scope (mount scope):** The copy-on-write view that the agent sees. By default this is the full project root, so agents can modify any file in the repo without touching the canonical checkout.
 - **Reserved paths (conflict lock only):** One or more prefixes used to prevent overlapping sandboxes. Approval behavior is controlled by acceptance rules, not reserved paths.
+- **No-lock runs:** Explicit opt-in mode that disables reserved-path locking. Use only for investigative sandboxes where you plan to discard all changes.
 
 ### Process Isolation
 

@@ -238,15 +238,20 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 				}
 			case MsgTypeResize:
 				if msg.Cols > 0 && msg.Rows > 0 {
-					pty.Setsize(ptmx, &pty.Winsize{
+					if err := pty.Setsize(ptmx, &pty.Winsize{
 						Rows: uint16(msg.Rows),
 						Cols: uint16(msg.Cols),
-					})
+					}); err != nil {
+						return
+					}
 				}
 			case MsgTypePing:
 				writeMu.Lock()
-				conn.WriteJSON(InteractiveMessage{Type: MsgTypePong})
+				err := conn.WriteJSON(InteractiveMessage{Type: MsgTypePong})
 				writeMu.Unlock()
+				if err != nil {
+					return
+				}
 			}
 		}
 	}()
@@ -266,11 +271,14 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 
 	// Send exit message
 	writeMu.Lock()
-	conn.WriteJSON(InteractiveMessage{
+	err = conn.WriteJSON(InteractiveMessage{
 		Type: MsgTypeExit,
 		Code: exitCode,
 	})
 	writeMu.Unlock()
+	if err != nil {
+		return
+	}
 
 	// Give a moment for the message to be sent
 	time.Sleep(100 * time.Millisecond)
@@ -291,8 +299,10 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 
 // sendErrorMessage sends an error message over WebSocket.
 func sendErrorMessage(conn *websocket.Conn, message string) {
-	conn.WriteJSON(InteractiveMessage{
+	if err := conn.WriteJSON(InteractiveMessage{
 		Type: MsgTypeError,
 		Data: message,
-	})
+	}); err != nil {
+		return
+	}
 }

@@ -858,6 +858,8 @@ func TestService_GetDiff_NoChanges(t *testing.T) {
 
 	id := uuid.New()
 	existing := createTestSandbox(id, types.StatusActive)
+	existing.UpperDir = t.TempDir()
+	existing.LowerDir = t.TempDir()
 	repo.sandboxes[id] = existing
 
 	result, err := svc.GetDiff(ctx, id)
@@ -1376,6 +1378,8 @@ func TestService_GetDiff_DriverError(t *testing.T) {
 
 	id := uuid.New()
 	existing := createTestSandbox(id, types.StatusActive)
+	existing.UpperDir = t.TempDir()
+	existing.LowerDir = t.TempDir()
 	repo.sandboxes[id] = existing
 
 	_, err := svc.GetDiff(ctx, id)
@@ -1438,7 +1442,9 @@ func BenchmarkService_Create(b *testing.B) {
 			ProjectRoot: "/tmp/project",
 			Owner:       "benchmark",
 		}
-		svc.Create(ctx, req)
+		if _, err := svc.Create(ctx, req); err != nil {
+			b.Fatalf("Create() error = %v", err)
+		}
 	}
 }
 
@@ -1453,6 +1459,8 @@ func BenchmarkService_Get(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		svc.Get(ctx, id)
+		if _, err := svc.Get(ctx, id); err != nil {
+			b.Fatalf("Get() error = %v", err)
+		}
 	}
 }

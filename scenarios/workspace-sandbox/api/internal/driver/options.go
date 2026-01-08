@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"workspace-sandbox/internal/namespace"
 )
@@ -498,34 +497,4 @@ func overlayfsModuleAvailable() bool {
 		return false
 	}
 	return strings.Contains(string(data), "overlay")
-}
-
-// testMountOverlayfs tries to actually mount overlayfs to verify it works.
-func testMountOverlayfs() bool {
-	// Create temporary directories
-	tmpDir, err := os.MkdirTemp("", "overlay-test-")
-	if err != nil {
-		return false
-	}
-	defer os.RemoveAll(tmpDir)
-
-	lower := tmpDir + "/lower"
-	upper := tmpDir + "/upper"
-	work := tmpDir + "/work"
-	merged := tmpDir + "/merged"
-
-	for _, dir := range []string{lower, upper, work, merged} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return false
-		}
-	}
-
-	opts := "lowerdir=" + lower + ",upperdir=" + upper + ",workdir=" + work
-	err = syscall.Mount("overlay", merged, "overlay", 0, opts)
-	if err != nil {
-		return false
-	}
-
-	syscall.Unmount(merged, 0)
-	return true
 }

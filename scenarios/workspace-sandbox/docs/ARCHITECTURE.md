@@ -44,7 +44,7 @@ Before diving into the architecture, let's establish some key terms:
 |------|------------|
 | **Sandbox** | An isolated workspace where an agent can read/write files without affecting the original |
 | **Scope (Mount Scope)** | The directory that is mounted copy-on-write. Default is the full project root so agents can modify any file without touching the canonical repo. |
-| **Reserved Paths** | One or more path prefixes used for mutual exclusion (prevent overlapping sandboxes) and as the default approval allowlist. Must live within the scope. |
+| **Reserved Paths** | One or more path prefixes used for mutual exclusion (prevent overlapping sandboxes) and as the default approval allowlist. Must live within the scope. Optional when no-lock mode is enabled. |
 | **Upper Layer** | Where all changes (new/modified files) are stored |
 | **Lower Layer** | The original files (read-only) |
 | **Merged View** | The combined view where upper overlays lower |
@@ -555,5 +555,5 @@ curl -X POST http://localhost:15427/api/v1/gc \
 
 - [README.md](../README.md) - Quick start and usage
 - [PRD.md](../PRD.md) - Product requirements
-- [requirements/](../requirements/) - Detailed requirements with test traceability
+- [requirements/README.md](../requirements/README.md) - Detailed requirements with test traceability
 - [PROBLEMS.md](./PROBLEMS.md) - Known issues and edge cases

@@ -100,6 +100,13 @@ function SandboxGroup({
                   <FolderOpen className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
                   <span className="font-mono text-xs text-slate-200 truncate">
                     {(() => {
+                      if (
+                        sandbox.noLock &&
+                        (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                        !sandbox.reservedPath
+                      ) {
+                        return "No lock";
+                      }
                       const reserved = sandbox.reservedPaths?.length
                         ? sandbox.reservedPaths
                         : [sandbox.reservedPath || sandbox.scopePath || "/"];

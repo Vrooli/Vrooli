@@ -86,7 +86,9 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 	}
 
 	// Clean up
-	drv.Cleanup(ctx, sb)
+	if err := drv.Cleanup(ctx, sb); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 }
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Check availability
@@ -291,6 +293,8 @@ func BenchmarkOverlayfsIsAvailable(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		drv.IsAvailable(ctx)
+		if _, err := drv.IsAvailable(ctx); err != nil {
+			b.Fatalf("IsAvailable() failed: %v", err)
+		}
 	}
 }

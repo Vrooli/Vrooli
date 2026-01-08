@@ -107,7 +107,9 @@ func TestCopyDriverMount(t *testing.T) {
 	}
 
 	// Cleanup
-	drv.Cleanup(ctx, sandbox)
+	if err := drv.Cleanup(ctx, sandbox); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 }
 
 // TestCopyDriverGetChangedFiles tests change detection
@@ -183,7 +185,9 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 	}
 
 	// Cleanup
-	drv.Cleanup(ctx, sandbox)
+	if err := drv.Cleanup(ctx, sandbox); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 }
 
 func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
@@ -309,7 +313,9 @@ func TestCopyDriverIsMounted(t *testing.T) {
 	}
 
 	// After cleanup
-	drv.Cleanup(ctx, sandbox)
+	if err := drv.Cleanup(ctx, sandbox); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 	mounted, err = drv.IsMounted(ctx, sandbox)
 	if err != nil {
 		t.Errorf("IsMounted() error after cleanup: %v", err)
@@ -352,7 +358,9 @@ func TestCopyDriverVerifyMountIntegrity(t *testing.T) {
 	}
 
 	// Cleanup and verify should fail
-	drv.Cleanup(ctx, sandbox)
+	if err := drv.Cleanup(ctx, sandbox); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 	err = drv.VerifyMountIntegrity(ctx, sandbox)
 	if err == nil {
 		t.Error("VerifyMountIntegrity() should fail after Cleanup()")
@@ -413,7 +421,9 @@ func TestCopyDriverRemoveFromUpper(t *testing.T) {
 		t.Error("RemoveFromUpper() should block path traversal")
 	}
 
-	drv.Cleanup(ctx, sandbox)
+	if err := drv.Cleanup(ctx, sandbox); err != nil {
+		t.Errorf("Cleanup() failed: %v", err)
+	}
 }
 
 // [REQ:P2-004-003] Automatic Driver Selection
@@ -580,9 +590,13 @@ func BenchmarkCopyDriverMount(b *testing.B) {
 
 	// Create source with a few files
 	sourceDir := filepath.Join(tmpDir, "source")
-	os.MkdirAll(sourceDir, 0o755)
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		b.Fatalf("failed to create source dir: %v", err)
+	}
 	for i := 0; i < 10; i++ {
-		os.WriteFile(filepath.Join(sourceDir, "file"+string(rune('0'+i))+".txt"), []byte("content"), 0o644)
+		if err := os.WriteFile(filepath.Join(sourceDir, "file"+string(rune('0'+i))+".txt"), []byte("content"), 0o644); err != nil {
+			b.Fatalf("failed to write file: %v", err)
+		}
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
@@ -596,7 +610,11 @@ func BenchmarkCopyDriverMount(b *testing.B) {
 			ScopePath:   sourceDir,
 			ProjectRoot: sourceDir,
 		}
-		drv.Mount(ctx, sandbox)
-		drv.Cleanup(ctx, sandbox)
+		if _, err := drv.Mount(ctx, sandbox); err != nil {
+			b.Fatalf("Mount() failed: %v", err)
+		}
+		if err := drv.Cleanup(ctx, sandbox); err != nil {
+			b.Fatalf("Cleanup() failed: %v", err)
+		}
 	}
 }

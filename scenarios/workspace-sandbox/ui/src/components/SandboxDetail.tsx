@@ -189,6 +189,13 @@ export function SandboxDetail({
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
                 {(() => {
+                  if (
+                    sandbox.noLock &&
+                    (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                    !sandbox.reservedPath
+                  ) {
+                    return "No lock";
+                  }
                   const reserved = sandbox.reservedPaths?.length
                     ? sandbox.reservedPaths
                     : [sandbox.reservedPath || sandbox.scopePath || "/"];
@@ -216,6 +223,13 @@ export function SandboxDetail({
               icon={<FolderOpen className="h-3.5 w-3.5" />}
               label="Reserved"
               value={(() => {
+                if (
+                  sandbox.noLock &&
+                  (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                  !sandbox.reservedPath
+                ) {
+                  return "No lock";
+                }
                 const reserved = sandbox.reservedPaths?.length
                   ? sandbox.reservedPaths
                   : sandbox.reservedPath
@@ -227,6 +241,11 @@ export function SandboxDetail({
                 return reserved.join(", ");
               })()}
               copyable={
+                !(
+                  sandbox.noLock &&
+                  (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                  !sandbox.reservedPath
+                ) &&
                 !!(
                   (sandbox.reservedPaths && sandbox.reservedPaths.length > 0) ||
                   sandbox.reservedPath ||

@@ -17,6 +17,7 @@ import (
 
 func hydrateReservedFields(s *types.Sandbox, reservedPaths pq.StringArray) {
 	// Prefer explicit reserved_paths; fall back to reserved_path; final fallback to scope_path.
+	// No-lock sandboxes never backfill to scope_path.
 	effective := make([]string, 0, maxInt(1, len(reservedPaths)))
 	if len(reservedPaths) > 0 {
 		for _, p := range reservedPaths {
@@ -26,7 +27,7 @@ func hydrateReservedFields(s *types.Sandbox, reservedPaths pq.StringArray) {
 			}
 		}
 	}
-	if len(effective) == 0 {
+	if len(effective) == 0 && !s.NoLock {
 		if strings.TrimSpace(s.ReservedPath) != "" {
 			effective = append(effective, strings.TrimSpace(s.ReservedPath))
 		} else if strings.TrimSpace(s.ScopePath) != "" {
@@ -37,6 +38,8 @@ func hydrateReservedFields(s *types.Sandbox, reservedPaths pq.StringArray) {
 	s.ReservedPaths = effective
 	if len(effective) > 0 {
 		s.ReservedPath = effective[0]
+	} else if s.NoLock {
+		s.ReservedPath = ""
 	}
 }
 
@@ -151,13 +154,13 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, reserved_path, reserved_paths, project_root, owner, owner_type, status,
+			id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, behavior, idempotency_key, version, base_commit_hash
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), $15, NULLIF($16, ''))
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16, NULLIF($17, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -165,7 +168,7 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 // Get retrieves a sandbox by ID.
 func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -181,7 +184,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 	var reservedPaths pq.StringArray
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -200,10 +203,14 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 		s.ActivePIDs[i] = int(pid)
 	}
 	if len(metadataJSON) > 0 {
-		json.Unmarshal(metadataJSON, &s.Metadata)
+		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+		}
 	}
 	if len(behaviorJSON) > 0 {
-		json.Unmarshal(behaviorJSON, &s.Behavior)
+		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+		}
 	}
 	hydrateReservedFields(s, reservedPaths)
 
@@ -365,7 +372,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	limitArg := qb.nextArgNum()
 	offsetArg := limitArg + 1
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -393,7 +400,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		var reservedPaths pq.StringArray
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -409,10 +416,14 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 			s.ActivePIDs[i] = int(pid)
 		}
 		if len(metadataJSON) > 0 {
-			json.Unmarshal(metadataJSON, &s.Metadata)
+			if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+			}
 		}
 		if len(behaviorJSON) > 0 {
-			json.Unmarshal(behaviorJSON, &s.Behavior)
+			if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+			}
 		}
 		hydrateReservedFields(s, reservedPaths)
 
@@ -575,16 +586,23 @@ func (r *SandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUI
 
 		// Parse sandbox ID
 		if sandboxID.Valid {
-			id, _ := uuid.Parse(sandboxID.String)
+			id, parseErr := uuid.Parse(sandboxID.String)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("failed to parse sandbox ID: %w", parseErr)
+			}
 			event.SandboxID = &id
 		}
 
 		// Parse JSON fields
 		if len(detailsJSON) > 0 {
-			json.Unmarshal(detailsJSON, &event.Details)
+			if err := json.Unmarshal(detailsJSON, &event.Details); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal audit event details: %w", err)
+			}
 		}
 		if len(stateJSON) > 0 {
-			json.Unmarshal(stateJSON, &event.SandboxState)
+			if err := json.Unmarshal(stateJSON, &event.SandboxState); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal audit event state: %w", err)
+			}
 		}
 
 		events = append(events, event)
@@ -628,7 +646,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	}
 
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -644,7 +662,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	var reservedPaths pq.StringArray
 
 	err := r.db.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -663,10 +681,14 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 		s.ActivePIDs[i] = int(pid)
 	}
 	if len(metadataJSON) > 0 {
-		json.Unmarshal(metadataJSON, &s.Metadata)
+		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+		}
 	}
 	if len(behaviorJSON) > 0 {
-		json.Unmarshal(behaviorJSON, &s.Behavior)
+		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+		}
 	}
 	hydrateReservedFields(s, reservedPaths)
 
@@ -774,13 +796,13 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, reserved_path, reserved_paths, project_root, owner, owner_type, status,
+			id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, behavior, idempotency_key, version
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), $15)
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16)
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.tx.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -788,7 +810,7 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 // Get retrieves a sandbox by ID within the transaction.
 func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -804,7 +826,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	var reservedPaths pq.StringArray
 
 	err := r.tx.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -823,10 +845,14 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 		s.ActivePIDs[i] = int(pid)
 	}
 	if len(metadataJSON) > 0 {
-		json.Unmarshal(metadataJSON, &s.Metadata)
+		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+		}
 	}
 	if len(behaviorJSON) > 0 {
-		json.Unmarshal(behaviorJSON, &s.Behavior)
+		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+		}
 	}
 	hydrateReservedFields(s, reservedPaths)
 
@@ -903,10 +929,11 @@ func (r *TxSandboxRepository) List(ctx context.Context, filter *types.ListFilter
 func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
 	// Use FOR UPDATE to lock the rows and prevent concurrent inserts with overlapping scopes
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, status
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, status
 		FROM sandboxes
 		WHERE project_root = $1
 		  AND status IN ('creating', 'active', 'stopped')
+		  AND no_lock = false
 		  AND ($2::uuid IS NULL OR id != $2)
 		FOR UPDATE`
 
@@ -927,10 +954,14 @@ func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, 
 		var existingScope string
 		var existingReservedPath sql.NullString
 		var existingReservedPaths pq.StringArray
+		var noLock bool
 		var status types.Status
 
-		if err := rows.Scan(&id, &existingScope, &existingReservedPath, &existingReservedPaths, &status); err != nil {
+		if err := rows.Scan(&id, &existingScope, &existingReservedPath, &existingReservedPaths, &noLock, &status); err != nil {
 			return nil, fmt.Errorf("failed to scan conflict: %w", err)
+		}
+		if noLock {
+			continue
 		}
 
 		effective := make([]string, 0, maxInt(1, len(existingReservedPaths)))
@@ -1012,7 +1043,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	}
 
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -1029,7 +1060,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	var reservedPaths pq.StringArray
 
 	err := r.tx.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -1048,10 +1079,14 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 		s.ActivePIDs[i] = int(pid)
 	}
 	if len(metadataJSON) > 0 {
-		json.Unmarshal(metadataJSON, &s.Metadata)
+		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+		}
 	}
 	if len(behaviorJSON) > 0 {
-		json.Unmarshal(behaviorJSON, &s.Behavior)
+		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+		}
 	}
 	hydrateReservedFields(s, reservedPaths)
 
@@ -1199,7 +1234,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	limitArg := qb.nextArgNum()
 
 	query := `
-		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -1227,7 +1262,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		var reservedPaths pq.StringArray
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -1243,10 +1278,14 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 			s.ActivePIDs[i] = int(pid)
 		}
 		if len(metadataJSON) > 0 {
-			json.Unmarshal(metadataJSON, &s.Metadata)
+			if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
+			}
 		}
 		if len(behaviorJSON) > 0 {
-			json.Unmarshal(behaviorJSON, &s.Behavior)
+			if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
+			}
 		}
 		hydrateReservedFields(s, reservedPaths)
 

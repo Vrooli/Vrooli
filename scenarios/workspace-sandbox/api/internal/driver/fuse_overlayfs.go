@@ -156,14 +156,14 @@ func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) err
 
 	// Try normal unmount first
 	cmd := exec.CommandContext(ctx, fusermount, "-u", s.MergedDir)
-	output, err := cmd.CombinedOutput()
+	_, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil
 	}
 
 	// Try lazy unmount if normal fails
 	cmd = exec.CommandContext(ctx, fusermount, "-u", "-z", s.MergedDir)
-	output, err = cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if already unmounted
 		if !d.isMounted(s.MergedDir) {

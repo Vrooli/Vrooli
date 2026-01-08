@@ -120,7 +120,10 @@ func (l *Logger) CreateLog(sandboxID uuid.UUID, pid int) (io.WriteCloser, error)
 	// Write header
 	header := fmt.Sprintf("=== Process Log: PID %d | Sandbox %s | Started %s ===\n\n",
 		pid, sandboxID.String(), time.Now().Format(time.RFC3339))
-	file.WriteString(header)
+	if _, err := file.WriteString(header); err != nil {
+		file.Close()
+		return nil, fmt.Errorf("failed to write log header: %w", err)
+	}
 
 	lw := &logWriter{
 		file:      file,
@@ -168,7 +171,10 @@ func (l *Logger) CreatePendingLog(sandboxID uuid.UUID) (*PendingLog, error) {
 	// Write initial header (will be updated when finalized)
 	header := fmt.Sprintf("=== Process Log | Sandbox %s | Started %s ===\n\n",
 		sandboxID.String(), time.Now().Format(time.RFC3339))
-	file.WriteString(header)
+	if _, err := file.WriteString(header); err != nil {
+		file.Close()
+		return nil, fmt.Errorf("failed to write pending log header: %w", err)
+	}
 
 	lw := &logWriter{
 		file:      file,
@@ -229,7 +235,9 @@ func (l *Logger) AbortPendingLog(pending *PendingLog) error {
 
 	lw := pending.Writer
 	path := lw.path
-	lw.Close()
+	if err := lw.Close(); err != nil {
+		return err
+	}
 
 	return os.Remove(path)
 }
@@ -253,7 +261,10 @@ func (l *Logger) CloseLog(sandboxID uuid.UUID, pid int, exitCode int) error {
 	// Write footer
 	footer := fmt.Sprintf("\n=== Process Exited: code %d | %s ===\n",
 		exitCode, time.Now().Format(time.RFC3339))
-	lw.Write([]byte(footer))
+	if _, err := lw.Write([]byte(footer)); err != nil {
+		_ = lw.Close()
+		return err
+	}
 
 	return lw.Close()
 }
@@ -511,16 +522,22 @@ func (l *Logger) CleanupSandboxLogs(sandboxID uuid.UUID) error {
 	logDir := l.LogDir(sandboxID)
 
 	// Close any active writers first
+	var firstErr error
 	l.mu.Lock()
 	for key, lw := range l.writers {
 		if lw.sandboxID == sandboxID {
-			lw.Close()
+			if err := lw.Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
 			delete(l.writers, key)
 		}
 	}
 	l.mu.Unlock()
 
-	return os.RemoveAll(logDir)
+	if err := os.RemoveAll(logDir); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 // MostRecentLog returns the most recently created log for a sandbox.

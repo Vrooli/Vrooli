@@ -133,8 +133,12 @@ func (l *Logger) log(level Level, event, message string, fields map[string]inter
 	if err != nil {
 		return
 	}
-	l.out.Write(data)
-	l.out.Write([]byte("\n"))
+	if _, err := l.out.Write(data); err != nil {
+		return
+	}
+	if _, err := l.out.Write([]byte("\n")); err != nil {
+		return
+	}
 }
 
 // shouldLog returns true if the given level should be logged.

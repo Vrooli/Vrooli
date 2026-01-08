@@ -45,7 +45,7 @@ func (e *NotFoundError) IsRetryable() bool {
 
 // Hint returns actionable guidance for resolving this error.
 func (e *NotFoundError) Hint() string {
-	return fmt.Sprintf("Use GET /api/v1/sandboxes to list available sandboxes and their IDs.")
+	return "Use GET /api/v1/sandboxes to list available sandboxes and their IDs."
 }
 
 // NewNotFoundError creates a NotFoundError for a sandbox.

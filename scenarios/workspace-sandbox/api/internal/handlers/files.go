@@ -574,5 +574,7 @@ func (h *Handlers) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
 
 	// Stream file content
-	io.Copy(w, file)
+	if _, err := io.Copy(w, file); err != nil {
+		http.Error(w, fmt.Sprintf("failed to stream file: %v", err), http.StatusInternalServerError)
+	}
 }

@@ -23,6 +23,7 @@ CREATE TABLE sandboxes (
     scope_path TEXT NOT NULL,           -- Normalized absolute path within project
     reserved_path TEXT,                 -- Back-compat primary reserved subtree (defaults to scope_path)
     reserved_paths TEXT[] DEFAULT '{}', -- Reserved subtrees for mutual exclusion + default approval (if empty, fall back to reserved_path/scope_path)
+    no_lock BOOLEAN NOT NULL DEFAULT false, -- Disables reserved-path locking when true
     project_root TEXT NOT NULL,         -- Project root directory
 
     -- Ownership and attribution
@@ -190,6 +191,7 @@ BEGIN
             END
          ) AS existing_prefix
     WHERE s.project_root = new_project
+      AND s.no_lock = false
       AND s.status IN ('creating', 'active', 'stopped')
       AND (exclude_id IS NULL OR s.id != exclude_id)
       AND (

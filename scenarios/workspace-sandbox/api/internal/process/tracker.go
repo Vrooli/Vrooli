@@ -179,7 +179,9 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		}
 
 		// Try graceful termination first (SIGTERM)
-		t.killProcess(proc, syscall.SIGTERM)
+		if err := t.killProcess(proc, syscall.SIGTERM); err != nil {
+			errors = append(errors, err)
+		}
 
 		// Wait for graceful shutdown (configurable)
 		time.Sleep(t.config.GracePeriod)
@@ -187,8 +189,11 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		// If still running, force kill (SIGKILL)
 		if proc.IsRunning() {
 			if err := t.killProcess(proc, syscall.SIGKILL); err != nil {
+				errors = append(errors, err)
 				// Still try direct PID kill as last resort
-				syscall.Kill(proc.PID, syscall.SIGKILL)
+				if killErr := syscall.Kill(proc.PID, syscall.SIGKILL); killErr != nil {
+					errors = append(errors, killErr)
+				}
 			}
 		}
 
@@ -245,14 +250,21 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	}
 
 	// SIGTERM first (ignore errors, try anyway)
-	t.killProcess(target, syscall.SIGTERM)
+	var errors []error
+	if err := t.killProcess(target, syscall.SIGTERM); err != nil {
+		errors = append(errors, err)
+	}
 
 	// Wait for graceful shutdown (configurable)
 	time.Sleep(t.config.GracePeriod)
 	if target.IsRunning() {
-		t.killProcess(target, syscall.SIGKILL)
+		if err := t.killProcess(target, syscall.SIGKILL); err != nil {
+			errors = append(errors, err)
+		}
 		// Also try direct PID kill as last resort
-		syscall.Kill(pid, syscall.SIGKILL)
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			errors = append(errors, err)
+		}
 	}
 
 	// Give time for cleanup (configurable)
@@ -261,8 +273,12 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	if !target.IsRunning() {
 		now := time.Now()
 		target.StoppedAt = &now
+		return nil
 	}
-	return nil
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to kill PID %d: %v", pid, errors)
+	}
+	return fmt.Errorf("failed to kill PID %d", pid)
 }
 
 // Cleanup removes tracking data for a sandbox.
@@ -339,10 +355,16 @@ func (t *Tracker) EndSession(ctx context.Context, session *Session, killProcesse
 	session.EndedAt = &now
 
 	if killProcesses {
+		var firstErr error
 		for _, proc := range session.Processes {
 			if proc.IsRunning() {
-				t.KillProcess(ctx, session.SandboxID, proc.PID)
+				if err := t.KillProcess(ctx, session.SandboxID, proc.PID); err != nil && firstErr == nil {
+					firstErr = err
+				}
 			}
+		}
+		if firstErr != nil {
+			return firstErr
 		}
 	}
 

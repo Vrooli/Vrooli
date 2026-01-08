@@ -24,6 +24,7 @@ func TestCheckReturnsStatus(t *testing.T) {
 		if os.Getenv(DisableUserNamespaceEnv) != "1" {
 			// Only require reason if not explicitly disabled
 			// (disabled case sets reason in Check)
+			t.Error("expected reason when user namespace creation is unavailable")
 		}
 	}
 

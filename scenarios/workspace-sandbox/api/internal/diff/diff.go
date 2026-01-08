@@ -203,7 +203,7 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 	info, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil
+			return "", err
 		}
 		return "", err
 	}
@@ -795,10 +795,14 @@ func parseHunkHeader(line string, idx int) *ParsedHunk {
 func parseRange(s string, start, count *int) {
 	parts := strings.Split(s, ",")
 	if len(parts) >= 1 {
-		fmt.Sscanf(parts[0], "%d", start)
+		if _, err := fmt.Sscanf(parts[0], "%d", start); err != nil {
+			return
+		}
 	}
 	if len(parts) >= 2 {
-		fmt.Sscanf(parts[1], "%d", count)
+		if _, err := fmt.Sscanf(parts[1], "%d", count); err != nil {
+			return
+		}
 	}
 }
 

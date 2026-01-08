@@ -79,8 +79,12 @@ func TestLoggerGetLog(t *testing.T) {
 		t.Fatalf("CreateLog failed: %v", err)
 	}
 
-	writer.Write([]byte("some content"))
-	writer.Close()
+	if _, err := writer.Write([]byte("some content")); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Get log metadata
 	logInfo, err := logger.GetLog(sandboxID, pid)
@@ -113,8 +117,12 @@ func TestLoggerListLogs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateLog failed for PID %d: %v", pid, err)
 		}
-		writer.Write([]byte("content"))
-		writer.Close()
+		if _, err := writer.Write([]byte("content")); err != nil {
+			t.Fatalf("Write failed for PID %d: %v", pid, err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatalf("Close failed for PID %d: %v", pid, err)
+		}
 	}
 
 	// List logs
@@ -151,9 +159,13 @@ func TestLoggerReadTail(t *testing.T) {
 		"line 5",
 	}
 	for _, line := range lines {
-		writer.Write([]byte(line + "\n"))
+		if _, err := writer.Write([]byte(line + "\n")); err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
 	}
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Read last 2 lines
 	content, err := logger.ReadLog(sandboxID, pid, 2, 0)
@@ -209,8 +221,13 @@ func TestLoggerCleanupSandboxLogs(t *testing.T) {
 
 	// Create logs
 	for _, pid := range []int{1, 2, 3} {
-		writer, _ := logger.CreateLog(sandboxID, pid)
-		writer.Close()
+		writer, err := logger.CreateLog(sandboxID, pid)
+		if err != nil {
+			t.Fatalf("CreateLog failed for PID %d: %v", pid, err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatalf("Close failed for PID %d: %v", pid, err)
+		}
 	}
 
 	// Verify logs exist
@@ -247,18 +264,31 @@ func TestLoggerConcurrentWrites(t *testing.T) {
 
 	// Write concurrently
 	var wg sync.WaitGroup
+	errCh := make(chan error, 1)
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				writer.Write([]byte("write from goroutine\n"))
+				if _, err := writer.Write([]byte("write from goroutine\n")); err != nil {
+					select {
+					case errCh <- err:
+					default:
+					}
+					return
+				}
 			}
 		}(i)
 	}
 
 	wg.Wait()
-	writer.Close()
+	close(errCh)
+	if err := <-errCh; err != nil {
+		t.Fatalf("Concurrent write failed: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Verify log exists and has content
 	logInfo, err := logger.GetLog(sandboxID, pid)
@@ -304,12 +334,18 @@ func TestLoggerStreamLog(t *testing.T) {
 
 	// Write some data
 	time.Sleep(50 * time.Millisecond)
-	writer.Write([]byte("streaming line 1\n"))
+	if _, err := writer.Write([]byte("streaming line 1\n")); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
 	time.Sleep(150 * time.Millisecond)
-	writer.Write([]byte("streaming line 2\n"))
+	if _, err := writer.Write([]byte("streaming line 2\n")); err != nil {
+		t.Fatalf("Write failed: %v", err)
+	}
 
 	// Close the writer to signal process ended
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Wait for stream to finish
 	<-done
@@ -513,7 +549,9 @@ func TestPendingLogWriteDuringProcess(t *testing.T) {
 	}
 
 	// Write before finalize (simulating early process output)
-	pending.Writer.Write([]byte("output before finalize\n"))
+	if _, err := pending.Writer.Write([]byte("output before finalize\n")); err != nil {
+		t.Fatalf("Write before finalize failed: %v", err)
+	}
 
 	// Finalize
 	_, err = logger.FinalizeLog(pending, pid)
@@ -522,10 +560,14 @@ func TestPendingLogWriteDuringProcess(t *testing.T) {
 	}
 
 	// Continue writing after finalize (simulating ongoing process output)
-	pending.Writer.Write([]byte("output after finalize\n"))
+	if _, err := pending.Writer.Write([]byte("output after finalize\n")); err != nil {
+		t.Fatalf("Write after finalize failed: %v", err)
+	}
 
 	// Close log
-	pending.Writer.Close()
+	if err := pending.Writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Verify all content is present
 	content, err := logger.ReadLog(sandboxID, pid, 0, 0)
@@ -572,7 +614,9 @@ func TestPendingLogIsActiveStatus(t *testing.T) {
 	}
 
 	// Close the writer
-	pending.Writer.Close()
+	if err := pending.Writer.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
 
 	// Check that log shows as inactive
 	logInfo, err = logger.GetLog(sandboxID, pid)
@@ -581,4 +625,7 @@ func TestPendingLogIsActiveStatus(t *testing.T) {
 	}
 	// Note: After closing, the log may still appear in the map briefly
 	// but the file is closed
+	if logInfo.Path == "" {
+		t.Error("Log path should be set after close")
+	}
 }

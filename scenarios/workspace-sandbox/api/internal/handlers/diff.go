@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -60,7 +61,10 @@ func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Actor string `json:"actor"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
 
 	sb, err := h.Service.Reject(r.Context(), id, req.Actor)
 	if h.HandleDomainError(w, err) {

@@ -214,7 +214,9 @@ func testOverlayfsMount() bool {
 	}
 
 	// Clean up - unmount
-	syscall.Unmount(merged, 0)
+	if err := syscall.Unmount(merged, 0); err != nil {
+		return false
+	}
 	return true
 }
 

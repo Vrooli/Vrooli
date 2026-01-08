@@ -32,6 +32,8 @@
 //   - Two agents working on the same subtree at once (conflicts/collisions)
 //   - Approval ambiguity when multiple sandboxes propose changes to the same area
 //
+// NoLock disables this mutual exclusion behavior when explicitly requested.
+//
 // Note: ScopePath controls what is mounted copy-on-write. ReservedPath(s) controls:
 //
 //	(1) mutual exclusion/locking, and (2) the default approval allowlist.
@@ -141,6 +143,7 @@ type Sandbox struct {
 	ScopePath     string     `json:"scopePath" db:"scope_path"`
 	ReservedPath  string     `json:"reservedPath" db:"reserved_path"`
 	ReservedPaths []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
+	NoLock        bool       `json:"noLock,omitempty" db:"no_lock"`
 	ProjectRoot   string     `json:"projectRoot" db:"project_root"`
 	Owner         string     `json:"owner,omitempty" db:"owner"`
 	OwnerType     OwnerType  `json:"ownerType" db:"owner_type"`
@@ -254,6 +257,7 @@ type CreateRequest struct {
 	ScopePath     string                 `json:"scopePath"`
 	ReservedPath  string                 `json:"reservedPath,omitempty"`
 	ReservedPaths []string               `json:"reservedPaths,omitempty"`
+	NoLock        bool                   `json:"noLock,omitempty"`
 	ProjectRoot   string                 `json:"projectRoot,omitempty"`
 	Owner         string                 `json:"owner,omitempty"`
 	OwnerType     OwnerType              `json:"ownerType,omitempty"`

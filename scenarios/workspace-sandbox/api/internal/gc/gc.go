@@ -181,7 +181,7 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 		}
 
 		// Log audit event
-		s.repo.LogAuditEvent(ctx, &types.AuditEvent{
+		if err := s.repo.LogAuditEvent(ctx, &types.AuditEvent{
 			SandboxID: &sandbox.ID,
 			EventType: "gc_collected",
 			Actor:     req.Actor,
@@ -191,7 +191,12 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 				"sizeBytes": sandbox.SizeBytes,
 				"dryRun":    false,
 			},
-		})
+		}); err != nil {
+			result.Errors = append(result.Errors, types.GCError{
+				SandboxID: sandbox.ID,
+				Error:     fmt.Sprintf("audit log failed: %v", err),
+			})
+		}
 
 		result.Collected = append(result.Collected, &types.GCCollectedSandbox{
 			ID:        sandbox.ID,
@@ -289,8 +294,7 @@ func (s *Service) determineReasons(sandbox *types.Sandbox, policy *types.GCPolic
 
 	// Check size-based (handled separately but mark as reason)
 	if policy.MaxTotalSizeBytes > 0 {
-		// Size-based is determined at the service level, not per-sandbox
-		// This reason is added by the caller if applicable
+		reasons = append(reasons, "size limit evaluation deferred")
 	}
 
 	if len(reasons) == 0 {

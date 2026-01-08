@@ -278,6 +278,10 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 		)
 	}
 
+	if req.NoLock {
+		return projectRoot, normalizedScopePath, []string{}, nil
+	}
+
 	// Determine reserved paths (defaults to scope path for mutual exclusion)
 	rawReservedPaths := req.ReservedPaths
 	if len(rawReservedPaths) == 0 {
@@ -378,15 +382,21 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 // createAndMountSandbox creates the sandbox record, mounts the overlay, and returns the sandbox.
 func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedScopePath string, normalizedReservedPaths []string) (*types.Sandbox, error) {
 	// Create sandbox record
-	primaryReserved := normalizedScopePath
-	if len(normalizedReservedPaths) > 0 {
-		primaryReserved = normalizedReservedPaths[0]
+	primaryReserved := ""
+	if !req.NoLock {
+		primaryReserved = normalizedScopePath
+		if len(normalizedReservedPaths) > 0 {
+			primaryReserved = normalizedReservedPaths[0]
+		}
+	} else {
+		normalizedReservedPaths = []string{}
 	}
 	sandbox := &types.Sandbox{
 		ID:             uuid.New(),
 		ScopePath:      normalizedScopePath,
 		ReservedPath:   primaryReserved,
 		ReservedPaths:  normalizedReservedPaths,
+		NoLock:         req.NoLock,
 		ProjectRoot:    projectRoot,
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,
@@ -426,7 +436,9 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 		// Update status to error
 		sandbox.Status = types.StatusError
 		sandbox.ErrorMsg = err.Error()
-		s.repo.Update(ctx, sandbox)
+		if updateErr := s.repo.Update(ctx, sandbox); updateErr != nil {
+			fmt.Printf("warning: failed to update sandbox status after mount failure: %v\n", updateErr)
+		}
 		return sandbox, fmt.Errorf("failed to mount sandbox: %w", err)
 	}
 
@@ -439,7 +451,9 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		// Cleanup on failure
-		s.driver.Cleanup(ctx, sandbox)
+		if cleanupErr := s.driver.Cleanup(ctx, sandbox); cleanupErr != nil {
+			fmt.Printf("warning: driver cleanup failed: %v\n", cleanupErr)
+		}
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
@@ -559,7 +573,9 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		// Attempt to cleanup on failure
-		s.driver.Unmount(ctx, sandbox)
+		if unmountErr := s.driver.Unmount(ctx, sandbox); unmountErr != nil {
+			fmt.Printf("warning: driver unmount failed: %v\n", unmountErr)
+		}
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
@@ -688,7 +704,9 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 		sandbox.SizeBytes = totalSizeBytes
 		sandbox.FileCount = len(changes)
 		// Best-effort update - don't fail diff generation on metrics update failure
-		s.repo.Update(ctx, sandbox)
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			fmt.Printf("warning: failed to update sandbox metrics: %v\n", err)
+		}
 	}
 
 	// Handle the case of no changes gracefully
@@ -1417,7 +1435,9 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}
 		// Update last_used_at to track activity
 		sandbox.LastUsedAt = now
-		s.repo.Update(ctx, sandbox)
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			fmt.Printf("warning: failed to update sandbox after partial approval: %v\n", err)
+		}
 
 		// Log partial approval event
 		s.logAuditEvent(ctx, sandbox, "partial_approved", req.Actor, "", map[string]interface{}{
@@ -1430,7 +1450,9 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		// Full approval: transition to StatusApproved
 		sandbox.Status = types.StatusApproved
 		sandbox.ApprovedAt = &now
-		s.repo.Update(ctx, sandbox)
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			fmt.Printf("warning: failed to update sandbox after approval: %v\n", err)
+		}
 
 		// Log full approval event [OT-P1-004]
 		s.logAuditEvent(ctx, sandbox, "approved", req.Actor, "", map[string]interface{}{
