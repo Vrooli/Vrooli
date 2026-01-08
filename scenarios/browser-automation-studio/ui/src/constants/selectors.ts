@@ -355,6 +355,16 @@ const literalSelectors = {
         section: "project-import-preview-section",
         alreadyIndexedWarning: "project-import-already-indexed-warning",
       },
+      folderBrowser: {
+        panel: "folder-browser-panel",
+        upButton: "folder-browser-up-button",
+        currentPath: "folder-browser-current-path",
+        showRegisteredToggle: "folder-browser-show-registered-toggle",
+        entryList: "folder-browser-entry-list",
+        entry: "folder-browser-entry",
+        selectButton: "folder-browser-select-button",
+        openButton: "folder-browser-open-button",
+      },
     },
   },
   forms: {

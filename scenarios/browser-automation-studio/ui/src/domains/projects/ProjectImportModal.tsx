@@ -2,7 +2,8 @@
  * ProjectImportModal
  *
  * Modal for importing existing project folders into the browser-automation-studio.
- * Two-step flow: validate folder path, then preview and import.
+ * Features a folder browser for easy navigation and project discovery.
+ * Two-step flow: browse/validate folder path, then preview and import.
  */
 
 import { useState, useEffect, useId, useRef, useCallback } from "react";
@@ -15,10 +16,15 @@ import {
   Check,
   AlertTriangle,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { ResponsiveDialog } from "@shared/layout";
 import { selectors } from "@constants/selectors";
+import { getApiBase } from "../../config";
 import { useProjectImport } from "./hooks/useProjectImport";
+import { useFolderBrowser } from "./hooks/useFolderBrowser";
+import { FolderBrowserPanel } from "./FolderBrowserPanel";
+import type { FolderEntry } from "./hooks/useFolderBrowser";
 import type { Project } from "./store";
 import toast from "react-hot-toast";
 
@@ -67,13 +73,27 @@ function ProjectImportModal({
     reset,
   } = useProjectImport();
 
+  const {
+    isScanning,
+    scanResult,
+    error: scanError,
+    defaultPath,
+    scanFolder,
+    navigateUp,
+    navigateTo,
+    clearError: clearScanError,
+    reset: resetBrowser,
+  } = useFolderBrowser();
+
   const [folderPath, setFolderPath] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [pathValidationStatus, setPathValidationStatus] = useState<"valid" | "invalid" | "checking" | null>(null);
 
   const titleId = useId();
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track if we're in preview mode (after successful inspection)
   const showPreview =
@@ -82,15 +102,60 @@ function ProjectImportModal({
     inspectResult.is_dir &&
     !error;
 
-  // Focus folder input when modal opens
+  // Initialize folder browser when modal opens
   useEffect(() => {
-    if (isOpen && folderInputRef.current && !showPreview) {
+    if (isOpen && !scanResult && !isScanning && !scanError) {
+      // Scan default projects folder on open
+      scanFolder().then((result) => {
+        if (result?.default_projects_root) {
+          setFolderPath(result.default_projects_root);
+        }
+      });
+    }
+  }, [isOpen, scanResult, isScanning, scanError, scanFolder]);
+
+  // Focus folder input when modal opens (after initial scan)
+  useEffect(() => {
+    if (isOpen && folderInputRef.current && !showPreview && scanResult) {
       const timer = setTimeout(() => {
         folderInputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, showPreview]);
+  }, [isOpen, showPreview, scanResult]);
+
+  // Debounced path validation as user types
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    const trimmed = folderPath.trim();
+    if (!trimmed || !trimmed.startsWith("/")) {
+      setPathValidationStatus(null);
+      return;
+    }
+
+    setPathValidationStatus("checking");
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`${getApiBase()}/fs/list-directories`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: trimmed }),
+        });
+        setPathValidationStatus(response.ok ? "valid" : "invalid");
+      } catch {
+        setPathValidationStatus("invalid");
+      }
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [folderPath]);
 
   // Update name/description from inspection result
   useEffect(() => {
@@ -111,9 +176,11 @@ function ProjectImportModal({
       setName("");
       setDescription("");
       setValidationError(null);
+      setPathValidationStatus(null);
       reset();
+      resetBrowser();
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, resetBrowser]);
 
   const validateFolderPath = useCallback((path: string): string | null => {
     const trimmed = path.trim();
@@ -126,16 +193,17 @@ function ProjectImportModal({
     return null;
   }, []);
 
-  const handleValidate = async () => {
-    const error = validateFolderPath(folderPath);
-    if (error) {
-      setValidationError(error);
+  const handleValidate = useCallback(async (pathToValidate?: string) => {
+    const targetPath = pathToValidate ?? folderPath;
+    const validationErr = validateFolderPath(targetPath);
+    if (validationErr) {
+      setValidationError(validationErr);
       return;
     }
     setValidationError(null);
     clearError();
 
-    const result = await inspectFolder(folderPath.trim());
+    const result = await inspectFolder(targetPath.trim());
     if (result) {
       if (!result.exists) {
         setValidationError("Folder does not exist");
@@ -143,7 +211,7 @@ function ProjectImportModal({
         setValidationError("Path is not a directory");
       }
     }
-  };
+  }, [folderPath, validateFolderPath, clearError, inspectFolder]);
 
   const handleImport = async () => {
     if (!inspectResult) return;
@@ -175,32 +243,75 @@ function ProjectImportModal({
     }
   };
 
+  // Handle folder browser navigation
+  const handleNavigateUp = useCallback(async () => {
+    await navigateUp();
+    if (scanResult?.parent) {
+      setFolderPath(scanResult.parent);
+    }
+  }, [navigateUp, scanResult]);
+
+  const handleNavigateTo = useCallback(async (path: string) => {
+    await navigateTo(path);
+    setFolderPath(path);
+  }, [navigateTo]);
+
+  // Handle project selection from folder browser - auto-validate
+  const handleSelectProject = useCallback(async (entry: FolderEntry) => {
+    setFolderPath(entry.path);
+    setValidationError(null);
+    clearError();
+    clearScanError();
+
+    // Auto-validate and proceed to preview
+    await handleValidate(entry.path);
+  }, [clearError, clearScanError, handleValidate]);
+
+  // Sync folder path input with browser when it changes externally
+  const handleFolderPathChange = useCallback((newPath: string) => {
+    setFolderPath(newPath);
+    setValidationError(null);
+    clearError();
+  }, [clearError]);
+
   const renderInputStep = () => (
     <>
       {/* Folder Path Input */}
-      <div className="mb-5">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-gray-300 mb-2">
           Project Folder Path
         </label>
-        <input
-          ref={folderInputRef}
-          type="text"
-          data-testid={selectors.dialogs.projectImport.folderPathInput}
-          value={folderPath}
-          onChange={(e) => {
-            setFolderPath(e.target.value);
-            setValidationError(null);
-            clearError();
-          }}
-          onKeyDown={handleKeyDown}
-          className={`w-full px-4 py-3 bg-gray-800/50 border-2 rounded-xl text-white placeholder-gray-500 focus:outline-none font-mono text-sm transition-colors ${
-            validationError || error
-              ? "border-red-500/50 focus:border-red-500"
-              : "border-gray-700/50 focus:border-flow-accent"
-          }`}
-          placeholder="/path/to/existing/project"
-          disabled={isInspecting}
-        />
+        <div className="relative">
+          <input
+            ref={folderInputRef}
+            type="text"
+            data-testid={selectors.dialogs.projectImport.folderPathInput}
+            value={folderPath}
+            onChange={(e) => handleFolderPathChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={`w-full px-4 py-3 pr-10 bg-gray-800/50 border-2 rounded-xl text-white placeholder-gray-500 focus:outline-none font-mono text-sm transition-colors ${
+              validationError || error
+                ? "border-red-500/50 focus:border-red-500"
+                : pathValidationStatus === "valid"
+                ? "border-green-500/50 focus:border-green-500"
+                : "border-gray-700/50 focus:border-flow-accent"
+            }`}
+            placeholder={defaultPath || "/path/to/existing/project"}
+            disabled={isInspecting}
+          />
+          {/* Validation status indicator */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {pathValidationStatus === "checking" && (
+              <Loader2 size={16} className="animate-spin text-gray-500" />
+            )}
+            {pathValidationStatus === "valid" && (
+              <CheckCircle2 size={16} className="text-green-400" />
+            )}
+            {pathValidationStatus === "invalid" && (
+              <AlertCircle size={16} className="text-red-400" />
+            )}
+          </div>
+        </div>
         {(validationError || error) && (
           <p
             className="mt-2 text-red-400 text-xs flex items-center gap-1"
@@ -210,13 +321,20 @@ function ProjectImportModal({
             {validationError || error}
           </p>
         )}
-        <p className="mt-2 text-xs text-gray-500">
-          Enter the absolute path to an existing project folder
-        </p>
       </div>
 
+      {/* Folder Browser Panel */}
+      <FolderBrowserPanel
+        scanResult={scanResult}
+        isScanning={isScanning}
+        error={scanError}
+        onNavigateUp={handleNavigateUp}
+        onNavigateTo={handleNavigateTo}
+        onSelectProject={handleSelectProject}
+      />
+
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 pt-2">
+      <div className="flex items-center justify-end gap-3 pt-4">
         <button
           type="button"
           data-testid={selectors.dialogs.projectImport.cancelButton}
@@ -229,7 +347,7 @@ function ProjectImportModal({
         <button
           type="button"
           data-testid={selectors.dialogs.projectImport.validateButton}
-          onClick={handleValidate}
+          onClick={() => handleValidate()}
           disabled={isInspecting || !folderPath.trim()}
           className="px-5 py-2.5 bg-gradient-to-r from-flow-accent to-blue-600 text-white font-medium rounded-xl hover:from-blue-500 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-flow-accent/20 hover:shadow-flow-accent/30"
         >
@@ -442,7 +560,7 @@ function ProjectImportModal({
             <p className="text-sm text-gray-400 mt-1">
               {showPreview
                 ? "Review and import the project"
-                : "Import an existing project folder"}
+                : "Browse or enter the path to import"}
             </p>
           </div>
         </div>

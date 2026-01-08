@@ -470,6 +470,7 @@ func main() {
 
 		// Filesystem helper routes (UI support utilities)
 		r.Post("/fs/list-directories", handler.ListDirectories)
+		r.Post("/fs/scan-for-projects", handler.ScanForProjects)
 
 		// Entitlement routes for subscription management
 		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)

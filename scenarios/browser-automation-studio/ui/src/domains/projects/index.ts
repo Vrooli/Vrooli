@@ -33,6 +33,11 @@ export { useProjectDetailStore } from './hooks/useProjectDetailStore';
 export { useFileTreeOperations } from './hooks/useFileTreeOperations';
 export { useProjectImport } from './hooks/useProjectImport';
 export type { InspectFolderResponse, ImportProjectRequest } from './hooks/useProjectImport';
+export { useFolderBrowser } from './hooks/useFolderBrowser';
+export type { FolderEntry, ScanResult } from './hooks/useFolderBrowser';
+
+// Folder Browser
+export { FolderBrowserPanel } from './FolderBrowserPanel';
 export type {
   WorkflowWithStats,
   ProjectEntry,
