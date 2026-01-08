@@ -1,5 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { validateHttpHeader, isBlockedHeader, FormFieldGroup, FORM_INPUT_CLASSES } from '@/components/form';
+
+/** Input classes with error state */
+const ERROR_INPUT_CLASSES =
+  'flex-1 rounded-md border border-red-300 dark:border-red-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-mono text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none';
+
+/** Input classes for header name (monospace font) */
+const HEADER_NAME_INPUT_CLASSES = `${FORM_INPUT_CLASSES} flex-1 font-mono`;
+
+/** Input classes for header value (flex-2 for wider) */
+const HEADER_VALUE_INPUT_CLASSES = `${FORM_INPUT_CLASSES} flex-[2]`;
 
 interface ExtraHeadersSectionProps {
   headers: Record<string, string>;
@@ -8,8 +19,6 @@ interface ExtraHeadersSectionProps {
   onRemove: (key: string) => void;
 }
 
-const BLOCKED_HEADERS = ['host', 'content-length', 'cookie'];
-
 export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: ExtraHeadersSectionProps) {
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
@@ -17,17 +26,20 @@ export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: Extr
 
   const headerEntries = Object.entries(headers);
 
+  // Validate the new header name as user types
+  const newKeyValidation = useMemo(() => {
+    if (!newKey.trim()) return undefined;
+    return validateHttpHeader(newKey.trim());
+  }, [newKey]);
+
   const handleAdd = () => {
     const trimmedKey = newKey.trim();
     const trimmedValue = newValue.trim();
 
-    if (!trimmedKey) {
-      setError('Header name is required');
-      return;
-    }
-
-    if (BLOCKED_HEADERS.includes(trimmedKey.toLowerCase())) {
-      setError(`"${trimmedKey}" cannot be set (use storage state for cookies)`);
+    // Use the validation utility
+    const validationError = validateHttpHeader(trimmedKey);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -45,8 +57,9 @@ export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: Extr
   const handleKeyChange = (oldKey: string, newKey: string, value: string) => {
     const trimmedKey = newKey.trim();
 
-    if (BLOCKED_HEADERS.includes(trimmedKey.toLowerCase())) {
-      return; // Silently reject blocked headers during edit
+    // Reject blocked headers during edit
+    if (isBlockedHeader(trimmedKey)) {
+      return;
     }
 
     onUpdate(oldKey, trimmedKey, value);
@@ -55,48 +68,49 @@ export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: Extr
   return (
     <div className="space-y-6">
       {/* Description */}
-      <div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Custom HTTP headers are sent with every request in this session. Useful for authentication tokens, request tracing, or API keys.
-        </p>
-      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Custom HTTP headers are sent with every request in this session. Useful for authentication tokens, request tracing, or API keys.
+      </p>
 
       {/* Existing Headers */}
       {headerEntries.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Current Headers</h4>
-          {headerEntries.map(([key, value]) => (
-            <div key={key} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={key}
-                onChange={(e) => handleKeyChange(key, e.target.value, value)}
-                placeholder="Header-Name"
-                className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 font-mono"
-              />
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => onUpdate(key, key, e.target.value)}
-                placeholder="Header value"
-                className="flex-[2] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-              />
-              <button
-                type="button"
-                onClick={() => onRemove(key)}
-                className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                title="Remove header"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <FormFieldGroup title="Current Headers">
+          <div className="space-y-2">
+            {headerEntries.map(([key, value]) => (
+              <div key={key} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={key}
+                  onChange={(e) => handleKeyChange(key, e.target.value, value)}
+                  placeholder="Header-Name"
+                  className={HEADER_NAME_INPUT_CLASSES}
+                />
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => onUpdate(key, key, e.target.value)}
+                  placeholder="Header value"
+                  className={HEADER_VALUE_INPUT_CLASSES}
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemove(key)}
+                  className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                  title="Remove header"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </FormFieldGroup>
       )}
 
       {/* Add New Header */}
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Add Header</h4>
+      <FormFieldGroup
+        title="Add Header"
+        className="pt-4 border-t border-gray-200 dark:border-gray-700"
+      >
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -106,14 +120,15 @@ export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: Extr
               setError(null);
             }}
             placeholder="X-Custom-Header"
-            className="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 font-mono"
+            className={newKeyValidation ? ERROR_INPUT_CLASSES : HEADER_NAME_INPUT_CLASSES}
+            aria-invalid={!!newKeyValidation}
           />
           <input
             type="text"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="Header value"
-            className="flex-[2] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+            className={HEADER_VALUE_INPUT_CLASSES}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleAdd();
@@ -123,14 +138,17 @@ export function ExtraHeadersSection({ headers, onAdd, onUpdate, onRemove }: Extr
           <button
             type="button"
             onClick={handleAdd}
-            className="p-2 text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+            disabled={!!newKeyValidation}
+            className="p-2 text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Add header"
           >
             <Plus size={16} />
           </button>
         </div>
-        {error && <p className="text-xs text-red-500 dark:text-red-400 mt-1">{error}</p>}
-      </div>
+        {(error || newKeyValidation) && (
+          <p className="text-xs text-red-500 dark:text-red-400 mt-1">{error || newKeyValidation}</p>
+        )}
+      </FormFieldGroup>
 
       {/* Info Box */}
       <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">

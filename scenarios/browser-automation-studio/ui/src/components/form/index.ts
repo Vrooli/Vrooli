@@ -45,6 +45,8 @@ export { FormSelect } from './FormSelect';
 export { FormCheckbox } from './FormCheckbox';
 export { FormFieldGroup } from './FormFieldGroup';
 export { FormGrid } from './FormGrid';
+export { FormRadioGroup } from './FormRadioGroup';
+export { FormToggleCard } from './FormToggleCard';
 
 export type { FormNumberInputProps } from './FormNumberInput';
 export type { FormTextInputProps } from './FormTextInput';
@@ -52,6 +54,8 @@ export type { FormSelectProps, FormSelectOption } from './FormSelect';
 export type { FormCheckboxProps } from './FormCheckbox';
 export type { FormFieldGroupProps } from './FormFieldGroup';
 export type { FormGridProps } from './FormGrid';
+export type { FormRadioGroupProps, FormRadioOption } from './FormRadioGroup';
+export type { FormToggleCardProps } from './FormToggleCard';
 
 // Style constants for custom components
 export {
@@ -61,3 +65,14 @@ export {
   FORM_DESCRIPTION_CLASSES,
   FORM_CHECKBOX_CLASSES,
 } from './styles';
+
+// Validation utilities
+export {
+  validateProxyUrl,
+  validateLatitude,
+  validateLongitude,
+  validateHttpHeaderName,
+  validateHttpHeader,
+  isBlockedHeader,
+  BLOCKED_HEADERS,
+} from './validation';

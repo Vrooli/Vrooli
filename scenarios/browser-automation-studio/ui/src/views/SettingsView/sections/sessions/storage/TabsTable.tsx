@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Star, Trash2, Globe } from 'lucide-react';
 import type { TabInfo } from '@/domains/recording/hooks/useTabs';
+import { InlineDeleteConfirmation } from './InlineDeleteConfirmation';
 
 interface TabsTableProps {
   tabs: TabInfo[];
@@ -118,26 +119,14 @@ function TabRow({ tab, deleting, onDelete }: TabRowProps) {
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <div className="px-3 py-2 bg-red-50 dark:bg-red-900/30 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-red-700 dark:text-red-300">Remove this tab?</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InlineDeleteConfirmation
+          message="Remove this tab?"
+          confirmLabel="Remove"
+          loadingLabel="Removing..."
+          deleting={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );

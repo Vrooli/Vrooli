@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { FingerprintSettings, UserAgentPreset } from '@/domains/recording/types/types';
 import {
   FormNumberInput,
@@ -6,6 +7,8 @@ import {
   FormCheckbox,
   FormFieldGroup,
   FormGrid,
+  validateLatitude,
+  validateLongitude,
 } from '@/components/form';
 import { USER_AGENT_LABELS } from './presets';
 
@@ -27,6 +30,9 @@ const colorSchemeOptions = [
 ];
 
 export function FingerprintSection({ fingerprint, onChange }: FingerprintSectionProps) {
+  const latitudeError = useMemo(() => validateLatitude(fingerprint.latitude), [fingerprint.latitude]);
+  const longitudeError = useMemo(() => validateLongitude(fingerprint.longitude), [fingerprint.longitude]);
+
   return (
     <div className="space-y-6">
       {/* Viewport */}
@@ -102,6 +108,9 @@ export function FingerprintSection({ fingerprint, onChange }: FingerprintSection
                 label="Latitude"
                 placeholder="40.7128"
                 step={0.000001}
+                min={-90}
+                max={90}
+                error={latitudeError}
               />
               <FormNumberInput
                 value={fingerprint.longitude}
@@ -109,6 +118,9 @@ export function FingerprintSection({ fingerprint, onChange }: FingerprintSection
                 label="Longitude"
                 placeholder="-74.0060"
                 step={0.000001}
+                min={-180}
+                max={180}
+                error={longitudeError}
               />
             </FormGrid>
             <FormNumberInput

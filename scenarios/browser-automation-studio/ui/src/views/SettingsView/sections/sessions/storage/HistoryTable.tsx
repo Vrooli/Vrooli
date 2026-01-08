@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ExternalLink, Trash2, Clock, Image as ImageIcon } from 'lucide-react';
 import type { HistoryEntry } from '@/domains/recording';
+import { InlineDeleteConfirmation } from './InlineDeleteConfirmation';
 
 interface HistoryTableProps {
   entries: HistoryEntry[];
@@ -147,26 +148,12 @@ function HistoryEntryRow({ entry, deleting, navigating, onDelete, onNavigate }: 
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <div className="px-3 py-2 bg-red-50 dark:bg-red-900/30 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-red-700 dark:text-red-300">Delete this history entry?</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InlineDeleteConfirmation
+          message="Delete this history entry?"
+          deleting={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );

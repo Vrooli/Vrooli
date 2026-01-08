@@ -16,6 +16,8 @@ export interface FormTextInputProps {
   type?: 'text' | 'password' | 'email' | 'url';
   /** Whether the input is disabled */
   disabled?: boolean;
+  /** Error message to display (also adds error styling) */
+  error?: string;
   /** Additional CSS classes for the wrapper */
   className?: string;
 }
@@ -35,6 +37,9 @@ export interface FormTextInputProps {
  * />
  * ```
  */
+const ERROR_INPUT_CLASSES =
+  'w-full rounded-md border border-red-300 dark:border-red-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none';
+
 export const FormTextInput: FC<FormTextInputProps> = ({
   value,
   onChange,
@@ -43,6 +48,7 @@ export const FormTextInput: FC<FormTextInputProps> = ({
   placeholder,
   type = 'text',
   disabled,
+  error,
   className,
 }) => {
   const id = useId();
@@ -64,9 +70,16 @@ export const FormTextInput: FC<FormTextInputProps> = ({
         onChange={handleChange}
         placeholder={placeholder}
         disabled={disabled}
-        className={FORM_INPUT_CLASSES}
+        className={error ? ERROR_INPUT_CLASSES : FORM_INPUT_CLASSES}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
       />
-      {description && <p className={FORM_DESCRIPTION_CLASSES}>{description}</p>}
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-red-600 dark:text-red-400 mt-1">
+          {error}
+        </p>
+      )}
+      {description && !error && <p className={FORM_DESCRIPTION_CLASSES}>{description}</p>}
     </div>
   );
 };

@@ -1,11 +1,18 @@
 import type { AdBlockingMode, AntiDetectionSettings } from '@/domains/recording/types/types';
+import {
+  FormFieldGroup,
+  FormRadioGroup,
+  FormTextInput,
+  FormToggleCard,
+  type FormRadioOption,
+} from '@/components/form';
 
 interface AntiDetectionSectionProps {
   antiDetection: AntiDetectionSettings;
   onChange: <K extends keyof AntiDetectionSettings>(key: K, value: AntiDetectionSettings[K]) => void;
 }
 
-const AD_BLOCKING_OPTIONS: { value: AdBlockingMode; label: string; description: string }[] = [
+const AD_BLOCKING_OPTIONS: FormRadioOption<AdBlockingMode>[] = [
   { value: 'none', label: 'Disabled', description: 'No ad blocking' },
   { value: 'ads_only', label: 'Ads Only', description: 'Block advertisements only' },
   { value: 'ads_and_tracking', label: 'Ads & Tracking', description: 'Block ads and tracking scripts (recommended)' },
@@ -83,89 +90,63 @@ const TOGGLES: { key: BooleanAntiDetectionKey; label: string; description: strin
 ];
 
 export function AntiDetectionSection({ antiDetection, onChange }: AntiDetectionSectionProps) {
+  const handleWhitelistChange = (value: string | undefined) => {
+    if (!value) {
+      onChange('ad_blocking_whitelist', []);
+      return;
+    }
+    const domains = value
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+    onChange('ad_blocking_whitelist', domains);
+  };
+
   return (
     <div className="space-y-6">
       {/* Ad Blocking Section */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Ad Blocking</h4>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Block advertisements and tracking scripts to improve page load performance and privacy.
-        </p>
-        <div className="space-y-2">
-          {AD_BLOCKING_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-            >
-              <input
-                type="radio"
-                name="ad_blocking_mode"
-                value={option.value}
-                checked={(antiDetection.ad_blocking_mode ?? 'ads_and_tracking') === option.value}
-                onChange={() => onChange('ad_blocking_mode', option.value)}
-                className="mt-0.5"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{option.label}</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{option.description}</p>
-              </div>
-            </label>
-          ))}
-        </div>
+      <FormFieldGroup
+        title="Ad Blocking"
+        description="Block advertisements and tracking scripts to improve page load performance and privacy."
+      >
+        <FormRadioGroup
+          name="ad_blocking_mode"
+          value={antiDetection.ad_blocking_mode ?? 'ads_and_tracking'}
+          onChange={(v) => onChange('ad_blocking_mode', v)}
+          options={AD_BLOCKING_OPTIONS}
+        />
 
         {/* Ad Blocking Whitelist - only show when ad blocking is enabled */}
         {(antiDetection.ad_blocking_mode ?? 'ads_only') !== 'none' && (
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Domain Whitelist
-            </label>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Domains to exclude from ad blocking (e.g., google.com). Enter domains separated by commas.
-              Use *.domain.com for wildcards.
-            </p>
-            <input
-              type="text"
-              value={(antiDetection.ad_blocking_whitelist ?? []).join(', ')}
-              onChange={(e) => {
-                const domains = e.target.value
-                  .split(',')
-                  .map((d) => d.trim())
-                  .filter(Boolean);
-                onChange('ad_blocking_whitelist', domains);
-              }}
-              placeholder="google.com, *.gstatic.com"
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <FormTextInput
+            value={(antiDetection.ad_blocking_whitelist ?? []).join(', ') || undefined}
+            onChange={handleWhitelistChange}
+            label="Domain Whitelist"
+            description="Domains to exclude from ad blocking (comma-separated). Use *.domain.com for wildcards."
+            placeholder="google.com, *.gstatic.com"
+            className="mt-4"
+          />
         )}
-      </div>
+      </FormFieldGroup>
 
       {/* Bot Detection Bypass Section */}
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Bot Detection Bypass</h4>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          These settings help bypass bot detection systems by making the browser appear more like a real user's browser.
-        </p>
+      <FormFieldGroup
+        title="Bot Detection Bypass"
+        description="These settings help bypass bot detection systems by making the browser appear more like a real user's browser."
+        className="pt-4 border-t border-gray-200 dark:border-gray-700"
+      >
         <div className="space-y-3">
           {TOGGLES.map((toggle) => (
-            <label
+            <FormToggleCard
               key={toggle.key}
-              className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={Boolean(antiDetection[toggle.key])}
-                onChange={(e) => onChange(toggle.key, e.target.checked)}
-                className="mt-0.5 rounded border-gray-300 dark:border-gray-600"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{toggle.label}</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{toggle.description}</p>
-              </div>
-            </label>
+              checked={Boolean(antiDetection[toggle.key])}
+              onChange={(checked) => onChange(toggle.key, checked)}
+              label={toggle.label}
+              description={toggle.description}
+            />
           ))}
         </div>
-      </div>
+      </FormFieldGroup>
     </div>
   );
 }

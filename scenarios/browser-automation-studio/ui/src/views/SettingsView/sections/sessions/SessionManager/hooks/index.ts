@@ -1,7 +1,4 @@
 // Domain hooks
-export { useSessionNavigation } from './navigation';
-export type { UseSessionNavigationProps, UseSessionNavigationReturn } from './navigation';
-
 export { useProfileSettings } from './settings';
 export type { UseProfileSettingsProps, UseProfileSettingsReturn } from './settings';
 

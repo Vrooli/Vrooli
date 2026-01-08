@@ -58,6 +58,14 @@ export function SessionSidebar({
   tabsCount,
   hasActiveSession,
 }: SessionSidebarProps) {
+  const sectionCounts: Partial<Record<SectionId, number | undefined>> = {
+    'cookies': cookieCount,
+    'local-storage': localStorageCount,
+    'service-workers': serviceWorkerCount,
+    'history': historyCount,
+    'tabs': tabsCount,
+  };
+
   return (
     <nav className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 overflow-y-auto">
       {SECTION_GROUPS.map((group) => (
@@ -78,18 +86,7 @@ export function SessionSidebar({
           <ul className="space-y-0.5">
             {group.sections.map((section) => {
               const isActive = activeSection === section.id;
-              const count =
-                section.id === 'cookies'
-                  ? cookieCount
-                  : section.id === 'local-storage'
-                    ? localStorageCount
-                    : section.id === 'service-workers'
-                      ? serviceWorkerCount
-                      : section.id === 'history'
-                        ? historyCount
-                        : section.id === 'tabs'
-                          ? tabsCount
-                          : undefined;
+              const count = sectionCounts[section.id];
               const showDot = section.id === 'service-workers' && hasActiveSession;
 
               return (
@@ -129,7 +126,12 @@ export function SessionSidebar({
   );
 }
 
+/** Set of settings section IDs derived from SECTION_GROUPS */
+const SETTINGS_SECTION_IDS = new Set<SectionId>(
+  SECTION_GROUPS.find((g) => g.label === 'Settings')?.sections.map((s) => s.id) ?? []
+);
+
 /** Check if a section is a settings section (editable) */
 export function isSettingsSection(section: SectionId): boolean {
-  return ['presets', 'fingerprint', 'behavior', 'anti-detection', 'proxy', 'extra-headers'].includes(section);
+  return SETTINGS_SECTION_IDS.has(section);
 }

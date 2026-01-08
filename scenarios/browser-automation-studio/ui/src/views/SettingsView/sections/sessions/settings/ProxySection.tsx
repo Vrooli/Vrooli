@@ -1,4 +1,12 @@
+import { useMemo } from 'react';
 import type { ProxySettings } from '@/domains/recording/types/types';
+import {
+  FormFieldGroup,
+  FormTextInput,
+  FormToggleCard,
+  FormGrid,
+  validateProxyUrl,
+} from '@/components/form';
 
 interface ProxySectionProps {
   proxy: ProxySettings;
@@ -6,88 +14,66 @@ interface ProxySectionProps {
 }
 
 export function ProxySection({ proxy, onChange }: ProxySectionProps) {
+  const proxyUrlError = useMemo(() => validateProxyUrl(proxy.server), [proxy.server]);
+
   return (
     <div className="space-y-6">
       {/* Enable Proxy */}
-      <div>
-        <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={proxy.enabled ?? false}
-            onChange={(e) => onChange('enabled', e.target.checked)}
-            className="mt-0.5 rounded border-gray-300 dark:border-gray-600"
-          />
-          <div>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Enable Proxy</span>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Route browser traffic through a proxy server for IP masking and geographic targeting
-            </p>
-          </div>
-        </label>
-      </div>
+      <FormToggleCard
+        checked={proxy.enabled ?? false}
+        onChange={(checked) => onChange('enabled', checked)}
+        label="Enable Proxy"
+        description="Route browser traffic through a proxy server for IP masking and geographic targeting"
+      />
 
       {/* Proxy Configuration (shown when enabled) */}
       {proxy.enabled && (
         <>
           {/* Proxy Server */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Proxy Server</h4>
-            <input
-              type="text"
-              value={proxy.server ?? ''}
-              onChange={(e) => onChange('server', e.target.value || undefined)}
+          <FormFieldGroup title="Proxy Server">
+            <FormTextInput
+              value={proxy.server}
+              onChange={(v) => onChange('server', v)}
+              label="Server URL"
               placeholder="http://proxy.example.com:8080"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+              description="Supports http://, https://, socks4://, and socks5:// protocols"
+              error={proxyUrlError}
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Supports http://, https://, and socks5:// protocols
-            </p>
-          </div>
+          </FormFieldGroup>
 
           {/* Bypass List */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Bypass List</h4>
-            <input
-              type="text"
-              value={proxy.bypass ?? ''}
-              onChange={(e) => onChange('bypass', e.target.value || undefined)}
+          <FormFieldGroup title="Bypass List">
+            <FormTextInput
+              value={proxy.bypass}
+              onChange={(v) => onChange('bypass', v)}
+              label="Bypass Patterns"
               placeholder="localhost,.internal.com,192.168.*"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+              description="Comma-separated domains or IPs to bypass the proxy"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Comma-separated domains or IPs to bypass the proxy
-            </p>
-          </div>
+          </FormFieldGroup>
 
           {/* Authentication */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Authentication</h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              Optional credentials for authenticated proxy servers
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={proxy.username ?? ''}
-                  onChange={(e) => onChange('username', e.target.value || undefined)}
-                  placeholder="proxy_user"
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={proxy.password ?? ''}
-                  onChange={(e) => onChange('password', e.target.value || undefined)}
-                  placeholder="••••••••"
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-          </div>
+          <FormFieldGroup
+            title="Authentication"
+            description="Optional credentials for authenticated proxy servers"
+            className="pt-4 border-t border-gray-200 dark:border-gray-700"
+          >
+            <FormGrid cols={2}>
+              <FormTextInput
+                value={proxy.username}
+                onChange={(v) => onChange('username', v)}
+                label="Username"
+                placeholder="proxy_user"
+              />
+              <FormTextInput
+                value={proxy.password}
+                onChange={(v) => onChange('password', v)}
+                label="Password"
+                type="password"
+                placeholder="Enter password"
+              />
+            </FormGrid>
+          </FormFieldGroup>
 
           {/* Info Box */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">

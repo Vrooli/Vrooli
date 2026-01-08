@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Lock, Shield, AlertTriangle, Trash2, ChevronDown, ChevronRight, Globe } from 'lucide-react';
 import type { StorageStateCookie } from '@/domains/recording';
+import { InlineDeleteConfirmation } from './InlineDeleteConfirmation';
 
 interface CookiesTableProps {
   cookies: StorageStateCookie[];
@@ -188,32 +189,18 @@ function DomainSection({ group, deleting, onDeleteDomain, onDeleteCookie }: Doma
 
       {/* Delete confirmation inline */}
       {confirmDelete && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-red-700 dark:text-red-300">
-              {confirmDelete === 'domain'
-                ? `Delete all ${group.cookies.length} cookies for ${group.domain}?`
-                : `Delete cookie "${confirmDelete}"?`}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  confirmDelete === 'domain' ? handleDeleteDomain() : handleDeleteCookie(confirmDelete)
-                }
-                disabled={deleting}
-                className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InlineDeleteConfirmation
+          message={
+            confirmDelete === 'domain'
+              ? `Delete all ${group.cookies.length} cookies for ${group.domain}?`
+              : `Delete cookie "${confirmDelete}"?`
+          }
+          deleting={deleting}
+          onConfirm={() =>
+            confirmDelete === 'domain' ? handleDeleteDomain() : handleDeleteCookie(confirmDelete)
+          }
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   );

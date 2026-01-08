@@ -323,6 +323,26 @@ export default defineConfig({
           poolOptions: THREADS_TWO,
         },
       }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'session-manager',
+          include: ['src/views/SettingsView/sections/sessions/SessionManager/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'components',
+          include: ['src/components/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
     ],
   },
   server: {

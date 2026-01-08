@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Globe, Database, Trash2 } from 'lucide-react';
 import type { StorageStateOrigin } from '@/domains/recording';
+import { InlineDeleteConfirmation } from './InlineDeleteConfirmation';
 
 interface LocalStorageTableProps {
   origins: StorageStateOrigin[];
@@ -158,30 +159,18 @@ function OriginSection({ origin, deleting, onDeleteOrigin, onDeleteItem }: Origi
 
       {/* Delete confirmation inline */}
       {confirmDelete && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-red-700 dark:text-red-300">
-              {confirmDelete === 'origin'
-                ? `Delete all ${origin.localStorage.length} items for ${origin.origin}?`
-                : `Delete item "${confirmDelete}"?`}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => (confirmDelete === 'origin' ? handleDeleteOrigin() : handleDeleteItem(confirmDelete))}
-                disabled={deleting}
-                className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InlineDeleteConfirmation
+          message={
+            confirmDelete === 'origin'
+              ? `Delete all ${origin.localStorage.length} items for ${origin.origin}?`
+              : `Delete item "${confirmDelete}"?`
+          }
+          deleting={deleting}
+          onConfirm={() =>
+            confirmDelete === 'origin' ? handleDeleteOrigin() : handleDeleteItem(confirmDelete)
+          }
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       {expandedItem && (

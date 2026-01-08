@@ -2,10 +2,9 @@ import { X, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection, type SectionId } from './SessionSidebar';
-import { useSessionNavigation } from './hooks/navigation';
 import { useProfileSettings } from './hooks/settings';
 import { useSessionPersistence } from './hooks/persistence';
-import { useProfileBoundResources } from './hooks/resources';
+import { useProfileBoundResources, type UseProfileBoundResourcesReturn } from './hooks/resources';
 import { PresetsSection, FingerprintSection, BehaviorSection, AntiDetectionSection, ProxySection, ExtraHeadersSection } from '../settings';
 import { CookiesTable } from '../storage/CookiesTable';
 import { LocalStorageTable } from '../storage/LocalStorageTable';
@@ -17,13 +16,35 @@ import { ClearAllConfirmationModal, type ClearAllTarget } from './ClearAllConfir
 import { StorageSectionWrapper } from './StorageSectionWrapper';
 import { SessionFooterStats } from './SessionFooterStats';
 
+/**
+ * Maps storage sections to their corresponding resource key.
+ * Settings sections (presets, fingerprint, etc.) have no associated resource.
+ */
+type StorageResourceKey = 'storage' | 'serviceWorkers' | 'history' | 'tabs';
+const SECTION_RESOURCE_MAP: Partial<Record<SectionId, StorageResourceKey>> = {
+  'cookies': 'storage',
+  'local-storage': 'storage',
+  'service-workers': 'serviceWorkers',
+  'history': 'history',
+  'tabs': 'tabs',
+};
+
+/** Get the resource for a section, if any */
+function getResourceForSection(
+  section: SectionId,
+  resources: UseProfileBoundResourcesReturn
+): { fetch: () => Promise<void>; clear: () => void } | null {
+  const key = SECTION_RESOURCE_MAP[section];
+  return key ? resources[key] : null;
+}
+
 interface SessionManagerProps {
   profileId: string;
   profileName: string;
   initialProfile?: BrowserProfile;
   hasStorageState?: boolean;
   /** Section to open when the dialog first opens */
-  initialSection?: 'presets' | 'fingerprint' | 'behavior' | 'anti-detection' | 'proxy' | 'extra-headers' | 'cookies' | 'local-storage' | 'service-workers' | 'history' | 'tabs';
+  initialSection?: SectionId;
   onSave: (profile: BrowserProfile) => Promise<void>;
   onClose: () => void;
 }
@@ -33,12 +54,14 @@ export function SessionManager({
   profileName,
   initialProfile,
   hasStorageState,
-  initialSection,
+  initialSection = 'presets',
   onSave,
   onClose,
 }: SessionManagerProps) {
+  // Navigation state (inlined - useSessionNavigation was trivially simple)
+  const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
+
   // Domain hooks - each manages a specific concern
-  const navigation = useSessionNavigation({ initialSection });
   const settings = useProfileSettings({ initialProfile });
   const persistence = useSessionPersistence({ settings, onSave });
   const resources = useProfileBoundResources({ profileId });
@@ -47,15 +70,9 @@ export function SessionManager({
   // NOTE: We intentionally use an empty dependency array here. Section changes
   // after mount are handled by handleSectionChange, not this effect.
   useEffect(() => {
-    const section = navigation.activeSection;
-    if (section === 'cookies' || section === 'local-storage') {
-      void resources.storage.fetch();
-    } else if (section === 'service-workers') {
-      void resources.serviceWorkers.fetch();
-    } else if (section === 'history') {
-      void resources.history.fetch();
-    } else if (section === 'tabs') {
-      void resources.tabs.fetch();
+    const resource = getResourceForSection(activeSection, resources);
+    if (resource) {
+      void resource.fetch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -65,37 +82,25 @@ export function SessionManager({
   // (which change on every state update) were in the useEffect dependency array.
   const handleSectionChange = useCallback(
     (newSection: SectionId) => {
-      const oldSection = navigation.activeSection;
-
       // Skip if navigating to same section
-      if (oldSection === newSection) return;
+      if (activeSection === newSection) return;
 
       // Clear old section's data
-      if (oldSection === 'cookies' || oldSection === 'local-storage') {
-        resources.storage.clear();
-      } else if (oldSection === 'service-workers') {
-        resources.serviceWorkers.clear();
-      } else if (oldSection === 'history') {
-        resources.history.clear();
-      } else if (oldSection === 'tabs') {
-        resources.tabs.clear();
+      const oldResource = getResourceForSection(activeSection, resources);
+      if (oldResource) {
+        oldResource.clear();
       }
 
       // Change section
-      navigation.setActiveSection(newSection);
+      setActiveSection(newSection);
 
       // Fetch new section's data
-      if (newSection === 'cookies' || newSection === 'local-storage') {
-        void resources.storage.fetch();
-      } else if (newSection === 'service-workers') {
-        void resources.serviceWorkers.fetch();
-      } else if (newSection === 'history') {
-        void resources.history.fetch();
-      } else if (newSection === 'tabs') {
-        void resources.tabs.fetch();
+      const newResource = getResourceForSection(newSection, resources);
+      if (newResource) {
+        void newResource.fetch();
       }
     },
-    [navigation, resources]
+    [activeSection, resources]
   );
 
   // Determine if there's an active session (service workers data has a non-empty session_id)
@@ -146,7 +151,7 @@ export function SessionManager({
     }
   };
 
-  const isSettingsView = isSettingsSection(navigation.activeSection);
+  const isSettingsView = isSettingsSection(activeSection);
 
   // Compute localStorage count label with origin info
   const localStorageCountLabel = useMemo(() => {
@@ -191,7 +196,7 @@ export function SessionManager({
         {/* Body - Sidebar + Content */}
         <div className="flex-1 flex overflow-hidden">
           <SessionSidebar
-            activeSection={navigation.activeSection}
+            activeSection={activeSection}
             onSectionChange={handleSectionChange}
             hasStorageState={hasStorageState}
             cookieCount={resources.storage.state?.stats.cookieCount}
@@ -211,27 +216,27 @@ export function SessionManager({
             )}
 
             {/* Settings sections */}
-            {navigation.activeSection === 'presets' && (
+            {activeSection === 'presets' && (
               <PresetsSection preset={settings.preset} onPresetChange={settings.applyPreset} />
             )}
 
-            {navigation.activeSection === 'fingerprint' && (
+            {activeSection === 'fingerprint' && (
               <FingerprintSection fingerprint={settings.fingerprint} onChange={settings.updateFingerprint} />
             )}
 
-            {navigation.activeSection === 'behavior' && (
+            {activeSection === 'behavior' && (
               <BehaviorSection behavior={settings.behavior} onChange={settings.updateBehavior} />
             )}
 
-            {navigation.activeSection === 'anti-detection' && (
+            {activeSection === 'anti-detection' && (
               <AntiDetectionSection antiDetection={settings.antiDetection} onChange={settings.updateAntiDetection} />
             )}
 
-            {navigation.activeSection === 'proxy' && (
+            {activeSection === 'proxy' && (
               <ProxySection proxy={settings.proxy} onChange={settings.updateProxy} />
             )}
 
-            {navigation.activeSection === 'extra-headers' && (
+            {activeSection === 'extra-headers' && (
               <ExtraHeadersSection
                 headers={settings.extraHeaders}
                 onAdd={settings.addExtraHeader}
@@ -241,7 +246,7 @@ export function SessionManager({
             )}
 
             {/* Storage sections */}
-            {navigation.activeSection === 'cookies' && (
+            {activeSection === 'cookies' && (
               <StorageSectionWrapper
                 count={resources.storage.state?.stats.cookieCount}
                 itemLabel="cookie"
@@ -262,7 +267,7 @@ export function SessionManager({
               </StorageSectionWrapper>
             )}
 
-            {navigation.activeSection === 'local-storage' && (
+            {activeSection === 'local-storage' && (
               <StorageSectionWrapper
                 count={resources.storage.state?.stats.localStorageCount}
                 itemLabel="item"
@@ -284,7 +289,7 @@ export function SessionManager({
               </StorageSectionWrapper>
             )}
 
-            {navigation.activeSection === 'service-workers' && (
+            {activeSection === 'service-workers' && (
               <StorageSectionWrapper
                 count={hasActiveSession ? resources.serviceWorkers.data?.workers?.length : 0}
                 itemLabel="service worker"
@@ -305,7 +310,7 @@ export function SessionManager({
               </StorageSectionWrapper>
             )}
 
-            {navigation.activeSection === 'history' && (
+            {activeSection === 'history' && (
               <StorageSectionWrapper
                 count={resources.history.data?.stats.totalEntries}
                 itemLabel="entry"
@@ -329,7 +334,7 @@ export function SessionManager({
               </StorageSectionWrapper>
             )}
 
-            {navigation.activeSection === 'tabs' && (
+            {activeSection === 'tabs' && (
               <StorageSectionWrapper
                 count={resources.tabs.data.length}
                 itemLabel="saved tab"
@@ -354,7 +359,7 @@ export function SessionManager({
           {/* Storage stats when in storage view */}
           {!isSettingsView ? (
             <SessionFooterStats
-              activeSection={navigation.activeSection}
+              activeSection={activeSection}
               storageState={resources.storage.state}
               serviceWorkers={resources.serviceWorkers.data}
               history={resources.history.data}
