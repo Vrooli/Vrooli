@@ -14,7 +14,7 @@ import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
 import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
-import { injectProxyMetadata, injectScenarioConfig } from './inject.js'
+import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
 
@@ -522,7 +522,11 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     // that wraps res.send (like base tag injection) will be triggered.
     // sendFile() bypasses wrapped send() interceptors!
     try {
-      const htmlContent = loadIndexHtml()
+      let htmlContent = loadIndexHtml()
+      // Inject base tag to ensure relative asset paths (./assets/...) resolve from root.
+      // This is critical when accessing nested routes like /chat/uuid - without <base href="/">,
+      // the browser would try to load /chat/assets/... which doesn't exist.
+      htmlContent = injectBaseTag(htmlContent, '/')
       res.setHeader('Cache-Control', 'no-store, max-age=0')
       res.type('text/html').send(htmlContent)
     } catch (error) {

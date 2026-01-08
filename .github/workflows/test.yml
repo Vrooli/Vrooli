@@ -30,6 +30,17 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.x"
+
+      - name: Run scenario-to-desktop runtime tests
+        run: go test ./scenarios/scenario-to-desktop/runtime -count=1
+
+      - name: Run scenario-to-desktop preflight tests
+        run: go test ./scenarios/scenario-to-desktop/api -run TestPreflightBundleHandler -count=1
+
       - name: Run Tests in Workspaces
         run: |
           pnpm workspace @vrooli/shared test && \
