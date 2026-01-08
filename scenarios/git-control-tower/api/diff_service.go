@@ -217,14 +217,6 @@ func buildAnnotatedLines(content string, hunks []DiffHunk) []AnnotatedLine {
 	lines := strings.Split(content, "\n")
 	annotated := make([]AnnotatedLine, 0, len(lines)*2) // Extra capacity for deleted lines
 
-	// Build a map of line numbers to their change status
-	// Also track deleted lines that should be inserted
-	type lineInfo struct {
-		change      LineChange
-		deletedAt   int    // Position where deleted lines should be inserted
-		deletedLine string // Content of deleted line
-	}
-
 	addedLines := make(map[int]bool)
 	deletedLines := make([]struct {
 		afterLine int

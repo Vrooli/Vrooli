@@ -11,7 +11,36 @@
       "title": "Branch operations",
       "description": "List, create, and switch branches with uncommitted change detection",
       "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/branch_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates branch list, create, switch, publish safety behavior"
+        },
+        {
+          "type": "test",
+          "ref": "api/branch_parser_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates parsing of git for-each-ref output"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/04-branch-operations/api/branches.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Validates branch list endpoint shape"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app.go:cmdBranchList",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI branch list command"
+        }
+      ]
     }
   ]
 }

@@ -41,6 +41,10 @@ import {
   useIgnoreFile,
   usePush,
   usePull,
+  useBranches,
+  useCreateBranch,
+  useSwitchBranch,
+  usePublishBranch,
   queryKeys
 } from "./lib/hooks";
 
@@ -191,6 +195,10 @@ export default function App() {
   const pushMutation = usePush();
   const pullMutation = usePull();
   const approvedPreviewMutation = useApprovedChangesPreview();
+  const branchesQuery = useBranches();
+  const createBranchMutation = useCreateBranch();
+  const switchBranchMutation = useSwitchBranch();
+  const publishBranchMutation = usePublishBranch();
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDiscarding = discardMutation.isPending;
@@ -210,6 +218,7 @@ export default function App() {
     });
     queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
     queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
+    queryClient.invalidateQueries({ queryKey: queryKeys.branches });
     if (selectedFile) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.diff(selectedFile, selectedIsStaged, selectedIsUntracked)
@@ -223,6 +232,29 @@ export default function App() {
     selectedIsStaged,
     selectedIsUntracked
   ]);
+
+  const branchActions = useMemo(
+    () => ({
+      branches: branchesQuery.data,
+      isLoading: branchesQuery.isLoading,
+      createBranch: createBranchMutation.mutateAsync,
+      switchBranch: switchBranchMutation.mutateAsync,
+      publishBranch: publishBranchMutation.mutateAsync,
+      isCreating: createBranchMutation.isPending,
+      isSwitching: switchBranchMutation.isPending,
+      isPublishing: publishBranchMutation.isPending
+    }),
+    [
+      branchesQuery.data,
+      branchesQuery.isLoading,
+      createBranchMutation.isPending,
+      createBranchMutation.mutateAsync,
+      switchBranchMutation.isPending,
+      switchBranchMutation.mutateAsync,
+      publishBranchMutation.isPending,
+      publishBranchMutation.mutateAsync
+    ]
+  );
 
   const orderedFiles = useMemo(() => {
     const files = statusQuery.data?.files;
@@ -1458,6 +1490,7 @@ export default function App() {
           status={statusQuery.data}
           health={healthQuery.data}
           syncStatus={syncStatusQuery.data}
+          branchActions={branchActions}
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
@@ -1485,7 +1518,10 @@ export default function App() {
           discardMutation.error ||
           ignoreMutation.error ||
           pushMutation.error ||
-          pullMutation.error) && (
+          pullMutation.error ||
+          createBranchMutation.error ||
+          switchBranchMutation.error ||
+          publishBranchMutation.error) && (
           <div
             className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm"
             data-testid="error-toast"
@@ -1498,7 +1534,10 @@ export default function App() {
                 discardMutation.error ||
                 ignoreMutation.error ||
                 pushMutation.error ||
-                pullMutation.error
+                pullMutation.error ||
+                createBranchMutation.error ||
+                switchBranchMutation.error ||
+                publishBranchMutation.error
               )?.message}
             </p>
           </div>
@@ -1543,6 +1582,7 @@ export default function App() {
         status={statusQuery.data}
         health={healthQuery.data}
         syncStatus={syncStatusQuery.data}
+        branchActions={branchActions}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
@@ -1599,7 +1639,10 @@ export default function App() {
         discardMutation.error ||
         ignoreMutation.error ||
         pushMutation.error ||
-        pullMutation.error) && (
+        pullMutation.error ||
+        createBranchMutation.error ||
+        switchBranchMutation.error ||
+        publishBranchMutation.error) && (
         <div
           className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md"
           data-testid="error-toast"
@@ -1612,7 +1655,10 @@ export default function App() {
               discardMutation.error ||
               ignoreMutation.error ||
               pushMutation.error ||
-              pullMutation.error
+              pullMutation.error ||
+              createBranchMutation.error ||
+              switchBranchMutation.error ||
+              publishBranchMutation.error
             )?.message}
           </p>
         </div>

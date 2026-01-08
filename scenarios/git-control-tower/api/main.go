@@ -95,6 +95,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/branches", s.handleRepoBranches).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/branch/create", s.handleBranchCreate).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/branch/switch", s.handleBranchSwitch).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/branch/publish", s.handleBranchPublish).Methods("POST")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 }
 
@@ -705,14 +709,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
-}
-
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		log.Println(msg)
-		return
-	}
-	log.Printf("%s | %v", msg, fields)
 }
 
 func requireEnv(key string) string {

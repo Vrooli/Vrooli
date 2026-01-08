@@ -19,11 +19,13 @@ import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "../App";
+import { BranchSelector, type BranchActions } from "./BranchSelector";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
+  branchActions?: BranchActions;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
@@ -37,6 +39,7 @@ export function MobileHeader({
   status,
   health,
   syncStatus,
+  branchActions,
   isLoading,
   onRefresh,
   onOpenLayoutSettings,
@@ -100,21 +103,32 @@ export function MobileHeader({
       >
         {/* Left: Branch info */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <GitBranch className="h-4 w-4 text-slate-400 flex-shrink-0" />
-          <span className="font-mono text-sm text-slate-200 truncate">
-            {status?.branch.head || "—"}
-          </span>
-          {ahead > 0 && (
-            <Badge variant="info" className="gap-0.5 flex-shrink-0">
-              <ArrowUp className="h-3 w-3" />
-              {ahead}
-            </Badge>
-          )}
-          {behind > 0 && (
-            <Badge variant="warning" className="gap-0.5 flex-shrink-0">
-              <ArrowDown className="h-3 w-3" />
-              {behind}
-            </Badge>
+          {branchActions ? (
+            <BranchSelector
+              status={status}
+              syncStatus={syncStatus}
+              actions={branchActions}
+              variant="mobile"
+            />
+          ) : (
+            <>
+              <GitBranch className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <span className="font-mono text-sm text-slate-200 truncate">
+                {status?.branch.head || "—"}
+              </span>
+              {ahead > 0 && (
+                <Badge variant="info" className="gap-0.5 flex-shrink-0">
+                  <ArrowUp className="h-3 w-3" />
+                  {ahead}
+                </Badge>
+              )}
+              {behind > 0 && (
+                <Badge variant="warning" className="gap-0.5 flex-shrink-0">
+                  <ArrowDown className="h-3 w-3" />
+                  {behind}
+                </Badge>
+              )}
+            </>
           )}
         </div>
 

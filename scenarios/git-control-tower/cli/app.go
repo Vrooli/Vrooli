@@ -76,6 +76,10 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: a.cmdUnstage},
 			{Name: "commit", NeedsAPI: true, Description: "Create a commit (-m MESSAGE [--conventional])", Run: a.cmdCommit},
 			{Name: "sync-status", NeedsAPI: true, Description: "Check push/pull status ([--fetch] [--remote=NAME])", Run: a.cmdSyncStatus},
+			{Name: "branch-list", NeedsAPI: true, Description: "List branches", Run: a.cmdBranchList},
+			{Name: "branch-create", NeedsAPI: true, Description: "Create branch NAME [--from=BASE] [--no-checkout] [--allow-dirty]", Run: a.cmdBranchCreate},
+			{Name: "branch-switch", NeedsAPI: true, Description: "Switch branch NAME [--allow-dirty] [--track-remote]", Run: a.cmdBranchSwitch},
+			{Name: "branch-publish", NeedsAPI: true, Description: "Publish current branch ([--remote=NAME] [--branch=NAME] [--fetch])", Run: a.cmdBranchPublish},
 		},
 	}
 
@@ -116,18 +120,18 @@ func apiPathFromBaseURL(baseURL string, v1Path string) string {
 }
 
 type healthResponse struct {
-	Status     string            `json:"status"`
-	Service    string            `json:"service"`
-	Version    string            `json:"version"`
-	Readiness  bool              `json:"readiness"`
-	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]struct {
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Version   string `json:"version"`
+	Readiness bool   `json:"readiness"`
+	Timestamp string `json:"timestamp"`
+	Deps      map[string]struct {
 		Connected bool   `json:"connected"`
 		Status    string `json:"status"`
 	} `json:"dependencies"`
-	Error      string            `json:"error,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Operations map[string]any    `json:"operations,omitempty"`
+	Error      string         `json:"error,omitempty"`
+	Message    string         `json:"message,omitempty"`
+	Operations map[string]any `json:"operations,omitempty"`
 }
 
 func (a *App) cmdStatus(_ []string) error {
@@ -551,6 +555,278 @@ func (a *App) cmdSyncStatus(args []string) error {
 		}
 
 		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P1-001] Branch operations
+
+type branchInfo struct {
+	Name      string `json:"name"`
+	Upstream  string `json:"upstream,omitempty"`
+	OID       string `json:"oid,omitempty"`
+	IsCurrent bool   `json:"is_current,omitempty"`
+}
+
+type branchListResponse struct {
+	Current string       `json:"current"`
+	Locals  []branchInfo `json:"locals"`
+	Remotes []branchInfo `json:"remotes"`
+}
+
+type branchWarning struct {
+	Message              string `json:"message"`
+	RequiresConfirmation bool   `json:"requires_confirmation,omitempty"`
+	RequiresTracking     bool   `json:"requires_tracking,omitempty"`
+	RequiresFetch        bool   `json:"requires_fetch,omitempty"`
+}
+
+type branchCreateRequest struct {
+	Name       string `json:"name"`
+	From       string `json:"from,omitempty"`
+	Checkout   bool   `json:"checkout,omitempty"`
+	AllowDirty bool   `json:"allow_dirty,omitempty"`
+}
+
+type branchCreateResponse struct {
+	Success          bool           `json:"success"`
+	Branch           *branchInfo    `json:"branch,omitempty"`
+	Warning          *branchWarning `json:"warning,omitempty"`
+	Error            string         `json:"error,omitempty"`
+	ValidationErrors []string       `json:"validation_errors,omitempty"`
+}
+
+type branchSwitchRequest struct {
+	Name        string `json:"name"`
+	AllowDirty  bool   `json:"allow_dirty,omitempty"`
+	TrackRemote bool   `json:"track_remote,omitempty"`
+}
+
+type branchSwitchResponse struct {
+	Success bool           `json:"success"`
+	Branch  *branchInfo    `json:"branch,omitempty"`
+	Warning *branchWarning `json:"warning,omitempty"`
+	Error   string         `json:"error,omitempty"`
+}
+
+type branchPublishRequest struct {
+	Remote string `json:"remote,omitempty"`
+	Branch string `json:"branch,omitempty"`
+	Fetch  bool   `json:"fetch,omitempty"`
+}
+
+type branchPublishResponse struct {
+	Success bool           `json:"success"`
+	Remote  string         `json:"remote"`
+	Branch  string         `json:"branch"`
+	Warning *branchWarning `json:"warning,omitempty"`
+	Error   string         `json:"error,omitempty"`
+}
+
+func (a *App) cmdBranchList(_ []string) error {
+	body, err := a.core.APIClient.Get(a.apiPath("/repo/branches"), nil)
+	if err != nil {
+		return err
+	}
+
+	var resp branchListResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Current != "" {
+		fmt.Printf("Current: %s\n", resp.Current)
+		fmt.Println("Local branches:")
+		for _, branch := range resp.Locals {
+			prefix := "  "
+			if branch.IsCurrent {
+				prefix = "* "
+			}
+			if branch.Upstream != "" {
+				fmt.Printf("%s%s -> %s\n", prefix, branch.Name, branch.Upstream)
+			} else {
+				fmt.Printf("%s%s\n", prefix, branch.Name)
+			}
+		}
+		if len(resp.Remotes) > 0 {
+			fmt.Println("Remote branches:")
+			for _, branch := range resp.Remotes {
+				fmt.Printf("  %s\n", branch.Name)
+			}
+		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func (a *App) cmdBranchCreate(args []string) error {
+	var name string
+	var from string
+	checkout := true
+	allowDirty := false
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--from="):
+			from = strings.TrimPrefix(arg, "--from=")
+		case arg == "--no-checkout":
+			checkout = false
+		case arg == "--checkout":
+			checkout = true
+		case arg == "--allow-dirty":
+			allowDirty = true
+		case !strings.HasPrefix(arg, "-") && name == "":
+			name = arg
+		}
+	}
+
+	if name == "" {
+		return fmt.Errorf("usage: branch-create NAME [--from=BASE] [--no-checkout] [--allow-dirty]")
+	}
+
+	req := branchCreateRequest{
+		Name:       name,
+		From:       from,
+		Checkout:   checkout,
+		AllowDirty: allowDirty,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/create"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var resp branchCreateResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
+		if resp.Success {
+			fmt.Printf("Created branch: %s\n", name)
+			return nil
+		}
+		if resp.Warning != nil {
+			fmt.Printf("Warning: %s\n", resp.Warning.Message)
+			if resp.Warning.RequiresConfirmation && !allowDirty {
+				fmt.Println("Retry with --allow-dirty to force checkout")
+			}
+			return nil
+		}
+		if len(resp.ValidationErrors) > 0 {
+			fmt.Println("Validation errors:")
+			for _, e := range resp.ValidationErrors {
+				fmt.Printf("  ! %s\n", e)
+			}
+			return nil
+		}
+		if resp.Error != "" {
+			fmt.Printf("Error: %s\n", resp.Error)
+			return nil
+		}
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func (a *App) cmdBranchSwitch(args []string) error {
+	var name string
+	var allowDirty bool
+	var trackRemote bool
+
+	for _, arg := range args {
+		switch {
+		case arg == "--allow-dirty":
+			allowDirty = true
+		case arg == "--track-remote":
+			trackRemote = true
+		case !strings.HasPrefix(arg, "-") && name == "":
+			name = arg
+		}
+	}
+
+	if name == "" {
+		return fmt.Errorf("usage: branch-switch NAME [--allow-dirty] [--track-remote]")
+	}
+
+	req := branchSwitchRequest{
+		Name:        name,
+		AllowDirty:  allowDirty,
+		TrackRemote: trackRemote,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/switch"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var resp branchSwitchResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
+		if resp.Success {
+			fmt.Printf("Switched to: %s\n", name)
+			return nil
+		}
+		if resp.Warning != nil {
+			fmt.Printf("Warning: %s\n", resp.Warning.Message)
+			if resp.Warning.RequiresTracking && !trackRemote {
+				fmt.Println("Retry with --track-remote to track and switch")
+			}
+			if resp.Warning.RequiresConfirmation && !allowDirty {
+				fmt.Println("Retry with --allow-dirty to force switch")
+			}
+			return nil
+		}
+		if resp.Error != "" {
+			fmt.Printf("Error: %s\n", resp.Error)
+			return nil
+		}
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func (a *App) cmdBranchPublish(args []string) error {
+	var remote string
+	var branch string
+	var fetch bool
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--remote="):
+			remote = strings.TrimPrefix(arg, "--remote=")
+		case strings.HasPrefix(arg, "--branch="):
+			branch = strings.TrimPrefix(arg, "--branch=")
+		case arg == "--fetch":
+			fetch = true
+		}
+	}
+
+	req := branchPublishRequest{
+		Remote: remote,
+		Branch: branch,
+		Fetch:  fetch,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/publish"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var resp branchPublishResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil {
+		if resp.Success {
+			fmt.Printf("Published: %s to %s\n", resp.Branch, resp.Remote)
+			return nil
+		}
+		if resp.Warning != nil {
+			fmt.Printf("Warning: %s\n", resp.Warning.Message)
+			if resp.Warning.RequiresFetch && !fetch {
+				fmt.Println("Retry with --fetch to refresh remote status")
+			}
+			return nil
+		}
+		if resp.Error != "" {
+			fmt.Printf("Error: %s\n", resp.Error)
+			return nil
+		}
 	}
 
 	cliutil.PrintJSON(body)

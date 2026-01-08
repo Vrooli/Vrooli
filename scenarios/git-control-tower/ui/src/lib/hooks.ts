@@ -14,6 +14,10 @@ import {
   ignoreFile,
   pushToRemote,
   pullFromRemote,
+  fetchBranches,
+  createBranch,
+  switchBranch,
+  publishBranch,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -22,6 +26,9 @@ import {
   type IgnoreRequest,
   type PushRequest,
   type PullRequest,
+  type CreateBranchRequest,
+  type SwitchBranchRequest,
+  type PublishBranchRequest,
   type ApprovedChangesPreviewRequest,
   type ViewMode
 } from "./api";
@@ -32,6 +39,7 @@ export const queryKeys = {
   repoHistory: (limit?: number, includeFiles?: boolean) =>
     ["repo", "history", limit, includeFiles] as const,
   syncStatus: ["repo", "sync-status"] as const,
+  branches: ["repo", "branches"] as const,
   diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string, mode?: ViewMode) =>
     ["repo", "diff", path, staged, untracked, commit, mode] as const,
   approvedChanges: ["repo", "approved-changes"] as const
@@ -169,5 +177,52 @@ export function useApprovedChanges() {
 export function useApprovedChangesPreview() {
   return useMutation({
     mutationFn: (request: ApprovedChangesPreviewRequest) => fetchApprovedChangesPreview(request)
+  });
+}
+
+export function useBranches() {
+  return useQuery({
+    queryKey: queryKeys.branches,
+    queryFn: fetchBranches,
+    refetchInterval: 30000
+  });
+}
+
+export function useCreateBranch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: CreateBranchRequest) => createBranch(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    }
+  });
+}
+
+export function useSwitchBranch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: SwitchBranchRequest) => switchBranch(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    }
+  });
+}
+
+export function usePublishBranch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: PublishBranchRequest = {}) => publishBranch(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    }
   });
 }

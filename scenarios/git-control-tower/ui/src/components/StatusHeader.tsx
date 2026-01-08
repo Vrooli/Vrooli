@@ -15,11 +15,13 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "../App";
+import { BranchSelector, type BranchActions } from "./BranchSelector";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
+  branchActions?: BranchActions;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
@@ -32,6 +34,7 @@ export function StatusHeader({
   status,
   health,
   syncStatus,
+  branchActions,
   isLoading,
   onRefresh,
   onOpenLayoutSettings,
@@ -47,7 +50,7 @@ export function StatusHeader({
   if (isHistoryMode && viewingCommit) {
     return (
       <header
-        className="flex items-center justify-between px-4 py-3 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm"
+        className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm"
         data-testid="status-header"
       >
         <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -99,32 +102,38 @@ export function StatusHeader({
 
   return (
     <header
-      className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm"
+      className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm"
       data-testid="status-header"
     >
       <div className="flex items-center gap-6">
         {/* Branch Info */}
         <div className="flex items-center gap-2" data-testid="branch-info">
-          <GitBranch className="h-4 w-4 text-slate-400" />
-          <span className="font-mono text-sm text-slate-200">
-            {status?.branch.head || "—"}
-          </span>
-          {status?.branch.upstream && (
-            <span className="text-xs text-slate-500">
-              → {status.branch.upstream}
-            </span>
-          )}
-          {ahead > 0 && (
-            <Badge variant="info" className="gap-1">
-              <ArrowUp className="h-3 w-3" />
-              {ahead}
-            </Badge>
-          )}
-          {behind > 0 && (
-            <Badge variant="warning" className="gap-1">
-              <ArrowDown className="h-3 w-3" />
-              {behind}
-            </Badge>
+          {branchActions ? (
+            <BranchSelector status={status} syncStatus={syncStatus} actions={branchActions} />
+          ) : (
+            <>
+              <GitBranch className="h-4 w-4 text-slate-400" />
+              <span className="font-mono text-sm text-slate-200">
+                {status?.branch.head || "—"}
+              </span>
+              {status?.branch.upstream && (
+                <span className="text-xs text-slate-500">
+                  → {status.branch.upstream}
+                </span>
+              )}
+              {ahead > 0 && (
+                <Badge variant="info" className="gap-1">
+                  <ArrowUp className="h-3 w-3" />
+                  {ahead}
+                </Badge>
+              )}
+              {behind > 0 && (
+                <Badge variant="warning" className="gap-1">
+                  <ArrowDown className="h-3 w-3" />
+                  {behind}
+                </Badge>
+              )}
+            </>
           )}
         </div>
 
