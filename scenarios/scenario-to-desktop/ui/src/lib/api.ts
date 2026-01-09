@@ -940,6 +940,9 @@ export interface LinuxSigningConfig {
   gpg_key_id?: string;
   gpg_passphrase_env?: string;
   gpg_homedir?: string;
+  keyring_path?: string;
+  deb_keyring_path?: string;
+  rpm_keyring_path?: string;
 }
 
 export interface SigningConfig {

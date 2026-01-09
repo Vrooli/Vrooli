@@ -6,8 +6,9 @@
  * backward compatibility.
  */
 
-// Re-export domain types for backward compatibility
-export type { DesktopBuildArtifact } from "../../domain/types";
+// Import and re-export domain types for backward compatibility
+import type { DesktopBuildArtifact } from "../../domain/types";
+export type { DesktopBuildArtifact };
 
 export interface DesktopConnectionConfig {
   proxy_url?: string;

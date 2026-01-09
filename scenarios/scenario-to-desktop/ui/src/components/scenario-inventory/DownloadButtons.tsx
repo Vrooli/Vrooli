@@ -1,10 +1,11 @@
 import { Button } from "../ui/button";
-import { Download, Copy, Check } from "lucide-react";
+import { Download, Copy, Check, FileDown } from "lucide-react";
 import { useState, useCallback } from "react";
 import { getDownloadUrl } from "../../lib/api";
 import { triggerDownload, writeToClipboard } from "../../lib/browser";
 import {
-  getSortedPlatformGroups,
+  getAvailablePlatforms,
+  groupArtifactsByPlatform,
   getPlatformIcon,
   getPlatformName,
   formatBytes,
@@ -19,13 +20,18 @@ interface DownloadButtonsProps {
 
 export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProps) {
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // Use domain function for grouping artifacts by platform
-  const platformGroups = getSortedPlatformGroups(artifacts);
+  // Get only valid platforms (filters out "unknown")
+  const availablePlatforms = getAvailablePlatforms(artifacts);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(
+    availablePlatforms[0] ?? null
+  );
+
+  const platformGroups = groupArtifactsByPlatform(artifacts);
+  const selectedGroup = selectedPlatform ? platformGroups.get(selectedPlatform) : null;
 
   const handleDownload = useCallback(
-    (platform: Platform | "unknown") => {
+    (platform: Platform) => {
       const url = getDownloadUrl(scenarioName, platform);
       triggerDownload({ url });
     },
@@ -41,58 +47,74 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
     }
   }, []);
 
-  if (platformGroups.length === 0) {
+  if (availablePlatforms.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-3">
-      {platformGroups.map((group) => (
-        <div
-          key={group.platform}
-          className="rounded-lg border border-slate-700 bg-slate-900/40 p-3 space-y-2"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xl">{getPlatformIcon(group.platform)}</span>
-            <p className="text-sm font-semibold text-slate-100">
-              {getPlatformName(group.platform)}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1"
-              onClick={() => handleDownload(group.platform)}
-            >
-              <Download className="h-3 w-3" /> Download packaged build
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() =>
-                setExpanded((prev) => ({
-                  ...prev,
-                  [group.platform]: !prev[group.platform]
-                }))
+    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-4">
+      {/* Platform selector tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-800/60 w-fit">
+        {availablePlatforms.map((platform) => (
+          <button
+            key={platform}
+            onClick={() => setSelectedPlatform(platform)}
+            className={`
+              flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+              ${selectedPlatform === platform
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-300 hover:text-white hover:bg-slate-700/60"
               }
+            `}
+          >
+            <span>{getPlatformIcon(platform)}</span>
+            <span>{getPlatformName(platform)}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Selected platform download area */}
+      {selectedGroup && selectedPlatform && (
+        <div className="space-y-3">
+          {/* Main download button with file info */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              size="default"
+              className="gap-2"
+              onClick={() => handleDownload(selectedPlatform)}
             >
-              {expanded[group.platform] ? "Hide file list" : "Show file paths"}
+              <Download className="h-4 w-4" />
+              Download {getPlatformName(selectedPlatform)} installer
             </Button>
+            <span className="text-sm text-slate-400">
+              {formatBytes(selectedGroup.totalSizeBytes)}
+              {selectedGroup.artifacts.length > 1 && (
+                <span className="ml-1">({selectedGroup.artifacts.length} files)</span>
+              )}
+            </span>
           </div>
-          {expanded[group.platform] && (
-            <div className="max-h-48 overflow-y-auto rounded border border-slate-800 bg-black/30 p-2 text-xs text-slate-400">
-              {group.artifacts.map((artifact) => (
+
+          {/* File list */}
+          <div className="rounded border border-slate-800 bg-black/30 p-3 space-y-2">
+            <p className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+              <FileDown className="h-3 w-3" />
+              Included files
+            </p>
+            <div className="space-y-1.5">
+              {selectedGroup.artifacts.map((artifact) => (
                 <div
-                  key={artifact.absolute_path}
-                  className="flex flex-wrap items-center gap-2 py-1"
+                  key={artifact.absolute_path || artifact.file_name}
+                  className="flex flex-wrap items-center gap-2 text-xs"
                 >
-                  <span>{artifact.file_name}</span>
-                  {artifact.size_bytes && <span>({formatBytes(artifact.size_bytes)})</span>}
+                  <span className="text-slate-200">{artifact.file_name}</span>
+                  {artifact.size_bytes !== undefined && (
+                    <span className="text-slate-500">({formatBytes(artifact.size_bytes)})</span>
+                  )}
                   {artifact.relative_path && (
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-6 gap-1"
+                      className="h-5 px-1.5 gap-1 text-xs"
                       onClick={() => handleCopyPath(artifact.relative_path)}
                     >
                       {copiedPath === artifact.relative_path ? (
@@ -106,9 +128,9 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }

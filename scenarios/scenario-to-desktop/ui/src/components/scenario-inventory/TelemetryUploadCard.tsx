@@ -6,7 +6,6 @@ import {
   UploadCloud,
   Loader2,
   CheckCircle2,
-  Info,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -26,13 +25,13 @@ interface TelemetryUploadCardProps {
 }
 
 export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryUploadCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successPath, setSuccessPath] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
+  const [showPaths, setShowPaths] = useState(false);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
 
-  // Use domain function for path generation
   const telemetryPaths = useMemo(() => {
     const appName = appDisplayName || scenarioName;
     return generateTelemetryPaths(appName);
@@ -44,13 +43,11 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
         throw new Error("Choose the telemetry file first");
       }
 
-      // Read file content using browser seam
       const fileResult = await readFileAsText(selectedFile);
       if (!fileResult.success || !fileResult.content) {
         throw new Error(fileResult.error || "Failed to read file");
       }
 
-      // Use domain function for parsing and validation
       const result = processTelemetryContent(fileResult.content);
       if (!result.success || !result.events) {
         throw new Error(result.error || "Failed to process telemetry file");
@@ -86,107 +83,132 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
     }
   }, []);
 
-  return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3 text-slate-200">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-        <UploadCloud className="h-4 w-4" />
-        Share telemetry (optional but extremely helpful)
+  // Success state - show minimal confirmation
+  if (successPath) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-800/40 bg-green-950/20 text-sm text-green-300">
+        <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+        <span>Telemetry uploaded successfully</span>
       </div>
-      <p className="text-xs text-slate-400">
-        Every desktop wrapper records start-up events, dependency failures, and shutdowns to <code>deployment-telemetry.jsonl</code>. Uploading the file lets
-        deployment-manager see exactly which dependencies or secrets failed so we know what to fix next—no credentials are stored inside the log.
-      </p>
-      <ol className="list-decimal space-y-1 rounded border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-300">
-        <li>Use the path guide below to open the telemetry file on your machine.</li>
-        <li>Drag the file into the picker or click to browse for it.</li>
-        <li>Hit <strong>Upload telemetry</strong> so the events sync to deployment-manager.</li>
-      </ol>
-      <div className="rounded border border-slate-800 bg-black/30 p-3 text-xs text-slate-300">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Info className="h-3 w-3" />
-            Where do I find the file?
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1"
-            onClick={() => setShowHelp((prev) => !prev)}
-          >
-            {showHelp ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            {showHelp ? 'Hide' : 'Show'} paths
-          </Button>
+    );
+  }
+
+  // Collapsed state - single line trigger
+  if (!isExpanded) {
+    return (
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-slate-700/60 bg-slate-900/20 text-sm text-slate-400 hover:text-slate-300 hover:border-slate-600 transition-colors text-left"
+      >
+        <UploadCloud className="h-4 w-4 flex-shrink-0" />
+        <span className="flex-1">After testing, help us improve by uploading telemetry</span>
+        <ChevronDown className="h-4 w-4 flex-shrink-0" />
+      </button>
+    );
+  }
+
+  // Expanded state - full upload interface
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
+      {/* Header with collapse button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+          <UploadCloud className="h-4 w-4" />
+          Upload telemetry
         </div>
-        {showHelp && (
-          <ul className="mt-2 space-y-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2"
+          onClick={() => setIsExpanded(false)}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <p className="text-xs text-slate-400">
+        The desktop app logs startup events and dependency failures to <code className="text-slate-300">deployment-telemetry.jsonl</code>.
+        Upload this file so we can improve future builds.
+      </p>
+
+      {/* Path guide - collapsible */}
+      <div className="rounded border border-slate-800 bg-black/20 p-2">
+        <button
+          onClick={() => setShowPaths((prev) => !prev)}
+          className="flex items-center justify-between w-full text-xs text-slate-400 hover:text-slate-300"
+        >
+          <span>Where is the file?</span>
+          {showPaths ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        {showPaths && (
+          <ul className="mt-2 space-y-1.5">
             {telemetryPaths.map(({ os, path }) => (
-              <li key={os} className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-slate-100">{os}:</span>
-                <code className="rounded bg-slate-900/60 px-2 py-0.5 text-[11px]">{path}</code>
+              <li key={os} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium text-slate-300 w-16">{os}:</span>
+                <code className="flex-1 rounded bg-slate-900/60 px-1.5 py-0.5 text-[11px] text-slate-400 truncate">
+                  {path}
+                </code>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-6 gap-1"
+                  className="h-5 px-1.5 gap-1"
                   onClick={() => handleCopyPath(path)}
                 >
-                  {copiedPath === path ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  Copy
+                  {copiedPath === path ? (
+                    <Check className="h-3 w-3 text-green-400" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
                 </Button>
               </li>
             ))}
           </ul>
         )}
       </div>
-      <Input
-        type="file"
-        accept=".jsonl,.json,.txt"
-        onChange={(event) => handleFileChange(event.target.files)}
-      />
-      <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-300">
-        <p className="font-semibold text-slate-100">Need an example?</p>
-        <p className="mt-1">Each line is JSON. A single entry might look like:</p>
-        <pre className="mt-2 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-slate-100">
-          {generateExampleEvent()}
-        </pre>
-      </div>
-      <div className="flex items-center gap-3">
+
+      {/* File picker and upload */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="file"
+          accept=".jsonl,.json,.txt"
+          className="flex-1 min-w-[200px]"
+          onChange={(event) => handleFileChange(event.target.files)}
+        />
         <Button
           size="sm"
-          className="gap-2"
+          className="gap-1.5"
           disabled={!selectedFile || uploadMutation.isPending}
           onClick={() => uploadMutation.mutate()}
         >
           {uploadMutation.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Uploading...
             </>
           ) : (
-            <>Upload telemetry</>
+            <>
+              <UploadCloud className="h-3 w-3" />
+              Upload
+            </>
           )}
         </Button>
-        {selectedFile && (
-          <span className="text-xs text-slate-400 truncate max-w-[180px]">{selectedFile.name}</span>
-        )}
       </div>
-      {error && <p className="text-xs text-red-300">{error}</p>}
-      {successPath && (
-        <p className="flex items-center gap-1 text-xs text-green-300">
-          <CheckCircle2 className="h-3 w-3" /> Uploaded! Saved to {successPath}
-        </p>
+
+      {selectedFile && (
+        <p className="text-xs text-slate-500">Selected: {selectedFile.name}</p>
       )}
-      <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-400">
-        Why upload? Telemetry tells deployment-manager which swaps or secret strategies to suggest. Logs remain local unless you press Upload, and the
-        UI automatically strips infrastructure credentials.{' '}
-        <a
-          href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/examples/picker-wheel-desktop.md"
-          target="_blank"
-          rel="noreferrer"
-          className="text-blue-300 underline"
-        >
-          Read the real-world example
-        </a>
-        .
-      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      {/* Example format - very compact */}
+      <details className="text-xs">
+        <summary className="text-slate-500 cursor-pointer hover:text-slate-400">
+          Expected format
+        </summary>
+        <pre className="mt-1 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-slate-400">
+          {generateExampleEvent()}
+        </pre>
+      </details>
     </div>
   );
 }

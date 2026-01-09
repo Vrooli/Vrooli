@@ -33,7 +33,7 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
   }
 
   // Calculate progress based on build log
-  const calculateProgress = (status: BuildStatusType | undefined): number => {
+  const calculateProgress = (status: BuildStatusType | null | undefined): number => {
     if (!status) return 0;
     if (status.status === "ready") return 100;
     if (status.status === "failed") return 0;

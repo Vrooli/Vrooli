@@ -57,8 +57,9 @@ export function WineInstallDialog({ onClose, onInstallComplete }: WineInstallDia
     queryKey: ['wine-install-status', installId],
     queryFn: async () => (installId ? fetchWineInstallStatus(installId) : null),
     enabled: !!installId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Stop polling if installation complete or failed
+      const data = query.state.data;
       if (data?.status === 'completed' || data?.status === 'failed') {
         return false;
       }

@@ -74,9 +74,11 @@ function SectionList({
 }
 
 const markedLoader = (() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let markedPromise: Promise<any> | null = null;
   return () => {
     if (!markedPromise) {
+      // @ts-expect-error CDN dynamic import
       markedPromise = import("https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js");
     }
     return markedPromise;
@@ -84,9 +86,11 @@ const markedLoader = (() => {
 })();
 
 const mermaidLoader = (() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mermaidPromise: Promise<any> | null = null;
   return () => {
     if (!mermaidPromise) {
+      // @ts-expect-error CDN dynamic import
       mermaidPromise = import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
     }
     return mermaidPromise;

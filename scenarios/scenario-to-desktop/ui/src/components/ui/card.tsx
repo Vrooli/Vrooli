@@ -1,19 +1,23 @@
-import type { HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 
-type CardProps = HTMLAttributes<HTMLDivElement>;
+export type CardProps = HTMLAttributes<HTMLDivElement>;
 
-export function Card({ className, ...props }: CardProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur",
-        className
-      )}
-      {...props}
-    />
-  );
-}
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+Card.displayName = "Card";
 
 type CardHeaderProps = HTMLAttributes<HTMLDivElement>;
 

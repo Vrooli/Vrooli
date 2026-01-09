@@ -50,8 +50,7 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
           <p className="font-semibold text-slate-100">How it works</p>
           <p className="mt-1">
             Step 1 links your Electron wrapper to the scenario running on Tier&nbsp;1. Step 2 builds native installers for
-            Windows, macOS, and Linux without leaving the browser. Step 3 lets you grab the installers and (optionally)
-            upload telemetry so deployment-manager learns what failed. No CLI knowledge required.
+            Windows, macOS, and Linux without leaving the browser. Step 3 lets you download your installer. No CLI knowledge required.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-blue-200">
             <BookOpenCheck className="h-3.5 w-3.5" />
@@ -95,8 +94,8 @@ export function ScenarioDetails({ scenario, onClose }: ScenarioDetailsProps) {
 
           <StepCard
             step={3}
-            title="Download + share telemetry"
-            description="Hand installers to teammates, then upload the optional telemetry log so we can track failing dependencies."
+            title="Download your build"
+            description="Grab your installer and share it with teammates."
             complete={hasArtifacts}
             disabled={!hasArtifacts}
           >

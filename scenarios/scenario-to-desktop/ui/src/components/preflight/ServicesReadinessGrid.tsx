@@ -7,7 +7,6 @@ import { fetchBundlePreflightHealth } from "../../lib/api";
 import type { HealthPeekState } from "../../lib/preflight-constants";
 import {
   formatDuration,
-  formatTimestamp,
   getListenURL,
   getManifestHealthConfig,
   getServiceURL,

@@ -60,8 +60,9 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
     queryKey: ['regenerate-status', buildId],
     queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Stop polling when build reaches any final state
+      const data = query.state.data;
       if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
         return false;
       }
@@ -69,7 +70,7 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
     },
   });
 
-  const isBuilding = regenerateMutation.isPending || (buildStatus && buildStatus.status === 'building');
+  const isBuilding = regenerateMutation.isPending || buildStatus?.status === 'building';
   // Consider both 'ready' and 'partial' as successful (at least generated the desktop wrapper)
   const isComplete = (buildStatus?.status === 'ready' || buildStatus?.status === 'partial') && !regenerateMutation.isPending;
   const isFailed = buildStatus?.status === 'failed' && !regenerateMutation.isPending;

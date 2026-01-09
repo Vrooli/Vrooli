@@ -23,8 +23,6 @@ import {
 } from "../lib/api";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select } from "./ui/select";
-import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
 import { AlertTriangle, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
@@ -210,6 +208,8 @@ function sanitizePreflightResult(
   result: BundlePreflightResponse | null
 ): BundlePreflightResponse | null {
   if (!result) return null;
+  // Remove log_tails (too verbose for storage)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { log_tails, ...rest } = result;
   return rest;
 }
@@ -378,6 +378,7 @@ interface FrameworkTemplateSectionProps {
 
 function FrameworkTemplateSection({
   framework,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onFrameworkChange,
   onOpenFrameworkModal,
   selectedTemplate,
@@ -720,6 +721,7 @@ export function GeneratorForm({
   const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
   const draftSaveTimeoutRef = useRef<number | null>(null);
   const skipNextDraftSaveRef = useRef(false);
+  const refreshPreflightStatusRef = useRef<(() => Promise<void>) | null>(null);
 
   const connectionDecision = useMemo(
     () => decideConnection(deploymentMode, serverType),
@@ -879,6 +881,9 @@ export function GeneratorForm({
     }
   };
 
+  // Load draft state when scenario changes
+  // Note: applyDraftState and resetFormState are intentionally excluded from deps
+  // to prevent effect re-runs. They are stable within each render cycle.
   useEffect(() => {
     if (!scenarioName) {
       setDraftTimestamps(null);
@@ -896,6 +901,7 @@ export function GeneratorForm({
     applyDraftState(normalized);
     setDraftTimestamps({ createdAt: stored.createdAt, updatedAt: stored.updatedAt });
     setDraftLoadedScenario(scenarioName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioName]);
 
   // Fetch available scenarios
@@ -1089,6 +1095,11 @@ export function GeneratorForm({
     }
   };
 
+  // Keep ref updated with latest refreshPreflightStatus to avoid stale closures in interval
+  useEffect(() => {
+    refreshPreflightStatusRef.current = refreshPreflightStatus;
+  });
+
   const stopPreflightSession = async () => {
     if (!preflightSessionId || preflightPending) {
       return;
@@ -1123,7 +1134,7 @@ export function GeneratorForm({
       return;
     }
     const interval = window.setInterval(() => {
-      void refreshPreflightStatus();
+      void refreshPreflightStatusRef.current?.();
     }, 10000);
     return () => window.clearInterval(interval);
   }, [preflightAutoRefresh, preflightPending, bundleManifestPath, preflightSecrets, preflightResult, preflightSessionId]);
@@ -1443,7 +1454,7 @@ export function GeneratorForm({
       appDescription,
       iconPath,
       includeSigning: signingEnabledForBuild,
-      codeSigning: signingEnabledForBuild ? signingConfig : { enabled: false }
+      codeSigning: signingEnabledForBuild ? (signingConfig ?? undefined) : { enabled: false }
     });
 
     generateMutation.mutate(config);
@@ -1459,7 +1470,7 @@ export function GeneratorForm({
       ? ["external"]
       : SERVER_TYPE_OPTIONS.map((option) => option.value);
     if (!nextAllowed.includes(serverType)) {
-      setServerType(nextAllowed[0] ?? DEFAULT_SERVER_TYPE);
+      setServerType((nextAllowed[0] as ServerType) ?? DEFAULT_SERVER_TYPE);
     }
   };
 
@@ -1767,7 +1778,7 @@ export function GeneratorForm({
           selectedFramework={framework}
           onClose={() => setFrameworkModalOpen(false)}
           onSelect={(nextFramework) => {
-            onFrameworkChange(nextFramework);
+            setFramework(nextFramework);
             setFrameworkModalOpen(false);
           }}
         />

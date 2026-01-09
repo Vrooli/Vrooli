@@ -148,7 +148,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     queryKey: ['build-status', buildId],
     queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
+      const data = query.state.data;
       if (data?.status === 'ready' || data?.status === 'failed') {
         return false;
       }

@@ -165,7 +165,7 @@ export function DeploymentModal({
                     key={option.value}
                     type="button"
                     disabled={disabled}
-                    onClick={() => onChange(option.value, nextAllowed[0] ?? serverType)}
+                    onClick={() => onChange(option.value, (nextAllowed[0] as ServerType) ?? serverType)}
                     className={`rounded-lg border border-slate-800/80 bg-slate-950/60 p-4 text-left transition-all ${
                       isSelected ? "shadow-[inset_0_0_0_2px_rgba(59,130,246,0.9)]" : ""
                     } ${disabled ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.01]"}`}

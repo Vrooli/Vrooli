@@ -3,7 +3,7 @@
  * Handles starting, stopping, and refreshing preflight validations.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   startBundlePreflight,
   fetchBundlePreflightStatus,
@@ -81,6 +81,9 @@ export function usePreflightSession({
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const [startServices, setStartServices] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Ref for interval callback to avoid stale closures
+  const refreshStatusRef = useRef<(() => Promise<void>) | null>(null);
 
   // Computed values
   const missingSecrets = useMemo(() => {
@@ -165,7 +168,7 @@ export function usePreflightSession({
     if (!manifestPath || !result || !sessionId) return;
 
     const interval = window.setInterval(() => {
-      void refreshStatusImpl();
+      void refreshStatusRef.current?.();
     }, 10000);
 
     return () => window.clearInterval(interval);
@@ -270,13 +273,18 @@ export function usePreflightSession({
         };
       });
 
-      setSessionExpiresAt(refreshResult.expires_at ?? sessionExpiresAt);
+      setSessionExpiresAt(prev => refreshResult.expires_at ?? prev);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setPending(false);
     }
   }, [result, pending, sessionId, jobStatus, bundleManifestPath, secrets, startServices, sessionTTL, filterSecrets]);
+
+  // Keep ref updated with latest callback
+  useEffect(() => {
+    refreshStatusRef.current = refreshStatusImpl;
+  }, [refreshStatusImpl]);
 
   // Stop the preflight session
   const stopSession = useCallback(async () => {

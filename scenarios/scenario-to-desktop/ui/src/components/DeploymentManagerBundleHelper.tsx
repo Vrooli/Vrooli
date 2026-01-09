@@ -27,6 +27,8 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
     const [downloadName, setDownloadName] = useState<string | null>(null);
     const [exportMeta, setExportMeta] = useState<{ checksum?: string; generated_at?: string } | null>(null);
+    // State for deployment manager URL - setter is used, value is passed via callback
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
     const [manifestPath, setManifestPath] = useState<string | null>(null);
     const [buildJobId, setBuildJobId] = useState<string | null>(null);

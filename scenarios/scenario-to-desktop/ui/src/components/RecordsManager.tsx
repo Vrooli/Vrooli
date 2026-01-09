@@ -166,7 +166,7 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
               Clean up
             </Button>
           </div>
-          {testArtifacts.paths && testArtifacts.paths.length > 0 && (
+          {testArtifacts?.paths && testArtifacts.paths.length > 0 && (
             <p className="text-xs text-amber-200/80">
               Examples: {testArtifacts.paths.join(", ")}
             </p>
@@ -432,7 +432,7 @@ export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithS
                       // Keep dialog open so the user can adjust the path.
                     }
                   }}
-                  disabled={moveDisabled || !movePath}
+                  disabled={moveMutation.isPending || !movePath}
                   className="gap-2"
                 >
                   <MoveRight className="h-4 w-4" />

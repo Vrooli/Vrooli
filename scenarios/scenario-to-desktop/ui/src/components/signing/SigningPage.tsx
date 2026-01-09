@@ -28,7 +28,6 @@ import { MacOSSigningForm } from "./MacOSSigningForm";
 import { LinuxSigningForm } from "./LinuxSigningForm";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { cn } from "../../lib/utils";
-import { useMemo } from "react";
 
 interface SigningPageProps {
   initialScenario?: string;
@@ -45,10 +44,11 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
   const [discoverPlatform, setDiscoverPlatform] = useState<"windows" | "macos" | "linux">("windows");
   const [discovered, setDiscovered] = useState<DiscoveredCertificate[]>([]);
   const [keygenMessage, setKeygenMessage] = useState<string | undefined>();
-  const expiringSoon = useMemo(
-    () => discovered.filter((c) => !c.is_expired && c.days_to_expiry <= 30),
-    [discovered]
-  );
+  // Reserved for future certificate expiration warnings
+  // const expiringSoon = useMemo(
+  //   () => discovered.filter((c) => !c.is_expired && c.days_to_expiry <= 30),
+  //   [discovered]
+  // );
 
   // Fetch scenarios
   const { data: scenariosData } = useQuery<ScenariosResponse>({

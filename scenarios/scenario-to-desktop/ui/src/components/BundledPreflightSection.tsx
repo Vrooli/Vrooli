@@ -239,12 +239,12 @@ export function BundledPreflightSection({
   // Derived State
   // ============================================================================
 
-  const jobSteps = preflightJobStatus?.steps ?? [];
   const jobStepById = useMemo(() => {
+    const steps = preflightJobStatus?.steps ?? [];
     const map = new Map<string, BundlePreflightStep>();
-    jobSteps.forEach((step) => map.set(step.id, step));
+    steps.forEach((step) => map.set(step.id, step));
     return map;
-  }, [jobSteps]);
+  }, [preflightJobStatus?.steps]);
 
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;

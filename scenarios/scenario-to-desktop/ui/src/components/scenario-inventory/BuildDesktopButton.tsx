@@ -101,8 +101,9 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
     queryKey: ['build-status', buildId],
     queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Stop polling if build is complete
+      const data = query.state.data;
       if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
         return false;
       }
@@ -116,6 +117,13 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   }
 
   const isBuilding = buildMutation.isPending || (buildStatus && buildStatus.status === 'building');
+
+  // Copy error handler - must be before any early returns
+  const copyError = useCallback(async () => {
+    if (mutationError) {
+      await writeToClipboard(mutationError);
+    }
+  }, [mutationError]);
 
   // Show platform chips when build has results
   if (buildStatus?.platform_results) {
@@ -173,13 +181,6 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
       </div>
     );
   }
-
-  // Copy error handler
-  const copyError = useCallback(async () => {
-    if (mutationError) {
-      await writeToClipboard(mutationError);
-    }
-  }, [mutationError]);
 
   // Show mutation error
   if (mutationError) {

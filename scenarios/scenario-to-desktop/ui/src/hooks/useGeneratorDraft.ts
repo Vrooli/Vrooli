@@ -7,8 +7,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   loadGeneratorDraft,
   saveGeneratorDraft,
-  clearGeneratorDraft,
-  type DraftRecord
+  clearGeneratorDraft
 } from "../lib/draftStorage";
 import type { BundlePreflightResponse } from "../lib/api";
 import type { DeploymentMode, ServerType } from "../domain/deployment";
@@ -64,6 +63,8 @@ function sanitizePreflightResult(
   result: BundlePreflightResponse | null
 ): BundlePreflightResponse | null {
   if (!result) return null;
+  // Remove log_tails (too verbose for storage)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { log_tails, ...rest } = result;
   return rest;
 }
@@ -150,6 +151,10 @@ export function useGeneratorDraft({
     onDraftLoaded(normalized);
     setTimestamps({ createdAt: stored.createdAt, updatedAt: stored.updatedAt });
     setLoadedScenario(scenarioName);
+    // Note: onDraftLoaded and onDraftCleared are intentionally excluded from deps.
+    // They are callback props that should be memoized by the parent component.
+    // Including them would cause unwanted re-runs when parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioName]);
 
   // Auto-save draft when state changes
