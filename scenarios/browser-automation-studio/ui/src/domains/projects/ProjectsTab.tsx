@@ -19,7 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { selectors } from '@constants/selectors';
 import { TabEmptyState, ProjectsEmptyPreview } from '@/views/DashboardView/previews';
-import ProjectImportModal from './ProjectImportModal';
+import { ProjectImportModal } from '@/domains/import';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;

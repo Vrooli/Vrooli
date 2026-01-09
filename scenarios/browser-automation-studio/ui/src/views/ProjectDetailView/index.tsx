@@ -14,7 +14,8 @@ import toast from 'react-hot-toast';
 
 const ProjectDetail = lazy(() => import('@/domains/projects/ProjectDetail'));
 const AIPromptModal = lazy(() => import('@/domains/ai/AIPromptModal'));
-const AssetUploadModal = lazy(() => import('@/domains/projects/AssetUploadModal'));
+const AssetImportModal = lazy(() => import('@/domains/import/modals/AssetImportModal'));
+const RoutineImportModal = lazy(() => import('@/domains/import/modals/RoutineImportModal'));
 
 export default function ProjectDetailView() {
   const navigate = useNavigate();
@@ -23,7 +24,9 @@ export default function ProjectDetailView() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState('/');
+  const [showRoutineImportModal, setShowRoutineImportModal] = useState(false);
   const hasHandledOpenAI = useRef(false);
+  const hasHandledOpenImport = useRef(false);
 
   const { projects, getProject, setCurrentProject } = useProjectStore();
   const {
@@ -47,6 +50,16 @@ export default function ProjectDetailView() {
       openAIModal();
     }
   }, [loading, project, searchParams, setSearchParams, openAIModal]);
+
+  // Handle ?openImport=true query parameter
+  useEffect(() => {
+    if (!loading && project && searchParams.get('openImport') === 'true' && !hasHandledOpenImport.current) {
+      hasHandledOpenImport.current = true;
+      // Clear the query param to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+      setShowRoutineImportModal(true);
+    }
+  }, [loading, project, searchParams, setSearchParams]);
 
   // Get initial preview workflow ID from URL query param
   const initialPreviewWorkflowId = searchParams.get('preview') || undefined;
@@ -202,6 +215,9 @@ export default function ProjectDetailView() {
       } else if (type === 'ai') {
         // Open AI modal
         openAIModal();
+      } else if (type === 'import') {
+        // Open workflow import modal
+        setShowRoutineImportModal(true);
       } else if (type === 'visual') {
         // Create an empty workflow and navigate to builder
         const workflowName = `new-workflow-${Date.now()}`;
@@ -306,13 +322,34 @@ export default function ProjectDetailView() {
             </div>
           }
         >
-          <AssetUploadModal
+          <AssetImportModal
             isOpen={showAssetUploadModal}
             onClose={closeAssetUploadModal}
             folder={assetUploadConfig.folder}
             projectId={assetUploadConfig.projectId}
             onSuccess={() => {
               // Refresh will happen automatically when project entries are refetched
+            }}
+          />
+        </Suspense>
+      )}
+
+      {showRoutineImportModal && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading..." />
+            </div>
+          }
+        >
+          <RoutineImportModal
+            isOpen={showRoutineImportModal}
+            onClose={() => setShowRoutineImportModal(false)}
+            projectId={project.id}
+            onSuccess={(workflow) => {
+              toast.success(`Workflow "${workflow.name}" imported successfully`);
+              // Navigate to the imported workflow
+              navigate(`/projects/${project.id}/workflows/${workflow.id}`);
             }}
           />
         </Suspense>

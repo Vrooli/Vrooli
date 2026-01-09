@@ -250,6 +250,9 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
       } else if (type === 'ai') {
         // Navigate to project and open AI modal
         navigate(`/projects/${project.id}?openAI=true`);
+      } else if (type === 'import') {
+        // Navigate to project and open import modal
+        navigate(`/projects/${project.id}?openImport=true`);
       } else if (type === 'visual') {
         // Create an empty workflow and navigate to builder
         const workflowName = `new-workflow-${Date.now()}`;

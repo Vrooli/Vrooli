@@ -210,6 +210,14 @@ func (d *FuseOverlayfsDriver) GetChangedFiles(ctx context.Context, s *types.Sand
 			return nil
 		}
 
+		// Skip directories - they are structural containers created by overlayfs
+		// when files inside them are modified. The actual file changes are what
+		// we want to track. Directory additions are implied by file additions,
+		// and directory deletions are tracked via whiteout markers.
+		if info.IsDir() {
+			return nil
+		}
+
 		baseName := filepath.Base(relPath)
 		if baseName == ".wh..opq" {
 			return nil

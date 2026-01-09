@@ -28,6 +28,11 @@ import (
 	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
 	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
 	"github.com/vrooli/browser-automation-studio/sidecar"
+	"github.com/vrooli/browser-automation-studio/usecases/import/adapters"
+	importassets "github.com/vrooli/browser-automation-studio/usecases/import/assets"
+	importprojects "github.com/vrooli/browser-automation-studio/usecases/import/projects"
+	importroutines "github.com/vrooli/browser-automation-studio/usecases/import/routines"
+	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -108,6 +113,15 @@ func main() {
 	// Initialize repository
 	repo := database.NewRepository(db, log)
 
+	// Initialize import usecase handlers
+	fsScanner := shared.NewFilesystemScanner(log)
+	projectAdapter := adapters.NewProjectAdapter(repo)
+	workflowAdapter := adapters.NewWorkflowAdapter(repo)
+	routineImportSvc := importroutines.NewService(fsScanner, workflowAdapter, projectAdapter, log)
+	routineImportHandler := importroutines.NewHandler(routineImportSvc, log)
+	assetImportSvc := importassets.NewService(fsScanner, projectAdapter, log)
+	assetImportHandler := importassets.NewHandler(assetImportSvc, log)
+
 	// Initialize WebSocket hub
 	hub := wsHub.NewHub(log)
 	go hub.Run()
@@ -148,6 +162,11 @@ func main() {
 		AICreditsTracker:   aiCreditsTracker,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
+
+	// Initialize project import usecase handler (needs deps.CatalogService for workflow sync)
+	workflowSyncAdapter := adapters.NewWorkflowSyncAdapter(deps.CatalogService)
+	projectImportSvc := importprojects.NewService(fsScanner, projectAdapter, workflowSyncAdapter, log)
+	projectImportHandler := importprojects.NewHandler(projectImportSvc, log)
 
 	// Initialize UX metrics service for API endpoints
 	// The collector is integrated in the workflow service via InitDefaultDepsWithUXMetrics
@@ -302,8 +321,6 @@ func main() {
 		r.Get("/health", healthHandler)
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
-		r.Post("/projects/inspect-folder", handler.InspectProjectFolder)
-		r.Post("/projects/import", handler.ImportProject)
 		r.Get("/projects", handler.ListProjects)
 		r.Get("/projects/{id}", handler.GetProject)
 		r.Put("/projects/{id}", handler.UpdateProject)
@@ -318,6 +335,11 @@ func main() {
 		r.Post("/projects/{id}/files/move", handler.MoveProjectFile)
 		r.Post("/projects/{id}/files/delete", handler.DeleteProjectFile)
 		r.Post("/projects/{id}/files/resync", handler.ResyncProjectFiles)
+
+		// Import usecase routes (project, routine/workflow, and asset import handlers)
+		projectImportHandler.RegisterRoutes(r)
+		routineImportHandler.RegisterRoutes(r)
+		assetImportHandler.RegisterRoutes(r)
 
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
@@ -469,8 +491,8 @@ func main() {
 		r.Post("/dom-tree", handler.GetDOMTree)
 
 		// Filesystem helper routes (UI support utilities)
+		// Note: /fs/scan-for-projects is now handled by projectImportHandler
 		r.Post("/fs/list-directories", handler.ListDirectories)
-		r.Post("/fs/scan-for-projects", handler.ScanForProjects)
 
 		// Entitlement routes for subscription management
 		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)

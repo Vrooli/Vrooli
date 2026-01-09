@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
 import { parseProject } from '../../../utils/projectProto';
-import type { Project } from '../store';
+import type { Project } from '../../projects/store';
 
 export interface InspectFolderResponse {
   folder_path: string;
@@ -30,7 +30,12 @@ export interface ImportProjectRequest {
   description?: string;
 }
 
-interface UseProjectImportReturn {
+export interface UseProjectImportOptions {
+  /** Optional initial folder path */
+  initialPath?: string;
+}
+
+export interface UseProjectImportReturn {
   isInspecting: boolean;
   isImporting: boolean;
   inspectResult: InspectFolderResponse | null;
@@ -42,7 +47,7 @@ interface UseProjectImportReturn {
   reset: () => void;
 }
 
-export function useProjectImport(): UseProjectImportReturn {
+export function useProjectImport(_options?: UseProjectImportOptions): UseProjectImportReturn {
   const [isInspecting, setIsInspecting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [inspectResult, setInspectResult] = useState<InspectFolderResponse | null>(null);
