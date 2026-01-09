@@ -71,10 +71,11 @@ export function BranchSelector({
         status.summary.conflicts > 0)
   );
 
-  const currentBranch = status?.branch.head || actions.branches?.current || "";
-  const currentUpstream = status?.branch.upstream || "";
-  const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
-  const behind = status?.branch.behind ?? syncStatus?.behind ?? 0;
+  const currentBranch =
+    syncStatus?.branch || status?.branch.head || actions.branches?.current || "";
+  const currentUpstream = syncStatus?.upstream ?? status?.branch.upstream ?? "";
+  const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
+  const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
   const showPublish = currentBranch !== "" && currentUpstream === "";
 
   useEffect(() => {

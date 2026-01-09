@@ -273,6 +273,10 @@ export interface PushResponse {
   success: boolean;
   remote: string;
   branch: string;
+  pushed?: boolean;
+  up_to_date?: boolean;
+  verified?: boolean;
+  verification_error?: string;
   error?: string;
   timestamp: string;
 }

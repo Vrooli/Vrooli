@@ -76,6 +76,9 @@ type FakeGitRunner struct {
 	PushCount int
 	PullCount int
 
+	// Push behavior controls
+	PushUpdatesRemote bool
+
 	// Call tracking for verification
 	Calls []FakeGitCall
 }
@@ -135,6 +138,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		RepoRoot:     "/fake/repo",
 		ConfigValues: map[string]string{},
 		Calls:        []FakeGitCall{},
+		PushUpdatesRemote: true,
 	}
 }
 
@@ -314,6 +318,20 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 	// Handle common rev-parse queries
 	for _, arg := range args {
 		switch arg {
+		case "HEAD":
+			if f.Branch.OID == "" {
+				return nil, fmt.Errorf("fatal: ambiguous argument 'HEAD'")
+			}
+			return []byte(f.Branch.OID + "\n"), nil
+		case "@{u}":
+			upstream := strings.TrimSpace(f.Branch.Upstream)
+			if upstream == "" {
+				return nil, fmt.Errorf("fatal: no upstream configured")
+			}
+			if ref, ok := f.RemoteBranches[upstream]; ok {
+				return []byte(ref.OID + "\n"), nil
+			}
+			return nil, fmt.Errorf("fatal: unknown upstream ref")
 		case "--is-inside-work-tree":
 			if f.IsRepository {
 				return []byte("true\n"), nil
@@ -324,6 +342,16 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 				return []byte(repoDir + "\n"), nil
 			}
 			return nil, fmt.Errorf("fatal: not a git repository")
+		}
+
+		if ref, ok := f.RemoteBranches[arg]; ok {
+			return []byte(ref.OID + "\n"), nil
+		}
+		if strings.HasPrefix(arg, "refs/remotes/") {
+			key := strings.TrimPrefix(arg, "refs/remotes/")
+			if ref, ok := f.RemoteBranches[key]; ok {
+				return []byte(ref.OID + "\n"), nil
+			}
 		}
 	}
 
@@ -434,6 +462,19 @@ func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string,
 	// Simulate push by updating ahead count
 	if f.Branch.Ahead > 0 {
 		f.Branch.Ahead = 0
+	}
+
+	if f.PushUpdatesRemote {
+		if remote == "" {
+			remote = "origin"
+		}
+		if branch != "" && f.Branch.OID != "" {
+			key := fmt.Sprintf("%s/%s", remote, branch)
+			ref := f.RemoteBranches[key]
+			ref.Name = key
+			ref.OID = f.Branch.OID
+			f.RemoteBranches[key] = ref
+		}
 	}
 
 	return nil

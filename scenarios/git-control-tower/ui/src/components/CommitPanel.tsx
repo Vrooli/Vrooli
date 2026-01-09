@@ -69,6 +69,9 @@ export function CommitPanel({
   const [authorTouched, setAuthorTouched] = useState(false);
 
   const canCommit = stagedCount > 0 && commitMessage.trim().length > 0 && !isCommitting;
+  const showPushAction = Boolean(onPush && aheadCount > 0);
+  const pushDisabled = isPushing || !canPush;
+  const handlePushClick = onPush ?? (() => {});
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -250,14 +253,14 @@ export function CommitPanel({
                 <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
                 <span>Committed as <code className="font-mono break-all">{lastCommitHash}</code></span>
               </div>
-              {onPush && (canPush || aheadCount > 0) && (
+              {showPushAction && (
                 <div className="mt-2 flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={onPush}
-                    disabled={isPushing || !canPush}
+                    onClick={handlePushClick}
+                    disabled={pushDisabled}
                     className="h-8 text-xs"
                     data-testid="push-after-commit-button"
                   >
@@ -278,6 +281,43 @@ export function CommitPanel({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {!lastCommitHash && !commitError && showPushAction && (
+            <div
+              className="px-3 py-2 bg-slate-900/40 border border-slate-800/60 rounded-md"
+              data-testid="push-ready"
+            >
+              <div className="text-xs text-slate-400">
+                Ready to push {aheadCount} commit{aheadCount !== 1 ? "s" : ""}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePushClick}
+                  disabled={pushDisabled}
+                  className="h-8 text-xs"
+                  data-testid="push-ready-button"
+                >
+                  {isPushing ? (
+                    <span className="flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                      Pushing...
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <Upload className="h-3 w-3 mr-1.5" />
+                      Push ({aheadCount} commit{aheadCount !== 1 ? "s" : ""})
+                    </span>
+                  )}
+                </Button>
+                {!canPush && aheadCount > 0 && (
+                  <span className="text-xs text-amber-400">Pull required first</span>
+                )}
+              </div>
             </div>
           )}
 

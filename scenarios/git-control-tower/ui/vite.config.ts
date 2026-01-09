@@ -2,14 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
+  base: "./", // Required for tunnel/proxy contexts
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'node',
+    environment: "jsdom",
     coverage: {
-      provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
+      provider: "v8",
+      reporter: ["json-summary", "json", "text"],
       reportOnFailure: true,
       thresholds: {
         lines: 0,

@@ -50,8 +50,8 @@ export function MobileHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isHealthy = health?.readiness ?? false;
-  const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
-  const behind = status?.branch.behind ?? syncStatus?.behind ?? 0;
+  const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
+  const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
   const stagedCount = status?.summary.staged ?? 0;
   const unstagedCount = status?.summary.unstaged ?? 0;
   const untrackedCount = status?.summary.untracked ?? 0;

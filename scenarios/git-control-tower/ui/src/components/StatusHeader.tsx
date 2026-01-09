@@ -42,9 +42,15 @@ export function StatusHeader({
   onExitHistoryMode
 }: StatusHeaderProps) {
   const isHealthy = health?.readiness ?? false;
-  const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
-  const behind = status?.branch.behind ?? syncStatus?.behind ?? 0;
+  const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
+  const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
   const isHistoryMode = Boolean(viewingCommit);
+  const cleanDetails = [
+    ahead > 0 ? `${ahead} ahead` : "",
+    behind > 0 ? `${behind} behind` : ""
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   // History mode header - different layout showing commit info
   if (isHistoryMode && viewingCommit) {
@@ -175,7 +181,9 @@ export function StatusHeader({
            status.summary.staged === 0 &&
            status.summary.unstaged === 0 &&
            status.summary.untracked === 0 && (
-            <span className="text-xs text-slate-500">Working tree clean</span>
+            <span className="text-xs text-slate-500">
+              {cleanDetails ? `Working tree clean (${cleanDetails})` : "Working tree clean"}
+            </span>
           )}
         </div>
 

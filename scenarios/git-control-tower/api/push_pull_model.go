@@ -25,6 +25,18 @@ type PushResponse struct {
 	// Branch is the branch that was pushed.
 	Branch string `json:"branch"`
 
+	// Pushed indicates the remote ref advanced to match HEAD.
+	Pushed bool `json:"pushed,omitempty"`
+
+	// UpToDate indicates the remote already matched HEAD before the push.
+	UpToDate bool `json:"up_to_date,omitempty"`
+
+	// Verified indicates the push was verified against the remote ref.
+	Verified bool `json:"verified,omitempty"`
+
+	// VerificationError contains a verification error message, if any.
+	VerificationError string `json:"verification_error,omitempty"`
+
 	// Error contains the error message if push failed.
 	Error string `json:"error,omitempty"`
 

@@ -108,12 +108,24 @@ export default function App() {
   const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>("changes");
+  const [pushNotice, setPushNotice] = useState<{
+    tone: "success" | "info" | "warning";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
   }, [groupingEnabled, groupingRules.length]);
+
+  useEffect(() => {
+    if (!pushNotice) return;
+    const timeout = window.setTimeout(() => {
+      setPushNotice(null);
+    }, 4000);
+    return () => window.clearTimeout(timeout);
+  }, [pushNotice]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -663,7 +675,41 @@ export default function App() {
   }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
   const handlePush = useCallback(() => {
-    pushMutation.mutate({});
+    pushMutation.mutate(
+      {},
+      {
+        onSuccess: (result) => {
+          if (result.verification_error) {
+            setPushNotice({
+              tone: "warning",
+              message: `Push reported success, but verification failed: ${result.verification_error}`
+            });
+            return;
+          }
+          if (result.up_to_date) {
+            setPushNotice({
+              tone: "info",
+              message: `Already up to date with ${result.remote}/${result.branch}`
+            });
+            return;
+          }
+          if (result.pushed) {
+            setPushNotice({
+              tone: "success",
+              message: `Pushed to ${result.remote}/${result.branch}`
+            });
+            return;
+          }
+          setPushNotice({
+            tone: "warning",
+            message: "Push completed but could not be verified."
+          });
+        },
+        onError: () => {
+          setPushNotice(null);
+        }
+      }
+    );
   }, [pushMutation]);
 
   const handlePull = useCallback(() => {
@@ -1472,6 +1518,15 @@ export default function App() {
     }
   };
 
+  const pushNoticeTone =
+    pushNotice?.tone === "warning"
+      ? "bg-amber-950 border-amber-800 text-amber-200"
+      : pushNotice?.tone === "info"
+        ? "bg-sky-950 border-sky-800 text-sky-200"
+        : "bg-emerald-950 border-emerald-800 text-emerald-200";
+  const pushNoticeTitle =
+    pushNotice?.tone === "warning" ? "Push verification warning" : "Push status";
+
   // Mobile Layout
   if (isMobile) {
     const stagedCount = statusQuery.data?.summary.staged ?? 0;
@@ -1540,6 +1595,15 @@ export default function App() {
                 publishBranchMutation.error
               )?.message}
             </p>
+          </div>
+        )}
+        {pushNotice && (
+          <div
+            className={`fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg border text-sm ${pushNoticeTone}`}
+            data-testid="push-toast"
+          >
+            <p className="font-medium">{pushNoticeTitle}</p>
+            <p className="text-xs mt-1">{pushNotice.message}</p>
           </div>
         )}
 
@@ -1661,6 +1725,15 @@ export default function App() {
               publishBranchMutation.error
             )?.message}
           </p>
+        </div>
+      )}
+      {pushNotice && (
+        <div
+          className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg border text-sm max-w-md ${pushNoticeTone}`}
+          data-testid="push-toast"
+        >
+          <p className="font-medium">{pushNoticeTitle}</p>
+          <p className="text-xs mt-1">{pushNotice.message}</p>
         </div>
       )}
       <GroupingSettingsModal

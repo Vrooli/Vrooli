@@ -103,7 +103,7 @@ export function useSyncStatus() {
   return useQuery({
     queryKey: queryKeys.syncStatus,
     queryFn: () => fetchSyncStatus(false),
-    refetchInterval: 30000
+    refetchInterval: 5000
   });
 }
 
