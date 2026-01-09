@@ -17,13 +17,7 @@ interface MasterDetailLayoutProps {
   /** Title for the detail modal on mobile */
   detailTitle: string;
 
-  /** Page title displayed in header */
-  pageTitle: string;
-  /** Page subtitle displayed below title */
-  pageSubtitle?: string;
-  /** Optional header actions (buttons, etc.) to display next to title */
-  headerActions?: React.ReactNode;
-  /** Optional content to display below the header (banners, alerts, etc.) */
+  /** Optional content to display at top (error banners, alerts, etc.) */
   headerContent?: React.ReactNode;
 
   /** Storage key for localStorage persistence (e.g., "runs", "profiles") */
@@ -49,9 +43,6 @@ export function MasterDetailLayout({
   selectedId,
   onDeselect,
   detailTitle,
-  pageTitle,
-  pageSubtitle,
-  headerActions,
   headerContent,
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
@@ -76,44 +67,35 @@ export function MasterDetailLayout({
   if (isDesktop) {
     return (
       <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-        {/* Page header - fixed height */}
-        <div className="shrink-0 px-4 py-4 sm:px-6 lg:px-10 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">{pageTitle}</h2>
-              {pageSubtitle && (
-                <p className="text-sm text-muted-foreground">{pageSubtitle}</p>
-              )}
-            </div>
-            {headerActions}
+        {/* Header content (error banners, etc.) - only when present */}
+        {headerContent && (
+          <div className="shrink-0 px-4 py-2 sm:px-6 lg:px-10">
+            {headerContent}
           </div>
-          {headerContent}
-        </div>
+        )}
 
-        {/* Panel area - fills remaining height */}
-        <div className="flex-1 min-h-0 overflow-hidden px-4 sm:px-6 lg:px-10 pb-4">
+        {/* Panel area - fills entire height */}
+        <div
+          ref={containerRef}
+          className="flex-1 min-h-0 flex bg-card overflow-hidden"
+        >
+          {/* List panel */}
           <div
-            ref={containerRef}
-            className="h-full flex rounded-lg border border-border bg-card overflow-hidden"
+            style={{ width: listWidth }}
+            className="shrink-0 min-h-0 overflow-hidden border-r border-border"
           >
-            {/* List panel */}
-            <div
-              style={{ width: listWidth }}
-              className="shrink-0 min-h-0 overflow-hidden border-r border-border"
-            >
-              {listPanel}
-            </div>
+            {listPanel}
+          </div>
 
-            {/* Resize divider */}
-            <ResizableDivider
-              onMouseDown={handleResizeStart}
-              isResizing={isResizing}
-            />
+          {/* Resize divider */}
+          <ResizableDivider
+            onMouseDown={handleResizeStart}
+            isResizing={isResizing}
+          />
 
-            {/* Detail panel */}
-            <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-              {detailPanel}
-            </div>
+          {/* Detail panel */}
+          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+            {detailPanel}
           </div>
         </div>
       </div>
@@ -123,25 +105,16 @@ export function MasterDetailLayout({
   // Mobile layout - list with modal for details
   return (
     <div className={cn("h-full flex flex-col overflow-hidden", className)}>
-      {/* Page header - fixed height */}
-      <div className="shrink-0 px-4 py-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">{pageTitle}</h2>
-            {pageSubtitle && (
-              <p className="text-sm text-muted-foreground">{pageSubtitle}</p>
-            )}
-          </div>
-          {headerActions}
+      {/* Header content (error banners, etc.) - only when present */}
+      {headerContent && (
+        <div className="shrink-0 px-4 py-2">
+          {headerContent}
         </div>
-        {headerContent}
-      </div>
+      )}
 
-      {/* List panel - fills remaining height */}
-      <div className="flex-1 min-h-0 overflow-hidden px-4 pb-4">
-        <div className="h-full rounded-lg border border-border bg-card overflow-hidden">
-          {listPanel}
-        </div>
+      {/* List panel - fills entire height */}
+      <div className="flex-1 min-h-0 overflow-hidden bg-card">
+        {listPanel}
       </div>
 
       {/* Mobile detail modal */}

@@ -606,8 +606,6 @@ export function RunsPage({
   return (
     <>
       <MasterDetailLayout
-        pageTitle="Runs"
-        pageSubtitle="Monitor executions and review changes"
         storageKey="runs"
         headerContent={headerContent}
         listPanel={listPanel}

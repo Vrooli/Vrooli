@@ -425,8 +425,6 @@ export function ProfilesPage({
   return (
     <>
       <MasterDetailLayout
-        pageTitle="Agent Profiles"
-        pageSubtitle="Configure how agents execute tasks"
         storageKey="profiles"
         headerContent={headerContent}
         listPanel={listPanel}

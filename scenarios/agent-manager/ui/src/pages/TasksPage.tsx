@@ -613,8 +613,6 @@ export function TasksPage({
   return (
     <>
       <MasterDetailLayout
-        pageTitle="Tasks"
-        pageSubtitle="Define what needs to be done"
         storageKey="tasks"
         headerContent={headerContent}
         listPanel={listPanel}
