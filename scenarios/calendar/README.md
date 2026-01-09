@@ -96,14 +96,15 @@ calendar sync disconnect google
 ```
 
 ### API Integration
-```javascript
+```typescript
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+
 // Create event from another scenario
-// Note: API_PORT is dynamically assigned by Vrooli (range: 15000-19999)
-const API_PORT = process.env.API_PORT || '<check-vrooli-status>';
-const response = await fetch(`http://localhost:${API_PORT}/api/v1/events`, {
+const API_BASE = resolveApiBase({ appendSuffix: true })
+const response = await fetch(buildApiUrl('/events', { baseUrl: API_BASE }), {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${userToken}`,
+    Authorization: `Bearer ${userToken}`,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -115,7 +116,7 @@ const response = await fetch(`http://localhost:${API_PORT}/api/v1/events`, {
       payload: { project_id: 'proj_123' }
     }
   })
-});
+})
 ```
 
 ## 🔄 Integration Patterns

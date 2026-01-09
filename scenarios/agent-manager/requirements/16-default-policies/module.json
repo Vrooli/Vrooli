@@ -1,0 +1,57 @@
+{
+  "description": "Store default policies in agent profiles",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-004"
+      ],
+      "description": "The system must maintain default policies in agent profiles, including execution limits, resource quotas, and security boundaries. These policies should be inheritable by derived profiles and overridable when needed.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Store Default Policy Configurations",
+      "validation": [
+        {
+          "notes": "Test policy storage and retrieval",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test policy inheritance",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify policy application across profile hierarchy",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Policy lookup under 50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Default policies match organization standards",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Default Policies"
+}

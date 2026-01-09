@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "typing-test",
@@ -18,7 +18,28 @@
       "go-api",
       "postgres-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/typing-test"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -32,34 +53,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "models": [
-        "llama3.2"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user progress, typing history, and leaderboard data",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Typing Test health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -69,6 +69,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -77,20 +85,26 @@
     },
     "setup": {
       "description": "Initialize Typing Test service",
-         "condition": {
-            "checks": [
-               {
-                  "type": "binaries",
-                  "targets": [
-                     "typing-test-api"
-                  ]
-               },
-                {
-                   "type": "cli",
-                   "targets": [
-                      "typing-test"
-                   ]
-                },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/typing-test-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "typing-test",
+            "targets": [
+              "typing-test"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -124,8 +138,13 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Typing Test initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
+          "run": "echo '\ud83d\ude80 Typing Test initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -146,40 +165,25 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
-        },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
-           "description": "Display all running service URLs"
-         }
-      ]
-    },
-    "test": {
-      "description": "Test Typing Test services",
-      "steps": [
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
+          "background": true,
           "condition": {
-            "file_exists": "api/main.go"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: typing-test --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for typing-test",
+      "steps": [
         {
-          "name": "test-typing-endpoint",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/submit-score -H 'Content-Type: application/json' -d '{\\\"name\\\":\\\"test\\\",\\\"wpm\\\":60,\\\"accuracy\\\":95,\\\"score\\\":100,\\\"difficulty\\\":\\\"medium\\\",\\\"mode\\\":\\\"classic\\\"}'",
-          "description": "Test typing submission endpoint"
-        },
-        {
-          "name": "test-ui-response",
-          "run": "curl -sf http://localhost:$UI_PORT | grep -q 'Typing Test'",
-          "description": "Test UI server response"
+          "name": "run-phased-tests",
+          "run": "test-genie execute typing-test --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -198,5 +202,36 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": [
+          "llama3.2"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user progress, typing history, and leaderboard data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

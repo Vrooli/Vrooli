@@ -58,14 +58,14 @@ export interface Reminder {
 export interface CreateEventRequest {
   title: string
   description?: string
-  startTime: string
-  endTime: string
+  start_time: string
+  end_time: string
   timezone?: string
   location?: string
-  eventType?: Event['eventType']
+  event_type?: Event['eventType']
   metadata?: Record<string, any>
   reminders?: ReminderRequest[]
-  automationConfig?: AutomationConfig
+  automation_config?: AutomationConfig
 }
 
 export interface ReminderRequest {

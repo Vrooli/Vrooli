@@ -26,7 +26,25 @@ type App struct {
 	ViewCount    int64                  `json:"view_count" db:"view_count"`
 	FirstViewed  *time.Time             `json:"first_viewed_at,omitempty" db:"first_viewed_at"`
 	LastViewed   *time.Time             `json:"last_viewed_at,omitempty" db:"last_viewed_at"`
-	IsPartial    bool                   `json:"is_partial,omitempty" db:"-"`
+	IsPartial                 bool            `json:"is_partial,omitempty" db:"-"`
+	TechStack                 []string        `json:"tech_stack,omitempty" db:"-"`
+	Dependencies              []AppDependency `json:"dependencies,omitempty" db:"-"`
+	CompletenessScore         *int            `json:"completeness_score,omitempty" db:"-"`
+	CompletenessClassification string         `json:"completeness_classification,omitempty" db:"-"`
+}
+
+// AppDependency represents a resource dependency for an application
+type AppDependency struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+	Required    bool   `json:"required"`
+	Enabled     bool   `json:"enabled"`
+	Status      string `json:"status"`
+	Running     bool   `json:"running"`
+	Healthy     bool   `json:"healthy"`
+	Installed   bool   `json:"installed"`
+	Note        string `json:"note,omitempty"`
 }
 
 // AppViewStats captures aggregated viewing activity for an application

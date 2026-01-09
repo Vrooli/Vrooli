@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -16,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Chore struct {
@@ -68,79 +70,18 @@ var db *sql.DB
 var choreProcessor *ChoreProcessor
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 }
@@ -453,16 +394,6 @@ func redeemReward(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Health check
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   "chore-tracking-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
-}
-
 // generateScheduleHandler generates a weekly schedule for a user
 func generateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	var req ScheduleRequest
@@ -535,20 +466,14 @@ func processAchievementsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start chore-tracking
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "chore-tracking",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	initDB()
-	defer db.Close()
 
 	// Initialize chore processor
 	choreProcessor = NewChoreProcessor(db)
@@ -556,7 +481,8 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Chore routes
 	router.HandleFunc("/api/chores", getChores).Methods("GET")
@@ -588,12 +514,16 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	log.Printf("🎮 ChoreQuest API Server starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("🎮 ChoreQuest API Server starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

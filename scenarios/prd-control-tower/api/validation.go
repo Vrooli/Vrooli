@@ -2,17 +2,20 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
+	"net/url"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // ValidationRequest represents a validation request
@@ -26,25 +29,104 @@ type ValidatePRDRequest struct {
 	EntityName string `json:"entity_name"`
 }
 
+// TargetLinkageIssue represents a critical operational target without requirements
+type TargetLinkageIssue struct {
+	Title       string `json:"title"`
+	Criticality string `json:"criticality"`
+	Message     string `json:"message"`
+}
+
 // ValidationResponse represents the result of validation
 type ValidationResponse struct {
-	DraftID     string      `json:"draft_id"`
-	EntityType  string      `json:"entity_type"`
-	EntityName  string      `json:"entity_name"`
-	Violations  interface{} `json:"violations"`
-	CachedAt    *time.Time  `json:"cached_at,omitempty"`
-	ValidatedAt time.Time   `json:"validated_at"`
-	CacheUsed   bool        `json:"cache_used"`
+	DraftID              string                       `json:"draft_id"`
+	EntityType           string                       `json:"entity_type"`
+	EntityName           string                       `json:"entity_name"`
+	Violations           any                          `json:"violations"`
+	TemplateCompliance   *PRDTemplateValidationResult `json:"template_compliance,omitempty"`    // Legacy validator
+	TemplateComplianceV2 *PRDValidationResultV2       `json:"template_compliance_v2,omitempty"` // Enhanced validator
+	TargetLinkageIssues  []TargetLinkageIssue         `json:"target_linkage_issues,omitempty"`
+	CachedAt             *time.Time                   `json:"cached_at,omitempty"`
+	ValidatedAt          time.Time                    `json:"validated_at"`
+	CacheUsed            bool                         `json:"cache_used"`
+}
+
+var scenarioAuditorHTTPClient = &http.Client{Timeout: 45 * time.Second}
+
+const (
+	scenarioAuditorPollInterval = 2 * time.Second
+	scenarioAuditorTimeout      = 2 * time.Minute
+)
+
+type scenarioAuditorStartResponse struct {
+	JobID   string              `json:"job_id"`
+	Status  standardsScanStatus `json:"status"`
+	Message string              `json:"message"`
+	Error   string              `json:"error"`
+}
+
+type standardsScanStatus struct {
+	ID         string                `json:"id"`
+	Scenario   string                `json:"scenario"`
+	ScanType   string                `json:"scan_type"`
+	Status     string                `json:"status"`
+	Message    string                `json:"message"`
+	Error      string                `json:"error"`
+	Result     *standardsCheckResult `json:"result"`
+	TotalFiles int                   `json:"total_files"`
+}
+
+type standardsCheckResult struct {
+	CheckID      string               `json:"check_id"`
+	Status       string               `json:"status"`
+	ScanType     string               `json:"scan_type"`
+	StartedAt    string               `json:"started_at"`
+	CompletedAt  string               `json:"completed_at"`
+	Duration     float64              `json:"duration_seconds"`
+	FilesScanned int                  `json:"files_scanned"`
+	Violations   []standardsViolation `json:"violations"`
+	Statistics   map[string]int       `json:"statistics"`
+	Message      string               `json:"message"`
+	ScenarioName string               `json:"scenario_name"`
+}
+
+type standardsViolation struct {
+	ID             string `json:"id"`
+	ScenarioName   string `json:"scenario_name"`
+	Type           string `json:"type"`
+	Severity       string `json:"severity"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	FilePath       string `json:"file_path"`
+	LineNumber     int    `json:"line_number"`
+	Recommendation string `json:"recommendation"`
+	Standard       string `json:"standard"`
+}
+
+type diagnosticsSection struct {
+	Status diagnosticsStatus `json:"status"`
+}
+
+type diagnosticsStatus struct {
+	State       string             `json:"state"`
+	Message     string             `json:"message,omitempty"`
+	StartedAt   string             `json:"started_at,omitempty"`
+	CompletedAt string             `json:"completed_at,omitempty"`
+	Result      *diagnosticsResult `json:"result,omitempty"`
+}
+
+type diagnosticsResult struct {
+	Statistics   map[string]int       `json:"statistics,omitempty"`
+	Violations   []standardsViolation `json:"violations,omitempty"`
+	FilesScanned int                  `json:"files_scanned,omitempty"`
+	Duration     float64              `json:"duration_seconds,omitempty"`
+	ScanType     string               `json:"scan_type,omitempty"`
+}
+
+type scenarioDiagnosticsPayload struct {
+	Standards *diagnosticsSection `json:"standards,omitempty"`
 }
 
 func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
@@ -52,33 +134,15 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
 	req.UseCache = true // Default to using cache
 	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Non-fatal: just use defaults if decode fails
+			slog.Warn("Failed to decode validation request, using defaults", "error", err)
+		}
 	}
 
 	// Get draft from database
-	var draft Draft
-	var owner sql.NullString
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
 		return
 	}
 
@@ -95,81 +159,121 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil {
 			// Cache hit
-			var violationsData interface{}
-			json.Unmarshal(violations, &violationsData)
+			var violationsData any
+			if err := json.Unmarshal(violations, &violationsData); err != nil {
+				slog.Warn("Failed to unmarshal cached violations, re-validating", "error", err, "draft_id", draftID)
+				// Fall through to run fresh validation
+			} else {
+				response := ValidationResponse{
+					DraftID:     draftID,
+					EntityType:  draft.EntityType,
+					EntityName:  draft.EntityName,
+					Violations:  violationsData,
+					CachedAt:    &cachedAt,
+					ValidatedAt: time.Now(),
+					CacheUsed:   true,
+				}
 
-			response := ValidationResponse{
-				DraftID:     draftID,
-				EntityType:  draft.EntityType,
-				EntityName:  draft.EntityName,
-				Violations:  violationsData,
-				CachedAt:    &cachedAt,
-				ValidatedAt: time.Now(),
-				CacheUsed:   true,
+				respondJSON(w, http.StatusOK, response)
+				return
 			}
-
-			json.NewEncoder(w).Encode(response)
-			return
 		}
 	}
 
-	// Run validation
-	violations, err := runScenarioAuditor(draft.EntityType, draft.EntityName, draft.Content)
+	// Run scenario-auditor validation
+	violations, err := runScenarioAuditor(draft.EntityType, draft.EntityName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Validation failed", err)
 		return
 	}
 
-	// Cache validation results
-	violationsJSON, _ := json.Marshal(violations)
-	now := time.Now()
-	_, err = db.Exec(`
-		INSERT INTO audit_results (draft_id, violations, cached_at)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (draft_id)
-		DO UPDATE SET violations = $2, cached_at = $3
-	`, draftID, violationsJSON, now)
+	// Run PRD template validation on draft content (both versions)
+	templateValidation := ValidatePRDTemplate(draft.Content)
+	templateValidationV2 := ValidatePRDTemplateV2(draft.Content)
 
+	// Validate operational target linkage (P0/P1 targets must have requirements)
+	targetLinkageIssues := validateTargetLinkage(draft.EntityType, draft.EntityName)
+
+	// Cache validation results
+	now := time.Now()
+	violationsJSON, err := json.Marshal(violations)
 	if err != nil {
-		// Non-fatal, just log
-		slog.Warn("Failed to cache validation results", "error", err, "draft_id", draftID)
+		// Non-fatal, but log and skip caching to avoid storing corrupt data
+		slog.Warn("Failed to marshal validation results for caching", "error", err, "draft_id", draftID)
+	} else {
+		_, err = db.Exec(`
+			INSERT INTO audit_results (draft_id, violations, cached_at)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (draft_id)
+			DO UPDATE SET violations = $2, cached_at = $3
+		`, draftID, violationsJSON, now)
+
+		if err != nil {
+			// Non-fatal, just log
+			slog.Warn("Failed to cache validation results", "error", err, "draft_id", draftID)
+		}
 	}
 
 	response := ValidationResponse{
-		DraftID:     draftID,
-		EntityType:  draft.EntityType,
-		EntityName:  draft.EntityName,
-		Violations:  violations,
-		ValidatedAt: now,
-		CacheUsed:   false,
+		DraftID:              draftID,
+		EntityType:           draft.EntityType,
+		EntityName:           draft.EntityName,
+		Violations:           violations,
+		TemplateCompliance:   &templateValidation,
+		TemplateComplianceV2: &templateValidationV2,
+		TargetLinkageIssues:  targetLinkageIssues,
+		ValidatedAt:          now,
+		CacheUsed:            false,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
-func runScenarioAuditor(entityType string, entityName string, content string) (interface{}, error) {
-	// Check if scenario-auditor is available
-	auditorURL := os.Getenv("SCENARIO_AUDITOR_URL")
-	if auditorURL != "" {
-		// Try HTTP API first
-		return runScenarioAuditorHTTP(auditorURL, entityType, entityName, content)
+// validateTargetLinkage checks if P0/P1 operational targets have linked requirements
+func validateTargetLinkage(entityType string, entityName string) []TargetLinkageIssue {
+	var issues []TargetLinkageIssue
+
+	// Load operational targets
+	targets, err := extractOperationalTargets(entityType, entityName)
+	if err != nil {
+		// If we can't load targets, return empty (non-fatal)
+		return issues
 	}
 
-	// Fallback to CLI
-	return runScenarioAuditorCLI(entityType, entityName)
+	// Check each P0/P1 target for requirements linkage
+	for _, target := range targets {
+		if (target.Criticality == "P0" || target.Criticality == "P1") && len(target.LinkedRequirements) == 0 {
+			issues = append(issues, TargetLinkageIssue{
+				Title:       target.Title,
+				Criticality: target.Criticality,
+				Message:     fmt.Sprintf("%s target '%s' must be linked to at least one requirement before publishing", target.Criticality, target.Title),
+			})
+		}
+	}
+
+	return issues
 }
 
-func runScenarioAuditorHTTP(baseURL string, entityType string, entityName string, content string) (interface{}, error) {
-	// For now, we'll use the CLI since the HTTP API integration is more complex
-	// This is a placeholder for future HTTP API implementation
-	return runScenarioAuditorCLI(entityType, entityName)
+func runScenarioAuditor(entityType string, entityName string) (any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), scenarioAuditorTimeout)
+	defer cancel()
+
+	if result, err := runScenarioAuditorHTTP(ctx, entityName); err == nil {
+		return result, nil
+	} else {
+		slog.Warn("scenario-auditor HTTP diagnostics failed, falling back to CLI",
+			"entity", entityName,
+			"error", err)
+	}
+
+	return runScenarioAuditorCLI(entityName)
 }
 
-func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, error) {
+func runScenarioAuditorCLI(entityName string) (any, error) {
 	// Check if scenario-auditor CLI is available
 	_, err := exec.LookPath("scenario-auditor")
 	if err != nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"error":   "scenario-auditor not available",
 			"message": "Install scenario-auditor to enable PRD validation",
 		}, nil
@@ -188,7 +292,7 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 		// Check if we have any stdout
 		if stdout.Len() == 0 {
 			// No output, return a simple message
-			return map[string]interface{}{
+			return map[string]any{
 				"message": fmt.Sprintf("scenario-auditor returned no output: %v", err),
 				"stderr":  stderr.String(),
 			}, nil
@@ -196,10 +300,10 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 	}
 
 	// Try to parse as JSON
-	var result interface{}
+	var result any
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		// If JSON parse fails, return text output
-		return map[string]interface{}{
+		return map[string]any{
 			"output":      stdout.String(),
 			"parse_error": err.Error(),
 		}, nil
@@ -208,65 +312,212 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 	return result, nil
 }
 
-// Helper function to call HTTP API (for future use)
-func callAuditorAPI(url string, payload interface{}) (interface{}, error) {
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+func runScenarioAuditorHTTP(ctx context.Context, scenarioName string) (any, error) {
+	trimmed := strings.TrimSpace(scenarioName)
+	if trimmed == "" {
+		return nil, errors.New("scenario name is required for diagnostics")
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-auditor")
 	if err != nil {
-		return nil, fmt.Errorf("failed to call auditor API: %w", err)
+		return nil, fmt.Errorf("scenario-auditor API unavailable: %w", err)
+	}
+
+	startResp, err := startScenarioAuditorStandardsScan(ctx, baseURL, trimmed)
+	if err != nil {
+		return nil, err
+	}
+
+	jobID := strings.TrimSpace(startResp.JobID)
+	if jobID == "" {
+		jobID = strings.TrimSpace(startResp.Status.ID)
+	}
+	if jobID == "" {
+		return nil, errors.New("scenario-auditor did not return a job id")
+	}
+
+	status, err := waitForScenarioAuditorScan(ctx, baseURL, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := scenarioDiagnosticsPayload{
+		Standards: buildStandardsDiagnostics(status),
+	}
+
+	return payload, nil
+}
+
+func startScenarioAuditorStandardsScan(ctx context.Context, baseURL, scenarioName string) (scenarioAuditorStartResponse, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/standards/check/%s", baseURL, url.PathEscape(scenarioName))
+	body, err := json.Marshal(map[string]any{
+		"type": "quick",
+	})
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := scenarioAuditorHTTPClient.Do(req)
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("auditor API returned error: %s, body: %s", resp.Status, string(body))
+	if resp.StatusCode >= http.StatusBadRequest {
+		payload, _ := io.ReadAll(resp.Body)
+		return scenarioAuditorStartResponse{}, fmt.Errorf("scenario-auditor rejected scan (%d): %s", resp.StatusCode, strings.TrimSpace(string(payload)))
 	}
 
-	var result interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode auditor response: %w", err)
+	var startResp scenarioAuditorStartResponse
+	if err := json.NewDecoder(resp.Body).Decode(&startResp); err != nil {
+		return scenarioAuditorStartResponse{}, fmt.Errorf("failed to decode scan start response: %w", err)
 	}
 
-	return result, nil
+	if errMsg := strings.TrimSpace(startResp.Error); errMsg != "" {
+		return scenarioAuditorStartResponse{}, errors.New(errMsg)
+	}
+
+	return startResp, nil
+}
+
+func waitForScenarioAuditorScan(ctx context.Context, baseURL, jobID string) (standardsScanStatus, error) {
+	ticker := time.NewTicker(scenarioAuditorPollInterval)
+	defer ticker.Stop()
+
+	for {
+		status, err := fetchScenarioAuditorStatus(ctx, baseURL, jobID)
+		if err != nil {
+			return standardsScanStatus{}, err
+		}
+
+		state := normalizeStatus(status.Status)
+		switch state {
+		case "completed", "success":
+			return status, nil
+		case "failed", "error":
+			return status, fmt.Errorf("scenario-auditor scan failed: %s", firstNonEmpty(status.Error, status.Message, "unknown failure"))
+		}
+
+		select {
+		case <-ctx.Done():
+			return standardsScanStatus{}, fmt.Errorf("scenario-auditor scan timed out: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func fetchScenarioAuditorStatus(ctx context.Context, baseURL, jobID string) (standardsScanStatus, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/standards/check/jobs/%s", baseURL, url.PathEscape(jobID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return standardsScanStatus{}, err
+	}
+
+	resp, err := scenarioAuditorHTTPClient.Do(req)
+	if err != nil {
+		return standardsScanStatus{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		payload, _ := io.ReadAll(resp.Body)
+		return standardsScanStatus{}, fmt.Errorf("scenario-auditor status request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+	}
+
+	var status standardsScanStatus
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return standardsScanStatus{}, fmt.Errorf("failed to decode scenario-auditor status: %w", err)
+	}
+
+	return status, nil
+}
+
+func buildStandardsDiagnostics(status standardsScanStatus) *diagnosticsSection {
+	section := &diagnosticsSection{
+		Status: diagnosticsStatus{
+			State:   normalizeStatus(status.Status),
+			Message: firstNonEmpty(resultMessage(status.Result), status.Message, status.Error),
+		},
+	}
+
+	if status.Result != nil {
+		section.Status.StartedAt = status.Result.StartedAt
+		section.Status.CompletedAt = status.Result.CompletedAt
+		section.Status.Result = &diagnosticsResult{
+			Statistics:   status.Result.Statistics,
+			Violations:   status.Result.Violations,
+			FilesScanned: status.Result.FilesScanned,
+			Duration:     status.Result.Duration,
+			ScanType:     status.Result.ScanType,
+		}
+	}
+
+	return section
+}
+
+func resultMessage(result *standardsCheckResult) string {
+	if result == nil {
+		return ""
+	}
+	return result.Message
 }
 
 // handleValidatePRD validates a published PRD (not a draft)
 func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	var req ValidatePRDRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		respondInvalidJSON(w, err)
 		return
 	}
 
-	if req.EntityType != "scenario" && req.EntityType != "resource" {
-		http.Error(w, "Invalid entity_type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+	if !isValidEntityType(req.EntityType) {
+		respondInvalidEntityType(w)
 		return
 	}
 
 	if req.EntityName == "" {
-		http.Error(w, "entity_name is required", http.StatusBadRequest)
+		respondBadRequest(w, "entity_name is required")
 		return
 	}
 
 	// Run validation using scenario-auditor CLI
-	violations, err := runScenarioAuditorCLI(req.EntityType, req.EntityName)
+	violations, err := runScenarioAuditorCLI(req.EntityName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Validation failed", err)
 		return
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"entity_type":  req.EntityType,
 		"entity_name":  req.EntityName,
 		"violations":   violations,
 		"validated_at": time.Now(),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
+}
+
+
+func normalizeStatus(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "unknown"
+	}
+	return strings.ToLower(trimmed)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

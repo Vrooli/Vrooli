@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "fallbackRunnerTypes": [
+    "claude-code",
+    "codex"
+  ],
+  "runners": {
+    "claude-code": {
+      "models": [
+        {
+          "id": "sonnet",
+          "description": "Balanced default for Claude Code."
+        },
+        {
+          "id": "opus",
+          "description": "Highest reasoning capability."
+        },
+        {
+          "id": "haiku",
+          "description": "Fast, low-cost option."
+        },
+        {
+          "id": "claude-sonnet-4-5-20250929",
+          "description": "Pinned Sonnet 4.5 build."
+        },
+        {
+          "id": "claude-opus-4-5-20251101",
+          "description": "Pinned Opus 4.5 build."
+        },
+        {
+          "id": "claude-haiku-4-5-20251001",
+          "description": "Pinned Haiku 4.5 build."
+        }
+      ],
+      "presets": {
+        "CHEAP": "haiku",
+        "FAST": "sonnet",
+        "SMART": "opus"
+      }
+    },
+    "codex": {
+      "models": [
+        {
+          "id": "gpt-5.2-codex",
+          "description": "Latest frontier agentic coding model."
+        },
+        {
+          "id": "gpt-5.1-codex-max",
+          "description": "Codex-optimized flagship for deep and fast reasoning."
+        },
+        {
+          "id": "gpt-5.1-codex-mini",
+          "description": "Optimized for Codex; cheaper, faster, less capable."
+        },
+        {
+          "id": "gpt-5.2",
+          "description": "General frontier model with broad improvements."
+        }
+      ],
+      "presets": {
+        "CHEAP": "gpt-5.1-codex-mini",
+        "FAST": "gpt-5.1-codex-mini",
+        "SMART": "gpt-5.2-codex"
+      }
+    },
+    "opencode": {
+      "models": [
+        {
+          "id": "anthropic/claude-sonnet-4-5",
+          "description": "Balanced default for OpenCode."
+        },
+        {
+          "id": "anthropic/claude-opus-4-5",
+          "description": "Highest reasoning capability."
+        },
+        {
+          "id": "anthropic/claude-haiku-4-5",
+          "description": "Fast, low-cost option."
+        }
+      ],
+      "presets": {
+        "CHEAP": "anthropic/claude-haiku-4-5",
+        "FAST": "anthropic/claude-sonnet-4-5",
+        "SMART": "anthropic/claude-opus-4-5"
+      }
+    }
+  }
+}

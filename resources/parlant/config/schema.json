@@ -95,5 +95,9 @@
       "default": ""
     }
   },
-  "required": ["port", "host"]
+  "required": [
+    "port",
+    "host"
+  ],
+  "$id": "https://vrooli.com/resources/parlant/schema.json"
 }

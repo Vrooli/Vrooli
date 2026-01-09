@@ -188,17 +188,17 @@ Graph Studio includes a comprehensive phased testing architecture:
 
 ```bash
 # Run complete test suite (recommended)
-./test/run-tests.sh
+vrooli scenario test graph-studio
 
 # Run via Makefile
 make test
 
 # Run individual test phases
-./test/phases/test-unit.sh         # Go code quality
-./test/phases/test-integration.sh  # End-to-end workflows
-./test/phases/test-api.sh          # API endpoints
-./test/phases/test-cli.sh          # CLI commands
-./test/phases/test-ui.sh           # UI accessibility
+test-genie execute graph-studio --phases unit           # Go code quality
+test-genie execute graph-studio --phases integration    # End-to-end workflows
+test-genie execute graph-studio --phases api            # API endpoints
+test-genie execute graph-studio --phases cli            # CLI commands
+test-genie execute graph-studio --phases ui             # UI accessibility
 
 # Quick validation
 graph-studio status                # Check service health

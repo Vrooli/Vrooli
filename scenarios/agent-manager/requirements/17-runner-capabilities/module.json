@@ -1,0 +1,57 @@
+{
+  "description": "Query and track runner feature support",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-008"
+      ],
+      "description": "Implement a capability registry system to track and query supported features of different runners. Registry must maintain version information, supported operations, and resource requirements for each runner type.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Runner Capability Registry",
+      "validation": [
+        {
+          "notes": "Test capability registration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test capability querying",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify runner compatibility checks",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Capability lookup under 10ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All runner features properly cataloged",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Runner Capabilities"
+}

@@ -39,10 +39,10 @@ func (b *TestScenarioBuilder) AddScenario(scenario TestScenario) *TestScenarioBu
 }
 
 // AddUnauthorized adds an unauthorized access test
-func (b *TestScenarioBuilder) AddUnauthorized(path string) *TestScenarioBuilder {
+func (b *TestScenarioBuilder) AddUnauthorized(path, method string) *TestScenarioBuilder {
 	b.scenarios = append(b.scenarios, TestScenario{
 		Name:           "Unauthorized access to " + path,
-		Method:         "GET",
+		Method:         method,
 		Path:           path,
 		Token:          "", // No token
 		ExpectedStatus: http.StatusUnauthorized,
@@ -52,10 +52,10 @@ func (b *TestScenarioBuilder) AddUnauthorized(path string) *TestScenarioBuilder 
 }
 
 // AddInvalidToken adds an invalid token test
-func (b *TestScenarioBuilder) AddInvalidToken(path string) *TestScenarioBuilder {
+func (b *TestScenarioBuilder) AddInvalidToken(path, method string) *TestScenarioBuilder {
 	b.scenarios = append(b.scenarios, TestScenario{
 		Name:           "Invalid token for " + path,
-		Method:         "GET",
+		Method:         method,
 		Path:           path,
 		Token:          "invalid-token",
 		ExpectedStatus: http.StatusUnauthorized,
@@ -157,12 +157,30 @@ func (p *ErrorTestPattern) TestInvalidOperation(path string) {
 // TestEmptyData tests empty data handling
 func (p *ErrorTestPattern) TestEmptyData(path string, operation string) {
 	p.t.Run("EmptyData", func(t *testing.T) {
-		body := CalculationRequest{
-			Operation: operation,
-			Data:      []float64{},
+		var body interface{}
+		var expectedStatus int
+
+		// Statistics endpoint has different structure and returns 400 for empty data
+		if path == "/api/v1/math/statistics" {
+			body = StatisticsRequest{
+				Data:     []float64{},
+				Analyses: []string{"descriptive"},
+			}
+			expectedStatus = http.StatusBadRequest
+		} else {
+			body = CalculationRequest{
+				Operation: operation,
+				Data:      []float64{},
+			}
+			expectedStatus = http.StatusOK
 		}
-		testEndpoint(t, p.server, "POST", path, body, p.token, http.StatusOK, func(resp map[string]interface{}) error {
-			// Should return error in result
+
+		testEndpoint(t, p.server, "POST", path, body, p.token, expectedStatus, func(resp map[string]interface{}) error {
+			if expectedStatus == http.StatusBadRequest {
+				// For 400 responses, just validate it returned an error
+				return nil
+			}
+			// For 200 responses, should return error in result
 			data, ok := resp["data"].(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("expected data object")
@@ -182,10 +200,21 @@ func (p *ErrorTestPattern) TestEmptyData(path string, operation string) {
 // TestInsufficientData tests insufficient data handling
 func (p *ErrorTestPattern) TestInsufficientData(path string, operation string) {
 	p.t.Run("InsufficientData", func(t *testing.T) {
-		body := CalculationRequest{
-			Operation: operation,
-			Data:      []float64{1}, // Only one value
+		var body interface{}
+
+		// Statistics endpoint has different structure
+		if path == "/api/v1/math/statistics" {
+			body = StatisticsRequest{
+				Data:     []float64{1}, // Only one value - may be valid for some stats
+				Analyses: []string{"descriptive"},
+			}
+		} else {
+			body = CalculationRequest{
+				Operation: operation,
+				Data:      []float64{1}, // Only one value
+			}
 		}
+
 		testEndpoint(t, p.server, "POST", path, body, p.token, http.StatusOK, func(resp map[string]interface{}) error {
 			// Should return error in result for operations requiring multiple values
 			data, ok := resp["data"].(map[string]interface{})

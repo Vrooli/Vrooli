@@ -1,0 +1,13 @@
+{
+  "name": "network-tools-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proxy-aware web console for the Network Tools scenario",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo \"Static build step not required\""
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  }
+}

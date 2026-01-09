@@ -1,0 +1,88 @@
+{
+  "description": "Group generations by campaigns with metadata tracking and export options",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Create and organize campaigns with metadata, tags, and asset grouping",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Campaign Management",
+      "validation": [
+        {
+          "notes": "Test campaign CRUD",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify asset organization",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Campaign load \u003c 200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Effective content organization",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "Export campaign assets and metadata in multiple formats",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Campaign Export",
+      "validation": [
+        {
+          "notes": "Test export formats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify export completeness",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Export \u003c 5s for 50 images",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Usable exported packages",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Campaign organization"
+}

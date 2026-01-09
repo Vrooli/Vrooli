@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "title": "Scenario-to-Cloud Documentation",
+  "description": "Deploy Vrooli scenarios to VPS with HTTPS and automatic configuration",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Scenario-to-Cloud" },
+        { "path": "GLOSSARY.md", "title": "Glossary", "description": "Key terms and concepts" }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book",
+      "description": "Step-by-step deployment guides",
+      "documents": [
+        { "path": "guides/manifest-reference.md", "title": "Manifest Reference", "description": "Complete manifest configuration guide" },
+        { "path": "guides/vps-setup.md", "title": "VPS Setup", "description": "Prepare your VPS for deployments" },
+        { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Common issues and solutions" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "code",
+      "description": "Technical reference documentation",
+      "documents": [
+        { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
+        { "path": "reference/deployment-lifecycle.md", "title": "Deployment Lifecycle", "description": "Stages and status transitions" }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "description": "Architecture and design concepts",
+      "documents": [
+        { "path": "concepts/architecture.md", "title": "Architecture", "description": "System design and components" },
+        { "path": "concepts/bundle-system.md", "title": "Bundle System", "description": "How mini-Vrooli bundles work" }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "guides", "reference"],
+    "secondary": ["concepts"]
+  }
+}

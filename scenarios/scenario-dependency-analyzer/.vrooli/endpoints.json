@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../.vrooli/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "service": "scenario-dependency-analyzer",
+  "api": {
+    "base_url": "http://localhost:${API_PORT}",
+    "version": "v1",
+    "endpoints": [
+      {
+        "path": "/health",
+        "method": "GET",
+        "description": "Basic health check for the service",
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "timestamp": { "type": "string" },
+            "service": { "type": "string" },
+            "readiness": { "type": "boolean" },
+            "dependencies": { "type": "object" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/health/analysis",
+        "method": "GET",
+        "description": "Comprehensive health check including analysis capabilities",
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string" },
+            "capabilities": { "type": "array" },
+            "scenarios_found": { "type": "number" },
+            "resources_available": { "type": "number" },
+            "database_status": { "type": "string" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/scenarios",
+        "method": "GET",
+        "description": "List all scenarios with metadata and last-scan status",
+        "response_schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "display_name": { "type": "string" },
+              "version": { "type": "string" },
+              "last_scanned": { "type": "string" },
+              "resource_count": { "type": "number" },
+              "scenario_count": { "type": "number" }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/scenarios/:scenario",
+        "method": "GET",
+        "description": "Get detailed information for a specific scenario including declared vs detected dependencies",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/scenarios/:scenario/deployment",
+        "method": "GET",
+        "description": "Get deployment readiness report with tier fitness and bundle manifest",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/scenarios/:scenario/dag/export",
+        "method": "GET",
+        "description": "Export recursive dependency DAG with metadata gaps",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "recursive",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": false }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/analyze/:scenario",
+        "method": "GET",
+        "description": "Perform full dependency analysis for a scenario",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Scenario name or 'all' for system-wide analysis"
+          },
+          {
+            "name": "include_transitive",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": false }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/scenarios/:scenario/dependencies",
+        "method": "GET",
+        "description": "Get dependency list for a specific scenario",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/scenarios/:scenario/scan",
+        "method": "POST",
+        "description": "Scan a scenario and optionally apply detected dependencies to service.json",
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "request_body": {
+          "type": "object",
+          "properties": {
+            "apply": { "type": "boolean", "default": false },
+            "apply_resources": { "type": "boolean", "default": false },
+            "apply_scenarios": { "type": "boolean", "default": false }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/graph/:type",
+        "method": "GET",
+        "description": "Generate dependency graph for visualization",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["resource", "scenario", "combined"] }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["json", "dot", "mermaid"], "default": "json" }
+          }
+        ]
+      },
+      {
+        "path": "/api/v1/graph/:type/cycles",
+        "method": "GET",
+        "description": "Detect circular dependencies in the dependency graph",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["resource", "scenario", "combined"] }
+          }
+        ],
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "has_cycles": { "type": "boolean" },
+            "cycle_count": { "type": "number" },
+            "cycles": { "type": "array" },
+            "affected_dependencies": { "type": "array" },
+            "severity": { "type": "string", "enum": ["none", "warning", "critical"] },
+            "message": { "type": "string" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/dependencies/:name/impact",
+        "method": "GET",
+        "description": "Analyze the impact of removing a dependency",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "dependency_name": { "type": "string" },
+            "dependency_type": { "type": "string", "enum": ["resource", "scenario", "unknown"] },
+            "direct_dependents": { "type": "array" },
+            "indirect_dependents": { "type": "array" },
+            "total_affected": { "type": "number" },
+            "critical_impact": { "type": "boolean" },
+            "severity": { "type": "string", "enum": ["none", "low", "medium", "high", "critical"] },
+            "impact_summary": { "type": "string" },
+            "recommendations": { "type": "array" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/analyze/proposed",
+        "method": "POST",
+        "description": "Analyze dependencies for a proposed scenario using AI",
+        "request_body": {
+          "type": "object",
+          "required": ["name", "description"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "requirements": { "type": "array", "items": { "type": "string" } },
+            "similar_scenarios": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/optimize",
+        "method": "POST",
+        "description": "Get optimization recommendations for scenarios",
+        "request_body": {
+          "type": "object",
+          "properties": {
+            "scenario": { "type": "string" },
+            "type": { "type": "string", "enum": ["resource", "deployment", "cost", "all"] }
+          }
+        }
+      }
+    ]
+  },
+  "ui": {
+    "base_url": "http://localhost:${UI_PORT}",
+    "routes": [
+      {
+        "path": "/",
+        "description": "Main dependency graph visualization dashboard"
+      },
+      {
+        "path": "/health",
+        "description": "UI health check endpoint"
+      }
+    ]
+  }
+}

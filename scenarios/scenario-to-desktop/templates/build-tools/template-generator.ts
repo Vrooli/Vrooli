@@ -12,27 +12,45 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 interface DesktopConfig {
-    // Application identity
-    appName: string;
-    appDisplayName: string;
-    appDescription: string;
+    // Application identity (matching Go JSON tags)
+    app_name: string;
+    app_display_name: string;
+    app_description: string;
     version: string;
     author: string;
+    author_email?: string;
+    homepage?: string;
+    icon?: string;
     license: string;
-    appId: string;
-    appUrl?: string;
-    
+    app_id: string;
+    app_url?: string;
+
     // Server configuration
-    serverType: 'node' | 'static' | 'external' | 'executable';
-    serverPort?: number;
-    serverPath: string;
-    apiEndpoint: string;
-    scenarioDistPath?: string;
-    
+    server_type: 'node' | 'static' | 'external' | 'executable';
+    server_port?: number;
+    server_path: string;
+    api_endpoint: string;
+    scenario_dist_path?: string;
+    deployment_mode?: 'external-server' | 'cloud-api' | 'bundled';
+    scenario_name?: string;
+    auto_manage_vrooli?: boolean;
+    auto_manage_tier1?: boolean; // Legacy alias from early builds
+    proxy_url?: string;
+    vrooli_binary_path?: string;
+    bundle_runtime_root?: string;
+    bundle_ipc?: {
+        host?: string;
+        port?: number;
+        auth_token_path?: string;
+    };
+    bundle_ui_service_id?: string;
+    bundle_ui_port_name?: string;
+    bundle_telemetry_upload_url?: string;
+
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
-    templateType: 'basic' | 'advanced' | 'kiosk' | 'multi_window';
-    
+    template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
+
     // Features
     features: {
         splash?: boolean;
@@ -42,7 +60,7 @@ interface DesktopConfig {
         singleInstance?: boolean;
         [key: string]: any;
     };
-    
+
     // Window configuration
     window: {
         width?: number;
@@ -50,12 +68,12 @@ interface DesktopConfig {
         background?: string;
         [key: string]: any;
     };
-    
+
     // Platform targets
     platforms: ('win' | 'mac' | 'linux')[];
-    
+
     // Output configuration
-    outputPath: string;
+    output_path: string;
     
     // Styling (for splash, etc.)
     styling?: {
@@ -64,6 +82,28 @@ interface DesktopConfig {
         splashTextColor?: string;
         splashAccentColor?: string;
         [key: string]: any;
+    };
+
+    // Update/publish configuration
+    update_config?: {
+        // Update channel: dev, beta, or stable
+        channel?: 'dev' | 'beta' | 'stable';
+        // Provider type: github, generic (self-hosted), or none
+        provider?: 'github' | 'generic' | 'none';
+        // For GitHub provider
+        github?: {
+            owner: string;
+            repo: string;
+            private?: boolean;
+            token?: string; // GH_TOKEN env var name, not actual token
+        };
+        // For generic (self-hosted) provider
+        generic?: {
+            url: string; // Base URL for update server
+            channel_path?: string; // e.g., "/{channel}" to append channel to URL
+        };
+        // Whether to enable auto-update on startup
+        auto_check?: boolean;
     };
 }
 
@@ -80,14 +120,45 @@ class DesktopTemplateGenerator {
     
     constructor(config: DesktopConfig) {
         this.config = config;
-        this.templateBasePath = path.join(__dirname, '../');
-        this.outputPath = path.resolve(config.outputPath);
+        // SECURITY: __dirname is controlled by the build system (not user input).
+        // This path traversal is safe as it navigates from build-tools/dist/ to templates/.
+        // The path.resolve() ensures this becomes an absolute path without traversal.
+        this.templateBasePath = path.resolve(__dirname, '../../');
+
+        // Determine output path - default to standard platforms/electron/ location
+        let outputPath: string;
+
+        if (!config.output_path || config.output_path === '') {
+            // Use standard location: <vrooli-root>/scenarios/<scenario-name>/platforms/electron/
+            const vrooliRoot = process.env.VROOLI_ROOT || path.resolve(__dirname, '../../../../../');
+            outputPath = path.join(
+                vrooliRoot,
+                'scenarios',
+                config.app_name,
+                'platforms',
+                'electron'
+            );
+            console.log(`📁 Using standard location: ${outputPath}`);
+        } else {
+            // Validate and sanitize user-provided output path to prevent path traversal
+            const resolvedPath = path.resolve(config.output_path);
+            const normalizedPath = path.normalize(resolvedPath);
+
+            // Ensure the path doesn't contain traversal patterns after normalization
+            if (normalizedPath.includes('..')) {
+                throw new Error('Invalid output path: path traversal detected');
+            }
+
+            outputPath = normalizedPath;
+        }
+
+        this.outputPath = outputPath;
     }
     
     async generate(): Promise<void> {
-        console.log(`🚀 Generating desktop application: ${this.config.appDisplayName}`);
+        console.log(`🚀 Generating desktop application: ${this.config.app_display_name}`);
         console.log(`📁 Output directory: ${this.outputPath}`);
-        console.log(`🎨 Template type: ${this.config.templateType}`);
+        console.log(`🎨 Template type: ${this.config.template_type}`);
         console.log(`⚡ Framework: ${this.config.framework}`);
         
         try {
@@ -105,7 +176,10 @@ class DesktopTemplateGenerator {
             
             // Create assets directory and icons
             await this.setupAssets();
-            
+
+            // Copy UI dist files if scenario_dist_path is provided
+            await this.copyUIDistFiles();
+
             // Install dependencies
             await this.installDependencies();
             
@@ -121,12 +195,26 @@ class DesktopTemplateGenerator {
     }
     
     private async loadTemplateConfig(): Promise<any> {
+        // Map template types to actual filenames
+        const templateFiles: Record<string, string> = {
+            'basic': 'universal-app.json',        // 'basic' is an alias for 'universal'
+            'universal': 'universal-app.json',    // Default universal template
+            'advanced': 'advanced-app.json',
+            'multi_window': 'multi-window.json',
+            'kiosk': 'kiosk-mode.json'
+        };
+
+        const filename = templateFiles[this.config.template_type];
+        if (!filename) {
+            throw new Error(`Invalid template type: ${this.config.template_type}`);
+        }
+
         const templateConfigPath = path.join(
             this.templateBasePath,
             'advanced',
-            `${this.config.templateType}.json`
+            filename
         );
-        
+
         try {
             const configContent = await fs.readFile(templateConfigPath, 'utf-8');
             return JSON.parse(configContent);
@@ -170,10 +258,16 @@ class DesktopTemplateGenerator {
                     ? relativePath.replace('.template', '')
                     : relativePath;
                 
+                // Determine if file should be processed as template
+                // Always process: .template files, and common code/config files that may contain variables
+                const templateExtensions = ['.ts', '.js', '.json', '.html', '.md', '.yml', '.yaml', '.xml', '.sh'];
+                const isTemplateByExtension = templateExtensions.some(ext => entry.name.endsWith(ext));
+                const isTemplateByName = entry.name.includes('.template') || entry.name.includes('{{');
+
                 files.push({
                     sourcePath: fullPath,
                     targetPath,
-                    isTemplate: entry.name.includes('.template') || entry.name.includes('{{')
+                    isTemplate: isTemplateByName || isTemplateByExtension
                 });
             }
         }
@@ -217,35 +311,51 @@ class DesktopTemplateGenerator {
         
         const variables: Record<string, any> = {
             // Basic app info
-            APP_NAME: this.config.appName,
-            APP_DISPLAY_NAME: this.config.appDisplayName,
-            APP_DESCRIPTION: this.config.appDescription,
+            APP_NAME: this.config.app_name,
+            APP_DISPLAY_NAME: this.config.app_display_name,
+            APP_DESCRIPTION: this.config.app_description,
             VERSION: this.config.version,
             AUTHOR: this.config.author,
+            AUTHOR_EMAIL: this.config.author_email || 'noreply@vrooli.com',
+            HOMEPAGE: this.config.homepage || this.config.app_url || 'https://vrooli.com',
             LICENSE: this.config.license,
-            APP_ID: this.config.appId,
-            APP_URL: this.config.appUrl || '',
+            APP_ID: this.config.app_id,
+            APP_URL: this.config.app_url || '',
             YEAR: currentYear,
             
             // Server config
-            SERVER_TYPE: this.config.serverType,
-            SERVER_PORT: this.config.serverPort || 3000,
-            SERVER_PATH: this.config.serverPath,
-            API_ENDPOINT: this.config.apiEndpoint,
-            SCENARIO_DIST_PATH: this.config.scenarioDistPath || '../ui/dist',
+            SERVER_TYPE: this.config.server_type,
+            SERVER_PORT: this.config.server_port || 3000,
+            SERVER_PATH: this.config.server_path,
+            API_ENDPOINT: this.config.api_endpoint,
+            SCENARIO_DIST_PATH: this.config.scenario_dist_path || '../ui/dist',
+            DEPLOYMENT_MODE: this.config.deployment_mode || 'external-server',
+            SCENARIO_NAME: this.config.scenario_name || this.config.app_name,
+            AUTO_MANAGE_VROOLI: this.config.auto_manage_vrooli === true || this.config.auto_manage_tier1 === true,
+            VROOLI_BINARY_PATH: this.config.vrooli_binary_path || 'vrooli',
+
+            // Bundled runtime metadata
+            BUNDLED_RUNTIME_SUPPORTED: this.config.deployment_mode === 'bundled',
+            BUNDLED_RUNTIME_ROOT: this.config.bundle_runtime_root || 'bundle',
+            BUNDLED_RUNTIME_IPC_HOST: this.config.bundle_ipc?.host || '127.0.0.1',
+            BUNDLED_RUNTIME_IPC_PORT: this.config.bundle_ipc?.port || 47710,
+            BUNDLED_RUNTIME_TOKEN_PATH: this.config.bundle_ipc?.auth_token_path || 'runtime/auth-token',
+            BUNDLED_RUNTIME_UI_SERVICE: this.config.bundle_ui_service_id || '',
+            BUNDLED_RUNTIME_UI_PORT_NAME: this.config.bundle_ui_port_name || 'http',
+            BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL: this.config.bundle_telemetry_upload_url || '',
             
-            // Window config
-            WINDOW_WIDTH: this.config.window.width || 1200,
-            WINDOW_HEIGHT: this.config.window.height || 800,
-            WINDOW_BACKGROUND: this.config.window.background || '#f5f5f5',
-            
-            // Features (boolean values)
-            ENABLE_SPLASH: this.config.features.splash ?? true,
-            ENABLE_MENU: this.config.features.menu ?? true,
-            ENABLE_SYSTEM_TRAY: this.config.features.systemTray ?? false,
-            ENABLE_AUTO_UPDATER: this.config.features.autoUpdater ?? true,
-            ENABLE_SINGLE_INSTANCE: this.config.features.singleInstance ?? true,
-            ENABLE_DEV_TOOLS: this.config.features.devTools ?? true,
+            // Window config (use optional chaining for safety)
+            WINDOW_WIDTH: this.config.window?.width || 1200,
+            WINDOW_HEIGHT: this.config.window?.height || 800,
+            WINDOW_BACKGROUND: this.config.window?.background || '#f5f5f5',
+
+            // Features (boolean values) (use optional chaining for safety)
+            ENABLE_SPLASH: this.config.features?.splash ?? true,
+            ENABLE_MENU: this.config.features?.menu ?? true,
+            ENABLE_SYSTEM_TRAY: this.config.features?.systemTray ?? false,
+            ENABLE_AUTO_UPDATER: this.config.features?.autoUpdater ?? true,
+            ENABLE_SINGLE_INSTANCE: this.config.features?.singleInstance ?? true,
+            ENABLE_DEV_TOOLS: this.config.features?.devTools ?? true,
             
             // Styling
             SPLASH_BACKGROUND_START: this.config.styling?.splashBackgroundStart || '#4a90e2',
@@ -257,6 +367,12 @@ class DesktopTemplateGenerator {
             // Distribution
             PUBLISHER_NAME: this.config.author,
             PUBLISH_CONFIG: JSON.stringify(this.getPublishConfig(), null, 2),
+
+            // Update configuration
+            UPDATE_CHANNEL: this.config.update_config?.channel || 'stable',
+            UPDATE_PROVIDER: this.config.update_config?.provider || 'none',
+            UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
+            UPDATE_SERVER_URL: this.getUpdateServerUrl(),
         };
         
         // Merge template-specific variables
@@ -268,12 +384,84 @@ class DesktopTemplateGenerator {
     }
     
     private getPublishConfig(): any {
-        // Default publish configuration - can be customized based on deployment needs
-        return {
-            provider: "github",
-            owner: "your-organization",
-            repo: `${this.config.appName}-desktop`
-        };
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'none';
+        const channel = updateConfig?.channel || 'stable';
+
+        // If updates are disabled, return null (will be stringified as "null")
+        if (provider === 'none') {
+            return null;
+        }
+
+        // GitHub releases provider
+        if (provider === 'github') {
+            const github = updateConfig?.github;
+            const config: any = {
+                provider: "github",
+                owner: github?.owner || "your-organization",
+                repo: github?.repo || `${this.config.app_name}-desktop`,
+                releaseType: channel === 'stable' ? 'release' : 'prerelease',
+            };
+
+            // Add private repo support if needed
+            if (github?.private) {
+                config.private = true;
+            }
+
+            return config;
+        }
+
+        // Generic (self-hosted) update server
+        if (provider === 'generic') {
+            const generic = updateConfig?.generic;
+            let url = generic?.url || 'https://updates.example.com';
+
+            // Append channel path if configured
+            if (generic?.channel_path) {
+                url = url + generic.channel_path.replace('{channel}', channel);
+            } else {
+                // Default: append channel as path segment
+                url = `${url}/${channel}`;
+            }
+
+            return {
+                provider: "generic",
+                url: url,
+                useMultipleRangeRequest: false, // Better compatibility
+            };
+        }
+
+        return null;
+    }
+
+    private getUpdateServerUrl(): string {
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'none';
+        const channel = updateConfig?.channel || 'stable';
+
+        if (provider === 'none') {
+            return '';
+        }
+
+        if (provider === 'github') {
+            const github = updateConfig?.github;
+            const owner = github?.owner || 'your-organization';
+            const repo = github?.repo || `${this.config.app_name}-desktop`;
+            return `https://github.com/${owner}/${repo}/releases`;
+        }
+
+        if (provider === 'generic') {
+            const generic = updateConfig?.generic;
+            let url = generic?.url || '';
+            if (generic?.channel_path) {
+                url = url + generic.channel_path.replace('{channel}', channel);
+            } else if (url) {
+                url = `${url}/${channel}`;
+            }
+            return url;
+        }
+
+        return '';
     }
     
     private async generateAdditionalFiles(templateConfig: any): Promise<void> {
@@ -291,9 +479,9 @@ class DesktopTemplateGenerator {
     }
     
     private async generateReadme(): Promise<void> {
-        const readme = `# ${this.config.appDisplayName}
+        const readme = `# ${this.config.app_display_name}
 
-${this.config.appDescription}
+${this.config.app_description}
 
 ## 🚀 Quick Start
 
@@ -321,8 +509,8 @@ npm run dist:all
 ## 📦 Generated Application Details
 
 - **Framework**: ${this.config.framework}
-- **Template**: ${this.config.templateType}
-- **Server Type**: ${this.config.serverType}
+- **Template**: ${this.config.template_type}
+- **Server Type**: ${this.config.server_type}
 - **Target Platforms**: ${this.config.platforms.join(', ')}
 
 ## 🛠️ Development
@@ -331,7 +519,7 @@ This desktop application was generated using **scenario-to-desktop**.
 
 ### Project Structure
 \`\`\`
-${this.config.appName}-desktop/
+${this.config.app_name}-desktop/
 ├── src/
 │   ├── main.ts          # Main Electron process
 │   ├── preload.ts       # Renderer bridge
@@ -417,7 +605,7 @@ exports.default = async function notarizing(context) {
     const appName = context.packager.appInfo.productFilename;
 
     return await notarize({
-        appBundleId: '${this.config.appId}',
+        appBundleId: '${this.config.app_id}',
         appPath: \`\${appOutDir}/\${appName}.app\`,
         appleId: process.env.APPLE_ID,
         appleIdPassword: process.env.APPLE_ID_PASSWORD,
@@ -451,24 +639,83 @@ exports.default = async function notarizing(context) {
     }
     
     private async setupAssets(): Promise<void> {
-        const assetsDir = path.join(this.outputPath, 'assets');
+        // Validate and normalize output path to prevent path traversal
+        const normalizedOutput = path.normalize(this.outputPath);
+        const assetsDir = path.join(normalizedOutput, 'assets');
+
+        // Ensure assetsDir is within the output path
+        if (!assetsDir.startsWith(normalizedOutput)) {
+            throw new Error('Invalid output path: potential path traversal detected');
+        }
+
         await fs.mkdir(assetsDir, { recursive: true });
-        
-        // Create placeholder icon files
+
+        // Create placeholder icon files (fixed size list prevents injection)
         const iconSizes = [16, 32, 48, 128, 256, 512, 1024];
-        
-        for (const size of iconSizes) {
-            const iconData = this.generatePlaceholderIcon(size);
-            await fs.writeFile(path.join(assetsDir, `icon-${size}x${size}.png`), iconData);
+        let usedCustomIcon = false;
+
+        // Attempt to use a custom icon if provided
+        if (this.config.icon) {
+            const customIconPath = path.resolve(this.config.icon);
+            try {
+                const stat = await fs.stat(customIconPath);
+                if (!stat.isFile()) {
+                    throw new Error('Custom icon is not a file');
+                }
+                if (!customIconPath.toLowerCase().endsWith('.png')) {
+                    throw new Error('Custom icon must be a .png file');
+                }
+
+                for (const size of iconSizes) {
+                    const targetPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+                    if (!targetPath.startsWith(assetsDir)) {
+                        throw new Error('Invalid icon path detected');
+                    }
+                    if (path.resolve(customIconPath) !== path.resolve(targetPath)) {
+                        await fs.copyFile(customIconPath, targetPath);
+                    }
+                }
+
+                const mainIconPath = path.join(assetsDir, 'icon.png');
+                if (!mainIconPath.startsWith(assetsDir)) {
+                    throw new Error('Invalid platform icon path detected');
+                }
+                if (path.resolve(customIconPath) !== path.resolve(mainIconPath)) {
+                    await fs.copyFile(customIconPath, mainIconPath);
+                }
+
+                usedCustomIcon = true;
+                console.log(`🎨 Copied custom icon from ${customIconPath}`);
+            } catch (error) {
+                console.log(`⚠️  Custom icon unusable, falling back to placeholder icons (${error})`);
+            }
+        }
+
+        if (!usedCustomIcon) {
+            for (const size of iconSizes) {
+                const iconData = this.generatePlaceholderIcon(size);
+                const iconPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+
+                // Verify the icon path is still within assetsDir
+                if (!iconPath.startsWith(assetsDir)) {
+                    throw new Error('Invalid icon path detected');
+                }
+
+                await fs.writeFile(iconPath, iconData);
+            }
+
+            // Create main icon.png (512x512) - electron-builder will convert to ICO/ICNS as needed
+            // We don't generate .ico or .icns placeholders because electron-builder requires
+            // specific multi-resolution formats that are complex to generate properly
+            const mainIconPath = path.join(assetsDir, 'icon.png');
+            if (!mainIconPath.startsWith(assetsDir)) {
+                throw new Error('Invalid platform icon path detected');
+            }
+            await fs.writeFile(mainIconPath, this.generatePlaceholderIcon(512));
         }
         
-        // Create platform-specific icons
-        await fs.writeFile(path.join(assetsDir, 'icon.ico'), this.generatePlaceholderIcon(256));
-        await fs.writeFile(path.join(assetsDir, 'icon.icns'), this.generatePlaceholderIcon(512));
-        await fs.writeFile(path.join(assetsDir, 'icon.png'), this.generatePlaceholderIcon(512));
-        
         // Create license file
-        const licenseContent = `${this.config.appDisplayName}
+        const licenseContent = `${this.config.app_display_name}
 Copyright (c) ${new Date().getFullYear()} ${this.config.author}
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -495,12 +742,156 @@ SOFTWARE.`;
     }
     
     private generatePlaceholderIcon(size: number): Buffer {
-        // This is a placeholder - in a real implementation, you'd generate or copy actual icons
-        // For now, return empty buffer (files will be empty but present)
-        return Buffer.alloc(0);
+        // Generate a minimal valid 256x256 PNG (minimum size for electron-builder)
+        // This creates a simple gray square that electron-builder can process and convert
+
+        // For sizes < 256, we still generate 256x256 (electron-builder minimum)
+        // For sizes >= 256, we generate the requested size
+        const actualSize = Math.max(size, 256);
+
+        // Create a simple PNG with a solid color
+        // We'll create the smallest valid PNG possible for the requested dimensions
+        const png = this.createMinimalPNG(actualSize, actualSize);
+        return png;
     }
-    
+
+    private createMinimalPNG(width: number, height: number): Buffer {
+        // Create a minimal PNG file with specified dimensions
+        // This generates a solid gray image that's valid for electron-builder
+
+        // PNG uses scanlines with a filter byte, so each row is (width * 4 + 1) bytes for RGBA
+        const bytesPerPixel = 4; // RGBA
+        const bytesPerRow = width * bytesPerPixel + 1; // +1 for filter byte
+        const rawData = Buffer.alloc(height * bytesPerRow);
+
+        // Fill with filter byte 0 (None) and gray pixels (0x80808080 = medium gray, opaque)
+        for (let y = 0; y < height; y++) {
+            const rowStart = y * bytesPerRow;
+            rawData[rowStart] = 0; // Filter byte: None
+
+            for (let x = 0; x < width; x++) {
+                const pixelStart = rowStart + 1 + x * bytesPerPixel;
+                rawData[pixelStart] = 0x80;     // R: medium gray
+                rawData[pixelStart + 1] = 0x80; // G: medium gray
+                rawData[pixelStart + 2] = 0x80; // B: medium gray
+                rawData[pixelStart + 3] = 0xFF; // A: fully opaque
+            }
+        }
+
+        // Compress the raw data using deflate (zlib)
+        const zlib = require('zlib');
+        const compressedData = zlib.deflateSync(rawData, { level: 9 });
+
+        // Build PNG file structure
+        const chunks: Buffer[] = [];
+
+        // PNG signature
+        chunks.push(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+
+        // IHDR chunk
+        chunks.push(this.createPNGChunk('IHDR', this.createIHDR(width, height)));
+
+        // IDAT chunk (compressed image data)
+        chunks.push(this.createPNGChunk('IDAT', compressedData));
+
+        // IEND chunk
+        chunks.push(this.createPNGChunk('IEND', Buffer.alloc(0)));
+
+        return Buffer.concat(chunks);
+    }
+
+    private createIHDR(width: number, height: number): Buffer {
+        const ihdr = Buffer.alloc(13);
+        ihdr.writeUInt32BE(width, 0);       // Width
+        ihdr.writeUInt32BE(height, 4);      // Height
+        ihdr.writeUInt8(8, 8);              // Bit depth
+        ihdr.writeUInt8(6, 9);              // Color type: RGBA
+        ihdr.writeUInt8(0, 10);             // Compression method
+        ihdr.writeUInt8(0, 11);             // Filter method
+        ihdr.writeUInt8(0, 12);             // Interlace method
+        return ihdr;
+    }
+
+    private createPNGChunk(type: string, data: Buffer): Buffer {
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(data.length, 0);
+
+        const typeBuffer = Buffer.from(type, 'ascii');
+        const crc = this.crc32(Buffer.concat([typeBuffer, data]));
+        const crcBuffer = Buffer.alloc(4);
+        crcBuffer.writeUInt32BE(crc >>> 0, 0);
+
+        return Buffer.concat([length, typeBuffer, data, crcBuffer]);
+    }
+
+    private crc32(data: Buffer): number {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < data.length; i++) {
+            crc = crc ^ data[i];
+            for (let j = 0; j < 8; j++) {
+                crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+            }
+        }
+        return crc ^ 0xFFFFFFFF;
+    }
+
+    private async copyUIDistFiles(): Promise<void> {
+        // Check if scenario_dist_path is provided and valid
+        const distPath = this.config.scenario_dist_path;
+        if (!distPath || distPath === '../ui/dist') {
+            console.log('ℹ️  No UI dist path provided - desktop app will load from external server');
+            return;
+        }
+
+        try {
+            // Validate source path exists
+            const stat = await fs.stat(distPath);
+            if (!stat.isDirectory()) {
+                console.log(`⚠️  UI dist path is not a directory: ${distPath}`);
+                return;
+            }
+
+            // Create renderer directory in output
+            const rendererDir = path.join(this.outputPath, 'renderer');
+            await fs.mkdir(rendererDir, { recursive: true });
+
+            // Copy all files from dist to renderer
+            console.log(`📋 Copying UI files from ${distPath}...`);
+            await this.copyDirectory(distPath, rendererDir);
+            console.log(`✅ Copied UI dist files to renderer/`);
+
+            // Update the template to reference the renderer directory
+            // This happens automatically via the SCENARIO_DIST_PATH variable substitution
+
+        } catch (error) {
+            console.log(`⚠️  Failed to copy UI dist files: ${error}`);
+            console.log('   Desktop app will attempt to load from external server instead');
+        }
+    }
+
+    private async copyDirectory(source: string, destination: string): Promise<void> {
+        await fs.mkdir(destination, { recursive: true });
+
+        const entries = await fs.readdir(source, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(destination, entry.name);
+
+            if (entry.isDirectory()) {
+                await this.copyDirectory(sourcePath, destPath);
+            } else {
+                await fs.copyFile(sourcePath, destPath);
+            }
+        }
+    }
+
     private async installDependencies(): Promise<void> {
+        if (process.env.SKIP_DESKTOP_DEPENDENCY_INSTALL === '1') {
+            console.log('⏭️  Skipping dependency installation (SKIP_DESKTOP_DEPENDENCY_INSTALL=1)');
+            return;
+        }
+
         console.log('📦 Installing dependencies...');
         
         try {

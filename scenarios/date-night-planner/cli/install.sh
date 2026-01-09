@@ -1,5 +1,8 @@
-#!/bin/bash
-set -e
-echo "Installing date-night-planner CLI"
-# Add installation steps here, e.g., build binaries, create symlinks
-echo "Date Night Planner CLI installed successfully."
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/date-night-planner/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
+
+install_cli "$CLI_DIR/date-night-planner" "date-night-planner"

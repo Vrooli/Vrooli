@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "name": "Health Check API",
+    "description": "Validates /health returns structured readiness and dependency checks",
+    "tags": ["e2e", "api", "health"],
+    "requirements": ["GCT-OT-P0-001"],
+    "reset": "none"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "health",
+      "type": "http_request",
+      "data": {
+        "label": "GET /health",
+        "method": "GET",
+        "url": "{{API_URL}}/health",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path", "path": "$.service", "expected": "git-control-tower-api"},
+          {"type": "json_path_exists", "path": "$.readiness"},
+          {"type": "json_path_exists", "path": "$.dependencies.git"},
+          {"type": "json_path_exists", "path": "$.dependencies.repository"}
+        ]
+      }
+    }
+  ],
+  "edges": []
+}
+

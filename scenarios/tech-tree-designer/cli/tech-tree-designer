@@ -10,6 +10,7 @@ API_PORT=${API_PORT:-8080}
 API_BASE="http://localhost:${API_PORT}/api/v1"
 CONFIG_DIR="$HOME/.vrooli/tech-tree-designer"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
+TREE_QUERY=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,6 +23,39 @@ NC='\033[0m' # No Color
 
 # Create config directory if it doesn't exist
 mkdir -p "$CONFIG_DIR"
+
+set_tree_context() {
+    local tree_id="$1"
+    local tree_slug="$2"
+
+    if [[ -n "$tree_id" ]]; then
+        TREE_QUERY="tree_id=$tree_id"
+    elif [[ -n "$tree_slug" ]]; then
+        TREE_QUERY="tree_slug=$tree_slug"
+    else
+        TREE_QUERY=""
+    fi
+}
+
+build_url() {
+    local path="$1"
+    local url="$API_BASE$path"
+
+    if [[ -n "$TREE_QUERY" ]]; then
+        if [[ "$path" == *\?* ]]; then
+            url+="&$TREE_QUERY"
+        else
+            url+="?$TREE_QUERY"
+        fi
+    fi
+
+    echo "$url"
+}
+
+build_url_no_tree() {
+    local path="$1"
+    echo "$API_BASE$path"
+}
 
 # Help function
 show_help() {
@@ -37,6 +71,8 @@ COMMANDS:
     progress            Update or view scenario progress mapping
     visualize           Launch interactive tech tree visualization
     recommend           Get AI recommendations for next scenarios to build
+    graph               Export graph artifacts (currently DOT)
+    trees               Manage tech tree catalog (list, clone)
     sectors             List all technology sectors with progress
     milestones          View strategic milestones on path to superintelligence
     dependencies        Show stage dependencies and bottlenecks
@@ -72,6 +108,8 @@ FLAGS:
     --category CAT      Filter by sector category
     --full              Show complete civilization tree
     --bottlenecks       Focus on dependency bottlenecks
+    --tree TREE_ID      Target a specific tech tree across commands
+    --tree-slug SLUG    Target a tech tree by slug instead of UUID
 
 EXAMPLES:
     # Get strategic overview
@@ -160,26 +198,26 @@ cmd_status() {
     
     if [[ "$json_output" == "true" ]]; then
         if [[ -n "$sector" ]]; then
-            curl -s "$API_BASE/tech-tree/sectors" | jq ".sectors[] | select(.name == \"$sector\")" | format_json
+            curl -s "$(build_url '/tech-tree/sectors')" | jq ".sectors[] | select(.name == \"$sector\")" | format_json
         else
-            curl -s "$API_BASE/tech-tree/sectors" | format_json
+            curl -s "$(build_url '/tech-tree/sectors')" | format_json
         fi
     else
         echo -e "${CYAN}🌟 Tech Tree Strategic Status${NC}"
         echo -e "${CYAN}================================${NC}"
         
         # Get sectors data
-        SECTORS_DATA=$(curl -s "$API_BASE/tech-tree/sectors")
+        SECTORS_DATA=$(curl -s "$(build_url '/tech-tree/sectors')")
         
         if [[ "$verbose" == "true" ]]; then
             echo -e "\n${GREEN}📊 Sector Progress Overview:${NC}"
             echo "$SECTORS_DATA" | jq -r '.sectors[] | "  • \(.name): \(.progress_percentage | round)% (\(.category))"' | sort
             
             echo -e "\n${BLUE}🎯 Strategic Milestones:${NC}"
-            curl -s "$API_BASE/milestones" | jq -r '.milestones[] | "  • \(.name): \(.completion_percentage | round)% complete"'
-            
+            curl -s "$(build_url '/milestones')" | jq -r '.milestones[] | "  • \(.name): \(.completion_percentage | round)% complete"'
+
             echo -e "\n${PURPLE}🔗 Key Dependencies:${NC}"
-            curl -s "$API_BASE/dependencies" | jq -r '.dependencies[:3][] | "  • \(.dependent_name) depends on \(.prerequisite_name)"'
+            curl -s "$(build_url '/dependencies')" | jq -r '.dependencies[:3][] | "  • \(.dependent_name) depends on \(.prerequisite_name)"'
         else
             # Compact overview
             TOTAL_SECTORS=$(echo "$SECTORS_DATA" | jq '.sectors | length')
@@ -240,12 +278,12 @@ cmd_analyze() {
     payload="$payload}"
     
     if [[ "$json_output" == "true" ]]; then
-        curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$API_BASE/tech-tree/analyze" | format_json
+        curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$(build_url '/tech-tree/analyze')" | format_json
     else
         echo -e "${CYAN}🧠 Strategic Intelligence Analysis${NC}"
         echo -e "${CYAN}===================================${NC}"
         
-        ANALYSIS=$(curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$API_BASE/tech-tree/analyze")
+        ANALYSIS=$(curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$(build_url '/tech-tree/analyze')")
         
         echo -e "\n${GREEN}📋 Strategic Recommendations:${NC}"
         echo "$ANALYSIS" | jq -r '.recommendations[] | "  🎯 \(.scenario) (Priority: \(.priority_score | round*10)/100)"'
@@ -295,12 +333,12 @@ cmd_progress() {
     
     if [[ "$list_mode" == "true" ]]; then
         if [[ "$json_output" == "true" ]]; then
-            curl -s "$API_BASE/progress/scenarios" | format_json
+            curl -s "$(build_url '/progress/scenarios')" | format_json
         else
             echo -e "${CYAN}📋 Scenario Progress Tracking${NC}"
             echo -e "${CYAN}==============================${NC}"
             
-            curl -s "$API_BASE/progress/scenarios" | jq -r '.scenario_mappings[] | 
+            curl -s "$(build_url '/progress/scenarios')" | jq -r '.scenario_mappings[] | 
                 "• \(.mapping.scenario_name) → \(.sector_name)/\(.stage_name)
                   Status: \(.mapping.completion_status) | Impact: \(.mapping.estimated_impact)/10 | Priority: P\(.mapping.priority-1)"'
         fi
@@ -308,7 +346,7 @@ cmd_progress() {
         # Update scenario status
         local payload="{\"completion_status\": \"$status\", \"notes\": \"Updated via CLI\"}"
         
-        RESULT=$(curl -s -X PUT -H "Content-Type: application/json" -d "$payload" "$API_BASE/progress/scenarios/$scenario")
+        RESULT=$(curl -s -X PUT -H "Content-Type: application/json" -d "$payload" "$(build_url "/progress/scenarios/$scenario")")
         
         if [[ "$json_output" == "true" ]]; then
             echo "$RESULT" | format_json
@@ -353,7 +391,7 @@ cmd_recommend() {
     
     check_api_health
     
-    local url="$API_BASE/recommendations?resources=$resources"
+    local url="$(build_url "/recommendations?resources=$resources")"
     
     if [[ "$json_output" == "true" ]]; then
         curl -s "$url" | format_json
@@ -397,7 +435,7 @@ cmd_sectors() {
     check_api_health
     
     if [[ "$json_output" == "true" ]]; then
-        SECTORS=$(curl -s "$API_BASE/tech-tree/sectors")
+        SECTORS=$(curl -s "$(build_url '/tech-tree/sectors')")
         if [[ -n "$category" ]]; then
             echo "$SECTORS" | jq ".sectors[] | select(.category == \"$category\")" | format_json
         else
@@ -407,7 +445,7 @@ cmd_sectors() {
         echo -e "${CYAN}🏗️  Technology Sectors${NC}"
         echo -e "${CYAN}======================${NC}"
         
-        SECTORS=$(curl -s "$API_BASE/tech-tree/sectors")
+        SECTORS=$(curl -s "$(build_url '/tech-tree/sectors')")
         
         if [[ -n "$category" ]]; then
             echo "$SECTORS" | jq -r ".sectors[] | select(.category == \"$category\") | 
@@ -444,12 +482,12 @@ cmd_milestones() {
     check_api_health
     
     if [[ "$json_output" == "true" ]]; then
-        curl -s "$API_BASE/milestones" | format_json
+        curl -s "$(build_url '/milestones')" | format_json
     else
         echo -e "${CYAN}🎯 Strategic Milestones - Path to Superintelligence${NC}"
         echo -e "${CYAN}==================================================${NC}"
         
-        curl -s "$API_BASE/milestones" | jq -r '.milestones[] | 
+        curl -s "$(build_url '/milestones')" | jq -r '.milestones[] | 
             "🏆 \(.name)
                Progress: \(.completion_percentage | round)%
                Value: $\(.business_value_estimate | . / 1000000 | round)M
@@ -530,12 +568,12 @@ cmd_dependencies() {
     check_api_health
     
     if [[ "$json_output" == "true" ]]; then
-        curl -s "$API_BASE/dependencies" | format_json
+        curl -s "$(build_url '/dependencies')" | format_json
     else
         echo -e "${CYAN}🔗 Strategic Dependencies${NC}"
         echo -e "${CYAN}=========================${NC}"
         
-        DEPS=$(curl -s "$API_BASE/dependencies")
+        DEPS=$(curl -s "$(build_url '/dependencies')")
         
         if [[ "$bottlenecks" == "true" ]]; then
             echo -e "\n${RED}⚠️  Critical Dependencies (Potential Bottlenecks):${NC}"
@@ -554,6 +592,98 @@ cmd_dependencies() {
     fi
 }
 
+cmd_graph() {
+    if [[ "$1" != "export" ]]; then
+        echo "Usage: tech-tree-designer graph export [--format dot] [--output file]" >&2
+        exit 1
+    fi
+    shift
+
+    local format="dot"
+    local output=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ "$format" != "dot" ]]; then
+        echo "Only DOT export is supported right now" >&2
+        exit 1
+    fi
+
+    check_api_health
+    local dot_data
+    dot_data=$(curl -s "$(build_url '/tech-tree/graph/dot')") || {
+        echo "Failed to fetch DOT graph" >&2
+        exit 1
+    }
+
+    if [[ -n "$output" ]]; then
+        printf '%s' "$dot_data" > "$output"
+        echo "DOT graph written to $output"
+    else
+        printf '%s\n' "$dot_data"
+    fi
+}
+
+cmd_trees() {
+    local subcommand="${1:-list}"
+    shift || true
+
+    case "$subcommand" in
+        list)
+            check_api_health
+            curl -s "$(build_url_no_tree '/tech-trees')" | format_json
+            ;;
+        clone)
+            local source_id="$1"
+            if [[ -z "$source_id" ]]; then
+                echo "Usage: tech-tree-designer trees clone <tree_id> [--name NAME] [--slug SLUG]" >&2
+                exit 1
+            fi
+            shift
+            local name=""
+            local slug=""
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --name)
+                        name="$2"
+                        shift 2
+                        ;;
+                    --slug)
+                        slug="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            local payload
+            payload=$(jq -n --arg name "$name" --arg slug "$slug" '{name: (if $name == "" then null else $name end), slug: (if $slug == "" then null else $slug end)}')
+            check_api_health
+            curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$(build_url_no_tree "/tech-trees/${source_id}/clone")" | format_json
+            ;;
+        *)
+            echo "Usage: tech-tree-designer trees <list|clone>" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # Main command router
 main() {
     if [[ $# -eq 0 ]]; then
@@ -561,38 +691,88 @@ main() {
         exit 0
     fi
 
-    case "$1" in
+    local tree_id=""
+    local tree_slug=""
+    local command=""
+    local args=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tree)
+                if [[ -z "$2" ]]; then
+                    echo "--tree requires a tree ID" >&2
+                    exit 1
+                fi
+                tree_id="$2"
+                shift 2
+                ;;
+            --tree-slug)
+                if [[ -z "$2" ]]; then
+                    echo "--tree-slug requires a slug" >&2
+                    exit 1
+                fi
+                tree_slug="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                command="$1"
+                shift
+                args=("$@")
+                break
+                ;;
+            status|analyze|progress|visualize|recommend|sectors|milestones|dependencies|graph|trees|help|--help|-h|version|--version|-v)
+                command="$1"
+                shift
+                args=("$@")
+                break
+                ;;
+            *)
+                command="$1"
+                shift
+                args=("$@")
+                break
+                ;;
+        esac
+    done
+
+    if [[ -z "$command" ]]; then
+        show_help
+        exit 0
+    fi
+
+    set_tree_context "$tree_id" "$tree_slug"
+
+    case "$command" in
         status)
-            shift
-            cmd_status "$@"
+            cmd_status "${args[@]}"
             ;;
         analyze)
-            shift
-            cmd_analyze "$@"
+            cmd_analyze "${args[@]}"
             ;;
         progress)
-            shift
-            cmd_progress "$@"
+            cmd_progress "${args[@]}"
             ;;
         visualize)
-            shift
-            cmd_visualize "$@"
+            cmd_visualize "${args[@]}"
             ;;
         recommend)
-            shift  
-            cmd_recommend "$@"
+            cmd_recommend "${args[@]}"
+            ;;
+        graph)
+            cmd_graph "${args[@]}"
+            ;;
+        trees)
+            cmd_trees "${args[@]}"
             ;;
         sectors)
-            shift
-            cmd_sectors "$@"
+            cmd_sectors "${args[@]}"
             ;;
         milestones)
-            shift
-            cmd_milestones "$@"
+            cmd_milestones "${args[@]}"
             ;;
         dependencies)
-            shift
-            cmd_dependencies "$@"
+            cmd_dependencies "${args[@]}"
             ;;
         help|--help|-h)
             show_help
@@ -601,7 +781,7 @@ main() {
             show_version
             ;;
         *)
-            echo "Unknown command: $1" >&2
+            echo "Unknown command: $command" >&2
             echo "Use 'tech-tree-designer help' to see available commands." >&2
             exit 1
             ;;

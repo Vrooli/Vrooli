@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "research-assistant",
@@ -25,77 +25,27 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
-  },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/chat-rag-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/main-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/research-orchestrator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/scheduled-reports.json",
-          "type": "workflow"
-        }
-      ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/research-assistant"
     },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "qwen2.5:32b",
-        "nomic-embed-text",
-        "llama3.2:3b"
-      ]
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": false,
-      "purpose": "document processing and text extraction"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "web scraping for research content"
-    },
-    "searxng": {
-      "type": "searxng",
-      "enabled": true,
-      "required": true,
-      "purpose": "privacy-focused web search"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "research data and report storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "vector embeddings for RAG system"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "document and asset storage"
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
@@ -142,18 +92,26 @@
     },
     "setup": {
       "description": "Initialize Research Assistant",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/research-assistant-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["research-assistant"]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/research-assistant-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "research-assistant",
+            "targets": [
+              "research-assistant"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -190,8 +148,13 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build research assistant UI"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '\ud83d\ude80 Research Assistant initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -210,11 +173,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && API_URL=http://localhost:$API_PORT node server.js",
+          "run": "cd ui && UI_PORT=$UI_PORT API_URL=http://localhost:$API_PORT node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
@@ -225,38 +188,12 @@
       ]
     },
     "test": {
-      "description": "Test research assistant Go API and CLI",
+      "description": "Comprehensive phased testing for research-assistant",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-reports-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/reports",
-          "description": "Test API reports endpoint"
-        },
-        {
-          "name": "test-dashboard-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/dashboard/stats",
-          "description": "Test API dashboard endpoint"
-        },
-        {
-          "name": "run-integration-tests",
-          "run": "./test.sh",
-          "description": "Execute integration test suite",
-          "condition": {
-            "file_exists": "test.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute research-assistant --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -274,6 +211,79 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/chat-rag-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/main-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/research-orchestrator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/scheduled-reports.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "qwen2.5:32b",
+          "nomic-embed-text",
+          "llama3.2:3b"
+        ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "purpose": "document processing and text extraction"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "web scraping for research content"
+      },
+      "searxng": {
+        "type": "searxng",
+        "enabled": true,
+        "required": true,
+        "purpose": "privacy-focused web search"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "research data and report storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "vector embeddings for RAG system"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "document and asset storage"
+      }
     }
   }
 }

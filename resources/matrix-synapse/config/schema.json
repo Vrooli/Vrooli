@@ -19,7 +19,10 @@
       "type": "string",
       "description": "The public-facing domain name of the server",
       "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
-      "examples": ["matrix.example.com", "vrooli.local"]
+      "examples": [
+        "matrix.example.com",
+        "vrooli.local"
+      ]
     },
     "SYNAPSE_DB_PASSWORD": {
       "type": "string",
@@ -48,7 +51,11 @@
       "description": "Maximum file upload size",
       "pattern": "^[0-9]+[KMG]?$",
       "default": "50M",
-      "examples": ["10M", "100M", "1G"]
+      "examples": [
+        "10M",
+        "100M",
+        "1G"
+      ]
     },
     "MATRIX_SYNAPSE_ENABLE_REGISTRATION": {
       "type": "boolean",
@@ -94,9 +101,16 @@
     "MATRIX_SYNAPSE_LOG_LEVEL": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ],
       "default": "INFO"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/matrix-synapse/schema.json"
 }

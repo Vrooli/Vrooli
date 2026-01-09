@@ -20,7 +20,7 @@ The Accessibility Compliance Hub is designed to ensure every Vrooli scenario mee
 - ❌ NO actual WCAG scanning (no axe-core/pa11y integration)
 - ❌ NO auto-remediation capability
 - ❌ NO database storage (PostgreSQL declared but not integrated)
-- ❌ NO resource integrations (Browserless, Ollama, N8n, Redis, Qdrant unused)
+- ❌ NO resource integrations (Browserless, Ollama, Redis, Qdrant unused)
 - ❌ CLI is stub only (prints mock messages)
 - ❌ API returns mock data only
 
@@ -115,7 +115,7 @@ This scenario has **excellent infrastructure** but needs core functionality. Her
 
 **Files to modify:**
 - `api/scanner.go` - Add Browserless CLI calls
-- `initialization/automation/n8n/accessibility-audit.json` - Already has workflow template
+- `api/audit_scheduler.go` - Define automation pipeline for audit orchestration
 
 ### Phase 4: Auto-Remediation (P0)
 ```bash
@@ -198,7 +198,7 @@ The compiled binary causes 160+ false positive audit violations and should never
 
 ### Resources Used
 - **PostgreSQL**: Stores audit history and patterns
-- **N8n**: Orchestrates scheduled audits
+- **Automation Engine**: API scheduler coordinates audit pipelines and remediation flows without needing an external workflow engine
 - **Browserless**: Visual regression testing
 - **Ollama**: AI analysis for complex issues
 - **Redis** (optional): Performance caching

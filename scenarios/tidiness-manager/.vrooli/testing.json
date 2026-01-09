@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for tidiness-manager",
+    "last_updated": "2025-11-27T10:53:00-05:00"
+  },
+  "version": "1.0.0",
+  "phases": {
+    "unit": {
+      "timeout": "6m"
+    }
+  },
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {
+        "coverage": {
+          "warn_threshold": 40,
+          "error_threshold": 25
+        }
+      },
+      "node": {
+        "coverage": {
+          "warn_threshold": 40,
+          "error_threshold": 25
+        }
+      }
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
+      }
+    }
+  }
+}

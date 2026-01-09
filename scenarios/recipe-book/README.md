@@ -37,7 +37,7 @@ The UI embraces a "grandma's recipe box" aesthetic with:
 ### Consumes From
 - **scenario-authenticator** - User authentication and profiles
 - **contact-book** - Dietary restrictions and preferences
-- **ollama** - AI recipe generation (via n8n workflow)
+- **ollama** - AI recipe generation via the scenario's automation pipeline
 
 ## 🚀 Quick Start
 

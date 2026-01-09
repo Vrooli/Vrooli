@@ -4,6 +4,7 @@
   "description": "Web Scraper Manager Dashboard - Unified management interface for web scraping across multiple platforms",
   "main": "server.js",
   "scripts": {
+    "build": "mkdir -p dist && cp -r src/* dist/",
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
   },

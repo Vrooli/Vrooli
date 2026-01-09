@@ -35,8 +35,8 @@ func TestNewSession(t *testing.T) {
 		if s.command == nil {
 			t.Error("Command should be initialized")
 		}
-		if s.transcriptFile == nil {
-			t.Error("Transcript file should be initialized")
+		if s.transcript == nil {
+			t.Error("Transcript manager should be initialized")
 		}
 	})
 
@@ -205,11 +205,8 @@ func TestSessionClose(t *testing.T) {
 		}
 
 		// Verify clients cleared
-		s.clientsMu.Lock()
-		clientCount := len(s.clients)
-		s.clientsMu.Unlock()
-		if clientCount != 0 {
-			t.Errorf("Expected 0 clients, got %d", clientCount)
+		if remaining := s.clients.count(); remaining != 0 {
+			t.Errorf("Expected 0 clients, got %d", remaining)
 		}
 	})
 
@@ -273,10 +270,7 @@ func TestSessionBroadcast(t *testing.T) {
 
 	s := createTestSession(t, manager, createSessionRequest{})
 	defer func() {
-		// Remove all clients before cleanup to avoid nil WebSocket issue
-		s.clientsMu.Lock()
-		s.clients = make(map[*wsClient]struct{})
-		s.clientsMu.Unlock()
+		s.clients.closeAll()
 		cleanupSession(s)
 	}()
 
@@ -347,17 +341,13 @@ func TestSessionOutputBuffer(t *testing.T) {
 
 	// Wait for some output
 	if waitForSessionOutput(t, s, 2*time.Second) {
-		s.outputBufferMu.RLock()
-		bufferSize := len(s.outputBuffer)
-		s.outputBufferMu.RUnlock()
-
-		if bufferSize == 0 {
+		payloads, _ := s.replayBuffer.snapshot()
+		if len(payloads) == 0 {
 			t.Error("Expected output buffer to contain data")
 		}
 
 		// Verify buffer content
-		s.outputBufferMu.RLock()
-		for _, payload := range s.outputBuffer {
+		for _, payload := range payloads {
 			if payload.Data == "" {
 				t.Error("Output payload data should not be empty")
 			}
@@ -369,12 +359,10 @@ func TestSessionOutputBuffer(t *testing.T) {
 			}
 
 			// Verify data is valid base64
-			_, err := base64.StdEncoding.DecodeString(payload.Data)
-			if err != nil {
+			if _, err := base64.StdEncoding.DecodeString(payload.Data); err != nil {
 				t.Errorf("Invalid base64 data: %v", err)
 			}
 		}
-		s.outputBufferMu.RUnlock()
 	}
 }
 

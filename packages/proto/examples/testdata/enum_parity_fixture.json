@@ -1,0 +1,129 @@
+{
+  "actionType": {
+    "ASSERT": "assert",
+    "BLUR": "blur",
+    "CLICK": "click",
+    "COOKIE_STORAGE": "cookiestorage",
+    "DOWNLOAD": "download",
+    "DRAG_DROP": "dragdrop",
+    "EVALUATE": "evaluate",
+    "EXTRACT": "extract",
+    "FOCUS": "focus",
+    "FRAME_SWITCH": "frameswitch",
+    "GESTURE": "gesture",
+    "HOVER": "hover",
+    "INPUT": "input",
+    "KEYBOARD": "keyboard",
+    "NAVIGATE": "navigate",
+    "NETWORK_MOCK": "networkmock",
+    "ROTATE": "rotate",
+    "SCREENSHOT": "screenshot",
+    "SCROLL": "scroll",
+    "SELECT": "select",
+    "SHORTCUT": "shortcut",
+    "SUBFLOW": "subflow",
+    "TAB_SWITCH": "tabswitch",
+    "UPLOAD_FILE": "uploadfile",
+    "WAIT": "wait"
+  },
+  "mouseButton": {
+    "LEFT": "left",
+    "MIDDLE": "middle",
+    "RIGHT": "right"
+  },
+  "keyboardModifier": {
+    "ALT": "alt",
+    "CTRL": "ctrl",
+    "META": "meta",
+    "SHIFT": "shift"
+  },
+  "navigateWaitEvent": {
+    "DOMCONTENTLOADED": "domcontentloaded",
+    "LOAD": "load",
+    "NETWORKIDLE": "networkidle"
+  },
+  "waitState": {
+    "ATTACHED": "attached",
+    "DETACHED": "detached",
+    "HIDDEN": "hidden",
+    "VISIBLE": "visible"
+  },
+  "assertionMode": {
+    "ATTRIBUTE_CONTAINS": "attribute_contains",
+    "ATTRIBUTE_EQUALS": "attribute_equals",
+    "EXISTS": "exists",
+    "HIDDEN": "hidden",
+    "NOT_EXISTS": "notexists",
+    "TEXT_CONTAINS": "text_contains",
+    "TEXT_EQUALS": "text_equals",
+    "VISIBLE": "visible"
+  },
+  "scrollBehavior": {
+    "AUTO": "auto",
+    "SMOOTH": "smooth"
+  },
+  "keyAction": {
+    "DOWN": "down",
+    "PRESS": "press",
+    "UP": "up"
+  },
+  "extractType": {
+    "ATTRIBUTE": "attribute",
+    "INNER_HTML": "innerHTML",
+    "OUTER_HTML": "outerHTML",
+    "PROPERTY": "property",
+    "TEXT": "text",
+    "VALUE": "value"
+  },
+  "frameSwitchAction": {
+    "ENTER": "enter",
+    "EXIT": "exit",
+    "PARENT": "parent"
+  },
+  "tabSwitchAction": {
+    "CLOSE": "close",
+    "LIST": "list",
+    "OPEN": "open",
+    "SWITCH": "switch"
+  },
+  "cookieOperation": {
+    "CLEAR": "clear",
+    "DELETE": "delete",
+    "GET": "get",
+    "SET": "set"
+  },
+  "storageType": {
+    "COOKIE": "cookie",
+    "LOCAL_STORAGE": "localStorage",
+    "SESSION_STORAGE": "sessionStorage"
+  },
+  "cookieSameSite": {
+    "LAX": "Lax",
+    "NONE": "None",
+    "STRICT": "Strict"
+  },
+  "gestureType": {
+    "DOUBLE_TAP": "doubleTap",
+    "LONG_PRESS": "longPress",
+    "PINCH": "pinch",
+    "SWIPE": "swipe",
+    "ZOOM": "zoom"
+  },
+  "swipeDirection": {
+    "DOWN": "down",
+    "LEFT": "left",
+    "RIGHT": "right",
+    "UP": "up"
+  },
+  "networkMockOperation": {
+    "BLOCK": "block",
+    "CLEAR": "clear",
+    "MOCK": "mock",
+    "MODIFY_REQUEST": "modifyRequest",
+    "MODIFY_RESPONSE": "modifyResponse"
+  },
+  "deviceOrientation": {
+    "LANDSCAPE": "landscape",
+    "PORTRAIT": "portrait"
+  }
+}

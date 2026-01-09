@@ -56,7 +56,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
 ### Popular Resource Combinations
 - **Document Processing**: Unstructured-IO + Ollama + Qdrant + Vault
   → [Secure Document Processing](../scenarios/secure-document-processing/) ($20k-40k projects)
-- **Content Creation**: ComfyUI + Ollama + Windmill 
+- **Content Creation**: ComfyUI + Ollama
   → [Campaign Content Studio](../scenarios/campaign-content-studio/) ($8k-20k projects)
 - **App Monitoring**: PostgreSQL + Redis + n8n + Node-RED
   → [App Monitor](../scenarios/app-monitor/) ($10k-20k projects)
@@ -93,10 +93,9 @@ vrooli scenario run <scenario-name>
 Our testing system is distributed across multiple layers for comprehensive validation:
 
 #### **Individual Resource Tests**
-- **Location**: `__test/resources/single/category/resource.test.sh`
+- **Location**: Resource-local `test/` directories (see each resource README)
 - **Purpose**: Test individual resource functionality, health checks, and API endpoints
-- **Examples**: `__test/resources/single/ai/ollama.test.sh`
-- **Documentation**: [Resource Testing Framework](../__test/resources/README.md)
+- **Execution**: Run the resource’s `test/run-tests.sh` (when present) or the resource-specific scripts documented in its README
 
 #### **Multi-Resource Integration Tests**  
 - **Location**: `scenarios/scenario-name/test.sh`
@@ -132,20 +131,17 @@ Resource usage examples are organized by complexity and integration level:
 - **Value**: Demonstrates real-world integration patterns and revenue potential
 
 #### **Test Fixtures**
-- **Location**: `__test/resources/fixtures/`
+- **Location**: `__test/fixtures/`
 - **Content**: Sample data for testing (audio, documents, images, workflows)
 - **Usage**: Shared test data across all resource tests
 
 ### Quick Testing Commands
 ```bash
-# Test individual resource
-./__test/resources/quick-test.sh ollama
-
 # Test business scenario
 cd ./scenarios/research-assistant && ./test.sh
 
-# Run all resource tests
-cd ./__test/resources && ./run.sh
+# Run resource-local tests (example)
+cd ./resources/ollama && ./test/integration-test.sh
 
 # Test scenarios using specific resource
 ./scenarios/tools/test-by-resource.sh --resource ollama
@@ -305,7 +301,7 @@ curl -X POST http://localhost:5679/api/prompt -H "Content-Type: application/json
 - Complex data pipelines
 
 **When to Use**: Business processes, scheduled workflows, external API integration  
-**Alternative**: Node-RED for real-time/IoT, Windmill for code-first approach
+**Alternative**: Node-RED for real-time/IoT
 
 **Quick Example**:
 ```bash
@@ -360,28 +356,6 @@ open http://localhost:4111
 curl -X POST http://localhost:4111/agents -d @agent_config.json
 ```
 📖 **Details**: [resources/automation/huginn/README.md](../../resources/huginn/README.md)
-
-## Windmill - Code-first Workflows
-**Developer-focused workflow automation with script orchestration**
-
-**Use Cases**:
-- CI/CD pipeline automation
-- Developer workflow orchestration  
-- Script and code execution
-- Infrastructure automation
-
-**When to Use**: Developer workflows, CI/CD, infrastructure automation, code-heavy tasks  
-**Alternative**: n8n for visual workflows, direct scripting for simple tasks
-
-**Quick Example**:
-```bash
-# Access Windmill interface
-open http://localhost:5681
-
-# Execute script
-curl -X POST http://localhost:5681/api/jobs/run -d '{"script": "my_script"}'
-```
-📖 **Details**: [resources/automation/windmill/README.md](../../resources/windmill/README.md)
 
 ---
 
@@ -640,25 +614,14 @@ redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
 - **AI processing**: Ollama + Whisper + ComfyUI + MinIO
 - **Domain-specific AI**: Ollama Modelfiles + Qdrant + MinIO (custom chatbots, specialized assistants)
 - **Information gathering**: SearXNG + Huginn + Agent-S2 + MinIO
-- **Development workflows**: Claude Code + Windmill + version control
-- **Interactive AI interfaces**: Windmill + Ollama + Agent-S2 + ComfyUI + Whisper
+- **Development workflows**: Claude Code + version control
+- **Interactive AI interfaces**: Ollama + Agent-S2 + ComfyUI + Whisper
 
 ## 🎨 UI Development Patterns
 
 **Automated interface generation for AI workflows**
 
-Both **Windmill** and **Node-RED** provide powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, these platforms enable **automated UI generation** based on your AI service combinations.
-
-### **Windmill: Professional AI Applications**
-```typescript
-// Multi-modal AI assistant interface
-- File upload (drag-and-drop audio, images)
-- Real-time processing dashboard  
-- AI service orchestration (Whisper → Ollama → ComfyUI)
-- Professional export and sharing capabilities
-```
-
-**When to Use**: Complex workflows, file processing, business applications, accessibility tools
+Node-RED provides powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, this platform enables **automated UI generation** based on your AI service combinations.
 
 ### **Node-RED: Real-time AI Dashboards**  
 ```javascript
@@ -684,16 +647,13 @@ A complete **voice-to-visual-to-action** workflow combining:
 ./resources/tests/run.sh --scenarios "scenario=analytics-dashboard"
 
 # Access the interfaces
-open http://localhost:5681  # Windmill professional interface
 open http://localhost:1880  # Node-RED real-time dashboard  
 ```
 
 **Revenue Potential**: $10,000-25,000 per project for accessibility and enterprise productivity solutions
 
-📖 **Detailed Guides**: 
-- [Windmill UI Development](automation/windmill/docs/UI_DEVELOPMENT.md)
+📖 **Detailed Guides**:
 - [Node-RED Dashboard Creation](automation/node-red/docs/DASHBOARD_CREATION.md)
-- [Multi-Modal Assistant Tutorial](automation/windmill/examples/multi-modal-assistant/)
 
 ## Configuration Management
 
@@ -715,7 +675,7 @@ open http://localhost:1880  # Node-RED real-time dashboard
 
 Install by logical groupings:
 - `ai-only` - All AI resources (ollama, whisper, comfyui)
-- `automation-only` - Workflow platforms (n8n, node-red, windmill, huginn)  
+- `automation-only` - Workflow platforms (n8n, node-red, huginn)  
 - `agents-only` - Interaction agents (agent-s2, browserless, claude-code)
 - `search-only` - Search and information retrieval (searxng)
 - `storage-only` - Storage solutions (minio, questdb, vault, qdrant)

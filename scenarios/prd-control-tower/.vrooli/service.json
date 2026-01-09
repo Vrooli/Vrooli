@@ -6,7 +6,32 @@
     "displayName": "PRD Control Tower",
     "description": "Centralized management, validation, and publishing of Product Requirements Documents",
     "version": "1.0.0",
-    "tags": ["documentation", "prd-management", "validation"]
+    "tags": [
+      "documentation",
+      "prd-management",
+      "validation"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/prd-control-tower"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -20,32 +45,6 @@
       "port": 36300,
       "description": "PRD Control Tower UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Draft metadata and audit results storage (uses shared vrooli database)"
-    },
-    "scenario-auditor": {
-      "type": "scenario-auditor",
-      "enabled": false,
-      "required": false,
-      "description": "PRD structure validation"
-    },
-    "resource-openrouter": {
-      "type": "resource-openrouter",
-      "enabled": false,
-      "required": false,
-      "description": "AI-assisted section generation"
-    },
-    "ecosystem-manager": {
-      "type": "ecosystem-manager",
-      "enabled": false,
-      "required": false,
-      "description": "New scenario creation workflow"
     }
   },
   "lifecycle": {
@@ -97,7 +96,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "prd-control-tower",
             "targets": [
               "prd-control-tower"
             ]
@@ -106,28 +111,44 @@
       },
       "steps": [
         {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o prd-control-tower-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "install-ui-dependencies",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install --ignore-workspace",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "create-draft-directories",
-          "run": "mkdir -p data/prd-drafts/scenario data/prd-drafts/resource",
-          "description": "Create draft storage directories"
+          "run": "mkdir -p data/prd-drafts/scenario data/prd-drafts/resource data/backlog",
+          "description": "Create draft and backlog storage directories (git-backed)"
         },
         {
           "name": "initialize-database",
-          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '⚠️  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '⚠️  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
+          "run": "bash scripts/init-db.sh",
           "description": "Run schema in shared vrooli database (optional if using containerized DB)"
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"\ud83d\ude80 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display service access URLs"
         }
       ]
@@ -145,53 +166,68 @@
           }
         },
         {
-          "name": "start-ui-health",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI health check server",
+          "description": "Start UI production server",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
-          }
-        },
-        {
-          "name": "start-ui-dev",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server (optional)",
-          "background": true,
-          "optional": true,
-          "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"\ud83d\ude80 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test PRD Control Tower functionality",
+      "description": "Comprehensive phased testing for prd-control-tower",
       "steps": [
         {
-          "name": "test-structure",
-          "run": "bash test/phases/test-structure.sh",
-          "description": "Validate project structure"
-        },
-        {
-          "name": "test-dependencies",
-          "run": "bash test/phases/test-dependencies.sh",
-          "description": "Check required dependencies"
-        },
-        {
-          "name": "test-integration",
-          "run": "bash test/phases/test-integration.sh",
-          "description": "Run integration tests"
+          "name": "run-phased-tests",
+          "run": "test-genie execute prd-control-tower --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
     "stop": {
       "description": "Stop all services gracefully"
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Draft metadata and audit results storage (uses shared vrooli database)"
+      },
+      "scenario-auditor": {
+        "type": "scenario-auditor",
+        "enabled": false,
+        "required": false,
+        "description": "PRD structure validation"
+      },
+      "resource-openrouter": {
+        "type": "resource-openrouter",
+        "enabled": false,
+        "required": false,
+        "description": "AI-assisted section generation"
+      },
+      "ecosystem-manager": {
+        "type": "ecosystem-manager",
+        "enabled": false,
+        "required": false,
+        "description": "New scenario creation workflow"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
+      }
+    },
+    "scenarios": {}
   }
 }

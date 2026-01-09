@@ -12,7 +12,9 @@
 set -euo pipefail
 
 # Get check configuration from argument
-CHECK_CONFIG="${1:-{}}"
+# Note: Cannot use ${1:-{}} as bash has a parsing bug when arg ends with }
+CHECK_CONFIG="${1:-}"
+[[ -z "$CHECK_CONFIG" ]] && CHECK_CONFIG='{}'
 APP_ROOT="${APP_ROOT:-$(pwd)}"
 
 # Check if we're just checking for a population marker file
@@ -65,20 +67,6 @@ while IFS= read -r resource; do
             # Check for Redis keys (would need actual Redis query)
             if [[ ! -f "$APP_ROOT/data/.redis-populated" ]]; then
                 echo "[DEBUG] Redis not populated for app" >&2
-                ((++MISSING_COUNT))
-            fi
-            ;;
-        windmill)
-            # Check for Windmill workspace
-            if [[ ! -f "$APP_ROOT/data/.windmill-populated" ]]; then
-                echo "[DEBUG] Windmill workspace not created" >&2
-                ((++MISSING_COUNT))
-            fi
-            ;;
-        n8n)
-            # Check for n8n workflows
-            if [[ ! -f "$APP_ROOT/data/.n8n-populated" ]]; then
-                echo "[DEBUG] n8n workflows not loaded" >&2
                 ((++MISSING_COUNT))
             fi
             ;;

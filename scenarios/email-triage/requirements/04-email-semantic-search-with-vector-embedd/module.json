@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "email-triage-must-have-email-semantic-search-with-vector-embeddings-in-qdrant-2025-09-24-qdrant-connected-and-healthy",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement semantic search using vector embeddings stored in Qdrant",
+      "id": "REQ-P0-006",
+      "prd_ref": "email-triage-must-have-email-semantic-search-with-vector-embeddings-in-qdrant-2025-09-24-qdrant-connected-and-healthy",
+      "status": "draft",
+      "title": "Vector Search Implementation",
+      "validation": [
+        {
+          "notes": "Test vector generation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify search accuracy",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end search testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "80% search relevance score",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Email semantic search with vector embeddings in Qdrant (2025-09-24: Qdrant connected and healthy)"
+}

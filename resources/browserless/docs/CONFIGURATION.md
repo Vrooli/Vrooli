@@ -258,18 +258,6 @@ Disable local file access:
 
 ## Integration Examples
 
-### With n8n Automation
-
-```json
-{
-  "browserless": {
-    "baseUrl": "http://browserless:3000",
-    "timeout": 60000,
-    "concurrency": 3
-  }
-}
-```
-
 ### With AI Services
 
 ```json

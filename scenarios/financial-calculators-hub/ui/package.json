@@ -12,7 +12,8 @@
     "react-dom": "^18.2.0",
     "recharts": "^2.5.0",
     "lucide-react": "^0.263.1",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

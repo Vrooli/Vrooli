@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for test-genie scenario",
+    "last_updated": "2025-12-02T00:00:00Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ],
+    "additional_files": [
+      "api/cmd/test-genie-api/main.go",
+      "cli/main.go"
+    ],
+    "exclude_files": [
+      "api/main.go"
+    ]
+  },
+  "lint": {
+    "languages": {
+      "go": {
+        "enabled": true,
+        "strict": false
+      },
+      "node": {
+        "enabled": true,
+        "strict": false
+      }
+    }
+  },
+  "unit": {
+    "languages": {
+      "go": {},
+      "node": {}
+    }
+  },
+  "docs": {
+    "markdown": { "enabled": true },
+    "mermaid": { "enabled": true, "strict": true },
+    "links": {
+      "enabled": true,
+      "ignore": ["http://localhost:*"],
+      "max_concurrency": 6,
+      "timeout_ms": 5000,
+      "strict_external": false
+    },
+    "absolute_paths": {
+      "enabled": true,
+      "allow": ["/api/"]
+    }
+  },
+  "integration": {
+    "_comment": "Integration phase configuration. WebSocket URL is derived from API URL following @vrooli/api-base conventions. See: packages/api-base/docs/concepts/websocket-support.md",
+    "api": {
+      "health_endpoint": "/health",
+      "max_response_ms": 1000
+    },
+    "websocket": {
+      "enabled": true,
+      "path": "/api/v1/ws",
+      "max_connection_ms": 2000
+    }
+  },
+  "playbooks": {
+    "enabled": true,
+    "bas": {
+      "timeout_ms": 30000,
+      "launch_timeout_ms": 60000
+    },
+    "execution": {
+      "stop_on_first_failure": false,
+      "default_step_timeout_ms": 30000
+    },
+    "artifacts": {
+      "screenshots": true,
+      "dom_snapshots": true,
+      "retain_on_success": false
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
+      }
+    }
+  }
+}

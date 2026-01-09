@@ -4,12 +4,36 @@
     "displayName": "Image Tools",
     "description": "Comprehensive image manipulation toolkit with compression, resizing, format conversion, and metadata management",
     "version": "1.0.0",
-    "tags": ["image", "compression", "optimization", "conversion", "developer-tools"]
+    "tags": [
+      "image",
+      "compression",
+      "optimization",
+      "conversion",
+      "developer-tools"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "utilities",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/image-tools"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "version": "1.0.0",
-  "category": "utilities",
-  "author": "Vrooli",
-  "status": "development",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -20,214 +44,163 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "description": "Object storage for original and processed images"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "description": "Cache processed images for faster retrieval"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "description": "AI-powered image analysis and smart cropping"
-    }
-  },
-  "dependencies": [],
-  "initialization": {
-    "automation": {
-      "n8n": {
-        "workflows": []
-      }
-    },
-    "storage": {
+  "dependencies": {
+    "resources": {
       "minio": {
-        "buckets": ["image-tools-originals", "image-tools-processed", "image-tools-cache"]
-      }
-    }
-  },
-  "api": {
-    "type": "rest",
-    "framework": "go-fiber",
-    "endpoints": [
-      {
-        "path": "/api/v1/image/compress",
-        "method": "POST",
-        "description": "Compress image with quality settings"
-      },
-      {
-        "path": "/api/v1/image/resize",
-        "method": "POST",
-        "description": "Resize image to specific dimensions"
-      },
-      {
-        "path": "/api/v1/image/convert",
-        "method": "POST",
-        "description": "Convert between image formats"
-      },
-      {
-        "path": "/api/v1/image/metadata",
-        "method": "POST",
-        "description": "Strip or modify image metadata"
-      },
-      {
-        "path": "/api/v1/image/batch",
-        "method": "POST",
-        "description": "Process multiple images with same settings"
-      },
-      {
-        "path": "/api/v1/plugins",
-        "method": "GET",
-        "description": "List available format plugins"
-      }
-    ]
-  },
-  "ui": {
-    "type": "static",
-    "framework": "vanilla-js",
-    "style": "retro-photo-lab",
-    "features": [
-      "drag-drop-upload",
-      "live-preview",
-      "before-after-comparison",
-      "batch-processing",
-      "format-detection"
-    ]
-  },
-  "cli": {
-    "binary": "image-tools",
-    "commands": [
-      "compress",
-      "resize",
-      "convert",
-      "metadata",
-      "batch",
-      "status",
-      "help",
-      "version"
-    ]
-  },
-   "plugins": {
-     "jpeg": {
-       "library": "mozjpeg-go",
-       "features": ["progressive", "optimize", "quality-control"]
-     },
-     "png": {
-       "library": "pngquant-go",
-       "features": ["color-reduction", "dithering", "transparency"]
-     },
-     "webp": {
-       "library": "libwebp-go",
-       "features": ["lossless", "quality", "alpha"]
-     },
-     "svg": {
-       "library": "svgo",
-       "features": ["minify", "optimize-paths", "remove-metadata"]
-     }
-   },
-    "lifecycle": {
-      "version": "2.0.0",
-      "health": {
-        "endpoints": {
-          "api": "/health",
-          "ui": "/health"
-        },
-        "checks": {
-          "timeout": 5
-        }
-      },
-      "setup": {
-        "description": "Initialize Image Tools",
-        "condition": {
-          "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "api/image-tools-api"
-              ]
-            },
-             {
-               "type": "cli",
-               "targets": [
-                 "image-tools"
-               ]
-             },
-            {
-              "type": "resources",
-              "populated": true
-            }
-          ]
-        },
-        "steps": [
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "description": "Object storage for original and processed images",
+        "initialization": [
           {
-            "name": "install-cli",
-            "run": "cd cli && ./install.sh",
-            "description": "Install CLI command globally"
-          },
-          {
-            "name": "build-api",
-            "run": "cd api && go mod download && go build -o image-tools-api .",
-            "description": "Build Go API binary"
-          },
-          {
-            "name": "show-urls",
-            "run": "echo \"🖼️ Image Tools initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
-            "description": "Display service access URLs"
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "config"
           }
         ]
       },
-      "develop": {
-       "description": "Start image tools with API and UI servers",
-       "steps": [
-          {
-            "name": "start-api",
-             "run": "cd api && PORT=${API_PORT} MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin} MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin} MINIO_ENDPOINT=${MINIO_ENDPOINT:-localhost:9100} ./image-tools-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-               "file_exists": "api/image-tools-api"
-            }
-          },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start UI server in background",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🖼️ Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
-           "description": "Display all running service URLs"
-         }
-       ]
-     },
-     "test": {
-       "description": "Run comprehensive test suite",
-       "steps": [
-         {
-           "name": "run-tests",
-           "run": "./test/run-tests.sh",
-           "description": "Execute all test phases"
-         }
-       ]
-     }
-   },
-  "performance": {
-    "max_file_size_mb": 100,
-    "concurrent_workers": 4,
-    "cache_ttl_seconds": 3600,
-    "timeout_seconds": 30
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Cache processed images for faster retrieval"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "description": "AI-powered image analysis and smart cropping"
+      }
+    }
   },
-  "deployment": {
-    "docker": true,
-    "kubernetes": true,
-    "serverless": false
-  }
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ]
+    },
+    "setup": {
+      "description": "Initialize Image Tools",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/image-tools-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "image-tools",
+            "targets": [
+              "image-tools"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o image-tools-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\ud83d\uddbc\ufe0f Image Tools initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start image tools with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && PORT=${API_PORT} MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin} MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin} MINIO_ENDPOINT=${MINIO_ENDPOINT:-localhost:9100} ./image-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/image-tools-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\ud83d\uddbc\ufe0f Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for image-tools",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute image-tools --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

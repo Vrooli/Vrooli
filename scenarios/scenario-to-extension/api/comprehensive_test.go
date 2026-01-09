@@ -172,9 +172,7 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 		buildID := response["build_id"].(string)
 
 		// Check that build has defaults applied
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if build.Config.Version != "1.0.0" {
 			t.Errorf("Expected default version 1.0.0, got %s", build.Config.Version)
@@ -238,9 +236,7 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 		}
 
 		// Verify all builds were created
-		buildsMux.RLock()
-		buildCount := len(builds)
-		buildsMux.RUnlock()
+		buildCount := buildManager.Count()
 
 		if buildCount < concurrentRequests {
 			t.Errorf("Expected at least %d builds, got %d", concurrentRequests, buildCount)
@@ -270,9 +266,7 @@ func TestBuildManagement(t *testing.T) {
 			ErrorLog:     []string{},
 		}
 
-		buildsMux.Lock()
-		builds[build.BuildID] = build
-		buildsMux.Unlock()
+		buildManager.Add(build)
 
 		// Verify initial status
 		if build.Status != "building" {
@@ -316,9 +310,7 @@ func TestBuildManagement(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Check that build log is being populated
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if len(build.BuildLog) == 0 {
 			t.Error("Expected build log to have entries")
@@ -342,30 +334,28 @@ func TestBuildManagement(t *testing.T) {
 
 	t.Run("CountBuildsByStatus", func(t *testing.T) {
 		// Clear builds
-		builds = make(map[string]*ExtensionBuild)
+		buildManager = NewBuildManager()
 
 		// Add builds with different statuses
-		buildsMux.Lock()
-		builds["build1"] = &ExtensionBuild{Status: "building"}
-		builds["build2"] = &ExtensionBuild{Status: "building"}
-		builds["build3"] = &ExtensionBuild{Status: "ready"}
-		builds["build4"] = &ExtensionBuild{Status: "failed"}
-		buildsMux.Unlock()
+		buildManager.Add(&ExtensionBuild{BuildID: "build1", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build2", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build3", Status: "ready"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build4", Status: "failed"})
 
-		if countBuildsByStatus("building") != 2 {
-			t.Errorf("Expected 2 building builds, got %d", countBuildsByStatus("building"))
+		if buildManager.CountByStatus("building") != 2 {
+			t.Errorf("Expected 2 building builds, got %d", buildManager.CountByStatus("building"))
 		}
 
-		if countBuildsByStatus("ready") != 1 {
-			t.Errorf("Expected 1 ready build, got %d", countBuildsByStatus("ready"))
+		if buildManager.CountByStatus("ready") != 1 {
+			t.Errorf("Expected 1 ready build, got %d", buildManager.CountByStatus("ready"))
 		}
 
-		if countBuildsByStatus("failed") != 1 {
-			t.Errorf("Expected 1 failed build, got %d", countBuildsByStatus("failed"))
+		if buildManager.CountByStatus("failed") != 1 {
+			t.Errorf("Expected 1 failed build, got %d", buildManager.CountByStatus("failed"))
 		}
 
-		if countBuildsByStatus("nonexistent") != 0 {
-			t.Errorf("Expected 0 nonexistent builds, got %d", countBuildsByStatus("nonexistent"))
+		if buildManager.CountByStatus("nonexistent") != 0 {
+			t.Errorf("Expected 0 nonexistent builds, got %d", buildManager.CountByStatus("nonexistent"))
 		}
 	})
 }
@@ -482,6 +472,10 @@ func TestExtensionTestingFeatures(t *testing.T) {
 // TestConfigurationManagement tests configuration loading and environment variables
 func TestConfigurationManagement(t *testing.T) {
 	t.Run("EnvironmentVariableOverrides", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		// Set environment variables
 		os.Setenv("PORT", "9999")
 		os.Setenv("API_ENDPOINT", "http://custom.endpoint")
@@ -497,6 +491,9 @@ func TestConfigurationManagement(t *testing.T) {
 			os.Unsetenv("OUTPUT_PATH")
 			os.Unsetenv("BROWSERLESS_URL")
 			os.Unsetenv("DEBUG")
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
 		}()
 
 		cfg := loadConfig()
@@ -527,8 +524,17 @@ func TestConfigurationManagement(t *testing.T) {
 	})
 
 	t.Run("InvalidPortEnvironmentVariable", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		os.Setenv("PORT", "invalid")
-		defer os.Unsetenv("PORT")
+		defer func() {
+			os.Unsetenv("PORT")
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
+		}()
 
 		cfg := loadConfig()
 
@@ -627,7 +633,7 @@ func TestTemplateManagement(t *testing.T) {
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		len(s) > len(substr) && findSubstr(s, substr)))
+			len(s) > len(substr) && findSubstr(s, substr)))
 }
 
 func findSubstr(s, substr string) bool {

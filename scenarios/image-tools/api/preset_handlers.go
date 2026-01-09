@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -18,7 +20,7 @@ func (s *Server) handleGetPreset(c *fiber.Ctx) error {
 	name := c.Params("name")
 	preset, ok := GetPreset(name)
 	if !ok {
-		return c.Status(404).JSON(fiber.Map{
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
 			"error": "Preset not found",
 			"available_presets": func() []string {
 				names := make([]string, 0, len(BuiltinPresets))
@@ -39,7 +41,7 @@ func (s *Server) handleApplyPreset(c *fiber.Ctx) error {
 	presetName := c.Params("name")
 	preset, ok := GetPreset(presetName)
 	if !ok {
-		return c.Status(404).JSON(fiber.Map{
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
 			"error": "Preset not found",
 			"available_presets": func() []string {
 				names := make([]string, 0, len(BuiltinPresets))

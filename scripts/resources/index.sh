@@ -25,14 +25,14 @@ source "${var_REPOSITORY_FILE}"
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
-    ["automation"]="n8n comfyui node-red windmill huginn"
+    ["automation"]="comfyui node-red huginn"
     ["storage"]="minio vault qdrant questdb postgres redis"
     ["agents"]="browserless claude-code agent-s2"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io n8n comfyui node-red windmill huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
+ALL_RESOURCES="ollama whisper unstructured-io comfyui node-red huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
 
 #######################################
 # Parse command line arguments
@@ -133,7 +133,6 @@ resources::usage() {
     echo "  $0 --action install --resources ai-only               # Install all AI resources"
     echo "  $0 --action install --resources search-only           # Install all search resources"
     echo "  $0 --action install --resources all                   # Install all resources"
-    echo "  $0 --action status --resources ollama,n8n             # Check status of specific resources"
     echo "  $0 --action list                                      # List available resources"
     echo "  $0 --action discover                                  # Discover running resources"
     echo "  $0 --action discover --auto-configure yes             # Discover and configure resources"
@@ -494,11 +493,9 @@ resources::get_health_endpoint() {
         "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
         "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
-        "n8n") echo "/healthz" ;;
         "huginn") echo "/" ;;
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
-        "windmill") echo "/api/version" ;;
         "minio") echo "/minio/health/live" ;;  # MinIO health endpoint
         "searxng") echo "/stats" ;;
         "claude-code") echo "/mcp/health" ;;
@@ -682,9 +679,6 @@ resources::discover_running() {
                     case "$resource" in
                         "ollama")
                             additional_config='{"models":{"defaultModel":"llama3.1:8b","supportsFunctionCalling":true},"api":{"version":"v1","modelsEndpoint":"/api/tags","chatEndpoint":"/api/chat","generateEndpoint":"/api/generate"}}'
-                            ;;
-                        "n8n")
-                            additional_config='{"api":{"version":"v1","workflowsEndpoint":"/api/v1/workflows","executionsEndpoint":"/api/v1/executions","credentialsEndpoint":"/api/v1/credentials"}}'
                             ;;
                     esac
                     

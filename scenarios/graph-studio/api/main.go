@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"os"
 	"strings"
@@ -9,43 +9,18 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start graph-studio
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "graph-studio",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
-
-	// Check if running through lifecycle (temporarily disabled for testing)
-	/*
-		if os.Getenv("VROOLI_LIFECYCLE") != "active" {
-			log.Println("⚠️  Not running through Vrooli lifecycle. Starting with lifecycle...")
-
-			// Get the scenario name from environment or use default
-			scenarioName := os.Getenv("SCENARIO_NAME")
-			if scenarioName == "" {
-				scenarioName = "graph-studio"
-			}
-
-			// Execute through lifecycle
-			cmd := exec.Command("bash", "-c", fmt.Sprintf("vrooli scenario run %s", scenarioName))
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-
-			if err := cmd.Run(); err != nil {
-				log.Fatalf("Failed to start through lifecycle: %v", err)
-			}
-			return
-		}
-	*/
 
 	// Load environment variables
 	port := os.Getenv("API_PORT")
@@ -93,7 +68,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
 
 	// Start connection monitor in background
 	go MonitorConnection(db, dbConfig)
@@ -139,7 +113,8 @@ func main() {
 	router.Use(cors.New(corsConfig))
 
 	// Health check
-	router.GET("/health", api.HealthCheck)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
@@ -172,9 +147,12 @@ func main() {
 		v1.GET("/health/detailed", api.GetDetailedHealth)
 	}
 
-	// Start server
+	// Start server with graceful shutdown
 	log.Printf("🚀 Graph Studio API starting on port %s", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

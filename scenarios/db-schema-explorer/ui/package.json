@@ -7,6 +7,7 @@
     "react-dom": "^18.2.0",
     "react-flow-renderer": "^10.3.17",
     "axios": "^1.6.2",
+    "express": "^4.21.2",
     "react-query": "^3.39.3",
     "@mui/material": "^5.14.20",
     "@emotion/react": "^11.11.1",

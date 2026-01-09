@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -18,16 +19,15 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration
 type Config struct {
-	Port   int
-	DBHost string
-	DBPort int
-	DBUser string
-	DBPass string
-	DBName string
+	Port int
 
 	// External service endpoints
 	SessionAuthURL     string
@@ -124,20 +124,15 @@ type App struct {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start comment-system
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "comment-system",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Command line flags
-	var initDB = flag.Bool("init-db", false, "Initialize database schema")
+	initDB := flag.Bool("init-db", false, "Initialize database schema")
 	flag.Parse()
 
 	// Load environment
@@ -148,21 +143,21 @@ func main() {
 	// Configuration
 	config := &Config{
 		Port:               getEnvInt("API_PORT", 8080),
-		DBHost:             getEnv("POSTGRES_HOST", "localhost"),
-		DBPort:             getEnvInt("POSTGRES_PORT", 5432),
-		DBUser:             getEnv("POSTGRES_USER", "postgres"),
-		DBPass:             getEnv("POSTGRES_PASSWORD", "postgres"),
-		DBName:             getEnv("POSTGRES_DB", "vrooli"),
-		SessionAuthURL:     getEnv("SESSION_AUTH_URL", "http://localhost:8001"),
-		NotificationHubURL: getEnv("NOTIFICATION_HUB_URL", "http://localhost:8002"),
+		SessionAuthURL:     resolveSessionAuthURL(),
+		NotificationHubURL: resolveNotificationHubURL(),
 	}
 
-	// Initialize database connection
-	db, err := NewDatabase(config)
+	// Initialize database connection with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	conn, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
+
+	db := &Database{conn: conn}
 
 	// Handle database initialization
 	if *initDB {
@@ -226,8 +221,13 @@ func (app *App) setupRouter() *gin.Engine {
 		c.Next()
 	})
 
-	// Health endpoints
-	router.GET("/health", app.healthCheck)
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(app.db.conn), health.Critical).
+		Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
+	// Keep postgres-specific health check for detailed diagnostics
 	router.GET("/health/postgres", app.postgresHealthCheck)
 
 	// API routes
@@ -252,28 +252,6 @@ func (app *App) setupRouter() *gin.Engine {
 	router.GET("/docs", app.serveDocs)
 
 	return router
-}
-
-// Database operations
-func NewDatabase(config *Config) (*Database, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		config.DBHost, config.DBPort, config.DBUser, config.DBPass, config.DBName)
-
-	conn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := conn.Ping(); err != nil {
-		return nil, err
-	}
-
-	// Configure connection pool
-	conn.SetMaxOpenConns(25)
-	conn.SetMaxIdleConns(5)
-	conn.SetConnMaxLifetime(10 * time.Minute)
-
-	return &Database{conn: conn}, nil
 }
 
 func (db *Database) Close() error {
@@ -424,7 +402,6 @@ func (db *Database) GetScenarioConfig(scenarioName string) (*ScenarioConfig, err
 		&config.AllowRichMedia, &config.ModerationLevel, &themeJSON, &notifJSON,
 		&config.CreatedAt, &config.UpdatedAt,
 	)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create default configuration
@@ -471,35 +448,6 @@ func (db *Database) CreateDefaultConfig(scenarioName string) (*ScenarioConfig, e
 }
 
 // HTTP Handlers
-func (app *App) healthCheck(c *gin.Context) {
-	// Test database connection
-	dbStatus := "healthy"
-	if err := app.db.conn.Ping(); err != nil {
-		dbStatus = "unhealthy: " + err.Error()
-	}
-
-	// Test external dependencies
-	dependencies := map[string]string{
-		"session_authenticator": app.testSessionAuth(),
-		"notification_hub":      app.testNotificationHub(),
-	}
-
-	response := HealthResponse{
-		Status:       "healthy",
-		Timestamp:    time.Now(),
-		Version:      "1.0.0",
-		Database:     dbStatus,
-		Dependencies: dependencies,
-	}
-
-	if dbStatus != "healthy" {
-		response.Status = "unhealthy"
-		c.JSON(http.StatusServiceUnavailable, response)
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
-}
 
 func (app *App) postgresHealthCheck(c *gin.Context) {
 	if err := app.db.conn.Ping(); err != nil {
@@ -817,6 +765,40 @@ func (app *App) sendCommentNotifications(comment *Comment, config *ScenarioConfi
 }
 
 // Utility functions
+
+// resolveSessionAuthURL returns the session auth service URL.
+// Checks env var first, then uses discovery as fallback.
+func resolveSessionAuthURL() string {
+	if url := strings.TrimSpace(os.Getenv("SESSION_AUTH_URL")); url != "" {
+		return strings.TrimRight(url, "/")
+	}
+	// Try discovery for session-authenticator or scenario-authenticator
+	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "session-authenticator")
+	if err == nil {
+		return url
+	}
+	url, err = discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err == nil {
+		return url
+	}
+	log.Printf("Warning: Could not resolve session auth URL via discovery: %v", err)
+	return "http://localhost:8001" // Fallback for development
+}
+
+// resolveNotificationHubURL returns the notification hub service URL.
+// Checks env var first, then uses discovery as fallback.
+func resolveNotificationHubURL() string {
+	if url := strings.TrimSpace(os.Getenv("NOTIFICATION_HUB_URL")); url != "" {
+		return strings.TrimRight(url, "/")
+	}
+	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub")
+	if err == nil {
+		return url
+	}
+	log.Printf("Warning: Could not resolve notification hub URL via discovery: %v", err)
+	return "http://localhost:8002" // Fallback for development
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

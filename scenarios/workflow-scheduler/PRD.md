@@ -15,7 +15,7 @@
 - [x] **Database Persistence**: Store schedules and history in PostgreSQL (✅ Auto-initialization working, schema created successfully)
 - [x] **Health Monitoring**: Health check endpoint responding < 100ms (✅ /health endpoint working, returns in ~50ms)
 - [x] **Execution History**: Track all execution attempts with status and timing (✅ /api/executions and /api/schedules/{id}/executions working)
-- [x] **CLI Tool**: Command-line interface for schedule management (✅ Installed to ~/.local/bin/scheduler-cli)
+- [x] **CLI Tool**: Command-line interface for schedule management (✅ Installs `workflow-scheduler` with backward-compatible `scheduler-cli` alias)
 - [x] **API Endpoints**: REST API for full CRUD operations on schedules (✅ Core endpoints working: schedules, cron validation, system status)
 
 ### P1 Requirements (Should Have)
@@ -35,7 +35,7 @@
 - **API**: Go REST API on configurable port (15000-19999 range)
 - **Storage**: PostgreSQL for schedules, Redis for locks/caching
 - **UI**: Node.js server with HTML dashboard (35000-39999 range)
-- **CLI**: Bash-based scheduler-cli tool installed globally
+- **CLI**: Bash-based `workflow-scheduler` tool installed globally (alias: `scheduler-cli`)
 
 ### Dependencies
 - PostgreSQL (required): Schedule and history storage
@@ -91,7 +91,7 @@ GET    /api/schedules/{id}/metrics      - Performance metrics
   - Fixed health endpoint configuration in service.json (added UI health endpoint)
   - Enhanced Makefile with all required targets (start, fmt, lint, etc.)
   - Fixed UI server to require critical environment variables (no dangerous defaults)
-  - Created CLI symlink (cli/workflow-scheduler → scheduler-cli)
+  - Installer now copies `cli/workflow-scheduler` and also registers the `scheduler-cli` alias for compatibility
   - Verified execution history endpoints working correctly
   - **Standards Compliance**: Reduced violations from 319 to 313 (0 critical, 3 high, 309 medium)
   - **Security**: 0 vulnerabilities detected
@@ -121,7 +121,7 @@ GET    /api/schedules/{id}/metrics      - Performance metrics
     - Real-time statistics: Total Schedules, Running Now, Success Rate, Next Run
     - Schedule list with search and status filtering capabilities
     - Quick actions sidebar: Trigger Schedule, View History, Performance Metrics, Cron Presets, Notifications
-    - System Health monitor: API Server, Database, Redis Cache, n8n Engine (all green)
+    - System Health monitor: API Server, Database, Redis Cache (all green)
     - UI successfully loads and displays all 11 schedules from database
     - API connectivity verified: Health check responds in <10ms, /api/schedules working
   - **All Tests Passing**: Comprehensive validation completed
@@ -169,11 +169,6 @@ required:
     integration_pattern: Direct Redis commands for locks and pub/sub
     access_method: Redis client library through REDIS_URL environment variable
 
-optional:
-  - resource_name: n8n
-    purpose: Enhanced workflow capabilities and visual debugging
-    fallback: Works standalone, n8n provides additional trigger capabilities
-    access_method: REST API webhooks to n8n workflow endpoints
 ```
 
 ### Data Models
@@ -277,8 +272,8 @@ Other scenarios can create and manage schedules via:
 ### Outbound Integrations
 Workflow Scheduler can trigger:
 1. **Webhooks** - HTTP POST to any URL with custom payload
-2. **N8n Workflows** - Trigger n8n webhook workflows
-3. **Windmill Jobs** - Execute Windmill job endpoints
+2. **Workflow Targets** - Trigger HTTP webhooks or internal scenario jobs
+3. **Dashboard Jobs** - Execute dashboard job endpoints
 4. **Other Scenarios** - Call any Vrooli scenario API
 
 ### Cross-Scenario Usage Patterns

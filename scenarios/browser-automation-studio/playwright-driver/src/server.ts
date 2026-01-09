@@ -1,0 +1,468 @@
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import { loadConfig, logConfigTierWarnings, getConfigSummary, type Config } from './config';
+import { SessionManager, SessionCleanup } from './session';
+import * as handlers from './handlers';
+import * as routes from './routes';
+import * as observability from './observability';
+import { sendError } from './middleware';
+import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
+import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
+import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
+
+/**
+ * Main Playwright Driver Server
+ *
+ * Entry point for the TypeScript-based Playwright driver
+ */
+async function main() {
+  // Load configuration
+  const config = loadConfig();
+
+  // Setup logger
+  const appLogger = createLogger(config);
+  setLogger(appLogger);
+
+  logger.info('server: starting', {
+    version: '2.0.0',
+    port: config.server.port,
+    host: config.server.host,
+    logLevel: config.logging.level,
+    metricsEnabled: config.metrics.enabled,
+    configStatus: getConfigSummary(),
+  });
+
+  // Log warnings about modified configuration options (Tier 2/3)
+  logConfigTierWarnings((msg, data) => {
+    logger.info(msg, data);
+  });
+
+  // Create session manager
+  const sessionManager = new SessionManager(config);
+
+  // Start session cleanup task
+  const cleanup = new SessionCleanup(sessionManager, config);
+  cleanup.start();
+
+  // Verify browser can launch (P0 hardening - catch Chromium issues early)
+  const browserError = await sessionManager.verifyBrowserLaunch();
+  if (browserError) {
+    logger.error('server: browser verification failed - sessions will fail', {
+      error: browserError,
+      hint: 'Common causes: missing Chromium, sandbox issues, insufficient memory',
+    });
+    // Continue running - health endpoint will report error state
+    // This allows operators to diagnose via /health without restart loops
+  }
+
+  // Register instruction handlers
+  registerInstructionHandlers();
+
+  logger.info('server: handlers registered', {
+    count: handlers.handlerRegistry.getHandlerCount(),
+    types: handlers.handlerRegistry.getSupportedTypes(),
+  });
+
+  // Create metrics server if enabled
+  let metricsServer: ReturnType<typeof createServer> | null = null;
+  if (config.metrics.enabled) {
+    try {
+      metricsServer = await createMetricsServer(config.metrics.port);
+    } catch (error) {
+      logger.warn('server: metrics server failed to start, continuing without metrics', {
+        error: error instanceof Error ? error.message : String(error),
+        port: config.metrics.port,
+      });
+      // Continue without metrics - this is non-fatal
+    }
+  }
+
+  // Setup router with all routes
+  const router = setupRoutes(sessionManager, cleanup, config, appLogger);
+
+  // Create main HTTP server
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const pathname = new URL(req.url || '/', `http://localhost`).pathname;
+    const method = req.method || 'GET';
+
+    logger.debug('request: received', {
+      method,
+      path: pathname,
+    });
+
+    try {
+      await router.handle(req, res);
+    } catch (error) {
+      logger.error('request: handler error', {
+        method,
+        path: pathname,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      sendError(res, error as Error, pathname);
+    }
+  });
+
+  // Set server timeout (default Node.js timeout is 2 minutes, we need more for long-running playwright operations)
+  server.timeout = config.server.requestTimeout;
+  server.keepAliveTimeout = config.server.requestTimeout + 5000; // Slightly longer than request timeout
+  server.headersTimeout = config.server.requestTimeout + 10000; // Slightly longer than keepAlive
+
+  // Start direct frame server for latency research spike
+  // Uses main server port + 1 (e.g., 39401 if main is 39400)
+  const directFramePort = config.server.port + 1;
+  const directFrameServer = createDirectFrameServer(directFramePort);
+  directFrameServer.start();
+
+  // Make direct frame server available globally for frame manager
+  (global as { directFrameServer?: DirectFrameServer }).directFrameServer = directFrameServer;
+
+  // Start listening
+  server.listen(config.server.port, config.server.host, () => {
+    logger.info('server: listening', {
+      port: config.server.port,
+      host: config.server.host,
+      url: `http://${config.server.host}:${config.server.port}`,
+      requestTimeout: config.server.requestTimeout,
+    });
+
+    // Emit explicit "ready" signal for operators/orchestrators
+    // This is the key signal that the driver is operational and accepting traffic
+    logger.info('server: ready', {
+      status: browserError ? 'degraded' : 'ok',
+      healthEndpoint: `http://${config.server.host}:${config.server.port}/health`,
+      metricsEndpoint: config.metrics.enabled
+        ? `http://${config.server.host}:${config.metrics.port}/metrics`
+        : 'disabled',
+      directFrameEndpoint: `ws://${config.server.host}:${directFramePort}/frames`,
+      browserVerified: !browserError,
+    });
+  });
+
+  // Track active requests for graceful shutdown
+  let activeRequests = 0;
+  let isShuttingDown = false;
+
+  // Wrap request handler to track active requests
+  const originalEmit = server.emit.bind(server);
+  server.emit = function (event: string, ...args: unknown[]) {
+    if (event === 'request') {
+      activeRequests++;
+      const res = args[1] as ServerResponse;
+      res.on('finish', () => {
+        activeRequests--;
+      });
+      res.on('close', () => {
+        // Handle aborted requests
+        if (!res.writableEnded) {
+          activeRequests--;
+        }
+      });
+    }
+    return originalEmit(event, ...args);
+  } as typeof server.emit;
+
+  // Graceful shutdown with request draining
+  const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      logger.warn('server: shutdown already in progress, ignoring signal', { signal });
+      return;
+    }
+    isShuttingDown = true;
+
+    logger.info('server: shutdown initiated', { signal, activeRequests });
+
+    // Stop accepting new connections immediately
+    server.close(() => {
+      logger.info('server: http closed (no longer accepting connections)');
+    });
+
+    // Stop cleanup task and wait for any in-flight cleanup to complete
+    await cleanup.stop();
+
+    // Close metrics server
+    if (metricsServer) {
+      metricsServer.close(() => {
+        logger.info('server: metrics closed');
+      });
+    }
+
+    // Close direct frame server
+    directFrameServer.stop();
+
+    // Wait for in-flight requests to complete (with timeout)
+    // Timeouts from constants.ts
+    const drainStart = Date.now();
+
+    while (activeRequests > 0 && Date.now() - drainStart < SERVER_DRAIN_TIMEOUT_MS) {
+      logger.debug('server: draining active requests', {
+        remaining: activeRequests,
+        elapsedMs: Date.now() - drainStart,
+      });
+      await new Promise((resolve) => setTimeout(resolve, SERVER_DRAIN_INTERVAL_MS));
+    }
+
+    if (activeRequests > 0) {
+      logger.warn('server: drain timeout, proceeding with shutdown', {
+        remainingRequests: activeRequests,
+        drainTimeoutMs: SERVER_DRAIN_TIMEOUT_MS,
+      });
+    } else {
+      logger.info('server: all requests drained');
+    }
+
+    // Shutdown session manager (close all browser sessions)
+    await sessionManager.shutdown();
+
+    logger.info('server: shutdown complete');
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  // Handle uncaught errors
+  process.on('uncaughtException', (error) => {
+    logger.error('server: uncaught exception', {
+      error: error.message,
+      stack: error.stack,
+    });
+    shutdown('uncaughtException');
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    logger.error('server: unhandled rejection', {
+      reason: String(reason),
+    });
+    shutdown('unhandledRejection');
+  });
+}
+
+// =============================================================================
+// Route & Handler Registration
+// =============================================================================
+
+/**
+ * All instruction handlers, instantiated once.
+ * Handlers are stateless - they receive context per-execution.
+ */
+const INSTRUCTION_HANDLERS = [
+  // Core browser automation
+  new handlers.NavigationHandler(),
+  new handlers.InteractionHandler(),
+  new handlers.WaitHandler(),
+  new handlers.AssertionHandler(),
+  new handlers.ExtractionHandler(),
+  new handlers.ScreenshotHandler(),
+  new handlers.ScrollHandler(),
+  // File I/O
+  new handlers.UploadHandler(),
+  new handlers.DownloadHandler(),
+  // Advanced interaction
+  new handlers.FrameHandler(),
+  new handlers.SelectHandler(),
+  new handlers.KeyboardHandler(),
+  new handlers.CookieStorageHandler(),
+  new handlers.ServiceWorkerHandler(),
+  new handlers.GestureHandler(),
+  new handlers.TabHandler(),
+  // Network & device
+  new handlers.NetworkHandler(),
+  new handlers.DeviceHandler(),
+];
+
+/**
+ * Register all instruction handlers with the global registry.
+ */
+function registerInstructionHandlers(): void {
+  for (const handler of INSTRUCTION_HANDLERS) {
+    handlers.handlerRegistry.register(handler);
+  }
+}
+
+/**
+ * Setup all HTTP routes.
+ *
+ * Route organization:
+ * - /health: Health check
+ * - /session/*: Session lifecycle (start, run, reset, close)
+ * - /session/:id/record/*: Record mode (start, stop, status, actions, validation)
+ */
+function setupRoutes(
+  sessionManager: SessionManager,
+  sessionCleanup: SessionCleanup,
+  config: Config,
+  appLogger: typeof logger
+): routes.Router {
+  const router = routes.createRouter();
+
+  // Health check
+  router.get('/health', async (req, res) => {
+    await routes.handleHealth(req, res, sessionManager);
+  });
+
+  // Observability (unified health, monitoring, diagnostics)
+  const observabilityDeps: observability.ObservabilityRouteDependencies = {
+    sessionManager,
+    sessionCleanup,
+    config,
+  };
+  router.get('/observability', async (req, res) => {
+    await observability.handleObservability(req, res, observabilityDeps);
+  });
+  router.post('/observability/refresh', async (req, res) => {
+    await observability.handleObservabilityRefresh(req, res);
+  });
+  router.post('/observability/diagnostics/run', async (req, res) => {
+    await observability.handleDiagnosticsRun(req, res, observabilityDeps);
+  });
+  router.get('/observability/metrics', async (req, res) => {
+    await observability.handleMetrics(req, res, observabilityDeps);
+  });
+  router.get('/observability/sessions', async (req, res) => {
+    await observability.handleSessionList(req, res, observabilityDeps);
+  });
+  router.post('/observability/cleanup/run', async (req, res) => {
+    await observability.handleCleanupRun(req, res, observabilityDeps);
+  });
+  // Runtime configuration management
+  router.get('/observability/config/runtime', async (req, res) => {
+    await observability.handleConfigRuntime(req, res);
+  });
+  router.put('/observability/config/:env_var', async (req, res, params) => {
+    await observability.handleConfigUpdate(req, res, params.env_var);
+  });
+  router.delete('/observability/config/:env_var', async (req, res, params) => {
+    await observability.handleConfigReset(req, res, params.env_var);
+  });
+  // Autonomous pipeline test (creates temp session if needed)
+  router.post('/observability/pipeline-test', async (req, res) => {
+    await observability.handlePipelineTest(req, res, observabilityDeps);
+  });
+
+  router.get('/artifacts', async (req, res) => {
+    await routes.handleArtifactDownload(req, res);
+  });
+
+  // Session lifecycle
+  router.post('/session/start', async (req, res) => {
+    await routes.handleSessionStart(req, res, sessionManager, config);
+  });
+  router.post('/session/:id/run', async (req, res, params) => {
+    await routes.handleSessionRun(req, res, params.id, sessionManager, handlers.handlerRegistry, config, appLogger, metrics);
+  });
+  router.get('/session/:id/storage-state', async (req, res, params) => {
+    await routes.handleSessionStorageState(req, res, params.id, sessionManager);
+  });
+
+  // Service worker management
+  router.get('/session/:id/service-workers', async (req, res, params) => {
+    await routes.handleSessionServiceWorkers(req, res, params.id, sessionManager);
+  });
+  router.delete('/session/:id/service-workers', async (req, res, params) => {
+    await routes.handleSessionServiceWorkersDelete(req, res, params.id, sessionManager);
+  });
+  router.delete('/session/:id/service-workers/:scopeURL', async (req, res, params) => {
+    await routes.handleSessionServiceWorkerDelete(req, res, params.id, params.scopeURL, sessionManager);
+  });
+
+  router.post('/session/:id/reset', async (req, res, params) => {
+    await routes.handleSessionReset(req, res, params.id, sessionManager);
+  });
+  router.post('/session/:id/close', async (req, res, params) => {
+    await routes.handleSessionClose(req, res, params.id, sessionManager);
+  });
+
+  // Record mode lifecycle
+  router.post('/session/:id/record/start', async (req, res, params) => {
+    await routes.handleRecordStart(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/stop', async (req, res, params) => {
+    await routes.handleRecordStop(req, res, params.id, sessionManager);
+  });
+  router.get('/session/:id/record/status', async (req, res, params) => {
+    await routes.handleRecordStatus(req, res, params.id, sessionManager);
+  });
+  router.get('/session/:id/record/actions', async (req, res, params) => {
+    await routes.handleRecordActions(req, res, params.id, sessionManager);
+  });
+  router.get('/session/:id/record/debug', async (req, res, params) => {
+    await routes.handleRecordDebug(req, res, params.id, sessionManager);
+  });
+  router.post('/session/:id/record/pipeline-test', async (req, res, params) => {
+    await routes.handleRecordPipelineTest(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/external-url-test', async (req, res, params) => {
+    await routes.handleRecordExternalUrlTest(req, res, params.id, sessionManager, config);
+  });
+
+  // Record mode validation & interaction
+  router.post('/session/:id/record/validate-selector', async (req, res, params) => {
+    await routes.handleValidateSelector(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/replay-preview', async (req, res, params) => {
+    await routes.handleReplayPreview(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/navigate', async (req, res, params) => {
+    await routes.handleRecordNavigate(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/reload', async (req, res, params) => {
+    await routes.handleRecordReload(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/go-back', async (req, res, params) => {
+    await routes.handleRecordGoBack(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/go-forward', async (req, res, params) => {
+    await routes.handleRecordGoForward(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/navigation-state', async (req, res, params) => {
+    await routes.handleRecordNavigationState(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/navigation-stack', async (req, res, params) => {
+    await routes.handleRecordNavigationStack(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/screenshot', async (req, res, params) => {
+    await routes.handleRecordScreenshot(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/input', async (req, res, params) => {
+    await routes.handleRecordInput(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/frame', async (req, res, params) => {
+    await routes.handleRecordFrame(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/viewport', async (req, res, params) => {
+    await routes.handleRecordViewport(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/stream-settings', async (req, res, params) => {
+    await routes.handleStreamSettings(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/new-page', async (req, res, params) => {
+    await routes.handleRecordNewPage(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/active-page', async (req, res, params) => {
+    await routes.handleRecordActivePage(req, res, params.id, sessionManager, config);
+  });
+
+  // AI Navigation
+  router.post('/session/:id/ai-navigate', async (req, res, params) => {
+    await routes.handleSessionAINavigate(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/ai-navigate/abort', async (req, res, params) => {
+    await routes.handleSessionAINavigateAbort(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/ai-navigate/resume', async (req, res, params) => {
+    await routes.handleSessionAINavigateResume(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/ai-navigate/status', async (req, res, params) => {
+    await routes.handleSessionAINavigateStatus(req, res, params.id, sessionManager, config);
+  });
+  router.get('/ai/models', async (req, res) => {
+    await routes.handleListAIModels(req, res);
+  });
+
+  return router;
+}
+
+// Start server
+main().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});

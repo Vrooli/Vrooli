@@ -1,0 +1,530 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gorilla/mux"
+)
+
+// AgentIssue represents an issue in agent-friendly format
+type AgentIssue struct {
+	ID               int    `json:"id"`
+	Scenario         string `json:"scenario"`
+	FilePath         string `json:"file_path"`
+	Category         string `json:"category"`
+	Severity         string `json:"severity"`
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	LineNumber       *int   `json:"line_number,omitempty"`
+	ColumnNumber     *int   `json:"column_number,omitempty"`
+	AgentNotes       string `json:"agent_notes,omitempty"`
+	RemediationSteps string `json:"remediation_steps,omitempty"`
+	Status           string `json:"status"`
+	CreatedAt        string `json:"created_at"`
+}
+
+// AgentIssuesRequest defines query parameters for agent issue requests
+type AgentIssuesRequest struct {
+	Scenario string
+	File     string
+	Folder   string
+	Category string
+	Severity string
+	Limit    int
+	Force    bool
+}
+
+// handleAgentGetIssues returns top N issues for a scenario (TM-API-001, TM-API-002, TM-API-003, TM-API-004, TM-API-006)
+func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
+	parsed := parseAgentIssuesRequest(r)
+
+	if parsed.Error != nil {
+		respondError(w, http.StatusBadRequest, parsed.Error.Error())
+		return
+	}
+
+	req := parsed.Request
+
+	if req.Scenario == "" {
+		respondError(w, http.StatusBadRequest, "scenario parameter is required")
+		return
+	}
+
+	// TM-DA-006: Agent read calls return existing data without triggering new scans by default
+	if req.Force {
+		// TM-DA-007, TM-DA-008: Enqueue force-scan in controlled queue
+		s.log("force scan requested", map[string]interface{}{
+			"scenario": req.Scenario,
+			"file":     req.File,
+			"folder":   req.Folder,
+		})
+		// NOTE: Force scan queueing implementation deferred to P1
+		respondError(w, http.StatusNotImplemented, "force scans not yet implemented (P1)")
+		return
+	}
+
+	issues, err := s.store.ListAgentIssues(r.Context(), req)
+	if err != nil {
+		s.logQueryError("query issues", err)
+		respondError(w, http.StatusInternalServerError, "failed to query issues")
+		return
+	}
+
+	// Return plain array for simpler agent consumption (TM-API-001)
+	respondJSON(w, http.StatusOK, issues)
+}
+
+// handleAgentStoreIssue stores a new issue (TM-API-006, TM-DA-001, TM-DA-002, TM-DA-003)
+func (s *Server) handleAgentStoreIssue(w http.ResponseWriter, r *http.Request) {
+	var issue struct {
+		Scenario         string `json:"scenario"`
+		FilePath         string `json:"file_path"`
+		Category         string `json:"category"`
+		Severity         string `json:"severity"`
+		Title            string `json:"title"`
+		Description      string `json:"description"`
+		LineNumber       *int   `json:"line_number"`
+		ColumnNumber     *int   `json:"column_number"`
+		AgentNotes       string `json:"agent_notes"`
+		RemediationSteps string `json:"remediation_steps"`
+		CampaignID       *int   `json:"campaign_id"`
+		SessionID        string `json:"session_id"`
+		ResourceUsed     string `json:"resource_used"`
+	}
+
+	if !decodeAndValidateJSON(w, r, &issue) {
+		return
+	}
+
+	if issue.Scenario == "" || issue.FilePath == "" || issue.Category == "" || issue.Severity == "" {
+		respondError(w, http.StatusBadRequest, "scenario, file_path, category, and severity are required")
+		return
+	}
+
+	id, createdAt, err := s.store.InsertAgentIssue(r.Context(), AgentIssuePayload{
+		Scenario:         issue.Scenario,
+		FilePath:         issue.FilePath,
+		Category:         issue.Category,
+		Severity:         issue.Severity,
+		Title:            issue.Title,
+		Description:      issue.Description,
+		LineNumber:       issue.LineNumber,
+		ColumnNumber:     issue.ColumnNumber,
+		AgentNotes:       issue.AgentNotes,
+		RemediationSteps: issue.RemediationSteps,
+		CampaignID:       issue.CampaignID,
+		SessionID:        issue.SessionID,
+		ResourceUsed:     issue.ResourceUsed,
+	})
+	if err != nil {
+		if errors.Is(err, ErrDuplicateIssue) {
+			respondError(w, http.StatusConflict, "duplicate issue")
+			return
+		}
+		s.logQueryError("insert issue", err)
+		respondError(w, http.StatusInternalServerError, "failed to store issue")
+		return
+	}
+
+	respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"id":         id,
+		"created_at": createdAt,
+	})
+}
+
+// handleAgentUpdateIssue updates issue status (TM-IM-001, TM-IM-002, TM-IM-003)
+func (s *Server) handleAgentUpdateIssue(w http.ResponseWriter, r *http.Request) {
+	// Extract issue ID from URL
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	if idStr == "" {
+		respondError(w, http.StatusBadRequest, "issue ID is required")
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid issue ID")
+		return
+	}
+
+	var update struct {
+		Status          string `json:"status"`
+		ResolutionNotes string `json:"resolution_notes"`
+	}
+
+	if !decodeAndValidateJSON(w, r, &update) {
+		return
+	}
+
+	// Validate status
+	validStatuses := map[string]bool{"open": true, "resolved": true, "ignored": true}
+	if !validStatuses[update.Status] {
+		respondError(w, http.StatusBadRequest, "status must be one of: open, resolved, ignored")
+		return
+	}
+
+	// Update the issue
+	result, err := s.store.UpdateIssueStatus(r.Context(), id, update.Status, update.ResolutionNotes)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondError(w, http.StatusNotFound, "issue not found")
+			return
+		}
+		s.logQueryError("update issue", err)
+		respondError(w, http.StatusInternalServerError, "failed to update issue")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"id":         result.ID,
+		"status":     result.Status,
+		"updated_at": result.UpdatedAt,
+	})
+}
+
+// handleAgentGetScenarios returns list of scenarios with issue counts
+func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request) {
+	// Get all scenarios from filesystem using vrooli CLI
+	allScenarios, err := s.getAllScenarios(r.Context())
+	if err != nil {
+		s.logQueryError("get scenarios from CLI", err)
+		respondError(w, http.StatusInternalServerError, "failed to query scenarios")
+		return
+	}
+
+	// Get issue counts from database for scenarios that have issues
+	issueCounts, err := s.store.FetchIssueCounts(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to query issues")
+		return
+	}
+
+	// Combine all scenarios with their issue counts (0 if no issues)
+	scenarios := []map[string]interface{}{}
+	for _, scenarioName := range allScenarios {
+		counts, hasIssues := issueCounts[scenarioName]
+		if !hasIssues {
+			counts = IssueCounts{}
+		}
+
+		scenario := map[string]interface{}{
+			"scenario":   scenarioName,
+			"total":      counts.Total,
+			"lint":       counts.Lint,
+			"type":       counts.Type,
+			"long_files": counts.LongFiles,
+		}
+		scenarios = append(scenarios, scenario)
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"scenarios": scenarios,
+		"count":     len(scenarios),
+	})
+}
+
+type ParsedRequest struct {
+	Request AgentIssuesRequest
+	Error   error
+}
+
+func parseAgentIssuesRequest(r *http.Request) ParsedRequest {
+	q := r.URL.Query()
+	limit := 10
+	var parseErr error
+
+	// Security: Enforce maximum limit to prevent resource exhaustion
+	const maxLimit = 1000
+
+	if l := q.Get("limit"); l != "" {
+		v, err := strconv.Atoi(l)
+		if err != nil {
+			parseErr = &ValidationError{Field: "limit", Message: "must be a valid integer"}
+		} else if v < 0 {
+			parseErr = &ValidationError{Field: "limit", Message: "must be non-negative"}
+		} else if v > maxLimit {
+			limit = maxLimit
+		} else if v > 0 {
+			limit = v
+		}
+		// v == 0 is allowed, defaults to limit=10
+	}
+
+	return ParsedRequest{
+		Request: AgentIssuesRequest{
+			Scenario: q.Get("scenario"),
+			File:     q.Get("file"),
+			Folder:   q.Get("folder"),
+			Category: q.Get("category"),
+			Severity: q.Get("severity"),
+			Limit:    limit,
+			Force:    q.Get("force") == "true",
+		},
+		Error: parseErr,
+	}
+}
+
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	return e.Field + ": " + e.Message
+}
+
+// Helper functions for reducing code duplication
+
+// assignNullInt converts sql.NullInt64 to *int, returning nil if invalid
+func assignNullInt(value sql.NullInt64) *int {
+	if !value.Valid {
+		return nil
+	}
+	v := int(value.Int64)
+	return &v
+}
+
+// assignNullString converts sql.NullString to string, returning empty if invalid
+func assignNullString(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
+}
+
+// logQueryError logs database query failures with context
+func (s *Server) logQueryError(operation string, err error, query ...string) {
+	logData := map[string]interface{}{"error": err.Error()}
+	if len(query) > 0 {
+		logData["query"] = query[0]
+	}
+	s.log(operation+" failed", logData)
+}
+
+// queryBuilder helps construct SQL queries with dynamic conditions
+type queryBuilder struct {
+	conditions []string
+	args       []interface{}
+}
+
+func newQueryBuilder(initialArg interface{}) *queryBuilder {
+	return &queryBuilder{
+		conditions: []string{},
+		args:       []interface{}{initialArg},
+	}
+}
+
+func (qb *queryBuilder) addCondition(condition string, arg interface{}) {
+	qb.conditions = append(qb.conditions, condition)
+	qb.args = append(qb.args, arg)
+}
+
+func (qb *queryBuilder) paramCount() int {
+	return len(qb.args)
+}
+
+func buildIssuesQuery(req AgentIssuesRequest) string {
+	base := `
+		SELECT
+			id, scenario, file_path, category, severity, title, description,
+			line_number, column_number, agent_notes, remediation_steps,
+			status, created_at
+		FROM issues
+		WHERE scenario = $1 AND status = 'open'
+	`
+
+	qb := newQueryBuilder(req.Scenario)
+
+	if req.File != "" {
+		qb.addCondition("AND file_path = $"+strconv.Itoa(qb.paramCount()+1), req.File)
+	} else if req.Folder != "" {
+		qb.addCondition("AND file_path LIKE $"+strconv.Itoa(qb.paramCount()+1), req.Folder+"%")
+	}
+
+	if req.Category != "" {
+		qb.addCondition("AND category = $"+strconv.Itoa(qb.paramCount()+1), req.Category)
+	}
+
+	if req.Severity != "" {
+		qb.addCondition("AND severity = $"+strconv.Itoa(qb.paramCount()+1), req.Severity)
+	}
+
+	// TM-API-004: Rank by severity, then criticality
+	ordering := `
+		ORDER BY
+			CASE severity
+				WHEN 'critical' THEN 1
+				WHEN 'high' THEN 2
+				WHEN 'medium' THEN 3
+				WHEN 'low' THEN 4
+				WHEN 'info' THEN 5
+				ELSE 6
+			END,
+			created_at DESC
+	`
+
+	limitClause := " LIMIT $" + strconv.Itoa(qb.paramCount()+1)
+
+	return base + strings.Join(qb.conditions, " ") + ordering + limitClause
+}
+
+func buildIssuesArgs(req AgentIssuesRequest) []interface{} {
+	qb := newQueryBuilder(req.Scenario)
+
+	if req.File != "" {
+		qb.args = append(qb.args, req.File)
+	} else if req.Folder != "" {
+		qb.args = append(qb.args, req.Folder+"%")
+	}
+
+	if req.Category != "" {
+		qb.args = append(qb.args, req.Category)
+	}
+
+	if req.Severity != "" {
+		qb.args = append(qb.args, req.Severity)
+	}
+
+	qb.args = append(qb.args, req.Limit)
+	return qb.args
+}
+
+// handleAgentGetScenarioDetail returns detailed stats and file list for a specific scenario (OT-P0-010, TM-UI-003, TM-UI-004)
+func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+	if scenarioName == "" {
+		// Backward-compatibility for tests using "scenario" key
+		scenarioName = vars["scenario"]
+	}
+	if scenarioName == "" {
+		respondError(w, http.StatusBadRequest, "scenario name is required")
+		return
+	}
+
+	// Get aggregate stats for this scenario
+	var lightIssues, aiIssues, longFiles int
+	query := `
+		SELECT
+			COUNT(CASE WHEN category IN ('lint', 'type') THEN 1 END) as light_issues,
+			COUNT(CASE WHEN category NOT IN ('lint', 'type', 'length') THEN 1 END) as ai_issues,
+			COUNT(CASE WHEN category = 'length' THEN 1 END) as long_files
+		FROM issues
+		WHERE scenario = $1 AND status = 'open'
+	`
+	err := s.db.QueryRowContext(r.Context(), query, scenarioName).Scan(&lightIssues, &aiIssues, &longFiles)
+	if err != nil && err != sql.ErrNoRows {
+		s.logQueryError("query stats", err)
+		respondError(w, http.StatusInternalServerError, "failed to query stats")
+		return
+	}
+
+	// Get file-level metrics from database (TM-UI-003, TM-UI-004)
+	filesQuery := `
+		SELECT
+			fm.file_path,
+			fm.line_count,
+			COUNT(i.id) as issue_count
+		FROM file_metrics fm
+		LEFT JOIN issues i ON i.scenario = fm.scenario AND i.file_path = fm.file_path AND i.status = 'open'
+		WHERE fm.scenario = $1
+		GROUP BY fm.file_path, fm.line_count
+		ORDER BY issue_count DESC, fm.line_count DESC
+		LIMIT 100
+	`
+
+	rows, err := s.db.QueryContext(r.Context(), filesQuery, scenarioName)
+	if err != nil {
+		s.logQueryError("query files", err)
+		respondError(w, http.StatusInternalServerError, "failed to query files")
+		return
+	}
+	defer rows.Close()
+
+	files := []map[string]interface{}{}
+	for rows.Next() {
+		var filePath sql.NullString
+		var lineCount, issueCount sql.NullInt64
+		if err := rows.Scan(&filePath, &lineCount, &issueCount); err != nil {
+			continue
+		}
+
+		file := map[string]interface{}{
+			"path":        assignNullString(filePath),
+			"lines":       0,
+			"totalIssues": 0,
+			"visitCount":  0,
+		}
+
+		if lineCount.Valid {
+			file["lines"] = int(lineCount.Int64)
+		}
+		if issueCount.Valid {
+			file["totalIssues"] = int(issueCount.Int64)
+		}
+
+		files = append(files, file)
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"scenario":    scenarioName,
+		"lightIssues": lightIssues,
+		"aiIssues":    aiIssues,
+		"longFiles":   longFiles,
+		"files":       files,
+	})
+}
+
+// handleGetStalenessInfo returns information about whether issues might be stale
+// for a given scenario (i.e., files have been modified since the last scan)
+func (s *Server) handleGetStalenessInfo(w http.ResponseWriter, r *http.Request) {
+	scenario := r.URL.Query().Get("scenario")
+	if scenario == "" {
+		respondError(w, http.StatusBadRequest, "scenario parameter is required")
+		return
+	}
+
+	// Resolve scenario path
+	vrooli_root := os.Getenv("VROOLI_ROOT")
+	if vrooli_root == "" {
+		vrooli_root = os.Getenv("HOME") + "/Vrooli"
+	}
+	scenarioPath := vrooli_root + "/scenarios/" + scenario
+
+	// Check if scenario directory exists
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		respondJSON(w, http.StatusOK, &StalenessInfo{
+			IsStale:       true,
+			StaleReason:   "scenario directory not found",
+			RescanCommand: fmt.Sprintf("tidiness-manager scan %s", scenario),
+		})
+		return
+	}
+
+	info, err := s.store.GetStalenessInfo(r.Context(), scenario, scenarioPath)
+	if err != nil {
+		s.logQueryError("get staleness info", err)
+		respondError(w, http.StatusInternalServerError, "failed to get staleness info")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, info)
+}
+
+// getAllScenarios fetches all scenarios from the vrooli CLI with caching
+func (s *Server) getAllScenarios(parentCtx context.Context) ([]string, error) {
+	if s.scenarioLocator == nil {
+		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
+	}
+
+	return s.scenarioLocator.List(parentCtx)
+}

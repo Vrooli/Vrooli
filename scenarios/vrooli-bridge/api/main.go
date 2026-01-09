@@ -1,21 +1,24 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
-	"math/rand"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
@@ -75,16 +78,11 @@ type App struct {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start vrooli-bridge
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "vrooli-bridge",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	app := &App{}
@@ -93,100 +91,37 @@ func main() {
 	if err := app.initDB(); err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
-	defer app.db.Close()
-	
+
 	// Load project type definitions
 	if err := app.loadProjectTypes(); err != nil {
 		log.Fatal("Failed to load project types:", err)
 	}
-	
+
 	// Setup routes
 	router := app.setupRoutes()
-	
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+
+	log.Printf("Starting Vrooli Bridge API")
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if app.db != nil {
+				return app.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-	
-	log.Printf("Starting Vrooli Bridge API on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 
 func (app *App) initDB() error {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		host := os.Getenv("POSTGRES_HOST")
-		port := os.Getenv("POSTGRES_PORT")
-		user := os.Getenv("POSTGRES_USER")
-		password := os.Getenv("POSTGRES_PASSWORD")
-		dbname := os.Getenv("POSTGRES_DB")
-		
-		if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-			return fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			user, password, host, port, dbname)
-	}
-	
 	var err error
-	app.db, err = sql.Open("postgres", postgresURL)
+	app.db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("Failed to open database connection: %v", err)
+		return fmt.Errorf("database connection failed: %v", err)
 	}
-	
-	// Set connection pool settings
-	app.db.SetMaxOpenConns(25)
-	app.db.SetMaxIdleConns(5)
-	app.db.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = app.db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v", actualDelay)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		return fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-	
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
@@ -215,7 +150,7 @@ func (app *App) setupRoutes() *mux.Router {
 	api.HandleFunc("/projects/{id}", app.deleteProject).Methods("DELETE")
 	
 	// Health check
-	r.HandleFunc("/health", app.healthCheck).Methods("GET")
+	r.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(app.db), health.Critical).Handler()).Methods("GET")
 	
 	return r
 }
@@ -232,25 +167,6 @@ func (app *App) corsMiddleware(next http.Handler) http.Handler {
 		}
 		
 		next.ServeHTTP(w, r)
-	})
-}
-
-func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	// Check database connection
-	if err := app.db.Ping(); err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "unhealthy",
-			"error":  err.Error(),
-		})
-		return
-	}
-	
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"version": "1.0.0",
 	})
 }
 

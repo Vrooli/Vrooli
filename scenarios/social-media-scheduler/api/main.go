@@ -6,8 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,6 +18,10 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration holds all app configuration
@@ -54,26 +56,12 @@ type Response struct {
 	Meta    interface{} `json:"meta,omitempty"`
 }
 
-// HealthResponse represents health check response
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Version   string            `json:"version"`
-	Timestamp string            `json:"timestamp"`
-	Services  map[string]string `json:"services"`
-}
-
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start social-media-scheduler
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "social-media-scheduler",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Parse command line flags
@@ -89,16 +77,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
-	defer app.cleanup()
 
-	// Set up graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle shutdown signals
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
+	// Set up graceful shutdown context for job processor
+	jobCtx, jobCancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
 	// Start job processor if needed
@@ -107,53 +88,38 @@ func main() {
 		go func() {
 			defer wg.Done()
 			log.Println("🔄 Starting job processor...")
-			app.JobProcessor.Start(ctx)
+			app.JobProcessor.Start(jobCtx)
 		}()
 	}
 
 	// Start HTTP server if needed
 	if config.Mode == "server" || config.Mode == "both" {
-		server := &http.Server{
-			Addr:    ":" + config.APIPort,
+		if err := server.Run(server.Config{
 			Handler: app.Router,
+			Cleanup: func(ctx context.Context) error {
+				// Cancel job processor context
+				jobCancel()
+				// Wait for job processor to finish
+				wg.Wait()
+				// Cleanup app resources
+				app.cleanup()
+				log.Println("✅ Shutdown complete")
+				return nil
+			},
+		}); err != nil {
+			log.Fatalf("Server error: %v", err)
 		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			log.Printf("🚀 Starting API server on port %s", config.APIPort)
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Printf("Server error: %v", err)
-			}
-		}()
-
-		// Handle shutdown
-		go func() {
-			<-signalChan
-			log.Println("📴 Shutting down gracefully...")
-			
-			cancel() // Cancel context for job processor
-			
-			// Shutdown HTTP server
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer shutdownCancel()
-			
-			if err := server.Shutdown(shutdownCtx); err != nil {
-				log.Printf("Server shutdown error: %v", err)
-			}
-		}()
 	} else {
-		// Worker-only mode, just wait for signal
-		go func() {
-			<-signalChan
-			log.Println("📴 Shutting down job processor...")
-			cancel()
-		}()
+		// Worker-only mode - wait for signal manually
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+		log.Println("📴 Shutting down job processor...")
+		jobCancel()
+		wg.Wait()
+		app.cleanup()
+		log.Println("✅ Shutdown complete")
 	}
-
-	// Wait for all goroutines to finish
-	wg.Wait()
-	log.Println("✅ Shutdown complete")
 }
 
 func loadConfiguration() *Configuration {
@@ -216,53 +182,15 @@ func loadConfiguration() *Configuration {
 func initializeApplication(config *Configuration) (*Application, error) {
 	app := &Application{Config: config}
 
-	// Initialize database
+	// Initialize database with exponential backoff
 	var err error
-	app.DB, err = sql.Open("postgres", config.DatabaseURL)
+	app.DB, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Configure connection pool
-	app.DB.SetMaxOpenConns(25)
-	app.DB.SetMaxIdleConns(5)
-	app.DB.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = app.DB.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
+	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Redis
 	opt, err := redis.ParseURL(config.RedisURL)
@@ -310,7 +238,7 @@ func (app *Application) setupRouter() {
 	}))
 
 	// Health check endpoints
-	app.Router.GET("/health", app.healthCheck)
+	app.Router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()))
 	app.Router.GET("/health/queue", app.queueHealthCheck)
 
 	// WebSocket endpoint for real-time updates
@@ -407,49 +335,6 @@ func (app *Application) cleanup() {
 	}
 	if app.WebSocket != nil {
 		app.WebSocket.Close()
-	}
-}
-
-// Health check handlers
-func (app *Application) healthCheck(c *gin.Context) {
-	services := make(map[string]string)
-
-	// Check database
-	if err := app.DB.Ping(); err != nil {
-		services["database"] = "unhealthy: " + err.Error()
-	} else {
-		services["database"] = "healthy"
-	}
-
-	// Check Redis
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := app.Redis.Ping(ctx).Err(); err != nil {
-		services["redis"] = "unhealthy: " + err.Error()
-	} else {
-		services["redis"] = "healthy"
-	}
-
-	// Check if any critical service is down
-	status := "healthy"
-	for _, serviceStatus := range services {
-		if serviceStatus != "healthy" {
-			status = "unhealthy"
-			break
-		}
-	}
-
-	response := HealthResponse{
-		Status:    status,
-		Version:   "1.0.0",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Services:  services,
-	}
-
-	if status == "healthy" {
-		c.JSON(http.StatusOK, response)
-	} else {
-		c.JSON(http.StatusServiceUnavailable, response)
 	}
 }
 

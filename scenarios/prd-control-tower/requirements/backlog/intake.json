@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Backlog intake workflow and conversion requirements",
+    "domain": "backlog",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-BACKLOG-INTAKE",
+      "category": "backlog.ui",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Backlog accepts freeform text input and parses it into entries",
+      "description": "Verifies BacklogIntakeCard accepts multiline text and creates backlog entries with proper metadata.",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backlog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestParseBacklogInput validates freeform text parsing into entries"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "TestHandleCreateBacklogEntries validates API endpoint for creating entries"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
+          "phase": "business",
+          "status": "failing",
+          "notes": "E2E validation of backlog intake and parsing"
+        }
+      ]
+    },
+    {
+      "id": "PCT-BACKLOG-PREVIEW",
+      "category": "backlog.ui",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Backlog entries display in table with preview panel",
+      "description": "Ensures BacklogEntriesTable renders entries and BacklogPreviewPanel shows details on selection.",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "TestHandleListBacklog validates API returns backlog entries for display"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
+          "phase": "business",
+          "status": "failing",
+          "notes": "E2E validation of backlog preview panel"
+        }
+      ]
+    },
+    {
+      "id": "PCT-BACKLOG-CONVERT",
+      "category": "backlog.workflow",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Backlog entries convert to drafts with one-click action",
+      "description": "Confirms convert-to-draft action creates new draft from backlog entry content and marks entry as converted.",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_backlog_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Backlog API and draft API integration validates conversion workflow"
+        },
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Draft creation from backlog content validated"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
+          "phase": "business",
+          "status": "failing",
+          "notes": "E2E validation of backlog to draft conversion"
+        }
+      ]
+    }
+  ]
+}

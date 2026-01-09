@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,12 +11,66 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 var db *sql.DB
 
+// initDatabase initializes the PostgreSQL database connection with automatic retry and backoff.
+// Reads POSTGRES_* environment variables set by the lifecycle system.
 func initDatabase() error {
-	// Get PostgreSQL connection info from environment
+	var err error
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		// Check if database doesn't exist - try to create it
+		dbname := os.Getenv("POSTGRES_DB")
+		if dbname == "" {
+			dbname = "financial_calculators_hub"
+		}
+		if err.Error() == fmt.Sprintf("pq: database \"%s\" does not exist", dbname) ||
+			(err != nil && contains(err.Error(), "does not exist")) {
+			if createErr := createDatabase(); createErr != nil {
+				return fmt.Errorf("failed to create database: %w", createErr)
+			}
+			// Retry connection after creating database
+			db, err = database.Connect(context.Background(), database.Config{
+				Driver: "postgres",
+			})
+			if err != nil {
+				return fmt.Errorf("failed to connect after creating database: %w", err)
+			}
+		} else {
+			return fmt.Errorf("database connection failed: %w", err)
+		}
+	}
+
+	// Initialize schema
+	if err := initSchema(); err != nil {
+		return fmt.Errorf("failed to initialize schema: %w", err)
+	}
+
+	slog.Info("database connected successfully")
+	return nil
+}
+
+// contains checks if substr is in s
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// createDatabase creates the database if it doesn't exist
+func createDatabase() error {
 	host := os.Getenv("POSTGRES_HOST")
 	if host == "" {
 		host = "localhost"
@@ -29,54 +84,13 @@ func initDatabase() error {
 		user = "postgres"
 	}
 	password := os.Getenv("POSTGRES_PASSWORD")
-	if password == "" {
-		// SECURITY: Password must be provided via environment variable in production
-		// For local development, it falls back to the Vrooli default postgres setup
-		slog.Warn("database authentication not configured", "environment", "development", "recommendation", "set database credentials via environment variables for production use")
-	}
 	dbname := os.Getenv("POSTGRES_DB")
 	if dbname == "" {
 		dbname = "financial_calculators_hub"
 	}
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	var err error
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Test connection
-	err = db.Ping()
-	if err != nil {
-		// If database doesn't exist, create it
-		if err.Error() == fmt.Sprintf("pq: database \"%s\" does not exist", dbname) {
-			if err := createDatabase(host, port, user, password, dbname); err != nil {
-				return fmt.Errorf("failed to create database: %w", err)
-			}
-			// Reconnect to new database
-			db, err = sql.Open("postgres", psqlInfo)
-			if err != nil {
-				return fmt.Errorf("failed to reconnect: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to ping database: %w", err)
-		}
-	}
-
-	// Initialize schema
-	if err := initSchema(); err != nil {
-		return fmt.Errorf("failed to initialize schema: %w", err)
-	}
-
-	slog.Info("database connected successfully", "host", host, "port", port, "database", dbname)
-	return nil
-}
-
-func createDatabase(host, port, user, password, dbname string) error {
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s sslmode=disable",
+	// Connect to postgres database (not the target database)
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable",
 		host, port, user, password)
 
 	tempDB, err := sql.Open("postgres", psqlInfo)

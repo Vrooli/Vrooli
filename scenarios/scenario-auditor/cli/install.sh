@@ -1,29 +1,8 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="scenario-auditor"
-VROOLI_BIN_DIR="${HOME}/.vrooli/bin"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/scenario-auditor/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-mkdir -p "$VROOLI_BIN_DIR"
-CLI_SOURCE="${SCRIPT_DIR}/${CLI_NAME}"
-CLI_TARGET="${VROOLI_BIN_DIR}/${CLI_NAME}"
-
-if [[ -L "$CLI_TARGET" || -f "$CLI_TARGET" ]]; then
-    rm -f "$CLI_TARGET"
-fi
-
-echo "Installing ${CLI_NAME} CLI to ${VROOLI_BIN_DIR}"
-ln -s "$CLI_SOURCE" "$CLI_TARGET"
-chmod +x "$CLI_SOURCE"
-
-if [[ ":$PATH:" != *":$VROOLI_BIN_DIR:"* ]]; then
-    cat <<PATHWARN
-⚠️  ${VROOLI_BIN_DIR} is not in your PATH.
-   Add this to your shell profile (e.g. ~/.bashrc or ~/.zshrc):
-       export PATH=\"\$PATH:${VROOLI_BIN_DIR}\"
-PATHWARN
-fi
-
-echo "✅ ${CLI_NAME} CLI installed successfully"
+install_cli "$CLI_DIR/scenario-auditor" "scenario-auditor"

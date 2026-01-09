@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "bedtime-story-generator",
@@ -20,77 +20,39 @@
       "age-appropriate",
       "reading",
       "creative"
-    ]
-  },
-  "metadata": {
-    "author": "Vrooli Team",
-    "created": "2025-01-06",
-    "updated": "2025-01-06",
-    "category": [
-      "education",
-      "family",
-      "creative"
     ],
-    "targetAudience": {
-      "ageRange": "3-12",
-      "userType": "children",
-      "parentalSupervision": "optional"
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "education",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/bedtime-story-generator"
     },
-    "uiStyle": {
-      "theme": "cozy-bedroom",
-      "colorScheme": "time-adaptive",
-      "animations": "gentle",
-      "soundEffects": "optional"
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Story generation and management API",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Interactive story reader UI",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store stories, reading history, and preferences",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Story generation and management API",
+      "range": "15000-19999"
     },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Generate age-appropriate bedtime stories",
-      "models": [
-        "llama3.2:3b"
-      ],
-      "configuration": {
-        "temperature": 0.8,
-        "max_tokens": 2000
-      }
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently read stories for performance",
-      "fallback": "Direct PostgreSQL queries"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Interactive story reader UI",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -103,7 +65,7 @@
       },
       "checks": [
         {
-          "name": "api_health",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
@@ -111,24 +73,28 @@
           "interval": 30000
         },
         {
-          "name": "ui_health",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": true,
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "ollama_availability",
-          "type": "resource",
+          "type": "process",
           "target": "ollama",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -139,18 +105,24 @@
       "description": "Initialize Bedtime Story Generator",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "bedtime-story-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "bedtime-story-generator"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/bedtime-story-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "bedtime-story-generator",
+            "targets": [
+              "bedtime-story-generator"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -171,18 +143,23 @@
         },
         {
           "name": "install-cli",
-          "run": "chmod +x cli/bedtime-story && ln -sf $(pwd)/cli/bedtime-story ~/.local/bin/bedtime-story 2>/dev/null || true",
+          "run": "mkdir -p ~/.local/bin && chmod +x cli/bedtime-story-generator && { ln -sf $(pwd)/cli/bedtime-story-generator ~/.local/bin/bedtime-story-generator && ln -sf $(pwd)/cli/bedtime-story-generator ~/.local/bin/bedtime-story; } 2>/dev/null || true",
           "description": "Install CLI globally"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o bedtime-story-api .",
+          "run": "cd api && go mod download && go build -o bedtime-story-generator-api .",
           "description": "Build API server"
         },
         {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
         },
         {
           "name": "initialize-database",
@@ -202,52 +179,40 @@
       ]
     },
     "develop": {
-      "description": "Start Bedtime Story Generator services",
+      "description": "Start Bedtime Story Generator with production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./bedtime-story-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/bedtime-story-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./bedtime-story-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/bedtime-story-generator-api"
+          }
+        },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
-          "background": true
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo \"Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}\"",
-           "description": "Display service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo \"Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}\"",
+          "description": "Display service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test story generation and reading",
+      "description": "Comprehensive phased testing for bedtime-story-generator",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Verify API builds"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health || echo 'API not running'",
-          "description": "Check API health"
-        },
-        {
-          "name": "test-story-generation",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/stories/generate -H 'Content-Type: application/json' -d '{\"age_group\":\"6-8\",\"theme\":\"adventure\"}' || echo 'Story generation test'",
-          "description": "Test story generation"
-        },
-        {
-          "name": "test-cli",
-          "run": "bedtime-story status || echo 'CLI test'",
-          "description": "Test CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test-genie execute bedtime-story-generator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -267,26 +232,44 @@
       ]
     }
   },
-  "discovery": {
-    "searchable": true,
-    "categories": [
-      "kid-friendly",
-      "education",
-      "bedtime"
-    ],
-    "keywords": [
-      "stories",
-      "bedtime",
-      "children",
-      "reading",
-      "storytelling"
-    ],
-    "featured": true
-  },
-  "security": {
-    "contentFiltering": "strict",
-    "ageAppropriate": true,
-    "dataCollection": "none",
-    "parentalControls": "available"
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store stories, reading history, and preferences",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate age-appropriate bedtime stories",
+        "models": [
+          "llama3.2:3b"
+        ],
+        "configuration": {
+          "temperature": 0.8,
+          "max_tokens": 2000
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently read stories for performance",
+        "fallback": "Direct PostgreSQL queries"
+      }
+    }
   }
 }

@@ -49,7 +49,13 @@
     "python_version": {
       "type": "string",
       "description": "Python version for KiCad scripting",
-      "enum": ["python3", "python3.8", "python3.9", "python3.10", "python3.11"],
+      "enum": [
+        "python3",
+        "python3.8",
+        "python3.9",
+        "python3.10",
+        "python3.11"
+      ],
       "default": "python3"
     },
     "use_gui": {
@@ -62,9 +68,23 @@
       "description": "Supported export formats",
       "items": {
         "type": "string",
-        "enum": ["gerber", "pdf", "svg", "step", "pos", "drill", "dxf", "vrml"]
+        "enum": [
+          "gerber",
+          "pdf",
+          "svg",
+          "step",
+          "pos",
+          "drill",
+          "dxf",
+          "vrml"
+        ]
       },
-      "default": ["gerber", "pdf", "svg", "step"]
+      "default": [
+        "gerber",
+        "pdf",
+        "svg",
+        "step"
+      ]
     },
     "drc_settings": {
       "type": "object",
@@ -112,11 +132,19 @@
           },
           "type": {
             "type": "string",
-            "enum": ["git", "http", "local"],
+            "enum": [
+              "git",
+              "http",
+              "local"
+            ],
             "description": "Library source type"
           }
         },
-        "required": ["name", "url", "type"]
+        "required": [
+          "name",
+          "url",
+          "type"
+        ]
       },
       "default": []
     },
@@ -168,6 +196,9 @@
       }
     }
   },
-  "required": ["data_dir"],
-  "additionalProperties": false
+  "required": [
+    "data_dir"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/kicad/schema.json"
 }

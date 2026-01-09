@@ -2,13 +2,17 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Zigbee2MQTT Configuration Schema",
   "type": "object",
-  "required": ["mqtt", "serial"],
-  
+  "required": [
+    "mqtt",
+    "serial"
+  ],
   "properties": {
     "mqtt": {
       "type": "object",
       "description": "MQTT broker configuration",
-      "required": ["server"],
+      "required": [
+        "server"
+      ],
       "properties": {
         "server": {
           "type": "string",
@@ -41,16 +45,20 @@
         "version": {
           "type": "integer",
           "description": "MQTT protocol version",
-          "enum": [4, 5],
+          "enum": [
+            4,
+            5
+          ],
           "default": 4
         }
       }
     },
-    
     "serial": {
       "type": "object",
       "description": "Zigbee adapter configuration",
-      "required": ["port"],
+      "required": [
+        "port"
+      ],
       "properties": {
         "port": {
           "type": "string",
@@ -60,7 +68,13 @@
         "adapter": {
           "type": "string",
           "description": "Adapter type",
-          "enum": ["auto", "zstack", "deconz", "zigate", "ezsp"],
+          "enum": [
+            "auto",
+            "zstack",
+            "deconz",
+            "zigate",
+            "ezsp"
+          ],
           "default": "auto"
         },
         "baudrate": {
@@ -70,23 +84,39 @@
         }
       }
     },
-    
     "advanced": {
       "type": "object",
       "description": "Advanced configuration",
       "properties": {
         "pan_id": {
           "oneOf": [
-            {"type": "integer", "minimum": 1, "maximum": 65534},
-            {"type": "string", "const": "GENERATE"}
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65534
+            },
+            {
+              "type": "string",
+              "const": "GENERATE"
+            }
           ],
           "description": "Zigbee network PAN ID",
           "default": "GENERATE"
         },
         "ext_pan_id": {
           "oneOf": [
-            {"type": "array", "items": {"type": "integer"}, "minItems": 8, "maxItems": 8},
-            {"type": "string", "const": "GENERATE"}
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 8,
+              "maxItems": 8
+            },
+            {
+              "type": "string",
+              "const": "GENERATE"
+            }
           ],
           "description": "Extended PAN ID",
           "default": "GENERATE"
@@ -100,8 +130,18 @@
         },
         "network_key": {
           "oneOf": [
-            {"type": "array", "items": {"type": "integer"}, "minItems": 16, "maxItems": 16},
-            {"type": "string", "const": "GENERATE"}
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 16,
+              "maxItems": 16
+            },
+            {
+              "type": "string",
+              "const": "GENERATE"
+            }
           ],
           "description": "Network encryption key",
           "default": "GENERATE"
@@ -114,12 +154,16 @@
         },
         "log_level": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         }
       }
     },
-    
     "frontend": {
       "type": "object",
       "description": "Web frontend configuration",
@@ -142,49 +186,69 @@
         }
       }
     },
-    
     "permit_join": {
       "type": "boolean",
       "description": "Allow new devices to join",
       "default": false
     },
-    
     "homeassistant": {
       "oneOf": [
-        {"type": "boolean"},
-        {"type": "object", "properties": {
-          "discovery_topic": {"type": "string"},
-          "status_topic": {"type": "string"},
-          "legacy_entity_attributes": {"type": "boolean"},
-          "legacy_triggers": {"type": "boolean"}
-        }}
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "discovery_topic": {
+              "type": "string"
+            },
+            "status_topic": {
+              "type": "string"
+            },
+            "legacy_entity_attributes": {
+              "type": "boolean"
+            },
+            "legacy_triggers": {
+              "type": "boolean"
+            }
+          }
+        }
       ],
       "description": "Home Assistant integration",
       "default": true
     },
-    
     "availability": {
       "oneOf": [
-        {"type": "boolean"},
-        {"type": "object", "properties": {
-          "active": {
-            "type": "object",
-            "properties": {
-              "timeout": {"type": "integer", "default": 10}
-            }
-          },
-          "passive": {
-            "type": "object",
-            "properties": {
-              "timeout": {"type": "integer", "default": 1500}
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "active": {
+              "type": "object",
+              "properties": {
+                "timeout": {
+                  "type": "integer",
+                  "default": 10
+                }
+              }
+            },
+            "passive": {
+              "type": "object",
+              "properties": {
+                "timeout": {
+                  "type": "integer",
+                  "default": 1500
+                }
+              }
             }
           }
-        }}
+        }
       ],
       "description": "Device availability checking",
       "default": true
     },
-    
     "devices": {
       "type": "object",
       "description": "Device-specific configuration",
@@ -192,20 +256,39 @@
         ".*": {
           "type": "object",
           "properties": {
-            "friendly_name": {"type": "string"},
-            "retain": {"type": "boolean"},
-            "qos": {"type": "integer", "enum": [0, 1, 2]},
-            "homeassistant": {"type": ["boolean", "object"]},
-            "debounce": {"type": "integer"},
+            "friendly_name": {
+              "type": "string"
+            },
+            "retain": {
+              "type": "boolean"
+            },
+            "qos": {
+              "type": "integer",
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "homeassistant": {
+              "type": [
+                "boolean",
+                "object"
+              ]
+            },
+            "debounce": {
+              "type": "integer"
+            },
             "filtered_attributes": {
               "type": "array",
-              "items": {"type": "string"}
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
       }
     },
-    
     "groups": {
       "type": "object",
       "description": "Device groups",
@@ -213,14 +296,19 @@
         ".*": {
           "type": "object",
           "properties": {
-            "friendly_name": {"type": "string"},
+            "friendly_name": {
+              "type": "string"
+            },
             "devices": {
               "type": "array",
-              "items": {"type": "string"}
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/zigbee2mqtt/schema.json"
 }

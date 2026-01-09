@@ -5,13 +5,14 @@
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#   make run   - Start scenario through lifecycle run (legacy compat)
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop dev test logs status clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -27,7 +28,7 @@ RED := \033[1;31m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo "$(BLUE)🧪 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
 	@echo "  make <command>"
@@ -36,12 +37,16 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/test-genie-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+run: ## Start this scenario (uses Vrooli lifecycle run command)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
+
+start: ## Start this scenario
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -65,76 +70,59 @@ status: ## Check if scenario is running
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
-	@if [ -d api ]; then cd api && go clean 2>/dev/null || true; fi
+	@rm -rf build/ dist/ *.log api/test-genie-api
 	@if [ -d ui/dist ]; then rm -rf ui/dist; fi
-	@if [ -d ui/build ]; then rm -rf ui/build; fi
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
-build: ## Build the scenario (if applicable)
+build: ## Build compiled assets when needed
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
-	@if [ -f api/go.mod ]; then \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go 2>/dev/null || echo "Could not build Go API"; \
-	elif [ -f ui/package.json ]; then \
-		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
-	else \
-		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
+	@if [ -d api ] && [ -f api/go.mod ]; then \
+		cd api && go build -o test-genie-api ./cmd/test-genie-api/; \
+	fi
+	@if [ -d cli ] && [ -f cli/go.mod ]; then \
+		cd cli && go build -o test-genie .; \
+	fi
+	@if [ -d ui ] && [ -f ui/package.json ]; then \
+		cd ui && pnpm run build; \
 	fi
 
-# Code Quality Targets
-fmt: ## Format all code
-	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
+fmt: ## Format code (Go + UI)
 	@$(MAKE) fmt-go
 	@$(MAKE) fmt-ui
 
-fmt-go: ## Format Go code  
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
+	@if [ -d api ]; then \
 		if command -v gofumpt >/dev/null 2>&1; then \
 			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
+		else \
 			cd api && gofmt -w .; \
 		fi; \
 	fi
 
-fmt-ui: ## Format TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if command -v prettier >/dev/null 2>&1; then \
-			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
-		fi; \
+fmt-ui: ## Format TypeScript/JavaScript
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@if [ -d ui ] && command -v prettier >/dev/null 2>&1; then \
+		cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
 	fi
 
-lint: ## Lint all code
-	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
+lint: ## Lint Go + UI code
 	@$(MAKE) lint-go
 	@$(MAKE) lint-ui
 
 lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run; \
-		fi; \
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@if [ -d api ] && command -v golangci-lint >/dev/null 2>&1; then \
+		cd api && golangci-lint run; \
 	fi
 
 lint-ui: ## Lint TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
-			cd ui && npm run lint 2>/dev/null || true; \
-		fi; \
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@if [ -f ui/package.json ] && grep -q '"lint"' ui/package.json; then \
+		cd ui && pnpm run lint; \
 	fi
 
-check: ## Format, lint, and test code (pre-commit workflow)
-	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
+check: ## Format, lint, and test
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
-
-# Shortcuts
-r: run
-s: stop
-d: dev
-t: test
-l: logs
-c: clean
-b: build
-f: fmt
-lint-all: lint

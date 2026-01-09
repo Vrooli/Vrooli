@@ -1,7 +1,7 @@
-import type { IssueStatus } from '../data/sampleData';
-import type { CreateIssueInput } from '../types/issueCreation';
+import type { IssueStatus } from '../types/issue';
+import type { CreateIssueInput, UpdateIssueInput, CreateIssueAttachmentPayload } from '../types/issueCreation';
 import { apiJsonRequest, apiVoidRequest } from '../utils/api';
-import { buildApiUrl, type ApiIssue, type ApiStatsPayload } from '../utils/issues';
+import { buildApiUrl, type ApiIssue, type ApiStatsPayload, formatStatusLabel } from '../utils/issues';
 
 export interface RateLimitStatusPayload {
   rate_limited: boolean;
@@ -21,6 +21,87 @@ export interface ProcessorEndpointPayload {
 export interface AgentSettingsPayload {
   data: Record<string, unknown> | null;
   raw: unknown;
+}
+
+export interface IssueStatusMetadata {
+  id: IssueStatus;
+  label: string;
+}
+
+export interface RunningProcessPayload {
+  issue_id: string;
+  agent_id: string;
+  start_time: string;
+  status?: string;
+}
+
+export async function fetchIssueStatuses(baseUrl: string): Promise<IssueStatusMetadata[]> {
+  try {
+    return await apiJsonRequest<IssueStatusMetadata[]>(buildApiUrl(baseUrl, '/metadata/statuses'), {
+      selector: (payload) => {
+        const statuses = (payload as { data?: { statuses?: Array<Record<string, unknown>> } } | null | undefined)
+          ?.data?.statuses;
+        if (!Array.isArray(statuses)) {
+          return [];
+        }
+
+        return statuses
+          .map((entry) => {
+            const idRaw = typeof entry.id === 'string' ? entry.id.trim().toLowerCase() : '';
+            if (!idRaw) {
+              return null;
+            }
+            const labelRaw = typeof entry.label === 'string' ? entry.label.trim() : '';
+            return {
+              id: idRaw as IssueStatus,
+              label: labelRaw || formatStatusLabel(idRaw),
+            } satisfies IssueStatusMetadata;
+          })
+          .filter((entry): entry is IssueStatusMetadata => Boolean(entry));
+      },
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function fetchRunningProcesses(baseUrl: string): Promise<RunningProcessPayload[]> {
+  try {
+    return await apiJsonRequest<RunningProcessPayload[]>(buildApiUrl(baseUrl, '/processes/running'), {
+      selector: (payload) => {
+        const rawProcesses = (payload as { data?: { processes?: Array<Record<string, unknown>> } } | null | undefined)
+          ?.data?.processes;
+        if (!Array.isArray(rawProcesses)) {
+          return [];
+        }
+
+        return rawProcesses
+          .map((item): RunningProcessPayload | null => {
+            if (typeof item !== 'object' || item === null) {
+              return null;
+            }
+
+            const issueId = typeof item.issue_id === 'string' ? item.issue_id.trim() : '';
+            if (!issueId) {
+              return null;
+            }
+
+            const agentId = typeof item.agent_id === 'string' ? item.agent_id.trim() : 'unknown';
+            const startTime = typeof item.start_time === 'string' ? item.start_time.trim() : new Date().toISOString();
+
+            return {
+              issue_id: issueId,
+              agent_id: agentId || 'unknown',
+              start_time: startTime,
+              status: typeof item.status === 'string' ? item.status.trim() : undefined,
+            };
+          })
+          .filter((entry): entry is RunningProcessPayload => entry !== null);
+      },
+    });
+  } catch (error) {
+    return [];
+  }
 }
 
 export async function listIssues(baseUrl: string, limit: number): Promise<ApiIssue[]> {
@@ -44,6 +125,12 @@ export async function fetchIssueStats(baseUrl: string): Promise<ApiStatsPayload 
         openIssues: typeof raw.open_issues === 'number' ? raw.open_issues : undefined,
         inProgress: typeof raw.in_progress === 'number' ? raw.in_progress : undefined,
         completedToday: typeof raw.completed_today === 'number' ? raw.completed_today : undefined,
+        manualFailures: typeof raw.manual_failures === 'number' ? raw.manual_failures : undefined,
+        autoFailures: typeof raw.auto_failures === 'number' ? raw.auto_failures : undefined,
+        failureReasonsBreakdown:
+          typeof raw.failure_reasons_breakdown === 'object' && raw.failure_reasons_breakdown !== null
+            ? (raw.failure_reasons_breakdown as Record<string, number>)
+            : undefined,
       } satisfies ApiStatsPayload;
     },
   });
@@ -61,6 +148,12 @@ export async function fetchProcessorState(baseUrl: string): Promise<ProcessorEnd
       data?.issues_remaining !== undefined ? (data.issues_remaining as number | string) : null,
     raw: response,
   };
+}
+
+export async function stopRunningProcess(baseUrl: string, issueId: string): Promise<void> {
+  await apiVoidRequest(buildApiUrl(baseUrl, `/processes/running/${encodeURIComponent(issueId)}`), {
+    method: 'DELETE',
+  });
 }
 
 export async function patchProcessorState(
@@ -128,17 +221,11 @@ export async function createIssue(
     description: input.description.trim() || input.title.trim(),
     priority: input.priority.toLowerCase(),
     status: input.status.toLowerCase(),
-    app_id: input.appId.trim() || 'unknown',
+    targets: input.targets,
     tags: input.tags,
     reporter_name: input.reporterName?.trim(),
     reporter_email: input.reporterEmail?.trim(),
-    artifacts: input.attachments.map((attachment) => ({
-      name: attachment.name,
-      category: attachment.category ?? 'attachment',
-      content: attachment.content,
-      encoding: attachment.encoding,
-      content_type: attachment.contentType,
-    })),
+    artifacts: input.attachments.map(mapAttachmentPayload),
   };
 
   const response = await apiJsonRequest<Record<string, unknown>>(buildApiUrl(baseUrl, '/issues'), {
@@ -172,6 +259,76 @@ export async function updateIssueStatus(
     },
     body: JSON.stringify({ status: nextStatus }),
   });
+
+  const responseData = (response?.data ?? response) as Record<string, unknown> | undefined;
+  const issue = (responseData?.issue ?? null) as ApiIssue | null;
+
+  return {
+    issue,
+    raw: response,
+  };
+}
+
+function mapAttachmentPayload(attachment: CreateIssueAttachmentPayload) {
+  return {
+    name: attachment.name,
+    category: attachment.category ?? 'attachment',
+    content: attachment.content,
+    encoding: attachment.encoding,
+    content_type: attachment.contentType,
+  };
+}
+
+export async function updateIssue(
+  baseUrl: string,
+  input: UpdateIssueInput,
+): Promise<{ issue: ApiIssue | null; raw: unknown }> {
+  const body: Record<string, unknown> = {};
+
+  if (typeof input.title === 'string') {
+    body.title = input.title.trim();
+  }
+  if (typeof input.description === 'string') {
+    body.description = input.description.trim();
+  }
+  if (typeof input.priority === 'string') {
+    body.priority = input.priority.toLowerCase();
+  }
+  if (typeof input.status === 'string') {
+    body.status = input.status.toLowerCase();
+  }
+  if (Array.isArray(input.targets)) {
+    body.targets = input.targets;
+  }
+  if (Array.isArray(input.tags)) {
+    body.tags = input.tags;
+  }
+
+  if (typeof input.reporterName === 'string' || typeof input.reporterEmail === 'string') {
+    body.reporter = {
+      ...(typeof input.reporterName === 'string' ? { name: input.reporterName.trim() } : {}),
+      ...(typeof input.reporterEmail === 'string' ? { email: input.reporterEmail.trim() } : {}),
+    };
+  }
+
+  if (Array.isArray(input.attachments) && input.attachments.length > 0) {
+    body.artifacts = input.attachments.map(mapAttachmentPayload);
+  }
+
+  if (input.manual_review) {
+    body.manual_review = input.manual_review;
+  }
+
+  const response = await apiJsonRequest<Record<string, unknown>>(
+    buildApiUrl(baseUrl, `/issues/${encodeURIComponent(input.issueId)}`),
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    },
+  );
 
   const responseData = (response?.data ?? response) as Record<string, unknown> | undefined;
   const issue = (responseData?.issue ?? null) as ApiIssue | null;

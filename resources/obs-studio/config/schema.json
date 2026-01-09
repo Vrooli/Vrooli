@@ -37,25 +37,45 @@
       "properties": {
         "format": {
           "type": "string",
-          "enum": ["mp4", "mkv", "flv", "mov"],
+          "enum": [
+            "mp4",
+            "mkv",
+            "flv",
+            "mov"
+          ],
           "default": "mp4",
           "description": "Output file format for recordings"
         },
         "quality": {
           "type": "string",
-          "enum": ["low", "medium", "high", "ultra"],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "ultra"
+          ],
           "default": "high",
           "description": "Recording quality preset"
         },
         "fps": {
           "type": "integer",
-          "enum": [24, 30, 60, 120],
+          "enum": [
+            24,
+            30,
+            60,
+            120
+          ],
           "default": 30,
           "description": "Frames per second for recording"
         },
         "resolution": {
           "type": "string",
-          "enum": ["720p", "1080p", "1440p", "4k"],
+          "enum": [
+            "720p",
+            "1080p",
+            "1440p",
+            "4k"
+          ],
           "default": "1080p",
           "description": "Recording resolution"
         }
@@ -67,7 +87,11 @@
       "properties": {
         "service": {
           "type": "string",
-          "enum": ["twitch", "youtube", "custom"],
+          "enum": [
+            "twitch",
+            "youtube",
+            "custom"
+          ],
           "description": "Streaming service to use"
         },
         "server": {
@@ -109,7 +133,14 @@
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": ["display", "window", "camera", "image", "text", "browser"],
+                  "enum": [
+                    "display",
+                    "window",
+                    "camera",
+                    "image",
+                    "text",
+                    "browser"
+                  ],
                   "description": "Source type"
                 },
                 "name": {
@@ -121,11 +152,16 @@
                   "description": "Source-specific settings"
                 }
               },
-              "required": ["type", "name"]
+              "required": [
+                "type",
+                "name"
+              ]
             }
           }
         },
-        "required": ["name"]
+        "required": [
+          "name"
+        ]
       }
     },
     "audio": {
@@ -173,5 +209,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/obs-studio/schema.json"
 }

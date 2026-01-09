@@ -1,136 +1,103 @@
-# QR Code Generator PRD
+# Product Requirements Document (PRD)
 
-## Executive Summary
-**What**: Fun retro-style QR code generator with customization options and batch processing
-**Why**: Provides easily-shareable QR code generation for personal/business use
-**Who**: Small businesses, event organizers, developers needing quick QR generation
-**Value**: $15K - QR generation service for marketing campaigns and event management
-**Priority**: Medium - Utility application with broad appeal
+> **Scenario**: qr-code-generator
+> **Template Version**: 2.0.0
+> **Status**: Active
+> **Last Updated**: 2025-11-19
 
-## Requirements Checklist
+## 🎯 Overview
 
-### P0 Requirements (Must Have)
-- [✅] **Health Check**: API responds with service status
-  - Test: `curl -sf http://localhost:17318/health`
-  - Result: Returns healthy status with timestamp
-- [✅] **Basic QR Generation**: Generate QR code from text input
-  - Endpoint: POST /generate with text parameter
-  - Returns: QR code image or data
-  - Test: `curl -X POST http://localhost:17322/generate -d '{"text":"Test"}'`
-- [✅] **UI Access**: Web interface for QR generation
-  - URL: http://localhost:37931
-  - Features: Text input, generate button, display result
-  - Verified: Retro-style UI accessible and functional
-- [✅] **CLI Tool**: Command-line QR generation
-  - Command: `qr-generator generate "text" --output file.png`
-  - Output: PNG file with QR code
-  - Test: `qr-generator generate "Hello" --output /tmp/test.png`
-- [✅] **Batch Processing**: Generate multiple QR codes
-  - Endpoint: POST /batch with array of items
-  - Returns: Array of generated QR codes
-  - Test: `curl -X POST http://localhost:17322/batch -d '{"items":[...]}'`
-- [✅] **Customization Options**: Size, color, error correction
-  - Parameters: size, color, background, errorCorrection
-  - Applied to generated QR codes
-  - Test: `curl -X POST .../generate -d '{"size":512,"errorCorrection":"High"}'`
-- [✅] **Lifecycle Integration**: Properly managed by Vrooli system
-  - Start: `make run` or `vrooli scenario run qr-code-generator`
-  - Stop: `vrooli scenario stop qr-code-generator`
-  - Verified: Processes managed, health checks working
+**Purpose**: Provides instant, local QR code generation and batch processing with customization options. This scenario adds the fundamental capability to convert any text, URL, or data into scannable QR codes without relying on external services or third-party APIs.
 
-### P1 Requirements (Should Have)
-- [ ] **QR Art Generation**: Artistic QR codes with custom designs
-  - Integration: n8n workflow for art generation
-  - Output: Stylized QR codes
-- [ ] **QR Puzzle Generator**: Interactive QR puzzles
-  - Feature: Generate QR codes as puzzles/games
-- [ ] **Caching**: Redis cache for generated QR codes
-  - Purpose: Avoid regenerating identical codes
-  - TTL: Configurable expiration
-- [ ] **Export Formats**: Multiple output formats
-  - Formats: PNG, SVG, PDF, JPEG
-  - Selection via format parameter
+**Primary Users**:
+- Small businesses needing QR codes for marketing campaigns
+- Event organizers creating tickets and check-in codes
+- Developers requiring quick QR generation for applications
+- Marketing teams running batch campaigns
 
-### P2 Requirements (Nice to Have)
-- [ ] **Analytics**: Track QR code generation statistics
-  - Metrics: Generation count, popular texts, sizes
-- [ ] **URL Shortening**: Shorten URLs before QR encoding
-  - Integration: URL shortening service
-- [ ] **Logo Embedding**: Add logos to QR center
-  - Feature: Upload logo, embed in QR code
+**Deployment Surfaces**:
+- **API**: REST endpoints for programmatic QR generation
+- **UI**: Web interface with retro gaming aesthetic
+- **CLI**: Command-line tool for scripting and automation
 
-## Technical Specifications
+**Intelligence Amplification**: Agents can now autonomously create QR codes for sharing data, creating event materials, generating product tags, or embedding information in physical spaces. This compounds with document generation, marketing automation, and event management scenarios to enable complete end-to-end workflows.
 
-### Architecture
-- **API**: Go HTTP server (port 17318)
-- **UI**: Node.js/Express server (port 37927)
-- **CLI**: Bash wrapper calling API
-- **Resources**: n8n (workflows), Redis (caching)
+## 🎯 Operational Targets
 
-### Dependencies
-- **Core**: Go 1.19+, Node.js 18+
-- **Resources**: n8n, Redis (optional)
-- **Libraries**: QR encoding library (TBD based on implementation)
+### 🔴 P0 – Must ship for viability
 
-### API Endpoints
-- `GET /health` - Service health check
-- `POST /generate` - Generate single QR code
-- `POST /batch` - Generate multiple QR codes
-- `GET /formats` - List supported formats
-- `GET /stats` - Generation statistics (P2)
+- [x] OT-P0-001 | Health check endpoint | API responds with service status and feature availability
+- [x] OT-P0-002 | Basic QR generation | Generate QR code from text input via POST /generate
+- [x] OT-P0-003 | Web interface | Retro-themed UI accessible for manual QR generation
+- [x] OT-P0-004 | CLI tool | Command-line interface for QR generation with automatic API discovery
+- [x] OT-P0-005 | Batch processing | Generate multiple QR codes efficiently via POST /batch
+- [x] OT-P0-006 | Customization options | Support size, color, background, and error correction parameters
+- [x] OT-P0-007 | Lifecycle integration | Proper management via Vrooli system (make start/stop/test)
 
-## Success Metrics
-- **Completion**: 7/7 P0 requirements (100%)
-- **Quality**: All endpoints functional, tests passing
-- **Performance**: <100ms generation time per QR code
-- **Reliability**: Stable operation, graceful error handling
+### 🟠 P1 – Should have post-launch
 
-## Implementation Progress
+- [ ] OT-P1-001 | QR art generation | Artistic QR codes with custom designs via API/CLI orchestration (n8n workflows removed)
+- [ ] OT-P1-002 | QR puzzle generator | Interactive QR puzzles for engagement
+- [ ] OT-P1-003 | Redis caching | Cache generated QR codes to avoid regeneration
+- [ ] OT-P1-004 | Export formats | Multiple output formats (PNG, SVG, PDF, JPEG)
 
-### 2025-09-24: Complete Implementation
-- ✅ Health check working with feature status
-- ✅ API fully functional with QR generation
-- ✅ Binary naming issue fixed
-- ✅ Core QR generation implemented using go-qrcode library
-- ✅ UI connected to API with dynamic port discovery
-- ✅ CLI working with automatic port detection
-- ✅ Batch processing functional
-- ✅ Customization options (size, error correction) working
-- ⚠️ n8n workflows not loaded (resource not running - optional)
+### 🟢 P2 – Future / expansion
 
-### 2025-09-28: Final Validation
-- ✅ All P0 requirements verified and working (100%)
-- ✅ Health check responds with correct feature status
-- ✅ QR generation produces valid base64 PNG data
-- ✅ Batch processing handles multiple items successfully
-- ✅ CLI generates PNG files with correct format
-- ✅ UI accessible at port 37931 with retro theme
-- ✅ Comprehensive test suite passes
-- ✅ Lifecycle integration verified (make run/stop working)
+- [ ] OT-P2-001 | Analytics tracking | Track QR code generation statistics and usage
+- [ ] OT-P2-002 | URL shortening | Integrate URL shortening before QR encoding
+- [ ] OT-P2-003 | Logo embedding | Add custom logos to QR code center
+- [ ] OT-P2-004 | Dynamic QR codes | QR codes with editable destinations
 
-### 2025-10-03: Final Production Validation
-- ✅ All P0 requirements verified working (100% completion maintained)
-- ✅ Health check endpoint responding correctly with feature flags
-- ✅ QR generation producing valid base64 PNG data
-- ✅ Batch processing handling multiple items successfully
-- ✅ CLI tool functional with automatic port detection
-- ✅ UI accessible with retro theme at port 37931
-- ✅ Customization options (size, error correction) working
-- ✅ Test suite passing consistently
-- ✅ Documentation complete and accurate
+## 🧱 Tech Direction Snapshot
 
-**Identified Gaps (Not Blocking):**
-- ⚠️ Unit tests are placeholder only (api/main.go has no *_test.go coverage)
-- ⚠️ Legacy scenario-test.yaml should migrate to phased testing architecture
-- ℹ️ n8n workflows exist but are optional (n8n resource not required to be running)
+**API Stack**: Go 1.21+ with HTTP server, dynamic port allocation, structured logging
+**UI Stack**: Node.js/Express server with retro gaming theme (VT323 font, neon aesthetics)
+**CLI Stack**: Bash wrapper with automatic API port discovery via lsof
+**QR Library**: github.com/skip2/go-qrcode for proven, mature QR code generation
 
-**Overall Status:** Production-ready with minor technical debt. Core functionality complete and validated.
+**Data Storage**: No persistent storage required for P0; Redis optional for caching (P1)
+**Integration Strategy**: REST API for programmatic access, CLI for scripting, UI for manual use
 
-## Revenue Justification
-QR code generation services charge $10-50/month for unlimited generation with customization. This tool provides:
-- Local generation (no data sent to third parties)
-- Batch processing for marketing campaigns
-- Customization for brand consistency
-- Integration capabilities via API
+**Non-Goals**:
+- External API dependencies for QR generation
+- User authentication or access control (public service)
+- Cloud-based generation (all processing local)
+- Real-time analytics (deferred to P2)
 
-Target market: 300 small businesses × $50/month = $15K monthly revenue potential
+## 🤝 Dependencies & Launch Plan
+
+**Required Resources**: None - standalone scenario with optional resources
+
+**Optional Resources**:
+- **Automation**: Advanced orchestration handled via API/CLI pipelines (n8n removed)
+- **Redis**: Caching layer to avoid regenerating identical QR codes (P1)
+
+**Scenario Dependencies**: None - foundational capability that other scenarios can consume
+
+**Launch Risks**:
+- QR library limitations: Mitigated by using proven go-qrcode library
+- Performance at scale: Mitigated by parallel batch processing
+- Resource conflicts: Mitigated by optional resource pattern
+
+**Launch Sequencing**: Ready for immediate deployment; no upstream dependencies
+
+## 🎨 UX & Branding
+
+**Visual Style**:
+- **Color Scheme**: Dark background with neon green accents (80s arcade aesthetic)
+- **Typography**: Retro monospace (VT323 font family)
+- **Layout**: Single-page arcade cabinet style with animated elements
+- **Animations**: Subtle arcade-style effects, scanline overlays
+
+**Personality & Tone**:
+- Fun and nostalgic, energetic retro gaming vibe
+- Target feeling: Nostalgic joy mixed with utility
+- Error messages maintain playful tone while being informative
+
+**Accessibility**:
+- High contrast for visibility (neon green on black)
+- Desktop-first, mobile-compatible responsive design
+- Clear visual feedback for all interactions
+- WCAG AA color contrast compliance for critical elements
+
+**User Experience Promise**: Quick, privacy-focused QR generation that feels fun and engaging while delivering professional results

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "recommendation-engine",
@@ -19,7 +19,28 @@
       "postgres-storage",
       "qdrant-vectors",
       "machine-learning"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/recommendation-engine"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,36 +52,6 @@
       "env_var": "UI_PORT",
       "description": "Management dashboard port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user interactions, item metadata, and recommendation analytics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic similarity search and content embeddings"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Caching layer for frequently requested recommendations and API rate limiting"
     }
   },
   "lifecycle": {
@@ -75,7 +66,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${RECOMMENDATION_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -83,7 +74,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${RECOMMENDATION_UI_PORT}/health",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 3000,
           "interval": 60000
@@ -95,20 +86,26 @@
     },
     "setup": {
       "description": "Initialize Recommendation Engine",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "recommendation-engine-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "recommendation-engine"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/recommendation-engine-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "recommendation-engine",
+            "targets": [
+              "recommendation-engine"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -127,13 +124,21 @@
           "description": "Install CLI command globally"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o recommendation-engine-api .",
           "description": "Build Go recommendation API binary"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build || echo \"UI build skipped (development mode)\"",
+          "run": "cd ui && npm run build || echo \"UI build skipped (development mode)\"",
           "description": "Build management dashboard UI"
         },
         {
@@ -143,13 +148,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
+          "run": "echo '\ud83d\ude80 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start recommendation engine with API and management UI",
+      "description": "Start recommendation engine with API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -162,11 +167,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm start",
-          "description": "Start management dashboard UI",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
@@ -177,48 +182,12 @@
       ]
     },
     "test": {
-      "description": "Test recommendation engine API, CLI, and algorithms",
+      "description": "Comprehensive phased testing for recommendation-engine",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${RECOMMENDATION_API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ingest-endpoint",
-          "run": "bash test/test-ingest-endpoint.sh",
-          "description": "Test data ingestion API"
-        },
-        {
-          "name": "test-recommendation-endpoint",
-          "run": "bash test/test-recommendation-endpoint.sh",
-          "description": "Test recommendation generation API"
-        },
-        {
-          "name": "test-similarity-endpoint",
-          "run": "bash test/test-similarity-endpoint.sh",
-          "description": "Test item similarity API"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats recommendation-engine.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/recommendation-engine.bats"
-          }
-        },
-        {
-          "name": "test-algorithm-performance",
-          "run": "bash test/test-algorithm-performance.sh",
-          "description": "Validate recommendation algorithm accuracy"
+          "name": "run-phased-tests",
+          "run": "test-genie execute recommendation-engine --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -236,6 +205,38 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user interactions, item metadata, and recommendation analytics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic similarity search and content embeddings"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Caching layer for frequently requested recommendations and API rate limiting"
+      }
     }
   }
 }

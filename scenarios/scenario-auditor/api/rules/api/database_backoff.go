@@ -10,16 +10,99 @@ import (
 )
 
 /*
-Rule: Database Backoff With Jitter
-Description: Database connection retries must use exponential backoff with jitter
-Reason: Prevents thundering herd issues when services reconnect to stateful stores
+Rule: Use api-core Database Package
+Description: Database connections must use the api-core/database package for automatic retry with backoff
+Reason: Ensures consistent retry behavior with exponential backoff and jitter across all scenarios
 Category: api
 Severity: high
 Standard: service-reliability-v1
 Targets: api
 
-<test-case id="PASS-postgres-backoff-real-random-jitter" should-fail="false">
-  <description>✅ SHOULD PASS: Proper exponential backoff with REAL random jitter for PostgreSQL</description>
+<test-case id="PASS-uses-api-core-database" should-fail="false">
+  <description>✅ SHOULD PASS: Uses api-core/database.Connect() for database connection</description>
+  <input language="go">
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/vrooli/api-core/database"
+    _ "github.com/lib/pq"
+)
+
+func main() {
+    db, err := database.Connect(context.Background(), database.Config{
+        Driver: "postgres",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+}
+  </input>
+</test-case>
+
+<test-case id="PASS-uses-api-core-database-with-options" should-fail="false">
+  <description>✅ SHOULD PASS: Uses api-core/database.Connect() with custom options</description>
+  <input language="go">
+package main
+
+import (
+    "context"
+    "log"
+    "time"
+
+    "github.com/vrooli/api-core/database"
+    "github.com/vrooli/api-core/retry"
+    _ "github.com/lib/pq"
+)
+
+func main() {
+    db, err := database.Connect(context.Background(), database.Config{
+        Driver:          "postgres",
+        MaxOpenConns:    50,
+        MaxIdleConns:    10,
+        ConnMaxLifetime: 10 * time.Minute,
+        Retry: &amp;retry.Config{
+            MaxAttempts: 5,
+            BaseDelay:   time.Second,
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+}
+  </input>
+</test-case>
+
+<test-case id="FAIL-direct-sql-open" should-fail="true" path="api/main.go">
+  <description>❌ SHOULD FAIL: Uses sql.Open() directly without api-core</description>
+  <input language="go">
+package main
+
+import (
+    "database/sql"
+    "log"
+
+    _ "github.com/lib/pq"
+)
+
+func main() {
+    db, err := sql.Open("postgres", "postgres://user:pass@host:5432/db")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>api-core/database</expected-message>
+</test-case>
+
+<test-case id="FAIL-manual-backoff-loop" should-fail="true" path="api/main.go">
+  <description>❌ SHOULD FAIL: Manual backoff implementation instead of api-core</description>
   <input language="go">
 package main
 
@@ -55,264 +138,121 @@ func connectWithBackoff() error {
     return fmt.Errorf("database unavailable after retries")
 }
   </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>api-core/database</expected-message>
 </test-case>
 
-<test-case id="FAIL-postgres-backoff-deterministic-jitter" should-fail="true">
-  <description>❌ SHOULD FAIL: Deterministic "fake jitter" that doesn't prevent thundering herd</description>
+<test-case id="FAIL-sql-open-with-ping-no-apicore" should-fail="true" path="api/main.go">
+  <description>❌ SHOULD FAIL: sql.Open with Ping but no api-core import</description>
   <input language="go">
 package main
 
 import (
     "database/sql"
-    "fmt"
-    "math"
-    "time"
+    "log"
+
+    _ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
-func connectWithFakeJitter() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    maxRetries := 5
-    baseDelay := 200 * time.Millisecond
-    maxDelay := 5 * time.Second
-
-    for attempt := 0; attempt &lt; maxRetries; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-        jitterRange := float64(delay) * 0.15
-        jitter := time.Duration(jitterRange * (float64(attempt+1) / float64(maxRetries)))
-        actualDelay := delay + jitter
-        time.Sleep(actualDelay)
+func main() {
+    db, err := sql.Open("postgres", "dsn")
+    if err != nil {
+        log.Fatal(err)
     }
-
-    return fmt.Errorf("database unavailable after retries")
+    if err := db.Ping(); err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>jitter</expected-message>
+  <expected-message>api-core/database</expected-message>
 </test-case>
 
-<test-case id="FAIL-missing-jitter" should-fail="true">
-  <description>❌ SHOULD FAIL: Backoff loop without jitter</description>
+<test-case id="PASS-test-file-with-sql-open" should-fail="false" path="main_test.go">
+  <description>✅ SHOULD PASS: Test files can use sql.Open directly for mocking</description>
   <input language="go">
 package main
 
 import (
     "database/sql"
-    "fmt"
-    "math"
-    "time"
+    "testing"
+
+    _ "github.com/mattn/go-sqlite3"
 )
 
-var db *sql.DB
-
-func connectWithoutJitter() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    baseDelay := 250 * time.Millisecond
-    maxDelay := 5 * time.Second
-
-    for attempt := 0; attempt &lt; 5; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-        time.Sleep(delay)
+func TestDatabaseLogic(t *testing.T) {
+    db, err := sql.Open("sqlite3", ":memory:")
+    if err != nil {
+        t.Fatal(err)
     }
-
-    return fmt.Errorf("database unavailable")
+    defer db.Close()
 }
   </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>jitter</expected-message>
 </test-case>
 
-<test-case id="FAIL-missing-exponential-backoff" should-fail="true">
-  <description>❌ SHOULD FAIL: Retry loop without exponential growth (has fake jitter too)</description>
+<test-case id="PASS-migration-script" should-fail="false" path="migrations/001_initial.go">
+  <description>✅ SHOULD PASS: Migration scripts are exempt (single-instance execution)</description>
+  <input language="go">
+package migrations
+
+import (
+    "database/sql"
+
+    _ "github.com/lib/pq"
+)
+
+func Run(db *sql.DB) error {
+    _, err := db.Exec("CREATE TABLE users (id SERIAL PRIMARY KEY)")
+    return err
+}
+  </input>
+</test-case>
+
+<test-case id="PASS-initialization-script" should-fail="false" path="initialization/setup.go">
+  <description>✅ SHOULD PASS: Initialization scripts are exempt</description>
+  <input language="go">
+package initialization
+
+import (
+    "database/sql"
+
+    _ "github.com/lib/pq"
+)
+
+func Setup() (*sql.DB, error) {
+    return sql.Open("postgres", "dsn")
+}
+  </input>
+</test-case>
+
+<test-case id="PASS-test-helpers-file" should-fail="false" path="api/test_helpers.go">
+  <description>✅ SHOULD PASS: Test helper files are exempt</description>
   <input language="go">
 package main
 
 import (
     "database/sql"
-    "fmt"
-    "time"
+
+    _ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
-func connectWithLinearDelay() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    baseDelay := 500 * time.Millisecond
-
-    for attempt := 0; attempt &lt; 5; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        jitter := time.Duration(float64(baseDelay) * 0.1)
-        time.Sleep(baseDelay + jitter)
-    }
-
-    return fmt.Errorf("database unavailable")
+func SetupTestDB() (*sql.DB, error) {
+    return sql.Open("postgres", "postgres://test:test@localhost/test")
 }
   </input>
-  <expected-violations>2</expected-violations>
-  <expected-message>exponential</expected-message>
-</test-case>
-
-<test-case id="FAIL-missing-sleep-call" should-fail="true">
-  <description>❌ SHOULD FAIL: Retry loop without sleep between attempts</description>
-  <input language="go">
-package main
-
-import (
-    "database/sql"
-    "fmt"
-)
-
-var db *sql.DB
-
-func connectWithoutSleep() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    for attempt := 0; attempt &lt; 5; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-    }
-
-    return fmt.Errorf("database unavailable")
-}
-  </input>
-  <expected-violations>3</expected-violations>
-  <expected-message>Sleep</expected-message>
-</test-case>
-
-<test-case id="PASS-time-based-jitter-unixnano" should-fail="false">
-  <description>✅ SHOULD PASS: Time-based jitter using UnixNano() for pseudo-randomness</description>
-  <input language="go">
-package main
-
-import (
-    "database/sql"
-    "fmt"
-    "math"
-    "time"
-)
-
-var db *sql.DB
-
-func connectWithTimeJitter() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    maxRetries := 5
-    baseDelay := 200 * time.Millisecond
-    maxDelay := 5 * time.Second
-
-    for attempt := 0; attempt &lt; maxRetries; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-        jitter := time.Duration(time.Now().UnixNano() % int64(delay))
-        actualDelay := delay + jitter
-        time.Sleep(actualDelay)
-    }
-
-    return fmt.Errorf("database unavailable after retries")
-}
-  </input>
-</test-case>
-
-<test-case id="PASS-rand-intn-jitter" should-fail="false">
-  <description>✅ SHOULD PASS: Using rand.Intn() for integer-based jitter</description>
-  <input language="go">
-package main
-
-import (
-    "database/sql"
-    "fmt"
-    "math"
-    "math/rand"
-    "time"
-)
-
-var db *sql.DB
-
-func connectWithIntnJitter() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    maxRetries := 5
-    baseDelay := 200 * time.Millisecond
-    maxDelay := 5 * time.Second
-
-    for attempt := 0; attempt &lt; maxRetries; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-        jitter := time.Duration(rand.Intn(int(delay) / 4))
-        actualDelay := delay + jitter
-        time.Sleep(actualDelay)
-    }
-
-    return fmt.Errorf("database unavailable after retries")
-}
-  </input>
-</test-case>
-
-<test-case id="FAIL-zero-jitter-constant" should-fail="true">
-  <description>❌ SHOULD FAIL: Variable named 'jitter' but with zero value (fake jitter)</description>
-  <input language="go">
-package main
-
-import (
-    "database/sql"
-    "fmt"
-    "math"
-    "time"
-)
-
-var db *sql.DB
-
-func connectWithZeroJitter() error {
-    db, _ = sql.Open("postgres", "dsn")
-
-    maxRetries := 5
-    baseDelay := 200 * time.Millisecond
-    maxDelay := 5 * time.Second
-
-    for attempt := 0; attempt &lt; maxRetries; attempt++ {
-        if err := db.Ping(); err == nil {
-            return nil
-        }
-
-        delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-        jitter := 0 * time.Millisecond
-        actualDelay := delay + jitter
-        time.Sleep(actualDelay)
-    }
-
-    return fmt.Errorf("database unavailable after retries")
-}
-  </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>jitter</expected-message>
 </test-case>
 
 */
 
-// CheckDatabaseBackoff verifies retry loops use exponential backoff with jitter.
+// CheckDatabaseBackoff verifies that database connections use the api-core/database package.
+// Manual sql.Open() calls without api-core are flagged as violations.
 func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
+	// Skip exempt paths (tests, migrations, initialization scripts)
+	if isExemptPath(filePath) {
+		return nil
+	}
+
 	fset := token.NewFileSet()
 	source := html.UnescapeString(string(content))
 	file, err := parser.ParseFile(fset, filePath, source, 0)
@@ -320,43 +260,51 @@ func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
 		return nil
 	}
 
+	// Check if file imports api-core/database - if so, it's compliant
+	if hasAPICoreImport(file) {
+		return nil
+	}
+
+	// Check if file imports database/sql - if not, nothing to check
+	if !hasDatabaseSQLImport(file) {
+		return nil
+	}
+
 	var violations []Violation
 
+	// Look for sql.Open() calls
 	ast.Inspect(file, func(n ast.Node) bool {
-		loop, ok := n.(*ast.ForStmt)
+		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
 
-		analysis := analyzeBackoffLoop(loop)
-		if !analysis.hasPing {
-			return true
-		}
+		if isSQLOpenCall(call) {
+			line := fset.Position(call.Pos()).Line
+			violations = append(violations, Violation{
+				Type:        "database_backoff",
+				Severity:    "high",
+				Title:       "Direct sql.Open() Without api-core",
+				Description: "Database connections must use the api-core/database package instead of calling sql.Open() directly. The api-core package provides automatic retry with exponential backoff and jitter to prevent thundering herd issues.",
+				FilePath:    filePath,
+				LineNumber:  line,
+				Recommendation: `Replace sql.Open() with database.Connect():
 
-		line := fset.Position(loop.For).Line
-		if !analysis.hasSleep {
-			violations = append(violations, newBackoffViolation(
-				filePath,
-				line,
-				"Database Retry Missing Sleep",
-				"Database retry loops must include time.Sleep() between connection attempts. Without delays, the service will hammer the database with rapid retries, potentially overwhelming it during recovery.",
-			))
-		}
-		if !analysis.hasExponent {
-			violations = append(violations, newBackoffViolation(
-				filePath,
-				line,
-				"Database Retry Missing Exponential Backoff",
-				"Database retry loops must grow delays exponentially using math.Pow(2, attempt), bit shifts (1<<attempt), or similar. Linear delays (e.g., 1s, 2s, 3s) cause premature timeouts and don't give databases enough recovery time.",
-			))
-		}
-		if !analysis.hasJitter {
-			violations = append(violations, newBackoffViolation(
-				filePath,
-				line,
-				"Database Retry Missing Jitter",
-				"Database retry loops must add RANDOM jitter using rand.Float64(), rand.Intn(), or time.Now().UnixNano() to prevent thundering herd. Deterministic calculations like (attempt/maxRetries) will NOT prevent all service instances from reconnecting simultaneously.",
-			))
+import "github.com/vrooli/api-core/database"
+
+db, err := database.Connect(ctx, database.Config{
+    Driver: "postgres",
+})
+
+This automatically:
+- Reads POSTGRES_* environment variables from lifecycle
+- Retries with exponential backoff (10 attempts, 500ms base)
+- Adds random jitter to prevent thundering herd
+- Configures connection pooling
+
+See: packages/api-core/README.md`,
+				Standard: "service-reliability-v1",
+			})
 		}
 
 		return true
@@ -365,308 +313,95 @@ func CheckDatabaseBackoff(content []byte, filePath string) []Violation {
 	return deduplicateBackoffViolations(violations)
 }
 
-type backoffLoopInfo struct {
-	hasPing     bool
-	hasSleep    bool
-	hasExponent bool
-	hasJitter   bool
-	jitterVars  map[string]bool
-}
+// isExemptPath returns true for paths that are exempt from this rule.
+// These include test files, migrations, and initialization scripts.
+func isExemptPath(path string) bool {
+	lowerPath := strings.ToLower(path)
 
-func analyzeBackoffLoop(loop *ast.ForStmt) backoffLoopInfo {
-	info := backoffLoopInfo{
-		jitterVars: make(map[string]bool),
-	}
-
-	ast.Inspect(loop.Body, func(n ast.Node) bool {
-		switch node := n.(type) {
-		case *ast.CallExpr:
-			if isPingCall(node) {
-				info.hasPing = true
-			}
-			if isSleepCall(node) {
-				info.hasSleep = true
-				if len(node.Args) > 0 && exprHasJitter(node.Args[0], info.jitterVars) {
-					info.hasJitter = true
-				}
-			}
-			if callHasExponent(node) {
-				info.hasExponent = true
-			}
-		case *ast.AssignStmt:
-			processAssignment(node.Lhs, node.Rhs, &info)
-		case *ast.ValueSpec:
-			processValueSpec(node, &info)
-		case *ast.BinaryExpr:
-			if node.Op == token.SHL {
-				info.hasExponent = true
-			}
-			if node.Op == token.ADD {
-				if exprHasJitter(node.X, info.jitterVars) || exprHasJitter(node.Y, info.jitterVars) {
-					info.hasJitter = true
-				}
-			}
-		}
+	// Test files can use sql.Open() directly for mocking/test databases
+	if strings.HasSuffix(lowerPath, "_test.go") {
 		return true
-	})
-
-	return info
-}
-
-func processAssignment(lhs []ast.Expr, rhs []ast.Expr, info *backoffLoopInfo) {
-	if len(rhs) == 0 {
-		return
 	}
 
-	for idx, left := range lhs {
-		ident, ok := left.(*ast.Ident)
-		if !ok || ident.Name == "_" {
-			continue
-		}
-
-		expr := rhs[0]
-		if len(rhs) > 1 {
-			if idx < len(rhs) {
-				expr = rhs[idx]
-			} else {
-				continue
-			}
-		}
-
-		// IMPORTANT: Only track as jitter var if it contains actual randomness
-		// Having "jitter" in the name is NOT enough - must have rand.X() or similar
-		if exprHasRandomness(expr, info.jitterVars) {
-			info.hasJitter = true
-			info.jitterVars[ident.Name] = true
-		}
-
-		if exprHasExponent(expr, info.jitterVars) {
-			info.hasExponent = true
-		}
+	// Test helper files (test_helpers.go, test_utils.go, etc.)
+	base := lowerPath
+	if idx := strings.LastIndex(lowerPath, "/"); idx >= 0 {
+		base = lowerPath[idx+1:]
 	}
-}
-
-func processValueSpec(spec *ast.ValueSpec, info *backoffLoopInfo) {
-	for i, name := range spec.Names {
-		if name == nil || name.Name == "_" {
-			continue
-		}
-
-		if i < len(spec.Values) {
-			value := spec.Values[i]
-
-			// Only track as jitter var if it contains actual randomness
-			if exprHasRandomness(value, info.jitterVars) {
-				info.hasJitter = true
-				info.jitterVars[name.Name] = true
-			}
-
-			if exprHasExponent(value, info.jitterVars) {
-				info.hasExponent = true
-			}
-		}
+	if strings.HasPrefix(base, "test_") {
+		return true
 	}
-}
 
-func isPingCall(call *ast.CallExpr) bool {
-	switch fn := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		name := strings.ToLower(fn.Sel.Name)
-		if strings.HasPrefix(name, "ping") {
+	// Check for exempt directories (handles both absolute and relative paths)
+	exemptDirs := []string{
+		"test",
+		"migrate",
+		"migration",
+		"migrations",
+		"initialization",
+		"init",
+		"scripts",
+		"tools",
+	}
+
+	for _, dir := range exemptDirs {
+		// Match /dir/ (middle of path)
+		if strings.Contains(lowerPath, "/"+dir+"/") {
 			return true
 		}
-	case *ast.Ident:
-		if strings.Contains(strings.ToLower(fn.Name), "ping") {
+		// Match dir/ at start of relative path
+		if strings.HasPrefix(lowerPath, dir+"/") {
 			return true
 		}
 	}
+
 	return false
 }
 
-func isSleepCall(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	if strings.ToLower(sel.Sel.Name) != "sleep" {
-		return false
-	}
-	if ident, ok := sel.X.(*ast.Ident); ok {
-		return strings.ToLower(ident.Name) == "time"
-	}
-	return false
-}
-
-func callHasExponent(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	name := strings.ToLower(sel.Sel.Name)
-	if name == "pow" || name == "exp2" {
-		if ident, ok := sel.X.(*ast.Ident); ok {
-			return strings.ToLower(ident.Name) == "math"
-		}
-	}
-	for _, arg := range call.Args {
-		if exprHasExponent(arg, nil) {
-			return true
-		}
-	}
-	return false
-}
-
-func exprHasExponent(expr ast.Expr, jitterVars map[string]bool) bool {
-	switch e := expr.(type) {
-	case *ast.CallExpr:
-		if callHasExponent(e) {
-			return true
-		}
-	case *ast.BinaryExpr:
-		if e.Op == token.SHL {
-			return true
-		}
-		return exprHasExponent(e.X, jitterVars) || exprHasExponent(e.Y, jitterVars)
-	case *ast.ParenExpr:
-		return exprHasExponent(e.X, jitterVars)
-	case *ast.Ident:
-		if jitterVars != nil && jitterVars[e.Name] {
-			return false
-		}
-	}
-	return false
-}
-
-func exprHasJitter(expr ast.Expr, jitterVars map[string]bool) bool {
-	return exprHasRandomness(expr, jitterVars)
-}
-
-// exprHasRandomness checks if an expression contains actual random number generation
-// that would produce different values on each execution (non-deterministic).
-// This prevents "fake jitter" patterns like: jitter = delay * (attempt / maxRetries)
-func exprHasRandomness(expr ast.Expr, jitterVars map[string]bool) bool {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		// Check if this identifier was assigned from a random source
-		if jitterVars != nil && jitterVars[e.Name] {
-			return true
-		}
-	case *ast.CallExpr:
-		// Check for direct random function calls
-		if isRandomFunctionCall(e) {
-			return true
-		}
-		// Check for time.Now().UnixNano() which can provide randomness
-		if isTimeBasedRandomness(e) {
-			return true
-		}
-		// Recursively check arguments
-		for _, arg := range e.Args {
-			if exprHasRandomness(arg, jitterVars) {
+// hasAPICoreImport checks if the file imports github.com/vrooli/api-core/database
+func hasAPICoreImport(file *ast.File) bool {
+	for _, imp := range file.Imports {
+		if imp.Path != nil {
+			path := strings.Trim(imp.Path.Value, `"`)
+			if strings.Contains(path, "api-core/database") {
 				return true
 			}
 		}
-	case *ast.BinaryExpr:
-		// For binary expressions, check if either side contains randomness
-		// But REJECT pure deterministic calculations even if they mention "jitter"
-		return exprHasRandomness(e.X, jitterVars) || exprHasRandomness(e.Y, jitterVars)
-	case *ast.ParenExpr:
-		return exprHasRandomness(e.X, jitterVars)
-	case *ast.SelectorExpr:
-		// Check the base expression for randomness
-		return exprHasRandomness(e.X, jitterVars)
 	}
 	return false
 }
 
-// isRandomFunctionCall detects calls to random number generators:
-// - rand.Float64(), rand.Intn(), rand.Int63n()
-// - crypto/rand functions
-// - Custom RNG packages
-func isRandomFunctionCall(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-
-	// Get package name
-	var pkgName string
-	if ident, ok := sel.X.(*ast.Ident); ok {
-		pkgName = strings.ToLower(ident.Name)
-	}
-
-	// Get method name
-	methodName := strings.ToLower(sel.Sel.Name)
-
-	// Check for standard random functions
-	if strings.Contains(pkgName, "rand") {
-		// rand.Float64(), rand.Intn(), rand.Int63n(), etc.
-		if strings.HasPrefix(methodName, "float") ||
-			strings.HasPrefix(methodName, "int") ||
-			strings.HasPrefix(methodName, "uint") {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isTimeBasedRandomness detects time.Now().UnixNano() % something
-// which can provide pseudo-randomness for jitter
-func isTimeBasedRandomness(call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-
-	methodName := strings.ToLower(sel.Sel.Name)
-
-	// Check for UnixNano() call
-	if methodName == "unixnano" {
-		// Verify it's called on something that might be time.Now()
-		if innerCall, ok := sel.X.(*ast.CallExpr); ok {
-			if innerSel, ok := innerCall.Fun.(*ast.SelectorExpr); ok {
-				if ident, ok := innerSel.X.(*ast.Ident); ok {
-					return strings.ToLower(ident.Name) == "time"
-				}
+// hasDatabaseSQLImport checks if the file imports database/sql
+func hasDatabaseSQLImport(file *ast.File) bool {
+	for _, imp := range file.Imports {
+		if imp.Path != nil {
+			path := strings.Trim(imp.Path.Value, `"`)
+			if path == "database/sql" {
+				return true
 			}
 		}
 	}
-
 	return false
 }
 
-func newBackoffViolation(filePath string, line int, title, message string) Violation {
-	// Determine severity based on file path context
-	severity := "high"
-	lowerPath := strings.ToLower(filePath)
-
-	// Lower severity for non-production contexts:
-	// - Migration scripts (typically run once, single-instance)
-	// - Test files (not production code)
-	// - Initialization/setup scripts (often single-instance)
-	// - CLI tools in /scripts/ or /tools/ directories
-	if strings.Contains(lowerPath, "/migrate/") ||
-		strings.Contains(lowerPath, "/migration/") ||
-		strings.Contains(lowerPath, "_test.go") ||
-		strings.Contains(lowerPath, "/test/") ||
-		strings.Contains(lowerPath, "/scripts/") ||
-		strings.Contains(lowerPath, "/tools/") ||
-		strings.Contains(lowerPath, "/initialization/") ||
-		strings.Contains(lowerPath, "/init/") {
-		severity = "medium"
+// isSQLOpenCall checks if a call expression is sql.Open()
+func isSQLOpenCall(call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
 	}
 
-	return Violation{
-		Type:           "database_backoff",
-		Severity:       severity,
-		Title:          title,
-		Description:    message,
-		FilePath:       filePath,
-		LineNumber:     line,
-		Recommendation: "Implement exponential backoff with random jitter. Example: delay = baseDelay * 2^attempt (capped at maxDelay), then add random jitter using rand.Float64() * delay * 0.25. This prevents thundering herd when multiple instances reconnect simultaneously.",
-		Standard:       "service-reliability-v1",
+	// Check for sql.Open
+	if sel.Sel.Name != "Open" {
+		return false
 	}
+
+	ident, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+
+	return ident.Name == "sql"
 }
 
 func deduplicateBackoffViolations(items []Violation) []Violation {

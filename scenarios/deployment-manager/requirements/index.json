@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-dependency-analysis/module.json",
+    "02-dependency-swapping/module.json",
+    "03-profile-management/module.json",
+    "04-secret-management/module.json",
+    "05-pre-deployment-validation/module.json",
+    "06-deployment-orchestration/module.json",
+    "07-dependency-visualization/module.json",
+    "08-post-deployment-monitoring/module.json",
+    "09-update-rollback/module.json",
+    "10-multi-tier-orchestration/module.json",
+    "11-agent-integration/module.json",
+    "12-enterprise-compliance/module.json",
+    "13-cli-automation/module.json",
+    "14-advanced-features/module.json"
+  ],
+  "requirements": []
+}

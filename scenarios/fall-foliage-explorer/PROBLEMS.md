@@ -30,11 +30,11 @@
 - **Status**: ⚠️ Deferred - Core functionality works without workflows
 - **Note**: Ollama AI predictions handle forecasting without requiring separate n8n workflows
 
-### 2. Test infrastructure migration (Recommended)
+### 2. Test infrastructure migration
 - **Issue**: Legacy scenario-test.yaml format
-- **Impact**: Could benefit from phased testing architecture
-- **Status**: 🟡 Recommended - Current tests pass, migration would improve structure
-- **TODO**: Migrate to phased testing architecture as recommended in PHASED_TESTING_ARCHITECTURE.md
+- **Impact**: Old CLI harness lacked phased coverage reporting
+- **Status**: ✅ Completed – Phased testing runner added (2025-11-14)
+- **Notes**: `test/run-tests.sh` now orchestrates structure→performance phases and `.vrooli/service.json` points to the new suite.
 
 ## Resolved Issues (2025-10-02)
 

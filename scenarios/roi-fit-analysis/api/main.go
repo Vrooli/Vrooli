@@ -1,14 +1,16 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -50,89 +52,17 @@ type OpportunityResponse struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Service   string `json:"service"`
-}
-
 // Global database connection and ROI engine
 var db *sql.DB
 var roiEngine *ROIAnalysisEngine
 
-// Initialize database connection with exponential backoff
+// Initialize database connection
 func initDB() error {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
-	if err != nil {
-		return err
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			return nil
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	return err
 }
 
 // Helper functions for response formatting
@@ -489,28 +419,12 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(report)
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	health := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Format(time.RFC3339),
-		Service:   "roi-fit-analysis",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
-}
-
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start roi-fit-analysis
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "roi-fit-analysis",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize database connection
@@ -519,30 +433,23 @@ func main() {
 		log.Printf("Continuing with mock data...")
 	} else {
 		log.Println("🎉 Database connection pool established successfully!")
-		defer db.Close()
 
 		// Initialize ROI analysis engine
 		roiEngine = NewROIAnalysisEngine(db)
 		log.Println("ROI Analysis Engine initialized")
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
 	// Original endpoints (backward compatibility)
 	http.HandleFunc("/analyze", corsMiddleware(analyzeHandler))
 	http.HandleFunc("/opportunities", corsMiddleware(opportunitiesHandler))
 	http.HandleFunc("/reports", corsMiddleware(reportsHandler))
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/health", corsMiddleware(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// New comprehensive analysis endpoint
 	http.HandleFunc("/comprehensive-analysis", corsMiddleware(comprehensiveAnalysisHandler))
 	http.HandleFunc("/analysis/results", corsMiddleware(analysisResultsHandler))
 
-	log.Printf("ROI Fit Analysis API starting on port %s", port)
+	log.Println("ROI Fit Analysis API starting...")
 	log.Println("Endpoints available:")
 	log.Println("  POST /analyze (legacy)")
 	log.Println("  POST /comprehensive-analysis (full analysis)")
@@ -551,8 +458,16 @@ func main() {
 	log.Println("  GET  /analysis/results")
 	log.Println("  GET  /health")
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: nil, // Uses DefaultServeMux
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

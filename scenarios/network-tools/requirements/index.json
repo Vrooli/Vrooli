@@ -1,0 +1,289 @@
+{
+  "_metadata": {
+    "description": "Network operations and testing platform requirements",
+    "domain": "network-tools",
+    "last_updated": "2025-11-27"
+  },
+  "requirements": [
+    {
+      "id": "NET-HTTP-001",
+      "category": "network.http",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "HTTP client operations (GET, POST, PUT, DELETE, PATCH) with headers and authentication",
+      "description": "Comprehensive HTTP client supporting all standard methods with full header control and multiple authentication schemes (basic, bearer, OAuth2, API key).",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/http_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "HTTP handler tests with authentication"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "HTTP endpoint integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-DNS-001",
+      "category": "network.dns",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "DNS operations (lookup, reverse lookup, record queries)",
+      "description": "DNS query capabilities for A, AAAA, CNAME, MX, TXT, SOA, NS records with support for custom DNS servers and DNSSEC validation.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/dns_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "DNS handler tests with record type validation"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "DNS lookup integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-SCAN-001",
+      "category": "network.scan",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Port scanning and service detection",
+      "description": "TCP port scanning with service detection capabilities for identifying running services on target hosts.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/scan_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Port scan handler tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Port scanning integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-CONN-001",
+      "category": "network.connectivity",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Network connectivity testing",
+      "description": "TCP-based connectivity testing with ping, traceroute, and connection validation capabilities.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/connectivity_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Connectivity handler tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Connectivity testing integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-SSL-001",
+      "category": "network.ssl",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "SSL/TLS certificate validation and security analysis",
+      "description": "Certificate chain validation, expiration checking, and security analysis for SSL/TLS connections.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/ssl_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "SSL validation handler tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "SSL certificate validation integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-API-001",
+      "category": "network.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "RESTful API with comprehensive network operation endpoints",
+      "description": "Complete REST API providing all network operations through well-documented endpoints with OpenAPI specification.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-api.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API endpoint tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-CLI-001",
+      "category": "network.cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "CLI interface with full feature parity",
+      "description": "Command-line interface providing access to all network operations with comprehensive help and examples.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/cli/network-tools.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI BATS tests for all commands"
+        }
+      ]
+    },
+    {
+      "id": "NET-PERF-001",
+      "category": "network.performance",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Bandwidth and latency testing with statistical analysis",
+      "description": "Network performance testing with bandwidth measurement, latency analysis, and statistical reporting (min/max/avg/stddev).",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/connectivity_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Bandwidth and latency tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Performance testing integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-API-TEST-001",
+      "category": "network.api.testing",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Automated API testing with request/response validation",
+      "description": "Framework for automated API testing with validation of request/response schemas and assertions.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/api_test_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API testing framework tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API testing integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-SVC-DISC-001",
+      "category": "network.discovery",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Service discovery and endpoint cataloging",
+      "description": "Automatic discovery of API endpoints from OpenAPI specifications and cataloging of discovered services.",
+      "status": "completed",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cmd/server/api_discovery_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Service discovery tests"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Service discovery integration tests"
+        }
+      ]
+    },
+    {
+      "id": "NET-MON-001",
+      "category": "network.monitoring",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Performance monitoring with alerting and trending",
+      "description": "Continuous monitoring of network performance metrics with alerting capabilities and trend analysis.",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "NET-SEC-001",
+      "category": "network.security",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Security vulnerability scanning and reporting",
+      "description": "Automated security vulnerability scanning with comprehensive reporting and remediation guidance.",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "NET-LOAD-001",
+      "category": "network.load",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Load testing with concurrent connection management",
+      "description": "Load testing capabilities with concurrent connection management and performance analysis under stress.",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "NET-TOPO-001",
+      "category": "network.topology",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Network topology discovery and visualization",
+      "description": "Discovery and visualization of network topology including routing paths and network relationships.",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "NET-WS-001",
+      "category": "network.websocket",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "WebSocket support for real-time communication testing",
+      "description": "WebSocket protocol support for testing real-time communication channels.",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "NET-PROXY-001",
+      "category": "network.proxy",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Proxy and gateway configuration management",
+      "description": "Support for configuring and managing proxy servers and gateways for network operations.",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

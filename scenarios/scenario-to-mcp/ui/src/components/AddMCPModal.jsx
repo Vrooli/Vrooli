@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Cpu, Zap, Code } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../utils/apiClient';
 import './AddMCPModal.css';
 
 function AddMCPModal({ scenario, onClose, onSuccess }) {
@@ -20,7 +20,7 @@ function AddMCPModal({ scenario, onClose, onSuccess }) {
     setError(null);
 
     try {
-      const response = await axios.post('/api/v1/mcp/add', {
+      const response = await api.post('mcp/add', {
         scenario_name: scenario.name,
         agent_config: {
           template: template === 'auto-detect' ? null : template,

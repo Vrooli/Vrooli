@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -165,7 +166,7 @@ func RunErrorTests(t *testing.T, env *TestEnvironment, patterns []ErrorTestPatte
 				if !(pattern.ExpectedStatus == http.StatusBadRequest &&
 					(w.Code == http.StatusBadRequest || w.Code == http.StatusInternalServerError)) &&
 					!(pattern.ExpectedStatus == http.StatusNotFound &&
-					(w.Code == http.StatusNotFound || w.Code == http.StatusInternalServerError)) {
+						(w.Code == http.StatusNotFound || w.Code == http.StatusInternalServerError)) {
 					t.Logf("Warning: Expected status %d, got %d for %s",
 						pattern.ExpectedStatus, w.Code, pattern.Description)
 				}
@@ -181,12 +182,12 @@ func RunErrorTests(t *testing.T, env *TestEnvironment, patterns []ErrorTestPatte
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T, env *TestEnvironment) interface{}
-	Execute        func(t *testing.T, env *TestEnvironment, setupData interface{}) time.Duration
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T, env *TestEnvironment) interface{}
+	Execute     func(t *testing.T, env *TestEnvironment, setupData interface{}) time.Duration
+	Cleanup     func(setupData interface{})
 }
 
 // RunPerformanceTests executes a suite of performance tests

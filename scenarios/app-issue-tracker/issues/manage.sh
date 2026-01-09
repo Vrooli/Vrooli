@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISSUES_DIR="$SCRIPT_DIR"
 
-STATUS_FOLDERS=(open investigating in-progress fixed closed failed)
+STATUS_FOLDERS=(open active completed failed archived)
 
 # Colours
 CYAN='\033[1;36m'

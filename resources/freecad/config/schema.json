@@ -87,13 +87,24 @@
       "properties": {
         "default_format": {
           "type": "string",
-          "enum": ["STEP", "IGES", "STL", "OBJ", "DXF", "SVG"],
+          "enum": [
+            "STEP",
+            "IGES",
+            "STL",
+            "OBJ",
+            "DXF",
+            "SVG"
+          ],
           "description": "Default export format",
           "default": "STEP"
         },
         "quality": {
           "type": "string",
-          "enum": ["low", "medium", "high"],
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
           "description": "Export quality setting",
           "default": "high"
         },
@@ -138,7 +149,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ],
           "description": "Logging level",
           "default": "INFO"
         },
@@ -150,6 +166,9 @@
       }
     }
   },
-  "required": ["enabled"],
-  "additionalProperties": false
+  "required": [
+    "enabled"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/freecad/schema.json"
 }

@@ -44,7 +44,7 @@ func TestHandleClaudeCompletion(t *testing.T) {
 			},
 			expectedStatus: 200,
 			checkResponse: func(t *testing.T, body []byte) {
-				var resp map[string]interface{}
+				var resp map[string]any
 				json.Unmarshal(body, &resp)
 				if resp["content"] == nil {
 					t.Error("Expected content in response")
@@ -204,7 +204,7 @@ func TestHandleStandardsFix(t *testing.T) {
 			},
 			expectedStatus: 200,
 			checkResponse: func(t *testing.T, body []byte) {
-				var resp map[string]interface{}
+				var resp map[string]any
 				json.Unmarshal(body, &resp)
 				if resp["fixes"] == nil {
 					t.Error("Expected fixes in response")
@@ -280,7 +280,7 @@ func TestHandleVulnerabilityFix(t *testing.T) {
 			}`,
 			expectedStatus: 200,
 			checkResponse: func(t *testing.T, body []byte) {
-				var resp map[string]interface{}
+				var resp map[string]any
 				json.Unmarshal(body, &resp)
 				if resp["fixes"] == nil {
 					t.Error("Expected fixes in response")
@@ -555,7 +555,7 @@ type TestLogger struct {
 	buffer *bytes.Buffer
 }
 
-func (l *TestLogger) Printf(format string, v ...interface{}) {
+func (l *TestLogger) Printf(format string, v ...any) {
 	l.buffer.WriteString(strings.TrimSpace(format) + "\n")
 }
 

@@ -288,8 +288,22 @@ func TestDatabaseReconnection(t *testing.T) {
 
 		var resp1 Response
 		json.Unmarshal(rr1.Body.Bytes(), &resp1)
-		if resp1.Status != "error" {
-			t.Error("Expected error status when DB unavailable")
+		if resp1.Status != "success" {
+			t.Fatalf("Expected success status with fallback dataset, got %s", resp1.Status)
+		}
+
+		payload, ok := resp1.Data.(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected fallback payload map, got %T", resp1.Data)
+		}
+
+		meta, ok := payload["meta"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected meta information in fallback payload")
+		}
+
+		if fallback, _ := meta["using_fallback"].(bool); !fallback {
+			t.Error("Expected fallback indicator when DB unavailable")
 		}
 
 		// Reconnect DB

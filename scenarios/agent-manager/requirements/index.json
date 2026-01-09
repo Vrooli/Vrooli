@@ -1,0 +1,166 @@
+{
+  "_metadata": {
+    "entity": "agent-manager",
+    "generated_at": "2025-12-18T19:07:07-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-agentprofile-management/module.json",
+    "02-task-management/module.json",
+    "03-run-creation/module.json",
+    "04-run-status-tracking/module.json",
+    "05-sandbox-integration/module.json",
+    "06-runner-adapter-interface/module.json",
+    "07-runner-execution/module.json",
+    "08-event-streaming/module.json",
+    "09-diff-collection/module.json",
+    "10-basic-approval-flow/module.json",
+    "11-health-check-api/module.json",
+    "12-scope-locks/module.json",
+    "13-resource-limits/module.json",
+    "14-partial-approval/module.json",
+    "15-policy-engine/module.json",
+    "16-default-policies/module.json",
+    "17-runner-capabilities/module.json",
+    "18-real-time-events/module.json",
+    "19-run-artifacts/module.json",
+    "20-cli-interface/module.json",
+    "21-multi-phase-runs/module.json",
+    "22-cost-tracking/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-agentprofile-management",
+      "priority": "P0",
+      "title": "AgentProfile Management"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-task-management",
+      "priority": "P0",
+      "title": "Task Management"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-run-creation",
+      "priority": "P0",
+      "title": "Run Creation"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-run-status-tracking",
+      "priority": "P0",
+      "title": "Run Status Tracking"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-sandbox-integration",
+      "priority": "P0",
+      "title": "Sandbox Integration"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-runner-adapter-interface",
+      "priority": "P0",
+      "title": "Runner Adapter Interface"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-runner-execution",
+      "priority": "P0",
+      "title": "Runner Execution"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-event-streaming",
+      "priority": "P0",
+      "title": "Event Streaming"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-diff-collection",
+      "priority": "P0",
+      "title": "Diff Collection"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-basic-approval-flow",
+      "priority": "P0",
+      "title": "Basic Approval Flow"
+    },
+    {
+      "id": "MOD-P0-011",
+      "path": "11-health-check-api",
+      "priority": "P0",
+      "title": "Health Check API"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-scope-locks",
+      "priority": "P1",
+      "title": "Scope Locks"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-resource-limits",
+      "priority": "P1",
+      "title": "Resource Limits"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-partial-approval",
+      "priority": "P1",
+      "title": "Partial Approval"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-policy-engine",
+      "priority": "P1",
+      "title": "Policy Engine"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-default-policies",
+      "priority": "P1",
+      "title": "Default Policies"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-runner-capabilities",
+      "priority": "P1",
+      "title": "Runner Capabilities"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-real-time-events",
+      "priority": "P1",
+      "title": "Real-time Events"
+    },
+    {
+      "id": "MOD-P1-019",
+      "path": "19-run-artifacts",
+      "priority": "P1",
+      "title": "Run Artifacts"
+    },
+    {
+      "id": "MOD-P1-020",
+      "path": "20-cli-interface",
+      "priority": "P1",
+      "title": "CLI Interface"
+    },
+    {
+      "id": "MOD-P2-021",
+      "path": "21-multi-phase-runs",
+      "priority": "P2",
+      "title": "Multi-phase Runs"
+    },
+    {
+      "id": "MOD-P2-022",
+      "path": "22-cost-tracking",
+      "priority": "P2",
+      "title": "Cost Tracking"
+    }
+  ]
+}

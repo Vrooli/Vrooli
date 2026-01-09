@@ -26,10 +26,10 @@ func TestHandleAPITestComprehensive(t *testing.T) {
 				"base_url": "https://httpbin.org",
 				"test_suite": []map[string]interface{}{
 					{
-						"endpoint":     "/get",
-						"method":       "GET",
-						"max_retries":  3,
-						"retry_delay":  100,
+						"endpoint":    "/get",
+						"method":      "GET",
+						"max_retries": 3,
+						"retry_delay": 100,
 					},
 				},
 			},

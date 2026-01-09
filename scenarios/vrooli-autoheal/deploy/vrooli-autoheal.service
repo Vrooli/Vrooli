@@ -1,0 +1,72 @@
+# Vrooli Autoheal Systemd Service
+# Version-controlled template for Linux deployments
+#
+# Installation (System Service - requires root):
+#   sudo cp vrooli-autoheal.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now vrooli-autoheal
+#
+# Installation (User Service):
+#   mkdir -p ~/.config/systemd/user
+#   cp vrooli-autoheal.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now vrooli-autoheal
+#   # Enable lingering for boot persistence:
+#   sudo loginctl enable-linger $USER
+#
+# IMPORTANT: Build the Go binary before installation:
+#   cd $VROOLI_ROOT/scenarios/vrooli-autoheal/cli/loop
+#   go build -o ../vrooli-autoheal-loop .
+#
+# NOTE: Update paths below before installation!
+
+[Unit]
+Description=Vrooli Autoheal - Self-healing infrastructure supervisor
+Documentation=https://github.com/Vrooli/Vrooli
+
+# Wait for network and Docker to be ready before starting
+# This prevents race conditions with docker-dependent scenarios
+After=network-online.target docker.service docker.socket
+Wants=network-online.target
+
+# Optional dependency on Docker - don't fail if Docker isn't installed
+Wants=docker.service
+
+# Rate limiting to prevent crash loops
+# Max 5 restarts in 5 minutes
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+
+# UPDATE THIS PATH to match your Vrooli installation
+# Uses the Go binary for cross-platform consistency
+ExecStart=/home/USERNAME/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop
+
+# Restart configuration
+Restart=always
+RestartSec=15
+
+# UPDATE THIS to your username (for user service, remove this line)
+User=USERNAME
+
+# Environment configuration
+# Note: API_PORT is auto-detected from vrooli process registry
+Environment=VROOLI_LIFECYCLE_MANAGED=true
+Environment=HOME=/home/USERNAME
+Environment=VROOLI_ROOT=/home/USERNAME/Vrooli
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/USERNAME/.vrooli/bin
+
+# Working directory
+WorkingDirectory=/home/USERNAME/Vrooli/scenarios/vrooli-autoheal
+
+# Graceful shutdown timeout
+TimeoutStopSec=30
+
+# Resource limits (optional, uncomment if needed)
+# MemoryMax=512M
+# CPUQuota=50%
+
+[Install]
+WantedBy=default.target

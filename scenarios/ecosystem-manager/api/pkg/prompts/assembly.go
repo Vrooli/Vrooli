@@ -22,6 +22,7 @@ import (
 type Assembler struct {
 	PromptsConfig tasks.PromptsConfig
 	PromptsDir    string
+	ProjectRoot   string
 }
 
 // SectionDetail captures metadata for each assembled prompt section.
@@ -41,15 +42,16 @@ type PromptAssembly struct {
 }
 
 // NewAssembler creates a new prompt assembler
-func NewAssembler(promptsDir string) (*Assembler, error) {
+func NewAssembler(promptsDir string, projectRoot string) (*Assembler, error) {
 	assembler := &Assembler{
-		PromptsDir: promptsDir,
+		PromptsDir:  promptsDir,
+		ProjectRoot: projectRoot,
 	}
 
 	// Load prompts configuration
 	configFile := filepath.Join(promptsDir, "sections.yaml")
 	if err := assembler.loadConfig(configFile); err != nil {
-		return nil, fmt.Errorf("failed to load prompts config: %v", err)
+		return nil, fmt.Errorf("failed to load prompts config: %w", err)
 	}
 
 	return assembler, nil
@@ -85,6 +87,15 @@ func (a *Assembler) GeneratePromptSections(task tasks.TaskItem) ([]string, error
 	operationConfig, err := a.SelectPromptAssembly(task.Type, task.Operation)
 	if err != nil {
 		return nil, err
+	}
+	return a.generatePromptSectionsForConfig(task, operationConfig)
+}
+
+func (a *Assembler) generatePromptSectionsForConfig(task tasks.TaskItem, operationConfig tasks.OperationConfig) ([]string, error) {
+	if templatePath := strings.TrimSpace(operationConfig.Template); templatePath != "" {
+		normalized := normalizeTemplatePath(templatePath)
+		log.Printf("Task %s (%s-%s): Using dedicated template %s", task.ID, task.Type, task.Operation, normalized)
+		return []string{normalized}, nil
 	}
 
 	// Helper function to determine if a section should be skipped
@@ -145,9 +156,9 @@ func (a *Assembler) GeneratePromptSections(task tasks.TaskItem) ([]string, error
 func (a *Assembler) isCriticalInclude(includePath string) bool {
 	// Critical includes are core sections that all operations need
 	criticalPaths := []string{
-		"shared/core/",
-		"shared/methodologies/",
-		"shared/operational/",
+		"core/",
+		"methodologies/",
+		"operational/",
 		"patterns/prd-essentials",
 	}
 
@@ -293,7 +304,7 @@ func (a *Assembler) AssemblePrompt(sections []string) (PromptAssembly, error) {
 		// Read the file content
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return PromptAssembly{}, fmt.Errorf("failed to read section %s: %v", section, err)
+			return PromptAssembly{}, fmt.Errorf("failed to read section %s: %w", section, err)
 		}
 
 		// Resolve any {{INCLUDE:}} directives in the content
@@ -370,14 +381,27 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (PromptAssembly, 
 		log.Printf("Warning: Failed to reload config, using cached version: %v", err)
 	}
 
-	sections, err := a.GeneratePromptSections(task)
+	operationConfig, err := a.SelectPromptAssembly(task.Type, task.Operation)
 	if err != nil {
-		return PromptAssembly{}, fmt.Errorf("failed to generate sections: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to select operation config: %w", err)
+	}
+
+	if strings.TrimSpace(operationConfig.Template) != "" {
+		assembly, err := a.assemblePromptFromTemplate(operationConfig.Template, task)
+		if err != nil {
+			return PromptAssembly{}, fmt.Errorf("failed to assemble template prompt: %w", err)
+		}
+		return assembly, nil
+	}
+
+	sections, err := a.generatePromptSectionsForConfig(task, operationConfig)
+	if err != nil {
+		return PromptAssembly{}, fmt.Errorf("failed to generate sections: %w", err)
 	}
 
 	assembly, err := a.AssemblePrompt(sections)
 	if err != nil {
-		return PromptAssembly{}, fmt.Errorf("failed to assemble prompt: %v", err)
+		return PromptAssembly{}, fmt.Errorf("failed to assemble prompt: %w", err)
 	}
 
 	// Add task-specific context to the prompt
@@ -417,4 +441,105 @@ func (a *Assembler) GetOperationNames() []string {
 // GetPromptsConfig returns the current prompts configuration
 func (a *Assembler) GetPromptsConfig() tasks.PromptsConfig {
 	return a.PromptsConfig
+}
+
+func normalizeTemplatePath(templatePath string) string {
+	if templatePath == "" {
+		return templatePath
+	}
+	path := strings.TrimSpace(templatePath)
+	if !strings.HasSuffix(path, ".md") {
+		path += ".md"
+	}
+	return filepath.ToSlash(path)
+}
+
+func (a *Assembler) assemblePromptFromTemplate(templatePath string, task tasks.TaskItem) (PromptAssembly, error) {
+	relative := normalizeTemplatePath(templatePath)
+	filePath := relative
+	if !filepath.IsAbs(filePath) {
+		filePath = filepath.Join(a.PromptsDir, filePath)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return PromptAssembly{}, fmt.Errorf("failed to read template %s: %w", filePath, err)
+	}
+
+	rendered := a.applyTemplatePlaceholders(string(content), task)
+	title := strings.TrimSuffix(filepath.Base(relative), ".md")
+	section := SectionDetail{
+		Index:        0,
+		Key:          relative,
+		Title:        title,
+		RelativePath: relative,
+		Content:      rendered,
+	}
+
+	return PromptAssembly{
+		Prompt:   rendered,
+		Sections: []SectionDetail{section},
+	}, nil
+}
+
+func (a *Assembler) applyTemplatePlaceholders(template string, task tasks.TaskItem) string {
+	replacements := map[string]string{
+		"{{TASK_ID}}":            placeholderValue(task.ID, "unknown-task"),
+		"{{TITLE}}":              placeholderValue(task.Title, "Untitled Task"),
+		"{{TYPE}}":               placeholderValue(task.Type, "unknown"),
+		"{{OPERATION}}":          placeholderValue(task.Operation, "unknown"),
+		"{{PRIORITY}}":           placeholderValue(task.Priority, "unspecified"),
+		"{{CATEGORY}}":           placeholderValue(task.Category, "uncategorized"),
+		"{{STATUS}}":             placeholderValue(task.Status, "pending"),
+		"{{CURRENT_PHASE}}":      placeholderValue(task.CurrentPhase, "not-started"),
+		"{{URGENCY}}":            placeholderValue(task.Urgency, "unspecified"),
+		"{{EFFORT}}":             placeholderValue(task.EffortEstimate, "unknown"),
+		"{{TARGET}}":             placeholderValue(task.Target, "(none)"),
+		"{{TARGETS}}":            joinOrPlaceholder(task.Targets, "(none)"),
+		"{{DEPENDENCIES}}":       joinOrPlaceholder(task.Dependencies, "(none)"),
+		"{{BLOCKS}}":             joinOrPlaceholder(task.Blocks, "(none)"),
+		"{{RELATED_SCENARIOS}}":  joinOrPlaceholder(task.RelatedScenarios, "(none)"),
+		"{{RELATED_RESOURCES}}":  joinOrPlaceholder(task.RelatedResources, "(none)"),
+		"{{TAGS}}":               joinOrPlaceholder(task.Tags, "(none)"),
+		"{{NOTES}}":              placeholderValue(task.Notes, "No notes provided."),
+		"{{CREATED_AT}}":         placeholderValue(task.CreatedAt, ""),
+		"{{UPDATED_AT}}":         placeholderValue(task.UpdatedAt, ""),
+		"{{STARTED_AT}}":         placeholderValue(task.StartedAt, ""),
+		"{{COMPLETED_AT}}":       placeholderValue(task.CompletedAt, ""),
+		"{{CREATED_BY}}":         placeholderValue(task.CreatedBy, ""),
+		"{{LATEST_OUTPUT_PATH}}": placeholderValue(task.LatestOutputPath, "(not available)"),
+	}
+
+	projectRoot := placeholderValue(a.ProjectRoot, "")
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+	replacements["{{PROJECT_PATH}}"] = projectRoot
+
+	scenarioPath := ""
+	if projectRoot != "" && projectRoot != "." && strings.TrimSpace(task.Target) != "" {
+		scenarioPath = filepath.Join(projectRoot, "scenarios", task.Target)
+	}
+	replacements["{{SCENARIO_PATH}}"] = scenarioPath
+
+	rendered := template
+	for placeholder, value := range replacements {
+		rendered = strings.ReplaceAll(rendered, placeholder, value)
+	}
+
+	return rendered
+}
+
+func placeholderValue(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func joinOrPlaceholder(values []string, fallback string) string {
+	if len(values) == 0 {
+		return fallback
+	}
+	return strings.Join(values, ", ")
 }

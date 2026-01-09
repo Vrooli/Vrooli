@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,10 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 var db *sql.DB
@@ -24,24 +29,40 @@ type Response struct {
 }
 
 type Region struct {
-	ID               int     `json:"id"`
-	Name             string  `json:"name"`
-	State            string  `json:"state"`
-	Country          string  `json:"country"`
-	Latitude         float64 `json:"latitude"`
-	Longitude        float64 `json:"longitude"`
-	ElevationMeters  *int    `json:"elevation_meters,omitempty"`
-	TypicalPeakWeek  *int    `json:"typical_peak_week,omitempty"`
+	ID              int     `json:"id"`
+	Name            string  `json:"name"`
+	State           string  `json:"state"`
+	Country         string  `json:"country"`
+	Latitude        float64 `json:"latitude"`
+	Longitude       float64 `json:"longitude"`
+	ElevationMeters *int    `json:"elevation_meters,omitempty"`
+	TypicalPeakWeek *int    `json:"typical_peak_week,omitempty"`
+	DataSource      string  `json:"data_source,omitempty"`
+}
+
+type ResponseMeta struct {
+	Source            string `json:"source"`
+	SourceDescription string `json:"source_description,omitempty"`
+	RetrievedAt       string `json:"retrieved_at"`
+	RowCount          int    `json:"row_count"`
+	UsingFallback     bool   `json:"using_fallback"`
+}
+
+type RegionsPayload struct {
+	Regions []Region     `json:"regions"`
+	Meta    ResponseMeta `json:"meta"`
 }
 
 type FoliageData struct {
-	RegionID         int     `json:"region_id"`
-	ObservationDate  string  `json:"observation_date"`
-	FoliagePercent   int     `json:"foliage_percentage"`
-	ColorIntensity   int     `json:"color_intensity"`
-	PeakStatus       string  `json:"peak_status"`
-	PredictedPeak    string  `json:"predicted_peak,omitempty"`
-	ConfidenceScore  float64 `json:"confidence_score,omitempty"`
+	RegionID          int     `json:"region_id"`
+	ObservationDate   string  `json:"observation_date"`
+	FoliagePercent    int     `json:"foliage_percentage"`
+	ColorIntensity    int     `json:"color_intensity"`
+	PeakStatus        string  `json:"peak_status"`
+	PredictedPeak     string  `json:"predicted_peak,omitempty"`
+	ConfidenceScore   float64 `json:"confidence_score,omitempty"`
+	DataSource        string  `json:"data_source,omitempty"`
+	SourceDescription string  `json:"source_description,omitempty"`
 }
 
 type UserReport struct {
@@ -54,72 +75,42 @@ type UserReport struct {
 }
 
 type TripPlan struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	StartDate string    `json:"start_date"`
-	EndDate   string    `json:"end_date"`
-	Regions   []int     `json:"regions"`
-	Notes     string    `json:"notes,omitempty"`
-	CreatedAt string    `json:"created_at,omitempty"`
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	Regions   []int  `json:"regions"`
+	Notes     string `json:"notes,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 func initDB() error {
-	dbHost := getEnv("POSTGRES_HOST", "localhost")
-	dbPort := getEnv("POSTGRES_PORT", "5433")
-	dbUser := getEnv("POSTGRES_USER", "vrooli")
-	dbPass := getEnv("POSTGRES_PASSWORD", "vrooli")
-	dbName := getEnv("POSTGRES_DB", "vrooli")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPass, dbName)
-
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Test connection
-	if err = db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
 	log.Println("Database connection established")
 	return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connection
-	dbStatus := "healthy"
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			dbStatus = "unhealthy"
-		}
-	} else {
-		dbStatus = "not_connected"
-	}
-
-	response := Response{
-		Status:  "healthy",
-		Message: "Fall Foliage Explorer API is running",
-		Data: map[string]interface{}{
-			"database": dbStatus,
-			"version":  "1.0.0",
-			"uptime":   time.Now().Unix(),
-		},
-	}
-	json.NewEncoder(w).Encode(response)
 }
 
 func regionsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if db == nil {
+		regions := sampleRegionsDataset()
+		payload := RegionsPayload{
+			Regions: regions,
+			Meta:    buildRegionsMeta(len(regions), true, "sample_dataset"),
+		}
 		json.NewEncoder(w).Encode(Response{
-			Status: "error",
-			Error:  "Database not connected",
+			Status:  "success",
+			Message: "Database not connected. Serving packaged sample dataset.",
+			Data:    payload,
 		})
 		return
 	}
@@ -130,10 +121,16 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY name
 	`)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Failed to query regions: %v", err)
+		regions := sampleRegionsDataset()
+		payload := RegionsPayload{
+			Regions: regions,
+			Meta:    buildRegionsMeta(len(regions), true, "sample_dataset"),
+		}
 		json.NewEncoder(w).Encode(Response{
-			Status: "error",
-			Error:  fmt.Sprintf("Failed to query regions: %v", err),
+			Status:  "success",
+			Message: fmt.Sprintf("Returning sample dataset because database query failed: %v", err),
+			Data:    payload,
 		})
 		return
 	}
@@ -156,12 +153,18 @@ func regionsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning region: %v", err)
 			continue
 		}
+		region.DataSource = "postgres.regions"
 		regions = append(regions, region)
+	}
+
+	payload := RegionsPayload{
+		Regions: regions,
+		Meta:    buildRegionsMeta(len(regions), false, "postgres.regions"),
 	}
 
 	json.NewEncoder(w).Encode(Response{
 		Status: "success",
-		Data:   regions,
+		Data:   payload,
 	})
 }
 
@@ -191,13 +194,15 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 	if db == nil {
 		// Return mock data if database not connected
 		foliageData := FoliageData{
-			RegionID:        rid,
-			ObservationDate: time.Now().Format("2006-01-02"),
-			FoliagePercent:  75,
-			ColorIntensity:  7,
-			PeakStatus:      "near_peak",
-			PredictedPeak:   "2025-10-15",
-			ConfidenceScore: 0.85,
+			RegionID:          rid,
+			ObservationDate:   time.Now().Format("2006-01-02"),
+			FoliagePercent:    75,
+			ColorIntensity:    7,
+			PeakStatus:        "near_peak",
+			PredictedPeak:     "2025-10-15",
+			ConfidenceScore:   0.85,
+			DataSource:        "sample_dataset",
+			SourceDescription: "Static sample foliage reading used when the live database is unavailable.",
 		}
 		json.NewEncoder(w).Encode(Response{
 			Status: "success",
@@ -230,11 +235,13 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 	if err == sql.ErrNoRows {
 		// No observations, return default
 		foliage = FoliageData{
-			RegionID:        rid,
-			ObservationDate: time.Now().Format("2006-01-02"),
-			FoliagePercent:  0,
-			ColorIntensity:  0,
-			PeakStatus:      "not_started",
+			RegionID:          rid,
+			ObservationDate:   time.Now().Format("2006-01-02"),
+			FoliagePercent:    0,
+			ColorIntensity:    0,
+			PeakStatus:        "not_started",
+			DataSource:        "postgres.foliage_observations",
+			SourceDescription: "No observations recorded yet; providing synthesized baseline values.",
 		}
 	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -265,10 +272,49 @@ func foliageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if foliage.DataSource == "" {
+		foliage.DataSource = "postgres.foliage_observations"
+		foliage.SourceDescription = "Live foliage observation retrieved from the database."
+	}
+
 	json.NewEncoder(w).Encode(Response{
 		Status: "success",
 		Data:   foliage,
 	})
+}
+
+func sampleRegionsDataset() []Region {
+	return []Region{
+		{ID: 1, Name: "White Mountains", State: "New Hampshire", Country: "USA", Latitude: 44.2700, Longitude: -71.3034, ElevationMeters: intPtr(1917), TypicalPeakWeek: intPtr(40), DataSource: "sample_dataset"},
+		{ID: 2, Name: "Green Mountains", State: "Vermont", Country: "USA", Latitude: 43.9207, Longitude: -72.8986, ElevationMeters: intPtr(1340), TypicalPeakWeek: intPtr(40), DataSource: "sample_dataset"},
+		{ID: 3, Name: "Adirondacks", State: "New York", Country: "USA", Latitude: 44.1127, Longitude: -74.0524, ElevationMeters: intPtr(1629), TypicalPeakWeek: intPtr(40), DataSource: "sample_dataset"},
+		{ID: 4, Name: "Great Smoky Mountains", State: "Tennessee", Country: "USA", Latitude: 35.6532, Longitude: -83.5070, ElevationMeters: intPtr(2025), TypicalPeakWeek: intPtr(42), DataSource: "sample_dataset"},
+		{ID: 5, Name: "Blue Ridge Parkway", State: "Virginia", Country: "USA", Latitude: 37.5615, Longitude: -79.3553, ElevationMeters: intPtr(1200), TypicalPeakWeek: intPtr(42), DataSource: "sample_dataset"},
+		{ID: 6, Name: "Berkshires", State: "Massachusetts", Country: "USA", Latitude: 42.3604, Longitude: -73.2290, ElevationMeters: intPtr(1064), TypicalPeakWeek: intPtr(41), DataSource: "sample_dataset"},
+		{ID: 7, Name: "Pocono Mountains", State: "Pennsylvania", Country: "USA", Latitude: 41.1247, Longitude: -75.3821, ElevationMeters: intPtr(748), TypicalPeakWeek: intPtr(41), DataSource: "sample_dataset"},
+		{ID: 8, Name: "Shenandoah Valley", State: "Virginia", Country: "USA", Latitude: 38.4833, Longitude: -78.8500, ElevationMeters: intPtr(1234), TypicalPeakWeek: intPtr(42), DataSource: "sample_dataset"},
+		{ID: 9, Name: "Finger Lakes", State: "New York", Country: "USA", Latitude: 42.6500, Longitude: -76.8833, ElevationMeters: intPtr(382), TypicalPeakWeek: intPtr(41), DataSource: "sample_dataset"},
+		{ID: 10, Name: "Upper Peninsula", State: "Michigan", Country: "USA", Latitude: 46.5000, Longitude: -87.5000, ElevationMeters: intPtr(603), TypicalPeakWeek: intPtr(39), DataSource: "sample_dataset"},
+	}
+}
+
+func buildRegionsMeta(count int, fallback bool, source string) ResponseMeta {
+	description := "Live data from the Fall Foliage Explorer regions table (PostgreSQL)."
+	if fallback {
+		description = "Packaged sample dataset used when the live database is unavailable."
+	}
+
+	return ResponseMeta{
+		Source:            source,
+		SourceDescription: description,
+		RetrievedAt:       time.Now().UTC().Format(time.RFC3339),
+		RowCount:          count,
+		UsingFallback:     fallback,
+	}
+}
+
+func intPtr(value int) *int {
+	return &value
 }
 
 func predictHandler(w http.ResponseWriter, r *http.Request) {
@@ -504,12 +550,12 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Response{
 			Status: "success",
 			Data: map[string]interface{}{
-				"region_id":         rid,
-				"date":              date,
-				"temperature_high":  18.5,
-				"temperature_low":   8.2,
-				"precipitation_mm":  2.5,
-				"humidity_percent":  65,
+				"region_id":        rid,
+				"date":             date,
+				"temperature_high": 18.5,
+				"temperature_low":  8.2,
+				"precipitation_mm": 2.5,
+				"humidity_percent": 65,
 			},
 		})
 		return
@@ -875,16 +921,11 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start fall-foliage-explorer
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "fall-foliage-explorer",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize database connection
@@ -893,20 +934,29 @@ func main() {
 		log.Println("Running in mock data mode")
 	}
 
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
-
 	// Register routes
-	http.HandleFunc("/health", enableCORS(healthHandler))
-	http.HandleFunc("/api/regions", enableCORS(regionsHandler))
-	http.HandleFunc("/api/foliage", enableCORS(foliageHandler))
-	http.HandleFunc("/api/predict", enableCORS(predictHandler))
-	http.HandleFunc("/api/weather", enableCORS(weatherHandler))
-	http.HandleFunc("/api/reports", enableCORS(reportsHandler))
-	http.HandleFunc("/api/trips", enableCORS(tripsHandler))
+	mux := http.NewServeMux()
+	// Health endpoint - using standardized api-core/health
+	stdHealthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
+	mux.HandleFunc("/health", enableCORS(stdHealthHandler))
+	mux.HandleFunc("/api/regions", enableCORS(regionsHandler))
+	mux.HandleFunc("/api/foliage", enableCORS(foliageHandler))
+	mux.HandleFunc("/api/predict", enableCORS(predictHandler))
+	mux.HandleFunc("/api/weather", enableCORS(weatherHandler))
+	mux.HandleFunc("/api/reports", enableCORS(reportsHandler))
+	mux.HandleFunc("/api/trips", enableCORS(tripsHandler))
 
-	log.Printf("Fall Foliage Explorer API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: mux,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

@@ -1,0 +1,77 @@
+{
+  "module": "platform-detection",
+  "description": "Cross-platform detection and capability discovery",
+  "prd_refs": [
+    "OT-P0-003"
+  ],
+  "requirements": [
+    {
+      "id": "PLAT-DETECT-001",
+      "title": "Detect platform type",
+      "description": "detectPlatform() returns linux, windows, macos, or other",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PLAT-DETECT-002",
+      "title": "Detect platform capabilities",
+      "description": "getPlatformCapabilities() returns struct with supportsRdp, supportsSystemd, supportsLaunchd, hasDocker, isHeadlessServer",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PLAT-DETECT-003",
+      "title": "Capability abstraction layer",
+      "description": "All platform-specific code uses detectPlatform/getPlatformCapabilities instead of direct process.platform checks",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PLAT-DETECT-004",
+      "title": "WSL detection",
+      "description": "Correctly identify WSL environment as Linux with Windows-like characteristics",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

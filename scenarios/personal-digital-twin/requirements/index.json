@@ -1,0 +1,327 @@
+{
+  "scenario": "personal-digital-twin",
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "PDT-FUNC-001",
+      "title": "Persona Management",
+      "description": "Create, read, update, and delete digital twin personas",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-PERSONA-CREATE",
+          "title": "Create new persona",
+          "description": "API endpoint and CLI command to create digital twin with name, traits, and metadata",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-PERSONA-UPDATE",
+          "title": "Update persona attributes",
+          "description": "Modify persona traits, preferences, and configuration",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-PERSONA-DELETE",
+          "title": "Delete persona",
+          "description": "Remove persona and associated knowledge base",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-PERSONA-LIST",
+          "title": "List all personas",
+          "description": "Retrieve all personas for a user with metadata",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-002",
+      "title": "Data Ingestion",
+      "description": "Process and ingest data into persona knowledge base",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-INGEST-TEXT",
+          "title": "Ingest text data",
+          "description": "Process raw text and add to persona knowledge",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-INGEST-DOCUMENT",
+          "title": "Ingest document files",
+          "description": "Parse and extract knowledge from PDF, DOCX, TXT files",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-INGEST-CONVERSATION",
+          "title": "Ingest conversation history",
+          "description": "Learn from past chat conversations",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-003",
+      "title": "Knowledge Retrieval",
+      "description": "Semantic search and knowledge retrieval from persona data",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-KNOWLEDGE-SEARCH",
+          "title": "Semantic knowledge search",
+          "description": "Vector-based search using Qdrant for relevant context",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-KNOWLEDGE-RETRIEVE",
+          "title": "Retrieve knowledge items",
+          "description": "Fetch specific knowledge entries by ID or filters",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-004",
+      "title": "Chat Interface",
+      "description": "Conversational interaction with digital twin personas",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-CHAT-MESSAGE",
+          "title": "Send chat message",
+          "description": "Send message to persona and receive AI-generated response",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-CHAT-CONTEXT",
+          "title": "Context-aware responses",
+          "description": "Retrieve relevant knowledge and incorporate in responses",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-CHAT-STREAMING",
+          "title": "Streaming responses",
+          "description": "Stream AI responses for better UX",
+          "validation": [
+            "manual"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-005",
+      "title": "Personality Modeling",
+      "description": "Capture and apply personality traits in interactions",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "status": "pending",
+      "validation": [
+        "test",
+        "manual"
+      ],
+      "children": [
+        {
+          "id": "PDT-PERSONALITY-TRAITS",
+          "title": "Define personality traits",
+          "description": "Configure communication style, interests, expertise",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-PERSONALITY-APPLY",
+          "title": "Apply traits to responses",
+          "description": "Generate responses matching persona characteristics",
+          "validation": [
+            "manual"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-006",
+      "title": "Multi-Persona Support",
+      "description": "Manage multiple digital twins per user",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-MULTI-CREATE",
+          "title": "Create multiple personas",
+          "description": "Support multiple personas with isolation",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-MULTI-SWITCH",
+          "title": "Switch between personas",
+          "description": "Select active persona for chat and management",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-007",
+      "title": "RESTful API",
+      "description": "Complete HTTP API for all persona operations",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-API-PERSONAS",
+          "title": "Persona CRUD endpoints",
+          "description": "HTTP endpoints for persona management",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-API-INGEST",
+          "title": "Data ingestion endpoints",
+          "description": "HTTP endpoints for data upload and processing",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-API-CHAT",
+          "title": "Chat endpoints",
+          "description": "HTTP endpoints for conversation",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-API-KNOWLEDGE",
+          "title": "Knowledge endpoints",
+          "description": "HTTP endpoints for knowledge retrieval",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "PDT-FUNC-008",
+      "title": "CLI Interface",
+      "description": "Command-line interface for persona operations",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "status": "pending",
+      "validation": [
+        "test"
+      ],
+      "children": [
+        {
+          "id": "PDT-CLI-CREATE",
+          "title": "CLI create command",
+          "description": "Create persona via command line",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-CLI-INGEST",
+          "title": "CLI ingest command",
+          "description": "Ingest data via command line",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-CLI-CHAT",
+          "title": "CLI chat command",
+          "description": "Chat with persona via command line",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        },
+        {
+          "id": "PDT-CLI-EXPORT",
+          "title": "CLI export command",
+          "description": "Export persona data via command line",
+          "validation": [
+            "test"
+          ],
+          "status": "pending"
+        }
+      ]
+    }
+  ]
+}

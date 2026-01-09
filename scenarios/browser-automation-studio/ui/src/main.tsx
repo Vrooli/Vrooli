@@ -1,59 +1,30 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Toaster } from 'react-hot-toast';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
-import App from './App';
-import './index.css';
+import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
+import { mountApp } from './renderApp';
+import { logger } from './utils/logger';
 
-declare global {
-  interface Window {
-    __browserAutomationStudioBridgeInitialized?: boolean;
-  }
+// Initialize iframe communication bridge when embedded within App Monitor
+if (window.top !== window.self) {
+  initIframeBridgeChild({
+    appId: 'browser-automation-studio',
+  });
 }
 
-if (typeof window !== 'undefined' && window.parent !== window && !window.__browserAutomationStudioBridgeInitialized) {
-  let parentOrigin: string | undefined;
-  try {
-    if (document.referrer) {
-      parentOrigin = new URL(document.referrer).origin;
-    }
-  } catch (error) {
-    console.warn('[BrowserAutomationStudio] Unable to parse parent origin for iframe bridge', error);
-  }
+const container = document.getElementById('root');
 
-  initIframeBridgeChild({ parentOrigin, appId: 'browser-automation-studio' });
-  window.__browserAutomationStudioBridgeInitialized = true;
+if (!container) {
+  throw new Error('Failed to locate root element for Vrooli Ascension UI');
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
+const pathname = window.location.pathname || '';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          className: '',
-          duration: 4000,
-          style: {
-            background: '#1a1d29',
-            color: '#fff',
-            border: '1px solid #2a2d3a',
-          },
-        }}
-      />
-      {/* <ReactQueryDevtools initialIsOpen={false} /> */}
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+if (pathname.startsWith('/export/replay') || pathname.startsWith('/export/composer')) {
+  void import('./export/exportBootstrap')
+    .then(({ mountReplayExport }) => {
+      mountReplayExport(container);
+    })
+    .catch((error) => {
+      logger.error('Failed to bootstrap replay export view', { component: 'main' }, error);
+    });
+} else {
+  mountApp(container, { strictMode: true });
+}

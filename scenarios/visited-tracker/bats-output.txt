@@ -1,0 +1,36 @@
+1..7
+not ok 1 [API] Create campaign with glob patterns
+# (in test file test/api/campaign-lifecycle.bats, line 31)
+#   `TEST_CAMPAIGN_ID=$(echo "$response" | jq -r '.id // empty')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 2 [API] Retrieve campaign by ID
+# (in test file test/api/campaign-lifecycle.bats, line 53)
+#   `TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 3 [API] List campaigns returns array
+# (in test file test/api/campaign-lifecycle.bats, line 73)
+#   `TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 4 [API] Record visit increases visit count
+# (in test file test/api/campaign-lifecycle.bats, line 98)
+#   `TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 5 [API] Query least visited files
+# (in test file test/api/campaign-lifecycle.bats, line 122)
+#   `TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 6 [API] Query most stale files
+# (in test file test/api/campaign-lifecycle.bats, line 147)
+#   `TEST_CAMPAIGN_ID=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9
+not ok 7 [API] Delete campaign removes it permanently
+# (in test file test/api/campaign-lifecycle.bats, line 168)
+#   `campaign_id=$(echo "$create_response" | jq -r '.id')' failed with status 5
+# jq: error (at <stdin>:1): Cannot index number with string "id"
+# jq: parse error: Invalid numeric literal at line 1, column 9

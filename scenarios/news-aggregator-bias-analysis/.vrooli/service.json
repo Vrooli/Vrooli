@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "news-aggregator-bias-analysis",
@@ -22,7 +22,28 @@
       "go-api",
       "postgres-storage",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/news-aggregator-bias-analysis"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -36,39 +57,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": ["llama3.2"],
-      "purpose": "AI-powered bias analysis, fact-checking, and content enrichment"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store news articles, sources, bias analysis results, fact-check records, and user preferences",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache RSS feeds, trending topics, real-time updates, and analysis results"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "News Aggregator health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -76,6 +71,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -86,20 +89,26 @@
     },
     "setup": {
       "description": "Initialize News Aggregator & Bias Analysis",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "news-aggregator-bias-analysis-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "news-aggregator-bias-analysis"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/news-aggregator-bias-analysis-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "news-aggregator-bias-analysis",
+            "targets": [
+              "news-aggregator-bias-analysis"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -130,17 +139,22 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o news-bias-api .",
+          "run": "cd api && go mod download && go build -o news-aggregator-bias-analysis-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo \"📰 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "run": "echo \"\ud83d\udcf0 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
           "description": "Display service URLs"
         }
       ]
@@ -148,45 +162,38 @@
     "develop": {
       "description": "Start News Aggregator services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./news-aggregator-bias-analysis-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/news-aggregator-bias-analysis-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./news-aggregator-bias-analysis-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/news-aggregator-bias-analysis-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo \"\ud83d\ude80 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test News Aggregator services",
+      "description": "Comprehensive phased testing for news-aggregator-bias-analysis",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-sources",
-          "run": "curl -sf http://localhost:$API_PORT/api/sources",
-          "description": "Test sources endpoint"
-        },
-        {
-          "name": "test-articles",
-          "run": "curl -sf http://localhost:$API_PORT/api/articles",
-          "description": "Test articles endpoint"
+          "name": "run-phased-tests",
+          "run": "test-genie execute news-aggregator-bias-analysis --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -205,5 +212,49 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2"
+        ],
+        "purpose": "AI-powered bias analysis, fact-checking, and content enrichment"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store news articles, sources, bias analysis results, fact-check records, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache RSS feeds, trending topics, real-time updates, and analysis results"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

@@ -1,0 +1,90 @@
+{
+  "description": "UI and API support for selecting individual hunks/sections to approve, not just full files",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "API support for parsing unified diffs and filtering to selected hunks",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "title": "Hunk Parsing and Filtering",
+      "validation": [
+        {
+          "notes": "Parse unified diff into structured format with hunks",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff_test.go::TestParseUnifiedDiff",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Filter diff to only selected hunks",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff_test.go::TestFilterHunks",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Get hunks for specific file",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff_test.go::TestGetHunksForFile",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Implement UI components for selecting individual diff hunks for approval",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "title": "Hunk Selection UI",
+      "validation": [
+        {
+          "notes": "DiffViewer supports hunk selection mode",
+          "phase": "unit",
+          "ref": "ui/src/components/DiffViewer.tsx::HunkSelection",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "HunkDisplay shows checkboxes for selection",
+          "phase": "unit",
+          "ref": "ui/src/components/DiffViewer.tsx::HunkDisplay",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Service layer support for hunks approval mode",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "title": "Hunks Mode in Approval Service",
+      "validation": [
+        {
+          "notes": "Approve service handles hunks mode and filters diff",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/service.go::Approve",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Hunk-Level Approval"
+}

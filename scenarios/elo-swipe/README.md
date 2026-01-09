@@ -134,7 +134,7 @@ Run the comprehensive test suite:
 make test
 
 # Or directly
-./test/run-tests.sh
+vrooli scenario test elo-swipe
 ```
 
 Test phases:

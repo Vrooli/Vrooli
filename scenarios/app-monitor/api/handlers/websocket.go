@@ -145,31 +145,19 @@ func (h *WebSocketHandler) handleClientMessages(conn *websocket.Conn, done chan 
 
 		case "subscribe":
 			// Handle subscription requests
-			if appID, ok := msg.Payload.(map[string]interface{})["appId"].(string); ok {
-				log.Printf("Client subscribed to app: %s", appID)
-				// In the future, implement app-specific subscriptions
+			if payload, ok := msg.Payload.(map[string]interface{}); ok {
+				if appID, ok := payload["appId"].(string); ok {
+					log.Printf("Client subscribed to app: %s", appID)
+					// In the future, implement app-specific subscriptions
+				}
 			}
 
 		case "unsubscribe":
 			// Handle unsubscription requests
-			if appID, ok := msg.Payload.(map[string]interface{})["appId"].(string); ok {
-				log.Printf("Client unsubscribed from app: %s", appID)
-				// In the future, implement app-specific unsubscriptions
-			}
-
-		case "command":
-			// Handle command execution requests
-			if cmd, ok := msg.Payload.(map[string]interface{})["command"].(string); ok {
-				log.Printf("Command received: %s", cmd)
-				// Send response
-				if err := conn.WriteJSON(WebSocketMessage{
-					Type: "command_response",
-					Payload: map[string]string{
-						"command": cmd,
-						"result":  "Command execution not implemented",
-					},
-				}); err != nil {
-					log.Printf("Failed to send command response: %v", err)
+			if payload, ok := msg.Payload.(map[string]interface{}); ok {
+				if appID, ok := payload["appId"].(string); ok {
+					log.Printf("Client unsubscribed from app: %s", appID)
+					// In the future, implement app-specific unsubscriptions
 				}
 			}
 

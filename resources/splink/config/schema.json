@@ -13,7 +13,12 @@
     "backend": {
       "type": "string",
       "description": "Processing backend",
-      "enum": ["duckdb", "spark", "athena", "sqlite"],
+      "enum": [
+        "duckdb",
+        "spark",
+        "athena",
+        "sqlite"
+      ],
       "default": "duckdb"
     },
     "max_workers": {
@@ -40,7 +45,11 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["local", "minio", "s3"],
+          "enum": [
+            "local",
+            "minio",
+            "s3"
+          ],
           "default": "local"
         },
         "path": {
@@ -103,7 +112,11 @@
         },
         "link_type": {
           "type": "string",
-          "enum": ["one_to_one", "one_to_many", "many_to_many"],
+          "enum": [
+            "one_to_one",
+            "one_to_many",
+            "many_to_many"
+          ],
           "default": "one_to_one"
         },
         "blocking_rules": {
@@ -120,17 +133,30 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
           "default": "INFO"
         },
         "format": {
           "type": "string",
-          "enum": ["json", "text"],
+          "enum": [
+            "json",
+            "text"
+          ],
           "default": "json"
         }
       }
     }
   },
-  "required": ["port", "backend"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "backend"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/splink/schema.json"
 }

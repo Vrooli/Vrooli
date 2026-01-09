@@ -1,56 +1,67 @@
-import { DashboardStats, Issue, IssueStatus, Priority } from '../data/sampleData';
+import { buildApiUrl as buildApiUrlBase } from '@vrooli/api-base';
+import type { DashboardStats } from '../data/sampleData';
+import type { ApiIssue } from '../types/events';
+import type { Issue, IssueStatus, Priority } from '../types/issue';
 
-export interface ApiAttachment {
-  name?: string;
-  type?: string;
-  path?: string;
-  size?: number;
-  category?: string;
-}
-
-export interface ApiIssue {
-  id: string;
-  title: string;
-  description?: string;
-  notes?: string;
-  priority?: string;
-  app_id?: string;
-  status?: string;
-  metadata?: {
-    created_at?: string;
-    updated_at?: string;
-    resolved_at?: string;
-    tags?: string[];
-    labels?: Record<string, string>;
-    extra?: Record<string, string>;
-  };
-  reporter?: {
-    name?: string;
-    email?: string;
-    timestamp?: string;
-  };
-  investigation?: {
-    agent_id?: string;
-    report?: string;
-    confidence_score?: number;
-    started_at?: string;
-    completed_at?: string;
-  };
-  attachments?: ApiAttachment[];
-}
+// Re-export ApiIssue from types/events for backward compatibility
+export type { ApiIssue };
 
 export interface ApiStatsPayload {
   totalIssues?: number;
   openIssues?: number;
   inProgress?: number;
   completedToday?: number;
+  manualFailures?: number;
+  autoFailures?: number;
+  failureReasonsBreakdown?: Record<string, number>;
 }
 
-export const VALID_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
+const FALLBACK_STATUSES: IssueStatus[] = ['open', 'active', 'completed', 'failed', 'archived'];
+
+let validStatuses: IssueStatus[] = [...FALLBACK_STATUSES];
+
+export function getValidStatuses(): IssueStatus[] {
+  return [...validStatuses];
+}
+
+export function setValidStatuses(statuses: string[] | IssueStatus[]): void {
+  const normalized = Array.from(
+    new Set(
+      statuses
+        .map((status) => (typeof status === 'string' ? status.trim().toLowerCase() : status))
+        .filter((status): status is string => Boolean(status)),
+    ),
+  );
+
+  if (!normalized.includes('open')) {
+    normalized.unshift('open');
+  }
+
+  validStatuses = (normalized.length > 0 ? normalized : FALLBACK_STATUSES) as IssueStatus[];
+}
+
+export function getFallbackStatuses(): IssueStatus[] {
+  return [...FALLBACK_STATUSES];
+}
+
+export function formatStatusLabel(status: string): string {
+  return status
+    .split('-')
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 export function buildApiUrl(baseUrl: string, path: string): string {
-  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  return `${normalizedBase}${path}`;
+  return buildApiUrlBase(path, { baseUrl });
+}
+
+function isLoopbackHost(hostname: string | null): boolean {
+  if (!hostname) {
+    return false;
+  }
+  const value = hostname.toLowerCase();
+  return value === 'localhost' || value === '127.0.0.1' || value === '0.0.0.0' || value === '::1' || value === '[::1]';
 }
 
 export function buildAttachmentUrl(baseUrl: string, issueId: string, attachmentPath: string): string {
@@ -60,7 +71,35 @@ export function buildAttachmentUrl(baseUrl: string, issueId: string, attachmentP
     .filter((segment) => segment.length > 0)
     .map((segment) => encodeURIComponent(segment));
   const normalized = segments.join('/');
-  return buildApiUrl(baseUrl, `/issues/${safeIssueId}/attachments/${normalized}`);
+  const relativePath = `/issues/${safeIssueId}/attachments/${normalized}`;
+  const rawUrl = buildApiUrl(baseUrl, relativePath);
+
+  if (typeof window === 'undefined' || !window.location) {
+    return rawUrl;
+  }
+
+  try {
+    const resolved = new URL(rawUrl, window.location.origin);
+    const targetHost = resolved.hostname;
+    const currentHost = window.location.hostname;
+
+    if (isLoopbackHost(targetHost) && currentHost && !isLoopbackHost(currentHost)) {
+      const origin = window.location.origin.replace(/\/$/, '');
+      const pathname = resolved.pathname.startsWith('/') ? resolved.pathname : `/${resolved.pathname}`;
+      const search = resolved.search ?? '';
+      const hash = resolved.hash ?? '';
+      return `${origin}${pathname}${search}${hash}`;
+    }
+
+    return resolved.toString();
+  } catch (error) {
+    if (window.location.origin) {
+      const origin = window.location.origin.replace(/\/$/, '');
+      const normalizedRelative = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+      return `${origin}${normalizedRelative}`;
+    }
+    return rawUrl;
+  }
 }
 
 export function normalizePriority(value?: string | null): Priority {
@@ -78,7 +117,8 @@ export function normalizePriority(value?: string | null): Priority {
 
 export function normalizeStatus(value?: string | null): IssueStatus {
   const normalized = (value ?? '').toLowerCase();
-  return (VALID_STATUSES.find((status) => status === normalized) ?? 'open') as IssueStatus;
+  const statuses = getValidStatuses();
+  return (statuses.find((status) => status === normalized) ?? 'open') as IssueStatus;
 }
 
 export function normalizeLabels(labels?: Record<string, string>): Record<string, string> {
@@ -119,6 +159,7 @@ export function buildStatusTrend(issues: Issue[]): DashboardStats['statusTrend']
 }
 
 export function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload | null): DashboardStats {
+  // Priority breakdown and status trend are UI-specific calculations based on currently loaded issues
   const priorityBreakdown: DashboardStats['priorityBreakdown'] = {
     Critical: 0,
     High: 0,
@@ -130,23 +171,15 @@ export function buildDashboardStats(issues: Issue[], apiStats?: ApiStatsPayload 
     priorityBreakdown[issue.priority] = (priorityBreakdown[issue.priority] ?? 0) + 1;
   });
 
-  const openStatuses: IssueStatus[] = ['open'];
-  const todayKey = new Date().toISOString().slice(0, 10);
-
-  const totalsFromIssues = {
-    total: issues.length,
-    open: issues.filter((issue) => openStatuses.includes(issue.status)).length,
-    inProgress: issues.filter((issue) => issue.status === 'active').length,
-    completedToday: issues.filter(
-      (issue) => issue.status === 'completed' && getDateKey(issue.resolvedAt) === todayKey,
-    ).length,
-  };
-
+  // All other stats come from the API which has the full dataset
   return {
-    totalIssues: apiStats?.totalIssues ?? totalsFromIssues.total,
-    openIssues: apiStats?.openIssues ?? totalsFromIssues.open,
-    inProgress: apiStats?.inProgress ?? totalsFromIssues.inProgress,
-    completedToday: apiStats?.completedToday ?? totalsFromIssues.completedToday,
+    totalIssues: apiStats?.totalIssues ?? 0,
+    openIssues: apiStats?.openIssues ?? 0,
+    inProgress: apiStats?.inProgress ?? 0,
+    completedToday: apiStats?.completedToday ?? 0,
+    manualFailures: apiStats?.manualFailures,
+    autoFailures: apiStats?.autoFailures,
+    failureReasonsBreakdown: apiStats?.failureReasonsBreakdown,
     priorityBreakdown,
     statusTrend: buildStatusTrend(issues),
   };
@@ -283,6 +316,7 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
         size: typeof attachment?.size === 'number' ? attachment.size : undefined,
         url: buildAttachmentUrl(options.apiBaseUrl, raw.id, path),
         category: (attachment?.category ?? '').trim() || undefined,
+        description: (attachment?.description ?? '').trim() || undefined,
       });
     });
   }
@@ -305,7 +339,9 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
     priority: normalizePriority(raw.priority),
     createdAt,
     status: normalizeStatus(raw.status),
-    app: labels.app ?? raw.app_id ?? 'unknown',
+    targets: Array.isArray(raw.targets)
+      ? raw.targets.map(t => ({ type: t.type as 'scenario' | 'resource', id: t.id, name: t.name }))
+      : [{ type: 'scenario' as const, id: 'unknown' }],
     tags,
     attachments,
     resolvedAt,
@@ -315,6 +351,7 @@ export function transformIssue(raw: ApiIssue, options: TransformIssueOptions): I
     notes: notes || undefined,
     metadata: raw.metadata,
     investigation: raw.investigation,
+    manual_review: raw.manual_review,
   };
 }
 
@@ -325,7 +362,7 @@ export function buildIssueSnapshot(issue: Issue): Record<string, unknown> {
     source_issue_title_original: issue.rawTitle ?? issue.title,
     status: issue.status,
     priority: issue.priority,
-    app: issue.app,
+    targets: issue.targets,
     assignee: issue.assignee,
     created_at: issue.createdAt,
     updated_at: issue.updatedAt ?? null,

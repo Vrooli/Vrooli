@@ -1,0 +1,80 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Data, Consistency & Auditability",
+    "description": "Scan history, configuration management, and audit trails"
+  },
+  "requirements": [
+    {
+      "id": "TM-DA-001",
+      "title": "Scan history tracking - resource used",
+      "prd_ref": "OT-P1-007",
+      "description": "Record which AI resource was used for each issue (resource-claude-code vs resource-codes)",
+      "validation": [],
+      "notes": "Store in issues table as resource_id. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-002",
+      "title": "Scan history tracking - creation timestamp",
+      "prd_ref": "OT-P1-007",
+      "description": "Record when each issue was created",
+      "validation": [],
+      "notes": "created_at timestamp for trend analysis. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-003",
+      "title": "Scan history tracking - campaign linkage",
+      "prd_ref": "OT-P1-007",
+      "description": "Record which campaign and session produced each issue",
+      "validation": [],
+      "notes": "campaign_id and session_id foreign keys. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-004",
+      "title": "Configurable thresholds - central storage",
+      "prd_ref": "OT-P1-008",
+      "description": "Store all thresholds in postgres config table (no hard-coding)",
+      "validation": [],
+      "notes": "Long file lines, max scans per file, max concurrent campaigns. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-005",
+      "title": "Configurable thresholds - per-scenario override",
+      "prd_ref": "OT-P1-008",
+      "description": "Support per-scenario threshold overrides for special cases",
+      "validation": [],
+      "notes": "E.g., allow longer files in generated code scenarios. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-006",
+      "title": "Read-only agent queries",
+      "prd_ref": "OT-P1-009",
+      "description": "Agent read calls return existing data without triggering new scans by default",
+      "validation": [],
+      "notes": "Prevent accidental scan storms from agent loops. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-007",
+      "title": "Force scan flag",
+      "prd_ref": "OT-P1-009",
+      "description": "Support explicit force flag to trigger new scan from agent API",
+      "validation": [],
+      "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true. Not yet implemented (P1 feature).",
+      "status": "pending"
+    },
+    {
+      "id": "TM-DA-008",
+      "title": "Force scan queueing",
+      "prd_ref": "OT-P1-010",
+      "description": "Enqueue force-scan requests in controlled queue with global concurrency limit",
+      "validation": [],
+      "notes": "Prevent overwhelming AI resources with concurrent scans. Not yet implemented (P1 feature).",
+      "status": "pending"
+    }
+  ]
+}

@@ -39,7 +39,14 @@
           },
           "type": {
             "type": "string",
-            "enum": ["postgresql", "mysql", "questdb", "minio", "presto", "clickhouse"],
+            "enum": [
+              "postgresql",
+              "mysql",
+              "questdb",
+              "minio",
+              "presto",
+              "clickhouse"
+            ],
             "description": "Database type"
           },
           "host": {
@@ -63,7 +70,12 @@
             "description": "Database password"
           }
         },
-        "required": ["name", "type", "host", "port"]
+        "required": [
+          "name",
+          "type",
+          "host",
+          "port"
+        ]
       }
     },
     "redis": {
@@ -135,5 +147,10 @@
       }
     }
   },
-  "required": ["port", "admin_username", "admin_password"]
+  "required": [
+    "port",
+    "admin_username",
+    "admin_password"
+  ],
+  "$id": "https://vrooli.com/resources/apache-superset/schema.json"
 }

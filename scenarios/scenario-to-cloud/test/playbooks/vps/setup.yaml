@@ -1,0 +1,12 @@
+schema_version: "1.0.0"
+title: "VPS setup (manual/E2E placeholder)"
+description: "Planned E2E playbook for uploading and setting up a mini-Vrooli bundle on a VPS."
+requirements:
+  - STC-P0-004
+steps:
+  - id: build_bundle
+    description: "Run `scenario-to-cloud bundle-build manifest.json` and capture the tarball path."
+  - id: setup_plan
+    description: "Run `scenario-to-cloud vps-setup-plan manifest.json <bundle.tar.gz>` and review commands."
+  - id: setup_apply
+    description: "Run `scenario-to-cloud vps-setup-apply manifest.json <bundle.tar.gz>` and verify setup completes."

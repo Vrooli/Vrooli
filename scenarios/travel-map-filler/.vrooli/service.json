@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
   "service": {
     "name": "travel-map-filler",
@@ -20,7 +20,28 @@
       "qdrant-vectors",
       "interactive-map",
       "location-tracking"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/travel-map-filler"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -34,83 +55,30 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store travel records, achievements, and user data",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search of travel memories",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation for travel processing and achievement calculation",
-      "initialization": [
-        {
-          "file": "initialization/n8n/travel-tracker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/travel-search.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/travel-list.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Generate travel insights and recommendations",
-      "models": [
-        "llama3.2:3b",
-        "nomic-embed-text"
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache map data for fast loading"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Travel Map Filler health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -119,20 +87,26 @@
     },
     "setup": {
       "description": "Initialize Travel Map Filler",
-         "condition": {
-            "checks": [
-               {
-                  "type": "binaries",
-                  "targets": [
-                     "travel-map-filler-api"
-                  ]
-               },
-                {
-                   "type": "cli",
-                   "targets": [
-                      "travel-map-filler"
-                   ]
-                },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/travel-map-filler-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "travel-map-filler",
+            "targets": [
+              "travel-map-filler"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -158,7 +132,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o travel-map-api .",
+          "run": "cd api && go mod download && go build -o travel-map-filler-api .",
           "description": "Build Go API binary"
         },
         {
@@ -172,8 +146,13 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo 'Travel Map Filler initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
+          "run": "echo 'Travel Map Filler initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: travel-map --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -181,53 +160,38 @@
     "develop": {
       "description": "Start Travel Map Filler with Go API and Node.js UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./travel-map-filler-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/travel-map-filler-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./travel-map-filler-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/travel-map-filler-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
-        },
-         {
-           "name": "show-urls",
-           "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${PORT} - CLI: travel-map --help'",
-           "description": "Display all running service URLs"
-         }
-      ]
-    },
-    "test": {
-      "description": "Test Travel Map Filler API and CLI",
-      "steps": [
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
+          "background": true,
           "condition": {
-            "file_exists": "api/main.go"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$PORT/health",
-          "description": "Test API health endpoint"
-        },
+          "name": "show-urls",
+          "run": "echo 'Travel Map Filler running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: travel-map --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for travel-map-filler",
+      "steps": [
         {
-          "name": "test-travels-endpoint",
-          "run": "curl -sf http://localhost:$PORT/api/travels",
-          "description": "Test API travels endpoint"
-        },
-        {
-          "name": "test-cli-help",
-          "run": "travel-map --help",
-          "description": "Test CLI help command"
+          "name": "run-phased-tests",
+          "run": "test-genie execute travel-map-filler --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -245,6 +209,70 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store travel records, achievements, and user data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search of travel memories",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "purpose": "Workflow automation for travel processing and achievement calculation",
+        "initialization": [
+          {
+            "file": "initialization/n8n/travel-tracker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/travel-list.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Generate travel insights and recommendations",
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache map data for fast loading"
+      }
     }
   }
 }

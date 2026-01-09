@@ -378,8 +378,10 @@ ports::allocate_scenario() {
     
     # Add resource ports to environment variables (only for required/enabled resources)
     # Parse resource requirements from service.json
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     local resources_config
-    resources_config=$(jq -r '.resources // {}' "$service_json_path" 2>/dev/null)
+    resources_config=$(jq -r "$jq_resources" "$service_json_path" 2>/dev/null)
     
     if [[ "$resources_config" != "{}" && "$resources_config" != "null" ]]; then
         # Source port registry if available
@@ -608,6 +610,8 @@ _discover_scenario_ports() {
 _load_resource_environment() {
     local service_json_path="$1"
     local combined_env="{}"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     
     if [[ ! -f "$service_json_path" ]] || ! command -v jq >/dev/null 2>&1; then
         echo "$combined_env"
@@ -616,29 +620,55 @@ _load_resource_environment() {
     
     # Parse enabled resources from service.json
     local enabled_resources
-    enabled_resources=$(jq -r '.resources | to_entries[] | select(.value.enabled == true) | .key' "$service_json_path" 2>/dev/null || echo "")
+    enabled_resources=$(jq -r "${jq_resources} | to_entries[] | select(.value.enabled == true) | .key" "$service_json_path" 2>/dev/null || echo "")
     
     while IFS= read -r resource_name; do
         [[ -z "$resource_name" ]] && continue
-        
+
+        # Try exports.sh first (new v2.0 format), fallback to defaults.sh (legacy format)
         local exports_file="${APP_ROOT}/resources/${resource_name}/config/exports.sh"
-        
+        if [[ ! -f "$exports_file" ]]; then
+            exports_file="${APP_ROOT}/resources/${resource_name}/config/defaults.sh"
+        fi
+
         if [[ -f "$exports_file" ]]; then
             # Source the exports file in subshell and capture environment
             local resource_env
             resource_env=$(
                 # Temporarily suppress debug output
                 export DEBUG="${DEBUG:-false}"
-                
+
                 # Source the exports file in clean environment
                 (
+                    # Source secrets management library if available (needed for defaults.sh files)
+                    if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
+                        source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
+                    fi
+
+                    # For defaults.sh files, pre-load secrets before sourcing
+                    # This ensures variables like OPENROUTER_API_KEY get their values from secrets.json
+                    if [[ "$exports_file" == */defaults.sh ]]; then
+                        # Load common secret patterns for this resource
+                        local resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                        if declare -f secrets::resolve &>/dev/null; then
+                            # Try to resolve API key (common pattern)
+                            local api_key_var="${resource_upper}_API_KEY"
+                            local api_key_value
+                            api_key_value=$(secrets::resolve "${api_key_var}" 2>/dev/null || echo "")
+                            if [[ -n "$api_key_value" ]]; then
+                                export "${api_key_var}=${api_key_value}"
+                            fi
+                        fi
+                    fi
+
                     # Source the exports file
                     source "$exports_file" 2>/dev/null || exit 1
-                    
+
                     # Export all variables that match common patterns
                     env | grep -E "^(${resource_name^^}_|$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_)" | while IFS='=' read -r key value; do
                         # Escape value for JSON (handle empty values correctly)
-                        local escaped_value
+                        # Note: Cannot use 'local' here - we're in a subshell, not a function
+                        escaped_value=""
                         if [[ -z "$value" ]]; then
                             escaped_value='""'  # Empty string in JSON
                         else
@@ -751,7 +781,40 @@ ports::get_scenario_environment() {
         env_vars=$(echo "$env_vars" | jq ". + $resource_env")
         message="$message with resource environment"
     fi
-    
+
+    # Phase 3.5: Per-Scenario Database Override
+    # Each scenario gets its own database by default (vrooli_<scenario_name>)
+    # Scenarios can opt-in to share a database via "database" field in service.json
+    local postgres_enabled
+    postgres_enabled=$(jq -r '.dependencies.resources.postgres.enabled // false' "$service_json_path" 2>/dev/null)
+
+    if [[ "$postgres_enabled" == "true" ]]; then
+        local explicit_db db_name
+        explicit_db=$(jq -r '.dependencies.resources.postgres.database // empty' "$service_json_path" 2>/dev/null)
+
+        if [[ -n "$explicit_db" && "$explicit_db" != "null" ]]; then
+            db_name="$explicit_db"
+        else
+            # Default: vrooli_<scenario_name> with hyphens converted to underscores
+            db_name="vrooli_$(echo "$scenario_name" | tr '-' '_')"
+        fi
+
+        # Override POSTGRES_DB and DATABASE_URL in env_vars
+        local pg_host pg_port pg_user pg_pass pg_sslmode
+        pg_host=$(echo "$env_vars" | jq -r '.POSTGRES_HOST // "localhost"')
+        pg_port=$(echo "$env_vars" | jq -r '.POSTGRES_PORT // "5433"')
+        pg_user=$(echo "$env_vars" | jq -r '.POSTGRES_USER // "vrooli"')
+        pg_pass=$(echo "$env_vars" | jq -r '.POSTGRES_PASSWORD // ""')
+        pg_sslmode=$(echo "$env_vars" | jq -r '.POSTGRES_SSLMODE // "disable"')
+
+        local new_url="postgres://${pg_user}:${pg_pass}@${pg_host}:${pg_port}/${db_name}?sslmode=${pg_sslmode}"
+
+        env_vars=$(echo "$env_vars" | jq \
+            --arg db "$db_name" \
+            --arg url "$new_url" \
+            '. + {"POSTGRES_DB": $db, "POSTGRES_URL": $url, "DATABASE_URL": $url}')
+    fi
+
     # Phase 4: Return Complete Environment
     jq -n \
         --argjson env_vars "$env_vars" \

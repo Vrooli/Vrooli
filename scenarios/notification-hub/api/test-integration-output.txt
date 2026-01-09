@@ -1,0 +1,101 @@
+=== RUN   TestComprehensiveProfileManagement
+    comprehensive_test.go:18: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestComprehensiveProfileManagement (0.00s)
+=== RUN   TestComprehensiveContactManagement
+    comprehensive_test.go:111: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestComprehensiveContactManagement (0.00s)
+=== RUN   TestComprehensiveNotificationWorkflow
+    comprehensive_test.go:155: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestComprehensiveNotificationWorkflow (0.00s)
+=== RUN   TestUnsubscribeWorkflow
+    comprehensive_test.go:310: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestUnsubscribeWorkflow (0.00s)
+=== RUN   TestTemplateManagement
+    comprehensive_test.go:360: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestTemplateManagement (0.00s)
+=== RUN   TestAnalyticsEndpoints
+    comprehensive_test.go:393: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestAnalyticsEndpoints (0.00s)
+=== RUN   TestEdgeCases
+    comprehensive_test.go:436: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestEdgeCases (0.00s)
+=== RUN   TestHealthCheck
+    main_test.go:16: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestHealthCheck (0.00s)
+=== RUN   TestAPIDocsEndpoint
+    main_test.go:91: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestAPIDocsEndpoint (0.00s)
+=== RUN   TestProfileManagement
+    main_test.go:125: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestProfileManagement (0.00s)
+=== RUN   TestNotificationSending
+    main_test.go:272: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestNotificationSending (0.00s)
+=== RUN   TestAuthentication
+    main_test.go:429: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestAuthentication (0.00s)
+=== RUN   TestErrorPatterns
+    main_test.go:502: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestErrorPatterns (0.00s)
+=== RUN   TestNotificationListing
+    main_test.go:528: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestNotificationListing (0.00s)
+=== RUN   TestContactManagement
+    main_test.go:561: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestContactManagement (0.00s)
+=== RUN   TestAnalytics
+    main_test.go:593: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestAnalytics (0.00s)
+=== RUN   TestUnsubscribeWebhook
+    main_test.go:643: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestUnsubscribeWebhook (0.00s)
+=== RUN   TestPerformancePatterns
+    performance_test.go:126: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestPerformancePatterns (0.00s)
+=== RUN   TestBulkNotificationCreation
+    performance_test.go:147: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestBulkNotificationCreation (0.00s)
+=== RUN   TestTemplateRenderingPerformance
+    performance_test.go:214: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestTemplateRenderingPerformance (0.00s)
+=== RUN   TestConcurrentNotificationSending
+    performance_test.go:258: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestConcurrentNotificationSending (0.00s)
+=== RUN   TestDatabaseQueryPerformance
+    performance_test.go:341: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestDatabaseQueryPerformance (0.00s)
+=== RUN   TestRedisPerformance
+    performance_test.go:419: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestRedisPerformance (0.00s)
+=== RUN   TestNotificationProcessor
+    processor_test.go:18: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestNotificationProcessor (0.00s)
+=== RUN   TestRenderTemplate
+    processor_test.go:107: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestRenderTemplate (0.00s)
+=== RUN   TestSendEmail
+    processor_test.go:172: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestSendEmail (0.00s)
+=== RUN   TestSendSMS
+    processor_test.go:223: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestSendSMS (0.00s)
+=== RUN   TestSendPushNotification
+    processor_test.go:266: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestSendPushNotification (0.00s)
+=== RUN   TestSendWebhook
+    processor_test.go:309: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestSendWebhook (0.00s)
+=== RUN   TestIsUnsubscribed
+    processor_test.go:352: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestIsUnsubscribed (0.00s)
+=== RUN   TestUpdateNotificationStatus
+    processor_test.go:403: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestUpdateNotificationStatus (0.00s)
+=== RUN   TestRecordDeliveryResult
+    processor_test.go:450: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestRecordDeliveryResult (0.00s)
+=== RUN   TestChannelMarking
+    processor_test.go:537: Test database not reachable: dial tcp 127.0.0.1:5432: connect: connection refused
+--- SKIP: TestChannelMarking (0.00s)
+PASS
+ok  	notification-hub-api	(cached)

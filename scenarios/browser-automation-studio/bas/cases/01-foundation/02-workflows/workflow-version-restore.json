@@ -1,0 +1,270 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1a",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1b",
+      "source": "click-projects-tab",
+      "target": "wait-for-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "ensure-workflows-exist",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "ensure-workflows-exist",
+      "target": "click-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-workflow",
+      "target": "look-for-version-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "look-for-version-button",
+      "target": "click-version-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "click-version-history",
+      "target": "check-version-list-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "check-restore-buttons",
+      "target": "close-version-dialog",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8-bridge-e9",
+      "source": "check-version-list-visible",
+      "target": "check-restore-buttons",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates workflow version history listing and restore functionality through the UI",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for dashboard"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/projects.grid",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-for-dashboard"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open first project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflows.card",
+          "success_timeout_ms": 15000
+        }
+      },
+      "id": "click-project"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Expected workflows in project detail view",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflows.card",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Workflows exist in list"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "ensure-workflows-exist"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.card:first-of-type:not([data-dedupe=\"click\"])"
+        },
+        "metadata": {
+          "label": "Open first workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 20000
+        }
+      },
+      "id": "click-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Version history button should exist in builder header",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.buttons.versionHistory",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Version history button visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "look-for-version-button"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.versionHistory:not([data-dedupe=\"click\"])"
+        },
+        "metadata": {
+          "label": "Open version history"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/header.versionHistory.dialog",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-version-history"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Version history dialog should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.versionHistory.dialog",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Version list dialog visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "check-version-list-visible"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Restore/close controls should exist in version dialog",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.versionHistory.closeButton",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Restore controls visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "check-restore-buttons"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Close version dialog with Escape"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "id": "close-version-dialog"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
+}

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
+// [REQ:PCT-FUNC-005][REQ:PCT-AI-CONTEXT] AI generation - Test context building for prompts
 func TestBuildPrompt(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -59,7 +61,7 @@ func TestBuildPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildPrompt(tt.draft, tt.section, tt.context)
+			result := buildPrompt(tt.draft, tt.section, tt.context, "", false, nil)
 
 			if len(result) < tt.wantLen {
 				t.Errorf("buildPrompt() length = %d, want at least %d", len(result), tt.wantLen)
@@ -83,10 +85,11 @@ func TestBuildPrompt(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestHandleAIGenerateSectionValidation(t *testing.T) {
 	tests := []struct {
 		name           string
-		requestBody    interface{}
+		requestBody    any
 		expectStatus   int
 		expectContains string
 	}{
@@ -96,14 +99,14 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 				Section: "",
 				Context: "some context",
 			},
-			expectStatus:   http.StatusServiceUnavailable, // Database not available in test
-			expectContains: "Database not available",
+			expectStatus:   http.StatusBadRequest,
+			expectContains: "Section or Action is required",
 		},
 		{
 			name:           "invalid JSON",
 			requestBody:    "not a valid json",
-			expectStatus:   http.StatusServiceUnavailable, // Database checked before JSON parsing
-			expectContains: "Database not available",
+			expectStatus:   http.StatusBadRequest,
+			expectContains: "Invalid request body",
 		},
 	}
 
@@ -126,6 +129,8 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": "test-draft-id"})
 
 			w := httptest.NewRecorder()
+
+			// Call handler directly (validation happens before DB access)
 			handleAIGenerateSection(w, req)
 
 			if w.Code != tt.expectStatus {
@@ -141,6 +146,7 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 
 // TestHandleAIGenerateSectionNoDB is in handlers_test.go to avoid duplication
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentCLI(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -151,7 +157,7 @@ func TestGenerateAIContentCLI(t *testing.T) {
 
 	// This test will fail if resource-openrouter is not installed,
 	// which is expected behavior
-	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context")
+	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context", "", false, nil)
 
 	// We expect an error because resource-openrouter is likely not available in test environment
 	if err == nil {
@@ -164,7 +170,19 @@ func TestGenerateAIContentCLI(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentHTTP(t *testing.T) {
+	// Set test API key
+	oldKey := os.Getenv("OPENROUTER_API_KEY")
+	os.Setenv("OPENROUTER_API_KEY", "test-key")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("OPENROUTER_API_KEY", oldKey)
+		} else {
+			os.Unsetenv("OPENROUTER_API_KEY")
+		}
+	}()
+
 	// Create a mock OpenRouter server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/chat/completions" {
@@ -184,12 +202,18 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 			t.Errorf("Missing or incorrect Content-Type header")
 		}
 
+		// Verify Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "Bearer test-key" {
+			t.Errorf("Expected Authorization header 'Bearer test-key', got '%s'", authHeader)
+		}
+
 		// Return mock response
-		response := map[string]interface{}{
+		response := map[string]any{
 			"model": "anthropic/claude-3.5-sonnet",
-			"choices": []map[string]interface{}{
+			"choices": []map[string]any{
 				{
-					"message": map[string]interface{}{
+					"message": map[string]any{
 						"role":    "assistant",
 						"content": "Generated executive summary content",
 					},
@@ -209,7 +233,7 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		Content:    "# Test PRD",
 	}
 
-	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context")
+	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context", "", false, nil, "")
 
 	if err != nil {
 		t.Errorf("generateAIContentHTTP() unexpected error: %v", err)
@@ -224,7 +248,19 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContentHTTPError(t *testing.T) {
+	// Set test API key
+	oldKey := os.Getenv("OPENROUTER_API_KEY")
+	os.Setenv("OPENROUTER_API_KEY", "test-key")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("OPENROUTER_API_KEY", oldKey)
+		} else {
+			os.Unsetenv("OPENROUTER_API_KEY")
+		}
+	}()
+
 	tests := []struct {
 		name           string
 		serverHandler  http.HandlerFunc
@@ -251,7 +287,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 			name: "missing choices in response",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]any{
 					"model": "test-model",
 				})
 			},
@@ -271,7 +307,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 				Content:    "# Test",
 			}
 
-			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "")
+			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "", "", false, nil, "")
 
 			if err == nil {
 				t.Error("generateAIContentHTTP() expected error, got nil")
@@ -284,6 +320,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-AI-GENERATE] AI generates PRD sections from prompts
 func TestGenerateAIContent(t *testing.T) {
 	draft := Draft{
 		ID:         "test-id",
@@ -295,7 +332,7 @@ func TestGenerateAIContent(t *testing.T) {
 	// Test with no RESOURCE_OPENROUTER_URL set (should fallback to CLI)
 	t.Setenv("RESOURCE_OPENROUTER_URL", "")
 
-	_, _, err := generateAIContent(draft, "Executive Summary", "")
+	_, _, err := generateAIContent(draft, "Executive Summary", "", "", false, nil, "")
 
 	// Should attempt CLI and fail (unless resource-openrouter is installed)
 	if err == nil {

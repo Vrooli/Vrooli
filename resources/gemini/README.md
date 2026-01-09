@@ -123,7 +123,7 @@ resource-gemini inject huginn
 The Gemini resource can be integrated with:
 - n8n workflows
 - Huginn agents
-- Windmill scripts
+- Automation scripts
 - Node-RED flows
 
 ## Troubleshooting

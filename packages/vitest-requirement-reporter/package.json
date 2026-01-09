@@ -1,0 +1,28 @@
+{
+  "name": "@vrooli/vitest-requirement-reporter",
+  "version": "1.0.0",
+  "description": "Vitest reporter for tracking requirement coverage",
+  "type": "module",
+  "main": "./dist/reporter.js",
+  "types": "./dist/reporter.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/reporter.d.ts",
+      "default": "./dist/reporter.js"
+    }
+  },
+  "files": ["dist", "src", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "vitest": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.0"
+  }
+}

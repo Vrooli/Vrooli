@@ -158,6 +158,25 @@ vrooli resource openrouter benchmark compare
 vrooli resource openrouter benchmark list
 
 # Clean old benchmarks (>30 days)
+
+## Manual model additions (local overlay)
+If the OpenRouter catalog is missing a slug you know works (e.g., `x-ai/grok-4.1-fast:free`), add it locally and it will appear in `resource-openrouter models` / `resource-opencode models` results:
+
+1) Create `data/openrouter/manual-models.json` with entries shaped like the normalized catalog (id is required):
+```json
+[
+  {
+    "id": "x-ai/grok-4.1-fast:free",
+    "name": "Grok 4.1 Fast (Free)",
+    "description": "Manual entry to surface the free Grok fast route",
+    "pricing": { "request": 0 },
+    "context_length": 32768,
+    "architecture": { "modality": "text", "input": ["text"], "output": ["text"] },
+    "supported_parameters": ["max_tokens", "temperature"]
+  }
+]
+```
+2) Re-run `resource-openrouter models ...` (filters like `--provider`/`--search` still apply; ids are de-duplicated against the live catalog).
 vrooli resource openrouter benchmark clean
 ```
 

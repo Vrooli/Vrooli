@@ -1,0 +1,102 @@
+{
+  "_metadata": {
+    "description": "Requirements registry parsing and operational target linkage requirements",
+    "domain": "requirements",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-REQ-PARSE",
+      "category": "requirements.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Requirements registry loader ingests modular index.json + imports",
+      "description": "Verifies GET /api/v1/catalog/{type}/{name}/requirements parses requirements/ folder with index.json and imports, returning flattened requirement tree.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_loader_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRequirementsLoader with modular registry fixtures"
+        },
+        {
+          "type": "test",
+          "ref": "api/requirements_handlers_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Requirements API endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of requirements registry display"
+        }
+      ]
+    },
+    {
+      "id": "PCT-REQ-TARGETS",
+      "category": "requirements.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Operational target parser extracts checklist items from PRD",
+      "description": "Ensures GET /api/v1/catalog/{type}/{name}/targets parses PRD for functional requirement checklists and flags targets with no linked requirements.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_targets_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestOperationalTargetsParser validates target extraction from PRD"
+        },
+        {
+          "type": "test",
+          "ref": "api/requirements_handlers_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Targets API endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of operational targets tab"
+        }
+      ]
+    },
+    {
+      "id": "PCT-REQ-LINKAGE",
+      "category": "requirements.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Draft workspace surfaces target coverage and unmatched requirements",
+      "description": "Confirms DraftEditorPane displays OperationalTargetsPanel and RequirementSummaryPanel with linkage heuristics via prd_ref.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_targets_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target-requirement linkage logic validated"
+        },
+        {
+          "type": "test",
+          "ref": "api/requirements_enricher_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Requirements enrichment validates target coverage and linkage"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of requirement-target linkage in UI"
+        }
+      ]
+    }
+  ]
+}

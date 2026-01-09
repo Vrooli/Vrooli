@@ -1,0 +1,135 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "source": "call-open-workflow",
+      "target": "click-execute-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "click-execute-workflow",
+      "target": "wait-for-execution-start",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "wait-for-execution-start",
+      "target": "assert-execution-progress",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-execution-progress",
+      "target": "assert-execution-has-status",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-execution-has-status",
+      "target": "assert-viewer-functional",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates that workflow execution produces telemetry artifacts (screenshots, logs, progress updates)",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open demo workflow in builder"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute"
+        },
+        "metadata": {
+          "label": "Execute demo workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-execute-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for execution viewer to render"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/executions.viewer.root",
+          "timeout_ms": 5000
+        }
+      },
+      "id": "wait-for-execution-start"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution should display progress indicator",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Execution progress visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-progress"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution viewer should display execution status",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Execution has status indicator"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-has-status"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution viewer should render with tabs",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.tabs.logs, @selector/executions.tabs.screenshots",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Execution viewer is functional"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-viewer-functional"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
+}

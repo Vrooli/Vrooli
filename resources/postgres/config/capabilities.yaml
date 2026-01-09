@@ -76,7 +76,6 @@ spec:
     optimal_combinations:
       - [postgres, minio, n8n]              # Complete data management stack
       - [postgres, ollama, qdrant]          # AI-powered data processing
-      - [postgres, vault, windmill]         # Secure enterprise workflows
       - [postgres, whisper, unstructured-io] # Multi-modal data processing
   
   # Business intelligence
@@ -139,7 +138,7 @@ spec:
       - business-automation
     integration_targets:
       preferred: [n8n, minio, ollama, qdrant]
-      compatible: [vault, windmill, whisper, unstructured-io]
+      compatible: [vault, whisper, unstructured-io]
       avoid: [file-storage-only, computation-heavy-tasks]
     workflow_templates:
       application: "Create schema → Seed data → Connect application → Implement business logic → Deploy"

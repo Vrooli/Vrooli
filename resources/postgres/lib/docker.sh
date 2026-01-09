@@ -120,7 +120,17 @@ postgres::docker::create_container() {
 postgres::docker::start() {
     local instance_name="${1:-main}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
-    
+
+    # Load secrets from secrets.json before potentially creating a new instance
+    # This ensures pre-provisioned passwords (e.g., from VPS deployments) are used
+    if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+        local exports_file="${APP_ROOT}/resources/postgres/config/exports.sh"
+        if [[ -f "$exports_file" ]]; then
+            # shellcheck disable=SC1090
+            source "$exports_file" 2>/dev/null || true
+        fi
+    fi
+
     if ! postgres::common::container_exists "$instance_name"; then
         # Auto-create main instance if it doesn't exist
         if [[ "$instance_name" == "main" ]]; then

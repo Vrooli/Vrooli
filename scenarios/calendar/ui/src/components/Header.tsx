@@ -54,35 +54,35 @@ export function Header() {
   }
 
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex items-center space-x-4">
-        {/* Sidebar Toggle */}
+    <header className="flex items-center justify-between border-b border-gray-200 bg-white px-3 py-3 md:px-6 md:py-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex items-center space-x-2 md:space-x-4 flex-1 min-w-0">
+        {/* Sidebar Toggle - hidden on mobile since sidebar is hidden */}
         <button
           onClick={toggleSidebar}
-          className="btn-ghost p-2"
+          className="hidden md:flex btn-ghost p-2"
           aria-label="Toggle sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
 
         {/* Navigation Controls */}
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-0.5 md:space-x-1">
           <button
             onClick={() => navigateDate('prev')}
-            className="btn-ghost p-2"
+            className="btn-ghost p-1.5 md:p-2"
             aria-label="Previous"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={() => navigateDate('today')}
-            className="btn-outline px-3 py-1.5"
+            className="btn-outline px-2 py-1 md:px-3 md:py-1.5 text-xs md:text-sm"
           >
             Today
           </button>
           <button
             onClick={() => navigateDate('next')}
-            className="btn-ghost p-2"
+            className="btn-ghost p-1.5 md:p-2"
             aria-label="Next"
           >
             <ChevronRight className="h-5 w-5" />
@@ -90,19 +90,19 @@ export function Header() {
         </div>
 
         {/* Current Date Display */}
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <h1 className="text-sm md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
           {getDateDisplay()}
         </h1>
       </div>
 
-      <div className="flex items-center space-x-3">
-        {/* View Type Selector */}
+      <div className="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
+        {/* View Type Selector - compact on mobile */}
         <div className="flex rounded-lg border border-gray-300 dark:border-gray-600">
           {(['day', 'week', 'month', 'agenda'] as const).map((view) => (
             <button
               key={view}
               onClick={() => setViewType(view)}
-              className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+              className={`px-1.5 py-1 md:px-3 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-colors ${
                 viewType === view
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -112,18 +112,19 @@ export function Header() {
                 view === 'agenda' ? 'rounded-r-md' : ''
               }`}
             >
-              {view}
+              <span className="hidden sm:inline">{view}</span>
+              <span className="sm:hidden">{view.charAt(0).toUpperCase()}</span>
             </button>
           ))}
         </div>
 
-        {/* Create Event Button */}
+        {/* Create Event Button - icon only on mobile */}
         <button
           onClick={handleCreateEvent}
-          className="btn-primary flex items-center space-x-2 px-4 py-2"
+          className="btn-primary flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4"
         >
           <Plus className="h-4 w-4" />
-          <span>New Event</span>
+          <span className="hidden md:inline">New Event</span>
         </button>
       </div>
     </header>

@@ -1,0 +1,94 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-stack-governor status"
+      }
+    },
+    {
+      "id": "rules_list",
+      "path": "/api/v1/rules",
+      "method": "GET",
+      "summary": "List rules and enablement state",
+      "description": "Returns the rule catalog and which rules are currently enabled.",
+      "category": "rules",
+      "examples": [
+        {
+          "name": "List rules",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/rules"
+        }
+      ]
+    },
+    {
+      "id": "config_get",
+      "path": "/api/v1/config",
+      "method": "GET",
+      "summary": "Fetch current rule config",
+      "description": "Returns the persisted config file contents.",
+      "category": "rules",
+      "examples": [
+        {
+          "name": "Get config",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/config"
+        }
+      ]
+    },
+    {
+      "id": "config_put",
+      "path": "/api/v1/config",
+      "method": "PUT",
+      "summary": "Update rule config",
+      "description": "Persists enabled/disabled rules to the config file.",
+      "category": "rules",
+      "examples": [
+        {
+          "name": "Enable a rule",
+          "curl": "curl -X PUT http://localhost:${API_PORT}/api/v1/config -H 'Content-Type: application/json' -d '{\"version\":\"1.0.0\",\"enabled_rules\":{\"GO_CLI_WORKSPACE_INDEPENDENCE\":true}}'"
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "path": "/api/v1/run",
+      "method": "POST",
+      "summary": "Run enabled rules",
+      "description": "Executes enabled rules and returns a report with evidence-backed findings.",
+      "category": "rules",
+      "examples": [
+        {
+          "name": "Run enabled rules",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/run -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}

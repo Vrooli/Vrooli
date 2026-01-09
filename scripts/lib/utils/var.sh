@@ -14,6 +14,7 @@ export var_LIB_DIR="$var_SCRIPTS_DIR/lib"
 export var_LIB_UTILS_DIR="$var_LIB_DIR/utils"
 export var_LIB_DEPLOY_DIR="$var_LIB_DIR/deploy"
 export var_LIB_DEPS_DIR="$var_LIB_DIR/deps"
+export var_LIB_TOOLS_DIR="$var_LIB_DIR/tools"
 export var_LIB_LIFECYCLE_DIR="$var_LIB_DIR/lifecycle"
 export var_LIB_NETWORK_DIR="$var_LIB_DIR/network"
 export var_LIB_SERVICE_DIR="$var_LIB_DIR/service"
@@ -26,6 +27,8 @@ export var_SCRIPTS_RESOURCES_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/lib"
 export var_SCRIPTS_RESOURCES_TESTS_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/tests/lib"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
+export var_JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
+export var_JQ_SCENARIO_DEPENDENCIES_EXPR='(.dependencies.scenarios // {})'
 
 # Vrooli configuration directory and files
 export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"

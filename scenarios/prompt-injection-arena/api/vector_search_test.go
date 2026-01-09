@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -52,9 +53,9 @@ func TestVectorSearchStructures(t *testing.T) {
 	t.Run("SearchQuery", func(t *testing.T) {
 		// Test search query structure
 		type VectorSearchQuery struct {
-			Query      string  `json:"query"`
-			TopK       int     `json:"top_k"`
-			Threshold  float64 `json:"threshold"`
+			Query      string   `json:"query"`
+			TopK       int      `json:"top_k"`
+			Threshold  float64  `json:"threshold"`
 			FilterTags []string `json:"filter_tags"`
 		}
 
@@ -79,11 +80,11 @@ func TestVectorSearchStructures(t *testing.T) {
 	t.Run("SearchResult", func(t *testing.T) {
 		// Test search result structure
 		type VectorSearchResult struct {
-			ID             string                 `json:"id"`
-			Score          float64                `json:"score"`
-			Content        string                 `json:"content"`
-			Metadata       map[string]interface{} `json:"metadata"`
-			HighlightedText string                `json:"highlighted_text"`
+			ID              string                 `json:"id"`
+			Score           float64                `json:"score"`
+			Content         string                 `json:"content"`
+			Metadata        map[string]interface{} `json:"metadata"`
+			HighlightedText string                 `json:"highlighted_text"`
 		}
 
 		result := VectorSearchResult{

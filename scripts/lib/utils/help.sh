@@ -50,16 +50,26 @@ PHASES:
 
 OPTIONS:
     Options vary by phase. Common options include:
-    
+
     --target <target>        Deployment target (native-linux, docker, k8s, etc.)
-    --environment <env>      Environment (development, production, staging)
+    --environment <env>      Environment profile:
+                               development - Full dev setup with all tools (default)
+                               production  - Production runtimes, no dev tools
+                               minimal     - Essential deps only (Docker + basics)
+    --resources <mode>       Resource installation mode:
+                               enabled     - Install resources from service.json (default)
+                               none        - Skip all resource installation
+                               <list>      - Install only specified resources (comma-separated)
     --dry-run               Preview what would be executed without making changes
     --yes                   Skip confirmation prompts
-    
+    --sudo-mode <mode>      How to handle sudo requirements (ask, skip, error)
+
     Run '$script_name <phase> --help' for phase-specific options.
 
 EXAMPLES:
     $script_name setup --target native-linux
+    $script_name setup --environment production --resources none
+    $script_name setup --environment minimal --resources postgres,redis
     $script_name develop --detached yes
     $script_name build --environment production --dry-run
     $script_name test --coverage yes

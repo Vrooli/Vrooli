@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,13 +11,6 @@ import (
 	"strings"
 	"time"
 )
-
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Service   string    `json:"service"`
-	Timestamp time.Time `json:"timestamp"`
-	Readiness bool      `json:"readiness"`
-}
 
 type SearchRequest struct {
 	Query      string  `json:"query"`
@@ -42,16 +37,9 @@ type Place struct {
 	Description string   `json:"description"`
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Service:   "local-info-scout",
-		Timestamp: time.Now(),
-		Readiness: true,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+type SearchResponse struct {
+	Places  []Place  `json:"places"`
+	Sources []string `json:"sources"`
 }
 
 func searchHandler(w http.ResponseWriter, r *http.Request) {
@@ -121,8 +109,23 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	duration := time.Since(startTime)
 	go logSearch(req, len(places), cacheHit, duration)
 
+	// Determine data sources used
+	sources := []string{"mock"}
+	if hasPostgresDb() {
+		sources = append(sources, "postgres")
+	}
+	if len(places) > 1 {
+		sources = append(sources, "multisource")
+	}
+
+	// Build response per PRD API contract
+	response := SearchResponse{
+		Places:  places,
+		Sources: sources,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(places)
+	json.NewEncoder(w).Encode(response)
 }
 
 func getMockPlaces() []Place {
@@ -765,17 +768,11 @@ func trendingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Lifecycle protection must be the absolute first check
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start local-info-scout
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "local-info-scout",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize loggers after lifecycle check
@@ -802,7 +799,7 @@ func main() {
 		mainLogger.Info("Personalized recommendations enabled", nil)
 	}
 
-	http.HandleFunc("/health", enableCORS(healthHandler))
+	http.HandleFunc("/health", enableCORS(health.Handler()))
 	http.HandleFunc("/api/search", enableCORS(searchHandler))
 	http.HandleFunc("/api/categories", enableCORS(categoriesHandler))
 	http.HandleFunc("/api/places/", enableCORS(placeDetailsHandler))
@@ -823,6 +820,11 @@ func main() {
 		})
 		os.Exit(1)
 	}
+}
+
+// hasPostgresDb checks if PostgreSQL database is available
+func hasPostgresDb() bool {
+	return db != nil
 }
 
 // clearCacheHandler handles cache clearing requests

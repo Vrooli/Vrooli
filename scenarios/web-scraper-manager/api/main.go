@@ -1,20 +1,58 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
+
+// Structured logging helpers
+type logLevel string
+
+const (
+	levelInfo  logLevel = "INFO"
+	levelWarn  logLevel = "WARN"
+	levelError logLevel = "ERROR"
+)
+
+func logStructured(level logLevel, message string, fields map[string]interface{}) {
+	entry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"message":   message,
+	}
+	for k, v := range fields {
+		entry[k] = v
+	}
+	data, _ := json.Marshal(entry)
+	fmt.Fprintln(os.Stdout, string(data))
+}
+
+func logInfo(message string, fields map[string]interface{}) {
+	logStructured(levelInfo, message, fields)
+}
+
+func logWarn(message string, fields map[string]interface{}) {
+	logStructured(levelWarn, message, fields)
+}
+
+func logError(message string, fields map[string]interface{}) {
+	logStructured(levelError, message, fields)
+}
 
 type Config struct {
 	Port        string
@@ -22,7 +60,6 @@ type Config struct {
 	RedisURL    string
 	MinioURL    string
 	QdrantURL   string
-	WindmillURL string
 }
 
 type ScrapingAgent struct {
@@ -87,84 +124,32 @@ var db *sql.DB
 var config Config
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start web-scraper-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "web-scraper-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	config = loadConfig()
 
-	// Initialize database connection
+	// Initialize database connection with exponential backoff
 	var err error
-	db, err = sql.Open("postgres", config.PostgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-	defer db.Close()
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🕸️ Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v", actualDelay)
-		}
-
-		time.Sleep(actualDelay)
+		logError("Database connection failed", map[string]interface{}{"error": err.Error()})
+		os.Exit(1)
 	}
 
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	logInfo("Database connection pool established successfully", nil)
 
 	// Setup routes
 	router := mux.NewRouter()
 
 	// Health endpoint
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
@@ -204,8 +189,20 @@ func main() {
 
 	startAgentScheduler()
 
-	log.Printf("Web Scraper Manager API starting on port %s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, router))
+	logInfo("Web Scraper Manager API starting", map[string]interface{}{
+		"scenario": "web-scraper-manager",
+	})
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func loadConfig() Config {
@@ -220,7 +217,7 @@ func loadConfig() Config {
 		dbName := os.Getenv("POSTGRES_DB")
 
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all required database environment variables (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, and credentials)")
 		}
 
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -230,10 +227,7 @@ func loadConfig() Config {
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	return Config{
@@ -242,7 +236,6 @@ func loadConfig() Config {
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 	}
 }
 
@@ -254,10 +247,36 @@ func getEnv(key, defaultValue string) string {
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
+	// Get allowed origins from environment or use safe defaults
+	allowedOrigins := map[string]bool{
+		"http://localhost":      true,
+		"http://127.0.0.1":      true,
+	}
+
+	// Add UI_PORT if configured
+	if uiPort := os.Getenv("UI_PORT"); uiPort != "" {
+		allowedOrigins["http://localhost:"+uiPort] = true
+		allowedOrigins["http://127.0.0.1:"+uiPort] = true
+	}
+
+	// Add ALLOWED_ORIGINS from environment if specified
+	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+		for _, origin := range splitAndTrim(envOrigins, ",") {
+			allowedOrigins[origin] = true
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		// Check if origin is allowed
+		if origin != "" && allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -268,31 +287,51 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Helper function to split and trim strings
+func splitAndTrim(s, sep string) []string {
+	parts := make([]string, 0)
+	for _, part := range splitString(s, sep) {
+		trimmed := trimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+func splitString(s, sep string) []string {
+	if s == "" {
+		return []string{}
+	}
+	result := []string{}
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			result = append(result, s[start:i])
+			start = i + len(sep)
+			i += len(sep) - 1
+		}
+	}
+	result = append(result, s[start:])
+	return result
+}
+
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+		start++
+	}
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+		end--
+	}
+	return s[start:end]
+}
+
 func respondJSON(w http.ResponseWriter, status int, response APIResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(response)
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	if err := db.Ping(); err != nil {
-		respondJSON(w, http.StatusServiceUnavailable, APIResponse{
-			Success: false,
-			Error:   "Database connection failed",
-		})
-		return
-	}
-
-	respondJSON(w, http.StatusOK, APIResponse{
-		Success: true,
-		Message: "Web Scraper Manager API is healthy",
-		Data: map[string]interface{}{
-			"timestamp": time.Now().UTC(),
-			"version":   "1.0.0",
-			"database":  "connected",
-		},
-	})
 }
 
 func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +386,9 @@ func getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 			&agent.NextRun, &tagsJSON,
 		)
 		if err != nil {
-			log.Printf("Error scanning agent row: %v", err)
+			logError("Error scanning agent row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -575,7 +616,9 @@ func getTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			&target.RateLimitMs, &target.MaxRetries, &target.CreatedAt,
 		)
 		if err != nil {
-			log.Printf("Error scanning target row: %v", err)
+			logError("Error scanning target row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -689,7 +732,9 @@ func getAgentTargetsHandler(w http.ResponseWriter, r *http.Request) {
 			&target.RateLimitMs, &target.MaxRetries, &target.CreatedAt,
 		)
 		if err != nil {
-			log.Printf("Error scanning target row: %v", err)
+			logError("Error scanning target row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -770,7 +815,9 @@ func getResultsHandler(w http.ResponseWriter, r *http.Request) {
 			&result.ExecutionTimeMs,
 		)
 		if err != nil {
-			log.Printf("Error scanning result row: %v", err)
+			logError("Error scanning result row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -829,7 +876,9 @@ func getAgentResultsHandler(w http.ResponseWriter, r *http.Request) {
 			&result.ExecutionTimeMs,
 		)
 		if err != nil {
-			log.Printf("Error scanning result row: %v", err)
+			logError("Error scanning result row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 

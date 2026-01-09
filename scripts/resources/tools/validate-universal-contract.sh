@@ -118,7 +118,7 @@ Examples:
     $(basename "$0") --resource ollama --layer 3
     
     # Check v1.0 compatibility
-    $(basename "$0") --contract v1.0 --resource n8n
+    $(basename "$0") --contract v1.0 --resource node-red
     
     # Generate JSON report
     $(basename "$0") --format json --report validation.json

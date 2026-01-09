@@ -1,0 +1,47 @@
+{
+  "description": "Add concurrent run limits and capacity tracking",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Track and enforce concurrent run limits and resource capacity",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Resource Limit Tracking",
+      "validation": [
+        {
+          "notes": "Test limit enforcement",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify capacity tracking",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test under maximum load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate resource protection",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Resource Limits"
+}

@@ -21,7 +21,28 @@
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/app-monitor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -40,46 +61,13 @@
       "description": "Vite dev server port (development)"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store app metadata, monitoring data, status logs, and metrics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Real-time event streaming, caching, and app notifications"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "models": [
-        "phi3.5:3.8b",
-        "llama3.2"
-      ],
-      "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "App Monitor health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -87,6 +75,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -104,6 +100,11 @@
             "targets": [
               "api/app-monitor-api"
             ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
             "type": "cli",
@@ -149,7 +150,7 @@
         },
         {
           "name": "verify-docker-access",
-          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
+          "run": "docker version > /dev/null && echo '\u2705 Docker access verified' || echo '\u274c Docker access required for app monitoring'",
           "description": "Verify Docker access for app monitoring"
         },
         {
@@ -159,13 +160,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '\ud83d\ude80 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start app monitor with Go API server",
+      "description": "Start app monitor with Go API server and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -175,11 +176,6 @@
           "condition": {
             "file_exists": "api/app-monitor-api"
           }
-        },
-        {
-          "name": "ensure-ui-bundle",
-          "run": "cd ui && if [ ! -f dist/index.html ]; then echo 'UI bundle missing; running npm run build'; npm run build; elif find src -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI sources changed; rebuilding'; npm run build; elif [ -d public ] && find public -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI static assets changed; rebuilding'; npm run build; elif [ index.html -nt dist/index.html ] || [ vite.config.ts -nt dist/index.html ]; then echo 'UI configuration changed; rebuilding'; npm run build; else echo 'UI bundle up to date'; fi",
-          "description": "Ensure production UI bundle is current before starting server"
         },
         {
           "name": "start-ui",
@@ -191,73 +187,19 @@
           }
         },
         {
-          "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
-    "dev": {
-      "description": "Start app monitor in development mode with hot reload",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./app-monitor-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/app-monitor-api"
-          }
-        },
-        {
-          "name": "start-vite-dev",
-          "run": "cd ui && VITE_PORT=${VITE_PORT} npm run dev",
-          "description": "Start Vite dev server with hot reload",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "show-dev-services",
-          "run": "echo '🚀 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n🔥 Hot reload enabled - changes will update automatically'",
-          "description": "Display development service URLs"
-        }
-      ]
-    },
     "test": {
-      "description": "Test app monitor API and CLI",
+      "description": "Comprehensive phased testing for app-monitor",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/apps",
-          "description": "Test API apps endpoint"
-        },
-        {
-          "name": "test-docker-access",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/docker/info",
-          "description": "Test Docker API access through app monitor"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats app-monitor.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/app-monitor.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute app-monitor --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -275,6 +217,68 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time event streaming, caching, and app notifications"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": [
+          "phi3.5:3.8b",
+          "llama3.2"
+        ],
+        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "description": "Auto-detected dependency via scenario_port_cli"
+      },
+      "scenario-auditor": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via scenario_port_cli"
+      }
     }
   }
 }

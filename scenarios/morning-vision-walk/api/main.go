@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -63,23 +65,18 @@ var upgrader = websocket.Upgrader{
 var activeSessions = make(map[string]*Session)
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start morning-vision-walk
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "morning-vision-walk",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
 	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/conversation/start", startConversationHandler).Methods("POST")
 	router.HandleFunc("/api/conversation/message", sendMessageHandler).Methods("POST")
 	router.HandleFunc("/api/conversation/end", endConversationHandler).Methods("POST")
@@ -113,16 +110,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status": "healthy",
-		"service": "morning-vision-walk",
-		"timestamp": time.Now().Unix(),
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func startConversationHandler(w http.ResponseWriter, r *http.Request) {

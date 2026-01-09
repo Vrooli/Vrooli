@@ -5,13 +5,14 @@
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#   make run - Start this scenario in lifecycle-managed mode
 
-.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check schema migrate
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check schema migrate
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +38,13 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/calendar-api directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
 run: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
+
+start: run ## Start this scenario
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -177,11 +180,12 @@ check: ## Format, lint, and test code (pre-commit workflow)
 # Development shortcuts
 # ============================================================================
 
-r: run       ## Shortcut for run
-s: stop      ## Shortcut for stop  
-d: dev       ## Shortcut for dev
-t: test      ## Shortcut for test
-l: logs      ## Shortcut for logs
-c: clean     ## Shortcut for clean
-b: build     ## Shortcut for build
-f: fmt       ## Shortcut for fmt
+r: run
+s: stop
+d: dev
+t: test
+l: logs
+c: clean
+b: build
+f: fmt
+lint-all: lint

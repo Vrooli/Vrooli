@@ -105,10 +105,10 @@ teardown() {
 }
 
 @test "fixture_helpers::get_workflow_fixture - returns correct workflow paths" {
-    run fixture_helpers::get_workflow_fixture "n8n" "whisper"
-    
+    run fixture_helpers::get_workflow_fixture "node-red"
+
     assert_success
-    assert_output "$FIXTURE_BASE/workflows/n8n/n8n-whisper-transcription.json"
+    assert_output "$FIXTURE_BASE/workflows/node-red/node-red-workflow.json"
     
     run fixture_helpers::get_workflow_fixture "comfyui"
     

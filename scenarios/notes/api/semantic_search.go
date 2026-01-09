@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 )
@@ -18,8 +17,8 @@ type VectorSearchRequest struct {
 
 type VectorSearchResponse struct {
 	Results []VectorSearchResult `json:"results"`
-	Query   string              `json:"query"`
-	Count   int                 `json:"count"`
+	Query   string               `json:"query"`
+	Count   int                  `json:"count"`
 }
 
 type VectorSearchResult struct {
@@ -35,7 +34,7 @@ type QdrantSearchRequest struct {
 	Vector []float64              `json:"vector"`
 	Limit  int                    `json:"limit"`
 	Filter map[string]interface{} `json:"filter,omitempty"`
-	With   []string              `json:"with_payload"`
+	With   []string               `json:"with_payload"`
 }
 
 type QdrantSearchResponse struct {
@@ -44,7 +43,7 @@ type QdrantSearchResponse struct {
 
 type QdrantSearchResult struct {
 	ID      string                 `json:"id"`
-	Score   float64               `json:"score"`
+	Score   float64                `json:"score"`
 	Payload map[string]interface{} `json:"payload"`
 }
 
@@ -58,9 +57,11 @@ type EmbeddingResponse struct {
 }
 
 func getEmbedding(text string) ([]float64, error) {
+	// OLLAMA_HOST: Configurable via environment variable (default: localhost:11434)
+	// Override in service.json or .env to use a different Ollama instance
 	ollamaHost := os.Getenv("OLLAMA_HOST")
 	if ollamaHost == "" {
-		ollamaHost = "localhost:11434"
+		ollamaHost = "localhost:11434" // Standard Ollama default port
 	}
 
 	// Use nomic-embed-text model for embeddings
@@ -112,9 +113,11 @@ func getEmbedding(text string) ([]float64, error) {
 }
 
 func searchQdrant(vector []float64, userID string, limit int) ([]QdrantSearchResult, error) {
+	// QDRANT_HOST: Configurable via environment variable (default: localhost:6333)
+	// Override in service.json or .env to use a different Qdrant instance
 	qdrantHost := os.Getenv("QDRANT_HOST")
 	if qdrantHost == "" {
-		qdrantHost = "localhost:6333"
+		qdrantHost = "localhost:6333" // Standard Qdrant default port
 	}
 
 	searchReq := QdrantSearchRequest{
@@ -174,7 +177,7 @@ func semanticSearchHandler(w http.ResponseWriter, r *http.Request) {
 	// Get embedding for the query
 	vector, err := getEmbedding(req.Query)
 	if err != nil {
-		log.Printf("Warning: Could not generate embedding: %v - falling back to text search", err)
+		logger.Warn("Could not generate embedding - falling back to text search", "error", err.Error())
 		// Reconstruct request body for text search fallback
 		fallbackBody := map[string]interface{}{
 			"query":   req.Query,
@@ -190,7 +193,7 @@ func semanticSearchHandler(w http.ResponseWriter, r *http.Request) {
 	// Search Qdrant
 	qdrantResults, err := searchQdrant(vector, req.UserID, req.Limit)
 	if err != nil {
-		log.Printf("Warning: Qdrant search failed: %v - falling back to text search", err)
+		logger.Warn("Qdrant search failed - falling back to text search", "error", err.Error())
 		// Reconstruct request body for text search fallback
 		fallbackBody := map[string]interface{}{
 			"query":   req.Query,
@@ -245,26 +248,27 @@ func indexNoteInQdrant(note Note) error {
 	vector, err := getEmbedding(textToEmbed)
 	if err != nil {
 		// Log error but don't fail the note creation
-		fmt.Printf("Warning: Could not generate embedding for note %s: %v\n", note.ID, err)
+		logger.Warn("Could not generate embedding for note", "note_id", note.ID, "error", err.Error())
 		return nil
 	}
 
+	// QDRANT_HOST: Configurable via environment variable (default: localhost:6333)
 	qdrantHost := os.Getenv("QDRANT_HOST")
 	if qdrantHost == "" {
-		qdrantHost = "localhost:6333"
+		qdrantHost = "localhost:6333" // Standard Qdrant default port
 	}
 
 	// Prepare payload
 	payload := map[string]interface{}{
-		"note_id":      note.ID,
-		"user_id":      note.UserID,
-		"title":        note.Title,
-		"content":      note.Content,
-		"folder_id":    note.FolderID,
-		"is_pinned":    note.IsPinned,
-		"is_favorite":  note.IsFavorite,
-		"created_at":   note.CreatedAt,
-		"updated_at":   note.UpdatedAt,
+		"note_id":     note.ID,
+		"user_id":     note.UserID,
+		"title":       note.Title,
+		"content":     note.Content,
+		"folder_id":   note.FolderID,
+		"is_pinned":   note.IsPinned,
+		"is_favorite": note.IsFavorite,
+		"created_at":  note.CreatedAt,
+		"updated_at":  note.UpdatedAt,
 	}
 
 	if note.Summary != nil {
@@ -300,7 +304,7 @@ func indexNoteInQdrant(note Note) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Warning: Could not index note in Qdrant: %v\n", err)
+		logger.Warn("Could not index note in Qdrant", "error", err.Error())
 		return nil
 	}
 	defer resp.Body.Close()
@@ -310,9 +314,10 @@ func indexNoteInQdrant(note Note) error {
 
 // Function to delete a note from Qdrant
 func deleteNoteFromQdrant(noteID string) error {
+	// QDRANT_HOST: Configurable via environment variable (default: localhost:6333)
 	qdrantHost := os.Getenv("QDRANT_HOST")
 	if qdrantHost == "" {
-		qdrantHost = "localhost:6333"
+		qdrantHost = "localhost:6333" // Standard Qdrant default port
 	}
 
 	deleteReq := map[string]interface{}{
@@ -337,7 +342,7 @@ func deleteNoteFromQdrant(noteID string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Warning: Could not delete note from Qdrant: %v\n", err)
+		logger.Warn("Could not delete note from Qdrant", "error", err.Error())
 		return nil
 	}
 	defer resp.Body.Close()

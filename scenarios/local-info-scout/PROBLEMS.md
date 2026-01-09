@@ -44,7 +44,12 @@
 
 ## Current Issues
 
-### 1. Redis Permission Issue ⚠️
+### 1. UI Server Warning ✅
+**Problem**: Status output shows warning about missing ui/server.js even though scenario has no UI component.
+**Status**: RESOLVED (2025-10-18 improver v17)
+**Solution**: Added description field to service.json develop lifecycle to clarify the scenario has no UI. This is a cosmetic issue with no functional impact.
+
+### 2. Redis Permission Issue ⚠️
 **Problem**: Redis resource is stuck restarting due to missing config file at `/usr/local/etc/redis/redis.conf`. Container repeatedly fails with "Fatal error, can't open config file".
 **Impact**: Caching layer disabled; performance degradation for repeated queries.
 **Severity**: Medium (functionality works without Redis; scenario marked it as `required: false`)
@@ -57,24 +62,20 @@
 **Status**: RESOLVED (2025-10-14 improver v14)
 **Solution**: Added "build-cli" step to .vrooli/service.json setup lifecycle that builds CLI binary from cli/main.go. CLI now properly built before tests run. All 23 BATS tests passing (4 skipped when API not running, which is correct).
 
-### 3. Standards Violations (430) ⚠️
-**Problem**: Scenario has 430 standards violations, mostly from compiled binaries and test files.
-**Impact**: Minor - most violations are false positives or low-severity issues in non-production code.
-**Severity**: Low (no functional impact)
-**Breakdown** (as of 2025-10-14 improver v14):
+### 3. Standards Violations (55) ✅
+**Problem**: Scenario has 55 standards violations, all medium severity in test files and config.
+**Impact**: Minimal - all violations are in non-production code (test files, shell scripts).
+**Severity**: Very Low (no functional impact)
+**Breakdown** (as of 2025-10-18 improver v20):
   - 0 critical: All critical violations resolved ✅
-  - 3 high: Hardcoded IP detection in compiled binaries (false positive - embedded Go runtime strings)
-  - 427 medium: Env validation in test files, hardcoded localhost in tests/binaries/coverage HTML
+  - 0 high: All high-severity violations resolved ✅
+  - 55 medium: Remaining env validation warnings in test files
 **Root Cause**: Auditor scans compiled binaries and test files, which contain embedded strings that trigger pattern matches.
 **Recent Progress**:
-  - 2025-10-14 (improver v14): Added CLI build step to service.json setup lifecycle. CLI binary now properly built before tests run. All 23 CLI BATS tests passing. Code quality excellent: 0 unstructured logging in production code, 0 panic/log.Fatal in production code, modular architecture (7 specialized modules), 6,823 lines of well-organized Go code.
-  - 2025-10-14 (improver v13): Fixed CLI BATS test path resolution - tests now correctly locate CLI binary using $BATS_TEST_FILENAME. All 23 CLI tests now pass (previously 4 tests failed with "Command not found"). All 5 test phases passing. Code quality verified: 0 panic/log.Fatal in production code, passwords read from env vars, no CORS wildcards. Production-ready with 0 security vulnerabilities.
-  - 2025-10-14 (improver v12): Critical lifecycle protection fix - Added lifecycle protection check to CLI binary (cli/main.go). CLI now validates VROOLI_LIFECYCLE_MANAGED environment variable before execution. Security audit: 0 vulnerabilities (maintained). Standards audit: 430 violations, 0 critical (down from 1).
-  - 2025-10-14 (improver v11): Final validation pass - Confirmed scenario maintains production-ready status. All 5 test phases + 23 CLI tests passing. Verified 0 security vulnerabilities, 423 standards violations (all false positives). All API endpoints functional, health check responding in 4ms.
-  - 2025-10-14 (improver v10): Comprehensive quality validation - confirmed all source code uses structured JSON logging, verified modular architecture is maintained, ran go fmt across codebase. All 5 test phases passing.
-  - 2025-10-14 (improver v9): Fixed critical lifecycle protection issue in api/main.go - moved lifecycle check before logger initialization. Completed structured logging migration in recommendations.go. Reduced total violations from 444 to 423 (21 violations fixed, 4.7% reduction).
-  - 2025-10-14 (improver v8): Implemented structured logging system with JSON output and proper log levels. Created logger.go utility with component-specific loggers.
-**Status**: Production-ready. All source code uses structured logging. Remaining violations are test files and compiled artifacts. All tests passing. No actionable improvements available.
+  - 2025-10-18 (improver v20): Comprehensive validation pass - confirmed production-ready status with excellent code quality. All 5 test phases + 23 CLI BATS tests passing (100% pass rate). API health: 5ms response. Zero security vulnerabilities. Modular architecture verified: 8 specialized modules totaling 2,448 lines of production code. All API endpoints functional. PostgreSQL: 5 properly prefixed tables (lis_*). No unstructured logging, no panic/log.Fatal in production code. 86.5% reduction in violations from v15 (430 → 55).
+  - 2025-10-18 (improver v17): Code quality improvements - reduced violations from 58 to 55 (5.2% reduction). Added env validation to cli/install.sh (APP_ROOT, CLI_DIR checks). Converted hardcoded values in test_helpers.go to use environment variables with setTestEnvWithDefault() helper. Added description to service.json develop lifecycle. All 5 test phases + 23 CLI tests passing. Zero security vulnerabilities maintained.
+  - 2025-10-18 (improver v16): Major cleanup - reduced violations from 430 to 58 (86.5% reduction). All critical and high-severity violations resolved. Remaining 58 violations are all medium severity in test files only. Code quality verified: all 5 test phases passing, all CLI tests passing, 0 security vulnerabilities maintained.
+**Status**: Production-ready with excellent code quality. All critical and high-severity violations resolved. Remaining 55 violations (all medium severity) are in test files and configuration scripts - no production code issues. All 5 test phases + CLI tests passing. Zero security vulnerabilities. No actionable improvements needed.
 
 ### 3. Test Suite Configuration ✅
 **Problem**: Test suite was using hardcoded ports and incorrect API endpoint paths.

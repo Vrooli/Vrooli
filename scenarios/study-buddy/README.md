@@ -98,7 +98,7 @@ study-buddy/
 │   └── main.go
 ├── cli/               # CLI scripts
 ├── initialization/    # Resource initialization
-│   ├── n8n/          # Workflow definitions
+│   ├── automation/   # Automation module definitions
 │   └── postgres/     # Database schema
 ├── ui/               # Frontend application
 │   ├── index.html    # Lofi Girl themed UI

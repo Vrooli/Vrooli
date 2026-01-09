@@ -1,0 +1,102 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "email-triage-must-have-multi-tenant-user-accounts-with-email-profile-isolation-2025-09-24-mock-auth-via-dev-mode",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "security",
+      "description": "System must support multi-tenant user authentication with isolated email profiles per tenant",
+      "id": "REQ-P0-001",
+      "prd_ref": "email-triage-must-have-multi-tenant-user-accounts-with-email-profile-isolation-2025-09-24-mock-auth-via-dev-mode",
+      "status": "draft",
+      "title": "Multi-tenant User Authentication",
+      "validation": [
+        {
+          "notes": "Verify user isolation between tenants",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test profile separation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end auth flow testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Auth response \u003c 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successfully isolate tenant data",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Each tenant's email profiles must be completely isolated with separate storage and processing",
+      "id": "REQ-P0-002",
+      "prd_ref": "email-triage-must-have-multi-tenant-user-accounts-with-email-profile-isolation-2025-09-24-mock-auth-via-dev-mode",
+      "status": "draft",
+      "title": "Email Profile Isolation",
+      "validation": [
+        {
+          "notes": "Verify profile data isolation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test cross-tenant access prevention",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Profile isolation system test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Profile switching \u003c 200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Zero cross-tenant data leaks",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Multi-tenant user accounts with email profile isolation (2025-09-24: Mock auth via DEV_MODE)"
+}

@@ -4,6 +4,7 @@ import type {
   DisplaySettings,
   ProcessorSettings,
 } from '../data/sampleData';
+import type { SettingsConstraints } from '../hooks/useAgentSettingsManager';
 import { Modal } from './Modal';
 import { SettingsPage } from '../pages/Settings';
 
@@ -18,6 +19,7 @@ export interface SettingsDialogProps {
   onClose: () => void;
   issuesProcessed?: number;
   issuesRemaining?: number | string;
+  constraints?: SettingsConstraints | null;
 }
 
 export function SettingsDialog({
@@ -31,9 +33,15 @@ export function SettingsDialog({
   onClose,
   issuesProcessed,
   issuesRemaining,
+  constraints,
 }: SettingsDialogProps) {
   return (
-    <Modal onClose={onClose} labelledBy="settings-dialog-title" panelClassName="modal-panel--wide">
+    <Modal
+      onClose={onClose}
+      labelledBy="settings-dialog-title"
+      panelClassName="modal-panel--wide"
+      size="xl"
+    >
       <div className="modal-header">
         <div>
           <p className="modal-eyebrow">Configuration</p>
@@ -57,6 +65,7 @@ export function SettingsDialog({
           onDisplayChange={onDisplayChange}
           issuesProcessed={issuesProcessed}
           issuesRemaining={issuesRemaining}
+          constraints={constraints}
         />
       </div>
     </Modal>

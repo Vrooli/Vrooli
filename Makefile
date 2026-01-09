@@ -6,10 +6,10 @@
 # Quick Start:
 #   make setup    - First-time setup (installs CLI, resources, etc.)
 #   make dev      - Start development environment
-#   make test     - Run all tests
+#   make test     - Run scenario tests (see help)
 #   make help     - Show this help message
 
-.PHONY: help setup dev develop build test test-static test-resources test-scenarios test-bats clean deploy status
+.PHONY: help setup dev develop build test clean deploy status scenarios shell
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -62,26 +62,11 @@ clean: ## Clean build artifacts and caches
 	@echo "$(BLUE)🧹 Cleaning build artifacts...$(RESET)"
 	vrooli clean
 
-# Testing commands
-test: ## Run all tests (static, resources, scenarios, bats)
-	@echo "$(BLUE)🧪 Running complete test suite...$(RESET)"
-	vrooli test
-
-test-static: ## Run static analysis (shellcheck, syntax)
-	@echo "$(BLUE)🔍 Running static analysis...$(RESET)"
-	vrooli test static
-
-test-resources: ## Test resource validation and mocks
-	@echo "$(BLUE)⚡ Testing resources...$(RESET)"
-	vrooli test resources
-
-test-scenarios: ## Validate and test scenarios
-	@echo "$(BLUE)🎬 Testing scenarios...$(RESET)"
-	vrooli test scenarios
-
-test-bats: ## Run BATS test suite
-	@echo "$(BLUE)🦇 Running BATS tests...$(RESET)"
-	vrooli test bats
+# Testing command
+test: ## Run scenario tests (use test-genie or vrooli scenario test)
+	@echo "$(BLUE)🧪 Run scenario tests with:$(RESET)"
+	@echo "  - vrooli scenario test <name>"
+	@echo "  - cd scenarios/<name> && test-genie execute <name> --preset quick --fail-fast"
 
 # Status and info commands
 status: ## Show system status and running services
@@ -101,15 +86,6 @@ status: ## Show system status and running services
 	fi
 	@echo ""
 	@echo "Run 'vrooli resource status' for detailed resource information"
-
-# Quick shortcuts for common workflows
-quick-test: ## Quick test run (static analysis only)
-	@echo "$(BLUE)⚡ Running quick tests...$(RESET)"
-	vrooli test static
-
-full-test: ## Full test suite with verbose output
-	@echo "$(BLUE)🧪 Running full test suite with details...$(RESET)"
-	vrooli test --verbose
 
 # Scenario shortcuts
 scenarios: ## List available scenarios

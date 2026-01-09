@@ -22,8 +22,8 @@ INSERT INTO profiles (
         "category": "development"
     }',
     ARRAY['postgres', 'n8n', 'ollama', 'browserless', 'qdrant', 'redis'],
-    ARRAY['system-monitor', 'app-debugger', 'app-monitor', 'core-debugger'],
-    ARRAY['http://localhost:3000/system-monitor', 'http://localhost:3001/app-debugger'],
+    ARRAY['system-monitor', 'app-issue-tracker', 'app-monitor', 'scenario-auditor'],
+    ARRAY['http://localhost:3000/system-monitor', 'http://localhost:3001/app-issue-tracker'],
     60
 );
 
@@ -178,8 +178,8 @@ INSERT INTO profiles (
         "category": "showcase"
     }',
     ARRAY['postgres', 'n8n', 'ollama', 'browserless'],
-    ARRAY['system-monitor', 'image-generation-pipeline', 'fall-foliage-explorer', 'chart-generator', 'scenario-surfer'],
-    ARRAY['http://localhost:3000/scenario-surfer'],
+    ARRAY['system-monitor', 'image-generation-pipeline', 'fall-foliage-explorer', 'chart-generator', 'app-monitor'],
+    ARRAY['http://localhost:3000/app-monitor'],
     30
 );
 
@@ -257,8 +257,8 @@ INSERT INTO profiles (
         "is_template": true
     }',
     ARRAY['postgres', 'n8n'],
-    ARRAY['scenario-surfer'],
-    ARRAY['http://localhost:3000/scenario-surfer'],
+    ARRAY['app-monitor'],
+    ARRAY['http://localhost:3000/app-monitor'],
     NULL
 );
 

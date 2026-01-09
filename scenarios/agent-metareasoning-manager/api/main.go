@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -17,6 +16,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -915,15 +918,6 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 	return d.semanticSearchWithWorkflow(query, limit)
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
-}
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
@@ -950,28 +944,15 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start agent-metareasoning-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "agent-metareasoning-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	logger := NewLogger()
-	
-	// Load configuration - REQUIRED environment variables, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	
+
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	windmillPort := getResourcePort("windmill")
@@ -994,85 +975,17 @@ func main() {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 	
-	// Database configuration - support both POSTGRES_URL and individual components
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			logger.Error("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB", nil)
-			os.Exit(1)
-		}
-		
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
 	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
+	})
 	if err != nil {
-		logger.Error("Failed to open database connection", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
-	
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	logger.Info("🔄 Attempting database connection with exponential backoff...")
-	logger.Info("📊 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
 
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed", attempt + 1, maxRetries), pingErr)
-		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			logger.Info("📈 Retry progress:")
-			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
-			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
-			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
-		os.Exit(1)
-	}
-	
-	logger.Info("🎉 Database connection pool established successfully!")
+	logger.Info("Database connection pool established successfully!")
 	
 	// Initialize metareasoning engine
 	metareasoningEngine := NewMetareasoningEngine(db)
@@ -1098,9 +1011,13 @@ func main() {
 	
 	// Setup routes
 	r := mux.NewRouter()
-	
-	// Health and system endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version(apiVersion).
+		Check(health.DB(db), health.Critical).
+		Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/workflows", discovery.ListWorkflows).Methods("GET")
 	r.HandleFunc("/workflows/search", discovery.SearchWorkflows).Methods("POST")
 	r.HandleFunc("/analyze", discovery.AnalyzeWorkflow).Methods("POST")
@@ -1135,19 +1052,12 @@ func main() {
 		handleReasoningResult(w, r, db)
 	}).Methods("GET")
 	
-	// Start server
-	log.Printf("Starting Metareasoning Coordinator API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  Database: %s", dbURL)
-
-	serverLogger := NewLogger()
-	serverLogger.Info(fmt.Sprintf("Server starting on port %s", port))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		serverLogger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

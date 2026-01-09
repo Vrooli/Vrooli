@@ -253,10 +253,13 @@ Integration with brand-manager ensures:
 ### Integration Tests
 
 ```bash
-# Run the full test suite
-./test/integration-test.sh
+# Run the full phased suite
+vrooli scenario test social-media-scheduler
 
-# Or use the Vrooli test framework
+# Exercise a specific phase
+test-genie execute social-media-scheduler --phases integration
+
+# Or use the Vrooli CLI orchestrator
 vrooli scenario test social-media-scheduler
 ```
 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
-    "build": "echo 'Build completed - static assets ready'",
+    "build": "bash -c 'set -euo pipefail; rm -rf dist && mkdir -p dist && if [ -f index.html ]; then cp index.html dist/index.html; fi && if [ -f styles.css ]; then cp styles.css dist/styles.css; fi && for asset in app.js script.js main.js; do if [ -f \"$asset\" ]; then cp \"$asset\" \"dist/$asset\"; fi; done'",
     "test": "echo 'UI tests not yet implemented'"
   },
   "keywords": [

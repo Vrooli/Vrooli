@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -20,6 +19,10 @@ import (
 	"github.com/jung-kurt/gofpdf"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Story struct {
@@ -96,29 +99,23 @@ func (c *StoryCache) Delete(id string) {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start bedtime-story-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "bedtime-story-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	godotenv.Load()
 
 	// Initialize database
 	initDB()
-	defer db.Close()
 
 	// Setup routes
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Story endpoints
@@ -142,89 +139,27 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	log.Printf("Bedtime Story API starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Bedtime Story API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to open database connection: %v", err)
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
 	log.Println("🎉 Database connection pool established successfully!")
@@ -262,14 +197,6 @@ func runDatabaseMigration() {
 			log.Println("✅ Illustrations column added successfully")
 		}
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   "bedtime-story-generator",
-		"timestamp": time.Now(),
-	})
 }
 
 func generateStoryHandler(w http.ResponseWriter, r *http.Request) {
@@ -931,3 +858,4 @@ func getThemesHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(themes)
 }
+// Test change Mon Nov  3 01:06:22 AM EST 2025

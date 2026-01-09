@@ -47,7 +47,7 @@
   - Validated: 2025-01-11 - Returns CPU, memory, utilization, response time metrics
   
 - [x] **Resource Adapters**: UI automation fallbacks for other resources
-  - Acceptance: Can automate n8n and vault through browser when APIs fail
+  - Acceptance: Can automate vault through browser when APIs fail
   - Status: COMPLETE - Adapter system with scenario navigation capability
   - Validated: 2025-01-12 - Can navigate to scenarios via port lookup
 
@@ -62,10 +62,10 @@
   - Status: COMPLETE - browser::execute_js and evaluate functions working
   - Validated: 2025-01-12 - Can execute arbitrary JavaScript safely
 
-- [x] **Conditional Workflows**: Intelligent branching based on page state
+- [ ] **Conditional Workflows**: Intelligent branching based on page state
   - Acceptance: Workflows can branch based on URL, element state, text content, errors
-  - Status: COMPLETE - Full conditional branching system implemented
-  - Validated: 2025-01-12 - URL matching, element visibility, text matching, error detection all working
+  - Status: REMOVED - Browserless no longer ships its own workflow DSL; author flows via Vrooli Ascension
+  - Validated: N/A (use BAS executor for branching and loops)
 
 ## Technical Specifications
 
@@ -165,7 +165,7 @@
 
 ### Phase 4: Advanced Features
 - Add visual regression testing
-- Implement adapter system for n8n/vault
+- Implement adapter system for vault
 - Create comprehensive examples
 
 ## Known Issues (Mostly Resolved)

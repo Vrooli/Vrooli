@@ -6,7 +6,7 @@ Vrooli has completed its transformation from its original monolithic architectur
 
 ### Current Development Status:
 
-- **Resource Orchestration**: 30+ local resources integrated (Ollama, PostgreSQL, n8n, Windmill, ComfyUI, etc.)
+- **Resource Orchestration**: 30+ local resources integrated (Ollama, PostgreSQL, ComfyUI, etc.)
 - **Scenario System**: 22 production-ready dual-purpose scenarios (test + revenue applications)
 - **Meta-Scenarios**: Self-improvement capabilities deployed (Scenario Generator, System Monitor, Issue Tracker)
 - **Business Application Generation**: Complete applications deployable in hours from customer requirements

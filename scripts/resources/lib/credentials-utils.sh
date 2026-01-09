@@ -84,7 +84,7 @@ credentials::validate_json() {
         local conn_id conn_name conn_type conn_connection
         conn_id=$(echo "$connection" | jq -r '.id // empty')
         conn_name=$(echo "$connection" | jq -r '.name // empty')
-        conn_type=$(echo "$connection" | jq -r '.n8n_credential_type // empty')
+        conn_type=$(echo "$connection" | jq -r '.credential_type // empty')
         conn_connection=$(echo "$connection" | jq -r '.connection // empty')
         
         if [[ -z "$conn_id" ]]; then
@@ -98,7 +98,7 @@ credentials::validate_json() {
         fi
         
         if [[ -z "$conn_type" ]]; then
-            log::error "Connection $i missing required field: n8n_credential_type"
+            log::error "Connection $i missing required field: credential_type"
             return 1
         fi
         
@@ -158,13 +158,13 @@ credentials::build_response() {
 
 #######################################
 # Build a connection object
-# Args: $1 - id, $2 - name, $3 - n8n_type, $4 - connection_obj, $5 - auth_obj (optional), $6 - metadata_obj (optional)
+# Args: $1 - id, $2 - name, $3 - credential_type, $4 - connection_obj, $5 - auth_obj (optional), $6 - metadata_obj (optional)
 # Returns: connection JSON object
 #######################################
 credentials::build_connection() {
     local conn_id="$1"
     local conn_name="$2"
-    local n8n_type="$3"
+    local credential_type="$3"
     local connection_obj="$4"
     local auth_obj="${5:-{}}"
     local metadata_obj="${6:-{}}"
@@ -184,14 +184,14 @@ credentials::build_connection() {
     jq -n \
         --arg id "$conn_id" \
         --arg name "$conn_name" \
-        --arg n8n_credential_type "$n8n_type" \
+        --arg credential_type "$credential_type" \
         --argjson connection "$connection_obj" \
         --argjson auth "$auth_obj" \
         --argjson metadata "$metadata_obj" \
         '{
             id: $id,
             name: $name,
-            n8n_credential_type: $n8n_credential_type,
+            credential_type: $credential_type,
             connection: $connection
         } | if ($auth | length > 0) then . + {auth: $auth} else . end
           | if ($metadata | length > 0) then . + {metadata: $metadata} else . end'
@@ -351,8 +351,8 @@ EXAMPLES:
     vrooli resource $resource_name credentials --show-sensitive
 
 OUTPUT:
-    Returns JSON containing connection information needed to create
-    n8n credentials for this resource. Each resource can have multiple
+    Returns JSON containing connection information needed to wire
+    workflow automation tools for this resource. Each resource can have multiple
     connections (e.g., Redis databases 0-15).
 EOF
 }
@@ -444,7 +444,7 @@ credentials::format_output() {
                 "Connections:",
                 (.connections[] | 
                     "  • \(.name) (\(.id))",
-                    "    Type: \(.n8n_credential_type)",
+                    "    Type: \(.credential_type)",
                     "    Host: \(.connection.host):\(.connection.port // "default")",
                     (if .connection.database then "    Database: \(.connection.database)" else "" end),
                     (if .connection.path then "    Path: \(.connection.path)" else "" end),

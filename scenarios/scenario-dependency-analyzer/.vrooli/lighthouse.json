@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../.vrooli/schemas/lighthouse.schema.json",
+  "version": "1.0.0",
+  "service": "scenario-dependency-analyzer",
+  "description": "Performance baselines for dependency graph visualization UI",
+  "lighthouse": {
+    "enabled": true,
+    "url": "http://localhost:${UI_PORT}",
+    "thresholds": {
+      "performance": 80,
+      "accessibility": 95,
+      "best-practices": 90,
+      "seo": 85
+    },
+    "budgets": [
+      {
+        "resourceType": "script",
+        "budget": 500
+      },
+      {
+        "resourceType": "stylesheet",
+        "budget": 100
+      },
+      {
+        "resourceType": "image",
+        "budget": 200
+      },
+      {
+        "resourceType": "total",
+        "budget": 1500
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "initial-load",
+        "description": "Initial page load with empty state",
+        "url": "/",
+        "thresholds": {
+          "performance": 85,
+          "first-contentful-paint": 1500,
+          "largest-contentful-paint": 2500,
+          "time-to-interactive": 3500,
+          "cumulative-layout-shift": 0.1
+        }
+      },
+      {
+        "name": "graph-rendering",
+        "description": "Graph visualization with 125 scenarios",
+        "url": "/?type=combined",
+        "thresholds": {
+          "performance": 75,
+          "first-contentful-paint": 1800,
+          "largest-contentful-paint": 3500,
+          "time-to-interactive": 5000,
+          "total-blocking-time": 500
+        },
+        "notes": "Complex D3.js rendering expected to be slower"
+      },
+      {
+        "name": "scenario-detail",
+        "description": "Scenario detail panel interaction",
+        "url": "/?scenario=ecosystem-manager",
+        "thresholds": {
+          "performance": 80,
+          "first-contentful-paint": 1500,
+          "largest-contentful-paint": 2800,
+          "time-to-interactive": 4000
+        }
+      }
+    ],
+    "config": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1
+        },
+        "emulatedFormFactor": "desktop",
+        "formFactor": "desktop",
+        "screenEmulation": {
+          "width": 1920,
+          "height": 1080,
+          "deviceScaleFactor": 1
+        }
+      }
+    }
+  },
+  "performance_notes": {
+    "known_issues": [
+      "D3.js force-directed layout for 125+ nodes is computationally expensive",
+      "Initial graph generation may take 2-3 seconds on slower machines",
+      "Zoom/pan interactions should remain smooth after initial render"
+    ],
+    "optimizations_applied": [
+      "Progressive rendering for large graphs",
+      "Debounced filter updates",
+      "React.memo for expensive components",
+      "Virtualized lists where applicable"
+    ],
+    "future_improvements": [
+      "Add WebWorker for graph layout calculations",
+      "Implement canvas rendering for very large graphs (>500 nodes)",
+      "Add Redis caching for frequently accessed graph data"
+    ]
+  }
+}

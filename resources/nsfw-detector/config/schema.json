@@ -15,7 +15,11 @@
       "properties": {
         "default": {
           "type": "string",
-          "enum": ["nsfwjs", "safety-checker", "custom"],
+          "enum": [
+            "nsfwjs",
+            "safety-checker",
+            "custom"
+          ],
           "default": "nsfwjs"
         },
         "path": {
@@ -105,7 +109,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         },
         "dir": {
@@ -138,6 +147,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/nsfw-detector/schema.json"
 }

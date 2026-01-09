@@ -49,7 +49,7 @@ INSERT INTO agent_metrics (agent_id, metric_date, runs_count, suggestions_count,
 -- Sample documentation coverage
 INSERT INTO documentation_coverage (application_id, scan_date, total_files, documented_files, coverage_percentage, missing_docs, outdated_docs, quality_score) VALUES
 ('550e8400-e29b-41d4-a716-446655440001', '2024-01-15T10:00:00Z', 127, 108, 85.04, '["utils/helpers.ts", "components/advanced/*"]', '["docs/api/auth.md", "docs/getting-started.md"]', 7.8),
-('550e8400-e29b-41d4-a716-446655440002', '2024-01-14T15:30:00Z', 89, 64, 71.91, '["controllers/admin/*", "middleware/security.js"]', '["README.md", "docs/deployment.md"]', 6.2),
+('550e8400-e29b-41d4-a716-446655440002', '2024-01-14T15:30:00Z', 89, 64, 71.91, '["controllers/admin/*", "middleware/security.js"]', '["README.md", "docs/deployment/README.md"]', 6.2),
 ('550e8400-e29b-41d4-a716-446655440003', '2024-01-16T08:45:00Z', 156, 142, 91.03, '["internal/debug.ts"]', '[]', 8.9);
 
 -- Sample notification preferences

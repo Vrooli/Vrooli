@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"context"
+	"os/exec"
 	"time"
 )
 
@@ -9,16 +10,16 @@ import (
 type Collector interface {
 	// Collect gathers metrics from the system
 	Collect(ctx context.Context) (*MetricData, error)
-	
+
 	// GetName returns the collector name
 	GetName() string
-	
+
 	// GetInterval returns the collection interval
 	GetInterval() time.Duration
-	
+
 	// IsEnabled returns whether the collector is enabled
 	IsEnabled() bool
-	
+
 	// SetEnabled enables or disables the collector
 	SetEnabled(enabled bool)
 }
@@ -81,7 +82,7 @@ func (r *CollectorRegistry) CollectAll(ctx context.Context) ([]*MetricData, []er
 	enabled := r.GetEnabled()
 	results := make([]*MetricData, 0, len(enabled))
 	errors := make([]error, 0)
-	
+
 	for _, collector := range enabled {
 		data, err := collector.Collect(ctx)
 		if err != nil {
@@ -90,7 +91,7 @@ func (r *CollectorRegistry) CollectAll(ctx context.Context) ([]*MetricData, []er
 		}
 		results = append(results, data)
 	}
-	
+
 	return results, errors
 }
 
@@ -128,4 +129,17 @@ func (b *BaseCollector) IsEnabled() bool {
 // SetEnabled enables or disables the collector
 func (b *BaseCollector) SetEnabled(enabled bool) {
 	b.enabled = enabled
+}
+
+const defaultCommandTimeout = 2 * time.Second
+
+func commandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
+	if timeout <= 0 {
+		timeout = defaultCommandTimeout
+	}
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(cmdCtx, name, args...)
+	return cmd.Output()
 }

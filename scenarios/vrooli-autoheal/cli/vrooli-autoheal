@@ -1,0 +1,1828 @@
+#!/bin/bash
+# vrooli-autoheal - Command-line interface for Vrooli Autoheal
+# [REQ:CLI-TICK-001] [REQ:CLI-TICK-002] [REQ:CLI-LOOP-001] [REQ:CLI-LOOP-002] [REQ:CLI-LOOP-003]
+# [REQ:CLI-STATUS-001] [REQ:CLI-STATUS-002]
+
+set -euo pipefail
+
+readonly CLI_NAME="vrooli-autoheal"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly SCENARIO_ID="vrooli-autoheal"
+readonly DEFAULT_INTERVAL=60
+CONFIG_API_BASE=""
+API_BASE=""
+API_TOKEN=""
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+# API lifecycle management
+readonly API_BINARY_NAME="vrooli-autoheal-api"
+readonly API_STARTUP_TIMEOUT=60
+readonly API_HEALTH_CHECK_INTERVAL=5
+API_PID=""
+
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<JSON
+{
+  "api_base": "",
+  "api_token": "",
+  "output_format": "json",
+  "loop_interval": $DEFAULT_INTERVAL,
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+JSON
+        echo -e "${GREEN}Created${NC} configuration at $CONFIG_FILE"
+    fi
+}
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+    else
+        CONFIG_API_BASE=""
+        API_TOKEN=""
+    fi
+}
+
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
+    fi
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
+    fi
+
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+        return 0
+    fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+# ============================================================================
+# API LIFECYCLE MANAGEMENT
+# These functions ensure the API is running before/during the loop
+# ============================================================================
+
+# Get the scenario root directory
+get_scenario_root() {
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    echo "$vrooli_root/scenarios/vrooli-autoheal"
+}
+
+# Get the API binary path
+get_api_binary_path() {
+    echo "$(get_scenario_root)/api/$API_BINARY_NAME"
+}
+
+# Check if API process is running (by PID or process name)
+is_api_process_running() {
+    # First check our tracked PID
+    if [[ -n "$API_PID" ]] && kill -0 "$API_PID" 2>/dev/null; then
+        return 0
+    fi
+
+    # Fall back to checking by process name
+    if pgrep -f "$API_BINARY_NAME" >/dev/null 2>&1; then
+        # Update our tracked PID
+        API_PID=$(pgrep -f "$API_BINARY_NAME" | head -1)
+        return 0
+    fi
+
+    return 1
+}
+
+# Check if API is healthy (responds to health endpoint)
+is_api_healthy() {
+    local api_url="${API_BASE:-}"
+
+    # Try to detect API base if not set
+    if [[ -z "$api_url" ]]; then
+        local detected_base
+        if detected_base=$(detect_api_base 2>/dev/null); then
+            api_url="$detected_base"
+        else
+            # Fall back to default port from config
+            local port="${API_PORT:-19761}"
+            api_url="http://localhost:${port}/api/v1"
+        fi
+    fi
+
+    # Remove /api/v1 suffix if present to get base URL for health check
+    local health_url="${api_url%/api/v1}/health"
+
+    local response
+    response=$(curl -s --connect-timeout 5 --max-time 10 "$health_url" 2>/dev/null)
+
+    if [[ $? -eq 0 ]] && echo "$response" | grep -q '"status"' 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Start the API using vrooli scenario start (proper lifecycle with dependencies)
+start_api() {
+    local scenario_root
+    scenario_root=$(get_scenario_root)
+
+    echo -e "${BLUE}Starting API server via Vrooli lifecycle...${NC}"
+
+    # Check if vrooli command is available
+    if ! command -v vrooli >/dev/null 2>&1; then
+        echo -e "${RED}vrooli command not found. Cannot start API.${NC}" >&2
+        echo -e "${YELLOW}Ensure vrooli is in PATH or run: source ~/.bashrc${NC}" >&2
+        return 1
+    fi
+
+    # Use vrooli scenario start to properly start with all dependencies
+    # This handles database connections, port allocation, etc.
+    local start_output
+    start_output=$(vrooli scenario start "$SCENARIO_ID" 2>&1) || {
+        echo -e "${RED}Failed to start scenario: $start_output${NC}" >&2
+        echo "$start_output" >> "$CONFIG_DIR/api.log"
+        return 1
+    }
+
+    echo "$start_output" >> "$CONFIG_DIR/api.log"
+
+    # Get the API PID from vrooli process tracking
+    local pid_file="$HOME/.vrooli/processes/scenarios/$SCENARIO_ID/start-api.pid"
+    if [[ -f "$pid_file" ]]; then
+        API_PID=$(cat "$pid_file")
+        echo "  API started with PID: $API_PID"
+    fi
+
+    return 0
+}
+
+# Wait for API to become healthy
+wait_for_api_healthy() {
+    local timeout="${1:-$API_STARTUP_TIMEOUT}"
+    local interval="${2:-$API_HEALTH_CHECK_INTERVAL}"
+    local elapsed=0
+
+    echo -e "${CYAN}Waiting for API to become healthy (timeout: ${timeout}s)...${NC}"
+
+    while [[ $elapsed -lt $timeout ]]; do
+        if is_api_healthy; then
+            echo -e "${GREEN}API is healthy${NC}"
+            return 0
+        fi
+
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+        echo -e "  Waiting... (${elapsed}s/${timeout}s)"
+    done
+
+    echo -e "${RED}API failed to become healthy within ${timeout}s${NC}" >&2
+    return 1
+}
+
+# Ensure API is running and healthy - start if needed
+# [REQ:CLI-LOOP-004] Self-healing API management
+ensure_api_running() {
+    # First check if API is healthy
+    if is_api_healthy; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}API not responding, checking process...${NC}"
+
+    # Check if process is running but unhealthy
+    if is_api_process_running; then
+        echo -e "${YELLOW}API process running (PID: $API_PID) but not healthy${NC}"
+        echo -e "${BLUE}Stopping unhealthy API process...${NC}"
+
+        # Kill the unhealthy process
+        kill "$API_PID" 2>/dev/null || true
+        sleep 2
+
+        # Force kill if still running
+        if kill -0 "$API_PID" 2>/dev/null; then
+            kill -9 "$API_PID" 2>/dev/null || true
+            sleep 1
+        fi
+
+        API_PID=""
+    fi
+
+    # Start the API
+    if ! start_api; then
+        echo -e "${RED}Failed to start API${NC}" >&2
+        return 1
+    fi
+
+    # Wait for it to become healthy
+    if ! wait_for_api_healthy; then
+        echo -e "${RED}API started but failed health check${NC}" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Stop the API via vrooli lifecycle
+stop_api() {
+    # Only stop if we actually started the scenario ourselves
+    # (indicated by API_PID being set)
+    if [[ -n "$API_PID" ]]; then
+        echo -e "${BLUE}Stopping API via Vrooli lifecycle...${NC}"
+        if command -v vrooli >/dev/null 2>&1; then
+            vrooli scenario stop "$SCENARIO_ID" 2>/dev/null || true
+        fi
+        API_PID=""
+    fi
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
+}
+
+ensure_api_base() {
+    if [[ -z "$API_BASE" ]]; then
+        if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+            echo -e "${RED}Unable to determine API base URL.${NC}" >&2
+            echo "Ensure the scenario is running via 'vrooli scenario start $SCENARIO_ID'" >&2
+            echo "Or configure it with '$CLI_NAME configure api_base <url>'" >&2
+            exit 1
+        fi
+    fi
+}
+
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local url="${API_BASE}${endpoint}"
+
+    local headers=(-H 'Content-Type: application/json')
+    if [[ -n "${API_TOKEN:-}" ]]; then
+        headers+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+
+    local response
+    local http_code
+
+    # Use temporary file for response body
+    local tmp_file=$(mktemp)
+    http_code=$(curl -s -w "%{http_code}" -o "$tmp_file" -X "$method" "${headers[@]}" "$url" 2>/dev/null || echo "000")
+    response=$(cat "$tmp_file")
+    rm -f "$tmp_file"
+
+    if [[ "$http_code" == "000" ]]; then
+        echo '{"error": "Connection failed", "code": 0}'
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
+# Print a status indicator based on status string
+status_icon() {
+    case "$1" in
+        ok|healthy) echo -e "${GREEN}●${NC}" ;;
+        warning)    echo -e "${YELLOW}●${NC}" ;;
+        critical)   echo -e "${RED}●${NC}" ;;
+        *)          echo -e "${BLUE}○${NC}" ;;
+    esac
+}
+
+cmd_tick() {
+    local force_flag=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force) force_flag="?force=true"; shift ;;
+            --json)  json_output=true; shift ;;
+            *)       shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    echo -e "${BLUE}Running health check cycle...${NC}"
+
+    response=$(api_request POST "/tick${force_flag}" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    # Parse and display results
+    local overall_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+    local ok_count=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+    local warn_count=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+    local crit_count=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+    local total_count=$(echo "$response" | jq -r '.summary.total // 0' 2>/dev/null)
+
+    echo ""
+    echo -e "$(status_icon "$overall_status") Overall Status: ${overall_status^^}"
+    echo -e "  ${GREEN}OK${NC}: $ok_count  ${YELLOW}Warning${NC}: $warn_count  ${RED}Critical${NC}: $crit_count  Total: $total_count"
+    echo ""
+
+    # Display individual results
+    echo "$response" | jq -r '.results[]? | "\(.checkId)|\(.status)|\(.message)"' 2>/dev/null | while IFS='|' read -r check_id status message; do
+        echo -e "  $(status_icon "$status") $check_id: $message"
+    done
+
+    echo ""
+    echo -e "${GREEN}Tick completed${NC}"
+}
+
+cmd_loop() {
+    local interval=$DEFAULT_INTERVAL
+    local json_output=false
+    local manage_api=true
+    local consecutive_failures=0
+    local max_failures=3
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --interval-seconds=*) interval="${1#*=}"; shift ;;
+            --interval)           interval="$2"; shift 2 ;;
+            --json)               json_output=true; shift ;;
+            --no-manage-api)      manage_api=false; shift ;;
+            *)                    shift ;;
+        esac
+    done
+
+    echo -e "${BLUE}Starting autoheal loop (interval: ${interval}s)${NC}"
+    if [[ "$manage_api" == true ]]; then
+        echo -e "${CYAN}API lifecycle management: ENABLED${NC}"
+    fi
+    echo -e "Press Ctrl+C to stop"
+    echo ""
+
+    # Handle graceful shutdown - stop API if we started it
+    cleanup() {
+        echo -e "\n${YELLOW}Stopping loop...${NC}"
+        # Only stop API if we're managing it AND we started it (API_PID is set)
+        if [[ "$manage_api" == true ]] && [[ -n "$API_PID" ]]; then
+            stop_api
+        fi
+        exit 0
+    }
+    trap cleanup SIGINT SIGTERM
+
+    # [REQ:CLI-LOOP-004] Ensure API is running before starting loop
+    if [[ "$manage_api" == true ]]; then
+        echo -e "${BLUE}Ensuring API is running...${NC}"
+        if ! ensure_api_running; then
+            echo -e "${RED}Failed to start API. Loop cannot continue.${NC}" >&2
+            echo -e "${YELLOW}Tip: Check API logs at $CONFIG_DIR/api.log${NC}" >&2
+            exit 1
+        fi
+        echo ""
+    fi
+
+    # Now resolve API base after ensuring API is up
+    if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE" 2>/dev/null); then
+        echo -e "${RED}Unable to determine API base URL after starting API.${NC}" >&2
+        exit 1
+    fi
+    echo -e "${GREEN}Connected to API at: $API_BASE${NC}"
+    echo ""
+
+    local tick_count=0
+    while true; do
+        tick_count=$((tick_count + 1))
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+        echo -e "${CYAN}[$timestamp] Tick #$tick_count${NC}"
+
+        response=$(api_request POST "/tick" 2>/dev/null || echo '{}')
+
+        # Check if the response indicates API failure
+        local error_msg=$(echo "$response" | jq -r '.error // ""' 2>/dev/null)
+        local tick_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+
+        if [[ "$error_msg" == "Connection failed" ]] || [[ "$tick_status" == "unknown" && -z "$(echo "$response" | jq -r '.summary // ""' 2>/dev/null)" ]]; then
+            consecutive_failures=$((consecutive_failures + 1))
+            echo -e "  ${RED}● API connection failed (failure $consecutive_failures/$max_failures)${NC}"
+
+            # [REQ:CLI-LOOP-004] Self-healing: restart API after consecutive failures
+            if [[ "$manage_api" == true ]] && [[ $consecutive_failures -ge $max_failures ]]; then
+                echo -e "${YELLOW}Max consecutive failures reached. Attempting API recovery...${NC}"
+                if ensure_api_running; then
+                    echo -e "${GREEN}API recovered successfully${NC}"
+                    consecutive_failures=0
+                    # Re-resolve API base in case port changed
+                    API_BASE=$(resolve_api_base "$CONFIG_API_BASE" 2>/dev/null) || true
+                else
+                    echo -e "${RED}API recovery failed. Will retry on next tick.${NC}"
+                fi
+            fi
+        else
+            # Reset failure counter on successful tick
+            consecutive_failures=0
+
+            if [[ "$json_output" == true ]]; then
+                echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            else
+                local status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+                local ok=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+                local warn=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+                local crit=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+
+                echo -e "  $(status_icon "$status") Status: ${status^^} | OK: $ok | Warn: $warn | Crit: $crit"
+
+                # Show critical issues
+                if [[ "$crit" -gt 0 ]]; then
+                    echo "$response" | jq -r '.results[]? | select(.status == "critical") | "    \(.checkId): \(.message)"' 2>/dev/null
+                fi
+            fi
+        fi
+
+        echo ""
+        sleep "$interval"
+    done
+}
+
+cmd_status() {
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json_output=true; shift ;;
+            *)      shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    response=$(api_request GET "/status" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    # Parse status
+    local overall_status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
+    local platform=$(echo "$response" | jq -r '.platform.platform // "unknown"' 2>/dev/null)
+    local has_docker=$(echo "$response" | jq -r '.platform.hasDocker // false' 2>/dev/null)
+    local has_systemd=$(echo "$response" | jq -r '.platform.supportsSystemd // false' 2>/dev/null)
+    local is_wsl=$(echo "$response" | jq -r '.platform.isWsl // false' 2>/dev/null)
+    local ok_count=$(echo "$response" | jq -r '.summary.ok // 0' 2>/dev/null)
+    local warn_count=$(echo "$response" | jq -r '.summary.warning // 0' 2>/dev/null)
+    local crit_count=$(echo "$response" | jq -r '.summary.critical // 0' 2>/dev/null)
+    local total_count=$(echo "$response" | jq -r '.summary.total // 0' 2>/dev/null)
+    local timestamp=$(echo "$response" | jq -r '.timestamp // ""' 2>/dev/null)
+
+    echo ""
+    echo -e "${BLUE}Vrooli Autoheal Status${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+    echo -e "$(status_icon "$overall_status") Overall: ${overall_status^^}"
+    echo ""
+    echo -e "${CYAN}Platform:${NC}"
+    echo "  OS: $platform"
+    [[ "$is_wsl" == "true" ]] && echo "  WSL: yes"
+    [[ "$has_docker" == "true" ]] && echo "  Docker: available"
+    [[ "$has_systemd" == "true" ]] && echo "  Systemd: available"
+    echo ""
+    echo -e "${CYAN}Summary:${NC}"
+    echo -e "  ${GREEN}OK${NC}: $ok_count  ${YELLOW}Warning${NC}: $warn_count  ${RED}Critical${NC}: $crit_count  Total: $total_count"
+    echo ""
+
+    # Show checks if any have run
+    if [[ "$total_count" -gt 0 ]]; then
+        echo -e "${CYAN}Health Checks:${NC}"
+        echo "$response" | jq -r '.checks[]? | "\(.checkId)|\(.status)|\(.message)"' 2>/dev/null | while IFS='|' read -r check_id status message; do
+            echo -e "  $(status_icon "$status") $check_id"
+            echo "      $message"
+        done
+        echo ""
+    else
+        echo -e "${YELLOW}No health checks have run yet.${NC}"
+        echo "Run '$CLI_NAME tick' to execute health checks."
+        echo ""
+    fi
+
+    if [[ -n "$timestamp" && "$timestamp" != "null" ]]; then
+        echo "Last updated: $timestamp"
+    fi
+}
+
+cmd_platform() {
+    ensure_api_base
+
+    response=$(api_request GET "/platform" || echo '{}')
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_checks() {
+    ensure_api_base
+
+    response=$(api_request GET "/checks" || echo '[]')
+
+    echo -e "${BLUE}Registered Health Checks${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+
+    echo "$response" | jq -r '.[]? | "\(.id)|\(.description)|\(.intervalSeconds)"' 2>/dev/null | while IFS='|' read -r id desc interval; do
+        echo -e "  ${CYAN}$id${NC}"
+        echo "    $desc"
+        echo "    Interval: ${interval}s"
+        echo ""
+    done
+}
+
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [[ -z "$key" ]]; then
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
+    fi
+
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}API base set to:${NC} $value"
+            CONFIG_API_BASE="$value"
+            ;;
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}API token updated${NC}"
+            API_TOKEN="$value"
+            ;;
+        interval|loop_interval)
+            jq --argjson v "$value" '.loop_interval = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}Loop interval set to:${NC} ${value}s"
+            ;;
+        *)
+            echo -e "${RED}Unknown configuration key:${NC} $key"
+            echo "Valid keys: api_base, api_token, loop_interval"
+            return 1
+            ;;
+    esac
+}
+
+cmd_watchdog() {
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json_output=true; shift ;;
+            *)      shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    response=$(api_request GET "/watchdog" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    local protection_level=$(echo "$response" | jq -r '.protectionLevel // "unknown"' 2>/dev/null)
+    local watchdog_type=$(echo "$response" | jq -r '.watchdogType // ""' 2>/dev/null)
+    local installed=$(echo "$response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+    local enabled=$(echo "$response" | jq -r '.watchdogEnabled // false' 2>/dev/null)
+    local running=$(echo "$response" | jq -r '.watchdogRunning // false' 2>/dev/null)
+    local can_install=$(echo "$response" | jq -r '.canInstall // false' 2>/dev/null)
+    local service_path=$(echo "$response" | jq -r '.servicePath // ""' 2>/dev/null)
+
+    echo ""
+    echo -e "${BLUE}OS Watchdog Status${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+
+    case "$protection_level" in
+        full)    echo -e "$(status_icon ok) Protection Level: ${GREEN}FULL${NC}" ;;
+        partial) echo -e "$(status_icon warning) Protection Level: ${YELLOW}PARTIAL${NC}" ;;
+        none)    echo -e "$(status_icon critical) Protection Level: ${RED}NONE${NC}" ;;
+        *)       echo -e "$(status_icon unknown) Protection Level: ${protection_level}" ;;
+    esac
+    echo ""
+
+    if [[ -n "$watchdog_type" && "$watchdog_type" != "null" ]]; then
+        echo -e "${CYAN}Type:${NC} $watchdog_type"
+    fi
+
+    # Helper to display yes/no with color
+    local installed_str=$([[ "$installed" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    local enabled_str=$([[ "$enabled" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    local running_str=$([[ "$running" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    echo -e "  Installed: $installed_str"
+    echo -e "  Enabled:   $enabled_str"
+    echo -e "  Running:   $running_str"
+    echo ""
+
+    if [[ -n "$service_path" && "$service_path" != "null" ]]; then
+        echo -e "${CYAN}Service Path:${NC} $service_path"
+        echo ""
+    fi
+
+    if [[ "$installed" != "true" && "$can_install" == "true" ]]; then
+        echo -e "${YELLOW}Tip:${NC} Run '$CLI_NAME install' to set up OS watchdog protection"
+    fi
+}
+
+cmd_install() {
+    local system_wide=false
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --system) system_wide=true; shift ;;
+            --force)  force=true; shift ;;
+            -h|--help)
+                echo "Usage: $CLI_NAME install [--system] [--force]"
+                echo ""
+                echo "Install the OS watchdog service for boot persistence."
+                echo ""
+                echo "Options:"
+                echo "  --system  Install as system service (requires sudo on Linux)"
+                echo "  --force   Overwrite existing installation"
+                return 0
+                ;;
+            *)        shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    # Get platform info
+    local platform_response=$(api_request GET "/platform" || echo '{}')
+    local platform=$(echo "$platform_response" | jq -r '.platform // "unknown"' 2>/dev/null)
+    local supports_systemd=$(echo "$platform_response" | jq -r '.supportsSystemd // false' 2>/dev/null)
+    local supports_launchd=$(echo "$platform_response" | jq -r '.supportsLaunchd // false' 2>/dev/null)
+
+    # Check current watchdog status
+    local watchdog_response=$(api_request GET "/watchdog" || echo '{}')
+    local already_installed=$(echo "$watchdog_response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+
+    if [[ "$already_installed" == "true" && "$force" != "true" ]]; then
+        echo -e "${YELLOW}Watchdog service is already installed.${NC}"
+        echo "Use --force to reinstall."
+        return 0
+    fi
+
+    # Get template
+    local template_response=$(api_request GET "/watchdog/template" || echo '{}')
+    local template=$(echo "$template_response" | jq -r '.template // ""' 2>/dev/null)
+
+    if [[ -z "$template" || "$template" == "null" ]]; then
+        echo -e "${RED}Failed to get service template from API${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Installing OS watchdog service...${NC}"
+    echo ""
+
+    case "$platform" in
+        linux)
+            install_linux_watchdog "$template" "$system_wide"
+            ;;
+        macos)
+            install_macos_watchdog "$template" "$system_wide"
+            ;;
+        windows)
+            install_windows_watchdog "$template"
+            ;;
+        *)
+            echo -e "${RED}Unsupported platform: $platform${NC}"
+            return 1
+            ;;
+    esac
+}
+
+install_linux_watchdog() {
+    local template="$1"
+    local system_wide="$2"
+
+    local service_path
+    local use_sudo=""
+    local systemctl_cmd="systemctl"
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local linger_enabled=false
+
+    # Use the Go loop binary for consistency across platforms
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"
+
+    # Verify the Go loop binary exists
+    if [[ ! -x "$loop_binary" ]]; then
+        echo -e "${RED}Error: Loop binary not found at $loop_binary${NC}"
+        echo ""
+        echo "The Go loop binary must be built before installing the watchdog."
+        echo "Run the following commands:"
+        echo ""
+        echo "  cd $vrooli_root/scenarios/vrooli-autoheal/cli/loop"
+        echo "  go build -o ../vrooli-autoheal-loop ."
+        echo ""
+        echo "Or run the scenario setup:"
+        echo "  vrooli scenario setup vrooli-autoheal"
+        return 1
+    fi
+
+    if [[ "$system_wide" == "true" ]]; then
+        service_path="/etc/systemd/system/vrooli-autoheal.service"
+        use_sudo="sudo"
+        echo -e "${CYAN}Installing system-wide service (requires sudo)${NC}"
+
+        # System-wide template using the Go loop binary
+        template="[Unit]
+Description=Vrooli Autoheal - Self-healing infrastructure supervisor
+After=network-online.target docker.service docker.socket
+Wants=network-online.target
+Wants=docker.service
+# Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=$loop_binary
+Restart=always
+RestartSec=15
+Environment=VROOLI_LIFECYCLE_MANAGED=true
+Environment=HOME=$HOME
+Environment=VROOLI_ROOT=$vrooli_root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
+User=$USER
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target"
+    else
+        service_path="$HOME/.config/systemd/user/vrooli-autoheal.service"
+        systemctl_cmd="systemctl --user"
+        mkdir -p "$(dirname "$service_path")"
+        echo -e "${CYAN}Installing user service${NC}"
+
+        # User service template using the Go loop binary
+        template="[Unit]
+Description=Vrooli Autoheal - Self-healing infrastructure supervisor
+After=network-online.target docker.service docker.socket
+Wants=network-online.target
+Wants=docker.service
+# Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=$loop_binary
+Restart=always
+RestartSec=15
+Environment=VROOLI_LIFECYCLE_MANAGED=true
+Environment=HOME=$HOME
+Environment=VROOLI_ROOT=$vrooli_root
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target"
+
+        # For user services, enable lingering to ensure service starts on boot
+        # even without user login (critical for headless servers)
+        echo -e "${CYAN}Enabling systemd lingering for headless boot support...${NC}"
+        if command -v loginctl >/dev/null 2>&1; then
+            # Check if already enabled
+            local current_linger
+            current_linger=$(loginctl show-user "$USER" 2>/dev/null | grep -i "^Linger=" | cut -d= -f2)
+            if [[ "$current_linger" == "yes" ]]; then
+                echo -e "  ${GREEN}✓${NC} Lingering already enabled"
+                linger_enabled=true
+            else
+                # Try to enable lingering (may require sudo)
+                if sudo loginctl enable-linger "$USER" 2>/dev/null; then
+                    echo -e "  ${GREEN}✓${NC} Lingering enabled"
+                    linger_enabled=true
+                else
+                    echo -e "  ${YELLOW}⚠${NC} Could not enable lingering (may need sudo)"
+                    echo -e "    ${YELLOW}Run: sudo loginctl enable-linger $USER${NC}"
+                    echo -e "    ${YELLOW}Without this, service won't start on headless boot${NC}"
+                fi
+            fi
+        fi
+    fi
+
+    echo "  Service path: $service_path"
+    echo ""
+
+    # Write service file
+    if [[ -n "$use_sudo" ]]; then
+        echo "$template" | $use_sudo tee "$service_path" > /dev/null
+    else
+        echo "$template" > "$service_path"
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write service file${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Service file written"
+
+    # Reload systemd
+    $use_sudo $systemctl_cmd daemon-reload
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to reload systemd${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Systemd reloaded"
+
+    # Enable service
+    $use_sudo $systemctl_cmd enable vrooli-autoheal
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to enable service${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Service enabled"
+
+    # Start service
+    $use_sudo $systemctl_cmd start vrooli-autoheal
+    if [[ $? -ne 0 ]]; then
+        echo -e "${YELLOW}Warning: Failed to start service (may already be running via scenario)${NC}"
+    else
+        echo -e "  ${GREEN}✓${NC} Service started"
+    fi
+
+    echo ""
+
+    # Boot persistence message depends on service type and lingering
+    if [[ -n "$use_sudo" ]]; then
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically on system boot."
+    elif [[ "$linger_enabled" == true ]]; then
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically on system boot"
+        echo "  (lingering enabled for headless boot support)."
+    else
+        echo -e "${YELLOW}Watchdog installation PARTIALLY complete${NC}"
+        echo ""
+        echo -e "${RED}⚠ BOOT PROTECTION NOT FULLY CONFIGURED${NC}"
+        echo ""
+        echo -e "  The service is installed and will start on ${YELLOW}user login${NC},"
+        echo -e "  but will ${RED}NOT${NC} start automatically on headless boot/reboot."
+        echo ""
+        echo -e "  ${CYAN}To enable full boot protection:${NC}"
+        echo -e "    sudo loginctl enable-linger $USER"
+        echo ""
+        echo -e "  ${CYAN}Or use system-wide installation:${NC}"
+        echo -e "    $CLI_NAME uninstall && $CLI_NAME install --system"
+        echo ""
+        echo -e "  ${YELLOW}Without this, the server must be manually started after reboot${NC}"
+        echo -e "  ${YELLOW}unless a user logs in first.${NC}"
+    fi
+
+    echo ""
+    echo "The loop now manages API lifecycle automatically - it will start"
+    echo "and restart the API if it crashes or becomes unresponsive."
+    echo ""
+    echo "Useful commands:"
+    if [[ -n "$use_sudo" ]]; then
+        echo "  sudo systemctl status vrooli-autoheal   # Check status"
+        echo "  sudo systemctl stop vrooli-autoheal     # Stop service"
+        echo "  sudo journalctl -u vrooli-autoheal -f   # View logs"
+    else
+        echo "  systemctl --user status vrooli-autoheal   # Check status"
+        echo "  systemctl --user stop vrooli-autoheal     # Stop service"
+        echo "  journalctl --user -u vrooli-autoheal -f   # View logs"
+    fi
+}
+
+install_macos_watchdog() {
+    local template="$1"
+    local system_wide="$2"
+
+    local plist_path
+    local use_sudo=""
+    local service_type
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+
+    # Use the Go loop binary for consistency across platforms
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"
+
+    # Verify the Go loop binary exists
+    if [[ ! -x "$loop_binary" ]]; then
+        echo -e "${RED}Error: Loop binary not found at $loop_binary${NC}"
+        echo ""
+        echo "The Go loop binary must be built before installing the watchdog."
+        echo "Run the following commands:"
+        echo ""
+        echo "  cd $vrooli_root/scenarios/vrooli-autoheal/cli/loop"
+        echo "  go build -o ../vrooli-autoheal-loop ."
+        echo ""
+        echo "Or run the scenario setup:"
+        echo "  vrooli scenario setup vrooli-autoheal"
+        return 1
+    fi
+
+    if [[ "$system_wide" == "true" ]]; then
+        # System-wide LaunchDaemon - runs at boot without user login
+        plist_path="/Library/LaunchDaemons/com.vrooli.autoheal.plist"
+        use_sudo="sudo"
+        service_type="LaunchDaemon"
+        echo -e "${CYAN}Installing system-wide $service_type (requires sudo)${NC}"
+
+        # Generate system-wide plist using the Go loop binary
+        template="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.vrooli.autoheal</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$loop_binary</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <key>VROOLI_ROOT</key>
+        <string>$vrooli_root</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>$vrooli_root/scenarios/vrooli-autoheal</string>
+    <key>StandardOutPath</key>
+    <string>/var/log/vrooli-autoheal.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/vrooli-autoheal.error.log</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+</dict>
+</plist>"
+    else
+        # User-level LaunchAgent - runs on user login
+        plist_path="$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist"
+        service_type="LaunchAgent"
+        mkdir -p "$(dirname "$plist_path")"
+        echo -e "${CYAN}Installing user-level $service_type${NC}"
+
+        # Generate user-level plist using the Go loop binary
+        local log_path="$HOME/Library/Logs/vrooli-autoheal.log"
+        local err_path="$HOME/Library/Logs/vrooli-autoheal.error.log"
+
+        template="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.vrooli.autoheal</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$loop_binary</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <key>VROOLI_ROOT</key>
+        <string>$vrooli_root</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>$vrooli_root/scenarios/vrooli-autoheal</string>
+    <key>StandardOutPath</key>
+    <string>$log_path</string>
+    <key>StandardErrorPath</key>
+    <string>$err_path</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+</dict>
+</plist>"
+    fi
+
+    echo "  Plist path: $plist_path"
+    echo ""
+
+    # Unload if already loaded
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo launchctl unload "$plist_path" 2>/dev/null || true
+    else
+        launchctl unload "$plist_path" 2>/dev/null || true
+    fi
+
+    # Write plist file
+    if [[ -n "$use_sudo" ]]; then
+        echo "$template" | $use_sudo tee "$plist_path" > /dev/null
+    else
+        echo "$template" > "$plist_path"
+    fi
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write plist file${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Plist file written"
+
+    # Set proper ownership for LaunchDaemons
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo chown root:wheel "$plist_path"
+        $use_sudo chmod 644 "$plist_path"
+        echo -e "  ${GREEN}✓${NC} Permissions set"
+    fi
+
+    # Load the service
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo launchctl load "$plist_path"
+    else
+        launchctl load "$plist_path"
+    fi
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to load $service_type${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} $service_type loaded"
+
+    echo ""
+
+    if [[ "$system_wide" == "true" ]]; then
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically at system boot."
+        echo "  (No user login required)"
+        echo ""
+        echo "Useful commands:"
+        echo "  sudo launchctl list | grep vrooli              # Check if loaded"
+        echo "  sudo launchctl unload '$plist_path'            # Stop service"
+        echo "  tail -f /var/log/vrooli-autoheal.log           # View logs"
+    else
+        echo -e "${YELLOW}Watchdog installation PARTIALLY complete${NC}"
+        echo ""
+        echo -e "${RED}⚠ BOOT PROTECTION NOT FULLY CONFIGURED${NC}"
+        echo ""
+        echo -e "  The service is installed as a LaunchAgent and will start on ${YELLOW}user login${NC},"
+        echo -e "  but will ${RED}NOT${NC} start automatically on headless boot/reboot."
+        echo ""
+        echo -e "  ${CYAN}To enable full boot protection (requires sudo):${NC}"
+        echo -e "    $CLI_NAME uninstall && $CLI_NAME install --system"
+        echo ""
+        echo -e "  ${YELLOW}Without this, the server must be manually started after reboot${NC}"
+        echo -e "  ${YELLOW}unless a user logs in first.${NC}"
+        echo ""
+        echo "Useful commands:"
+        echo "  launchctl list | grep vrooli       # Check if loaded"
+        echo "  launchctl unload '$plist_path'     # Stop service"
+        echo "  tail -f ~/Library/Logs/vrooli-autoheal.log   # View logs"
+    fi
+}
+
+install_windows_watchdog() {
+    local template="$1"
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop.exe"
+    local work_dir="$vrooli_root/scenarios/vrooli-autoheal"
+
+    local task_xml="$TEMP/vrooli-autoheal-task.xml"
+
+    echo -e "${CYAN}Installing Windows Scheduled Task${NC}"
+    echo ""
+
+    # Generate improved task XML with S4U logon for boot-time execution
+    # S4U (Service for User) allows running at boot without an active session
+    cat > "$task_xml" <<EOF
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
+    <Author>Vrooli</Author>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+      <Delay>PT30S</Delay>
+    </BootTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>$USERNAME</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>999</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>$loop_binary</Command>
+      <WorkingDirectory>$work_dir</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
+EOF
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write task XML${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Task XML written"
+
+    # Delete existing task if present
+    schtasks /Delete /TN "VrooliAutoheal" /F 2>/dev/null || true
+
+    # Create the task
+    schtasks /Create /TN "VrooliAutoheal" /XML "$task_xml"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to create scheduled task${NC}"
+        echo -e "${YELLOW}Note: S4U logon requires 'Log on as a batch job' privilege${NC}"
+        rm -f "$task_xml"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Scheduled task created"
+
+    # Clean up temp file
+    rm -f "$task_xml"
+
+    echo ""
+    echo -e "${GREEN}Watchdog installation complete!${NC}"
+    echo ""
+    echo "The autoheal service will start automatically 30 seconds after boot."
+    echo "(Uses S4U logon - no interactive session required)"
+    echo ""
+    echo "Useful commands:"
+    echo "  schtasks /Query /TN VrooliAutoheal    # Check status"
+    echo "  schtasks /End /TN VrooliAutoheal      # Stop task"
+    echo "  schtasks /Run /TN VrooliAutoheal      # Start task"
+}
+
+cmd_uninstall() {
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force) force=true; shift ;;
+            -h|--help)
+                echo "Usage: $CLI_NAME uninstall [--force]"
+                echo ""
+                echo "Remove the OS watchdog service."
+                echo ""
+                echo "Options:"
+                echo "  --force   Skip confirmation prompt"
+                return 0
+                ;;
+            *)       shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    # Get platform info
+    local platform_response=$(api_request GET "/platform" || echo '{}')
+    local platform=$(echo "$platform_response" | jq -r '.platform // "unknown"' 2>/dev/null)
+
+    # Check current watchdog status from API
+    local watchdog_response=$(api_request GET "/watchdog" || echo '{}')
+    local installed=$(echo "$watchdog_response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+    local service_path=$(echo "$watchdog_response" | jq -r '.servicePath // ""' 2>/dev/null)
+
+    # Also check local file existence directly (API cache may be stale)
+    if [[ "$installed" != "true" ]]; then
+        case "$platform" in
+            linux)
+                # Check all possible service file locations
+                for path in \
+                    "/etc/systemd/system/vrooli-autoheal.service" \
+                    "/usr/lib/systemd/system/vrooli-autoheal.service" \
+                    "$HOME/.config/systemd/user/vrooli-autoheal.service"; do
+                    if [[ -f "$path" ]]; then
+                        installed="true"
+                        service_path="$path"
+                        break
+                    fi
+                done
+                ;;
+            macos)
+                for path in \
+                    "$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist" \
+                    "/Library/LaunchDaemons/com.vrooli.autoheal.plist"; do
+                    if [[ -f "$path" ]]; then
+                        installed="true"
+                        service_path="$path"
+                        break
+                    fi
+                done
+                ;;
+        esac
+    fi
+
+    if [[ "$installed" != "true" ]]; then
+        echo -e "${YELLOW}Watchdog service is not installed.${NC}"
+        return 0
+    fi
+
+    if [[ "$force" != "true" ]]; then
+        echo -e "${YELLOW}This will remove the OS watchdog service.${NC}"
+        echo "The autoheal loop will no longer start automatically on boot."
+        echo ""
+        read -p "Are you sure? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Cancelled."
+            return 0
+        fi
+    fi
+
+    echo -e "${BLUE}Removing OS watchdog service...${NC}"
+    echo ""
+
+    case "$platform" in
+        linux)
+            uninstall_linux_watchdog "$service_path"
+            ;;
+        macos)
+            uninstall_macos_watchdog "$service_path"
+            ;;
+        windows)
+            uninstall_windows_watchdog
+            ;;
+        *)
+            echo -e "${RED}Unsupported platform: $platform${NC}"
+            return 1
+            ;;
+    esac
+}
+
+uninstall_linux_watchdog() {
+    local service_path="$1"
+
+    local use_sudo=""
+    local systemctl_cmd="systemctl"
+
+    # Determine if system or user service
+    if [[ "$service_path" == /etc/systemd/* || "$service_path" == /usr/lib/systemd/* ]]; then
+        use_sudo="sudo"
+    else
+        systemctl_cmd="systemctl --user"
+    fi
+
+    # Stop the service
+    $use_sudo $systemctl_cmd stop vrooli-autoheal 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Service stopped"
+
+    # Disable the service
+    $use_sudo $systemctl_cmd disable vrooli-autoheal 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Service disabled"
+
+    # Remove the service file
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo rm -f "$service_path"
+    else
+        rm -f "$service_path"
+    fi
+    echo -e "  ${GREEN}✓${NC} Service file removed"
+
+    # Reload systemd
+    $use_sudo $systemctl_cmd daemon-reload
+    echo -e "  ${GREEN}✓${NC} Systemd reloaded"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
+uninstall_macos_watchdog() {
+    local plist_path="$1"
+
+    # Determine if this is a system LaunchDaemon or user LaunchAgent
+    local use_sudo=""
+    local service_type="LaunchAgent"
+    if [[ "$plist_path" == /Library/LaunchDaemons/* ]]; then
+        use_sudo="sudo"
+        service_type="LaunchDaemon"
+    fi
+
+    # Unload the service
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo launchctl unload "$plist_path" 2>/dev/null || true
+    else
+        launchctl unload "$plist_path" 2>/dev/null || true
+    fi
+    echo -e "  ${GREEN}✓${NC} $service_type unloaded"
+
+    # Remove the plist file
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo rm -f "$plist_path"
+    else
+        rm -f "$plist_path"
+    fi
+    echo -e "  ${GREEN}✓${NC} Plist file removed"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
+uninstall_windows_watchdog() {
+    # End the task if running
+    schtasks /End /TN "VrooliAutoheal" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Task stopped"
+
+    # Delete the task
+    schtasks /Delete /TN "VrooliAutoheal" /F
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to delete scheduled task${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Scheduled task removed"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    if [[ -n "$API_BASE" ]]; then
+        echo "API endpoint: $API_BASE"
+    else
+        echo "API endpoint: (auto-detect when scenario is running)"
+    fi
+}
+
+# ============================================================================
+# ORPHAN AND STALE LOCK MANAGEMENT COMMANDS
+# ============================================================================
+
+cmd_orphans() {
+    local action="${1:-list}"
+    shift 2>/dev/null || true
+
+    ensure_api_base
+
+    case "$action" in
+        list)
+            echo -e "${BLUE}Orphan Process Detection${NC}"
+            echo "════════════════════════════════════════"
+            echo ""
+            response=$(api_request POST "/checks/vrooli-orphans/actions/list" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Check completed"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Check failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        kill)
+            echo -e "${YELLOW}WARNING:${NC} This will kill orphaned Vrooli processes."
+            echo ""
+            read -p "Are you sure? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy] ]]; then
+                response=$(api_request POST "/checks/vrooli-orphans/actions/kill" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+                if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                    echo -e "${GREEN}✓${NC} Orphans killed"
+                    echo ""
+                    echo "$response" | jq -r '.output // ""' 2>/dev/null
+                else
+                    echo -e "${RED}✗${NC} Kill failed"
+                    echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+                fi
+            else
+                echo "Aborted."
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown orphans action:${NC} $action"
+            echo "Usage: $CLI_NAME orphans [list|kill]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_locks() {
+    local action="${1:-list}"
+    shift 2>/dev/null || true
+
+    ensure_api_base
+
+    case "$action" in
+        list)
+            echo -e "${BLUE}Stale Port Lock Detection${NC}"
+            echo "════════════════════════════════════════"
+            echo ""
+            response=$(api_request POST "/checks/vrooli-stale-locks/actions/list" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Check completed"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Check failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        clean)
+            echo -e "${CYAN}Cleaning stale port locks...${NC}"
+            response=$(api_request POST "/checks/vrooli-stale-locks/actions/clean" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Locks cleaned"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Clean failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown locks action:${NC} $action"
+            echo "Usage: $CLI_NAME locks [list|clean]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_diagnose_port() {
+    local port="${1:-}"
+    local scenario="${2:-}"
+
+    if [[ -z "$port" ]]; then
+        echo -e "${RED}Error:${NC} Port number required"
+        echo "Usage: $CLI_NAME diagnose-port <port> [scenario]"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${BLUE}🚨 PORT BINDING FAILURE DIAGNOSTICS${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "Port: ${CYAN}$port${NC}"
+    [[ -n "$scenario" ]] && echo -e "Scenario filter: ${CYAN}$scenario${NC}"
+    echo ""
+
+    # Check 1: Port availability
+    echo -e "${CYAN}🔍 Checking port availability...${NC}"
+    local pids
+    pids=$(timeout 2s lsof -tiTCP:"$port" -sTCP:LISTEN -P -n 2>/dev/null || echo "")
+
+    if [[ -n "$pids" ]]; then
+        echo -e "${RED}❌${NC} Port $port is in use by process(es): $pids"
+        echo "   Process details:"
+        while IFS= read -r pid; do
+            [[ -n "$pid" ]] || continue
+            local process_info
+            process_info=$(ps -p "$pid" -o pid,ppid,user,comm,args --no-headers 2>/dev/null || echo "$pid: <process not found>")
+            echo "     PID $process_info"
+        done <<< "$pids"
+    else
+        echo -e "${GREEN}✅${NC} No processes listening on port $port"
+    fi
+    echo ""
+
+    # Check 2: Stale lock file detection - search all scenario state directories
+    echo -e "${CYAN}🔍 Checking for lock files...${NC}"
+    local lock_file="$HOME/.vrooli/state/scenarios/.port_${port}.lock"
+    local found_lock=false
+
+    if [[ -f "$lock_file" ]]; then
+        found_lock=true
+        local lock_info
+        lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
+        if [[ -n "$lock_info" ]]; then
+            local lock_scenario="${lock_info%%:*}"
+            local lock_pid_part="${lock_info#*:}"
+            local lock_pid="${lock_pid_part%%:*}"
+
+            echo -e "${YELLOW}⚠️${NC}  Found lock file: $lock_file"
+            echo "   Lock held by: scenario '${CYAN}$lock_scenario${NC}', PID $lock_pid"
+
+            if [[ "$lock_pid" =~ ^[0-9]+$ ]] && kill -0 "$lock_pid" 2>/dev/null; then
+                echo -e "${GREEN}✅${NC} Lock is VALID - process $lock_pid is running"
+                # Check if the running process matches the lock
+                local proc_comm
+                proc_comm=$(ps -p "$lock_pid" -o comm= 2>/dev/null || echo "")
+                echo "   Process name: $proc_comm"
+            else
+                echo -e "${RED}❌${NC} Lock is STALE - process $lock_pid is not running"
+                echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
+                echo -e "   ${CYAN}🛠️  Or:${NC} $CLI_NAME locks clean"
+            fi
+        else
+            echo -e "${YELLOW}⚠️${NC}  Found empty lock file: $lock_file"
+            echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
+        fi
+    fi
+
+    if [[ "$found_lock" == "false" ]]; then
+        echo -e "${GREEN}✅${NC} No lock file found for port $port"
+    fi
+    echo ""
+
+    # Check 3: Zombie process detection
+    if [[ -n "$pids" ]]; then
+        echo -e "${CYAN}🔍 Checking for zombie processes on port $port...${NC}"
+        local zombie_found=false
+        while IFS= read -r pid; do
+            [[ -n "$pid" ]] || continue
+            local state
+            state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ')
+            if [[ "$state" == "Z" ]]; then
+                echo -e "${RED}💀${NC} Found zombie process: PID $pid"
+                zombie_found=true
+            fi
+        done <<< "$pids"
+
+        if [[ "$zombie_found" == "false" ]]; then
+            echo -e "${GREEN}✅${NC} No zombie processes found on port $port"
+        fi
+        echo ""
+    fi
+
+    # Check 4: Orphan detection (quick check)
+    echo -e "${CYAN}🔍 Checking for orphaned Vrooli processes...${NC}"
+    if command -v vrooli-autoheal >/dev/null 2>&1 || [[ -x "$0" ]]; then
+        # Try to get orphan count from API if running
+        if [[ -n "${API_BASE:-}" ]]; then
+            local orphan_result
+            orphan_result=$(api_request GET "/checks/vrooli-orphans/result" 2>/dev/null || echo '{}')
+            local orphan_count
+            orphan_count=$(echo "$orphan_result" | jq -r '.details.orphanCount // 0' 2>/dev/null)
+            if [[ "$orphan_count" -gt 0 ]]; then
+                echo -e "${YELLOW}⚠️${NC}  Found $orphan_count orphaned Vrooli processes"
+                echo "   These may be interfering with port allocation"
+                echo -e "   ${CYAN}🛠️  Fix:${NC} $CLI_NAME orphans list # then kill orphaned processes"
+            else
+                echo -e "${GREEN}✅${NC} No orphaned Vrooli processes found"
+            fi
+        else
+            echo -e "${YELLOW}⚠️${NC}  Cannot check orphans - API not running"
+        fi
+    fi
+    echo ""
+
+    # Summary
+    echo -e "${CYAN}💡 RECOMMENDED ACTIONS:${NC}"
+    local has_recommendations=false
+
+    if [[ -f "$lock_file" ]]; then
+        local lock_info
+        lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
+        local lock_pid_part="${lock_info#*:}"
+        local lock_pid="${lock_pid_part%%:*}"
+        if [[ ! "$lock_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+            echo "   1. Clean stale lock: rm '$lock_file'"
+            has_recommendations=true
+        fi
+    fi
+
+    if [[ -n "$pids" ]]; then
+        echo "   2. Kill processes on port: kill $pids"
+        has_recommendations=true
+    fi
+
+    if [[ "$has_recommendations" == "false" ]]; then
+        echo "   • Port appears to be available - there may be a different issue"
+        echo "   • Try: vrooli resource restart"
+        if [[ -n "$scenario" ]]; then
+            echo "   • Check logs: vrooli scenario logs $scenario"
+        else
+            echo "   • Check logs: vrooli scenario logs <scenario-name>"
+        fi
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+}
+
+cmd_help() {
+    cat <<'EOF'
+vrooli-autoheal - Self-healing supervisor for Vrooli infrastructure
+
+Usage: vrooli-autoheal <command> [options]
+
+Commands:
+  tick [--force] [--json]
+      Run a single health check cycle. Use --force to run all checks
+      regardless of interval. Use --json for structured output.
+
+  loop [--interval-seconds=60] [--json] [--no-manage-api]
+      Run continuously, executing health checks at the specified interval.
+      By default, the loop manages the API lifecycle automatically:
+        - Starts the API if not running
+        - Restarts the API if it crashes or becomes unresponsive
+      Use --no-manage-api to disable API lifecycle management.
+      Press Ctrl+C to stop gracefully.
+
+  status [--json]
+      Show current health status summary. Use --json for structured output.
+
+  watchdog [--json]
+      Show OS watchdog service status (installed, enabled, running).
+
+  install [--system] [--force]
+      Install the OS watchdog service for boot persistence.
+      Use --system for system-wide installation (requires sudo on Linux).
+      Use --force to overwrite existing installation.
+      For user services on Linux, enables lingering for headless boot support.
+
+  uninstall [--force]
+      Remove the OS watchdog service. Use --force to skip confirmation.
+
+  platform
+      Show detected platform capabilities.
+
+  checks
+      List all registered health checks.
+
+  configure [key] [value]
+      View or update CLI configuration.
+      Keys: api_base, api_token, loop_interval
+
+  orphans <list|kill>
+      Manage orphaned Vrooli processes (running without lifecycle tracking).
+      - list: Show all orphaned processes with details
+      - kill: Terminate orphaned processes (dangerous, requires confirmation)
+
+  locks <list|clean>
+      Manage stale port lock files (locks pointing to dead PIDs).
+      - list: Show all port locks with status (VALID/STALE)
+      - clean: Remove stale lock files (safe operation)
+
+  diagnose-port <port> [scenario]
+      Comprehensive port diagnostics. Shows:
+      - Port lock file status (which scenario claims the port)
+      - Process using the port (if any)
+      - Whether lock is valid or stale
+      - Recommended actions to resolve conflicts
+
+  version
+      Show CLI version.
+
+  help
+      Show this help message.
+
+Examples:
+  vrooli-autoheal tick                    # Run one health check cycle
+  vrooli-autoheal tick --force            # Force all checks to run
+  vrooli-autoheal loop --interval-seconds=30  # Run every 30 seconds
+  vrooli-autoheal loop --no-manage-api    # Run loop without API management
+  vrooli-autoheal status --json           # Get status as JSON
+  vrooli-autoheal watchdog                # Check watchdog status
+  vrooli-autoheal install                 # Install user-level watchdog
+  vrooli-autoheal install --system        # Install system-wide watchdog
+  vrooli-autoheal uninstall               # Remove watchdog service
+  vrooli-autoheal orphans list            # List orphaned Vrooli processes
+  vrooli-autoheal locks list              # Show port locks with status
+  vrooli-autoheal locks clean             # Clean stale port locks
+  vrooli-autoheal diagnose-port 8080              # Debug port 8080
+EOF
+}
+
+main() {
+    init_config
+    load_config
+
+    local command="${1:-help}"
+    shift || true
+
+    # Check for environment variable overrides
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
+    fi
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    case "$command" in
+        tick)
+            cmd_tick "$@"
+            ;;
+        loop)
+            cmd_loop "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        watchdog)
+            cmd_watchdog "$@"
+            ;;
+        install)
+            cmd_install "$@"
+            ;;
+        uninstall)
+            cmd_uninstall "$@"
+            ;;
+        platform)
+            cmd_platform
+            ;;
+        checks)
+            cmd_checks
+            ;;
+        configure|config)
+            cmd_configure "$@"
+            ;;
+        orphans)
+            cmd_orphans "$@"
+            ;;
+        locks)
+            cmd_locks "$@"
+            ;;
+        diagnose-port)
+            cmd_diagnose_port "$@"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}Unknown command:${NC} $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

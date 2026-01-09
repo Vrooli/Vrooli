@@ -21,6 +21,7 @@
     "axios": "^1.6.5",
     "clsx": "^2.1.0",
     "date-fns": "^3.2.0",
+    "express": "^4.21.2",
     "lucide-react": "^0.312.0",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "react": "^18.2.0",

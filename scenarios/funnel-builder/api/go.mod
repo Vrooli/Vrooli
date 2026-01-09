@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/jackc/pgx/v5 v5.5.1
 	github.com/joho/godotenv v1.5.1
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -42,3 +43,5 @@ require (
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

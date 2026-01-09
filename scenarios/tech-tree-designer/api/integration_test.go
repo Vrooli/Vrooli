@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -129,6 +130,106 @@ func TestIntegration_TechTreeDataFlow(t *testing.T) {
 			}
 		})
 	})
+}
+
+func TestIntegration_GraphEditing(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testDB, dbCleanup := setupTestDB(t)
+	if testDB == nil {
+		return
+	}
+	defer dbCleanup()
+
+	router := setupTestRouter()
+
+	treeID := createTestTechTree(t, testDB)
+	sectorID := createTestSector(t, testDB, treeID)
+	stageAID := createTestStage(t, testDB, sectorID)
+
+	stageBID := "00000000-0000-0000-0000-00000000000a"
+	examples := `["Example A", "Example B"]`
+	if err := execWithBackoff(t, testDB, `
+		INSERT INTO progression_stages (id, sector_id, stage_type, stage_order, name, description,
+			progress_percentage, examples, position_x, position_y, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		ON CONFLICT (id) DO UPDATE SET name = $5
+	`, stageBID, sectorID, "operational", 2, "Operational Stage", "Operational systems",
+		55.0, examples, 260.0, 320.0); err != nil {
+		t.Fatalf("Failed to create second stage: %v", err)
+	}
+
+	depID := createTestDependency(t, testDB, stageBID, stageAID)
+
+	body := map[string]interface{}{
+		"stages": []map[string]interface{}{
+			{"id": stageAID, "position_x": 480.5, "position_y": 220.75},
+			{"id": stageBID, "position_x": 610.0, "position_y": 285.25},
+		},
+		"dependencies": []map[string]interface{}{
+			{
+				"id":                    depID,
+				"dependent_stage_id":    stageBID,
+				"prerequisite_stage_id": stageAID,
+				"dependency_type":       "requires",
+				"dependency_strength":   0.92,
+				"description":           "Updated dependency",
+			},
+			{
+				"dependent_stage_id":    stageAID,
+				"prerequisite_stage_id": stageBID,
+				"dependency_type":       "optional",
+				"dependency_strength":   0.4,
+				"description":           "Reverse dependency",
+			},
+		},
+	}
+
+	response := makeHTTPRequest(t, router, "PUT", "/api/v1/tech-tree/graph", body)
+	json := assertJSONResponse(t, response, http.StatusOK)
+
+	if message, ok := json["message"].(string); !ok || message == "" {
+		t.Errorf("Expected success message, got: %v", json["message"])
+	}
+
+	assertFieldExists(t, json, "sectors")
+	assertFieldExists(t, json, "dependencies")
+
+	row := testDB.QueryRow(`SELECT position_x, position_y FROM progression_stages WHERE id = $1`, stageAID)
+	var posX, posY float64
+	if err := row.Scan(&posX, &posY); err != nil {
+		t.Fatalf("Failed to read updated stage position: %v", err)
+	}
+
+	if posX != 480.5 {
+		t.Errorf("Expected stage A position_x to be 480.5, got %f", posX)
+	}
+	if posY != 220.75 {
+		t.Errorf("Expected stage A position_y to be 220.75, got %f", posY)
+	}
+
+	var dependencyCount int
+	if err := testDB.QueryRow(`SELECT COUNT(*) FROM stage_dependencies WHERE dependent_stage_id IN ($1, $2)`, stageAID, stageBID).Scan(&dependencyCount); err != nil {
+		t.Fatalf("Failed to count dependencies: %v", err)
+	}
+
+	if dependencyCount != 2 {
+		t.Errorf("Expected 2 dependencies after update, got %d", dependencyCount)
+	}
+
+	var reverseDepID string
+	if err := testDB.QueryRow(
+		`SELECT id FROM stage_dependencies WHERE dependent_stage_id = $1 AND prerequisite_stage_id = $2`,
+		stageAID,
+		stageBID,
+	).Scan(&reverseDepID); err != nil {
+		t.Fatalf("Expected reverse dependency to exist: %v", err)
+	}
+
+	if reverseDepID == "" {
+		t.Error("Reverse dependency ID should not be empty")
+	}
 }
 
 // TestIntegration_ProgressTracking tests scenario progress tracking workflow

@@ -1,0 +1,14 @@
+{
+  "name": "privacy-terms-generator-ui",
+  "version": "1.0.0",
+  "description": "Static UI shell for the Privacy & Terms Generator scenario",
+  "main": "server.js",
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "build": "bash -c 'set -euo pipefail; rm -rf dist && mkdir -p dist && cp index.html dist/index.html'"
+  },
+  "author": "Vrooli AI Agent",
+  "license": "MIT",
+  "dependencies": {}
+}

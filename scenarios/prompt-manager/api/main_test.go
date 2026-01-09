@@ -471,6 +471,20 @@ func TestHelperFunctions(t *testing.T) {
 		if nilCount != nil {
 			t.Errorf("Expected nil for nil input, got %v", nilCount)
 		}
+
+		// Test empty string
+		emptyContent := ""
+		emptyCount := calculateWordCount(&emptyContent)
+		if emptyCount == nil || *emptyCount != 0 {
+			t.Errorf("Expected 0 words for empty string, got %v", emptyCount)
+		}
+
+		// Test with multiple spaces
+		spacedContent := "word1    word2     word3"
+		spacedCount := calculateWordCount(&spacedContent)
+		if spacedCount == nil || *spacedCount != 3 {
+			t.Errorf("Expected 3 words with multiple spaces, got %v", spacedCount)
+		}
 	})
 
 	t.Run("CalculateTokenCount", func(t *testing.T) {
@@ -484,6 +498,56 @@ func TestHelperFunctions(t *testing.T) {
 		expectedTokens := int(float64(4) * 0.75)
 		if *tokens != expectedTokens {
 			t.Errorf("Expected ~%d tokens, got %d", expectedTokens, *tokens)
+		}
+
+		// Test nil input
+		nilContent := (*string)(nil)
+		nilTokens := calculateTokenCount(nilContent)
+		if nilTokens != nil {
+			t.Errorf("Expected nil for nil input, got %v", nilTokens)
+		}
+
+		// Test empty content
+		emptyContent := ""
+		emptyTokens := calculateTokenCount(&emptyContent)
+		if emptyTokens == nil || *emptyTokens != 0 {
+			t.Errorf("Expected 0 tokens for empty string, got %v", emptyTokens)
+		}
+
+		// Test longer content
+		longContent := "This is a much longer piece of text with many more words to verify token calculation"
+		longTokens := calculateTokenCount(&longContent)
+		if longTokens == nil {
+			t.Fatal("Expected token count for long content, got nil")
+		}
+		expectedLongTokens := int(float64(16) * 0.75)
+		if *longTokens != expectedLongTokens {
+			t.Errorf("Expected ~%d tokens for long content, got %d", expectedLongTokens, *longTokens)
+		}
+	})
+
+	t.Run("PtrFloat64", func(t *testing.T) {
+		val := 3.14
+		ptr := ptrFloat64(val)
+		if ptr == nil {
+			t.Fatal("Expected non-nil pointer")
+		}
+		if *ptr != val {
+			t.Errorf("Expected %f, got %f", val, *ptr)
+		}
+
+		// Test zero value
+		zero := 0.0
+		zeroPtr := ptrFloat64(zero)
+		if zeroPtr == nil || *zeroPtr != 0.0 {
+			t.Errorf("Expected 0.0, got %v", zeroPtr)
+		}
+
+		// Test negative value
+		neg := -1.5
+		negPtr := ptrFloat64(neg)
+		if negPtr == nil || *negPtr != neg {
+			t.Errorf("Expected %f, got %v", neg, negPtr)
 		}
 	})
 }

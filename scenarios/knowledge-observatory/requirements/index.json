@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-semantic-search/module.json",
+    "02-quality-metrics/module.json",
+    "03-knowledge-graph/module.json",
+    "04-api-endpoints/module.json",
+    "05-cli-commands/module.json",
+    "06-health-dashboard/module.json"
+  ],
+  "requirements": []
+}

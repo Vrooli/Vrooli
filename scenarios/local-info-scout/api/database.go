@@ -1,62 +1,45 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 var db *sql.DB
 
-// initDB initializes the PostgreSQL database connection with connection pooling
+// initDB initializes the PostgreSQL database connection with automatic retry and backoff.
+// Reads POSTGRES_* environment variables set by the lifecycle system.
 func initDB() {
-	host := getEnv("POSTGRES_HOST", "localhost")
-	port := getEnv("POSTGRES_PORT", "5432")
-	user := getEnv("POSTGRES_USER", "postgres")
-	password := getEnv("POSTGRES_PASSWORD", "postgres")
-	dbname := getEnv("POSTGRES_DB", "local_info_scout")
-
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	// Check if database configuration is available
+	if os.Getenv("POSTGRES_HOST") == "" && os.Getenv("POSTGRES_PORT") == "" {
+		dbLogger.Info("Database configuration not found, persistence disabled", nil)
+		return
+	}
 
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		MaxOpenConns:    25,
+		MaxIdleConns:    5,
+		ConnMaxLifetime: 5 * time.Minute,
+	})
 	if err != nil {
 		dbLogger.Error("PostgreSQL connection failed, persistence disabled", map[string]interface{}{
 			"error": err.Error(),
-			"host":  host,
-			"port":  port,
 		})
 		db = nil
 		return
 	}
 
-	// Configure connection pooling for better performance
-	// Max open connections: Allow up to 25 concurrent database connections
-	db.SetMaxOpenConns(25)
-	// Max idle connections: Keep 5 connections in the pool when idle
-	db.SetMaxIdleConns(5)
-	// Connection max lifetime: Close connections after 5 minutes to prevent stale connections
-	db.SetConnMaxLifetime(5 * time.Minute)
-	// Connection max idle time: Close idle connections after 1 minute
+	// Set additional pool settings not covered by database.Connect
 	db.SetConnMaxIdleTime(1 * time.Minute)
 
-	err = db.Ping()
-	if err != nil {
-		dbLogger.Error("PostgreSQL ping failed, persistence disabled", map[string]interface{}{
-			"error": err.Error(),
-			"host":  host,
-			"port":  port,
-		})
-		db = nil
-		return
-	}
-
 	dbLogger.Info("PostgreSQL connected with connection pooling", map[string]interface{}{
-		"host":          host,
-		"port":          port,
 		"max_open":      25,
 		"max_idle":      5,
 		"max_lifetime":  "5m",
@@ -166,7 +149,6 @@ func logSearch(req SearchRequest, resultsCount int, cacheHit bool, duration time
 
 	_, err := db.Exec(query, req.Query, req.Lat, req.Lon, req.Radius, req.Category,
 		resultsCount, cacheHit, duration.Milliseconds())
-
 	if err != nil {
 		dbLogger.Error("Failed to log search", map[string]interface{}{
 			"error": err.Error(),

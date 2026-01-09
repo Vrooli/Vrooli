@@ -1,0 +1,261 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "{{SCENARIO_ID}}",
+    "displayName": "{{SCENARIO_DISPLAY_NAME}}",
+    "description": "{{SCENARIO_DESCRIPTION}}",
+    "version": "1.0.0",
+    "type": "application-template",
+    "category": "business_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "landing-template",
+      "ab-testing",
+      "stripe",
+      "analytics",
+      "templates"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/{{SCENARIO_ID}}"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI for the generated landing scenario",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["api/{{SCENARIO_ID}}-api"]
+          },
+          {
+            "type": "cli",
+            "command": "{{SCENARIO_ID}}"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "db-schema",
+          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi",
+          "description": "Apply database schema (admin, variants, metrics, subscriptions, content sections) to postgres if psql is available"
+        },
+        {
+          "name": "db-seed",
+          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/seed.sql; else echo \"psql not found; skipping seed (runtime seeds defaults)\"; fi",
+          "description": "Seed default admin user, variants, and content sections when psql is available"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o {{SCENARIO_ID}}-api .",
+          "description": "Build Go API binary ({{SCENARIO_ID}}-api) in api/ directory for reuse by start-api step"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and production UI bundle",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && exec ./{{SCENARIO_ID}}-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/{{SCENARIO_ID}}-api"
+          },
+          "description": "Start Go API server in background"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute {{SCENARIO_ID}} --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "production": {
+      "description": "Production deployment with optimized settings",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && exec ./{{SCENARIO_ID}}-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/{{SCENARIO_ID}}-api"
+          },
+          "description": "Start Go API server in production mode"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle with optimized settings"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f '{{SCENARIO_ID}}-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
+        "schema": "{{SCENARIO_ID}}"
+      },
+      "resource-claude-code": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Agent-based customization of landing pages",
+        "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Session caching for high-traffic landing pages",
+        "notes": "Optional performance optimization for generated landing pages"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "description": "Template recommendations based on user intent",
+        "notes": "Optional for P2 features (semantic template search)"
+      },
+      "browserless": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Screenshot generation for template previews",
+        "notes": "Optional for generating template thumbnails and admin portal previews"
+      }
+    }
+  }
+}

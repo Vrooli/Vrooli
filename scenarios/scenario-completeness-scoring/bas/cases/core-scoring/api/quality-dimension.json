@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "name": "quality-dimension",
+    "description": "Tests quality dimension scoring in score breakdown",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CORE-001A\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "get-quality-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get score breakdown with quality dimension"
+        }
+      }
+    }
+  ],
+  "edges": []
+}

@@ -2,6 +2,9 @@
  * Utility functions for interacting with Vrooli CLI and scenarios
  */
 
+import { getConfig } from '../config';
+import { logger } from './logger';
+
 export interface ScenarioPortInfo {
   port: number;
   status: string;
@@ -15,18 +18,17 @@ export interface ScenarioPortInfo {
  */
 export async function getScenarioPort(scenarioName: string): Promise<ScenarioPortInfo | null> {
   try {
-    // In a real implementation, this would make an API call to a backend endpoint
-    // that executes the vrooli CLI command server-side, since browsers can't execute shell commands
-    const response = await fetch(`/api/v1/scenarios/${scenarioName}/port`);
-    
+    const config = await getConfig();
+    const response = await fetch(`${config.API_URL}/scenarios/${encodeURIComponent(scenarioName)}/port`);
+
     if (!response.ok) {
-      console.error(`Failed to get port for scenario ${scenarioName}:`, response.statusText);
+      logger.error('Failed to get port for scenario', { component: 'VrooliUtils', action: 'getScenarioPort', scenarioName, status: response.statusText });
       return null;
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error(`Error getting port for scenario ${scenarioName}:`, error);
+    logger.error('Error getting port for scenario', { component: 'VrooliUtils', action: 'getScenarioPort', scenarioName }, error);
     return null;
   }
 }

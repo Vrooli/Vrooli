@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "what-if-analysis",
+    "description": "Tests the what-if analysis and recommendations API endpoints",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-ANALYSIS-001\", \"SCS-ANALYSIS-002\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "what-if-request",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"changes\": [{\"component\": \"quality.requirement_pass_rate\", \"new_value\": 0.9}]}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "What-if analysis request"
+        }
+      }
+    },
+    {
+      "id": "get-recommendations",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get score with recommendations"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "what-if-request",
+      "target": "get-recommendations",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

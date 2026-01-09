@@ -53,7 +53,8 @@ func TestSubmitIssueToTrackerReturnsIssueID(t *testing.T) {
 		t.Fatalf("failed to parse port: %v", err)
 	}
 
-	result, err := submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
+	service := NewAppService(nil)
+	result, err := service.submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
 	if err != nil {
 		t.Fatalf("submitIssueToTracker returned error: %v", err)
 	}
@@ -89,7 +90,8 @@ func TestSubmitIssueToTrackerParsesNestedIssueID(t *testing.T) {
 		t.Fatalf("failed to parse port: %v", err)
 	}
 
-	result, err := submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
+	service := NewAppService(nil)
+	result, err := service.submitIssueToTracker(context.Background(), port, map[string]interface{}{"title": "test"})
 	if err != nil {
 		t.Fatalf("submitIssueToTracker returned error: %v", err)
 	}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { FixedSizeList as List } from 'react-window'
 import CharacterItem from './components/CharacterItem'
 import CharacterModal from './components/CharacterModal'
@@ -22,6 +22,9 @@ function App() {
   })
   const [selectedCharacter, setSelectedCharacter] = useState(null)
   const [viewMode, setViewMode] = useState('grid') // grid | list
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+
+  const loadMoreTriggerRef = useRef(null)
   
   // Debounce search query for performance
   const debouncedQuery = useDebounce(searchQuery, 300)
@@ -85,6 +88,29 @@ function App() {
     }
   }, [hasMore, loading, loadMore, debouncedQuery, filters, characters.length])
 
+  // Trigger load more when grid sentinel reaches viewport
+  useEffect(() => {
+    if (viewMode !== 'grid') return
+
+    const node = loadMoreTriggerRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries
+      if (entry?.isIntersecting && hasMore && !loading) {
+        handleLoadMore()
+      }
+    }, {
+      rootMargin: '200px'
+    })
+
+    observer.observe(node)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [viewMode, hasMore, loading, handleLoadMore])
+
   // Virtualized list item renderer
   const ListItem = useCallback(({ index, style }) => {
     const character = characters[index]
@@ -130,6 +156,10 @@ function App() {
     setSearchQuery('')
   }, [])
 
+  const toggleSidebarVisibility = useCallback(() => {
+    setSidebarVisible(prev => !prev)
+  }, [])
+
   return (
     <div className="app">
       {/* Header */}
@@ -149,9 +179,13 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="main">
+      <main className={`main${sidebarVisible ? '' : ' main--sidebar-hidden'}`}>
         {/* Sidebar Filters */}
-        <aside className="sidebar">
+        <aside
+          className="sidebar"
+          id="filters-panel"
+          hidden={!sidebarVisible}
+        >
           <div className="sidebar-content">
             <SearchFilters
               searchQuery={searchQuery}
@@ -182,14 +216,26 @@ function App() {
               <button
                 className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setViewMode('grid')}
+                type="button"
               >
                 Grid
               </button>
               <button
                 className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setViewMode('list')}
+                type="button"
               >
                 List
+              </button>
+              <button
+                className={`btn btn-sm ${sidebarVisible ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={toggleSidebarVisibility}
+                type="button"
+                aria-pressed={!sidebarVisible}
+                aria-expanded={sidebarVisible}
+                aria-controls="filters-panel"
+              >
+                {sidebarVisible ? 'Hide Filters' : 'Show Filters'}
               </button>
             </div>
           </div>
@@ -218,7 +264,7 @@ function App() {
               </div>
             )}
 
-            {!error && characters.length > 0 && (
+            {!error && characters.length > 0 && viewMode === 'list' && (
               <div className="virtual-list">
                 <List
                   height={CONTAINER_HEIGHT}
@@ -237,6 +283,25 @@ function App() {
                 >
                   {ListItem}
                 </List>
+              </div>
+            )}
+
+            {!error && characters.length > 0 && viewMode === 'grid' && (
+              <div className="grid-results">
+                <div className="grid-results-inner">
+                  {characters.map((character) => (
+                    <CharacterItem
+                      key={character.codepoint}
+                      character={character}
+                      onClick={() => handleCharacterSelect(character)}
+                      viewMode="grid"
+                    />
+                  ))}
+                </div>
+                <div ref={loadMoreTriggerRef} className="grid-results-sentinel" aria-hidden="true" />
+                {loading && hasMore && (
+                  <div className="loading-item">Loading more symbols...</div>
+                )}
               </div>
             )}
 

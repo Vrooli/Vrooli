@@ -1,16 +1,19 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"io"
 	"net/http"
-	"os"
 	"regexp"
-	"strconv"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
+	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
@@ -19,19 +22,128 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type taskSort string
+
+const (
+	taskSortUpdatedDesc taskSort = "updated_desc"
+	taskSortUpdatedAsc  taskSort = "updated_asc"
+	taskSortCreatedDesc taskSort = "created_desc"
+	taskSortCreatedAsc  taskSort = "created_asc"
+)
+
 // TaskHandlers contains handlers for task-related endpoints
 type TaskHandlers struct {
-	storage   *tasks.Storage
-	assembler *prompts.Assembler
-	processor *queue.Processor
-	wsManager *websocket.Manager
+	storage           *tasks.Storage
+	assembler         *prompts.Assembler
+	processor         ProcessorAPI
+	wsManager         *websocket.Manager
+	autoSteerProfiles *autosteer.ProfileService
+	coordinator       *tasks.Coordinator
+	lifecycle         *tasks.Lifecycle
+}
+
+func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool {
+	var terr *tasks.TransitionError
+	if !errors.As(err, &terr) {
+		return false
+	}
+
+	status := http.StatusConflict
+	if terr.Code == tasks.TransitionErrorCodeUnsupported {
+		status = http.StatusBadRequest
+	}
+
+	message := terr.Error()
+	if prefix != "" {
+		message = fmt.Sprintf("%s: %s", prefix, message)
+	}
+
+	writeError(w, message, status)
+	return true
+}
+
+// taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
+type taskWithRuntime struct {
+	tasks.TaskItem
+	CurrentProcess       *queue.ProcessInfo `json:"current_process,omitempty"`
+	AutoSteerPhaseIndex  *int               `json:"auto_steer_phase_index,omitempty"`
+	AutoSteerCurrentMode string             `json:"auto_steer_mode,omitempty"`
+}
+
+// buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
+func (h *TaskHandlers) buildRuntimeIndex() map[string]queue.ProcessInfo {
+	index := make(map[string]queue.ProcessInfo)
+	if h.processor == nil {
+		return index
+	}
+
+	for _, proc := range h.processor.GetRunningProcessesInfo() {
+		index[proc.TaskID] = proc
+	}
+	return index
+}
+
+// attachRuntime copies the task and adds runtime info when available.
+func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) taskWithRuntime {
+	enriched := taskWithRuntime{TaskItem: task}
+	if proc, ok := runtime[task.ID]; ok {
+		// Copy to avoid aliasing the map entry
+		procCopy := proc
+		enriched.CurrentProcess = &procCopy
+	}
+	return enriched
+}
+
+type autoSteerRuntime struct {
+	phaseIndex *int
+	mode       string
+}
+
+// buildAutoSteerRuntime gathers live Auto Steer state for the provided tasks.
+func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]autoSteerRuntime {
+	result := make(map[string]autoSteerRuntime)
+
+	if h.processor == nil {
+		return result
+	}
+	integration := h.processor.AutoSteerIntegration()
+	if integration == nil {
+		return result
+	}
+	engine := integration.ExecutionEngine()
+	if engine == nil {
+		return result
+	}
+
+	for _, task := range tasks {
+		if strings.TrimSpace(task.AutoSteerProfileID) == "" {
+			continue
+		}
+
+		state, err := engine.GetExecutionState(task.ID)
+		if err != nil || state == nil {
+			continue
+		}
+
+		var idxPtr *int
+		idx := state.CurrentPhaseIndex
+		idxPtr = &idx
+
+		mode, _ := engine.GetCurrentMode(task.ID)
+
+		result[task.ID] = autoSteerRuntime{
+			phaseIndex: idxPtr,
+			mode:       string(mode),
+		}
+	}
+
+	return result
 }
 
 func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
 	errors := make([]map[string]string, 0)
-	baseTitle := baseTask.Title
 
 	for _, target := range baseTask.Targets {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(baseTask.Type, baseTask.Operation, target)
@@ -55,10 +167,10 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		newTask.ID = generateTaskID(baseTask.Type, baseTask.Operation, target)
 		newTask.Target = target
 		newTask.Targets = []string{target}
-		newTask.Title = deriveTaskTitle(baseTitle, baseTask.Operation, baseTask.Type, target)
+		newTask.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
 		newTask.Status = "pending"
 		newTask.Results = nil
-		timestamp := time.Now().Format(time.RFC3339)
+		timestamp := timeutil.NowRFC3339()
 		newTask.CreatedAt = timestamp
 		newTask.UpdatedAt = timestamp
 
@@ -74,7 +186,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 	}
 
 	success := len(errors) == 0 && len(created) > 0
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": success,
 		"created": created,
 		"skipped": skipped,
@@ -91,9 +203,11 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		statusCode = http.StatusInternalServerError
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	if len(created) > 0 && h.processor != nil {
+		h.processor.Wake()
+	}
+
+	writeJSON(w, response, statusCode)
 }
 
 var targetSlugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
@@ -151,9 +265,9 @@ func deriveTaskTitle(baseTitle, operation, taskType, target string) string {
 func operationDisplayName(operation string) string {
 	switch operation {
 	case "generator":
-		return "Create"
+		return "Generate"
 	case "improver":
-		return "Enhance"
+		return "Improve"
 	default:
 		if operation == "" {
 			return "Task"
@@ -163,13 +277,177 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor *queue.Processor, wsManager *websocket.Manager) *TaskHandlers {
-	return &TaskHandlers{
-		storage:   storage,
-		assembler: assembler,
-		processor: processor,
-		wsManager: wsManager,
+func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
+	lc := &tasks.Lifecycle{Store: storage}
+	if coordinator != nil && coordinator.LC != nil {
+		lc = coordinator.LC
 	}
+	coord := coordinator
+	if coord == nil {
+		coord = &tasks.Coordinator{
+			LC:          lc,
+			Store:       storage,
+			Runtime:     processor,
+			Broadcaster: wsManager,
+		}
+	}
+	return &TaskHandlers{
+		storage:           storage,
+		assembler:         assembler,
+		processor:         processor,
+		wsManager:         wsManager,
+		autoSteerProfiles: autoSteerProfiles,
+		coordinator:       coord,
+		lifecycle:         lc,
+	}
+}
+
+// getTaskFromRequest extracts task ID from URL path and retrieves the task.
+// Returns (task, status, true) on success or (nil, "", false) on error (response already written).
+func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter) (*tasks.TaskItem, string, bool) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+	task, status, err := h.storage.GetTaskByID(taskID)
+	if err != nil {
+		writeError(w, "Task not found", http.StatusNotFound)
+		return nil, "", false
+	}
+	return task, status, true
+}
+
+// validateTaskTypeAndOperation validates task type and operation fields.
+// Returns true if valid, writes error response and returns false if invalid.
+func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if !tasks.IsValidTaskType(task.Type) {
+		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes), http.StatusBadRequest)
+		return false
+	}
+	if !tasks.IsValidTaskOperation(task.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// normalizeSteerMode trims and lowercases a provided steer mode string, treating "none" as empty.
+func normalizeSteerMode(raw string) autosteer.SteerMode {
+	trimmed := strings.TrimSpace(strings.ToLower(raw))
+	if trimmed == "none" {
+		return ""
+	}
+	return autosteer.SteerMode(trimmed)
+}
+
+// validateAndNormalizeSteerMode ensures the steer mode is supported for the task shape and valid.
+func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	mode := normalizeSteerMode(task.SteerMode)
+	if mode == "" {
+		task.SteerMode = ""
+		return true
+	}
+
+	if task.Type != "scenario" || task.Operation != "improver" {
+		writeError(w, "Manual steering is only supported for scenario improver tasks", http.StatusBadRequest)
+		return false
+	}
+
+	if !mode.IsValid() {
+		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+		return false
+	}
+
+	task.SteerMode = string(mode)
+	return true
+}
+
+// preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
+// This helper consolidates field preservation logic used when updating tasks.
+func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode bool) {
+	if updated.Title == "" {
+		updated.Title = current.Title
+	}
+	if updated.Priority == "" {
+		updated.Priority = current.Priority
+	}
+	if updated.Category == "" {
+		updated.Category = current.Category
+	}
+	if updated.EffortEstimate == "" {
+		updated.EffortEstimate = current.EffortEstimate
+	}
+	if updated.CurrentPhase == "" && current.CurrentPhase != "" {
+		updated.CurrentPhase = current.CurrentPhase
+	}
+	if updated.CompletionCount == 0 && current.CompletionCount > 0 {
+		updated.CompletionCount = current.CompletionCount
+	}
+	if updated.LastCompletedAt == "" {
+		updated.LastCompletedAt = current.LastCompletedAt
+	}
+	if len(updated.Targets) == 0 && len(current.Targets) > 0 {
+		updated.Targets = current.Targets
+		updated.Target = current.Target
+	}
+	if preserveSteerMode && updated.SteerMode == "" && current.SteerMode != "" {
+		updated.SteerMode = current.SteerMode
+	}
+}
+
+// applyUserEditableFields copies non-status user-editable fields from src into dst.
+func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided bool) {
+	dst.Title = src.Title
+	dst.Priority = src.Priority
+	dst.Category = src.Category
+	dst.EffortEstimate = src.EffortEstimate
+	dst.Urgency = src.Urgency
+	dst.Dependencies = src.Dependencies
+	dst.Blocks = src.Blocks
+	dst.RelatedScenarios = src.RelatedScenarios
+	dst.RelatedResources = src.RelatedResources
+	dst.ValidationCriteria = src.ValidationCriteria
+	dst.Target = src.Target
+	dst.Targets = src.Targets
+	dst.Tags = src.Tags
+	dst.SteerMode = src.SteerMode
+	dst.AutoSteerProfileID = src.AutoSteerProfileID
+	if notesProvided {
+		dst.Notes = src.Notes
+	}
+}
+
+func parseTaskSortParam(raw string) taskSort {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "updated_asc", "updated-asc", "updated_at_asc", "updated-at-asc":
+		return taskSortUpdatedAsc
+	case "created_desc", "created-desc", "created_at_desc", "created-at-desc":
+		return taskSortCreatedDesc
+	case "created_asc", "created-asc", "created_at_asc", "created-at-asc":
+		return taskSortCreatedAsc
+	default:
+		return taskSortUpdatedDesc
+	}
+}
+
+func parseTimestamp(raw string) time.Time {
+	if strings.TrimSpace(raw) == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
+}
+
+func updatedTimestamp(task tasks.TaskItem) time.Time {
+	if ts := parseTimestamp(task.UpdatedAt); !ts.IsZero() {
+		return ts
+	}
+	return parseTimestamp(task.CreatedAt)
+}
+
+func createdTimestamp(task tasks.TaskItem) time.Time {
+	return parseTimestamp(task.CreatedAt)
 }
 
 // GetTasksHandler retrieves tasks with optional filtering
@@ -182,10 +460,11 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	taskType := r.URL.Query().Get("type")       // filter by resource/scenario
 	operation := r.URL.Query().Get("operation") // filter by generator/improver
 	category := r.URL.Query().Get("category")   // filter by category
+	sortParam := parseTaskSortParam(r.URL.Query().Get("sort"))
 
 	items, err := h.storage.GetQueueItems(status)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get tasks: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to get tasks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -204,62 +483,97 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 		filteredItems = append(filteredItems, item)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	// Apply sorting (default: most recently updated first)
+	sort.SliceStable(filteredItems, func(i, j int) bool {
+		left := filteredItems[i]
+		right := filteredItems[j]
 
-	// Debug: Log what we're about to send
-	log.Printf("About to send %d filtered tasks", len(filteredItems))
+		switch sortParam {
+		case taskSortUpdatedAsc:
+			li, ri := updatedTimestamp(left), updatedTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.Before(ri)
+		case taskSortCreatedDesc:
+			li, ri := createdTimestamp(left), createdTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.After(ri)
+		case taskSortCreatedAsc:
+			li, ri := createdTimestamp(left), createdTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.Before(ri)
+		case taskSortUpdatedDesc:
+			fallthrough
+		default:
+			li, ri := updatedTimestamp(left), updatedTimestamp(right)
+			if li.Equal(ri) {
+				return left.ID < right.ID
+			}
+			return li.After(ri)
+		}
+	})
+
 	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
-	// Encode and check for errors
-	if err := json.NewEncoder(w).Encode(filteredItems); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	} else {
-		log.Printf("Successfully sent JSON response with %d tasks", len(filteredItems))
+	runtimeIndex := h.buildRuntimeIndex()
+	autoSteerIndex := h.buildAutoSteerRuntime(filteredItems)
+	enriched := make([]taskWithRuntime, 0, len(filteredItems))
+	for _, item := range filteredItems {
+		enrichedTask := attachRuntime(item, runtimeIndex)
+		if steer, ok := autoSteerIndex[item.ID]; ok {
+			enrichedTask.AutoSteerPhaseIndex = steer.phaseIndex
+			if strings.TrimSpace(steer.mode) != "" {
+				enrichedTask.AutoSteerCurrentMode = steer.mode
+			}
+		}
+		enriched = append(enriched, enrichedTask)
 	}
+
+	// Wrap response in object for consistency with other endpoints
+	response := map[string]any{
+		"tasks": enriched,
+		"count": len(enriched),
+	}
+
+	writeJSON(w, response, http.StatusOK)
 }
 
 // CreateTaskHandler creates a new task
 func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task tasks.TaskItem
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	taskPtr, ok := decodeJSONBody[tasks.TaskItem](w, r)
+	if !ok {
 		return
 	}
+	task := *taskPtr
 
 	// Normalize target inputs before validation
 	task.Targets, task.Target = tasks.NormalizeTargets(task.Target, task.Targets)
 
 	// Validate task type and operation
-	validTypes := []string{"resource", "scenario"}
-	validOperations := []string{"generator", "improver"}
-
-	if !tasks.Contains(validTypes, task.Type) {
-		http.Error(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, validTypes), http.StatusBadRequest)
-		return
-	}
-
-	if !tasks.Contains(validOperations, task.Operation) {
-		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, validOperations), http.StatusBadRequest)
+	if !h.validateTaskTypeAndOperation(&task, w) {
 		return
 	}
 
 	// Validate that we have configuration for this operation
 	_, err := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Unsupported operation combination: %v", err), http.StatusBadRequest)
+		writeError(w, fmt.Sprintf("Unsupported operation combination: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if !validateAndNormalizeSteerMode(&task, w) {
 		return
 	}
 
 	// Target validation for improver operations
 	if task.Operation == "improver" && len(task.Targets) == 0 {
-		http.Error(w, "Improver tasks require at least one target", http.StatusBadRequest)
+		writeError(w, "Improver tasks require at least one target", http.StatusBadRequest)
 		return
-	}
-
-	// Generators shouldn't carry target metadata
-	if task.Operation == "generator" {
-		task.Target = ""
-		task.Targets = nil
 	}
 
 	// Handle multi-target creation as a batch operation
@@ -272,17 +586,15 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if len(task.Targets) == 1 {
 		existing, status, lookupErr := h.storage.FindActiveTargetTask(task.Type, task.Operation, task.Targets[0])
 		if lookupErr != nil {
-			http.Error(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
 			return
 		}
 
 		if existing != nil {
-			http.Error(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
+			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
 			return
 		}
 	}
-
-	now := time.Now()
 
 	// Set defaults
 	if task.ID == "" {
@@ -293,15 +605,13 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		task.Status = "pending"
 	}
 
-	if strings.TrimSpace(task.Title) == "" {
-		task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
-	}
+	task.Title = deriveTaskTitle("", task.Operation, task.Type, task.Target)
 
 	if task.CreatedAt == "" {
-		task.CreatedAt = now.Format(time.RFC3339)
+		task.CreatedAt = timeutil.NowRFC3339()
 	}
 
-	task.UpdatedAt = now.Format(time.RFC3339)
+	task.UpdatedAt = timeutil.NowRFC3339()
 
 	// Ensure canonical single-target representation is persisted
 	if len(task.Targets) == 1 {
@@ -310,62 +620,32 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Save to pending queue
 	if err := h.storage.SaveQueueItem(task, "pending"); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if h.processor != nil {
+		h.processor.Wake()
+	}
+
+	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    task,
-	})
+	}, http.StatusCreated)
 }
 
+// GET /api/tasks/{id}
 // GetTaskHandler retrieves a specific task by ID
 func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	task, _, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
-}
+	runtimeIndex := h.buildRuntimeIndex()
+	enriched := attachRuntime(*task, runtimeIndex)
 
-// GetTaskLogsHandler streams back collected execution logs for a task
-func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	afterParam := r.URL.Query().Get("after")
-	var afterSeq int64
-	if afterParam != "" {
-		seq, err := strconv.ParseInt(afterParam, 10, 64)
-		if err != nil {
-			http.Error(w, "after must be an integer", http.StatusBadRequest)
-			return
-		}
-		afterSeq = seq
-	}
-
-	entries, nextSeq, running, agentID, completed, processID := h.processor.GetTaskLogs(taskID, afterSeq)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"task_id":       taskID,
-		"agent_id":      agentID,
-		"process_id":    processID,
-		"running":       running,
-		"completed":     completed,
-		"next_sequence": nextSeq,
-		"entries":       entries,
-		"timestamp":     time.Now().Unix(),
-	})
+	writeJSON(w, enriched, http.StatusOK)
 }
 
 // GetActiveTargetsHandler returns active targets for the specified type and operation across relevant queues.
@@ -374,21 +654,21 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 	operation := strings.TrimSpace(r.URL.Query().Get("operation"))
 
 	if taskType == "" || operation == "" {
-		http.Error(w, "type and operation query parameters are required", http.StatusBadRequest)
+		writeError(w, "type and operation query parameters are required", http.StatusBadRequest)
 		return
 	}
 
 	reqType := strings.ToLower(taskType)
 	reqOperation := strings.ToLower(operation)
 
-	statuses := []string{"pending", "in-progress", "review"}
+	statuses := []string{"pending", "in-progress"}
 	response := make([]map[string]string, 0)
 	seen := make(map[string]struct{})
 
 	for _, status := range statuses {
 		items, err := h.storage.GetQueueItems(status)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load %s tasks: %v", status, err), http.StatusInternalServerError)
+			writeError(w, fmt.Sprintf("Failed to load %s tasks: %v", status, err), http.StatusInternalServerError)
 			return
 		}
 
@@ -401,7 +681,7 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 				continue
 			}
 
-			targets := h.collectTaskTargets(&item)
+			targets := tasks.CollectTargets(&item)
 			for _, target := range targets {
 				normalized := strings.ToLower(strings.TrimSpace(target))
 				if normalized == "" {
@@ -423,146 +703,43 @@ func (h *TaskHandlers) GetActiveTargetsHandler(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode active targets response: %v", err)
-	}
-}
-
-func (h *TaskHandlers) collectTaskTargets(item *tasks.TaskItem) []string {
-	normalizedTargets, _ := tasks.NormalizeTargets(item.Target, item.Targets)
-	if len(normalizedTargets) > 0 {
-		return normalizedTargets
-	}
-
-	var derived []string
-
-	if strings.EqualFold(item.Type, "resource") {
-		derived = append(derived, item.RelatedResources...)
-	} else if strings.EqualFold(item.Type, "scenario") {
-		derived = append(derived, item.RelatedScenarios...)
-	}
-
-	for _, candidate := range derived {
-		trimmed := strings.TrimSpace(candidate)
-		if trimmed != "" {
-			normalizedTargets = append(normalizedTargets, trimmed)
-		}
-	}
-
-	if len(normalizedTargets) > 0 {
-		return normalizedTargets
-	}
-
-	if inferred := inferTargetFromTitle(item.Title, item.Type); inferred != "" {
-		return []string{inferred}
-	}
-
-	if inferred := inferTargetFromID(item.ID, item.Type, item.Operation); inferred != "" {
-		return []string{inferred}
-	}
-
-	return normalizedTargets
-}
-
-func inferTargetFromTitle(title string, taskType string) string {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return ""
-	}
-
-	typeToken := strings.ToLower(strings.TrimSpace(taskType))
-	var typePattern string
-	if typeToken == "" {
-		typePattern = "(resource|scenario)"
-	} else {
-		typePattern = regexp.QuoteMeta(typeToken)
-	}
-
-	tarTargetPattern := `([A-Za-z0-9][A-Za-z0-9\-_.\s/]+?)`
-	patterns := []string{
-		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, typePattern, tarTargetPattern),
-		fmt.Sprintf(`(?i)(enhance|improve|upgrade|fix|polish)\s+%s\s+%s`, tarTargetPattern, typePattern),
-	}
-
-	for _, pattern := range patterns {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			continue
-		}
-
-		match := re.FindStringSubmatch(trimmed)
-		if len(match) >= 3 {
-			target := strings.TrimSpace(match[len(match)-1])
-			target = strings.Trim(target, "-_")
-			target = strings.ReplaceAll(target, "  ", " ")
-			if target != "" {
-				return target
-			}
-		}
-	}
-
-	return ""
-}
-
-func inferTargetFromID(id, taskType, operation string) string {
-	trimmed := strings.TrimSpace(id)
-	if trimmed == "" {
-		return ""
-	}
-
-	prefix := strings.ToLower(strings.TrimSpace(taskType))
-	op := strings.ToLower(strings.TrimSpace(operation))
-	compoundPrefix := fmt.Sprintf("%s-%s-", prefix, op)
-
-	lowerID := strings.ToLower(trimmed)
-	if strings.HasPrefix(lowerID, compoundPrefix) {
-		trimmed = trimmed[len(compoundPrefix):]
-	}
-
-	reNumeric := regexp.MustCompile(`-[0-9]{4,}$`)
-	for {
-		if loc := reNumeric.FindStringIndex(trimmed); loc != nil && loc[0] > 0 {
-			trimmed = trimmed[:loc[0]]
-		} else {
-			break
-		}
-	}
-
-	trimmed = strings.Trim(trimmed, "-_")
-	trimmed = strings.TrimSpace(trimmed)
-	trimmed = strings.ReplaceAll(trimmed, "-", " ")
-	trimmed = strings.Join(strings.Fields(trimmed), " ")
-
-	if trimmed == "" {
-		return ""
-	}
-
-	return trimmed
+	writeJSON(w, response, http.StatusOK)
 }
 
 // UpdateTaskHandler updates an existing task
 func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	var updatedTask tasks.TaskItem
-	if err := json.NewDecoder(r.Body).Decode(&updatedTask); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	currentTask, currentStatus, ok := h.getTaskFromRequest(r, w)
+	if !ok {
 		return
 	}
+
+	bodyBytes, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	var raw map[string]any
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+		// Keep going with structured decode; just log for debugging
+		systemlog.Warnf("UpdateTaskHandler: could not decode raw body for presence detection: %v", err)
+	}
+	notesProvided := false
+	if raw != nil {
+		if _, ok := raw["notes"]; ok {
+			notesProvided = true
+		}
+	}
+
+	updatedTaskPtr, ok := decodeJSONBody[tasks.TaskItem](w, r)
+	if !ok {
+		return
+	}
+	updatedTask := *updatedTaskPtr
+	taskID := currentTask.ID
 
 	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
-
-	// Find current task location
-	currentTask, currentStatus, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
+	steerModeCleared := strings.EqualFold(strings.TrimSpace(updatedTask.SteerMode), "none")
 
 	// Preserve certain fields that shouldn't be changed via general update
-	updatedTask.ID = currentTask.ID
+	updatedTask.ID = taskID
 	updatedTask.Type = currentTask.Type
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
@@ -572,15 +749,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		updatedTask.Operation = currentTask.Operation
 	}
 
-	if updatedTask.Operation == "generator" {
-		updatedTask.Target = ""
-		updatedTask.Targets = nil
-	}
-
 	// Validate operation if it was changed
-	validOperations := []string{"generator", "improver"}
-	if !tasks.Contains(validOperations, updatedTask.Operation) {
-		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
+	if !tasks.IsValidTaskOperation(updatedTask.Operation) {
+		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
 		return
 	}
 
@@ -588,163 +759,84 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if updatedTask.Operation != currentTask.Operation {
 		_, err := h.assembler.SelectPromptAssembly(updatedTask.Type, updatedTask.Operation)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Unsupported operation combination after update: %v", err), http.StatusBadRequest)
+			writeError(w, fmt.Sprintf("Unsupported operation combination after update: %v", err), http.StatusBadRequest)
 			return
 		}
 	}
 
 	// Preserve all other fields if they weren't provided in the update
-	if updatedTask.Title == "" {
-		updatedTask.Title = currentTask.Title
-	}
-	if len(updatedTask.Targets) == 0 && len(currentTask.Targets) > 0 {
-		updatedTask.Targets = currentTask.Targets
-		updatedTask.Target = currentTask.Target
-	}
-	if updatedTask.Priority == "" {
-		updatedTask.Priority = currentTask.Priority
-	}
-	if updatedTask.Category == "" {
-		updatedTask.Category = currentTask.Category
-	}
-	if updatedTask.Notes == "" {
+	preserveUnsetFields(&updatedTask, currentTask, !steerModeCleared)
+
+	// Notes: only preserve when not provided; allow explicit clearing
+	if !notesProvided {
 		updatedTask.Notes = currentTask.Notes
 	}
-	if updatedTask.EffortEstimate == "" {
-		updatedTask.EffortEstimate = currentTask.EffortEstimate
-	}
-	if updatedTask.CurrentPhase == "" && currentTask.CurrentPhase != "" {
-		updatedTask.CurrentPhase = currentTask.CurrentPhase
-	}
-	if updatedTask.CompletionCount == 0 && currentTask.CompletionCount > 0 {
-		updatedTask.CompletionCount = currentTask.CompletionCount
-	}
-	if updatedTask.LastCompletedAt == "" {
-		updatedTask.LastCompletedAt = currentTask.LastCompletedAt
+
+	if !validateAndNormalizeSteerMode(&updatedTask, w) {
+		return
 	}
 
-	// Handle backwards status transitions (completed/failed -> pending/in-progress)
-	// This happens when users drag tasks back to re-execute them
+	// Validate status if provided
 	newStatus := updatedTask.Status
-	isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") &&
-		(newStatus == "pending" || newStatus == "in-progress")
-
-	// Debug logging
-	log.Printf("Task %s status transition: '%s' -> '%s' (backwards: %v)",
-		taskID, currentStatus, newStatus, isBackwardsTransition)
-	log.Printf("Task %s incoming data - has results: %v, status: '%s'",
-		taskID, updatedTask.Results != nil, updatedTask.Status)
-
-	if isBackwardsTransition {
-		// Clear execution results and timestamps for fresh execution
-		log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, newStatus)
-		updatedTask.Results = nil
-		updatedTask.StartedAt = ""
-		updatedTask.CompletedAt = ""
-		updatedTask.CurrentPhase = ""
-	} else {
-		// Normal status transitions - preserve existing data if not provided
-		// Only preserve if the frontend didn't explicitly clear them
-		if updatedTask.StartedAt == "" {
-			updatedTask.StartedAt = currentTask.StartedAt
-		}
-		if updatedTask.CompletedAt == "" {
-			updatedTask.CompletedAt = currentTask.CompletedAt
-		}
-		if updatedTask.LastCompletedAt == "" {
-			updatedTask.LastCompletedAt = currentTask.LastCompletedAt
-		}
-		// IMPORTANT: Don't preserve results if it's a backwards transition that wasn't detected
-		// This can happen if status strings don't match exactly
-		if updatedTask.Results == nil && currentTask.Results != nil {
-			// Check if this might be an undetected backwards transition
-			if newStatus == "pending" || newStatus == "in-progress" {
-				log.Printf("Task %s: Not preserving results when moving to %s", taskID, newStatus)
-				// Keep results as nil
-			} else {
-				updatedTask.Results = currentTask.Results
-			}
-		}
+	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
+		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
+		return
 	}
 
-	// Handle status changes - if status changed, may need to move file
-	if newStatus == "archived" && strings.TrimSpace(updatedTask.CurrentPhase) == "" {
-		updatedTask.CurrentPhase = "archived"
+	// If no status was provided, keep the current status so we don't attempt a move with an empty destination.
+	if newStatus == "" {
+		newStatus = currentStatus
+		updatedTask.Status = currentStatus
 	}
 
-	if newStatus != currentStatus {
-		// Set timestamps for status changes
-		now := time.Now().Format(time.RFC3339)
-		updatedTask.UpdatedAt = now
-
-		if newStatus == "in-progress" {
-			updatedTask.StartedAt = now
-		}
-		if newStatus == "completed" {
-			if updatedTask.CompletionCount <= currentTask.CompletionCount {
-				updatedTask.CompletionCount = currentTask.CompletionCount + 1
-			}
-			if updatedTask.CompletedAt == "" {
-				updatedTask.CompletedAt = now
-			}
-			updatedTask.LastCompletedAt = updatedTask.CompletedAt
-		}
-		if newStatus == "failed" && updatedTask.CompletedAt == "" {
-			updatedTask.CompletedAt = now
-		}
-		if newStatus == "archived" {
-			updatedTask.ProcessorAutoRequeue = false
-		}
-
-		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
-		if currentStatus == "in-progress" && newStatus != "in-progress" {
-			if err := h.processor.TerminateRunningProcess(taskID); err != nil {
-				log.Printf("Warning: Failed to terminate process for task %s: %v", taskID, err)
-			} else {
-				log.Printf("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
-				// Update task to reflect cancellation
-				updatedTask.Results = map[string]interface{}{
-					"success":      false,
-					"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
-					"cancelled_at": now,
-				}
-				updatedTask.CurrentPhase = "cancelled"
-			}
-		}
-	} else {
-		// Just update timestamp
-		updatedTask.UpdatedAt = time.Now().Format(time.RFC3339)
-	}
-
-	// Save updated task
-	if newStatus != currentStatus {
-		if err := h.storage.MoveTask(taskID, currentStatus, newStatus); err != nil {
-			log.Printf("ERROR: Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
-			http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
+	if updatedTask.Operation == "improver" && len(updatedTask.Targets) == 1 {
+		existing, status, lookupErr := h.storage.FindActiveTargetTask(updatedTask.Type, updatedTask.Operation, updatedTask.Targets[0])
+		if lookupErr != nil {
+			writeError(w, fmt.Sprintf("Failed to verify existing tasks: %v", lookupErr), http.StatusInternalServerError)
 			return
 		}
-		// Reload updated task after move so we return the latest view
-		if reloaded, status, err := h.storage.GetTaskByID(taskID); err == nil {
-			updatedTask = *reloaded
-			currentStatus = status
-		}
-	} else {
-		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
-			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
+
+		if existing != nil && existing.ID != taskID {
+			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status), http.StatusConflict)
 			return
 		}
 	}
 
-	// Broadcast the update via WebSocket
-	h.wsManager.BroadcastUpdate("task_updated", updatedTask)
+	// Route transitions through coordinator for consistency and centralized side effects.
+	ctx := tasks.TransitionContext{Intent: tasks.IntentManual}
 
-	log.Printf("Task %s updated successfully", taskID)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"task":    updatedTask,
+	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
+		TaskID:            taskID,
+		ToStatus:          newStatus,
+		TransitionContext: ctx,
+	}, tasks.ApplyOptions{
+		Mutate: func(t *tasks.TaskItem) {
+			applyUserEditableFields(t, updatedTask, notesProvided)
+			t.Title = deriveTaskTitle("", t.Operation, t.Type, t.Target)
+		},
+		BroadcastEvent: "task_updated",
+		ForceResave:    true,
 	})
+	if err != nil {
+		if writeTransitionError(w, "Failed to apply status transition", err) {
+			return
+		}
+		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Defensive: ensure outcome not nil
+	if outcome == nil || updated == nil {
+		writeError(w, "Failed to apply status transition", http.StatusInternalServerError)
+		return
+	}
+
+	systemlog.Infof("Task %s updated successfully", taskID)
+
+	writeJSON(w, map[string]any{
+		"success": true,
+		"task":    updated,
+	}, http.StatusOK)
 }
 
 // DeleteTaskHandler deletes a task
@@ -752,20 +844,20 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	taskID := vars["id"]
 
-	// Check if task is running and terminate if necessary
-	if err := h.processor.TerminateRunningProcess(taskID); err == nil {
-		log.Printf("Terminated running process for deleted task %s", taskID)
+	// If possible, rely on coordinator runtime to stop any running process before deletion.
+	if h.coordinator != nil && h.processor != nil {
+		_ = h.processor.TerminateRunningProcess(taskID)
 	}
 
 	// Delete the task file
 	status, err := h.storage.DeleteTask(taskID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
+		writeError(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Send WebSocket notification
-	h.wsManager.BroadcastUpdate("task_deleted", map[string]interface{}{
+	h.wsManager.BroadcastUpdate("task_deleted", map[string]any{
 		"id":     taskID,
 		"status": status,
 	})
@@ -773,346 +865,65 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent) // 204 No Content for successful deletion
 }
 
-// GetTaskPromptHandler retrieves prompt details for a task
-func (h *TaskHandlers) GetTaskPromptHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	// Find task
-	task, _, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-
-	// Generate prompt sections
-	sections, err := h.assembler.GeneratePromptSections(*task)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
-
-	response := map[string]interface{}{
-		"task_id":          task.ID,
-		"operation":        fmt.Sprintf("%s-%s", task.Type, task.Operation),
-		"prompt_sections":  sections,
-		"operation_config": operationConfig,
-		"task_details":     task,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// GetAssembledPromptHandler returns the fully assembled prompt for a task
-func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
-
-	// Find task
-	task, status, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-
-	fromCache := false
-	assembly, err := h.assembler.AssemblePromptForTask(*task)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-	prompt := assembly.Prompt
-
-	// Check for cached prompt content (legacy behavior)
-	promptPath := fmt.Sprintf("/tmp/ecosystem-prompt-%s.txt", taskID)
-	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
-		prompt = string(cachedPrompt)
-		fromCache = true
-		log.Printf("Using cached prompt from %s", promptPath)
-	}
-
-	assembly.Prompt = prompt
-
-	// Get operation config for metadata
-	operationConfig, _ := h.assembler.SelectPromptAssembly(task.Type, task.Operation)
-
-	response := map[string]interface{}{
-		"task_id":           task.ID,
-		"operation":         fmt.Sprintf("%s-%s", task.Type, task.Operation),
-		"prompt":            prompt,
-		"prompt_length":     len(prompt),
-		"prompt_cached":     fromCache,
-		"sections_detailed": assembly.Sections,
-		"operation_config":  operationConfig,
-		"task_status":       status,
-		"task_details":      task,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
 func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["id"]
+	task, currentStatus, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+	taskID := task.ID
 
-	var update struct {
+	type updateRequest struct {
 		Status       string `json:"status"`
 		CurrentPhase string `json:"current_phase"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+	update, ok := decodeJSONBody[updateRequest](w, r)
+	if !ok {
 		return
 	}
 
-	// Find current task location
-	task, currentStatus, err := h.storage.GetTaskByID(taskID)
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
+	// Validate status if provided
+	if update.Status != "" && !tasks.IsValidStatus(update.Status) {
+		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
 		return
 	}
 
-	// Update task fields
-	if update.Status != "" && update.Status != currentStatus {
-		previousCount := task.CompletionCount
-		task.Status = update.Status
-		now := time.Now().Format(time.RFC3339)
+	targetStatus := update.Status
+	if targetStatus == "" {
+		targetStatus = currentStatus
+	}
 
-		// Handle backwards status transitions (completed/failed -> pending/in-progress)
-		isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") &&
-			(update.Status == "pending" || update.Status == "in-progress")
-
-		if isBackwardsTransition {
-			// Clear execution results and timestamps for fresh execution
-			log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, update.Status)
-			task.Results = nil
-			task.StartedAt = ""
-			task.CompletedAt = ""
-			task.CurrentPhase = ""
-		}
-
-		if update.Status == "in-progress" {
-			task.StartedAt = now
-		}
-		if update.Status == "completed" {
-			if task.CompletionCount <= previousCount {
-				task.CompletionCount = previousCount + 1
+	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
+		TaskID:   taskID,
+		ToStatus: targetStatus,
+		TransitionContext: tasks.TransitionContext{
+			Intent: tasks.IntentManual,
+		},
+	}, tasks.ApplyOptions{
+		Mutate: func(t *tasks.TaskItem) {
+			if update.CurrentPhase != "" {
+				t.CurrentPhase = update.CurrentPhase
 			}
-			task.CompletedAt = now
-			task.LastCompletedAt = task.CompletedAt
-		}
-		if update.Status == "failed" {
-			task.CompletedAt = now
-		}
-		if update.Status == "archived" && strings.TrimSpace(task.CurrentPhase) == "" {
-			task.CurrentPhase = "archived"
-		}
-		if update.Status == "pending" {
-			task.ConsecutiveCompletionClaims = 0
-			task.ConsecutiveFailures = 0
-			task.ProcessorAutoRequeue = true
-		}
-		if update.Status == "completed-finalized" {
-			task.ProcessorAutoRequeue = false
-		}
-		if update.Status == "failed-blocked" {
-			task.ProcessorAutoRequeue = false
-		}
-		if update.Status == "archived" {
-			task.ProcessorAutoRequeue = false
-		}
-
-		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
-		if currentStatus == "in-progress" && update.Status != "in-progress" {
-			if err := h.processor.TerminateRunningProcess(taskID); err != nil {
-				log.Printf("Warning: Failed to terminate process for task %s: %v", taskID, err)
-			} else {
-				log.Printf("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, update.Status)
-				// Update task to reflect cancellation
-				now := time.Now().Format(time.RFC3339)
-				task.Results = map[string]interface{}{
-					"success":      false,
-					"error":        fmt.Sprintf("Task execution was cancelled (moved to %s)", update.Status),
-					"cancelled_at": now,
-				}
-				task.CurrentPhase = "cancelled"
+			if targetStatus == tasks.StatusPending && currentStatus != tasks.StatusPending {
+				t.Results = nil
+				t.CurrentPhase = ""
 			}
-		}
-
-		// Move task to new status if needed
-		if update.Status != currentStatus {
-			if err := h.storage.MoveTask(taskID, currentStatus, update.Status); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
-				return
-			}
-		}
-	}
-
-	if update.CurrentPhase != "" {
-		task.CurrentPhase = update.CurrentPhase
-	}
-
-	task.UpdatedAt = time.Now().Format(time.RFC3339)
-
-	// Save updated task
-	if err := h.storage.SaveQueueItem(*task, task.Status); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save task: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Broadcast the update via WebSocket
-	h.wsManager.BroadcastUpdate("task_status_updated", *task)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(*task)
-}
-
-// promptPreviewRequest captures optional data for assembling a preview task
-type promptPreviewRequest struct {
-	Task      *tasks.TaskItem `json:"task,omitempty"`
-	Display   string          `json:"display,omitempty"`
-	Type      string          `json:"type,omitempty"`
-	Operation string          `json:"operation,omitempty"`
-	Title     string          `json:"title,omitempty"`
-	Category  string          `json:"category,omitempty"`
-	Priority  string          `json:"priority,omitempty"`
-	Notes     string          `json:"notes,omitempty"`
-	Tags      []string        `json:"tags,omitempty"`
-}
-
-func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
-	var task tasks.TaskItem
-
-	if r.Task != nil {
-		task = *r.Task
-	}
-
-	if r.Type != "" {
-		task.Type = r.Type
-	}
-	if r.Operation != "" {
-		task.Operation = r.Operation
-	}
-	if r.Title != "" {
-		task.Title = r.Title
-	}
-	if r.Category != "" {
-		task.Category = r.Category
-	}
-	if r.Priority != "" {
-		task.Priority = r.Priority
-	}
-	if r.Notes != "" {
-		task.Notes = r.Notes
-	}
-	if len(r.Tags) > 0 {
-		task.Tags = r.Tags
-	}
-
-	if task.ID == "" {
-		task.ID = defaultID
-	}
-	if task.Type == "" {
-		task.Type = "resource"
-	}
-	if task.Operation == "" {
-		task.Operation = "generator"
-	}
-	if task.Title == "" {
-		task.Title = "Prompt Viewer Test"
-	}
-	if task.Category == "" {
-		task.Category = "test"
-	}
-	if task.Priority == "" {
-		task.Priority = "medium"
-	}
-	if task.Notes == "" {
-		task.Notes = "Temporary task for prompt viewing"
-	}
-	if task.CreatedAt == "" {
-		task.CreatedAt = time.Now().Format(time.RFC3339)
-	}
-	if task.Status == "" {
-		task.Status = "pending"
-	}
-
-	return task
-}
-
-// PromptViewerHandler creates a temporary task to view assembled prompts
-func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Request) {
-	defaultID := fmt.Sprintf("temp-prompt-viewer-%d", time.Now().UnixNano())
-
-	var req promptPreviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	display := strings.ToLower(strings.TrimSpace(req.Display))
-	if display == "" {
-		display = "preview"
-	}
-
-	tempTask := req.buildTask(defaultID)
-
-	if _, err := h.assembler.SelectPromptAssembly(tempTask.Type, tempTask.Operation); err != nil {
-		http.Error(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", tempTask.Type, tempTask.Operation, err), http.StatusBadRequest)
-		return
-	}
-
-	sections, err := h.assembler.GeneratePromptSections(tempTask)
+		},
+		BroadcastEvent: "task_status_updated",
+		ForceResave:    true,
+	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get prompt sections: %v", err), http.StatusInternalServerError)
+		if writeTransitionError(w, "Failed to apply status transition", err) {
+			return
+		}
+		writeError(w, fmt.Sprintf("Failed to apply status transition: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if outcome == nil || updated == nil {
+		writeError(w, "Failed to apply status transition", http.StatusInternalServerError)
 		return
 	}
 
-	assembly, err := h.assembler.AssemblePromptForTask(tempTask)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-		return
-	}
-	prompt := assembly.Prompt
-
-	promptSize := len(prompt)
-	promptSizeKB := float64(promptSize) / 1024.0
-	promptSizeMB := promptSizeKB / 1024.0
-
-	response := map[string]interface{}{
-		"task_type":         tempTask.Type,
-		"operation":         tempTask.Operation,
-		"title":             tempTask.Title,
-		"sections":          sections,
-		"section_count":     len(sections),
-		"sections_detailed": assembly.Sections,
-		"prompt_size":       promptSize,
-		"prompt_size_kb":    fmt.Sprintf("%.2f", promptSizeKB),
-		"prompt_size_mb":    fmt.Sprintf("%.3f", promptSizeMB),
-		"timestamp":         time.Now().Format(time.RFC3339),
-		"task":              tempTask,
-	}
-
-	switch display {
-	case "full", "all":
-		response["prompt"] = prompt
-		response["display"] = "full"
-	case "first", "preview":
-		response["prompt"] = prompt
-		response["display"] = "preview"
-		response["truncated"] = false
-	case "size", "stats":
-		response["display"] = "size"
-	default:
-		response["display"] = "summary"
-		response["available_displays"] = []string{"full", "preview", "size"}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, *updated, http.StatusOK)
 }

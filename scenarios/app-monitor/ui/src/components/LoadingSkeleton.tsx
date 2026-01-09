@@ -32,21 +32,13 @@ interface AppCardSkeletonProps {
 
 export const AppCardSkeleton: React.FC<AppCardSkeletonProps> = ({ viewMode = 'grid' }) => {
   return (
-    <div className={`app-card-skeleton ${viewMode}`}>
-      <div className="app-card-header">
-        <LoadingSkeleton height="24px" width="60%" />
-        <LoadingSkeleton height="16px" width="80px" borderRadius="12px" />
-      </div>
-      <div className="app-card-content">
-        <div className="app-card-metrics">
-          <LoadingSkeleton height="14px" width="40%" />
-          <LoadingSkeleton height="14px" width="50%" />
-          <LoadingSkeleton height="14px" width="35%" />
-        </div>
-        <div className="app-card-actions">
-          <LoadingSkeleton height="32px" width="64px" borderRadius="4px" />
-          <LoadingSkeleton height="32px" width="64px" borderRadius="4px" />
-          <LoadingSkeleton height="32px" width="80px" borderRadius="4px" />
+    <div className={`surface-card-skeleton ${viewMode}`}>
+      <div className="surface-card-skeleton__thumb" aria-hidden />
+      <div className="surface-card-skeleton__body">
+        <LoadingSkeleton height="18px" width="70%" />
+        <div className="surface-card-skeleton__chips">
+          <LoadingSkeleton height="14px" width="42%" borderRadius="999px" />
+          <LoadingSkeleton height="14px" width="32%" borderRadius="999px" />
         </div>
       </div>
     </div>
@@ -57,13 +49,15 @@ interface ResourceCardSkeletonProps {}
 
 export const ResourceCardSkeleton: React.FC<ResourceCardSkeletonProps> = () => {
   return (
-    <div className="resource-card-skeleton">
-      <div className="resource-icon">
-        <LoadingSkeleton width="40px" height="40px" borderRadius="8px" />
+    <div className="surface-card-skeleton surface-card-skeleton--resource">
+      <div className="surface-card-skeleton__thumb surface-card-skeleton__thumb--resource" aria-hidden />
+      <div className="surface-card-skeleton__body">
+        <LoadingSkeleton height="18px" width="65%" />
+        <div className="surface-card-skeleton__chips">
+          <LoadingSkeleton height="14px" width="40%" borderRadius="999px" />
+          <LoadingSkeleton height="14px" width="28%" borderRadius="999px" />
+        </div>
       </div>
-      <LoadingSkeleton height="18px" width="70%" />
-      <LoadingSkeleton height="14px" width="50%" />
-      <LoadingSkeleton height="16px" width="60px" borderRadius="12px" />
     </div>
   );
 };
@@ -78,7 +72,7 @@ export const AppsGridSkeleton: React.FC<AppsGridSkeletonProps> = ({
   viewMode = 'grid' 
 }) => {
   return (
-    <div className={`apps-grid-skeleton ${viewMode}`}>
+    <div className={`surface-grid-skeleton ${viewMode}`}>
       {Array.from({ length: count }, (_, index) => (
         <AppCardSkeleton key={index} viewMode={viewMode} />
       ))}
@@ -94,7 +88,7 @@ export const ResourcesGridSkeleton: React.FC<ResourcesGridSkeletonProps> = ({
   count = 4 
 }) => {
   return (
-    <div className="resources-grid-skeleton">
+    <div className="surface-grid-skeleton surface-grid-skeleton--compact">
       {Array.from({ length: count }, (_, index) => (
         <ResourceCardSkeleton key={index} />
       ))}

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -10,8 +11,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/google/uuid"
 )
 
 // TestHealth tests the health endpoint
@@ -84,6 +83,15 @@ func TestHTTPError(t *testing.T) {
 	})
 }
 
+func newTestService() *AppPersonalizerService {
+	return &AppPersonalizerService{
+		db:         nil,
+		minioURL:   "http://localhost:9000",
+		httpClient: &http.Client{Timeout: httpTimeout},
+		logger:     NewLogger(),
+	}
+}
+
 // TestRegisterApp tests the RegisterApp endpoint
 func TestRegisterApp(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -93,13 +101,7 @@ func TestRegisterApp(t *testing.T) {
 	defer env.Cleanup()
 
 	// Create mock service (no DB for now)
-	service := &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	service := newTestService()
 
 	t.Run("Success", func(t *testing.T) {
 		// Skip this test if DB is not available
@@ -188,13 +190,7 @@ func TestListApps(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	_ = &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	_ = newTestService()
 
 	t.Run("NoDatabaseConnection", func(t *testing.T) {
 		t.Skip("Skipping test: database not configured")
@@ -209,13 +205,7 @@ func TestAnalyzeApp(t *testing.T) {
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
 
-	service := &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	service := newTestService()
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/apps/analyze", bytes.NewBufferString("invalid-json"))
@@ -312,13 +302,7 @@ func TestBackupApp(t *testing.T) {
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
 
-	service := &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	service := newTestService()
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := BackupAppRequest{
@@ -437,13 +421,7 @@ func TestValidateApp(t *testing.T) {
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
 
-	service := &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	service := newTestService()
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := ValidateAppRequest{
@@ -575,13 +553,7 @@ func TestPersonalizeApp(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	service := &AppPersonalizerService{
-		db:         nil,
-		n8nBaseURL: "http://localhost:5678",
-		minioURL:   "http://localhost:9000",
-		httpClient: &http.Client{Timeout: httpTimeout},
-		logger:     NewLogger(),
-	}
+	service := newTestService()
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/personalize", bytes.NewBufferString("invalid-json"))
@@ -593,61 +565,6 @@ func TestPersonalizeApp(t *testing.T) {
 
 		if status := rr.Code; status != http.StatusBadRequest {
 			t.Errorf("Expected status %d, got %d", http.StatusBadRequest, status)
-		}
-	})
-}
-
-// TestTriggerPersonalizationWorkflow tests the n8n workflow trigger
-func TestTriggerPersonalizationWorkflow(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("SuccessfulTrigger", func(t *testing.T) {
-		// Create a test server to mock n8n
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status": "triggered"}`))
-		}))
-		defer server.Close()
-
-		service := &AppPersonalizerService{
-			n8nBaseURL: server.URL,
-			httpClient: &http.Client{Timeout: httpTimeout},
-			logger:     NewLogger(),
-		}
-
-		payload := map[string]interface{}{
-			"app_id":               uuid.New(),
-			"personalization_type": "ui_theme",
-		}
-
-		err := service.triggerPersonalizationWorkflow(payload)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-	})
-
-	t.Run("WorkflowError", func(t *testing.T) {
-		// Create a test server that returns an error
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "workflow failed"}`))
-		}))
-		defer server.Close()
-
-		service := &AppPersonalizerService{
-			n8nBaseURL: server.URL,
-			httpClient: &http.Client{Timeout: httpTimeout},
-			logger:     NewLogger(),
-		}
-
-		payload := map[string]interface{}{
-			"app_id": uuid.New(),
-		}
-
-		err := service.triggerPersonalizationWorkflow(payload)
-		if err == nil {
-			t.Error("Expected error, got nil")
 		}
 	})
 }
@@ -678,14 +595,10 @@ func TestLoggerFunctions(t *testing.T) {
 // TestNewAppPersonalizerService tests service creation
 func TestNewAppPersonalizerService(t *testing.T) {
 	t.Run("CreateService", func(t *testing.T) {
-		service := NewAppPersonalizerService(nil, "http://localhost:5678", "http://localhost:9000")
+		service := NewAppPersonalizerService(nil, "http://localhost:9000")
 
 		if service == nil {
 			t.Fatal("Expected non-nil service")
-		}
-
-		if service.n8nBaseURL != "http://localhost:5678" {
-			t.Errorf("Expected n8nBaseURL 'http://localhost:5678', got '%s'", service.n8nBaseURL)
 		}
 
 		if service.minioURL != "http://localhost:9000" {
@@ -707,7 +620,7 @@ func TestRouterIntegration(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	service := NewAppPersonalizerService(nil, "http://localhost:5678", "http://localhost:9000")
+	service := NewAppPersonalizerService(nil, "http://localhost:9000")
 	router := createTestRouter(service)
 
 	tests := []struct {

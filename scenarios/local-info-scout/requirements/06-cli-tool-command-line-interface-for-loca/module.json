@@ -1,0 +1,58 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "local-info-scout-must-have-cli-tool-command-line-interface-for-local-queries-2025-09-24-full-cli-with-search-categories-help",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-003"
+      ],
+      "description": "CLI tool providing access to search and category functionality",
+      "id": "REQ-P0-006",
+      "prd_ref": "local-info-scout-must-have-cli-tool-command-line-interface-for-local-queries-2025-09-24-full-cli-with-search-categories-help",
+      "status": "draft",
+      "title": "Command Line Interface",
+      "validation": [
+        {
+          "notes": "All commands functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Help documentation complete",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI correctly interfaces with API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Commands complete within 3 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can perform all core functions via CLI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**CLI Tool**: Command-line interface for local queries (✅ 2025-09-24: Full CLI with search, categories, help)"
+}

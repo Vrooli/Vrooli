@@ -31,7 +31,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 		for i := 0; i < requestCount; i++ {
 			req := httptest.NewRequest("GET", "/api/v1/health", nil)
 			w := httptest.NewRecorder()
-			server.healthHandler(w, req)
+			server.router.ServeHTTP(w, req)
 
 			if w.Code != 200 {
 				t.Errorf("Request %d failed with status %d", i, w.Code)
@@ -63,7 +63,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 				for j := 0; j < requestCount/concurrency; j++ {
 					req := httptest.NewRequest("GET", "/api/v1/health", nil)
 					w := httptest.NewRecorder()
-					server.healthHandler(w, req)
+					server.router.ServeHTTP(w, req)
 
 					if w.Code != 200 {
 						t.Errorf("Worker %d request %d failed", workerID, j)
@@ -104,7 +104,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 					default:
 						req := httptest.NewRequest("GET", "/api/v1/health", nil)
 						w := httptest.NewRecorder()
-						server.healthHandler(w, req)
+						server.router.ServeHTTP(w, req)
 
 						mu.Lock()
 						requestCount++
@@ -154,7 +154,7 @@ func TestStatusEndpointPerformance(t *testing.T) {
 		} else if i%5 == 0 {
 			status = "failed"
 		}
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, status)
+		server.builds.Save(createTestBuildStatus(buildID, status))
 	}
 
 	t.Run("SequentialRequests", func(t *testing.T) {
@@ -262,13 +262,13 @@ func TestGenerateDesktopPerformance(t *testing.T) {
 		}
 
 		// Verify all builds were created
-		if len(env.Server.buildStatuses) != requestCount {
-			t.Errorf("Expected %d build statuses, got %d", requestCount, len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != requestCount {
+			t.Errorf("Expected %d build statuses, got %d", requestCount, env.Server.builds.Len())
 		}
 	})
 
 	t.Run("ConcurrentGeneration", func(t *testing.T) {
-		requestCount := 10
+		requestCount := 12 // Changed to 12 so it divides evenly by 3 workers
 		concurrency := 3
 
 		var wg sync.WaitGroup
@@ -325,7 +325,7 @@ func TestBuildStatusPerformance(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		buildID := uuid.New().String()
 		buildIDs[i] = buildID
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+		server.builds.Save(createTestBuildStatus(buildID, "ready"))
 	}
 
 	t.Run("SequentialLookups", func(t *testing.T) {
@@ -421,8 +421,8 @@ func TestMemoryUsage(t *testing.T) {
 		t.Logf("Created %d build statuses in %v", buildCount, elapsed)
 
 		// Verify all builds exist
-		if len(env.Server.buildStatuses) != buildCount {
-			t.Errorf("Expected %d build statuses, got %d", buildCount, len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != buildCount {
+			t.Errorf("Expected %d build statuses, got %d", buildCount, env.Server.builds.Len())
 		}
 
 		// Test accessing random builds
@@ -454,18 +454,24 @@ func TestValidationPerformance(t *testing.T) {
 	defer cleanup()
 
 	server := NewServer(0)
+	baseConfig := func(name string) *DesktopConfig {
+		return &DesktopConfig{
+			AppName:      name,
+			Framework:    "electron",
+			TemplateType: "basic",
+			OutputPath:   "/tmp/test",
+			ServerType:   "static",
+			ServerPath:   "./dist",
+			APIEndpoint:  "http://localhost:3000",
+		}
+	}
 
 	t.Run("ValidConfigValidation", func(t *testing.T) {
 		validationCount := 10000
 		start := time.Now()
 
 		for i := 0; i < validationCount; i++ {
-			config := &DesktopConfig{
-				AppName:      fmt.Sprintf("App%d", i),
-				Framework:    "electron",
-				TemplateType: "basic",
-				OutputPath:   "/tmp/test",
-			}
+			config := baseConfig(fmt.Sprintf("App%d", i))
 
 			err := server.validateDesktopConfig(config)
 			if err != nil {
@@ -489,12 +495,8 @@ func TestValidationPerformance(t *testing.T) {
 		start := time.Now()
 
 		for i := 0; i < validationCount; i++ {
-			config := &DesktopConfig{
-				AppName:      fmt.Sprintf("App%d", i),
-				Framework:    "invalid",
-				TemplateType: "basic",
-				OutputPath:   "/tmp/test",
-			}
+			config := baseConfig(fmt.Sprintf("App%d", i))
+			config.Framework = "invalid"
 
 			err := server.validateDesktopConfig(config)
 			if err == nil {
@@ -525,7 +527,7 @@ func TestWebhookPerformance(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		buildID := uuid.New().String()
 		buildIDs[i] = buildID
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 	}
 
 	t.Run("SequentialWebhooks", func(t *testing.T) {
@@ -558,7 +560,7 @@ func TestWebhookPerformance(t *testing.T) {
 
 		// Verify all statuses were updated
 		completedCount := 0
-		for _, status := range server.buildStatuses {
+		for _, status := range server.builds.Snapshot() {
 			if status.Status == "completed" {
 				completedCount++
 			}

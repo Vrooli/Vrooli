@@ -38,7 +38,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["mariadb", "postgres"],
+          "enum": [
+            "mariadb",
+            "postgres"
+          ],
           "default": "mariadb"
         },
         "host": {
@@ -66,7 +69,9 @@
           "description": "Database password"
         }
       },
-      "required": ["type"]
+      "required": [
+        "type"
+      ]
     },
     "redis": {
       "type": "object",
@@ -182,6 +187,9 @@
       "default": false
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/erpnext/schema.json"
 }

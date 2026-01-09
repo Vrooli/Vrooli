@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -36,11 +37,11 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	TempDir      string
-	OriginalWD   string
-	TestDB       *sql.DB
-	TestDBName   string
-	Cleanup      func()
+	TempDir    string
+	OriginalWD string
+	TestDB     *sql.DB
+	TestDBName string
+	Cleanup    func()
 }
 
 // setupTestEnvironment creates an isolated test environment
@@ -88,10 +89,11 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 func setupTestDatabase(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
 
-	// Use environment variable or default test database
+	// Require explicit test database configuration for security
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/scenario_to_mcp_test?sslmode=disable"
+		t.Skip("TEST_DATABASE_URL environment variable not set - skipping database tests")
+		return nil, func() {}
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -265,6 +267,19 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 			// Allow partial match
 			t.Logf("Error message: %s (expected to contain: %s)", response.Error, expectedErrorSubstring)
 		}
+	}
+}
+
+func createTestDocFile(t *testing.T, scenariosRoot, relativePath, content string) {
+	t.Helper()
+
+	absolutePath := filepath.Join(scenariosRoot, "scenarios", scenarioName, filepath.FromSlash(relativePath))
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0755); err != nil {
+		t.Fatalf("Failed to create doc directory: %v", err)
+	}
+
+	if err := os.WriteFile(absolutePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test doc file: %v", err)
 	}
 }
 

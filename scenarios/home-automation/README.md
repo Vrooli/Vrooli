@@ -83,6 +83,8 @@ resource-home-assistant device control light.living_room turn_on
 resource-home-assistant scene activate "Good Night"
 ```
 
+> 💡 Use the **Auto-connect** button in the dashboard (Settings → Home Assistant) to automatically provision a long-lived token from the running resource when you don't want to create one manually.
+
 **Scenario Authenticator** (`scenario-authenticator`)
 ```bash
 # User validation and profile management
@@ -205,19 +207,6 @@ class ProfileManager {
 ```
 
 ## 🔄 Integration Patterns
-
-### Shared N8N Workflows
-Create these in `initialization/n8n/`:
-
-1. **`home-assistant-device-control.json`**
-   - Standardized device control with error handling
-   - Retry logic for unreliable devices
-   - State validation and rollback
-
-2. **`calendar-automation-scheduler.json`**
-   - Calendar event → automation trigger mapping
-   - Context-aware scene switching
-   - Conflict resolution between scheduled automations
 
 ### Cross-Scenario Communication
 
@@ -428,9 +417,8 @@ This scenario is **architecturally complete** and ready for implementation. The 
 2. `api/main.go` - Go API server with device control and automation endpoints
 3. `cli/home-automation` - CLI tool for device and profile management
 4. `initialization/postgres/schema.sql` - Database schema
-5. `initialization/n8n/` - Shared workflow definitions
-6. `ui/index.html` - Dashboard interface with real-time device controls
-7. `scenario-test.yaml` - Integration test specifications
+5. `ui/index.html` - Dashboard interface with real-time device controls
+6. `scenario-test.yaml` - Integration test specifications
 
 **Next Step**: Begin with Phase 1 implementation focusing on basic device control and authentication integration.
 

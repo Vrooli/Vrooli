@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -104,7 +105,8 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	router.Use(gin.Recovery())
 
 	// Setup routes (simplified version without external dependencies)
-	router.GET("/health", healthCheck)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(testDB), health.Critical).Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
 
 	api := router.Group("/api/v1")
 	{

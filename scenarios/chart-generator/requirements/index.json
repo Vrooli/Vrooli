@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for chart-generator scenario",
+    "domain": "chart-generation",
+    "last_updated": "2025-11-24",
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-core-features/module.json",
+    "02-interfaces/module.json",
+    "03-export-persistence/module.json",
+    "04-advanced-charts/module.json",
+    "05-advanced-features/module.json",
+    "06-advanced-export/module.json",
+    "07-data-pipeline/module.json"
+  ],
+  "requirements": []
+}

@@ -49,7 +49,7 @@ else
 fi
 
 # Load other libraries in dependency order (common.sh is already loaded)
-for lib in status install session session-enhanced mcp templates settings automation execute batch error-handling content agents; do
+for lib in status install session mcp settings execute error-handling content agents; do
     lib_file="${CLAUDE_CODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -88,10 +88,7 @@ cli::register_subcommand "content" "inject" "Inject templates/prompts (legacy)" 
 # Add manage subcommands for Claude Code-specific management
 cli::register_subcommand "manage" "session" "Session management" "claude_code_session"
 cli::register_subcommand "manage" "mcp" "MCP server management" "claude_code_mcp"
-cli::register_subcommand "manage" "template" "Template management" "claude_code_template"  
-cli::register_subcommand "manage" "batch" "Batch processing" "claude_code_batch"
 cli::register_subcommand "manage" "settings" "Settings management" "claude_code_settings"
-cli::register_subcommand "manage" "for" "Adapter management (litellm)" "claude_code_for"
 
 # TOP-LEVEL CUSTOM COMMANDS - Essential for auto/ folder functionality
 cli::register_command "run" "Run prompt with Claude Code (CRITICAL for auto/)" "claude_code_run" "modifies-system"
@@ -218,7 +215,7 @@ claude_code::setup_agent_cleanup() {
 claude_code_session() {
     local action="${1:-list}"
     shift || true
-    
+
     case "$action" in
         list)
             if command -v claude_code::session_list &>/dev/null; then
@@ -248,24 +245,15 @@ claude_code_session() {
                 claude-code session view "$@"
             fi
             ;;
-        analytics)
-            if command -v claude_code::session_analytics &>/dev/null; then
-                claude_code::session_analytics "$@"
-            else
-                log::error "Session analytics not available"
-                return 1
-            fi
-            ;;
         *)
             log::error "Unknown session action: $action"
             echo "Usage: resource-claude-code manage session <action>"
             echo ""
             echo "Available actions:"
             echo "  list        List all sessions"
-            echo "  resume <id> Resume a session" 
+            echo "  resume <id> Resume a session"
             echo "  delete <id> Delete a session"
             echo "  view <id>   View session details"
-            echo "  analytics   Show session analytics"
             return 1
             ;;
     esac
@@ -318,150 +306,6 @@ claude_code_mcp() {
             echo "  unregister Unregister MCP server"
             echo "  status     Show MCP status"
             echo "  test       Test MCP connection"
-            return 1
-            ;;
-    esac
-}
-
-# Template management wrapper
-claude_code_template() {
-    local action="${1:-list}"
-    shift || true
-    
-    case "$action" in
-        list)
-            if command -v claude_code::templates_list &>/dev/null; then
-                claude_code::templates_list "$@"
-            else
-                log::error "Template listing not available"
-                return 1
-            fi
-            ;;
-        load)
-            if command -v claude_code::template_load &>/dev/null; then
-                claude_code::template_load "$@"
-            else
-                log::error "Template loading not available"
-                return 1
-            fi
-            ;;
-        run)
-            if command -v claude_code::template_run &>/dev/null; then
-                claude_code::template_run "$@"
-            else
-                log::error "Template run not available"
-                return 1
-            fi
-            ;;
-        create)
-            if command -v claude_code::template_create &>/dev/null; then
-                claude_code::template_create "$@"
-            else
-                log::error "Template creation not available"
-                return 1
-            fi
-            ;;
-        info)
-            if command -v claude_code::template_info &>/dev/null; then
-                claude_code::template_info "$@"
-            else
-                log::error "Template info not available"
-                return 1
-            fi
-            ;;
-        *)
-            log::error "Unknown template action: $action"
-            echo "Usage: resource-claude-code manage template <action>"
-            echo ""
-            echo "Available actions:"
-            echo "  list          List templates"
-            echo "  load <name>   Load a template"
-            echo "  run <name>    Run a template"
-            echo "  create <name> Create a template"
-            echo "  info <name>   Show template info"
-            return 1
-            ;;
-    esac
-}
-
-# Batch processing wrapper
-claude_code_batch() {
-    local type="${1:-simple}"
-    shift || true
-    
-    case "$type" in
-        simple)
-            # Handle file input properly for simple batch processing
-            local file_or_prompt="${1:-}"
-            local total_turns="${2:-5}"
-            local batch_size="${3:-50}"
-            local allowed_tools="${4:-Read,Edit,Write,Bash}"
-            local output_dir="${5:-}"
-            
-            if [[ -z "$file_or_prompt" ]]; then
-                log::error "File path or prompt required for batch processing"
-                echo "Usage: resource-claude-code manage batch simple <file|prompt> [total_turns] [batch_size] [allowed_tools] [output_dir]"
-                return 1
-            fi
-            
-            local prompt
-            if [[ -f "$file_or_prompt" ]]; then
-                prompt=$(cat "$file_or_prompt")
-                if [[ -z "$prompt" ]]; then
-                    log::error "File is empty: $file_or_prompt"
-                    return 1
-                fi
-                log::info "Reading prompts from file: $file_or_prompt"
-            else
-                prompt="$file_or_prompt"
-            fi
-            
-            # Always use non-interactive mode
-            export CLAUDE_NON_INTERACTIVE="true"
-            
-            if command -v claude_code::batch_simple &>/dev/null; then
-                claude_code::batch_simple "$prompt" "$total_turns" "$batch_size" "$allowed_tools" "$output_dir"
-            else
-                log::error "Simple batch not available"
-                return 1
-            fi
-            ;;
-        config)
-            if command -v claude_code::batch_config &>/dev/null; then
-                export CLAUDE_NON_INTERACTIVE="true"
-                claude_code::batch_config "$@"
-            else
-                log::error "Config batch not available"
-                return 1
-            fi
-            ;;
-        multi)
-            if command -v claude_code::batch_multi &>/dev/null; then
-                export CLAUDE_NON_INTERACTIVE="true"
-                claude_code::batch_multi "$@"
-            else
-                log::error "Multi batch not available"
-                return 1
-            fi
-            ;;
-        parallel)
-            if command -v claude_code::batch_parallel &>/dev/null; then
-                export CLAUDE_NON_INTERACTIVE="true"
-                claude_code::batch_parallel "$@"
-            else
-                log::error "Parallel batch not available"
-                return 1
-            fi
-            ;;
-        *)
-            log::error "Unknown batch type: $type"
-            echo "Usage: resource-claude-code manage batch <type>"
-            echo ""
-            echo "Available types:"
-            echo "  simple    Run simple batch"
-            echo "  config    Run with config file"
-            echo "  multi     Process multiple files"
-            echo "  parallel  Process in parallel"
             return 1
             ;;
     esac
@@ -522,109 +366,6 @@ claude_code_settings() {
             echo "  set <key>    Set a setting"
             echo "  reset        Reset to defaults"
             echo "  tips         Show configuration tips"
-            return 1
-            ;;
-    esac
-}
-
-# Adapter management wrapper (for litellm)
-claude_code_for() {
-    local target="${1:-}"
-    local action="${2:-}"
-    shift 2 || true
-    
-    if [[ -z "$target" || -z "$action" ]]; then
-        log::error "Usage: resource-claude-code manage for <target> <action> [options]"
-        echo ""
-        echo "Available targets:"
-        echo "  litellm - LiteLLM backend adapter"
-        return 1
-    fi
-    
-    case "$target" in
-        litellm)
-            local adapter_dir="${CLAUDE_CODE_CLI_DIR}/adapters/litellm"
-            
-            if [[ ! -d "$adapter_dir" ]]; then
-                log::error "LiteLLM adapter not found"
-                return 1
-            fi
-            
-            case "$action" in
-                connect)
-                    # shellcheck disable=SC1090
-                    source "${adapter_dir}/connect.sh"
-                    litellm::connect "$@"
-                    ;;
-                disconnect)
-                    # shellcheck disable=SC1090
-                    source "${adapter_dir}/disconnect.sh"
-                    litellm::disconnect "$@"
-                    ;;
-                status)
-                    # shellcheck disable=SC1090
-                    source "${adapter_dir}/status.sh"
-                    local format="${1:-text}"
-                    case "$format" in
-                        json|--json)
-                            litellm::get_full_status
-                            ;;
-                        text|--text|*)
-                            litellm::display_status
-                            ;;
-                    esac
-                    ;;
-                config)
-                    # shellcheck disable=SC1090
-                    source "${adapter_dir}/config.sh"
-                    local config_action="${1:-show}"
-                    shift || true
-                    case "$config_action" in
-                        show)
-                            litellm::config_show
-                            ;;
-                        set|set-*)
-                            if [[ $# -lt 2 ]]; then
-                                log::error "Usage: resource-claude-code manage for litellm config set <setting> <value>"
-                                return 1
-                            fi
-                            local setting="${1#set-}"
-                            litellm::config_set "$setting" "$2"
-                            ;;
-                        get)
-                            if [[ $# -lt 1 ]]; then
-                                log::error "Usage: resource-claude-code manage for litellm config get <setting>"
-                                return 1
-                            fi
-                            litellm::config_get "$1"
-                            ;;
-                        *)
-                            log::error "Unknown config action: $config_action"
-                            echo "Available actions: show, set, get"
-                            return 1
-                            ;;
-                    esac
-                    ;;
-                test)
-                    # shellcheck disable=SC1090
-                    source "${adapter_dir}/status.sh"
-                    if litellm::test_connection "${1:-test}"; then
-                        log::success "✅ LiteLLM connection test successful"
-                    else
-                        log::error "❌ LiteLLM connection test failed"
-                        return 1
-                    fi
-                    ;;
-                *)
-                    log::error "Unknown action for litellm: $action"
-                    echo "Available actions: connect, disconnect, status, config, test"
-                    return 1
-                    ;;
-            esac
-            ;;
-        *)
-            log::error "Unknown target: $target"
-            echo "Available targets: litellm"
             return 1
             ;;
     esac

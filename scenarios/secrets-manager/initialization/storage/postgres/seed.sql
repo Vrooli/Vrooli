@@ -11,6 +11,70 @@ INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, 
 ('postgres', 'PGPASSWORD', 'password', false, 'PostgreSQL password for psql client', '.{8,}', 'https://www.postgresql.org/docs/current/libpq-envars.html')
 ON CONFLICT (resource_name, secret_key) DO NOTHING;
 
+-- Classification defaults for known infrastructure resources
+UPDATE resource_secrets
+SET classification = CASE
+        WHEN resource_name IN ('postgres', 'vault', 'redis', 'minio') THEN 'infrastructure'
+        WHEN resource_name IN ('n8n', 'ollama') THEN 'service'
+        ELSE classification
+    END,
+    owner_team = CASE
+        WHEN resource_name IN ('postgres', 'vault') THEN 'Platform Infra'
+        WHEN resource_name IN ('n8n', 'ollama') THEN 'AI & Automation'
+        ELSE owner_team
+    END,
+    owner_contact = CASE
+        WHEN resource_name IN ('postgres', 'vault') THEN 'platform@vrooli.dev'
+        WHEN resource_name IN ('n8n', 'ollama') THEN 'automation@vrooli.dev'
+        ELSE owner_contact
+    END
+WHERE classification IS DISTINCT FROM 'infrastructure'
+   OR owner_team IS NULL;
+
+-- Deployment strategy scaffolding for Tier coverage
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, generator_template, bundle_hints)
+SELECT rs.id, 'tier-1-local', 'strip', false, NULL, NULL, NULL, '{"reason":"Managed by Tier 1 runtime"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key IN ('POSTGRES_HOST', 'POSTGRES_PORT')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, generator_template, bundle_hints)
+SELECT rs.id, 'tier-2-desktop', 'generate', false, NULL, 'Generate embedded SQLite credentials during packaging', '{"type":"file","path":"config/db.json"}'::jsonb, '{"replace":"sqlite"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key IN ('POSTGRES_USER', 'POSTGRES_PASSWORD')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description)
+SELECT rs.id, 'tier-2-desktop', 'prompt', true, 'Desktop API host', 'Let the operator select a Tier 1 server or Cloudflare tunnel endpoint before pairing.'
+FROM resource_secrets rs
+WHERE rs.resource_name = 'vault' AND rs.secret_key = 'VAULT_ADDR'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description)
+SELECT rs.id, 'tier-4-saas', 'delegate', false, 'Cloud Vault Token', 'Use provider-managed secret store (AWS Secrets Manager, DO App Platform env vars).'
+FROM resource_secrets rs
+WHERE rs.resource_name = 'vault' AND rs.secret_key = 'VAULT_TOKEN'
+ON CONFLICT DO NOTHING;
+
+-- tier-4-saas (VPS/Cloud) strategies for postgres
+-- POSTGRES_PASSWORD: Generate a secure 25-character alphanumeric password
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, generator_template, bundle_hints)
+SELECT rs.id, 'tier-4-saas', 'generate', false, NULL, 'Generate secure database password during VPS deployment',
+       '{"type":"random","length":25,"charset":"alnum"}'::jsonb,
+       '{"class":"per_install_generated","target_type":"env"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key = 'POSTGRES_PASSWORD'
+ON CONFLICT DO NOTHING;
+
+-- POSTGRES_USER, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT: Strip (managed by runtime on VPS)
+-- Runtime uses default values: POSTGRES_USER=vrooli, POSTGRES_DB=vrooli, POSTGRES_HOST=localhost, POSTGRES_PORT=5433
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, bundle_hints)
+SELECT rs.id, 'tier-4-saas', 'strip', false, NULL, 'Managed by VPS runtime - uses defaults',
+       '{"reason":"Managed by Tier 4 VPS runtime with sensible defaults"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'postgres' AND rs.secret_key IN ('POSTGRES_USER', 'POSTGRES_DB', 'POSTGRES_HOST', 'POSTGRES_PORT')
+ON CONFLICT DO NOTHING;
+
 -- Vault resource secrets  
 INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
 ('vault', 'VAULT_ADDR', 'env_var', true, 'Vault server address', '^https?://[a-zA-Z0-9.-]+(:[0-9]+)?$', 'https://www.vaultproject.io/docs/commands#vault_addr'),
@@ -66,13 +130,6 @@ INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, 
 ('browserless', 'CONNECTION_TIMEOUT', 'env_var', false, 'Browser connection timeout in ms', '^[0-9]+$', 'https://docs.browserless.io/')
 ON CONFLICT (resource_name, secret_key) DO NOTHING;
 
--- Windmill resource secrets
-INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
-('windmill', 'WM_TOKEN', 'token', false, 'Windmill API authentication token', '^[a-zA-Z0-9_.-]+$', 'https://www.windmill.dev/docs/'),
-('windmill', 'DATABASE_URL', 'credential', false, 'Windmill database connection URL', '^postgresql://.*', 'https://www.windmill.dev/docs/'),
-('windmill', 'WINDMILL_BASE_URL', 'env_var', false, 'Windmill instance base URL', '^https?://[a-zA-Z0-9.-]+(:[0-9]+)?', 'https://www.windmill.dev/docs/')
-ON CONFLICT (resource_name, secret_key) DO NOTHING;
-
 -- Huginn resource secrets
 INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
 ('huginn', 'DATABASE_URL', 'credential', true, 'Huginn database connection URL', '^(mysql2|postgresql)://.*', 'https://github.com/huginn/huginn'),
@@ -99,11 +156,11 @@ ON CONFLICT (resource_name, secret_key) DO NOTHING;
 INSERT INTO secret_scans (scan_type, resources_scanned, secrets_discovered, scan_duration_ms, scan_status, scan_metadata) 
 VALUES (
     'seed', 
-    ARRAY['postgres', 'vault', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'windmill', 'huginn', 'searxng', 'judge0'],
+    ARRAY['postgres', 'vault', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng', 'judge0'],
     (SELECT COUNT(*) FROM resource_secrets),
     0,
     'completed',
-    '{"type": "database_seed", "seeded_at": "' || CURRENT_TIMESTAMP || '"}'
+    jsonb_build_object('type', 'database_seed', 'seeded_at', CURRENT_TIMESTAMP)
 );
 
 -- Create a summary report for seeded data

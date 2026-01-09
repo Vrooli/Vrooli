@@ -14,11 +14,201 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "${APP_ROOT}/scripts/lib/utils/setup.sh" 2>/dev/null || true
 source "${APP_ROOT}/scripts/lib/network/ports.sh" 2>/dev/null || true
 
+STEP_CONDITION_REASON=""
+
+#######################################
+# Helpers for evaluating step-level conditions
+#######################################
+
+lifecycle::_resolve_condition_path() {
+    local raw_path="$1"
+    [[ -z "$raw_path" ]] && return 1
+
+    local expanded="${raw_path/#\~/$HOME}"
+    if [[ "$expanded" != /* ]]; then
+        expanded="$(pwd)/$expanded"
+    fi
+
+    printf '%s\n' "$expanded"
+}
+
+lifecycle::_condition_file_exists() {
+    local target="$1"
+    local resolved
+    resolved=$(lifecycle::_resolve_condition_path "$target") || return 1
+    [[ -e "$resolved" ]]
+}
+
+lifecycle::_condition_directory_exists() {
+    local target="$1"
+    local resolved
+    resolved=$(lifecycle::_resolve_condition_path "$target") || return 1
+    [[ -d "$resolved" ]]
+}
+
+lifecycle::_condition_json_path_exists() {
+    local spec="$1"
+    local file_part="${spec%%:*}"
+    local json_path="${spec#*:}"
+
+    if [[ -z "$file_part" || "$json_path" == "$spec" ]]; then
+        return 1
+    fi
+
+    local resolved
+    resolved=$(lifecycle::_resolve_condition_path "$file_part") || return 1
+    [[ -f "$resolved" ]] || return 1
+
+    command -v jq >/dev/null 2>&1 || return 1
+
+    jq -e --arg path "$json_path" '
+        def segs($p): $p | split(".") | map( if test("^[0-9]+$") then tonumber else . end );
+        (try getpath(segs($path)) catch null) | . != null
+    ' "$resolved" >/dev/null 2>&1
+}
+
+lifecycle::_condition_resource_enabled() {
+    local service_json="$1"
+    local resource="$2"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
+
+    [[ -f "$service_json" ]] || return 1
+    command -v jq >/dev/null 2>&1 || return 1
+    local enabled
+    enabled=$(jq -r --arg name "$resource" "${jq_resources} | .[$name].enabled // false" "$service_json" 2>/dev/null)
+    [[ "$enabled" == "true" ]]
+}
+
+lifecycle::step_conditions_met() {
+    local condition_json="$1"
+    local service_json="$2"
+
+    STEP_CONDITION_REASON=""
+
+    [[ -z "$condition_json" || "$condition_json" == "null" ]] && return 0
+    command -v jq >/dev/null 2>&1 || return 0
+
+    while IFS= read -r entry; do
+        local key value
+        key=$(echo "$entry" | jq -r '.key // ""')
+        value=$(echo "$entry" | jq -r '.value // ""')
+
+        case "$key" in
+            file_exists)
+                if ! lifecycle::_condition_file_exists "$value"; then
+                    STEP_CONDITION_REASON="required file '$value' is missing"
+                    return 1
+                fi
+                ;;
+            file_not_exists)
+                if lifecycle::_condition_file_exists "$value"; then
+                    STEP_CONDITION_REASON="file '$value' must not exist"
+                    return 1
+                fi
+                ;;
+            directory_exists)
+                if ! lifecycle::_condition_directory_exists "$value"; then
+                    STEP_CONDITION_REASON="required directory '$value' is missing"
+                    return 1
+                fi
+                ;;
+            json_path_exists)
+                if ! lifecycle::_condition_json_path_exists "$value"; then
+                    STEP_CONDITION_REASON="JSON path '$value' was not found"
+                    return 1
+                fi
+                ;;
+            resource_enabled)
+                if ! lifecycle::_condition_resource_enabled "$service_json" "$value"; then
+                    STEP_CONDITION_REASON="resource '$value' is disabled"
+                    return 1
+                fi
+                ;;
+            command_exists|binary_exists)
+                if ! command -v "$value" >/dev/null 2>&1; then
+                    STEP_CONDITION_REASON="command '$value' is unavailable"
+                    return 1
+                fi
+                ;;
+            env_var_set)
+                local env_value="${!value:-}"
+                if [[ -z "$env_value" ]]; then
+                    STEP_CONDITION_REASON="environment variable '$value' is not set"
+                    return 1
+                fi
+                ;;
+            always)
+                local lower="${value,,}"
+                if [[ "$lower" == "false" || "$lower" == "0" ]]; then
+                    STEP_CONDITION_REASON="step disabled by 'always=false'"
+                    return 1
+                fi
+                ;;
+            *)
+                log::warning "Unknown condition '$key' on lifecycle step; ignoring"
+                ;;
+        esac
+    done < <(echo "$condition_json" | jq -c 'to_entries[]')
+
+    return 0
+}
+
 ################################################################################
 # Core Functions
 ################################################################################
 
 quote() { printf '%q' "$1"; }
+
+#######################################
+# Ensure scenario-specific database exists
+# Creates the database if it doesn't exist using postgres resource
+# Arguments:
+#   $1 - Database name
+#   $2 - Service JSON path (for logging context)
+# Returns:
+#   0 on success (or database already exists), continues on failure with warning
+#######################################
+lifecycle::ensure_database() {
+    local db_name="$1"
+    local service_json="${2:-}"
+
+    [[ -z "$db_name" ]] && return 0
+
+    # Source postgres database library if available
+    local postgres_db_lib="${APP_ROOT}/resources/postgres/lib/database.sh"
+    local postgres_common_lib="${APP_ROOT}/resources/postgres/lib/common.sh"
+    local postgres_defaults="${APP_ROOT}/resources/postgres/config/defaults.sh"
+
+    if [[ ! -f "$postgres_db_lib" ]]; then
+        log::debug "Postgres resource not installed, skipping database creation"
+        return 0
+    fi
+
+    # Source required postgres libraries (only if not already loaded)
+    # Guard prevents readonly variable errors when sourced multiple times
+    if [[ -z "${_POSTGRES_LIBS_LOADED:-}" ]]; then
+        source "$postgres_defaults" 2>/dev/null || true
+        source "$postgres_common_lib" 2>/dev/null || true
+        source "$postgres_db_lib" 2>/dev/null || true
+        export _POSTGRES_LIBS_LOADED=1
+    fi
+
+    # Check if postgres is running
+    if ! postgres::common::is_running "main" 2>/dev/null; then
+        log::warning "Postgres not running, skipping database creation for: $db_name"
+        return 0
+    fi
+
+    # Create database (function handles "already exists" gracefully)
+    log::info "Ensuring database exists: $db_name"
+    if postgres::database::create "main" "$db_name" 2>/dev/null; then
+        return 0
+    else
+        log::warning "Could not create database '$db_name', may already exist or postgres not ready"
+        return 0
+    fi
+}
 
 ################################################################################
 # PID-Based Process Tracking System
@@ -46,6 +236,15 @@ lifecycle::start_tracked_process() {
     
     # Ensure directories exist
     mkdir -p "$process_dir" "$HOME/.vrooli/logs/scenarios/${app_name}"
+
+    # Back up previous log file if it exists
+    local bak_file="${log_file}.bak"
+    if [[ -f "$log_file" ]]; then
+        mv -f "$log_file" "$bak_file"
+        local log_filename
+        log_filename=$(basename "$log_file")
+        log::info "Previous log saved. View with: vrooli scenario logs ${app_name} --step ${step_name} --previous"
+    fi
     
     # Extract port from environment if available
     local port=""
@@ -302,11 +501,14 @@ lifecycle::stop_scenario_processes() {
 # Simple and focused - just runs the steps
 # Arguments:
 #   $1 - Phase name (setup, develop, test, stop, etc.)
+#   $@ - Optional phase-specific arguments (forwarded to step commands)
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 lifecycle::execute_phase() {
     local phase="${1:-}"
+    shift || true
+    local -a phase_args=("$@")
     [[ -z "$phase" ]] && return 1
     
     # Find service.json
@@ -332,7 +534,8 @@ lifecycle::execute_phase() {
             export_commands=$(echo "$env_result" | jq -r '.env_vars | to_entries[] | "export " + .key + "=" + (.value | @sh)')
             
             if [[ -n "$export_commands" ]]; then
-                eval "$export_commands"
+                # Suppress "readonly variable" warnings for env vars already set (e.g., POSTGRES_*)
+                eval "$export_commands" 2>/dev/null || true
                 log::info "Environment setup complete for scenario: $SCENARIO_NAME"
                 
                 # Optional: Log if scenario was already running
@@ -341,6 +544,11 @@ lifecycle::execute_phase() {
                 if [[ "$is_running" == "true" ]]; then
                     log::info "Scenario processes are currently running"
                 fi
+            fi
+
+            # Ensure per-scenario database exists (if postgres is enabled)
+            if [[ -n "${POSTGRES_DB:-}" ]]; then
+                lifecycle::ensure_database "$POSTGRES_DB" "$service_json"
             fi
         else
             local error_msg
@@ -397,14 +605,30 @@ lifecycle::execute_phase() {
         local cmd=$(echo "$step" | jq -r '.run // ""')
         local desc=$(echo "$step" | jq -r '.description // ""')
         local is_background=$(echo "$step" | jq -r '.background // false')
-        
+        local condition_json=$(echo "$step" | jq -c '.condition // null')
+
         [[ -z "$cmd" ]] && continue
-        
+
+        if [[ "$condition_json" != "null" ]]; then
+            if ! lifecycle::step_conditions_met "$condition_json" "$service_json"; then
+                local reason="${STEP_CONDITION_REASON:-conditions not met}"
+                log::info "[$step_count/$total_steps] Skipping $name - $reason"
+                continue
+            fi
+        fi
+
         log::info "[$step_count/$total_steps] $name"
         [[ -n "$desc" ]] && echo "  → $desc"
-        
+
+        local final_cmd="$cmd"
+        if [[ "$phase" == "test" && ${#phase_args[@]} -gt 0 ]]; then
+            for arg in "${phase_args[@]}"; do
+                final_cmd+=" $(printf '%q' "$arg")"
+            done
+        fi
+
         if [[ "${DRY_RUN:-false}" == "true" ]]; then
-            echo "[DRY-RUN] Would execute: $cmd"
+            echo "[DRY-RUN] Would execute: $final_cmd"
             continue
         fi
 
@@ -414,13 +638,13 @@ lifecycle::execute_phase() {
         
         # Execute command using new PID tracking system
         if [[ "$is_background" == "true" ]]; then
-            if ! lifecycle::start_tracked_process "$phase" "$name" "$cmd"; then
+            if ! lifecycle::start_tracked_process "$phase" "$name" "$final_cmd"; then
                 log::error "Background step failed: $phase.$app_name.$name"
                 return 1
             fi
         else
             # Foreground execution
-            if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$cmd"); then
+            if (cd "$(pwd)" && LIFECYCLE_PHASE="$phase" VROOLI_LIFECYCLE_MANAGED="true" bash -c "$final_cmd"); then
                 # Command succeeded
                 true
             else
@@ -451,27 +675,60 @@ lifecycle::execute_phase() {
 #######################################
 lifecycle::develop_with_auto_setup() {
     local scenario_name="${SCENARIO_NAME:-}"
-    
+    local force_setup="${FORCE_SETUP:-false}"
+
     # Check if scenario is already running and healthy
     if [[ -n "$scenario_name" ]]; then
         if lifecycle::is_scenario_running "$scenario_name"; then
             if lifecycle::is_scenario_healthy "$scenario_name"; then
-                log::success "✓ Scenario '$scenario_name' is already running and healthy"
-                
-                # Show ports for user convenience
-                local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
-                if [[ -f "$scenario_dir/start-api.json" ]]; then
-                    local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
-                    [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                # Even if running and healthy, check if setup is needed (stale code)
+                # This ensures code changes trigger rebuild even when scenario is running
+                if command -v setup::is_needed >/dev/null 2>&1; then
+                    if setup::is_needed "$(pwd)"; then
+                        log::warning "⚠️  Scenario running but code is stale (${SETUP_REASONS[*]:-binaries/bundles outdated}), restarting..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2  # Give processes time to clean up
+                        # Continue to setup check below
+                    elif [[ "$force_setup" == "true" ]]; then
+                        log::info "🔄 Forced restart requested, stopping and rebuilding..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2
+                        # Continue to setup check below (will run even if not needed)
+                    else
+                        log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                        # Show ports for user convenience
+                        local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                        if [[ -f "$scenario_dir/start-api.json" ]]; then
+                            local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                            [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                        fi
+                        if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                            local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                            [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                        fi
+
+                        return 0  # Already running, healthy, and code is current
+                    fi
+                else
+                    # setup::is_needed not available, fall back to old behavior
+                    log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                    # Show ports for user convenience
+                    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                    if [[ -f "$scenario_dir/start-api.json" ]]; then
+                        local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                        [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                    fi
+                    if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                        local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                        [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                    fi
+
+                    return 0  # Already running and healthy
                 fi
-                if [[ -f "$scenario_dir/start-ui.json" ]]; then
-                    local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
-                    [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
-                fi
-                
-                return 0  # Already running and healthy, nothing to do
             else
-                log::warning "⚠ Scenario '$scenario_name' is running but unhealthy, restarting..."
+                log::warning "⚠️  Scenario '$scenario_name' is running but unhealthy, restarting..."
                 lifecycle::stop_scenario_processes "$scenario_name"
                 sleep 2  # Give processes time to clean up
             fi
@@ -508,17 +765,25 @@ lifecycle::main() {
     
     local scenario_name="${1:-}"
     local phase="${2:-}"
-    
+    shift 2 || true
+    local -a phase_args=("$@")
+
     if [[ -z "$scenario_name" || -z "$phase" ]]; then
-        echo "Usage: $0 <scenario_name> <phase>"
+        echo "Usage: $0 <scenario_name> <phase> [phase-args]"
         echo "  scenario_name: Name of scenario to run"
         echo "  phase: Lifecycle phase (setup, develop, test, stop)"
+        echo "  phase-args: Optional arguments forwarded to the phase command"
         exit 1
     fi
-    
-    # Setup scenario context
-    local scenario_dir="${APP_ROOT}/scenarios/$scenario_name"
-    
+
+    # Setup scenario context - use custom path if provided via SCENARIO_CUSTOM_PATH
+    local scenario_dir
+    if [[ -n "${SCENARIO_CUSTOM_PATH:-}" ]]; then
+        scenario_dir="$SCENARIO_CUSTOM_PATH"
+    else
+        scenario_dir="${APP_ROOT}/scenarios/$scenario_name"
+    fi
+
     if [[ ! -d "$scenario_dir" ]]; then
         log::error "Scenario not found: $scenario_name"
         exit 1
@@ -537,7 +802,7 @@ lifecycle::main() {
             lifecycle::develop_with_auto_setup
             ;;
         *)
-            lifecycle::execute_phase "$phase"
+            lifecycle::execute_phase "$phase" "${phase_args[@]}"
             ;;
     esac
 }
@@ -553,8 +818,15 @@ lifecycle::main "$@"
 #######################################
 lifecycle::is_scenario_healthy() {
     local scenario_name="$1"
-    local service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
-    
+
+    # Resolve service.json path - check custom path first
+    local service_json
+    if [[ -n "${SCENARIO_CUSTOM_PATH:-}" ]]; then
+        service_json="${SCENARIO_CUSTOM_PATH}/.vrooli/service.json"
+    else
+        service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+    fi
+
     # First check if it's running at all
     if ! lifecycle::is_scenario_running "$scenario_name"; then
         return 1  # Not running, so not healthy

@@ -1,14 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // DatabaseConfig holds database configuration
@@ -24,89 +24,22 @@ type DatabaseConfig struct {
 
 // ConnectWithRetry establishes a database connection with exponential backoff
 func ConnectWithRetry(config DatabaseConfig) (*sql.DB, error) {
-	dsn := config.URL
-
-	if dsn == "" {
-		// Fall back to individual components when URL is not provided
-		if config.Host == "" {
-			config.Host = "localhost"
-		}
-		if config.Port == "" {
-			config.Port = "5433"
-		}
-		if config.User == "" {
-			config.User = "vrooli"
-		}
-		if config.Database == "" {
-			config.Database = "graph_studio"
-		}
-
-		if config.Password == "" {
-			return nil, fmt.Errorf("database password is required when POSTGRES_URL is not set")
-		}
-
-		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			config.Host, config.Port, config.User, config.Password, config.Database)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	var db *sql.DB
-	var err error
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	maxRetries := config.MaxRetries
-	if maxRetries == 0 {
-		maxRetries = 10
-	}
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		log.Printf("🔌 Attempting database connection (attempt %d/%d)...", attempt, maxRetries)
-
-		db, err = sql.Open("postgres", dsn)
-		if err != nil {
-			log.Printf("❌ Failed to open database connection: %v", err)
-			if attempt < maxRetries {
-				waitTime := calculateBackoff(attempt)
-				log.Printf("⏳ Waiting %v before retry...", waitTime)
-				time.Sleep(waitTime)
-				continue
-			}
-			return nil, fmt.Errorf("failed to open database after %d attempts: %w", maxRetries, err)
-		}
-
-		// Configure connection pool
-		db.SetMaxOpenConns(25)
-		db.SetMaxIdleConns(5)
-		db.SetConnMaxLifetime(5 * time.Minute)
-
-		// Test the connection
-		err = db.Ping()
-		if err != nil {
-			log.Printf("❌ Database ping failed: %v", err)
-			db.Close()
-			if attempt < maxRetries {
-				waitTime := calculateBackoff(attempt)
-				log.Printf("⏳ Waiting %v before retry...", waitTime)
-				time.Sleep(waitTime)
-				continue
-			}
-			return nil, fmt.Errorf("database ping failed after %d attempts: %w", maxRetries, err)
-		}
-
-		log.Println("✅ Database connected successfully")
-		return db, nil
-	}
-
-	return nil, fmt.Errorf("failed to connect to database after %d attempts", maxRetries)
-}
-
-// calculateBackoff calculates exponential backoff with jitter
-func calculateBackoff(attempt int) time.Duration {
-	// Base wait time with exponential increase
-	base := time.Duration(math.Min(float64(attempt*attempt), 30)) * time.Second
-
-	// Add random jitter (up to 25% of base time)
-	jitter := time.Duration(float64(base) * 0.25 * rand.Float64())
-
-	return base + jitter
+	log.Println("✅ Database connected successfully")
+	return db, nil
 }
 
 // MonitorConnection monitors database connection health

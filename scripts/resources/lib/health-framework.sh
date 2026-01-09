@@ -129,7 +129,7 @@ health::check_sqlite_integrity() {
     if ! command -v sqlite3 >/dev/null 2>&1; then
         log::debug "SQLite not installed, skipping integrity check"
         # Return success since we can't check but the DB file exists
-        # and n8n is working with its internal SQLite libraries
+        # and the service relies on SQLite internally
         return 0
     fi
     

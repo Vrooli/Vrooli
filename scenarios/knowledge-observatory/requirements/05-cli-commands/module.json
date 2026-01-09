@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - CLI Commands for Knowledge Management",
+    "description": "Provide CLI interface for knowledge exploration and management operations"
+  },
+  "requirements": [
+    {
+      "id": "KO-CLI-001",
+      "title": "Required standard commands",
+      "prd_ref": "OT-P0-005",
+      "description": "CLI provides status, help, and version commands as per scenario lifecycle contract",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Required for lifecycle system integration",
+      "status": "pending"
+    },
+    {
+      "id": "KO-CLI-002",
+      "title": "Search command",
+      "prd_ref": "OT-P0-005",
+      "description": "knowledge-observatory search <query> performs semantic search and displays ranked results",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Support --collection, --limit, and --json flags",
+      "status": "pending"
+    },
+    {
+      "id": "KO-CLI-003",
+      "title": "Health command",
+      "prd_ref": "OT-P0-005",
+      "description": "knowledge-observatory health displays knowledge system quality metrics",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Support --watch flag for continuous monitoring",
+      "status": "pending"
+    },
+    {
+      "id": "KO-CLI-004",
+      "title": "Graph command",
+      "prd_ref": "OT-P0-005",
+      "description": "knowledge-observatory graph generates knowledge relationship visualization data",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Support --depth, --format (json/dot/mermaid), and --concept flags",
+      "status": "pending"
+    },
+    {
+      "id": "KO-CLI-005",
+      "title": "CLI error handling",
+      "prd_ref": "OT-P0-005",
+      "description": "Graceful error messages for missing API, invalid arguments, and resource unavailability",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "not_implemented",
+          "ref": "test/cli/knowledge-observatory.bats"
+        }
+      ],
+      "notes": "Non-zero exit codes for errors, helpful error messages",
+      "status": "pending"
+    }
+  ]
+}

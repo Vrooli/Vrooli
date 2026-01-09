@@ -34,7 +34,7 @@
   
   "automation_features": {
     "workflow_automation": {
-      "enabled": {{ "true" if "windmill" in resources.required else "false" }},
+      "enabled": {{ "true" if "n8n" in resources.required else "false" }},
       "max_concurrent_workflows": 5,
       "webhook_support": true,
       "scheduling_support": true
@@ -56,7 +56,7 @@
     },
     
     "professional_ui": {
-      "enabled": {{ "true" if "windmill" in resources.required else "false" }},
+      "enabled": {{ "true" if testing.requires_ui else "false" }},
       "custom_branding": true,
       "dashboard_creation": true,
       "script_execution": true

@@ -246,6 +246,7 @@ postgres::install::create_templates() {
     cat > "${POSTGRES_TEMPLATE_DIR}/development.conf" << 'EOF'
 # PostgreSQL Development Template
 # Optimized for development work with verbose logging
+listen_addresses = '*'
 max_connections = 100
 shared_buffers = 128MB
 effective_cache_size = 256MB
@@ -258,6 +259,7 @@ EOF
     cat > "${POSTGRES_TEMPLATE_DIR}/production.conf" << 'EOF'
 # PostgreSQL Production Template
 # Optimized for production workloads
+listen_addresses = '*'
 max_connections = 200
 shared_buffers = 256MB
 effective_cache_size = 1GB
@@ -271,6 +273,7 @@ EOF
     cat > "${POSTGRES_TEMPLATE_DIR}/testing.conf" << 'EOF'
 # PostgreSQL Testing Template
 # Optimized for fast, ephemeral testing
+listen_addresses = '*'
 max_connections = 50
 shared_buffers = 64MB
 effective_cache_size = 128MB
@@ -283,6 +286,7 @@ EOF
     cat > "${POSTGRES_TEMPLATE_DIR}/minimal.conf" << 'EOF'
 # PostgreSQL Minimal Template
 # Minimal resource usage
+listen_addresses = '*'
 max_connections = 20
 shared_buffers = 32MB
 effective_cache_size = 64MB

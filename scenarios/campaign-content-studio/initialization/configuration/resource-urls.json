@@ -6,13 +6,6 @@
         "webhook_prefix": "/webhook",
         "api_prefix": "/rest",
         "health_endpoint": "/healthz"
-      },
-      "windmill": {
-        "base_url": "http://localhost:${RESOURCE_PORTS[windmill]}",
-        "workspace": "demo",
-        "api_prefix": "/api/w/demo",
-        "apps_prefix": "/f",
-        "health_endpoint": "/api/version"
       }
     },
     "storage": {
@@ -72,10 +65,5 @@
     "document_processing": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/document-processing",
     "content_generation": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/content-generation",
     "search_retrieval": "http://localhost:${RESOURCE_PORTS[n8n]}/webhook/search-retrieval"
-  },
-  "dashboards": {
-    "main_dashboard": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/dashboard",
-    "campaign_manager": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/campaign-manager",
-    "content_generator": "http://localhost:${RESOURCE_PORTS[windmill]}/f/campaign-content-studio/content-generator"
   }
 }

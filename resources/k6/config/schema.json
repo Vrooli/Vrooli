@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/resources/k6/schema.json",
+  "title": "K6 Resource Configuration Schema",
+  "description": "Grafana k6 load-testing runtime",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable this resource",
+      "default": true
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Describe how the scenario uses this resource"
+    }
+  },
+  "additionalProperties": true
+}

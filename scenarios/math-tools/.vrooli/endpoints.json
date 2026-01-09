@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "home",
+      "path": "/",
+      "method": "GET",
+      "summary": "Landing page",
+      "category": "system",
+      "description": "Returns a friendly welcome payload for availability checks."
+    },
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "category": "system",
+      "description": "Reports math service health."
+    },
+    {
+      "id": "api-health",
+      "path": "/api/health",
+      "method": "GET",
+      "summary": "API namespace health",
+      "category": "system",
+      "description": "Health probe exposed under /api."
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "API documentation",
+      "category": "docs",
+      "description": "Serves the math-tools API docs."
+    },
+    {
+      "id": "math-calculate",
+      "path": "/api/v1/math/calculate",
+      "method": "POST",
+      "summary": "General calculation",
+      "category": "math",
+      "description": "Evaluates arithmetic expressions and formulas."
+    },
+    {
+      "id": "math-statistics",
+      "path": "/api/v1/math/statistics",
+      "method": "POST",
+      "summary": "Statistics toolkit",
+      "category": "math",
+      "description": "Computes descriptive stats for datasets."
+    },
+    {
+      "id": "math-solve",
+      "path": "/api/v1/math/solve",
+      "method": "POST",
+      "summary": "Equation solver",
+      "category": "math",
+      "description": "Solves linear and nonlinear equations."
+    },
+    {
+      "id": "math-optimize",
+      "path": "/api/v1/math/optimize",
+      "method": "POST",
+      "summary": "Optimization",
+      "category": "math",
+      "description": "Runs optimization routines for supplied models."
+    },
+    {
+      "id": "math-plot",
+      "path": "/api/v1/math/plot",
+      "method": "POST",
+      "summary": "Plot functions",
+      "category": "math",
+      "description": "Generates plot-ready data or assets."
+    },
+    {
+      "id": "math-forecast",
+      "path": "/api/v1/math/forecast",
+      "method": "POST",
+      "summary": "Time-series forecast",
+      "category": "math",
+      "description": "Produces forecasts using statistical/ML models."
+    },
+    {
+      "id": "models-list",
+      "path": "/api/v1/models",
+      "method": "GET",
+      "summary": "List models",
+      "category": "models",
+      "description": "Returns saved math/forecast models."
+    },
+    {
+      "id": "models-create",
+      "path": "/api/v1/models",
+      "method": "POST",
+      "summary": "Create model",
+      "category": "models",
+      "description": "Creates a persisted analytical model."
+    },
+    {
+      "id": "models-get",
+      "path": "/api/v1/models/{id}",
+      "method": "GET",
+      "summary": "Get model",
+      "category": "models",
+      "description": "Retrieves a specific model definition."
+    },
+    {
+      "id": "models-update",
+      "path": "/api/v1/models/{id}",
+      "method": "PUT",
+      "summary": "Update model",
+      "category": "models",
+      "description": "Updates metadata or configuration for a model."
+    },
+    {
+      "id": "models-delete",
+      "path": "/api/v1/models/{id}",
+      "method": "DELETE",
+      "summary": "Delete model",
+      "category": "models",
+      "description": "Deletes a stored model."
+    }
+  ]
+}

@@ -220,7 +220,15 @@ show_history() {
 # Test hotkey registration
 test_hotkey() {
     echo -e "${BLUE}Testing global hotkey registration...${NC}"
-    
+
+    # Check if display is available
+    if [ -z "$DISPLAY" ]; then
+        echo -e "${YELLOW}⚠️  No display server available (headless environment)${NC}"
+        echo -e "${YELLOW}   Hotkey test skipped - this is expected in CI/headless environments${NC}"
+        echo -e "${GREEN}✓ Test skipped gracefully (not a failure)${NC}"
+        exit 0
+    fi
+
     cd "$ELECTRON_APP"
     npm run test:hotkey
 }
@@ -240,7 +248,12 @@ case "$1" in
         stop_daemon
         ;;
     status)
-        show_status "$2"
+        # Check if --json flag is present
+        if [ "$2" == "--json" ] || [ "$2" == "-j" ]; then
+            show_status "true"
+        else
+            show_status "false"
+        fi
         ;;
     capture)
         capture_issue "$2"

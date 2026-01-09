@@ -87,10 +87,10 @@ required:
     integration_pattern: Direct API for performance-critical operations
     access_method: resource-redis CLI for cache management
     
-  - resource_name: n8n
-    purpose: Orchestrate educational content workflows
-    integration_pattern: Scheduled workflows for study reminders
-    access_method: Shared workflows via resource-n8n CLI
+  - resource_name: study-automation
+    purpose: Internal orchestration for educational content workflows, reminders, and flashcard scheduling
+    integration_pattern: Go automation modules coordinating Redis, Qdrant, and Ollama
+    access_method: HTTP endpoints managed inside the study-buddy API
     
 optional:
   - resource_name: grafana
@@ -104,21 +104,21 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: ollama.json
-      location: initialization/automation/n8n/
+      location: Internal automation module
       purpose: LLM inference for educational content generation
       reused_by: [idea-generator, research-assistant]
       
     - workflow: content-quality-validator.json
-      location: initialization/automation/n8n/
+      location: Internal automation module
       purpose: Validate generated educational content accuracy
       reused_by: [educational-scenarios, content-generators]
       
     - workflow: flashcard-generator.json
-      location: initialization/automation/n8n/
+      location: Internal automation module
       purpose: Generate flashcards from study material (scenario-specific)
       
     - workflow: spaced-repetition-scheduler.json
-      location: initialization/automation/n8n/
+      location: Internal automation module
       purpose: Schedule study sessions based on forgetting curve (scenario-specific)
       
   2_resource_cli:
@@ -690,8 +690,7 @@ structure:
     - cli/study-buddy
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/flashcard-generator.json
-    - initialization/automation/n8n/spaced-repetition-scheduler.json
+    - automation module definitions for flashcard and spaced repetition pipelines
     - ui/index.html
     - ui/script.js
     - ui/server.js
@@ -701,13 +700,14 @@ structure:
     - api
     - cli
     - initialization/storage/postgres
-    - initialization/automation/n8n
+    - initialization/automation
     - ui
 
 resources:
-  required: [ollama, postgres, qdrant, redis, n8n]
+  required: [ollama, postgres, qdrant, redis]
   optional: [grafana]
   health_timeout: 60
+  # Automation orchestrations are implemented inside the API; no external workflow engine needed
 
 tests:
   - name: "Generate Flashcards API"
@@ -770,8 +770,8 @@ tests:
       body_contains: ["study", "flashcard", "cozy", "lofi"]
       
   - name: "Spaced Repetition Workflow"
-    type: n8n
-    workflow: spaced-repetition-scheduler
+    type: automation
+    module: spaced-repetition-scheduler
     expect:
       active: true
       schedule: "0 9 * * *"  # Daily at 9 AM

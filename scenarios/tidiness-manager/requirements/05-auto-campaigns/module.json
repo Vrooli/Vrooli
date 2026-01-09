@@ -1,0 +1,184 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Automatic Campaign Management",
+    "description": "Background campaigns that systematically improve code health across scenarios"
+  },
+  "requirements": [
+    {
+      "id": "TM-AC-001",
+      "title": "Campaign configuration",
+      "prd_ref": "OT-P1-001",
+      "description": "Support campaigns with max_sessions, max_files_per_session, priority rules, optional category focus",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_config_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_api_integration_test.go"
+        }
+      ],
+      "notes": "Store config in postgres campaigns table - validated via TestAutoCampaign_Configuration | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-002",
+      "title": "Campaign concurrency limit",
+      "prd_ref": "OT-P1-001",
+      "description": "Enforce maximum K concurrent auto-tidiness campaigns (default K=3)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_concurrency_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_api_integration_test.go"
+        }
+      ],
+      "notes": "Prevent resource exhaustion and AI cost runaway - validated via TestAutoCampaign_ConcurrencyLimit | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-003",
+      "title": "Campaign auto-completion - files visited",
+      "prd_ref": "OT-P1-002",
+      "description": "Transition campaign to 'completed' when all files in scope have at least one visit",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_completion_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_api_integration_test.go"
+        }
+      ],
+      "notes": "Query visited-tracker for completion status - validated via TestAutoCampaign_AutoCompleteAllFilesVisited | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-004",
+      "title": "Campaign auto-completion - max sessions",
+      "prd_ref": "OT-P1-002",
+      "description": "Transition campaign to 'completed' when max_sessions limit reached",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_completion_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
+        }
+      ],
+      "notes": "Track session count in campaign state - validated via TestAutoCampaign_AutoCompleteMaxSessions | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-005",
+      "title": "Campaign pause/resume",
+      "prd_ref": "OT-P1-002",
+      "description": "Support manual pause and resume of active campaigns from UI",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_lifecycle_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
+        }
+      ],
+      "notes": "State transitions: ACTIVE ⇄ PAUSED - validated via TestAutoCampaign_PauseResume | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-006",
+      "title": "Campaign manual termination",
+      "prd_ref": "OT-P1-002",
+      "description": "Support manual termination of campaigns before completion",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_lifecycle_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
+        }
+      ],
+      "notes": "Preserve partial results and mark as 'terminated' - validated via TestAutoCampaign_ManualTermination | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-007",
+      "title": "Campaign error detection",
+      "prd_ref": "OT-P1-003",
+      "description": "Mark campaigns as 'error' on repeated agent failures with visible error reason",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_errors_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_errors_integration_test.go"
+        }
+      ],
+      "notes": "Threshold: 3 consecutive failures triggers error state - validated via TestAutoCampaign_ErrorThreshold | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-AC-008",
+      "title": "Campaign safety controls",
+      "prd_ref": "OT-P1-003",
+      "description": "Auto-stop campaigns in error state to prevent resource waste",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_stats_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/auto_campaigns_stats_integration_test.go"
+        }
+      ],
+      "notes": "Notify via UI/logs when campaign errors out - validated via TestAutoCampaign_ErrorThreshold and TestAutoCampaign_Statistics | Integration tests verify end-to-end API workflows.",
+      "status": "complete"
+    }
+  ]
+}

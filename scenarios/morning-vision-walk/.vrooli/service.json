@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "morning-vision-walk",
@@ -23,7 +23,28 @@
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/morning-vision-walk"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -37,72 +58,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "chain-of-thought-orchestrator",
-        "stream-of-consciousness",
-        "embedding-generator",
-        "universal-rag-pipeline"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/vision-conversation.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/context-gatherer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/daily-planning.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/task-prioritizer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/insight-generator.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store conversations, insights, plans, and progress tracking",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache current conversation state and real-time audio streaming"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store embeddings of past conversations and insights for context retrieval"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Morning Vision Walk health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -110,6 +72,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -120,20 +90,26 @@
     },
     "setup": {
       "description": "Initialize Morning Vision Walk",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "morning-vision-walk-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "morning-vision-walk"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/morning-vision-walk-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "morning-vision-walk",
+            "targets": [
+              "morning-vision-walk"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -159,22 +135,30 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o vision-walk-api .",
+          "run": "cd api && go mod download && go build -o morning-vision-walk-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🌅 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83c\udf05 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -182,40 +166,38 @@
     "develop": {
       "description": "Start Morning Vision Walk services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./morning-vision-walk-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/morning-vision-walk-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./morning-vision-walk-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/morning-vision-walk-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test Morning Vision Walk services",
+      "description": "Comprehensive phased testing for morning-vision-walk",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-conversation",
-          "run": "curl -sf http://localhost:$API_PORT/api/conversation/start",
-          "description": "Test conversation endpoint"
+          "name": "run-phased-tests",
+          "run": "test-genie execute morning-vision-walk --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -235,12 +217,73 @@
       ]
     }
   },
-  "integrations": {
-    "scenarios": [
-      "stream-of-consciousness-analyzer",
-      "task-planner",
-      "mind-maps"
-    ],
-    "description": "Integrates with other scenarios to provide comprehensive planning and brainstorming capabilities"
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "chain-of-thought-orchestrator",
+          "stream-of-consciousness",
+          "embedding-generator",
+          "universal-rag-pipeline"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/vision-conversation.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/context-gatherer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/daily-planning.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/task-prioritizer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/insight-generator.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store conversations, insights, plans, and progress tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache current conversation state and real-time audio streaming"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store embeddings of past conversations and insights for context retrieval"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

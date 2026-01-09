@@ -1,0 +1,984 @@
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { PromptEditor } from "./PromptEditor";
+import { ActionButtons } from "./ActionButtons";
+import { ScenarioTargetDialog, type TaskType, type ScopeResult } from "./ScenarioTargetDialog";
+import { ActiveAgentsPanel } from "./ActiveAgentsPanel";
+import { useScenarios } from "../../hooks/useScenarios";
+import { useUIStore } from "../../stores/uiStore";
+import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
+import { Button } from "../../components/ui/button";
+import { selectors } from "../../consts/selectors";
+import { cn } from "../../lib/utils";
+import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, type AppConfig } from "../../lib/api";
+
+const TASK_LABELS: Record<TaskType, string> = {
+  bootstrap: "Bootstrap Tests",
+  coverage: "Add Coverage",
+  "fix-failing": "Fix Failing Tests"
+};
+
+const MAX_PROMPTS = 12;
+const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
+
+type PromptCombination = {
+  id: string;
+  index: number;
+  total: number;
+  phases: string[];
+  targets: string[];
+  preamble: string;        // Immutable safety preamble (server-generated)
+  body: string;            // Editable task body
+  defaultBody: string;     // Default body for reset
+  prompt: string;          // Full prompt (preamble + body) for display/copy
+  defaultPrompt: string;   // Full default prompt for comparison
+  label: string;
+};
+
+const comboId = (targets: string[], phases: string[]) =>
+  `t:${targets.length > 0 ? targets.join("|") : "all"}|p:${phases.join("|")}`;
+
+/**
+ * Build the immutable safety preamble that enforces constraints.
+ * This section CANNOT be edited by users - it's enforced at the system level.
+ */
+// Allowed bash command prefixes (must match server-side allowlist in agent_registry.go)
+const ALLOWED_BASH_COMMANDS = [
+  "pnpm test", "pnpm run test", "npm test", "npm run test",
+  "go test", "vitest", "jest", "bats", "make test", "make check",
+  "pytest", "python -m pytest",
+  "pnpm build", "pnpm run build", "npm run build", "go build", "make build", "make",
+  "pnpm lint", "pnpm run lint", "npm run lint", "eslint", "prettier",
+  "gofmt", "gofumpt", "golangci-lint",
+  "pnpm typecheck", "pnpm run typecheck", "tsc",
+  "ls", "pwd", "which", "wc", "diff",
+  "git status", "git diff", "git log", "git show"
+];
+
+function buildSafetyPreamble(
+  scenarioName: string,
+  targetPaths: string[],
+  repoRoot: string,
+  networkEnabled: boolean = false,
+  maxFiles: number = 50,
+  maxBytes: number = 1024 * 1024
+): string {
+  if (!scenarioName || !repoRoot) {
+    return "";
+  }
+
+  const scenarioPath = `${repoRoot}/scenarios/${scenarioName}`;
+  const hasTargets = targetPaths.length > 0;
+  const absoluteTargets = hasTargets
+    ? targetPaths.map((target) => `${scenarioPath}/${target}`)
+    : [];
+
+  const scopeDescription = hasTargets
+    ? `Allowed scope: ${absoluteTargets.join(", ")}`
+    : "Allowed scope: entire scenario directory";
+
+  const maxBytesKB = Math.floor(maxBytes / 1024);
+  const networkStatus = networkEnabled
+    ? "ENABLED (agents can make outbound requests)"
+    : "DISABLED (agents cannot make outbound requests)";
+
+  const allowedBashSection = ALLOWED_BASH_COMMANDS.map(cmd => `  - ${cmd}`).join("\n");
+
+  return `## SECURITY CONSTRAINTS (enforced by system - cannot be modified)
+
+**Working directory:** ${scenarioPath}
+**${scopeDescription}**
+**File limits:** Max ${maxFiles} files modified, max ${maxBytesKB}KB total written
+**Network access:** ${networkStatus}
+
+You MUST NOT:
+- Access files outside ${scenarioPath}
+- Execute destructive commands (rm -rf, git checkout --force, sudo, chmod 777, etc.)
+- Modify system configurations, dependencies, or package files
+- Delete or weaken existing tests without explicit rationale in comments
+- Run commands that could affect other scenarios or system state
+- Modify more than ${maxFiles} files in a single run
+- Write more than ${maxBytesKB}KB of total content
+
+**Allowed bash commands** (only these command prefixes are permitted):
+${allowedBashSection}
+
+All other bash commands will be blocked. Use the built-in tools (read, edit, write, glob, grep) for file operations.
+
+---
+
+`;
+}
+
+/**
+ * Build the editable task body that describes what the agent should do.
+ * Users can customize this section while the preamble remains immutable.
+ */
+function buildTaskBody(
+  scenarioName: string,
+  selectedPhases: string[],
+  preset: string | null,
+  targetPaths: string[],
+  repoRoot: string
+): string {
+  if (!scenarioName || selectedPhases.length === 0 || !repoRoot) {
+    return "";
+  }
+
+  const phaseLabels = selectedPhases
+    .map((p) => PHASE_LABELS[p] ?? p)
+    .join(", ");
+  const hasTargets = targetPaths.length > 0;
+
+  let context = "";
+  if (preset === "bootstrap") {
+    context = `This is a new scenario that needs initial test coverage. Focus on establishing a solid foundation of tests.`;
+  } else if (preset === "coverage") {
+    context = `The scenario already has some tests. Focus on adding coverage for specific features or edge cases.`;
+  } else if (preset === "fix-failing") {
+    context = `Some tests are failing. Focus on understanding the failures and generating fixes or improved test cases.`;
+  }
+
+  const scenarioPath = `${repoRoot}/scenarios/${scenarioName}`;
+  const scenarioDocsPath = `${scenarioPath}/docs`;
+  const prdPath = `${scenarioPath}/PRD.md`;
+  const requirementsPath = `${scenarioPath}/requirements`;
+  const testGeniePath = `${repoRoot}/scenarios/test-genie`;
+  const generalTestingDoc = `${testGeniePath}/docs/guides/test-generation.md`;
+
+  const targetedRun = hasTargets
+    ? `test-genie run-tests ${scenarioName} --type phased ${targetPaths
+        .map((t) => `--path ${t}`)
+        .join(" ")}`
+    : `test-genie run-tests ${scenarioName} --type phased`;
+  const phaseDocs = selectedPhases
+    .map((phase) => PHASES_FOR_GENERATION.find((p) => p.key === phase))
+    .filter(Boolean)
+    .map((phase) => `${testGeniePath}${phase!.docsPath}`);
+
+  const phaseDocsList =
+    phaseDocs.length > 0 ? phaseDocs.map((doc) => `- ${doc}`).join("\n") : "- (no phase docs selected)";
+
+  const absoluteTargets = hasTargets
+    ? targetPaths.map((target) => `${scenarioPath}/${target}`)
+    : [];
+
+  return `## Task: Generate tests for the "${scenarioName}" scenario
+
+**Test phases:** ${phaseLabels}
+
+${context ? `**Preset context:** ${context}\n\n` : ""}**Reference paths:**
+- Scenario root: ${scenarioPath}
+- PRD: ${prdPath}
+- Requirements: ${requirementsPath}
+- Scenario docs (if present): ${scenarioDocsPath}
+
+**Docs to review first:**
+- General test generation guide: ${generalTestingDoc}
+- Phase docs for selected phases:
+${phaseDocsList}
+
+${hasTargets ? `**Targeted scope:**\n${absoluteTargets.map((p) => `- ${p}`).join("\n")}\n\n**Focus:** Add or enhance tests only for the components/files above.` : ""}
+
+## Guidelines
+
+**Best practices:**
+- Align to PRD/requirements and existing coding/testing conventions in the scenario
+- Make tests deterministic, isolated, and idempotent (no hidden state, fixed seeds, stable selectors)
+- Add clear assertions and negative cases; keep names descriptive
+- Use existing helpers/fixtures; prefer real interfaces for integration, limited mocking only where already used
+- Mark requirement coverage if applicable (e.g., \`[REQ:ID]\`) and keep coverage neutral or improved
+- Call out any assumptions and uncertain areas explicitly
+
+**Avoid:**
+- Flaky behavior (timing sleeps, random data without seeds, network calls to external services)
+- Unnecessary mocking when real implementations are available
+- Over-complex test setups that obscure intent
+
+## Generation steps
+
+1) Read PRD, requirements, and existing tests to mirror patterns
+2) For each selected phase, target meaningful coverage:
+   - Unit: small, fast, local; no network/filesystem unless already mocked
+   - Integration: exercise real component boundaries; minimal mocking; preserve setup/teardown hygiene
+   - Playbooks (E2E): stable selectors, retries around navigation, capture screenshots/logs on failure hooks
+   - Business: assertions tied to requirements/PRD acceptance criteria
+3) Create or update tests under the scenario using existing structure and naming${hasTargets ? "; limit changes to the targeted paths above" : ""}
+4) Keep changes idempotent and documented (comments only where intent is non-obvious)
+
+## Validation (run after generation)
+
+- Execute via test-genie with the selected phases:
+  test-genie execute ${scenarioName} --phases ${selectedPhases.join(",")} --sync
+- Fast local check (phased runner):
+  ${targetedRun}
+- If preset implies broader coverage, also run:
+  test-genie execute ${scenarioName} --preset comprehensive --sync
+- When targets are set, re-run unit commands focused on those files after generation to confirm determinism.
+- If any failures occur, include logs/output snippets and suggested fixes.
+
+## Expected output
+
+When you complete your work, provide a summary in the following JSON format wrapped in a \`\`\`json code block:
+
+\`\`\`json
+{
+  "status": "success" | "partial" | "failed",
+  "summary": "Brief description of what was accomplished",
+  "filesChanged": [
+    {
+      "path": "relative/path/to/file.ts",
+      "action": "created" | "modified" | "deleted",
+      "rationale": "Why this change was made"
+    }
+  ],
+  "testsAdded": {
+    "count": 5,
+    "byPhase": {
+      "unit": 3,
+      "integration": 2
+    }
+  },
+  "commandsRun": [
+    {
+      "command": "test-genie execute ...",
+      "result": "passed" | "failed",
+      "output": "Brief output or error message"
+    }
+  ],
+  "coverageImpact": {
+    "before": 75.5,
+    "after": 82.3,
+    "delta": 6.8
+  },
+  "blockers": [
+    {
+      "type": "missing_dependency" | "unclear_requirement" | "test_failure" | "other",
+      "description": "What blocked progress",
+      "suggestedResolution": "How it might be resolved"
+    }
+  ],
+  "assumptions": [
+    "Any assumptions made during implementation"
+  ],
+  "nextSteps": [
+    "Suggested follow-up actions"
+  ]
+}
+\`\`\`
+
+This structured output helps track progress and identify patterns across multiple agent runs.
+
+Please generate comprehensive ${phaseLabels.toLowerCase()} for this scenario.`;
+}
+
+/**
+ * Combine preamble and body into the full prompt.
+ */
+function buildFullPrompt(preamble: string, body: string): string {
+  if (!preamble || !body) return "";
+  return preamble + body;
+}
+
+export function GeneratePage() {
+  const { scenarioDirectoryEntries } = useScenarios();
+  const { focusScenario, setFocusScenario } = useUIStore();
+
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(["unit"]);
+  const [selectedTask, setSelectedTask] = useState<TaskType | null>(null);
+  const [additionalContext, setAdditionalContext] = useState("");
+  const [customPrompts, setCustomPrompts] = useState<Record<string, string>>({});
+  const [targetPaths, setTargetPaths] = useState<string[]>([]);
+  const [splitTargets, setSplitTargets] = useState(false);
+  const [splitPhases, setSplitPhases] = useState(false);
+  const [activePromptId, setActivePromptId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [agentModel, setAgentModel] = useState("");
+  const [recentModels, setRecentModels] = useState<string[]>([]);
+  const [modelOptions, setModelOptions] = useState<AgentModel[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [spawnConcurrency, setSpawnConcurrency] = useState(3);
+  const [maxTurns, setMaxTurns] = useState(12);
+  const [timeoutSeconds, setTimeoutSeconds] = useState(300);
+  const [allowedTools, setAllowedTools] = useState("read,edit,write,glob,grep");
+  const [skipPermissions, setSkipPermissions] = useState(false);
+  const [spawnBusy, setSpawnBusy] = useState(false);
+  const [spawnStatus, setSpawnStatus] = useState<string | null>(null);
+  const [spawnResults, setSpawnResults] = useState<SpawnAgentsResult[] | null>(null);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
+  const [advancedOpen, setAdvancedOpen] = useState(false); // Collapsible advanced settings
+
+  const hasTargets = targetPaths.length > 0;
+
+  // Load app config on mount (includes repoRoot)
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const config = await fetchAppConfig();
+        setAppConfig(config);
+      } catch (err) {
+        console.error("Failed to load app config:", err);
+        // Fallback to a sensible default if config fails
+        setAppConfig({
+          repoRoot: "/home/user/Vrooli",
+          testGeniePath: "/home/user/Vrooli/scenarios/test-genie",
+          testGenieCLI: "test-genie",
+          scenariosPath: "/home/user/Vrooli/scenarios",
+          timestamp: new Date().toISOString(),
+          securityModel: "allowlist",
+          directoryScoping: true,
+          pathValidation: true,
+          bashAllowlistOnly: true,
+        });
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+    loadConfig();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_MODEL_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setRecentModels(parsed.filter((v) => typeof v === "string"));
+        }
+      }
+    } catch {
+      // ignore storage read errors
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      setModelsLoading(true);
+      setModelsError(null);
+      try {
+        const models = await fetchAgentModels();
+        setModelOptions(models);
+        const preferred = recentModels.find((m) => models.some((opt) => opt.id === m)) || models[0]?.id || "";
+        setAgentModel(preferred);
+      } catch (err) {
+        setModelsError(err instanceof Error ? err.message : "Failed to load models");
+      } finally {
+        setModelsLoading(false);
+      }
+    };
+    loadModels();
+  }, [recentModels]);
+
+  const saveRecentModel = (model: string) => {
+    if (!model) return;
+    setRecentModels((prev) => {
+      const next = [model, ...prev.filter((m) => m !== model)].slice(0, 5);
+      try {
+        localStorage.setItem(RECENT_MODEL_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore storage write errors
+      }
+      return next;
+    });
+  };
+
+  const handleScopeSave = (result: ScopeResult) => {
+    setFocusScenario(result.scenario);
+    setSelectedTask(result.task);
+    setTargetPaths(result.targets);
+    setSelectedPhases(result.phases);
+    setAdditionalContext(result.additionalContext);
+    setCustomPrompts({});
+  };
+
+  const targetGroups = useMemo(() => {
+    if (splitTargets && targetPaths.length > 1) {
+      return targetPaths.map((path) => [path]);
+    }
+    return [targetPaths];
+  }, [splitTargets, targetPaths]);
+
+  const phaseGroups = useMemo(() => {
+    if (splitPhases && selectedPhases.length > 1) {
+      return selectedPhases.map((phase) => [phase]);
+    }
+    return [selectedPhases];
+  }, [splitPhases, selectedPhases]);
+
+  const promptCombos = useMemo(() => {
+    const combos: Array<{ phases: string[]; targets: string[] }> = [];
+    targetGroups.forEach((targets) => {
+      phaseGroups.forEach((phases) => combos.push({ phases, targets }));
+    });
+    return combos;
+  }, [targetGroups, phaseGroups]);
+
+  const totalCombos = promptCombos.length;
+  const cappedCombos = promptCombos.slice(0, MAX_PROMPTS);
+  const isCapped = totalCombos > MAX_PROMPTS;
+
+  const promptItems: PromptCombination[] = useMemo(() => {
+    const repoRoot = appConfig?.repoRoot ?? "";
+    return cappedCombos.map((combo, index) => {
+      const id = comboId(combo.targets, combo.phases);
+      // Preamble is immutable - computed from scenario/targets/network settings
+      const preamble = buildSafetyPreamble(focusScenario, combo.targets, repoRoot, networkEnabled);
+      // Body is editable - contains task details (with additional context appended)
+      let defaultBody = buildTaskBody(focusScenario, combo.phases, selectedTask, combo.targets, repoRoot);
+      if (additionalContext.trim()) {
+        defaultBody += `\n\n## Additional Context\n\n${additionalContext.trim()}`;
+      }
+      const body = customPrompts[id] ?? defaultBody;
+      // Full prompt combines both for display/copy
+      const prompt = buildFullPrompt(preamble, body);
+      const defaultPrompt = buildFullPrompt(preamble, defaultBody);
+      const targetLabel =
+        combo.targets.length === 0 ? "All paths" : combo.targets.join(", ");
+      const phaseLabel = combo.phases.map((p) => PHASE_LABELS[p] ?? p).join(", ");
+      return {
+        id,
+        index,
+        total: cappedCombos.length,
+        phases: combo.phases,
+        targets: combo.targets,
+        preamble,
+        body,
+        defaultBody,
+        prompt,
+        defaultPrompt,
+        label: `Prompt ${index + 1} • ${targetLabel} • ${phaseLabel}`
+      };
+    });
+  }, [cappedCombos, customPrompts, focusScenario, selectedTask, additionalContext, appConfig, networkEnabled]);
+
+  useEffect(() => {
+    if (!activePromptId && promptItems.length > 0) {
+      setActivePromptId(promptItems[0].id);
+      return;
+    }
+    if (activePromptId && promptItems.every((item) => item.id !== activePromptId)) {
+      setActivePromptId(promptItems[0]?.id ?? null);
+    }
+  }, [activePromptId, promptItems]);
+
+  const currentPromptItem = promptItems.find((item) => item.id === activePromptId) ?? promptItems[0];
+
+  const handleBodyChange = (id: string, value: string, defaultBody: string) => {
+    setCustomPrompts((prev) => {
+      const next = { ...prev };
+      if (value === defaultBody) {
+        delete next[id];
+      } else {
+        next[id] = value;
+      }
+      return next;
+    });
+  };
+
+  const isDisabled = !focusScenario || !selectedTask || selectedPhases.length === 0 || !currentPromptItem;
+  const promptCount = promptItems.length;
+  const safeDisplayConcurrency = Math.max(
+    1,
+    Math.min(Number.isFinite(spawnConcurrency) ? spawnConcurrency : 1, Math.max(promptCount, 1))
+  );
+  const spawnDisabled =
+    isDisabled || promptCount === 0 || !agentModel || modelsLoading || Boolean(modelsError);
+
+  const handleSpawnAll = async () => {
+    if (spawnDisabled || promptCount === 0) return;
+    const safeConcurrency = Number.isFinite(spawnConcurrency) ? spawnConcurrency : 1;
+    const safeMaxTurns = Number.isFinite(maxTurns) ? maxTurns : 0;
+    const safeTimeout = Number.isFinite(timeoutSeconds) ? timeoutSeconds : 0;
+    setSpawnBusy(true);
+    setSpawnStatus("Spawning agents via agent-manager...");
+    setSpawnResults(null);
+
+    try {
+      const allowed = allowedTools
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      // Get the preamble from the first prompt item (same for all prompts in this batch)
+      const preamble = promptItems[0]?.preamble;
+      const res = await spawnAgents({
+        prompts: promptItems.map((p) => p.prompt),
+        preamble: preamble || undefined,
+        model: agentModel,
+        concurrency: Math.max(1, Math.min(safeConcurrency, promptCount)),
+        maxTurns: safeMaxTurns > 0 ? safeMaxTurns : undefined,
+        timeoutSeconds: safeTimeout > 0 ? safeTimeout : undefined,
+        allowedTools: allowed.length ? allowed : undefined,
+        skipPermissions,
+        scenario: focusScenario || undefined,
+        scope: targetPaths.length > 0 ? targetPaths : undefined,
+        phases: selectedPhases.length > 0 ? selectedPhases : undefined,
+        networkEnabled
+      });
+
+      setSpawnResults(res.items ?? []);
+      saveRecentModel(agentModel);
+
+      const cappedNote = res.capped ? " (first batch capped; narrow scope to spawn all)" : "";
+      setSpawnStatus(`Spawned ${res.items.length} agent${res.items.length === 1 ? "" : "s"}${cappedNote}.`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Failed to spawn agents";
+      setSpawnStatus(errMsg);
+    } finally {
+      setSpawnBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <section className="rounded-2xl border border-white/10 bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10 p-6">
+        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Test Generation</p>
+        <h1 className="mt-2 text-2xl font-semibold">Generate Tests</h1>
+        <p className="mt-2 text-sm text-slate-300">
+          Spawn AI agents to generate tests for your scenario. Configure your scope, select test types,
+          and let the agents do the work.
+        </p>
+      </section>
+
+      {/* Active Agents Panel - moved to top */}
+      <ActiveAgentsPanel
+        scenario={focusScenario}
+        scope={targetPaths}
+      />
+
+      {/* Scenario & Scope */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Scope</p>
+            <h3 className="mt-2 text-lg font-semibold">Scenario & Task</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Configure what you want to generate and for which scenario.
+            </p>
+          </div>
+          <Button onClick={() => setIsDialogOpen(true)} data-testid={selectors.generate.scopeButton}>
+            {focusScenario && selectedTask ? "Change scope" : "Configure scope"}
+          </Button>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-white">
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
+              Scenario: {focusScenario || "Not selected"}
+            </span>
+            {selectedTask && (
+              <span className="rounded-full border border-purple-400/50 bg-purple-400/10 px-3 py-1 text-purple-200">
+                {TASK_LABELS[selectedTask]}
+              </span>
+            )}
+            {selectedPhases.length > 0 && (
+              <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-cyan-200">
+                {selectedPhases.map(p => PHASE_LABELS[p] || p).join(", ")}
+              </span>
+            )}
+            {targetPaths.length > 0 && (
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-emerald-200">
+                {targetPaths.length} target{targetPaths.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+          {targetPaths.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {targetPaths.slice(0, 6).map((path) => (
+                <span key={path} className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-100">
+                  {path}
+                </span>
+              ))}
+              {targetPaths.length > 6 && (
+                <span className="text-xs text-slate-400">+{targetPaths.length - 6} more</span>
+              )}
+            </div>
+          )}
+          {additionalContext && (
+            <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Additional Context</p>
+              <p className="text-sm text-slate-300 whitespace-pre-wrap">{additionalContext}</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Advanced Settings - collapsible */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02]">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen(!advancedOpen)}
+          className="flex w-full items-center justify-between p-6 text-left"
+        >
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Advanced</p>
+            <h3 className="mt-2 text-lg font-semibold">Prompt & Agent Settings</h3>
+          </div>
+          {advancedOpen ? (
+            <ChevronUp className="h-5 w-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-slate-400" />
+          )}
+        </button>
+
+        {advancedOpen && (
+          <div className="border-t border-white/10 p-6 space-y-8">
+            {/* Split prompts options */}
+            <div className="flex flex-wrap gap-4">
+              {targetPaths.length >= 2 && (
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                  splitTargets ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+                )}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={splitTargets}
+                    onChange={(e) => setSplitTargets(e.target.checked)}
+                  />
+                  <div>
+                    <p className="font-semibold text-white">Split prompts by target path</p>
+                    <p className="text-xs text-slate-400">
+                      Generates one prompt per selected folder/file.
+                    </p>
+                  </div>
+                </label>
+              )}
+              {selectedPhases.length >= 2 && (
+                <label className={cn(
+                  "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                  splitPhases ? "border-cyan-400/60 bg-cyan-400/5" : "border-white/10 bg-white/[0.02]"
+                )}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={splitPhases}
+                    onChange={(e) => setSplitPhases(e.target.checked)}
+                  />
+                  <div>
+                    <p className="font-semibold text-white">Split prompts by phase</p>
+                    <p className="text-xs text-slate-400">
+                      Generates one prompt per selected phase.
+                    </p>
+                  </div>
+                </label>
+              )}
+            </div>
+
+            {/* Prompt Preview/Editor */}
+            <div>
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Prompt bundle</p>
+                  <h4 className="mt-1 font-semibold">
+                    Generated prompts {promptCount > 1 && `(${promptCount})`}
+                  </h4>
+                  {isCapped && (
+                    <p className="text-xs text-amber-300">
+                      Showing first {MAX_PROMPTS} prompts (capped). Narrow targets/phases to see all {totalCombos}.
+                    </p>
+                  )}
+                </div>
+                {promptCount > 1 && (
+                  <div className="flex items-center gap-2" data-testid={selectors.generate.promptNavigator}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!currentPromptItem) return;
+                        const prevIndex = (currentPromptItem.index - 1 + promptCount) % promptCount;
+                        setActivePromptId(promptItems[prevIndex].id);
+                      }}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!currentPromptItem) return;
+                        const nextIndex = (currentPromptItem.index + 1) % promptCount;
+                        setActivePromptId(promptItems[nextIndex].id);
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {promptCount > 1 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {promptItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs transition",
+                        activePromptId === item.id
+                          ? "border-cyan-400 bg-cyan-400/10 text-white"
+                          : "border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/30"
+                      )}
+                      onClick={() => setActivePromptId(item.id)}
+                      data-testid={selectors.generate.promptNavItem}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4">
+                <PromptEditor
+                  preamble={currentPromptItem?.preamble ?? ""}
+                  body={currentPromptItem?.body ?? ""}
+                  defaultBody={currentPromptItem?.defaultBody ?? ""}
+                  onBodyChange={(value) =>
+                    currentPromptItem && handleBodyChange(currentPromptItem.id, value, currentPromptItem.defaultBody)
+                  }
+                  fullPrompt={currentPromptItem?.prompt ?? ""}
+                  titleSuffix={
+                    promptCount > 1 && currentPromptItem
+                      ? `Prompt ${currentPromptItem.index + 1} of ${promptCount}`
+                      : undefined
+                  }
+                  summary={currentPromptItem?.label}
+                />
+              </div>
+
+              <div className="mt-4">
+                <ActionButtons
+                  prompt={currentPromptItem?.prompt ?? ""}
+                  allPrompts={promptItems.map((item) => item.prompt)}
+                  disabled={isDisabled}
+                  spawnDisabled={spawnDisabled}
+                  spawnBusy={spawnBusy}
+                  onSpawnAll={handleSpawnAll}
+                />
+              </div>
+            </div>
+
+            {/* Agent spawn settings */}
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Agent configuration</p>
+              <h4 className="mt-1 font-semibold">Spawn Settings</h4>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Concurrency</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      value={spawnConcurrency}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={spawnConcurrency}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                      }}
+                      className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Max parallel agent runs. Effective: {safeDisplayConcurrency}.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max turns</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      value={maxTurns}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setMaxTurns(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={maxTurns}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setMaxTurns(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">0 = unlimited. Higher turns cost more.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Timeout (sec)</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={60}
+                      max={900}
+                      step={15}
+                      value={timeoutSeconds}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setTimeoutSeconds(Number.isFinite(next) ? next : 60);
+                      }}
+                      className="w-full accent-cyan-400"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={timeoutSeconds}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setTimeoutSeconds(Number.isFinite(next) ? next : 0);
+                      }}
+                      className="w-24 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Abort if exceeded. 0 = model defaults.</p>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Network access</label>
+                  <div className="mt-1 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setNetworkEnabled(!networkEnabled)}
+                      className={cn(
+                        "relative h-6 w-11 rounded-full transition-colors",
+                        networkEnabled ? "bg-amber-500" : "bg-slate-600"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                          networkEnabled ? "left-[22px]" : "left-0.5"
+                        )}
+                      />
+                    </button>
+                    <span className={cn("text-sm", networkEnabled ? "text-amber-300" : "text-slate-400")}>
+                      {networkEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  <p className={cn("mt-1 text-[11px]", networkEnabled ? "text-amber-400" : "text-slate-400")}>
+                    {networkEnabled ? "Agents can make network requests." : "Network disabled (safer)."}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Allowed tools</label>
+                  <input
+                    type="text"
+                    value={allowedTools}
+                    onChange={(e) => setAllowedTools(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    placeholder="read,edit,write,glob,grep"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Comma-separated list of tools. Destructive commands are blocked.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Generate Section */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Generate</p>
+            <h3 className="mt-2 text-lg font-semibold">Spawn Test Agents</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Select a model and spawn agents to generate tests for your scenario.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="space-y-2 min-w-[250px]">
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Model</label>
+              <select
+                className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={agentModel}
+                onChange={(e) => setAgentModel(e.target.value)}
+                disabled={modelsLoading || modelOptions.length === 0}
+              >
+                {modelsLoading && <option>Loading models…</option>}
+                {!modelsLoading && modelOptions.length === 0 && <option>No models available</option>}
+                {!modelsLoading &&
+                  modelOptions.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.displayName || m.name || m.id} {m.provider ? `(${m.provider})` : ""}
+                    </option>
+                  ))}
+              </select>
+              {modelsError && <p className="text-xs text-rose-300">Model load failed: {modelsError}</p>}
+            </div>
+            <Button
+              onClick={handleSpawnAll}
+              disabled={spawnDisabled}
+              className="h-10"
+            >
+              {spawnBusy ? "Generating..." : "Generate Tests"}
+            </Button>
+          </div>
+        </div>
+        {spawnStatus && (
+          <div className="mt-4 rounded-lg border border-cyan-400/40 bg-cyan-400/10 p-3">
+            <p className="text-sm text-cyan-200">{spawnStatus}</p>
+          </div>
+        )}
+        {spawnResults && spawnResults.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {spawnResults.map((res) => (
+              <div key={res.promptIndex} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-white">Prompt {res.promptIndex + 1}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-1 text-xs",
+                      res.status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-200 border border-emerald-400/40"
+                        : res.status === "timeout"
+                        ? "bg-amber-500/10 text-amber-200 border border-amber-400/40"
+                        : "bg-rose-500/10 text-rose-200 border border-rose-400/40"
+                    )}
+                  >
+                    {res.status}
+                  </span>
+                </div>
+                {res.sessionId && <p className="mt-1 text-xs text-slate-400">Session: {res.sessionId}</p>}
+                {res.error && <p className="mt-1 text-xs text-rose-300">Error: {res.error}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <ScenarioTargetDialog
+        open={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        scenarios={scenarioDirectoryEntries}
+        initialScenario={focusScenario}
+        initialTask={selectedTask}
+        initialTargets={targetPaths}
+        initialPhases={selectedPhases}
+        initialContext={additionalContext}
+        onSave={handleScopeSave}
+      />
+    </div>
+  );
+}
+
+export { PromptEditor, ActionButtons };

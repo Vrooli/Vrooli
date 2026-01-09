@@ -38,9 +38,9 @@
     "convergence_tolerance": {
       "type": "number",
       "description": "Convergence tolerance for iterative solvers",
-      "default": 1e-6,
+      "default": 1e-06,
       "minimum": 1e-12,
-      "maximum": 1e-3
+      "maximum": 0.001
     },
     "solvers": {
       "type": "array",
@@ -70,14 +70,24 @@
           "items": {
             "type": "string"
           },
-          "default": ["gmsh", "unv", "mesh.nodes", "mesh.elements"]
+          "default": [
+            "gmsh",
+            "unv",
+            "mesh.nodes",
+            "mesh.elements"
+          ]
         },
         "output": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "default": ["vtu", "vtk", "csv", "dat"]
+          "default": [
+            "vtu",
+            "vtk",
+            "csv",
+            "dat"
+          ]
         }
       }
     },
@@ -139,6 +149,10 @@
       }
     }
   },
-  "required": ["port", "mpi_processes"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "mpi_processes"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/elmer-fem/schema.json"
 }

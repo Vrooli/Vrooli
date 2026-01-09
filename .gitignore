@@ -19,7 +19,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-scenarios/system-monitor/investigations/results/
 
 # Source map analytics
 source-tree*.html
@@ -56,6 +55,7 @@ coverage
 scenarios/**/bin/
 api/*-api
 scenarios/**/api/*-api
+scenarios/**/api/webconsole
 bin/
 .vrooli/*-agents.json
 .vrooli/*.lock
@@ -78,6 +78,9 @@ v8-compile-cache-*/
 __test/cache/
 scenarios/**/test/artifacts/
 .lycheecache
+
+# Generated bundles
+scenarios/**/platforms/
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -181,7 +184,20 @@ test-dist/
 
 # Temporary files
 tmp/
+tmp-*/
+tmp_*/
 temp/
+temp-*/
+temp_*/
+.tmp/
+.tmp-*/
+.tmp_*/
+.temp/
+.temp-*/
+.temp_*/
+debug/
+debug-*/
+debug_*/
 *.tmp
 *.backup
 *.bak
@@ -281,7 +297,8 @@ scenarios/*/api/*-api
 vendor/
 
 # Go workspace file
-go.work
+# We keep go.work since it's required to start scenarios successfully
+# go.work
 go.work.sum
 
 # Air live reload (tmp/ already covered above)
@@ -409,3 +426,19 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+/scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring
+scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop
+scenarios/test-scenario/api/test-scenario
+scenarios/text-tools/api/text-tools
+scenarios/vrooli-bridge/api/vrooli-bridge
+scenarios/time-tools/api/api
+scenarios/vrooli-assistant/api/vrooli-assistant
+scenarios/video-downloader/api/video-downloader
+scenarios/token-economy/api/api
+scenarios/tidiness-manager/api/tidiness-manager
+scenarios/browser-automation-studio/cli/cli
+scenarios/agent-manager/cli/agent-manager
+scenarios/git-control-tower/api/git-control-tower
+scenarios/scenario-to-cloud/cli/cli
+scenarios/test-scenario/signing/public-key.asc
+scenarios/tidiness-manager/api/report/jscpd-report.json

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "retro-game-launcher",
@@ -17,7 +17,28 @@
       "postgres-storage",
       "ollama-ai",
       "kid-friendly"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/retro-game-launcher"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,39 +52,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store game metadata, user progress, and settings",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "codellama"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Retro Game Launcher health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -73,6 +68,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -83,16 +86,24 @@
       "description": "Initialize Retro Game Launcher",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "retro-game-launcher-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["retro-game-launcher"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/retro-game-launcher-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "retro-game-launcher",
+            "targets": [
+              "retro-game-launcher"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -132,8 +143,13 @@
           "description": "Install React UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -156,49 +172,23 @@
           "description": "Start React UI in background",
           "background": true,
           "condition": {
-            "directory_exists": "ui/node_modules"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test retro game launcher API, UI, and CLI",
+      "description": "Comprehensive phased testing for retro-game-launcher",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-games-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/games",
-          "description": "Test API games endpoint"
-        },
-        {
-          "name": "test-ui-serving",
-          "run": "curl -sf http://localhost:$UI_PORT",
-          "description": "Test UI is serving content"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats retro-game-launcher.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/retro-game-launcher.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute retro-game-launcher --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -217,5 +207,41 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store game metadata, user progress, and settings",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "codellama"
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

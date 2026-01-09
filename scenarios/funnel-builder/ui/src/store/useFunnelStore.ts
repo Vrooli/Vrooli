@@ -1,33 +1,43 @@
 import { create } from 'zustand'
-import { Funnel, FunnelStep } from '../types'
+import { Funnel, FunnelStep, Project } from '../types'
 
 interface FunnelStore {
   funnels: Funnel[]
+  projects: Project[]
   currentFunnel: Funnel | null
   selectedStep: FunnelStep | null
   isLoading: boolean
   error: string | null
   
   setFunnels: (funnels: Funnel[]) => void
+  setProjects: (projects: Project[]) => void
   setCurrentFunnel: (funnel: Funnel | null) => void
   setSelectedStep: (step: FunnelStep | null) => void
   addStep: (step: FunnelStep) => void
   updateStep: (stepId: string, updates: Partial<FunnelStep>) => void
   deleteStep: (stepId: string) => void
   reorderSteps: (startIndex: number, endIndex: number) => void
+  updateFunnelDetails: (updates: Partial<Pick<Funnel, 'name' | 'description' | 'slug' | 'status' | 'projectId'>>) => void
   updateFunnelSettings: (settings: Partial<Funnel['settings']>) => void
+  upsertFunnel: (funnel: Funnel) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 }
 
 export const useFunnelStore = create<FunnelStore>((set) => ({
   funnels: [],
+  projects: [],
   currentFunnel: null,
   selectedStep: null,
   isLoading: false,
   error: null,
 
   setFunnels: (funnels) => set({ funnels }),
+
+  setProjects: (projects) => set({
+    projects,
+    funnels: projects.flatMap((project) => project.funnels ?? [])
+  }),
   
   setCurrentFunnel: (funnel) => set({ currentFunnel: funnel }),
   
@@ -89,36 +99,114 @@ export const useFunnelStore = create<FunnelStore>((set) => ({
   
   reorderSteps: (startIndex, endIndex) => set((state) => {
     if (!state.currentFunnel) return state
-    
+
     const newSteps = Array.from(state.currentFunnel.steps)
     const [removed] = newSteps.splice(startIndex, 1)
     newSteps.splice(endIndex, 0, removed)
-    
+
     const reorderedSteps = newSteps.map((step, index) => ({
       ...step,
       position: index
     }))
-    
+
     const newFunnel = {
       ...state.currentFunnel,
       steps: reorderedSteps
     }
-    
+
     return { currentFunnel: newFunnel }
+  }),
+  
+  updateFunnelDetails: (updates) => set((state) => {
+    if (!state.currentFunnel) return state
+
+    const timestamp = new Date().toISOString()
+    const { projectId, ...rest } = updates
+    const mergedFunnel: Funnel = {
+      ...state.currentFunnel,
+      ...rest,
+      projectId: projectId !== undefined ? projectId ?? null : state.currentFunnel.projectId,
+      updatedAt: timestamp
+    }
+
+    const updatedFunnels = state.funnels.map((funnel) =>
+      funnel.id === mergedFunnel.id
+        ? ({
+            ...funnel,
+            ...rest,
+            projectId: mergedFunnel.projectId,
+            updatedAt: timestamp
+          } as Funnel)
+        : funnel
+    )
+
+    return {
+      currentFunnel: mergedFunnel,
+      funnels: updatedFunnels
+    }
   }),
   
   updateFunnelSettings: (settings) => set((state) => {
     if (!state.currentFunnel) return state
-    
+
+    const timestamp = new Date().toISOString()
     const newFunnel = {
       ...state.currentFunnel,
       settings: {
         ...state.currentFunnel.settings,
         ...settings
-      }
+      },
+      updatedAt: timestamp
     }
-    
-    return { currentFunnel: newFunnel }
+
+    const updatedFunnels = state.funnels.map((funnel) =>
+      funnel.id === newFunnel.id
+        ? ({ ...funnel, settings: newFunnel.settings, updatedAt: timestamp } as Funnel)
+        : funnel
+    )
+
+    return {
+      currentFunnel: newFunnel,
+      funnels: updatedFunnels
+    }
+  }),
+
+  upsertFunnel: (funnel) => set((state) => {
+    const nextFunnels = (() => {
+      const index = state.funnels.findIndex((item) => item.id === funnel.id)
+      if (index === -1) {
+        return [...state.funnels, funnel]
+      }
+      return state.funnels.map((item) => (item.id === funnel.id ? funnel : item))
+    })()
+
+    const targetProjectId = funnel.projectId ?? null
+
+    const nextProjects = state.projects.map((project) => {
+      const containsFunnel = project.funnels?.some((item) => item.id === funnel.id) ?? false
+
+      if (project.id === targetProjectId) {
+        const updatedFunnels = containsFunnel
+          ? project.funnels.map((item) => (item.id === funnel.id ? funnel : item))
+          : [...project.funnels, funnel]
+        return { ...project, funnels: updatedFunnels }
+      }
+
+      if (containsFunnel && project.id !== targetProjectId) {
+        const filtered = project.funnels.filter((item) => item.id !== funnel.id)
+        return { ...project, funnels: filtered }
+      }
+
+      return project
+    })
+
+    const currentMatches = state.currentFunnel?.id === funnel.id
+
+    return {
+      funnels: nextFunnels,
+      projects: nextProjects,
+      currentFunnel: currentMatches ? funnel : state.currentFunnel
+    }
   }),
   
   setLoading: (loading) => set({ isLoading: loading }),

@@ -1,0 +1,19 @@
+{
+  "module_id": "run-rules-results",
+  "title": "Run rules + results",
+  "priority": "P0",
+  "description": "Run enabled rules on demand and return actionable, evidence-backed results.",
+  "requirements": [
+    {
+      "id": "SSG-P0-003",
+      "category": "rules",
+      "prd_ref": "OT-P0-003",
+      "title": "Run enabled rules via API",
+      "description": "API endpoint runs enabled rules and returns a report with findings and evidence.",
+      "status": "in_progress",
+      "tags": ["api", "rules", "reporting"],
+      "validation": []
+    }
+  ]
+}
+

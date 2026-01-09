@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -77,17 +81,11 @@ func validateEnvironment(logger *log.Logger) error {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start ai-model-orchestra-controller
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "ai-model-orchestra-controller",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	logger := log.New(os.Stdout, "[ai-orchestrator] ", log.LstdFlags)
@@ -98,8 +96,6 @@ func main() {
 	if err := validateEnvironment(logger); err != nil {
 		logger.Fatalf("❌ Environment validation failed: %v", err)
 	}
-	
-	port := os.Getenv("API_PORT")
 	
 	// Initialize application state
 	app := &AppState{
@@ -151,8 +147,9 @@ func main() {
 	r := mux.NewRouter()
 	
 	// Health check endpoints (both versioned and legacy)
-	r.HandleFunc("/health", handlers.handleHealthCheck).Methods("GET")
-	r.HandleFunc("/api/v1/health", handlers.handleHealthCheck).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(app.DB), health.Optional).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	
 	// API v1 routes - all endpoints under /api/v1
 	api := r.PathPrefix("/api/v1").Subrouter()
@@ -167,13 +164,21 @@ func main() {
 	
 	// Apply middleware
 	r.Use(corsMiddleware)
-	
-	logger.Printf("🎛️  API server starting on port %s", port)
+
+	logger.Printf("🎛️  AI Model Orchestra Controller starting...")
 	logger.Printf("📊 Dashboard endpoint: /dashboard")
 	logger.Printf("🔗 Health check endpoints: /health and /api/v1/health")
 	logger.Printf("🚀 Service: %s v%s", serviceName, apiVersion)
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			if app.DB != nil {
+				return app.DB.Close()
+			}
+			return nil
+		},
+	}); err != nil {
 		logger.Fatalf("❌ Server failed to start: %v", err)
 	}
 }

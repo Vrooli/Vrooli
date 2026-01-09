@@ -11,7 +11,7 @@
 - **YOLOv8 Models**: Detection, segmentation, classification, pose estimation, and OBB (oriented bounding boxes)
 - **Real-time Performance**: 30+ FPS on GPU, batch processing for large datasets
 - **Multiple Formats**: Images, videos, streams, webcams with structured output (JSON/CSV)
-- **Integration Ready**: Qdrant embeddings, Postgres metadata, MinIO storage, N8n/Windmill workflows
+- **Integration Ready**: Qdrant embeddings, Postgres metadata, MinIO storage, N8n workflows
 
 ## Requirements Checklist
 
@@ -25,7 +25,7 @@
 - [x] **v2.0 Compliance**: Follow universal contract with standard CLI interface
 
 ### P1 Requirements (Should Have)
-- [ ] **Workflow Automation**: Integration with N8n/Windmill for detection-triggered pipelines
+- [ ] **Workflow Automation**: Integration with N8n for detection-triggered pipelines
 - [ ] **Hybrid Workflows**: Combine with VOCR, Agent-S2, Browserless for UI validation loops
 - [ ] **Performance Optimization**: GPU/CPU selection, confidence thresholds, batch inference
 
@@ -48,7 +48,7 @@ ultralytics-yolo/
 ### Dependencies
 - **Core**: PyTorch, CUDA 11.8+, Ultralytics 8.0+
 - **Storage**: MinIO (artifacts), Postgres (metadata), Qdrant (embeddings)
-- **Optional**: Redis (caching), N8n/Windmill (automation)
+- **Optional**: Redis (caching), N8n (automation)
 
 ### API Endpoints
 - `GET /health` - Service health and model status
@@ -94,7 +94,7 @@ ultralytics-yolo/
 
 ### Phase 2: Integration
 - Storage layer (Qdrant, Postgres, MinIO)
-- Workflow automation (N8n, Windmill)
+- Workflow automation (N8n)
 - Performance optimization
 
 ### Phase 3: Advanced

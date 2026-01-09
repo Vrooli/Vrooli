@@ -1,0 +1,274 @@
+import { Button } from "../../components/ui/button";
+import { HelpDialog } from "../../components/ui/HelpDialog";
+import type { ResourceSecretDetail, UpdateResourceSecretPayload, ScenarioSecretOverride } from "../../lib/api";
+
+interface SecretDetailProps {
+  selectedSecret?: ResourceSecretDetail;
+  tierReadiness: Array<{ tier: string; label: string }>;
+  strategyTier: string;
+  strategyHandling: string;
+  strategyPrompt: string;
+  strategyDescription: string;
+  overrideReason?: string;
+  isOverrideMode?: boolean;
+  currentOverride?: ScenarioSecretOverride;
+  selectedScenario?: string;
+  onUpdateSecret: (secretKey: string, payload: UpdateResourceSecretPayload) => void;
+  onApplyStrategy: () => void;
+  onDeleteOverride?: () => void;
+  onSetStrategyTier: (value: string) => void;
+  onSetStrategyHandling: (value: string) => void;
+  onSetStrategyPrompt: (value: string) => void;
+  onSetStrategyDescription: (value: string) => void;
+  onSetOverrideReason?: (value: string) => void;
+  onSetIsOverrideMode?: (value: boolean) => void;
+}
+
+export const SecretDetail = ({
+  selectedSecret,
+  tierReadiness,
+  strategyTier,
+  strategyHandling,
+  strategyPrompt,
+  strategyDescription,
+  overrideReason = "",
+  isOverrideMode = false,
+  currentOverride,
+  selectedScenario,
+  onUpdateSecret,
+  onApplyStrategy,
+  onDeleteOverride,
+  onSetStrategyTier,
+  onSetStrategyHandling,
+  onSetStrategyPrompt,
+  onSetStrategyDescription,
+  onSetOverrideReason,
+  onSetIsOverrideMode
+}: SecretDetailProps) => (
+  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+    <h4 className="text-sm uppercase tracking-[0.3em] text-white/60">Secret Detail</h4>
+    {selectedSecret ? (
+      <div className="mt-3 space-y-4">
+        <div>
+          <p className="font-mono text-sm text-white">{selectedSecret.secret_key}</p>
+          <p className="text-xs text-white/60">{selectedSecret.description || selectedSecret.secret_type}</p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>Classification</span>
+            <HelpDialog title="Secret Classification">
+              <p>Classification determines how a secret should be handled across deployment tiers:</p>
+              <ul className="mt-2 space-y-2">
+                <li>
+                  <strong className="text-sky-200">Infrastructure:</strong> Critical secrets like database passwords, API keys for core services. These should <em>never</em> be included in desktop/mobile bundles - they stay on server infrastructure only.
+                </li>
+                <li>
+                  <strong className="text-purple-200">Service:</strong> App-level secrets like JWT signing keys, encryption keys. These can be auto-generated at build/install time for each deployment.
+                </li>
+                <li>
+                  <strong className="text-amber-200">User:</strong> Secrets provided by end-users, like third-party API keys or personal credentials. Users will be prompted for these during app installation.
+                </li>
+              </ul>
+            </HelpDialog>
+          </div>
+          <select
+            value={selectedSecret.classification}
+            onChange={(event) => onUpdateSecret(selectedSecret.secret_key, { classification: event.target.value })}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
+          >
+            <option value="infrastructure">Infrastructure</option>
+            <option value="service">Service</option>
+            <option value="user">User</option>
+          </select>
+        </div>
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white">
+          <span>Required secret</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onUpdateSecret(selectedSecret.secret_key, { required: !selectedSecret.required })}
+          >
+            {selectedSecret.required ? "Mark optional" : "Mark required"}
+          </Button>
+        </div>
+        <div>
+          <div className="flex items-center gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>Tier strategies</span>
+            <HelpDialog title="Tier Strategies">
+              <p>
+                Each secret needs a <strong className="text-white">handling strategy</strong> for every deployment tier
+                you plan to support. This tells the build system what to do with the secret when packaging your app.
+              </p>
+              <div className="mt-3 space-y-2">
+                <p><strong className="text-white">Handling Strategies:</strong></p>
+                <ul className="ml-4 space-y-2">
+                  <li>
+                    <strong className="text-emerald-200">Prompt:</strong> Ask the user to provide this value during app installation.
+                    Best for user-specific credentials or API keys.
+                  </li>
+                  <li>
+                    <strong className="text-cyan-200">Generate:</strong> Auto-create a secure random value at build/install time.
+                    Best for encryption keys, JWT secrets, and session tokens.
+                  </li>
+                  <li>
+                    <strong className="text-amber-200">Strip:</strong> Exclude this secret from the bundle entirely.
+                    Use when a feature isn't available in that tier (e.g., no database in desktop app).
+                  </li>
+                  <li>
+                    <strong className="text-purple-200">Delegate:</strong> Let the cloud provider manage this secret (AWS Secrets Manager, Vault, etc.).
+                    Best for SaaS/enterprise deployments.
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-3 text-white/60">
+                The list below shows which strategies are already configured for this secret.
+              </p>
+            </HelpDialog>
+          </div>
+          {Object.entries(selectedSecret.tier_strategies || {}).length ? (
+            <ul className="mt-2 space-y-1 text-xs text-white/70">
+              {Object.entries(selectedSecret.tier_strategies || {}).map(([tier, strategy]) => (
+                <li key={`${tier}-${strategy}`}>{tier}: {strategy}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-amber-200">No tier strategies recorded</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.2em] text-white/60">Add / update strategy</p>
+
+          {/* Override mode toggle - only show when a scenario is selected */}
+          {selectedScenario && onSetIsOverrideMode && (
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-white/80">
+                <input
+                  type="checkbox"
+                  checked={isOverrideMode}
+                  onChange={(e) => onSetIsOverrideMode(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/20 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50"
+                />
+                <span>Override for scenario: <strong className="text-emerald-300">{selectedScenario}</strong></span>
+              </label>
+              <HelpDialog title="Scenario Overrides">
+                <p>When enabled, the strategy you set will only apply to this specific scenario, not to the resource globally.</p>
+                <p className="mt-2">This is useful when a scenario has special requirements that differ from the resource&apos;s default handling.</p>
+              </HelpDialog>
+            </div>
+          )}
+
+          {/* Current override indicator */}
+          {currentOverride && (
+            <div className="rounded-xl border border-purple-400/30 bg-purple-400/5 px-3 py-2 text-xs text-purple-100">
+              <div className="flex items-center justify-between">
+                <span>This secret has an override for <strong>{currentOverride.scenario_name}</strong></span>
+                {onDeleteOverride && (
+                  <Button variant="ghost" size="sm" onClick={onDeleteOverride} className="text-red-300 hover:text-red-200">
+                    Remove override
+                  </Button>
+                )}
+              </div>
+              {currentOverride.override_reason && (
+                <p className="mt-1 text-purple-200/70">Reason: {currentOverride.override_reason}</p>
+              )}
+              {currentOverride.handling_strategy && (
+                <p className="mt-1 text-purple-200/70">Strategy: {currentOverride.handling_strategy}</p>
+              )}
+            </div>
+          )}
+
+          <div className="grid gap-2">
+            <label className="text-xs text-white/60">
+              Deployment Tier
+              <select
+                value={strategyTier}
+                onChange={(event) => onSetStrategyTier(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
+              >
+                {tierReadiness.map((tier) => (
+                  <option key={tier.tier} value={tier.tier}>
+                    {tier.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-white/60">
+              Handling Strategy
+              <select
+                value={strategyHandling}
+                onChange={(event) => onSetStrategyHandling(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
+              >
+                <option value="prompt">Prompt (ask user for value)</option>
+                <option value="generate">Generate (auto-create at build time)</option>
+                <option value="strip">Strip (exclude from bundle)</option>
+                <option value="delegate">Delegate (use cloud provider secret)</option>
+              </select>
+            </label>
+            {strategyHandling === "prompt" && (
+              <>
+                <label className="text-xs text-white/60">
+                  Prompt Label <span className="text-amber-300">*</span>
+                  <input
+                    value={strategyPrompt}
+                    onChange={(event) => onSetStrategyPrompt(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    placeholder="e.g., Database Password"
+                    required
+                  />
+                </label>
+                <label className="text-xs text-white/60">
+                  Prompt Description <span className="text-amber-300">*</span>
+                  <textarea
+                    value={strategyDescription}
+                    onChange={(event) => onSetStrategyDescription(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    placeholder="Explain what this secret is used for and how to obtain it"
+                    rows={2}
+                    required
+                  />
+                </label>
+              </>
+            )}
+            {strategyHandling === "generate" && (
+              <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100">
+                ℹ️ This secret will be auto-generated at deployment time using a secure random generator.
+              </div>
+            )}
+            {strategyHandling === "strip" && (
+              <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-100">
+                ⚠️ This secret will be excluded from the deployment bundle. Ensure the feature doesn't require it.
+              </div>
+            )}
+            {strategyHandling === "delegate" && (
+              <div className="rounded-xl border border-purple-400/30 bg-purple-400/5 px-3 py-2 text-xs text-purple-100">
+                ☁️ This secret will be managed by the cloud provider (e.g., AWS Secrets Manager, Vault).
+              </div>
+            )}
+            {isOverrideMode && onSetOverrideReason && (
+              <label className="text-xs text-white/60">
+                Override Reason (optional)
+                <textarea
+                  value={overrideReason}
+                  onChange={(event) => onSetOverrideReason(event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  placeholder="Why does this scenario need different handling?"
+                  rows={2}
+                />
+              </label>
+            )}
+            <Button
+              size="sm"
+              onClick={onApplyStrategy}
+              disabled={strategyHandling === "prompt" && (!strategyPrompt.trim() || !strategyDescription.trim())}
+            >
+              {isOverrideMode ? "Apply scenario override" : "Apply strategy"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <p className="mt-3 text-sm text-white/60">Select a secret to view details.</p>
+    )}
+  </div>
+);

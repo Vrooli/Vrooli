@@ -1,0 +1,44 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Advanced Chart Types",
+    "description": "Specialized chart types for business and financial use cases"
+  },
+  "requirements": [
+    {
+      "id": "CHART-P1-001",
+      "category": "chart-generation.advanced",
+      "prd_ref": "OT-P1-001",
+      "operational_target_id": "OT-P1-001",
+      "title": "Advanced chart types: gantt, heatmap, treemap charts",
+      "description": "Extended chart type support for specialized business use cases",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/advanced_chart_types_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestAdvancedChartTypes_Validation validates gantt, heatmap, treemap data structures"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-002",
+      "category": "chart-generation.financial",
+      "prd_ref": "OT-P1-002",
+      "operational_target_id": "OT-P1-002",
+      "title": "Candlestick charts for financial data",
+      "description": "Specialized financial chart type for stock and market data visualization",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/candlestick_chart_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestCandlestickChart_Validation validates candlestick chart data structure"
+        }
+      ]
+    }
+  ]
+}

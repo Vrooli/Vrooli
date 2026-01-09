@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "simple-test",
@@ -14,7 +14,28 @@
       "framework-validation",
       "nodejs-ui",
       "postgres-storage"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/simple-test"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -23,24 +44,16 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "test data storage"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Simple Test health check configuration",
       "endpoints": {
-        "app": "/health"
+        "api": "/health"
       },
       "checks": [
         {
-          "name": "app_endpoint",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
@@ -54,22 +67,23 @@
     },
     "setup": {
       "description": "Initialize Simple Test App",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "simple-test-api"
-             ]
-           },
-             {
-               "type": "cli",
-               "targets": [
-                 "simple-test"
-               ]
-             }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/simple-test-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "simple-test",
+            "targets": [
+              "simple-test"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "generate-embeddings",
@@ -82,46 +96,54 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o simple-test-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
+          "run": "echo '\ud83d\ude80 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
           "description": "Display service access URLs"
         }
       ]
     },
-     "develop": {
-       "description": "Start development server",
-       "steps": [
-          {
-            "name": "start-api",
-            "run": "cd api && ./simple-test-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-              "file_exists": "api/simple-test-api"
-            }
-          },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
-           "description": "Display running service URLs"
-         }
+    "develop": {
+      "description": "Start development server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./simple-test-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/simple-test-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Application: http://localhost:${API_PORT}'",
+          "description": "Display running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Run application tests",
+      "description": "Comprehensive phased testing for simple-test",
       "steps": [
         {
-          "name": "test-app-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test application health endpoint"
-        },
-        {
-          "name": "run-unit-tests",
-          "run": "npm test",
-          "description": "Run unit test suite",
-          "condition": {
-            "file_exists": "package.json"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute simple-test --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -140,5 +162,22 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "test data storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

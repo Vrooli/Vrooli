@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "roi-fit-analysis",
@@ -21,11 +21,32 @@
       "nodejs-ui",
       "go-api",
       "postgres-storage",
-      "redis-cache", 
+      "redis-cache",
       "qdrant-vectors",
       "ollama-ai",
       "native-go-analysis"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/roi-fit-analysis"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -39,50 +60,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store analysis data, research results, and investment metrics",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache research data and session storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector storage for market research and investment opportunity matching"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Local LLM for financial analysis and market research"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "purpose": "Web scraping for financial data and market research"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "ROI Fit Analysis health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -92,6 +76,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -102,16 +94,24 @@
       "description": "Initialize ROI Fit Analysis",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "roi-fit-analysis-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["roi-fit-analysis"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/roi-fit-analysis-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "roi-fit-analysis",
+            "targets": [
+              "roi-fit-analysis"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -148,7 +148,15 @@
         {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -173,7 +181,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",
@@ -183,30 +194,12 @@
       ]
     },
     "test": {
-      "description": "Test ROI Fit Analysis API and CLI",
+      "description": "Comprehensive phased testing for roi-fit-analysis",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-analysis-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/analysis",
-          "description": "Test API analysis endpoint"
-        },
-        {
-          "name": "test-cli-help",
-          "run": "roi-fit --help",
-          "description": "Test CLI help command"
+          "name": "run-phased-tests",
+          "run": "test-genie execute roi-fit-analysis --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -224,6 +217,46 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store analysis data, research results, and investment metrics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache research data and session storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector storage for market research and investment opportunity matching"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for financial analysis and market research"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "purpose": "Web scraping for financial data and market research"
+      }
     }
   }
 }

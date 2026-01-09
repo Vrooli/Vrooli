@@ -1,15 +1,24 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
 const API_PORT = process.env.API_PORT;
+const distDir = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distDir) ? distDir : __dirname;
+const modulesDir = path.join(__dirname, 'node_modules');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+
+if (fs.existsSync(modulesDir)) {
+    app.use('/node_modules', express.static(modulesDir));
+}
+
+app.use(express.static(staticRoot));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -156,7 +165,7 @@ app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: 'API endpoint not found' });
     }
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 // Error handling middleware
@@ -167,7 +176,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Campaign Content Studio UI running on http://localhost:${PORT}`);
-    console.log(`📁 Serving files from: ${__dirname}`);
+    console.log(`📁 Serving files from: ${staticRoot}`);
     console.log(`🔗 API integration on port: ${process.env.API_PORT || 22500}`);
 });
 

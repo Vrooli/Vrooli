@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-014",
+  "prd_ref": "elo-swipe-nice-to-have-import-lists-from-external-sources",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "Import ranking lists from external sources and formats",
+      "id": "REQ-P2-003",
+      "prd_ref": "elo-swipe-nice-to-have-import-lists-from-external-sources",
+      "status": "draft",
+      "title": "External List Import",
+      "validation": [
+        {
+          "notes": "Test import parsers",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify data mapping",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate import process",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Import 1000+ items in \u003c5s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Lists can be imported from common formats",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Import lists from external sources"
+}

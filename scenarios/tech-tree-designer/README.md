@@ -42,6 +42,12 @@ When **all sectors** complete this progression, they integrate into a **Civiliza
 - **Dependency Mapping**: Shows which capabilities unlock others
 - **Cross-Sector Analysis**: Identifies opportunities for compound acceleration
 
+### Live Scenario Catalog Overlay
+- **Automated Discovery**: Every scenario with a `.vrooli/service.json` definition is scanned at startup and nightly, keeping the catalog synchronized with the repo without manual bookkeeping.
+- **Graph Toggles**: Strategists can overlay live scenarios on top of theoretical stages or switch to a scenario-only dependency map derived from declared `dependencies.scenarios` relationships.
+- **Visibility Controls**: Sensitive scenarios can be hidden (and later unhidden) from the UI without editing source files, and the UI surfaces a quick list of hidden entries for auditability.
+- **Manual Sync**: A one-click sync command triggers the scanner on demand, ensuring the planner sees the latest repository state before making prioritization decisions.
+
 ### AI Strategic Intelligence
 - **Path Optimization**: Recommends optimal development sequences
 - **Bottleneck Identification**: Highlights critical dependencies
@@ -89,7 +95,7 @@ tech-tree-designer milestones
 # Analyze optimal development path with current resources
 tech-tree-designer analyze --resources 5 --timeline 12
 
-# Update scenario progress 
+# Update scenario progress
 tech-tree-designer progress --scenario research-assistant --status completed
 
 # Get recommendations prioritizing specific sectors
@@ -97,6 +103,22 @@ tech-tree-designer recommend --priority healthcare,education
 
 # Identify current bottlenecks
 tech-tree-designer dependencies --bottlenecks
+```
+
+### Graph Export & Query Examples
+```bash
+# Export tech tree as Graphviz DOT format
+curl "http://localhost:8020/api/v1/tech-tree/graph/dot" > tree.dot
+dot -Tpng tree.dot -o tree.png
+
+# Get neighborhood of a stage (for agent analysis)
+curl "http://localhost:8020/api/v1/graph/neighborhood?stage_id=<uuid>&depth=2&include_scenarios=true"
+
+# Find shortest path between two capabilities
+curl "http://localhost:8020/api/v1/graph/path?from=<uuid1>&to=<uuid2>"
+
+# Export view for LLM consumption
+curl "http://localhost:8020/api/v1/graph/export/view?format=text" > tree.txt
 ```
 
 ## 📊 Current State Assessment
@@ -147,6 +169,30 @@ This scenario becomes the **strategic brain** that guides not just Vrooli's deve
 - **Inform Corporate Strategy**: Which technologies to develop for maximum societal benefit
 - **Accelerate Human Progress**: Systematic optimization of civilization's technological evolution
 
+## 📦 New Features
+
+### Graph Export (Priority 1) ✅
+- **UI Export Button**: Download or copy graph in multiple formats
+- **Supported Formats**:
+  - DOT (Graphviz) - for visualization tools
+  - JSON - for programmatic analysis
+  - Text/Markdown - for documentation and LLM sharing
+  - Clipboard - quick copy for pasting into ChatGPT/Claude
+- **Documentation**: See [docs/EXPORT_FEATURE.md](./docs/EXPORT_FEATURE.md)
+
+### Agent Query Endpoints (Priority 2) ✅
+- **Neighborhood Query**: Find all stages within N hops via dependencies
+- **Shortest Path**: Compute dependency path between two capabilities
+- **Ancestor Chain**: Traverse hierarchical parent relationships
+- **Graph View Export**: LLM-friendly text/JSON export with filters
+- **Documentation**: See [docs/GRAPH_QUERIES.md](./docs/GRAPH_QUERIES.md)
+
+**Agent Use Cases**:
+- "Show me all technologies within 2 connections of scenario X"
+- "What's the dependency path from basic ERP to digital twin?"
+- "Export this view so I can discuss it with ChatGPT"
+- "What are the prerequisites for this capability?"
+
 ## 🤝 Integration with Other Scenarios
 
 ### Upstream Dependencies
@@ -155,8 +201,8 @@ This scenario becomes the **strategic brain** that guides not just Vrooli's deve
 - **data-structurer**: Scenario metadata organization
 
 ### Downstream Enablements
-- **product-manager-agent**: Long-term strategic roadmapping
-- **ecosystem-manager**: Automatic scenario priority optimization  
+- **product-manager-agent**: Long-term strategic roadmapping (uses graph query API)
+- **ecosystem-manager**: Automatic scenario priority optimization (uses neighborhood queries)
 - **civilization-simulator**: Complete society digital twin (future)
 
 ## 📈 Success Metrics

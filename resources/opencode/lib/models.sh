@@ -70,6 +70,8 @@ HELP
     local openrouter_status="unavailable"
     if command -v resource-openrouter &>/dev/null; then
         if openrouter_data=$(resource-openrouter content models --json 2>/dev/null); then
+            # Strip any leading warnings/noise before JSON
+            openrouter_data=$(printf '%s\n' "${openrouter_data}" | sed -n '/^{/,$p')
             openrouter_models=$(echo "${openrouter_data}" |                 jq '(.models // [])
                     | map(
                         .backend = (.provider // null)

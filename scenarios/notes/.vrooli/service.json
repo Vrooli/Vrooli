@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "notes",
@@ -24,7 +24,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/notes"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -38,98 +59,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "embedding-generator",
-        "semantic-search",
-        "structured-data-extractor",
-        "chain-of-thought-orchestrator",
-        "react-loop-engine",
-        "smart-semantic-search"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/note-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/smart-tagging.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/note-search.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/daily-summary.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/smart-suggestions.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/intelligent-note-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/intelligent-note-linker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/note-to-mindmap.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store notes, folders, tags, and user preferences",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for semantic search across notes",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache recent notes and real-time collaboration"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered note suggestions and summarization"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Notes health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -137,6 +73,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -147,20 +91,26 @@
     },
     "setup": {
       "description": "Initialize SmartNotes",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "notes-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "notes"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/notes-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "notes",
+            "targets": [
+              "notes"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -195,13 +145,18 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '📝 SmartNotes initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "printf '\ud83d\udcdd SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -209,40 +164,38 @@
     "develop": {
       "description": "Start SmartNotes services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./notes-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/notes-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./notes-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notes-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 SmartNotes running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "printf '\ud83d\ude80 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test SmartNotes services",
+      "description": "Comprehensive phased testing for notes",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-notes",
-          "run": "curl -sf http://localhost:$API_PORT/api/notes",
-          "description": "Test notes endpoint"
+          "name": "run-phased-tests",
+          "run": "test-genie execute notes --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -260,6 +213,94 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "semantic-search",
+          "structured-data-extractor",
+          "chain-of-thought-orchestrator",
+          "react-loop-engine",
+          "smart-semantic-search"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/note-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-tagging.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/daily-summary.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-suggestions.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-linker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-to-mindmap.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store notes, folders, tags, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across notes",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache recent notes and real-time collaboration"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered note suggestions and summarization"
+      }
     }
   }
 }

@@ -1,0 +1,344 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/endpoints.schema.json",
+  "title": "Vrooli Endpoints Configuration",
+  "description": "API endpoints, CLI commands, and WebSocket definitions for a scenario",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "service": {
+      "type": "string",
+      "description": "Service/scenario name"
+    },
+    "endpoints": {
+      "type": "array",
+      "description": "API endpoint definitions (flat structure)",
+      "items": {
+        "$ref": "#/definitions/endpoint"
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration (nested structure)",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for API (supports ${ENV_VAR} substitution)"
+        },
+        "version": {
+          "type": "string",
+          "description": "API version prefix (e.g., 'v1')"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint"
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI route definitions",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for UI"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "object",
+      "description": "Endpoint category metadata",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "websockets": {
+      "type": "array",
+      "description": "WebSocket endpoint definitions",
+      "items": {
+        "$ref": "#/definitions/websocket"
+      }
+    },
+    "cli_commands": {
+      "type": "array",
+      "description": "CLI command definitions",
+      "items": {
+        "$ref": "#/definitions/cli_command"
+      }
+    }
+  },
+  "definitions": {
+    "endpoint": {
+      "type": "object",
+      "required": ["path", "method"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique endpoint identifier"
+        },
+        "path": {
+          "type": "string",
+          "description": "URL path (supports {param} placeholders)"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+          "description": "HTTP method"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short description"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description"
+        },
+        "category": {
+          "type": "string",
+          "description": "Endpoint category for grouping"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Requirement IDs this endpoint satisfies"
+        },
+        "experimental": {
+          "type": "boolean",
+          "description": "Whether this endpoint is experimental"
+        },
+        "params": {
+          "type": "object",
+          "description": "URL path parameters",
+          "additionalProperties": {
+            "$ref": "#/definitions/parameter"
+          }
+        },
+        "query": {
+          "type": "object",
+          "description": "Query string parameters",
+          "additionalProperties": {
+            "$ref": "#/definitions/parameter"
+          }
+        },
+        "request": {
+          "$ref": "#/definitions/schema_def",
+          "description": "Request body schema"
+        },
+        "response": {
+          "$ref": "#/definitions/schema_def",
+          "description": "Response body schema"
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "expected_latency_ms": {
+              "type": "integer"
+            },
+            "max_latency_ms": {
+              "type": "integer"
+            }
+          }
+        },
+        "websocket": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "cli_mapping": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "curl": {
+                "type": "string"
+              },
+              "request": {
+                "type": "object"
+              },
+              "response": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": {}
+      }
+    },
+    "schema_def": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "content_type": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "websocket": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "authentication": {
+          "type": "string"
+        },
+        "events": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cli_command": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Command name"
+        },
+        "description": {
+          "type": "string"
+        },
+        "endpoint_id": {
+          "type": "string",
+          "description": "Associated API endpoint ID"
+        },
+        "subcommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

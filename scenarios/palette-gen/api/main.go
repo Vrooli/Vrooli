@@ -1,36 +1,70 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/redis/go-redis/v9"
 )
 
 type PaletteRequest struct {
-	Theme     string `json:"theme"`
-	Style     string `json:"style,omitempty"`
-	NumColors int    `json:"num_colors,omitempty"`
-	BaseColor string `json:"base_color,omitempty"`
+	Theme          string `json:"theme"`
+	Style          string `json:"style,omitempty"`
+	NumColors      int    `json:"num_colors,omitempty"`
+	BaseColor      string `json:"base_color,omitempty"`
+	IncludeAIDebug bool   `json:"include_ai_debug,omitempty"`
 }
 
 type PaletteResponse struct {
-	Success bool     `json:"success"`
-	Palette []string `json:"palette,omitempty"`
-	Name    string   `json:"name,omitempty"`
-	Theme   string   `json:"theme,omitempty"`
-	Error   string   `json:"error,omitempty"`
+	Success     bool       `json:"success"`
+	Palette     []string   `json:"palette,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	Theme       string     `json:"theme,omitempty"`
+	Error       string     `json:"error,omitempty"`
+	Style       string     `json:"style,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Debug       *DebugInfo `json:"debug,omitempty"`
+}
+
+type DebugInfo struct {
+	Strategy           string                   `json:"strategy"`
+	BaseHue            float64                  `json:"base_hue,omitempty"`
+	RequestedTheme     string                   `json:"requested_theme,omitempty"`
+	RequestedStyle     string                   `json:"requested_style,omitempty"`
+	ResolvedStyle      string                   `json:"resolved_style,omitempty"`
+	RequestedBaseColor string                   `json:"requested_base_color,omitempty"`
+	RequestedColors    int                      `json:"requested_colors,omitempty"`
+	AIRequested        bool                     `json:"ai_requested"`
+	AIAvailable        bool                     `json:"ai_available"`
+	AIPrompt           string                   `json:"ai_prompt,omitempty"`
+	AIModel            string                   `json:"ai_model,omitempty"`
+	AIRawOutput        string                   `json:"ai_raw_output,omitempty"`
+	AISuggestions      []map[string]interface{} `json:"ai_suggestions,omitempty"`
+	AIError            string                   `json:"ai_error,omitempty"`
+	AIDurationMs       int64                    `json:"ai_duration_ms,omitempty"`
+}
+
+type AISuggestionResult struct {
+	Suggestions []map[string]interface{}
+	RawResponse string
+	Prompt      string
+	Model       string
+	DurationMs  int64
+	Error       string
 }
 
 type AccessibilityRequest struct {
@@ -83,26 +117,29 @@ type ColorblindResponse struct {
 var (
 	redisClient *redis.Client
 	ctx         = context.Background()
+	logger      *slog.Logger
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start palette-gen
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "palette-gen",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
+
+	// Initialize structured logger
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	port := getEnv("API_PORT", getEnv("PORT", ""))
 
 	// Initialize Redis if available
 	initRedis()
 
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/suggest", suggestHandler)
 	http.HandleFunc("/export", exportHandler)
@@ -111,9 +148,10 @@ func main() {
 	http.HandleFunc("/colorblind", colorblindHandler)
 	http.HandleFunc("/history", historyHandler)
 
-	log.Printf("Palette Generator API starting on port %s", port)
+	logger.Info("Palette Generator API starting", "port", port, "service", "palette-gen-api")
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal("Server failed to start:", err)
+		logger.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -125,7 +163,10 @@ func initRedis() {
 
 	redisPort := os.Getenv("REDIS_PORT")
 	if redisPort == "" {
-		redisPort = "6379"
+		// Redis is optional, skip if not configured
+		logger.Info("Redis not configured, caching disabled", "reason", "REDIS_PORT missing")
+		redisClient = nil
+		return
 	}
 
 	redisAddr := redisHost + ":" + redisPort
@@ -139,10 +180,10 @@ func initRedis() {
 	// Test connection
 	_, err := redisClient.Ping(ctx).Result()
 	if err != nil {
-		log.Printf("Warning: Redis not available, caching disabled: %v", err)
+		logger.Warn("Redis not available, caching disabled", "error", err, "address", redisAddr)
 		redisClient = nil
 	} else {
-		log.Printf("Redis connection established at %s", redisAddr)
+		logger.Info("Redis connection established", "address", redisAddr, "status", "connected")
 	}
 }
 
@@ -151,11 +192,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {
@@ -170,24 +206,47 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set defaults
-	if req.NumColors == 0 {
+	req.Theme = strings.TrimSpace(req.Theme)
+	req.Style = strings.TrimSpace(req.Style)
+	requestedStyle := req.Style
+	if strings.EqualFold(req.Style, "auto") {
+		req.Style = ""
+		requestedStyle = "auto"
+	}
+	req.BaseColor = strings.TrimSpace(strings.ToUpper(req.BaseColor))
+	if req.BaseColor != "" && !strings.HasPrefix(req.BaseColor, "#") {
+		req.BaseColor = "#" + req.BaseColor
+	}
+
+	if req.NumColors <= 0 {
 		req.NumColors = 5
 	}
+	if req.NumColors < 3 {
+		req.NumColors = 3
+	}
+	if req.NumColors > 10 {
+		req.NumColors = 10
+	}
+
 	if req.Style == "" {
 		req.Style = "vibrant"
 	}
 
-	// Check cache first
+	// Check cache first (skip when debug is requested)
 	cacheKey := generateCacheKey(req)
-	if redisClient != nil {
+	useCache := redisClient != nil && !req.IncludeAIDebug
+	if useCache {
 		cached, err := redisClient.Get(ctx, cacheKey).Result()
 		if err == nil {
 			var response PaletteResponse
 			if json.Unmarshal([]byte(cached), &response) == nil {
-				log.Printf("Cache hit for key: %s", cacheKey)
+				logger.Debug("Cache hit", "cache_key", cacheKey, "theme", req.Theme, "style", req.Style)
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("X-Cache", "HIT")
+				if req.IncludeAIDebug {
+					// Augment cached response with debug metadata without mutating cache
+					response.Debug = buildDebugInfo(req, requestedStyle)
+				}
 				json.NewEncoder(w).Encode(response)
 				return
 			}
@@ -197,17 +256,35 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	// Generate palette based on theme and style
 	palette := generatePalette(req.Theme, req.Style, req.NumColors, req.BaseColor)
 
+	debugInfo := buildDebugInfo(req, requestedStyle)
+	if req.IncludeAIDebug {
+		augmentWithAIDebug(req, debugInfo)
+	}
+
+	name := buildPaletteName(req.Style, req.Theme)
+	description := buildPaletteDescription(req.Style, req.Theme, req.BaseColor, req.NumColors)
+
 	response := PaletteResponse{
-		Success: true,
-		Palette: palette,
-		Name:    fmt.Sprintf("%s %s", strings.Title(req.Style), strings.Title(req.Theme)),
-		Theme:   req.Theme,
+		Success:     true,
+		Palette:     palette,
+		Name:        name,
+		Theme:       req.Theme,
+		Style:       req.Style,
+		Description: description,
+		Debug:       nil,
+	}
+
+	if req.IncludeAIDebug {
+		response.Debug = debugInfo
 	}
 
 	// Cache the result
-	if redisClient != nil {
-		data, _ := json.Marshal(response)
-		redisClient.Set(ctx, cacheKey, data, 24*time.Hour)
+	if useCache {
+		cacheCopy := response
+		cacheCopy.Debug = nil
+		if data, err := json.Marshal(cacheCopy); err == nil {
+			redisClient.Set(ctx, cacheKey, data, 24*time.Hour)
+		}
 	}
 
 	// Save to history
@@ -222,6 +299,151 @@ func generateCacheKey(req PaletteRequest) string {
 	data := fmt.Sprintf("%s:%s:%d:%s", req.Theme, req.Style, req.NumColors, req.BaseColor)
 	hash := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("palette:%x", hash[:8])
+}
+
+func buildDebugInfo(req PaletteRequest, requestedStyle string) *DebugInfo {
+	info := &DebugInfo{
+		Strategy:           resolveGenerationStrategy(req),
+		RequestedTheme:     req.Theme,
+		RequestedBaseColor: req.BaseColor,
+		RequestedColors:    req.NumColors,
+		RequestedStyle:     requestedStyle,
+		ResolvedStyle:      req.Style,
+		AIRequested:        req.IncludeAIDebug,
+	}
+
+	baseHue := resolveBaseHue(req.Theme, req.BaseColor)
+	if baseHue >= 0 {
+		info.BaseHue = math.Round(baseHue*100) / 100
+	}
+
+	return info
+}
+
+func augmentWithAIDebug(req PaletteRequest, info *DebugInfo) {
+	if info == nil {
+		return
+	}
+
+	info.AIRequested = true
+	result := fetchAISuggestions(buildAISuggestionContext(req))
+	if result == nil {
+		info.AIError = "unable to reach AI suggestion service"
+		return
+	}
+
+	info.AIPrompt = result.Prompt
+	info.AIModel = result.Model
+	info.AIDurationMs = result.DurationMs
+
+	if result.Error != "" {
+		info.AIError = result.Error
+		return
+	}
+
+	info.AIAvailable = len(result.Suggestions) > 0
+	info.AIRawOutput = result.RawResponse
+	if len(result.Suggestions) > 0 {
+		info.AISuggestions = result.Suggestions
+	}
+}
+
+func resolveBaseHue(theme, baseColor string) float64 {
+	if baseColor != "" {
+		hue, _, _ := hexToHSL(baseColor)
+		return hue
+	}
+	return getThemeHue(theme)
+}
+
+func resolveGenerationStrategy(req PaletteRequest) string {
+	sanitizedTheme := strings.TrimSpace(req.Theme)
+	switch {
+	case req.BaseColor != "" && sanitizedTheme != "" && req.Style != "":
+		return "base-color-and-theme"
+	case req.BaseColor != "":
+		return "base-color"
+	case sanitizedTheme != "" && req.Style != "":
+		return "theme-and-style"
+	case sanitizedTheme != "":
+		return "theme-only"
+	default:
+		return "procedural-default"
+	}
+}
+
+func buildAISuggestionContext(req PaletteRequest) string {
+	parts := make([]string, 0, 3)
+	sanitizedTheme := strings.TrimSpace(req.Theme)
+	if sanitizedTheme != "" {
+		parts = append(parts, sanitizedTheme)
+	}
+	if req.Style != "" {
+		parts = append(parts, fmt.Sprintf("%s style", req.Style))
+	}
+	if req.BaseColor != "" {
+		parts = append(parts, fmt.Sprintf("anchored by %s", strings.ToUpper(req.BaseColor)))
+	}
+	if len(parts) == 0 {
+		return "general purpose interface design"
+	}
+	return strings.Join(parts, " with ")
+}
+
+func buildPaletteName(style, theme string) string {
+	styleName := titleCase(style)
+	themeName := titleCase(theme)
+
+	switch {
+	case styleName != "" && themeName != "":
+		return fmt.Sprintf("%s %s", styleName, themeName)
+	case themeName != "":
+		return themeName
+	case styleName != "":
+		return fmt.Sprintf("%s Palette", styleName)
+	default:
+		return "Custom Palette"
+	}
+}
+
+func buildPaletteDescription(style, theme, baseColor string, numColors int) string {
+	var fragments []string
+	if strings.TrimSpace(theme) != "" {
+		fragments = append(fragments, fmt.Sprintf("Inspired by %s", theme))
+	}
+	if strings.TrimSpace(style) != "" {
+		fragments = append(fragments, fmt.Sprintf("using a %s style", style))
+	}
+	if baseColor != "" {
+		fragments = append(fragments, fmt.Sprintf("anchored by %s", strings.ToUpper(baseColor)))
+	}
+
+	description := strings.Join(fragments, " ")
+	if description == "" {
+		description = "Procedurally generated palette"
+	}
+
+	return fmt.Sprintf("%s with %d colors", description, numColors)
+}
+
+func titleCase(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	parts := strings.Fields(value)
+	for i, part := range parts {
+		runes := []rune(strings.ToLower(part))
+		if len(runes) == 0 {
+			continue
+		}
+		runes[0] = unicode.ToUpper(runes[0])
+		for j := 1; j < len(runes); j++ {
+			runes[j] = unicode.ToLower(runes[j])
+		}
+		parts[i] = string(runes)
+	}
+	return strings.Join(parts, " ")
 }
 
 func suggestHandler(w http.ResponseWriter, r *http.Request) {
@@ -265,8 +487,29 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	format := req["format"].(string)
-	palette := req["palette"].([]interface{})
+	// Validate format field
+	formatRaw, ok := req["format"]
+	if !ok {
+		http.Error(w, "Missing 'format' field", http.StatusBadRequest)
+		return
+	}
+	format, ok := formatRaw.(string)
+	if !ok {
+		http.Error(w, "Invalid 'format' field type (expected string)", http.StatusBadRequest)
+		return
+	}
+
+	// Validate palette field
+	paletteRaw, ok := req["palette"]
+	if !ok {
+		http.Error(w, "Missing 'palette' field", http.StatusBadRequest)
+		return
+	}
+	palette, ok := paletteRaw.([]interface{})
+	if !ok {
+		http.Error(w, "Invalid 'palette' field type (expected array)", http.StatusBadRequest)
+		return
+	}
 
 	exportData := exportPalette(palette, format)
 
@@ -623,11 +866,16 @@ func getRelativeLuminance(hex string) float64 {
 }
 
 func getAISuggestions(useCase string) []map[string]interface{} {
-	// Check if Ollama is available
-	ollamaURL := os.Getenv("OLLAMA_API_GENERATE")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434/api/generate"
+	result := fetchAISuggestions(useCase)
+	if result == nil || result.Error != "" || len(result.Suggestions) == 0 {
+		return nil
 	}
+	return result.Suggestions
+}
+
+func fetchAISuggestions(useCase string) *AISuggestionResult {
+	model := getEnv("OLLAMA_MODEL", "llama3.2")
+	ollamaURL := getEnv("OLLAMA_API_GENERATE", "http://127.0.0.1:11434/api/generate")
 
 	prompt := fmt.Sprintf(`Generate 2 color palettes for a %s use case.
 For each palette provide:
@@ -644,57 +892,78 @@ Respond in this exact JSON format:
   }
 ]`, useCase)
 
+	result := &AISuggestionResult{
+		Model:  model,
+		Prompt: prompt,
+	}
+
 	reqBody := OllamaRequest{
-		Model:  "llama3.2",
+		Model:  model,
 		Prompt: prompt,
 		Stream: false,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		log.Printf("Failed to marshal Ollama request: %v", err)
-		return nil
+		result.Error = fmt.Sprintf("marshal request: %v", err)
+		logger.Error("Failed to marshal Ollama request", "error", err, "model", model)
+		return result
 	}
 
-	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
+	startTime := time.Now()
 	resp, err := client.Post(ollamaURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("Failed to contact Ollama: %v", err)
-		return nil
+		result.Error = fmt.Sprintf("request failed: %v", err)
+		logger.Error("Failed to contact Ollama", "error", err, "url", ollamaURL)
+		return result
 	}
 	defer resp.Body.Close()
+	result.DurationMs = time.Since(startTime).Milliseconds()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Ollama returned status %d", resp.StatusCode)
-		return nil
+		result.Error = fmt.Sprintf("status %d", resp.StatusCode)
+		logger.Warn("Ollama returned non-OK status", "status_code", resp.StatusCode, "url", ollamaURL)
+		return result
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Failed to read Ollama response: %v", err)
-		return nil
+		result.Error = fmt.Sprintf("read response: %v", err)
+		logger.Error("Failed to read Ollama response", "error", err)
+		return result
 	}
 
 	var ollamaResp OllamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		log.Printf("Failed to parse Ollama response: %v", err)
-		return nil
+		result.Error = fmt.Sprintf("parse response: %v", err)
+		logger.Error("Failed to parse Ollama response", "error", err, "body_length", len(body))
+		return result
 	}
 
-	// Try to parse the AI response as JSON
+	result.RawResponse = ollamaResp.Response
+
+	raw := strings.TrimSpace(ollamaResp.Response)
+	if raw == "" {
+		result.Error = "empty AI response"
+		return result
+	}
+
 	var suggestions []map[string]interface{}
-	if err := json.Unmarshal([]byte(ollamaResp.Response), &suggestions); err != nil {
-		// If JSON parsing fails, return nil to use fallback
-		log.Printf("Failed to parse AI suggestions as JSON: %v", err)
-		return nil
+	if err := json.Unmarshal([]byte(raw), &suggestions); err != nil {
+		result.Error = fmt.Sprintf("parse AI JSON: %v", err)
+		logger.Error("Failed to parse AI suggestions as JSON", "error", err, "raw_response_length", len(raw))
+		return result
 	}
 
-	return suggestions
+	result.Suggestions = suggestions
+	return result
 }
+
+// New handler functions
 
 // New handler functions
 
@@ -762,7 +1031,9 @@ func savePaletteHistory(response PaletteResponse) {
 		return
 	}
 
-	data, err := json.Marshal(response)
+	cacheCopy := response
+	cacheCopy.Debug = nil
+	data, err := json.Marshal(cacheCopy)
 	if err != nil {
 		return
 	}

@@ -7,8 +7,16 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class MCPDetector {
-    constructor(scenariosPath = '../../../scenarios') {
-        this.scenariosPath = path.resolve(__dirname, scenariosPath);
+    constructor(scenariosPath) {
+        // Security: Use absolute path from environment or well-known location
+        // Never accept arbitrary user input for path traversal protection
+        if (scenariosPath && path.isAbsolute(scenariosPath)) {
+            this.scenariosPath = scenariosPath;
+        } else {
+            // Default to Vrooli scenarios directory using HOME or VROOLI_ROOT
+            const rootDir = process.env.VROOLI_ROOT || path.join(process.env.HOME || '/tmp', 'Vrooli');
+            this.scenariosPath = path.join(rootDir, 'scenarios');
+        }
         this.mcpIndicators = {
             directories: ['mcp', '.mcp'],
             files: ['mcp-server.js', 'mcp-server.ts', 'server.mcp.js', 'manifest.json'],

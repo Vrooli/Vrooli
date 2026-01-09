@@ -59,11 +59,8 @@ for lib in core health collections backup inject content status models embedding
     fi
 done
 
-# Note: Embeddings management system is loaded on-demand to avoid conflicts
-# The embeddings dispatcher will source it when needed
-
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
-cli::init "qdrant" "Qdrant vector database with semantic knowledge system" "v2"
+cli::init "qdrant" "Qdrant vector database resource" "v2"
 
 # ==============================================================================
 # REQUIRED HANDLERS - Universal Contract v2.0 compliance
@@ -110,9 +107,6 @@ cli::register_command "models" "Manage embedding models (list/info)" "qdrant_mod
 
 # Backup management commands
 cli::register_command "backup" "Manage backups (create/list)" "qdrant_backup_dispatch"
-
-# Semantic knowledge system commands
-cli::register_command "embeddings" "Manage semantic knowledge system" "qdrant_embeddings_dispatch"
 
 # Legacy inject support with deprecation warning
 cli::register_command "inject" "⚠️ DEPRECATED: Inject data (use 'content add' instead)" "qdrant_inject_deprecated"
@@ -296,22 +290,6 @@ qdrant_backup_dispatch() {
             return 1
             ;;
     esac
-}
-
-# Embeddings knowledge system dispatcher (v2.0 compliant)
-qdrant_embeddings_dispatch() {
-    local subcommand="${1:-help}"
-    shift || true
-    
-    # Check if embeddings CLI is available
-    local embeddings_cli="${QDRANT_CLI_DIR}/embeddings/cli.sh"
-    if [[ ! -f "${embeddings_cli}" ]]; then
-        log::error "Embeddings knowledge system not available"
-        return 1
-    fi
-    
-    # Delegate directly to the v2.0 compliant embeddings CLI
-    "${embeddings_cli}" "$subcommand" "$@"
 }
 
 # Deprecated inject command with warning

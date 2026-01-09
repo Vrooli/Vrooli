@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "description": "Create a new project from the dashboard",
+    "labels": {
+      "reset": "project"
+    },
+    "version": "1",
+    "name": "new-project-create"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900,
+    "headless": true
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1200
+      }
+    },
+    {
+      "id": "wait-for-ui",
+      "action": {
+        "metadata": {
+          "label": "Wait for UI to settle"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-initial",
+      "source": "navigate-dashboard",
+      "target": "wait-for-ui"
+    }
+  ]
+}

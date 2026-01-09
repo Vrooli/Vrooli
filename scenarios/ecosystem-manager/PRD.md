@@ -103,7 +103,7 @@ Transform ecosystem management from four disconnected tools into one intelligent
 - [ ] Process monitoring shows real-time Claude Code execution
 - [ ] Failed processes can be terminated manually
 - [ ] Queue processor can be paused/resumed
-- [ ] Settings control slot count, refresh intervals, and behavior
+- [ ] Settings control slot count, cooldowns, and behavior
 
 #### Story 2.2: Cross-type Intelligence
 **As a** product manager  

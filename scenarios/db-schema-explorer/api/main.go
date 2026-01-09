@@ -1,12 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -15,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Server struct {
@@ -102,85 +105,19 @@ type QueryExecuteResponse struct {
 	Error         string          `json:"error,omitempty"`
 }
 
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Services  map[string]string `json:"services"`
-}
-
 func NewServer() (*Server, error) {
-	// Database configuration - support both POSTGRES_URL and individual components
-	connStr := os.Getenv("POSTGRES_URL")
-	if connStr == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-	}
-
-	db, err := sql.Open("postgres", connStr)
+	// Connect to database using api-core with automatic retry
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("database connection failed: %v", err)
 	}
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📋 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -194,7 +131,9 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health endpoint - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/schema/connect", s.handleSchemaConnect).Methods("POST")
 	s.router.HandleFunc("/api/v1/schema/list", s.handleSchemaList).Methods("GET")
 	s.router.HandleFunc("/api/v1/schema/export", s.handleSchemaExport).Methods("POST")
@@ -205,31 +144,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/query/optimize", s.handleQueryOptimize).Methods("POST")
 	s.router.HandleFunc("/api/v1/layout/save", s.handleLayoutSave).Methods("POST")
 	s.router.HandleFunc("/api/v1/layout/list", s.handleLayoutList).Methods("GET")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	services := make(map[string]string)
-
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		services["database"] = "unhealthy"
-	} else {
-		services["database"] = "healthy"
-	}
-
-	// Check n8n availability (mock for now)
-	services["n8n"] = "healthy"
-	services["qdrant"] = "healthy"
-	services["ollama"] = "healthy"
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Services:  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleSchemaConnect(w http.ResponseWriter, r *http.Request) {
@@ -735,29 +649,17 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start db-schema-explorer
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "db-schema-explorer",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
-	defer server.db.Close()
 
 	// Setup CORS
 	c := cors.New(cors.Options{
@@ -767,10 +669,13 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	handler := c.Handler(server.router)
+	handler := c.Handler(srv.router)
 
-	log.Printf("Database Schema Explorer API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	log.Println("Database Schema Explorer API starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

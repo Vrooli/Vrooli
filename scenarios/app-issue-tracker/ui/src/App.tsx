@@ -15,8 +15,7 @@ import {
   type ProcessorSettings,
 } from './data/sampleData';
 import './styles/app.css';
-import { VALID_STATUSES } from './utils/issues';
-import { type CreateIssueInput, type CreateIssuePrefill } from './types/issueCreation';
+import { type CreateIssueInput, type CreateIssuePrefill, type UpdateIssueInput } from './types/issueCreation';
 import { prepareFollowUpPrefill } from './utils/issueHelpers';
 import { IssueTrackerDataProvider, useIssueTrackerData } from './hooks/useIssueTrackerData';
 import { useIssueFilters } from './hooks/useIssueFilters';
@@ -28,18 +27,8 @@ import { useIssueFocus } from './hooks/useIssueFocus';
 import { SnackStackProvider, useSnackPublisher } from './notifications/SnackStackProvider';
 import type { SnackVariant } from './notifications/snackBus';
 import { resolveApiBase } from '@vrooli/api-base';
+import { useComponentStore } from './stores/componentStore';
 
-declare const __API_PORT__: string | undefined;
-
-const FALLBACK_API_PORT =
-  typeof __API_PORT__ === 'string' && __API_PORT__.trim().length > 0 ? __API_PORT__ : '15000';
-
-const API_BASE_INPUT = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: FALLBACK_API_PORT,
-  appendSuffix: true,
-});
-const API_BASE_URL = API_BASE_INPUT.endsWith('/') ? API_BASE_INPUT.slice(0, -1) : API_BASE_INPUT;
 const ISSUE_FETCH_LIMIT = 200;
 const SNACK_IDS = {
   loading: 'snack:data-loading',
@@ -58,6 +47,17 @@ function IssueAppProviders({ children }: { children: ReactNode }) {
 
 function SnackAwareIssueTracker({ children }: { children: ReactNode }) {
   const { publish } = useSnackPublisher();
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('');
+
+  // CRITICAL: Resolve API base URL after component mounts
+  // This ensures proxy metadata (window.__VROOLI_PROXY_INFO__) is available
+  // when the scenario is embedded/proxied through app-monitor or similar hosts.
+  // Module-level resolution fails because it runs before proxy metadata injection.
+  useEffect(() => {
+    const resolved = resolveApiBase({ appendSuffix: true });
+    console.log('[app-issue-tracker] Resolved API base URL:', resolved);
+    setApiBaseUrl(resolved);
+  }, []);
 
   const showSnackbar = useCallback(
     (message: string, tone: SnackVariant = 'info') => {
@@ -70,9 +70,25 @@ function SnackAwareIssueTracker({ children }: { children: ReactNode }) {
     [publish],
   );
 
+  // Wait for API base URL to be resolved before rendering data provider
+  if (!apiBaseUrl) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: '#666'
+      }}>
+        Initializing...
+      </div>
+    );
+  }
+
   return (
     <IssueTrackerDataProvider
-      apiBaseUrl={API_BASE_URL}
+      apiBaseUrl={apiBaseUrl}
       issueFetchLimit={ISSUE_FETCH_LIMIT}
       showSnackbar={showSnackbar}
     >
@@ -96,6 +112,34 @@ function AppContent() {
   );
 
   const {
+    issues,
+    dashboardStats,
+    loading,
+    loadError,
+    processorSettings,
+    updateProcessorSettings,
+    issuesProcessed,
+    issuesRemaining,
+    rateLimitStatus,
+    agentSettings,
+    updateAgentSettings,
+    agentConstraints,
+    fetchAllData,
+    toggleProcessorActive,
+    createIssue: createIssueAction,
+    deleteIssue: deleteIssueAction,
+    updateIssueStatus: updateIssueStatusAction,
+    updateIssueDetails: updateIssueDetailsAction,
+    stopAgent,
+    runningProcesses,
+    connectionStatus,
+    websocketError,
+    reconnectAttempts,
+    statusCatalog,
+    validStatuses,
+  } = useIssueTrackerData();
+
+  const {
     open: metricsDialogOpen,
     openDialog: openMetricsDialog,
     closeDialog: closeMetricsDialog,
@@ -107,6 +151,20 @@ function AppContent() {
   } = useDialogState(false);
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(AppSettings.display);
   const [hiddenColumns, setHiddenColumns] = useState<IssueStatus[]>(['archived']);
+  const statusOrder = useMemo(
+    () => (statusCatalog.length > 0 ? statusCatalog.map((status) => status.id) : validStatuses),
+    [statusCatalog, validStatuses],
+  );
+
+  useEffect(() => {
+    setHiddenColumns((current) => {
+      const filtered = current.filter((status) => statusOrder.includes(status));
+      if (filtered.length === 0 && statusOrder.includes('archived')) {
+        return ['archived'];
+      }
+      return filtered;
+    });
+  }, [statusOrder]);
   const {
     open: createIssueOpen,
     openDialog: openCreateIssue,
@@ -119,6 +177,12 @@ function AppContent() {
     closeDialog: closeIssueDetail,
     setOpen: setIssueDetailOpenState,
   } = useDialogState(false);
+  const {
+    open: editIssueOpen,
+    openDialog: openEditIssue,
+    closeDialog: closeEditIssue,
+  } = useDialogState(false);
+  const [issueBeingEdited, setIssueBeingEdited] = useState<Issue | null>(null);
   const { getParam, getParams, setParams, subscribe } = useSearchParamSync();
   const searchHelpers = useMemo(
     () => ({
@@ -135,29 +199,6 @@ function AppContent() {
     toggleDialog: toggleFilters,
   } = useDialogState(false);
   const [followUpLoadingId, setFollowUpLoadingId] = useState<string | null>(null);
-
-  const {
-    issues,
-    dashboardStats,
-    loading,
-    loadError,
-    processorSettings,
-    updateProcessorSettings,
-    issuesProcessed,
-    issuesRemaining,
-    rateLimitStatus,
-    agentSettings,
-    updateAgentSettings,
-    fetchAllData,
-    toggleProcessorActive,
-    createIssue: createIssueAction,
-    deleteIssue: deleteIssueAction,
-    updateIssueStatus: updateIssueStatusAction,
-    runningProcesses,
-    connectionStatus,
-    websocketError,
-    reconnectAttempts,
-  } = useIssueTrackerData();
 
   useEffect(() => {
     if (loading) {
@@ -281,7 +322,7 @@ function AppContent() {
     if (!websocketError) {
       return;
     }
-    console.error('[App] WebSocket error:', websocketError);
+    // WebSocket error is tracked in state for debugging
   }, [websocketError]);
 
   const {
@@ -299,7 +340,7 @@ function AppContent() {
 
   const themeMode = displaySettings.theme === 'dark' ? 'dark' : 'light';
   useThemeClass(themeMode);
-  useBodyScrollLock(createIssueOpen || (issueDetailOpen && Boolean(selectedIssue)));
+  useBodyScrollLock(createIssueOpen || editIssueOpen || (issueDetailOpen && Boolean(selectedIssue)));
 
   useEffect(() => {
     syncAppFilterFromParams(getParams());
@@ -314,6 +355,13 @@ function AppContent() {
   useEffect(() => {
     void fetchAllDataRef.current();
   }, []);
+
+  // Load components globally on mount (for target selector)
+  const { apiBaseUrl } = useIssueTrackerData();
+  const fetchComponents = useComponentStore((state) => state.fetchComponents);
+  useEffect(() => {
+    void fetchComponents(apiBaseUrl);
+  }, [fetchComponents, apiBaseUrl]);
 
   useEffect(() => {
     setParams((params) => {
@@ -343,6 +391,21 @@ function AppContent() {
     [selectIssue],
   );
 
+  const handleStartEditIssue = useCallback(
+    (issue: Issue) => {
+      const freshIssue = issues.find((candidate) => candidate.id === issue.id) ?? issue;
+      setIssueBeingEdited(freshIssue);
+      clearFocus();
+      openEditIssue();
+    },
+    [clearFocus, issues, openEditIssue],
+  );
+
+  const handleCloseEditIssue = useCallback(() => {
+    setIssueBeingEdited(null);
+    closeEditIssue();
+  }, [closeEditIssue]);
+
   const handleCreateFollowUp = useCallback(
     async (issue: Issue) => {
       setFollowUpLoadingId(issue.id);
@@ -351,7 +414,6 @@ function AppContent() {
         setCreateIssuePrefill(prefill);
         openCreateIssue();
       } catch (error) {
-        console.error('[IssueTracker] Failed to prepare follow-up issue', error);
         const message = error instanceof Error ? error.message : 'Failed to prepare follow-up issue.';
         showSnack(message, 'error');
       } finally {
@@ -372,12 +434,20 @@ function AppContent() {
     [createIssueAction, selectIssue],
   );
 
+  const handleSubmitIssueUpdate = useCallback(
+    async (input: UpdateIssueInput) => {
+      await updateIssueDetailsAction(input);
+      showSnack('Issue updated successfully.', 'success');
+      selectIssue(input.issueId);
+    },
+    [selectIssue, showSnack, updateIssueDetailsAction],
+  );
+
   const handleIssueArchive = useCallback(
     async (issue: Issue) => {
       try {
         await updateIssueStatusAction(issue.id, 'archived');
       } catch (error) {
-        console.error('Failed to archive issue', error);
         showSnack('Failed to archive issue. Please try again.', 'error');
       }
     },
@@ -393,7 +463,6 @@ function AppContent() {
           clearFocus();
         }
       } catch (error) {
-        console.error('Failed to delete issue', error);
         showSnack('Failed to delete issue. Please try again.', 'error');
       }
     },
@@ -408,7 +477,6 @@ function AppContent() {
       try {
         await updateIssueStatusAction(issueId, targetStatus);
       } catch (error) {
-        console.error('Failed to update issue status', error);
         showSnack('Failed to move issue. Please try again.', 'error');
       }
     },
@@ -434,6 +502,13 @@ function AppContent() {
   const handleIssueDetailClose = useCallback(() => {
     clearFocus();
   }, [clearFocus]);
+
+  const handleStopAgent = useCallback(
+    (issueId: string) => {
+      void stopAgent(issueId);
+    },
+    [stopAgent],
+  );
 
   const handleOpenMetrics = useCallback(() => {
     openMetricsDialog();
@@ -482,12 +557,14 @@ function AppContent() {
           <main className="page-container page-container--issues">
             <IssuesBoard
               issues={filteredIssues}
+              statusOrder={statusOrder}
               focusedIssueId={focusedIssueId}
               runningProcesses={runningProcesses}
               onIssueSelect={handleIssueSelect}
               onIssueDelete={handleIssueDelete}
               onIssueArchive={handleIssueArchive}
               onIssueDrop={handleIssueStatusChange}
+              onStopAgent={handleStopAgent}
               hiddenColumns={hiddenColumns}
               onHideColumn={handleHideColumn}
             />
@@ -562,6 +639,7 @@ function AppContent() {
                   hiddenColumns={hiddenColumns}
                   onToggleColumn={handleToggleColumn}
                   onResetColumns={handleResetHiddenColumns}
+                  statusOrder={statusOrder}
                 />
               </div>
             </div>
@@ -577,18 +655,33 @@ function AppContent() {
           initialData={createIssuePrefill?.initial}
           lockedAttachments={createIssuePrefill?.lockedAttachments}
           followUpInfo={createIssuePrefill?.followUpOf}
+          validStatuses={validStatuses}
         />
       )}
 
       {showIssueDetailModal && selectedIssue && (
         <IssueDetailsModal
           issue={selectedIssue}
-          apiBaseUrl={API_BASE_URL}
+          apiBaseUrl={apiBaseUrl}
           onClose={handleIssueDetailClose}
           onStatusChange={updateIssueStatusAction}
+          onEdit={handleStartEditIssue}
+          onArchive={handleIssueArchive}
+          onDelete={handleIssueDelete}
           onFollowUp={handleCreateFollowUp}
           followUpLoadingId={followUpLoadingId}
-          validStatuses={VALID_STATUSES}
+          validStatuses={validStatuses}
+        />
+      )}
+
+      {editIssueOpen && issueBeingEdited && (
+        <CreateIssueModal
+          key={`edit-${issueBeingEdited.id}`}
+          mode="edit"
+          existingIssue={issueBeingEdited}
+          onClose={handleCloseEditIssue}
+          onSubmit={handleSubmitIssueUpdate}
+          validStatuses={validStatuses}
         />
       )}
 
@@ -605,7 +698,7 @@ function AppContent() {
 
       {settingsDialogOpen && (
         <SettingsDialog
-          apiBaseUrl={API_BASE_URL}
+          apiBaseUrl={apiBaseUrl}
           processor={processorSettings}
           agent={agentSettings}
           display={displaySettings}
@@ -614,6 +707,7 @@ function AppContent() {
           onDisplayChange={setDisplaySettings}
           onClose={handleCloseSettings}
           issuesProcessed={issuesProcessed}
+          constraints={agentConstraints}
           issuesRemaining={issuesRemaining}
         />
       )}

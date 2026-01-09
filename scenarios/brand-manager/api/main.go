@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -17,6 +16,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -118,7 +121,6 @@ type IntegrationRequest struct {
 type BrandManagerService struct {
 	db            *sql.DB
 	n8nBaseURL    string
-	windmillURL   string
 	comfyUIURL    string
 	minioEndpoint string
 	vaultAddr     string
@@ -127,11 +129,10 @@ type BrandManagerService struct {
 }
 
 // NewBrandManagerService creates a new brand manager service
-func NewBrandManagerService(db *sql.DB, n8nURL, windmillURL, comfyUIURL, minioEndpoint, vaultAddr string) *BrandManagerService {
+func NewBrandManagerService(db *sql.DB, n8nURL, comfyUIURL, minioEndpoint, vaultAddr string) *BrandManagerService {
 	return &BrandManagerService{
 		db:            db,
 		n8nBaseURL:    n8nURL,
-		windmillURL:   windmillURL,
 		comfyUIURL:    comfyUIURL,
 		minioEndpoint: minioEndpoint,
 		vaultAddr:     vaultAddr,
@@ -140,16 +141,6 @@ func NewBrandManagerService(db *sql.DB, n8nURL, windmillURL, comfyUIURL, minioEn
 		},
 		logger: NewLogger(),
 	}
-}
-
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
 }
 
 // ListBrands returns all brands with pagination
@@ -477,15 +468,10 @@ func (bm *BrandManagerService) CreateIntegration(w http.ResponseWriter, r *http.
 func (bm *BrandManagerService) GetServiceURLs(w http.ResponseWriter, r *http.Request) {
 	urls := map[string]interface{}{
 		"services": map[string]string{
-			"n8n":      bm.n8nBaseURL,
-			"windmill": bm.windmillURL,
-			"comfyui":  bm.comfyUIURL,
-			"minio":    fmt.Sprintf("http://%s", bm.minioEndpoint),
-			"vault":    bm.vaultAddr,
-		},
-		"dashboards": map[string]string{
-			"brand_manager":       fmt.Sprintf("%s/apps/f/brand-manager/dashboard", bm.windmillURL),
-			"integration_monitor": fmt.Sprintf("%s/apps/f/brand-manager/integration-dashboard", bm.windmillURL),
+			"n8n":     bm.n8nBaseURL,
+			"comfyui": bm.comfyUIURL,
+			"minio":   fmt.Sprintf("http://%s", bm.minioEndpoint),
+			"vault":   bm.vaultAddr,
 		},
 	}
 
@@ -505,7 +491,6 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "8000",
 			"postgres": "5432",
 			"comfyui":  "8188",
 			"minio":    "9000",
@@ -520,31 +505,15 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start brand-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
-	}
-
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "brand-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgres port retrieved but connection uses URL from env
 	comfyUIPort := getResourcePort("comfyui")
 	minioPort := getResourcePort("minio")
@@ -553,11 +522,6 @@ func main() {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
-
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	comfyUIURL := os.Getenv("COMFYUI_BASE_URL")
@@ -575,95 +539,25 @@ func main() {
 		vaultAddr = fmt.Sprintf("http://localhost:%s", vaultPort)
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
+	})
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to connect to database", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🎨 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if pingErr != nil {
-		logger := NewLogger()
-		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
-		os.Exit(1)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("Database connection pool established successfully!")
 
 	// Initialize brand manager service
-	brandManager := NewBrandManagerService(db, n8nURL, windmillURL, comfyUIURL, minioEndpoint, vaultAddr)
+	brandManager := NewBrandManagerService(db, n8nURL, comfyUIURL, minioEndpoint, vaultAddr)
 
 	// Setup routes
 	r := mux.NewRouter()
-
-	// API endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.ListBrands).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.CreateBrand).Methods("POST")
 	r.HandleFunc("/api/brands/{id}", brandManager.GetBrandByID).Methods("GET")
@@ -672,20 +566,11 @@ func main() {
 	r.HandleFunc("/api/integrations", brandManager.CreateIntegration).Methods("POST")
 	r.HandleFunc("/api/services", brandManager.GetServiceURLs).Methods("GET")
 
-	// Start server
-	log.Printf("Starting Brand Manager API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
-	log.Printf("  ComfyUI URL: %s", comfyUIURL)
-	log.Printf("  MinIO Endpoint: %s", minioEndpoint)
-	log.Printf("  Vault URL: %s", vaultAddr)
-	log.Printf("  Database: %s", dbURL)
-
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

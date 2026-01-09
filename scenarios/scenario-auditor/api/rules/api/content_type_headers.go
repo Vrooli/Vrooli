@@ -49,7 +49,7 @@ func handleResponse(w http.ResponseWriter, r *http.Request) {
   <input language="go">
 func handleAPI(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
-    data := map[string]interface{}{
+    data := map[string]any{
         "users": getUserList(),
         "total": 100,
     }
@@ -78,7 +78,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
     respondJSON(w, map[string]string{"status": "ok"})
 }
 
-func respondJSON(w http.ResponseWriter, payload interface{}) {
+func respondJSON(w http.ResponseWriter, payload any) {
     setJSONHeader(w)
     json.NewEncoder(w).Encode(payload)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -89,26 +94,17 @@ type ResearchRequest struct {
 var dataDir = "../data"
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start job-to-scenario-pipeline
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "15500"
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "job-to-scenario-pipeline",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	r := mux.NewRouter()
 
 	// Health check
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Job endpoints
 	r.HandleFunc("/api/v1/jobs", listJobsHandler).Methods("GET")
@@ -121,8 +117,15 @@ func main() {
 	// Enable CORS
 	r.Use(corsMiddleware)
 
-	log.Printf("Job Pipeline API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Printf("Job Pipeline API starting")
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -137,14 +140,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
-	})
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"service": "job-to-scenario-pipeline",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

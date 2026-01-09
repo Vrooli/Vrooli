@@ -1,0 +1,91 @@
+#!/usr/bin/env bats
+
+# [REQ:DM-P0-038,DM-P0-039,DM-P0-040,DM-P0-041,DM-P0-042] Multi-tier deployment orchestration tests
+
+setup() {
+  # Setup test environment
+  export API_URL="${API_URL:-http://localhost:18722}"
+  export TEST_SCENARIO="picker-wheel"
+  export TEST_PROFILE_ID="test-multi-tier-$(date +%s)"
+}
+
+teardown() {
+  # Cleanup test profiles
+  if [ -n "$TEST_PROFILE_ID" ]; then
+    deployment-manager profiles delete "$TEST_PROFILE_ID" 2>/dev/null || true
+  fi
+}
+
+# [REQ:DM-P0-038] Test tier 1+2 combined deployment
+@test "Multi-tier: Deploy to local + desktop tiers" {
+  # Create profile for tiers 1 and 2
+  run deployment-manager profile create \
+    --name "Local+Desktop Test" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "1,2"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Profile created"* ]]
+
+  # Extract profile ID from output
+  PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "$TEST_PROFILE_ID")
+
+  # Validate profile for both tiers
+  run deployment-manager profiles validate "$PROFILE_ID"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Tier 1"* ]]
+  [[ "$output" == *"Tier 2"* ]]
+}
+
+# [REQ:DM-P0-039] Test tier progression validation
+@test "Multi-tier: Validate tier progression requirements" {
+  # Create profile for tier 4 (requires tiers 1-3)
+  run deployment-manager profile create \
+    --name "SaaS Deployment" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "4"
+
+  [ "$status" -eq 0 ]
+
+  PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "$TEST_PROFILE_ID")
+
+  # Check if lower tiers are required
+  run deployment-manager profiles validate "$PROFILE_ID" --check-prerequisites
+  [ "$status" -eq 0 ]
+}
+
+# [REQ:DM-P0-040] Test cross-tier dependency resolution
+@test "Multi-tier: Resolve dependencies across tiers" {
+  # Analyze dependencies for multi-tier deployment
+  run deployment-manager analyze "$TEST_SCENARIO" --all-tiers
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dependencies"* ]]
+  [[ "$output" == *"tier"* ]]
+}
+
+# [REQ:DM-P0-041] Test tier-specific fitness scoring
+@test "Multi-tier: Calculate fitness for all tiers" {
+  # Get fitness scores for all 5 tiers
+  for tier in 1 2 3 4 5; do
+    run deployment-manager fitness \
+      --scenario "$TEST_SCENARIO" \
+      --tier "$tier"
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"score"* ]]
+  done
+}
+
+# [REQ:DM-P0-042] Test tier compatibility matrix
+@test "Multi-tier: Generate tier compatibility matrix" {
+  # Generate compatibility report
+  run deployment-manager fitness \
+    --scenario "$TEST_SCENARIO" \
+    --all-tiers \
+    --format matrix
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Tier 1"* ]]
+  [[ "$output" == *"Tier 5"* ]]
+}

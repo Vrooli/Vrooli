@@ -50,7 +50,7 @@ Before running any script:
 
 **Safe Script Patterns**:
 - Read-only system analysis (ps, top, netstat, df, etc.)
-- /proc filesystem reads
+- proc filesystem reads
 - Log file analysis (grep, awk, sed)
 - Network connection monitoring
 - Process genealogy tracing
@@ -73,7 +73,7 @@ When system signals show a **dire state** (e.g., CPU or memory pegged above 95% 
 Before any recovery action **capture pre-action evidence** (metrics, logs, `ps` output) and record it in the final report.
 
 **Routine Auto-Fix Operations**:
-✅ **Clear cache files** (temporary files in /tmp, system cache)
+✅ **Clear cache files** (temporary files in the tmp directory, system cache)
 ✅ **Restart stuck services** (systemctl restart for hung services)
 ✅ **Kill zombie processes** (processes in Z state with no parent)
 ✅ **Optimize configurations** (adjust worker counts, connection limits)
@@ -146,7 +146,7 @@ Follow this systematic approach for each investigation area:
 
 ### 1. **System Logs Analysis**
 - **Check existing scripts**: Look for log analysis tools in `investigations/active/`
-- **Target areas**: `/var/log/syslog`, `/var/log/kern.log`, security events, hardware issues
+- **Target areas**: `var/log/syslog`, `var/log/kern.log`, security events, hardware issues
 - **Pattern recognition**: Repeated errors, authentication failures, disk errors
 - **Script creation opportunity**: If you develop effective log parsing commands
 
@@ -182,7 +182,7 @@ Follow this systematic approach for each investigation area:
 - **Memory exhaustion**: Check container limits vs worker counts  
 - **Process spawning**: Trace parent processes and configuration sources
 - **Connection buildup**: Monitor connection pools and cleanup processes
-- **File descriptor leaks**: Use /proc-based monitoring over expensive commands
+- **File descriptor leaks**: Use proc-based monitoring over expensive commands
 
 ## 🛠️ Script Creation Guidelines
 
@@ -290,7 +290,7 @@ Provide your findings using this **structured format** that highlights both curr
 
 1. **Investigation Start** (Update progress to 10%):
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/progress" \
   -H "Content-Type: application/json" \
   -d '{"progress": 10}'
 ```
@@ -298,7 +298,7 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" 
 2. **After Each Investigation Area** (Add detailed steps):
 ```bash
 # Example: Scripts evaluation and execution
-curl -X POST "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/step" \
+curl -X POST "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/step" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Investigation Scripts Analysis",
@@ -309,7 +309,7 @@ curl -X POST "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/step" \
 
 3. **Progress Updates** (25%, 50%, 75%):
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/progress" \
   -H "Content-Type: application/json" \
   -d '{"progress": 50}'
 ```
@@ -317,7 +317,7 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" 
 4. **Final Results** (Include intelligence built):
 ```bash
 # Update findings with structured data including new tools created
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/findings" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/findings" \
   -H "Content-Type: application/json" \
   -d '{
     "findings": "Complete investigation summary with tools used and created",
@@ -334,14 +334,14 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/findings" 
   }'
 
 # Mark as completed
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/status" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/status" \
   -H "Content-Type: application/json" \
   -d '{"status": "completed"}'
 ```
 
 5. **Error Handling**:
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/status" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/status" \
   -H "Content-Type: application/json" \
   -d '{"status": "failed"}'
 ```

@@ -117,7 +117,6 @@ func TestNewBrandManagerService(t *testing.T) {
 	service := NewBrandManagerService(
 		db,
 		"http://localhost:5678",
-		"http://localhost:8000",
 		"http://localhost:8188",
 		"localhost:9000",
 		"http://localhost:8200",
@@ -153,7 +152,7 @@ func TestListBrands(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("EmptyList", func(t *testing.T) {
 		req := HTTPTestRequest{
@@ -221,7 +220,7 @@ func TestCreateBrand(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "http://localhost:5678", "", "", "", "")
+	service := NewBrandManagerService(db, "http://localhost:5678", "", "", "")
 
 	t.Run("MissingRequiredFields", func(t *testing.T) {
 		patterns := NewTestScenarioBuilder().
@@ -302,7 +301,7 @@ func TestGetBrandByID(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("Success", func(t *testing.T) {
 		brandID := createTestBrand(t, db, "Test Brand")
@@ -347,7 +346,7 @@ func TestGetBrandStatus(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("BrandExists", func(t *testing.T) {
 		createTestBrand(t, db, "Status Test Brand")
@@ -403,7 +402,7 @@ func TestListIntegrations(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "", "", "", "", "")
+	service := NewBrandManagerService(db, "", "", "", "")
 
 	t.Run("EmptyList", func(t *testing.T) {
 		req := HTTPTestRequest{
@@ -459,7 +458,7 @@ func TestCreateIntegration(t *testing.T) {
 	defer cleanupTestDB(db, t)
 	skipIfNoDatabase(t, db)
 
-	service := NewBrandManagerService(db, "http://localhost:5678", "", "", "", "")
+	service := NewBrandManagerService(db, "http://localhost:5678", "", "", "")
 
 	t.Run("MissingRequiredFields", func(t *testing.T) {
 		patterns := NewTestScenarioBuilder().
@@ -514,7 +513,6 @@ func TestGetServiceURLs(t *testing.T) {
 	service := NewBrandManagerService(
 		db,
 		"http://localhost:5678",
-		"http://localhost:8000",
 		"http://localhost:8188",
 		"localhost:9000",
 		"http://localhost:8200",
@@ -537,9 +535,6 @@ func TestGetServiceURLs(t *testing.T) {
 			t.Error("Expected 'services' in response")
 		}
 
-		if _, ok := response["dashboards"]; !ok {
-			t.Error("Expected 'dashboards' in response")
-		}
 	})
 }
 
@@ -563,7 +558,7 @@ func TestGetResourcePort(t *testing.T) {
 	})
 
 	t.Run("KnownResources", func(t *testing.T) {
-		resources := []string{"n8n", "windmill", "postgres", "comfyui", "minio", "vault"}
+		resources := []string{"n8n", "postgres", "comfyui", "minio", "vault"}
 		for _, resource := range resources {
 			port := getResourcePort(resource)
 			if port == "" {

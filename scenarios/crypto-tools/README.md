@@ -177,8 +177,6 @@ initialization/
 ├── automation/
 │   ├── n8n/                   # n8n workflow definitions
 │   │   └── main-workflow.json # Primary workflow
-│   └── windmill/              # Windmill apps
-│       └── windmill-app.json  # UI application
 ├── configuration/
 │   ├── app-config.json        # Runtime settings
 │   ├── resource-urls.json     # Service endpoints
@@ -414,7 +412,7 @@ psql -h localhost -p 5433 -U postgres
 ## 🎯 **Next Steps**
 
 ### **For Development**
-1. Copy this template: `cp -r templates/full/ scenarios/your-scenario/`
+1. Generate from the React/Vite template: `vrooli scenario generate react-vite --id your-scenario --display-name "Your Scenario" --description "Purpose"`
 2. Update `.vrooli/service.json` with your scenario details
 3. Customize API endpoints in `api/cmd/server/main.go`
 4. Update CLI commands in `cli/cli.sh`

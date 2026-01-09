@@ -57,17 +57,6 @@ test_adapter_framework() {
 }
 
 #######################################
-# Test n8n adapter loading
-#######################################
-test_n8n_adapter() {
-    source "${BROWSERLESS_DIR}/adapters/n8n/api.sh"
-    
-    # Check if n8n functions are available
-    declare -f n8n::init >/dev/null && \
-    declare -f n8n::dispatch >/dev/null
-}
-
-#######################################
 # Test vault adapter loading
 #######################################
 test_vault_adapter() {
@@ -100,17 +89,7 @@ test_adapter_discovery() {
     
     # Check if we can list adapters
     local adapters_dir="${BROWSERLESS_DIR}/adapters"
-    [[ -d "$adapters_dir/n8n" ]] && [[ -d "$adapters_dir/vault" ]]
-}
-
-#######################################
-# Test backward compatibility
-#######################################
-test_backward_compatibility() {
-    source "${BROWSERLESS_DIR}/cli.sh"
-    
-    # Check if legacy command still exists
-    declare -f browserless_execute_workflow_legacy >/dev/null
+    [[ -d "$adapters_dir/vault" ]]
 }
 
 #######################################
@@ -122,11 +101,9 @@ main() {
     
     # Run tests
     run_test "Adapter Framework Loading" test_adapter_framework
-    run_test "N8N Adapter Loading" test_n8n_adapter
     run_test "Vault Adapter Loading" test_vault_adapter
     run_test "CLI Integration" test_cli_integration
     run_test "Adapter Discovery" test_adapter_discovery
-    run_test "Backward Compatibility" test_backward_compatibility
     
     echo
     echo "─────────────────────────────────"
@@ -137,12 +114,6 @@ main() {
     
     if [[ $TESTS_FAILED -eq 0 ]]; then
         log::success "✅ All tests passed!"
-        
-        echo
-        echo "You can now use the adapter pattern:"
-        echo "  resource-browserless for n8n execute-workflow <workflow-id>"
-        echo "  resource-browserless for vault add-secret <path> <key>=<value>"
-        echo "  resource-browserless for --help"
         
         return 0
     else

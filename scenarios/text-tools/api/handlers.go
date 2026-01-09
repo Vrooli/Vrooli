@@ -11,40 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// HealthHandler handles health check requests
-func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
-	health := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Unix(),
-		Database:  "unknown",
-		Resources: make(map[string]interface{}),
-		Version:   "1.0.0",
-	}
-
-	// Check database connection
-	if s.db != nil {
-		if s.db.IsConnected() {
-			health.Database = "connected"
-		} else {
-			health.Database = "disconnected"
-			health.Status = "degraded"
-		}
-	} else {
-		health.Database = "not configured"
-	}
-
-	// Get resource status from resource manager
-	if s.resourceManager != nil {
-		health.Resources = s.resourceManager.GetResourceHealth()
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if health.Status != "healthy" {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-	json.NewEncoder(w).Encode(health)
-}
-
 // ResourcesHandler provides detailed resource status
 func (s *Server) ResourcesHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
@@ -511,8 +477,6 @@ func (s *Server) processAnalyzeV1(req AnalyzeRequest) AnalyzeResponse {
 			response.Keywords = extractKeywords(req.Text)
 		case "language":
 			response.Language = detectLanguage(req.Text)
-		case "statistics":
-			response.Statistics = calculateTextStatistics(req.Text)
 		}
 	}
 

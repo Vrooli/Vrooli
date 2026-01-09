@@ -1,0 +1,14 @@
+{
+  "system": [
+    "nodejs",
+    "npm",
+    "ffmpeg"
+  ],
+  "npm": [
+    "faker",
+    "express",
+    "canvas",
+    "pdfkit",
+    "fluent-ffmpeg"
+  ]
+}

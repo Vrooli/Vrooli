@@ -1,0 +1,143 @@
+{
+  "_name": "landingPageVariantSpace",
+  "_schemaVersion": 1,
+  "_note": "Axis definitions for persona, jobs-to-be-done, and conversion style. Authoritative source for AI agents when generating landing variants.",
+  "_agentGuidelines": [
+    "Pick exactly one variant per axis when proposing a new landing page.",
+    "Use the descriptions + example copy to keep tone consistent with the selected combination.",
+    "Avoid disallowed combinations unless the constraints file is explicitly updated."
+  ],
+  "axes": {
+    "persona": {
+      "_note": "Primary buyer persona that the copy should target.",
+      "variants": [
+        {
+          "id": "silentFounder",
+          "label": "Silent Founder",
+          "description": "Introverted solo builders who want to ship without meetings or sales calls.",
+          "examples": {
+            "headline": "Build a business without talking to anyone",
+            "tagline": "Agents and automations handle the business work while you build."
+          },
+          "defaultWeight": 0.55,
+          "tags": ["solo", "introvert", "indie"],
+          "status": "active",
+          "agentHints": [
+            "Lead with no-meetings, no per-seat pricing, and async everything.",
+            "Promise future tools arrive automatically with the same subscription."
+          ]
+        },
+        {
+          "id": "soloDev",
+          "label": "Solo Developer",
+          "description": "Independent engineers who want tests + automation + marketing in one flow.",
+          "defaultWeight": 0.2,
+          "tags": ["developer", "testing"],
+          "status": "active",
+          "agentHints": [
+            "Emphasize e2e tests as replays and CI hooks.",
+            "Highlight shipping proof without hiring marketers."
+          ]
+        },
+        {
+          "id": "qaEngineer",
+          "label": "QA Engineer",
+          "description": "Quality owners who want visual tests and replayable failures.",
+          "defaultWeight": 0.1,
+          "tags": ["qa", "testing"],
+          "status": "active",
+          "agentHints": [
+            "Lean on stability, CI integration, and visual failure proof.",
+            "Call out that workflows double as tests."
+          ]
+        },
+        {
+          "id": "automationEngineer",
+          "label": "Automation Engineer",
+          "description": "Specialists automating browser-heavy back-office work.",
+          "defaultWeight": 0.1,
+          "tags": ["automation", "ops"],
+          "status": "active",
+          "agentHints": [
+            "Focus on visual workflow authoring and scheduling.",
+            "Promise future agent loops that self-heal flows."
+          ]
+        },
+        {
+          "id": "agency",
+          "label": "Agency",
+          "description": "Studios delivering client work with branded replays and handoffs.",
+          "defaultWeight": 0.05,
+          "tags": ["agency", "services"],
+          "status": "active",
+          "agentHints": [
+            "Include MP4 exports, branding, and client-safe deliverables.",
+            "Position Studio/Business tiers as default."
+          ]
+        }
+      ]
+    },
+    "jtbd": {
+      "_note": "Jobs-to-be-done that the visitor expects to accomplish.",
+      "variants": [
+        {
+          "id": "automation",
+          "label": "Automate back office",
+          "description": "Replace manual browser work with reusable workflows.",
+          "agentHints": ["Show before/after for admin panels and dashboards."]
+        },
+        {
+          "id": "testing",
+          "label": "End-to-end testing",
+          "description": "Use workflows as tests with replayable failures and CI hooks.",
+          "agentHints": ["Mention CI integration and visual failure playback."]
+        },
+        {
+          "id": "entrepreneurship",
+          "label": "Build a business",
+          "description": "Launch and market products quietly with automation + replay assets.",
+          "agentHints": ["Promise future suite tools; keep CTAs self-serve."]
+        },
+        {
+          "id": "marketing",
+          "label": "Marketing demos",
+          "description": "Generate beautiful replay videos for campaigns and onboarding.",
+          "agentHints": ["Highlight MP4 exports, fake browser frames, cursor motion."]
+        }
+      ]
+    },
+    "conversionStyle": {
+      "_note": "Conversion motion emphasized on the page.",
+      "variants": [
+        {
+          "id": "emotional",
+          "label": "Emotional relief",
+          "description": "Lead with anxiety relief, no meetings, and quiet independence.",
+          "agentHints": ["Use calm, confident tone; spotlight \"no sales calls\"."]
+        },
+        {
+          "id": "technical",
+          "label": "Technical proof",
+          "description": "Lead with architecture, CI hooks, and reliability.",
+          "agentHints": ["Include diagrams and CI examples where possible."]
+        },
+        {
+          "id": "visionary",
+          "label": "Future-of-work vision",
+          "description": "Sell the suite that keeps getting smarter over time.",
+          "agentHints": ["Talk about agent loops and compound intelligence."]
+        }
+      ]
+    }
+  },
+  "constraints": {
+    "_note": "Prevent odd pairings that dilute the narrative.",
+    "disallowedCombinations": [
+      {
+        "persona": "agency",
+        "conversionStyle": "emotional",
+        "jtbd": "testing"
+      }
+    ]
+  }
+}

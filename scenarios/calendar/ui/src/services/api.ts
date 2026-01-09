@@ -9,13 +9,21 @@ import type {
   User
 } from '@/types'
 import { resolveApiBase } from '@vrooli/api-base'
+import {
+  clearStoredAuth,
+  dispatchAuthRequiredEvent,
+  extractUserIdentifiers,
+  getStoredAuthToken,
+  getStoredAuthUser,
+  resolveAuthenticatorLoginUrl
+} from '@/utils/auth'
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18000'
+const explicitApiUrlEnv = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+const explicitApiUrl = explicitApiUrlEnv ? explicitApiUrlEnv : undefined
 
 const API_BASE_URL = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
+  explicitUrl: explicitApiUrl,
 })
 
 class CalendarAPI {
@@ -31,9 +39,21 @@ class CalendarAPI {
 
     // Add auth token to requests
     this.client.interceptors.request.use((config) => {
-      const token = localStorage.getItem('auth_token')
+      const token = getStoredAuthToken()
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
+      }
+
+      const storedUser = getStoredAuthUser()
+      if (storedUser) {
+        const { userId, email } = extractUserIdentifiers(storedUser)
+        if (userId) {
+          config.headers['X-User-ID'] = userId
+          config.headers['X-Auth-User-ID'] = userId
+        }
+        if (email) {
+          config.headers['X-User-Email'] = email
+        }
       }
       return config
     })
@@ -43,8 +63,9 @@ class CalendarAPI {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('auth_token')
-          window.location.href = '/login'
+          clearStoredAuth()
+          const loginUrl = resolveAuthenticatorLoginUrl()
+          dispatchAuthRequiredEvent(loginUrl)
         }
         return Promise.reject(error)
       }
@@ -52,67 +73,79 @@ class CalendarAPI {
   }
 
   // Auth
-  async validateToken(): Promise<User> {
+  validateToken = async (): Promise<User> => {
     const response = await this.client.get('/auth/validate')
     return response.data
   }
 
+  login = async (credentials: { email: string; password: string }): Promise<{
+    success: boolean
+    token: string
+    refresh_token?: string
+    refreshToken?: string
+    user?: User
+    message?: string
+  }> => {
+    const response = await this.client.post('/auth/login', credentials)
+    return response.data
+  }
+
   // Events
-  async createEvent(data: CreateEventRequest): Promise<Event> {
+  createEvent = async (data: CreateEventRequest): Promise<Event> => {
     const response = await this.client.post('/events', data)
     return response.data
   }
 
-  async getEvents(params?: {
+  getEvents = async (params?: {
     startDate?: string
     endDate?: string
     eventType?: string
     status?: string
     limit?: number
-  }): Promise<{ events: Event[]; totalCount: number; hasMore: boolean }> {
+  }): Promise<{ events: Event[]; totalCount: number; hasMore: boolean }> => {
     const response = await this.client.get('/events', { params })
     return response.data
   }
 
-  async getEvent(id: string): Promise<Event> {
+  getEvent = async (id: string): Promise<Event> => {
     const response = await this.client.get(`/events/${id}`)
     return response.data
   }
 
-  async updateEvent(id: string, data: Partial<CreateEventRequest>): Promise<Event> {
+  updateEvent = async (id: string, data: Partial<CreateEventRequest>): Promise<Event> => {
     const response = await this.client.put(`/events/${id}`, data)
     return response.data
   }
 
-  async deleteEvent(id: string): Promise<void> {
+  deleteEvent = async (id: string): Promise<void> => {
     await this.client.delete(`/events/${id}`)
   }
 
   // Chat & NLP
-  async sendChatMessage(data: ChatRequest): Promise<ChatResponse> {
+  sendChatMessage = async (data: ChatRequest): Promise<ChatResponse> => {
     const response = await this.client.post('/schedule/chat', data)
     return response.data
   }
 
   // Schedule Optimization
-  async optimizeSchedule(data: OptimizationRequest): Promise<OptimizationResponse> {
+  optimizeSchedule = async (data: OptimizationRequest): Promise<OptimizationResponse> => {
     const response = await this.client.post('/schedule/optimize', data)
     return response.data
   }
 
   // Reminders
-  async processReminders(): Promise<{ status: string; message: string }> {
+  processReminders = async (): Promise<{ status: string; message: string }> => {
     const response = await this.client.post('/reminders/process')
     return response.data
   }
 
   // Health check
-  async healthCheck(): Promise<{
+  healthCheck = async (): Promise<{
     status: string
     timestamp: string
     version: string
     services: Record<string, string>
-  }> {
+  }> => {
     const response = await this.client.get('/health')
     return response.data
   }

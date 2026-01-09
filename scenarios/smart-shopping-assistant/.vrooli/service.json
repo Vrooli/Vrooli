@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "smart-shopping-assistant",
@@ -19,7 +19,28 @@
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/smart-shopping-assistant"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -27,76 +48,11 @@
       "description": "Shopping Assistant API port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Shopping Assistant UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user profiles, shopping history, price tracking data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache for price data, session management, rate limiting"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for product embeddings and similarity search"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Local LLM for product analysis and recommendations",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Web scraping for price updates and inventory checks"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Shopping Assistant UI port",
+      "range": "35000-39999"
     }
-  },
-  "integrations": {
-    "scenarios": [
-      {
-        "name": "scenario-authenticator",
-        "purpose": "Multi-profile user management",
-        "required": false
-      },
-      {
-        "name": "deep-research",
-        "purpose": "Comprehensive product research and analysis",
-        "required": false
-      },
-      {
-        "name": "contact-book",
-        "purpose": "Gift recommendations based on relationships",
-        "required": false
-      }
-    ]
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -104,7 +60,7 @@
       "description": "Smart Shopping Assistant health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -118,7 +74,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -132,18 +88,24 @@
       "description": "Initialize Smart Shopping Assistant",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "smart-shopping-assistant-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "smart-shopping-assistant"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/smart-shopping-assistant-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "smart-shopping-assistant",
+            "targets": [
+              "smart-shopping-assistant"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -166,87 +128,66 @@
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"
         },
-         {
-           "name": "build-api",
-           "run": "cd api && go mod download && go build -o smart-shopping-assistant-api .",
-           "description": "Build Go API binary"
-         },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o smart-shopping-assistant-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
         {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Build UI application"
         },
         {
           "name": "show-urls",
-          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '\ud83d\uded2 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Smart Shopping Assistant with API and UI",
+      "description": "Start Smart Shopping Assistant with API and production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./smart-shopping-assistant-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/smart-shopping-assistant-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "name": "start-api",
+          "run": "cd api && ./smart-shopping-assistant-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/smart-shopping-assistant-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\uded2 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test Smart Shopping Assistant API, UI, and CLI",
+      "description": "Comprehensive phased testing for smart-shopping-assistant",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-research-endpoint",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/shopping/research -H 'Content-Type: application/json' -d '{\"query\":\"test product\"}'",
-          "description": "Test shopping research endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats smart-shopping-assistant.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/smart-shopping-assistant.bats"
-          }
-        },
-        {
-          "name": "test-ui",
-          "run": "cd ui && npm test",
-          "description": "Run UI tests",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute smart-shopping-assistant --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -264,6 +205,54 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user profiles, shopping history, price tracking data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache for price data, session management, rate limiting"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for product embeddings and similarity search"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Local LLM for product analysis and recommendations",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Web scraping for price updates and inventory checks"
+      }
     }
   }
 }

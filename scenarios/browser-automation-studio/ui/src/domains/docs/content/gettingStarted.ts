@@ -1,0 +1,319 @@
+/**
+ * Getting Started guide content for Vrooli Ascension
+ */
+
+export const GETTING_STARTED_CONTENT = `
+# Getting Started with Vrooli Ascension
+
+Vrooli Ascension (BAS) helps you create visual workflows to automate browser tasks, test UIs, and extract data from websites—all without writing low-level browser automation code.
+
+## Core Concepts
+
+### Workflows
+A **workflow** is a sequence of connected nodes that define an automation. Each node represents an action (click, type, navigate) or control flow (conditional, loop). Workflows execute from top to bottom, following the connections between nodes.
+
+### Nodes
+**Nodes** are the building blocks of workflows. BAS provides 30+ node types organized into categories:
+
+- **Navigation & Context** - Open URLs, scroll, switch tabs/frames
+- **Pointer & Gestures** - Click, hover, drag, focus elements
+- **Forms & Input** - Type text, select options, upload files
+- **Data & Variables** - Extract data, store/use variables, run scripts
+- **Assertions & Observability** - Validate conditions, wait for elements, capture screenshots
+- **Workflow Logic** - Conditionals, loops, subflows
+- **Storage & Network** - Manage cookies, storage, mock network requests
+
+### Projects
+**Projects** help you organize related workflows. Each project has a folder on disk where workflows are saved as JSON files.
+
+## Creating Your First Workflow
+
+### 1. Create a Project
+Click **"New Project"** from the dashboard. Give it a name and optionally a description. Projects are saved to a folder on your machine.
+
+### 2. Choose a Creation Method
+Inside your project, click **"New Workflow"**. You have three options, listed in recommended order:
+
+1. **Record** (Recommended) - Click through a real browser and capture your actions automatically. The easiest way to get started.
+
+2. **AI-Assisted** - Describe what you want in plain language and let AI navigate for you. Great for generating e2e tests with automatic assertions.
+
+3. **Visual Builder** - Drag and drop nodes for full manual control. Best when you need branching logic or conditional flows.
+
+> **Tip:** See the **Workflow Methods** tab for detailed documentation on each approach.
+
+### 3. Configure & Test
+- **Recording**: Edit selectors, remove unwanted steps, and test before saving
+- **AI-Assisted**: Review AI-generated steps and refine as needed
+- **Visual Builder**: Configure each node and connect them with edges
+
+### 4. Execute
+Click the **"Execute"** button in the header. BAS will run your workflow in a real browser and stream screenshots back in real-time.
+
+### 5. Review Results
+After execution, view the results in the **Executions** tab. You can:
+- Replay the execution step-by-step
+- Export screenshots and reports
+- Debug failed steps
+
+## Working with Selectors
+
+Selectors identify which element to interact with. BAS supports several approaches:
+
+### CSS Selectors
+Standard CSS selectors like:
+- \`#submit-button\` - By ID
+- \`.btn-primary\` - By class
+- \`button[type="submit"]\` - By attribute
+- \`[data-testid="login-form"]\` - By test ID (recommended)
+
+### Visual Picker
+Many nodes include a **screenshot picker** that lets you point-and-click on an element to automatically generate a selector.
+
+### AI Suggestions
+Describe the element you want ("the blue submit button") and BAS will suggest selectors.
+
+## Best Practices
+
+### Use Test IDs
+For reliable automation, prefer \`data-testid\` attributes over brittle selectors:
+\`\`\`html
+<!-- Good -->
+<button data-testid="submit-form">Submit</button>
+
+<!-- Brittle -->
+<button class="btn btn-primary mt-4">Submit</button>
+\`\`\`
+
+### Add Waits After Navigation
+After navigating to a new page, add a **Wait** node to ensure the page is fully loaded before interacting with elements.
+
+### Use Variables
+Store extracted values in **variables** to reuse them later in the workflow. This is useful for:
+- Capturing dynamic IDs
+- Passing data between nodes
+- Building assertions
+
+### Test Incrementally
+Build workflows step-by-step, executing after each addition to verify it works. This makes debugging much easier.
+
+## Keyboard Shortcuts
+
+BAS supports extensive keyboard shortcuts for power users. Shortcuts are **context-aware** - different shortcuts are available depending on whether you're on the dashboard, editing a workflow, or in settings.
+
+### Global Shortcuts (Work Everywhere)
+| Shortcut | Action |
+| --- | --- |
+| \`Shift + ?\` | Show keyboard shortcuts |
+| \`Cmd/Ctrl + K\` | Global search / Focus node search |
+| \`Cmd/Ctrl + ,\` | Open settings |
+| \`Escape\` | Close modal or go back |
+| \`G then H\` | Go to dashboard |
+
+### Workflow Builder Shortcuts
+| Shortcut | Action |
+| --- | --- |
+| \`Cmd/Ctrl + S\` | Save workflow |
+| \`Cmd/Ctrl + Enter\` | Execute workflow |
+| \`Cmd/Ctrl + Z\` | Undo |
+| \`Cmd/Ctrl + Shift + Z\` | Redo |
+| \`Delete/Backspace\` | Delete selected nodes |
+| \`Cmd/Ctrl + A\` | Select all nodes |
+| \`Cmd/Ctrl + D\` | Duplicate selected |
+| \`Cmd/Ctrl + =\` | Zoom in |
+| \`Cmd/Ctrl + -\` | Zoom out |
+| \`Cmd/Ctrl + 0\` | Fit view |
+| \`Cmd/Ctrl + Shift + L\` | Toggle canvas lock |
+
+### Dashboard Shortcuts
+| Shortcut | Action |
+| --- | --- |
+| \`Cmd/Ctrl + Shift + N\` | Create new project |
+| \`Cmd/Ctrl + Shift + T\` | Open guided tour |
+
+Press \`Shift + ?\` to see all available shortcuts for your current context.
+
+## Next Steps
+
+- **Explore the Node Reference** to learn about all available node types
+- **Review the Schema Reference** for programmatic workflow creation
+- **Try the Demo Workflow** to see BAS in action
+`;
+
+export const WORKFLOW_SCHEMA_INTRO = `
+# Workflow Schema Reference
+
+Vrooli Ascension workflows are stored as JSON files following a specific schema. Understanding this schema is essential for:
+
+- Creating workflows programmatically
+- Building e2e test suites that generate BAS workflows
+- Integrating BAS with CI/CD pipelines
+- Debugging workflow JSON files
+
+## Schema Overview
+
+Every workflow JSON file has this structure:
+
+\`\`\`json
+{
+  "metadata": {
+    "description": "Optional workflow description",
+    "requirement": "Optional requirement ID",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1280,
+      "height": 720,
+      "preset": "desktop"
+    },
+    "entrySelector": "optional-entry-selector",
+    "entrySelectorTimeoutMs": 30000
+  },
+  "nodes": [...],
+  "edges": [...]
+}
+\`\`\`
+
+## Nodes
+
+Each node in the \`nodes\` array represents an action or control flow step:
+
+\`\`\`json
+{
+  "id": "unique-node-id",
+  "type": "click",
+  "position": { "x": 100, "y": 200 },
+  "data": {
+    "selector": "[data-testid=submit]",
+    "button": "left",
+    "timeoutMs": 30000
+  }
+}
+\`\`\`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| \`id\` | string | Yes | Unique identifier for this node |
+| \`type\` | string | Yes | Node type (navigate, click, type, etc.) |
+| \`position\` | object | No | Canvas position {x, y}. Omit for auto-layout |
+| \`data\` | object | Yes | Node-specific configuration |
+
+## Edges
+
+Edges define connections between nodes:
+
+\`\`\`json
+{
+  "id": "edge-1",
+  "source": "node-1",
+  "target": "node-2",
+  "sourceHandle": "output",
+  "targetHandle": "input"
+}
+\`\`\`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| \`id\` | string | Yes | Unique edge identifier |
+| \`source\` | string | Yes | ID of the source node |
+| \`target\` | string | Yes | ID of the target node |
+| \`sourceHandle\` | string | No | Output handle name |
+| \`targetHandle\` | string | No | Input handle name |
+
+## Node Data Reference
+
+Each node type has specific fields in its \`data\` object. See the **Node Reference** for complete documentation of each node type's configuration options.
+
+## Example: Login Flow
+
+\`\`\`json
+{
+  "metadata": {
+    "description": "Automated login test"
+  },
+  "settings": {
+    "executionViewport": { "width": 1280, "height": 720, "preset": "desktop" }
+  },
+  "nodes": [
+    {
+      "id": "nav-1",
+      "type": "navigate",
+      "data": {
+        "destinationType": "url",
+        "url": "https://app.example.com/login",
+        "waitUntil": "networkidle"
+      }
+    },
+    {
+      "id": "type-email",
+      "type": "type",
+      "data": {
+        "selector": "[data-testid=email-input]",
+        "text": "test@example.com"
+      }
+    },
+    {
+      "id": "type-password",
+      "type": "type",
+      "data": {
+        "selector": "[data-testid=password-input]",
+        "text": "secret123"
+      }
+    },
+    {
+      "id": "click-submit",
+      "type": "click",
+      "data": {
+        "selector": "[data-testid=login-button]",
+        "waitForSelector": "[data-testid=dashboard]"
+      }
+    },
+    {
+      "id": "assert-success",
+      "type": "assert",
+      "data": {
+        "assertionType": "element-visible",
+        "selector": "[data-testid=welcome-message]"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "nav-1", "target": "type-email" },
+    { "id": "e2", "source": "type-email", "target": "type-password" },
+    { "id": "e3", "source": "type-password", "target": "click-submit" },
+    { "id": "e4", "source": "click-submit", "target": "assert-success" }
+  ]
+}
+\`\`\`
+
+## Validation
+
+BAS validates workflows against a JSON Schema on save and before execution. Common validation errors include:
+
+- Missing required fields (\`nodes\`, \`edges\`)
+- Invalid node types
+- Missing node \`id\` or \`type\`
+- Invalid edge references (source/target IDs that don't exist)
+
+## Programmatic Creation
+
+You can create workflows programmatically and save them to a project folder:
+
+\`\`\`javascript
+const workflow = {
+  metadata: { description: "Generated test" },
+  settings: { executionViewport: { width: 1280, height: 720, preset: "desktop" } },
+  nodes: generateTestNodes(testCases),
+  edges: generateEdges(nodes),
+};
+
+// Save to project folder
+fs.writeFileSync(
+  path.join(projectPath, "workflows", "generated-test.json"),
+  JSON.stringify(workflow, null, 2)
+);
+\`\`\`
+
+Then use the BAS API or UI to execute the workflow.
+`;

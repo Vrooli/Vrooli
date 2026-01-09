@@ -543,4 +543,3 @@ func TestMiddlewareEdgeCases(t *testing.T) {
 		// This is acceptable since OPTIONS requests are handled by the router middleware
 	})
 }
-

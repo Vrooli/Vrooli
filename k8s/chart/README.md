@@ -24,7 +24,7 @@ cd /root/Vrooli
 
 ### 2. Set Up Vault
 
-Follow the [Vault Production Setup Guide](/docs/deployment/vault-production-setup.md) or use the quick start:
+Follow the [Legacy Vault Setup Guide](/docs/deployment/history/vault-legacy.md) for background, but prefer the new secrets workflows described in the Deployment Hub:
 
 ```bash
 # Populate secrets from .env-prod
@@ -159,7 +159,7 @@ kubectl delete pvc -l app.kubernetes.io/instance=vrooli
 
 ## Additional Resources
 
-- [Vault Production Setup Guide](/docs/deployment/vault-production-setup.md)
+- [Legacy Vault Setup Guide](/docs/deployment/history/vault-legacy.md)
 - [Complete Vault Setup Guide](/docs/scratch/vault-setup-complete-guide.md)
 - [Kubernetes Deployment Guide](/docs/devops/kubernetes.md)
 - [Environment Management](/docs/devops/environment-management.md)

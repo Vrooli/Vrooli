@@ -52,14 +52,24 @@ manage::main() {
         esac
     done
     
-    # Check for --dry-run early and capture sudo-mode preference
+    # Check for flags early and capture preferences
     local dry_run_flag="false"
     local sudo_mode_arg=""
-    local expecting_sudo_value="false"
+    local environment_arg=""
+    local resources_arg=""
+    local yes_arg=""
+    local expecting_value=""
+
     for arg in "$@"; do
-        if [[ "$expecting_sudo_value" == "true" ]]; then
-            sudo_mode_arg="$arg"
-            expecting_sudo_value="false"
+        # Handle values for flags that expect them
+        if [[ -n "$expecting_value" ]]; then
+            case "$expecting_value" in
+                sudo-mode) sudo_mode_arg="$arg" ;;
+                environment) environment_arg="$arg" ;;
+                resources) resources_arg="$arg" ;;
+                yes) yes_arg="$arg" ;;
+            esac
+            expecting_value=""
             continue
         fi
 
@@ -69,19 +79,39 @@ manage::main() {
                 export DRY_RUN="true"
                 ;;
             --sudo-mode)
-                expecting_sudo_value="true"
+                expecting_value="sudo-mode"
                 ;;
             --sudo-mode=*)
                 sudo_mode_arg="${arg#*=}"
                 ;;
+            --environment|--env)
+                expecting_value="environment"
+                ;;
+            --environment=*|--env=*)
+                environment_arg="${arg#*=}"
+                ;;
+            --resources)
+                expecting_value="resources"
+                ;;
+            --resources=*)
+                resources_arg="${arg#*=}"
+                ;;
+            --yes|-y)
+                expecting_value="yes"
+                ;;
+            --yes=*)
+                yes_arg="${arg#*=}"
+                ;;
         esac
     done
 
-    if [[ "$expecting_sudo_value" == "true" ]]; then
-        log::error "Missing value for --sudo-mode"
+    # Validate that expected values were provided
+    if [[ -n "$expecting_value" ]]; then
+        log::error "Missing value for --$expecting_value"
         exit 1
     fi
 
+    # Process sudo-mode
     if [[ -n "$sudo_mode_arg" ]]; then
         sudo_mode_arg="${sudo_mode_arg,,}"
         case "$sudo_mode_arg" in
@@ -95,7 +125,37 @@ manage::main() {
                 ;;
         esac
     fi
-    
+
+    # Process environment (development, production, minimal)
+    if [[ -n "$environment_arg" ]]; then
+        environment_arg="${environment_arg,,}"
+        case "$environment_arg" in
+            development|production|minimal)
+                export ENVIRONMENT="$environment_arg"
+                log::debug "Environment set to: $environment_arg"
+                ;;
+            *)
+                log::error "Invalid value for --environment: $environment_arg"
+                log::info "Valid values: development, production, minimal"
+                exit 1
+                ;;
+        esac
+    fi
+
+    # Process resources (enabled, none, or comma-separated list)
+    if [[ -n "$resources_arg" ]]; then
+        resources_arg="${resources_arg,,}"
+        export RESOURCES="$resources_arg"
+        log::debug "Resources set to: $resources_arg"
+    fi
+
+    # Process yes flag (skip confirmation prompts)
+    if [[ -n "$yes_arg" ]]; then
+        yes_arg="${yes_arg,,}"
+        export YES="$yes_arg"
+        log::debug "YES set to: $yes_arg"
+    fi
+
     # Handle special flags
     case "$phase" in
         "")
@@ -119,7 +179,7 @@ manage::main() {
     
     # If we have a potential scenario name argument, try to find it
     if [[ -n "$scenario_arg" ]]; then
-        local scenarios_dir="${VROOLI_ROOT}/scenarios"
+        local scenarios_dir="${var_SCENARIOS_DIR}"
         local scenario_path="${scenarios_dir}/${scenario_arg}"
         
         if [[ -d "$scenario_path" && -f "${scenario_path}/.vrooli/service.json" ]]; then

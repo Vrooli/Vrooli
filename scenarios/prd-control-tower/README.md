@@ -53,11 +53,11 @@ prd-control-tower list-drafts
 # Validate PRD
 prd-control-tower validate <scenario-name>
 
-# Create draft (interactive)
-prd-control-tower create-draft
+# AI-generate a full PRD draft (and save it)
+prd-control-tower generate-prd <scenario-name> --context-file notes.md
 
-# Publish draft
-prd-control-tower publish <draft-id>
+# AI-generate + publish into a scenario created from a template
+prd-control-tower generate-prd <scenario-name> --context-file notes.md --template <template-name> --run-hooks
 ```
 
 ## 📋 Features
@@ -76,6 +76,12 @@ prd-control-tower publish <draft-id>
 - AI-assisted section generation
 - Diff viewer comparing draft vs published
 - Publish to PRD.md with atomic file write
+
+### Requirements & Target Coverage
+- Parse modular `requirements/` registries (JSON + imports) for each scenario/resource
+- Extract operational targets from PRD checklists and link them to requirements via `prd_ref`
+- Surface missing template sections, unlinked targets, and unmatched requirements directly in the draft workspace
+- Expose `/catalog/{type}/{name}/requirements` and `/catalog/{type}/{name}/targets` APIs for UI + automation consumers
 
 ### AI Assistance
 - Generate missing sections with natural language prompts
@@ -102,6 +108,7 @@ prd-control-tower publish <draft-id>
 - `POST /api/v1/drafts` - Create draft
 - `PUT /api/v1/drafts/{id}` - Update draft
 - `POST /api/v1/drafts/{id}/publish` - Publish to PRD.md
+- `POST /api/v1/drafts/ai/generate` - AI generate PRD draft (creates draft if needed)
 - `POST /api/v1/drafts/{id}/ai/generate-section` - AI assistance
 
 ### Ports
@@ -119,9 +126,6 @@ make test
 ./test/phases/test-dependencies.sh   # Dependency checks
 ./test/phases/test-integration.sh    # API integration tests
 ./test/phases/test-unit.sh           # Go unit tests
-
-# CLI tests (bats)
-bats cli/prd-control-tower.bats      # 18 CLI command tests
 
 # Go unit tests
 cd api && go test -v -cover ./...    # Unit tests with coverage
@@ -200,9 +204,12 @@ PRD_CONTROL_TOWER_DB_NAME=vrooli
 PRD_CONTROL_TOWER_UI_PORT=36300
 PRD_CONTROL_TOWER_API_URL=http://localhost:18600
 
+# AI Integration (Required for AI features)
+OPENROUTER_API_KEY=sk-or-v1-...  # Get from https://openrouter.ai
+RESOURCE_OPENROUTER_URL=https://openrouter.ai/api/v1  # Optional, defaults to OpenRouter public API
+
 # Integration URLs
 SCENARIO_AUDITOR_URL=http://localhost:18507
-RESOURCE_OPENROUTER_URL=http://localhost:18100
 ECOSYSTEM_MANAGER_URL=http://localhost:18200
 ```
 
@@ -232,7 +239,7 @@ CREATE TABLE audit_results (
 ## 📚 Resources
 
 ### Internal
-- [PRD Template](/scripts/scenarios/templates/full/PRD.md)
+- [PRD Template](/scripts/scenarios/templates/react-vite/PRD.md)
 - [Scenario Auditor](/scenarios/scenario-auditor/README.md)
 - [Ecosystem Manager](/scenarios/ecosystem-manager/README.md)
 

@@ -219,52 +219,51 @@ export default function Dashboard() {
 
           {alertItems.length > 0 ? (
             <div className="space-y-3">
-              {alertItems.slice(0, 5).map((alert) => {
-                const extendedAlert = alert as HealthAlert & {
-                  scenarios?: string[]
-                  total_count?: number
-                  message?: string
-                  action?: string
-                }
-                const alertScenarios = Array.isArray(extendedAlert.scenarios) ? extendedAlert.scenarios : []
-                const totalScenarioCount = typeof extendedAlert.total_count === 'number'
-                  ? extendedAlert.total_count
+              {alertItems.slice(0, 5).map((alert: HealthAlert & {
+                scenarios?: string[]
+                total_count?: number
+                message?: string
+                action?: string
+              }) => {
+                const alertScenarios = Array.isArray(alert.scenarios) ? alert.scenarios : []
+                const totalScenarioCount = typeof alert.total_count === 'number'
+                  ? alert.total_count
                   : alertScenarios.length
 
                 return (
                   <div
-                    key={extendedAlert.id}
+                    key={alert.id}
                     className={clsx(
                       'p-3 rounded-lg border-l-4',
-                      extendedAlert.level === 'critical' && 'bg-danger-50 border-danger-500',
-                      extendedAlert.level === 'warning' && 'bg-warning-50 border-warning-500',
-                      extendedAlert.level === 'info' && 'bg-primary-50 border-primary-500'
+                      alert.level === 'critical' && 'bg-danger-50 border-danger-500',
+                      alert.level === 'warning' && 'bg-warning-50 border-warning-500',
+                      alert.level === 'info' && 'bg-primary-50 border-primary-500'
                     )}
                   >
                     <div className="flex items-start gap-2">
                       <AlertCircle className={clsx(
                         'h-4 w-4 mt-0.5',
-                        extendedAlert.level === 'critical' && 'text-danger-600',
-                        extendedAlert.level === 'warning' && 'text-warning-600',
-                        extendedAlert.level === 'info' && 'text-primary-600'
+                        alert.level === 'critical' && 'text-danger-600',
+                        alert.level === 'warning' && 'text-warning-600',
+                        alert.level === 'info' && 'text-primary-600'
                       )} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-dark-900">{extendedAlert.title}</p>
+                          <p className="text-sm font-medium text-dark-900">{alert.title}</p>
                           <Tooltip
                             content={
-                              extendedAlert.title.includes('Stale Scenarios')
+                              alert.title.includes('Stale Scenarios')
                                 ? "Scenarios that haven't been scanned for security vulnerabilities in the last 48 hours. Regular scanning helps identify new vulnerabilities early."
-                                : extendedAlert.title.includes('Critical Vulnerabilities')
+                                : alert.title.includes('Critical Vulnerabilities')
                                   ? "High-severity security issues that could be exploited by attackers. These should be addressed immediately."
-                                  : extendedAlert.title.includes('Automated Fixes')
+                                  : alert.title.includes('Automated Fixes')
                                     ? "The system can automatically apply fixes for certain types of vulnerabilities when this feature is enabled."
-                                    : extendedAlert.message || extendedAlert.description
+                                    : alert.message || alert.description
                             }
                             position="right"
                           />
                         </div>
-                        <p className="text-xs text-dark-600 mt-0.5">{extendedAlert.message || extendedAlert.description}</p>
+                        <p className="text-xs text-dark-600 mt-0.5">{alert.message || alert.description}</p>
 
                         {/* Show stale scenario links */}
                         {alertScenarios.length > 0 && (
@@ -287,12 +286,12 @@ export default function Dashboard() {
                           </div>
                         )}
 
-                        {extendedAlert.action && (
-                          <p className="text-xs text-dark-500 mt-1 italic">{extendedAlert.action}</p>
+                        {alert.action && (
+                          <p className="text-xs text-dark-500 mt-1 italic">{alert.action}</p>
                         )}
-                        {extendedAlert.created_at && (
+                        {alert.created_at && (
                           <p className="text-xs text-dark-500 mt-1">
-                            {format(new Date(extendedAlert.created_at), 'MMM d, HH:mm')}
+                            {format(new Date(alert.created_at), 'MMM d, HH:mm')}
                           </p>
                         )}
                       </div>

@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS workflows (
     tags TEXT[],
     
     -- Workflow definition
-    workflow_type VARCHAR(50) NOT NULL, -- 'n8n', 'custom', 'ai_generated'
+    workflow_type VARCHAR(50) NOT NULL, -- 'internal', 'custom', 'ai_generated'
     workflow_definition JSONB NOT NULL,
     configuration JSONB DEFAULT '{}',
     

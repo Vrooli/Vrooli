@@ -1,9 +1,9 @@
 package discovery
 
 import (
+	"context"
 	"encoding/json"
 	"log"
-	"os/exec"
 	"sort"
 	"strings"
 
@@ -12,23 +12,27 @@ import (
 
 // DiscoverResources gets all available resources from vrooli CLI
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
+	return discoverResources(execRunner)
+}
+
+func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 	var resources []tasks.ResourceInfo
 
-	// Get all resources from vrooli CLI (now includes unregistered resources)
-	cmd := exec.Command("vrooli", "resource", "list", "--json", "--verbose")
-	output, err := cmd.Output()
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	output, err := runner.Run(ctx, "vrooli", "resource", "list", "--json", "--verbose")
 	if err != nil {
 		log.Printf("Warning: Failed to run 'vrooli resource list --json --verbose': %v", err)
 		// Try without verbose flag as fallback
-		cmd = exec.Command("vrooli", "resource", "list", "--json")
-		output, err = cmd.Output()
+		output, err = runner.Run(ctx, "vrooli", "resource", "list", "--json")
 		if err != nil {
 			log.Printf("Error: Failed to get vrooli resources: %v", err)
 			return resources, err
 		}
 	}
 
-	var vrooliResources []map[string]interface{}
+	var vrooliResources []map[string]any
 	if err := json.Unmarshal(output, &vrooliResources); err != nil {
 		log.Printf("Error: Failed to parse vrooli resource list output: %v", err)
 		return resources, err
@@ -39,7 +43,7 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 		if resourceName != "" {
 			status := getStringField(vr, "Status")
 			isRegistered := status != "[UNREGISTERED]" && status != "[MISSING]"
-			
+
 			resource := tasks.ResourceInfo{
 				Name:        resourceName,
 				Path:        getStringField(vr, "Path"),
@@ -50,12 +54,12 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 				Healthy:     getBoolField(vr, "Running"),
 				Status:      status,
 			}
-			
+
 			// If no version provided and unregistered, mark it
 			if resource.Version == "" && !isRegistered {
 				resource.Version = "unregistered"
 			}
-			
+
 			resources = append(resources, resource)
 		}
 	}
@@ -70,7 +74,7 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 }
 
 // Helper functions for safe field extraction
-func getStringField(m map[string]interface{}, key string) string {
+func getStringField(m map[string]any, key string) string {
 	if val, ok := m[key]; ok {
 		if str, ok := val.(string); ok {
 			return str
@@ -79,7 +83,7 @@ func getStringField(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func getIntField(m map[string]interface{}, key string) int {
+func getIntField(m map[string]any, key string) int {
 	if val, ok := m[key]; ok {
 		switch v := val.(type) {
 		case float64:
@@ -91,7 +95,7 @@ func getIntField(m map[string]interface{}, key string) int {
 	return 0
 }
 
-func getBoolField(m map[string]interface{}, key string) bool {
+func getBoolField(m map[string]any, key string) bool {
 	if val, ok := m[key]; ok {
 		if b, ok := val.(bool); ok {
 			return b
@@ -99,7 +103,6 @@ func getBoolField(m map[string]interface{}, key string) bool {
 	}
 	return false
 }
-
 
 // inferResourceCategory attempts to categorize a resource based on its name
 func inferResourceCategory(name string) string {
@@ -126,4 +129,3 @@ func inferResourceCategory(name string) string {
 
 	return "misc" // default
 }
-

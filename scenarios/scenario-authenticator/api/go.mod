@@ -13,6 +13,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
+	github.com/vrooli/api-core v0.0.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/oauth2 v0.31.0
 )
@@ -23,3 +24,5 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

@@ -109,6 +109,16 @@ actions::parse_universal_options() {
                 VIEWPORT_HEIGHT="844"
                 shift
                 ;;
+            --viewport)
+                if [[ "$2" =~ ^([0-9]{2,5})x([0-9]{2,5})$ ]]; then
+                    VIEWPORT_WIDTH="${BASH_REMATCH[1]}"
+                    VIEWPORT_HEIGHT="${BASH_REMATCH[2]}"
+                else
+                    echo "Error: --viewport expects WIDTHxHEIGHT (e.g., 1280x720)" >&2
+                    return 1
+                fi
+                shift 2
+                ;;
             *)
                 # Collect non-option arguments
                 remaining_args+=("$1")
@@ -206,6 +216,16 @@ actions::screenshot() {
                 VIEWPORT_HEIGHT="844"
                 shift
                 ;;
+            --viewport)
+                if [[ "$2" =~ ^([0-9]{2,5})x([0-9]{2,5})$ ]]; then
+                    VIEWPORT_WIDTH="${BASH_REMATCH[1]}"
+                    VIEWPORT_HEIGHT="${BASH_REMATCH[2]}"
+                else
+                    echo "Error: --viewport expects WIDTHxHEIGHT (e.g., 1280x720)" >&2
+                    return 1
+                fi
+                shift 2
+                ;;
             --help|-h)
                 echo "Usage: browserless screenshot [URL] [OPTIONS]"
                 echo ""
@@ -217,6 +237,7 @@ actions::screenshot() {
                 echo "  --output FILE          Output file path (default: screenshot-TIMESTAMP.png)"
                 echo "  --fullpage             Capture full page instead of viewport"
                 echo "  --mobile               Use mobile viewport (390x844)"
+                echo "  --viewport WxH         Use custom viewport dimensions (e.g., 1280x720)"
                 echo "  --timeout MS           Timeout in milliseconds (default: 30000)"
                 echo "  --wait-ms MS           Wait time after load (default: 2000)"
                 echo "  --session NAME         Use persistent session"
@@ -355,6 +376,16 @@ EOF
             '. + {"viewport": {"width": $width, "height": $height}}')
     fi
     
+    # Clamp viewport to sane bounds (avoid invalid browserless requests)
+    if [[ -n "$VIEWPORT_WIDTH" ]]; then
+        if (( VIEWPORT_WIDTH < 200 )); then VIEWPORT_WIDTH=200; fi
+        if (( VIEWPORT_WIDTH > 10000 )); then VIEWPORT_WIDTH=10000; fi
+    fi
+    if [[ -n "$VIEWPORT_HEIGHT" ]]; then
+        if (( VIEWPORT_HEIGHT < 200 )); then VIEWPORT_HEIGHT=200; fi
+        if (( VIEWPORT_HEIGHT > 10000 )); then VIEWPORT_HEIGHT=10000; fi
+    fi
+
     # Make the API call
     local http_status
     http_status=$(curl -s -X POST \
@@ -656,19 +687,16 @@ actions::health_check() {
 # Usage: browserless element-exists <url> --selector "button.login" [options]
 #######################################
 actions::element_exists() {
-    # Reset defaults
     OUTPUT_PATH=""
     TIMEOUT_MS="30000"
     WAIT_MS="2000"
-    SESSION_NAME=""
     FULL_PAGE="false"
     VIEWPORT_WIDTH="1920"
     VIEWPORT_HEIGHT="1080"
-    
+
     local selector=""
     local remaining_args_array=()
-    
-    # Parse options directly
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --selector)
@@ -697,10 +725,6 @@ actions::element_exists() {
                 fi
                 shift 2
                 ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
             --fullpage)
                 FULL_PAGE="true"
                 shift
@@ -716,193 +740,64 @@ actions::element_exists() {
                 ;;
         esac
     done
-    
+
     local url="${remaining_args_array[0]:-}"
-    
+
     if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
         echo "Error: URL and selector required" >&2
         echo "Usage: browserless element-exists <url> --selector \"button.login\" [--timeout 5000]" >&2
         return 1
     fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
+
     log::info "🔍 Checking if element exists: $selector"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Check if element exists
-            local exists
-            if exists=$(browser::element_exists "$selector" "$session_id"); then
-                if [[ "$exists" == "true" ]]; then
-                    echo "✅ Element exists: $selector"
-                    actions::cleanup_temp_session "$session_id"
-                    return 0
-                else
-                    echo "❌ Element not found: $selector" >&2
-                    actions::cleanup_temp_session "$session_id"
-                    return 1
-                fi
-            else
-                echo "❌ Error checking element: $selector" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
+
+    local script
+    script=$(URL="$url" SELECTOR="$selector" TIMEOUT="$TIMEOUT_MS" WAIT_MS="$WAIT_MS" WIDTH="$VIEWPORT_WIDTH" HEIGHT="$VIEWPORT_HEIGHT" python3 - <<'PY'
+import os, json
+url = os.environ['URL']
+selector = os.environ['SELECTOR']
+timeout = int(os.environ['TIMEOUT'])
+wait_ms = int(os.environ['WAIT_MS'])
+width = int(os.environ['WIDTH'])
+height = int(os.environ['HEIGHT'])
+print(f"""
+const targetUrl = {json.dumps(url)};
+const selector = {json.dumps(selector)};
+const timeoutMs = {timeout};
+const waitMs = {wait_ms};
+const viewport = {{ width: {width}, height: {height} }};
+await page.setViewport(viewport);
+await page.goto(targetUrl, {{ waitUntil: 'networkidle2', timeout: timeoutMs }});
+await new Promise(resolve => setTimeout(resolve, waitMs));
+const element = await page.$(selector);
+return {{ success: true, exists: !!element }};
+""")
+PY
+)
+
+    local response
+    response=$(browser::execute_js "$script") || return 1
+    local exists=$(echo "$response" | jq -r '.exists // false')
+
+    if [[ "$exists" == "true" ]]; then
+        echo "✅ Element exists: $selector"
+        return 0
     else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
+        echo "❌ Element not found: $selector" >&2
         return 1
     fi
 }
-
-#######################################
-# Extract text content from a page
-# Usage: browserless extract-text <url> --selector "h1" [options]
-#######################################
-actions::extract_text() {
-    # Reset defaults
-    OUTPUT_PATH=""
-    TIMEOUT_MS="30000"
-    WAIT_MS="2000"
-    SESSION_NAME=""
-    FULL_PAGE="false"
-    VIEWPORT_WIDTH="1920"
-    VIEWPORT_HEIGHT="1080"
-    
-    local selector=""
-    local remaining_args_array=()
-    
-    # Parse options directly
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --selector)
-                selector="$2"
-                shift 2
-                ;;
-            --output)
-                OUTPUT_PATH="$2"
-                shift 2
-                ;;
-            --timeout)
-                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
-                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
-                    TIMEOUT_MS="30000"
-                else
-                    TIMEOUT_MS="$2"
-                fi
-                shift 2
-                ;;
-            --wait-ms)
-                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
-                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
-                    WAIT_MS="2000"
-                else
-                    WAIT_MS="$2"
-                fi
-                shift 2
-                ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
-            --fullpage)
-                FULL_PAGE="true"
-                shift
-                ;;
-            --mobile)
-                VIEWPORT_WIDTH="390"
-                VIEWPORT_HEIGHT="844"
-                shift
-                ;;
-            *)
-                remaining_args_array+=("$1")
-                shift
-                ;;
-        esac
-    done
-    
-    local url="${remaining_args_array[0]:-}"
-    
-    if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
-        echo "Error: URL and selector required" >&2
-        echo "Usage: browserless extract-text <url> --selector \"h1\" [--output title.txt]" >&2
-        return 1
-    fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
-    log::info "📄 Extracting text from: $selector"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Extract text
-            local text
-            if text=$(browser::get_text "$selector" "$session_id"); then
-                if [[ -n "$OUTPUT_PATH" ]]; then
-                    mkdir -p "${OUTPUT_PATH%/*}"
-                    echo "$text" > "$OUTPUT_PATH"
-                    echo "Text saved: $OUTPUT_PATH"
-                fi
-                
-                echo "Extracted text: $text"
-                actions::cleanup_temp_session "$session_id"
-                return 0
-            else
-                echo "Error: Could not extract text from selector: $selector" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
-    else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
-        return 1
-    fi
-}
-
-#######################################
-# Extract structured data using custom JavaScript
-# Usage: browserless extract <url> --script "return {title: document.title}" [options]
-#######################################
 actions::extract() {
-    # Reset defaults
     OUTPUT_PATH=""
     TIMEOUT_MS="30000"
     WAIT_MS="2000"
-    SESSION_NAME=""
     FULL_PAGE="false"
     VIEWPORT_WIDTH="1920"
     VIEWPORT_HEIGHT="1080"
-    
+
     local script=""
     local remaining_args_array=()
-    
-    # Parse options directly
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --script)
@@ -931,10 +826,6 @@ actions::extract() {
                 fi
                 shift 2
                 ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
             --fullpage)
                 FULL_PAGE="true"
                 shift
@@ -950,68 +841,64 @@ actions::extract() {
                 ;;
         esac
     done
-    
+
     local url="${remaining_args_array[0]:-}"
-    
+
     if [[ -z "$url" ]] || [[ -z "$script" ]]; then
         echo "Error: URL and script required" >&2
         echo "Usage: browserless extract <url> --script \"return {title: document.title}\" [--output data.json]" >&2
         return 1
     fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
+
     log::info "⚙️  Extracting data with custom script"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Execute custom script
-            local result
-            if result=$(browser::evaluate "$script" "$session_id"); then
-                local eval_success=$(echo "$result" | jq -r '.success // false')
-                if [[ "$eval_success" == "true" ]]; then
-                    local extracted_data=$(echo "$result" | jq -r '.result')
-                    
-                    if [[ -n "$OUTPUT_PATH" ]]; then
-                        mkdir -p "${OUTPUT_PATH%/*}"
-                        echo "$extracted_data" > "$OUTPUT_PATH"
-                        echo "Data saved: $OUTPUT_PATH"
-                    fi
-                    
-                    echo "Extracted data:"
-                    echo "$extracted_data"
-                    actions::cleanup_temp_session "$session_id"
-                    return 0
-                else
-                    local error
-            error=$(echo "$result" | jq -r '.error // "Unknown error"')
-                    echo "Error: Script execution failed - $error" >&2
-                    actions::cleanup_temp_session "$session_id"
-                    return 1
-                fi
-            else
-                echo "Error: Could not execute script" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
-    else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
+
+    local wrapped_script
+    wrapped_script=$(URL="$url" USER_SCRIPT="$script" TIMEOUT="$TIMEOUT_MS" WAIT_MS="$WAIT_MS" WIDTH="$VIEWPORT_WIDTH" HEIGHT="$VIEWPORT_HEIGHT" python3 - <<'PY'
+import os, json
+url = os.environ['URL']
+user_script = os.environ['USER_SCRIPT']
+timeout = int(os.environ['TIMEOUT'])
+wait_ms = int(os.environ['WAIT_MS'])
+width = int(os.environ['WIDTH'])
+height = int(os.environ['HEIGHT'])
+print(f"""
+const targetUrl = {json.dumps(url)};
+const timeoutMs = {timeout};
+const waitMs = {wait_ms};
+const viewport = {{ width: {width}, height: {height} }};
+const userScript = {json.dumps(user_script)};
+
+await page.setViewport(viewport);
+await page.goto(targetUrl, {{ waitUntil: 'networkidle2', timeout: timeoutMs }});
+await new Promise(resolve => setTimeout(resolve, waitMs));
+
+const fn = new Function(userScript);
+const result = await page.evaluate(fn);
+return {{ success: true, result }};
+""")
+PY
+)
+
+    local response
+    response=$(browser::execute_js "$wrapped_script") || return 1
+
+    local success=$(echo "$response" | jq -r '.success // false')
+    if [[ "$success" != "true" ]]; then
+        local error=$(echo "$response" | jq -r '.error // "Unknown error"')
+        echo "Error: Script execution failed - $error" >&2
         return 1
     fi
+
+    local extracted_data=$(echo "$response" | jq -c '.result')
+
+    if [[ -n "$OUTPUT_PATH" ]]; then
+        mkdir -p "${OUTPUT_PATH%/*}"
+        echo "$extracted_data" > "$OUTPUT_PATH"
+        echo "Data saved: $OUTPUT_PATH"
+    fi
+
+    echo "Extracted data:"
+    echo "$extracted_data"
 }
 
 #######################################
@@ -1277,9 +1164,10 @@ actions::console() {
             });
             
             // Navigate to the URL
-            await page.goto('$url', { 
-                waitUntil: 'networkidle2',
-                timeout: 30000 
+            // Use 'domcontentloaded' instead of 'networkidle2' for faster failure on broken pages
+            await page.goto('$url', {
+                waitUntil: 'domcontentloaded',
+                timeout: $TIMEOUT_MS
             });
             
             // Wait for any additional console activity
@@ -1339,6 +1227,214 @@ actions::console() {
         return 1
     fi
     
+    actions::cleanup_temp_session "$session_id"
+    return 0
+}
+
+#######################################
+# Capture network requests from a page
+# Usage: browserless network <url> [options]
+#######################################
+actions::network() {
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
+
+    local remaining_args_array=()
+
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --wait-ms)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    local url="${remaining_args_array[0]:-}"
+
+    if [[ -z "$url" ]]; then
+        echo "Error: URL required" >&2
+        echo "Usage: browserless network <url> [--output network.json]" >&2
+        return 1
+    fi
+
+    local session_id
+    session_id=$(actions::create_temp_session)
+
+    log::info "📡 Capturing network requests from $url"
+
+    # Use browserless function API with CDP network event handling
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+
+    # Create the JavaScript function for network capture using ES6 export default format
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            const requests = [];
+            const requestMap = new Map();
+
+            // Set up network event listeners before navigation
+            page.on('request', req => {
+                const startTime = Date.now();
+                const requestId = req._requestId || Math.random().toString(36);
+
+                const entry = {
+                    requestId: requestId,
+                    url: req.url(),
+                    method: req.method(),
+                    resourceType: req.resourceType(),
+                    timestamp: new Date().toISOString(),
+                    startTime: startTime
+                };
+
+                requestMap.set(requestId, entry);
+                requests.push(entry);
+            });
+
+            page.on('response', async resp => {
+                const req = resp.request();
+                const requestId = req._requestId || Math.random().toString(36);
+                const entry = requestMap.get(requestId);
+
+                if (entry) {
+                    entry.status = resp.status();
+                    entry.ok = resp.ok();
+                    entry.statusText = resp.statusText();
+                    entry.duration = Date.now() - entry.startTime;
+
+                    // Get response headers
+                    try {
+                        entry.headers = resp.headers();
+                    } catch (e) {
+                        entry.headers = {};
+                    }
+
+                    // Get content type
+                    try {
+                        const contentType = resp.headers()['content-type'];
+                        if (contentType) {
+                            entry.contentType = contentType;
+                        }
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+            });
+
+            page.on('requestfailed', req => {
+                const requestId = req._requestId || Math.random().toString(36);
+                const entry = requestMap.get(requestId);
+
+                if (entry) {
+                    entry.failed = true;
+                    entry.ok = false;
+                    const failure = req.failure();
+                    if (failure) {
+                        entry.error = failure.errorText;
+                    }
+                }
+            });
+
+            // Navigate to the URL
+            await page.goto('$url', {
+                waitUntil: 'networkidle2',
+                timeout: $TIMEOUT_MS
+            });
+
+            // Wait for any additional network activity
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+
+            return {
+                success: true,
+                requests: requests,
+                url: page.url(),
+                title: await page.title(),
+                total: requests.length,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+            };
+        }
+    };"
+
+    # Execute via browserless v2 API
+    local result
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
+    if [[ "$success" == "true" ]]; then
+        local requests=$(echo "$result" | jq '.requests')
+
+        if [[ -n "$OUTPUT_PATH" ]]; then
+            mkdir -p "${OUTPUT_PATH%/*}"
+            echo "$result" > "$OUTPUT_PATH"
+            echo "Network requests saved: $OUTPUT_PATH"
+        fi
+
+        local request_count=$(echo "$requests" | jq 'length')
+        local failed_count=$(echo "$requests" | jq '[.[] | select(.failed == true)] | length')
+
+        echo "Captured $request_count network requests"
+        if [[ "$failed_count" -gt 0 ]]; then
+            echo "Failed requests: $failed_count"
+        fi
+        echo "$requests" | jq '.'
+    else
+        local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+        echo "Error: Network capture failed - $error" >&2
+        actions::cleanup_temp_session "$session_id"
+        return 1
+    fi
+
     actions::cleanup_temp_session "$session_id"
     return 0
 }
@@ -2146,6 +2242,180 @@ actions::extract_elements() {
 }
 
 #######################################
+# Combined diagnostics - Collect console, network, performance, and HTML in ONE browser session
+# This prevents multiple parallel browser launches that can crash browserless
+# Usage: browserless diagnostics <url> [--timeout 6000] [--wait-ms 1000]
+#######################################
+actions::diagnostics() {
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+
+    local remaining_args_array=()
+
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --wait-ms)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
+                shift 2
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    local url="${remaining_args_array[0]:-}"
+
+    if [[ -z "$url" ]]; then
+        echo "Error: URL required" >&2
+        echo "Usage: browserless diagnostics <url> [--timeout 6000] [--wait-ms 1000]" >&2
+        return 1
+    fi
+
+    local session_id
+    session_id=$(actions::create_temp_session)
+
+    log::info "🔍 Collecting combined diagnostics from $url"
+
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+
+    # Create a single JavaScript function that collects ALL diagnostics in one browser session
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            const diagnostics = {
+                consoleLogs: [],
+                networkRequests: [],
+                performance: {},
+                html: '',
+                title: '',
+                url: ''
+            };
+
+            // Set up console event listener
+            page.on('console', msg => {
+                diagnostics.consoleLogs.push({
+                    level: msg.type(),
+                    message: msg.text(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            // Set up network request listener
+            page.on('request', request => {
+                diagnostics.networkRequests.push({
+                    url: request.url(),
+                    method: request.method(),
+                    resourceType: request.resourceType(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            const startTime = Date.now();
+
+            // Navigate to the URL
+            await page.goto('$url', {
+                waitUntil: 'domcontentloaded',
+                timeout: $TIMEOUT_MS
+            });
+
+            const loadTime = Date.now() - startTime;
+
+            // Wait for additional activity
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+
+            // Collect performance metrics
+            const performanceMetrics = await page.evaluate(() => {
+                const perf = window.performance;
+                const timing = perf.timing;
+                const navigation = perf.getEntriesByType('navigation')[0] || {};
+
+                return {
+                    loadTime: navigation.loadEventEnd - navigation.fetchStart || 0,
+                    domInteractive: timing.domInteractive - timing.navigationStart || 0,
+                    domComplete: timing.domComplete - timing.navigationStart || 0,
+                    resourceCount: performance.getEntriesByType('resource').length || 0
+                };
+            });
+
+            diagnostics.performance = performanceMetrics;
+            diagnostics.performance.totalLoadTime = loadTime;
+
+            // Get HTML, title, and URL
+            diagnostics.html = await page.content();
+            diagnostics.title = await page.title();
+            diagnostics.url = page.url();
+
+            return {
+                success: true,
+                diagnostics: diagnostics
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+            };
+        }
+    };"
+
+    # Execute via browserless v2 API
+    local result
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
+
+    if [[ "$success" == "true" ]]; then
+        local diagnostics=$(echo "$result" | jq '.diagnostics')
+
+        if [[ -n "$OUTPUT_PATH" ]]; then
+            mkdir -p "${OUTPUT_PATH%/*}"
+            echo "$diagnostics" > "$OUTPUT_PATH"
+            echo "Combined diagnostics saved: $OUTPUT_PATH"
+        fi
+
+        # Output the diagnostics
+        echo "$diagnostics"
+
+        # Summary
+        local console_count=$(echo "$diagnostics" | jq '.consoleLogs | length')
+        local network_count=$(echo "$diagnostics" | jq '.networkRequests | length')
+        log::info "✅ Collected: $console_count console logs, $network_count network requests, performance metrics, and HTML" >&2
+
+        return 0
+    else
+        local error_msg=$(echo "$result" | jq -r '.error // "Unknown error"')
+        echo "Error: $error_msg" >&2
+        return 1
+    fi
+}
+
+#######################################
 # Dispatch function for CLI routing
 #######################################
 actions::dispatch() {
@@ -2168,9 +2438,16 @@ actions::dispatch() {
         echo "  performance    - Measure page performance metrics" >&2
         return 1
     fi
-    
+
     local action="$1"
     shift
+
+    # Check browserless health before executing actions
+    if ! browserless::is_healthy >/dev/null 2>&1; then
+        echo "Error: Browserless service is unhealthy" >&2
+        echo "Run 'resource-browserless manage restart' to fix" >&2
+        return 7
+    fi
     
     # Validate action is not empty
     if [[ -z "$action" ]]; then
@@ -2216,8 +2493,14 @@ actions::dispatch() {
         console)
             actions::console "$@"
             ;;
+        network)
+            actions::network "$@"
+            ;;
         performance)
             actions::performance "$@"
+            ;;
+        diagnostics)
+            actions::diagnostics "$@"
             ;;
         *)
             echo "Error: Unknown action: $action" >&2
@@ -2233,6 +2516,7 @@ actions::dispatch() {
             echo "  extract-elements - Extract interactive elements with metadata" >&2
             echo "  interact       - Perform form fills, clicks, and wait operations" >&2
             echo "  console        - Capture console logs from pages" >&2
+            echo "  network        - Capture network requests from pages" >&2
             echo "  performance    - Measure page performance metrics" >&2
             echo "" >&2
             echo "Universal options:" >&2

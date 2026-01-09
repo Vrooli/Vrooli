@@ -3,6 +3,9 @@
   "service": "calendar-ui",
   "timestamp": "2025-09-13T00:00:00Z",
   "readiness": true,
+  "status_notes": [
+    "Static Vite bundle; runtime performs live scheduling API health checks."
+  ],
   "api_connectivity": {
     "connected": false,
     "api_url": "http://localhost:${API_PORT}",
@@ -14,6 +17,18 @@
       "retryable": false
     },
     "latency_ms": null
+  },
+  "dependencies": {
+    "calendar-api": {
+      "connected": false,
+      "latency_ms": null,
+      "error": {
+        "code": "STATIC_UI_VITE_CHECK",
+        "message": "Static health payload cannot determine API readiness; see client telemetry for live status.",
+        "category": "configuration",
+        "retryable": false
+      }
+    }
   },
   "static_files": {
     "available": true,
@@ -43,5 +58,10 @@
     "deployment_mode": "development",
     "server_type": "vite_dev_server",
     "requires_api": true
+  },
+  "build": {
+    "commit": "static-snapshot-2025-09-13",
+    "version": "1.0.0",
+    "environment": "development"
   }
 }

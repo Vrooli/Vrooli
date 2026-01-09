@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "qr-code-generator",
@@ -18,7 +18,28 @@
       "go-api",
       "n8n-workflows",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/qr-code-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -32,49 +53,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "file-list-writer",
-        "ollama",
-        "intelligent-text-classifier",
-        "cache-manager"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/qr-generator-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/batch-qr-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/qr-art-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/qr-puzzle-generator.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache generated QR codes and track batch jobs"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "QR Code Generator health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -84,6 +69,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -92,20 +85,26 @@
     },
     "setup": {
       "description": "Initialize QR Code Generator",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "qr-code-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "qr-code-generator"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/qr-code-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "qr-code-generator",
+            "targets": [
+              "qr-code-generator"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -130,17 +129,25 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o qr-generator-api .",
+          "run": "cd api && go mod download && go build -o qr-code-generator-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "run": "echo '\ud83c\udfa8 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
           "description": "Display service URLs"
         }
       ]
@@ -148,40 +155,38 @@
     "develop": {
       "description": "Start QR code generator services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./qr-code-generator-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/qr-code-generator-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./qr-code-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/qr-code-generator-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test QR code generator",
+      "description": "Comprehensive phased testing for qr-code-generator",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-generation",
-          "run": "curl -X POST http://localhost:$API_PORT/generate -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"size\":256}'",
-          "description": "Test QR generation"
+          "name": "run-phased-tests",
+          "run": "test-genie execute qr-code-generator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -200,5 +205,57 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": false,
+        "shared_workflows": [
+          "file-list-writer",
+          "ollama",
+          "intelligent-text-classifier",
+          "cache-manager"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/qr-generator-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/batch-qr-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/qr-art-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/qr-puzzle-generator.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache generated QR codes and track batch jobs"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

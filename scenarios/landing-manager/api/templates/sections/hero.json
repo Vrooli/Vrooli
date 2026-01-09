@@ -1,0 +1,57 @@
+{
+  "$schema": "./_schema.json",
+  "id": "hero",
+  "name": "Hero Section",
+  "description": "Main headline, value proposition, and primary call-to-action. The first thing visitors see.",
+  "category": "above-fold",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Title",
+      "placeholder": "Build and ship faster with Vrooli",
+      "max_length": 120,
+      "required": true,
+      "description": "Primary headline that captures attention and communicates value"
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Subtitle",
+      "placeholder": "The AI-powered platform that turns ideas into production apps",
+      "max_length": 200,
+      "required": true,
+      "description": "Supporting text that expands on the headline"
+    },
+    "cta_text": {
+      "type": "string",
+      "label": "CTA Button Text",
+      "placeholder": "Start Free Trial",
+      "max_length": 30,
+      "required": true,
+      "description": "Action-oriented button text"
+    },
+    "cta_url": {
+      "type": "string",
+      "label": "CTA URL",
+      "placeholder": "/signup",
+      "required": true,
+      "description": "Where the CTA button links to"
+    },
+    "image_url": {
+      "type": "string",
+      "label": "Hero Image URL",
+      "placeholder": "/assets/hero.png",
+      "required": false,
+      "description": "Optional hero image or product screenshot"
+    },
+    "background_style": {
+      "type": "string",
+      "label": "Background Style",
+      "enum": ["gradient", "solid", "image"],
+      "default": "gradient",
+      "required": false,
+      "description": "Visual style for the hero background"
+    }
+  },
+  "ui_component": "HeroSection",
+  "default_order": 1
+}

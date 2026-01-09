@@ -45,7 +45,6 @@ postgres::network::discover_resource_networks() {
     local resource_networks=(
         "n8n-network"
         "node-red-network"
-        "windmill-network"
         "huginn-network"
         "comfyui-network"
         "searxng-network"

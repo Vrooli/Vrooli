@@ -2,6 +2,9 @@ id: resource-generator-pybullet-20250110-011700
 title: PyBullet Physics Simulation
 type: resource
 operation: generator
+target: pybullet
+targets:
+    - pybullet
 category: ""
 priority: low
 effort_estimate: 1h

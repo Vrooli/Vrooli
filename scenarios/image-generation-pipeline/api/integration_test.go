@@ -240,7 +240,7 @@ func TestInitDBExponentialBackoff(t *testing.T) {
 			config.PostgresURL = "postgres://postgres:postgres@localhost:5432/image_gen_test?sslmode=disable"
 		}
 
-		err := initDB(config)
+		err := initDB()
 		if err != nil {
 			t.Skipf("Database not available: %v", err)
 		}

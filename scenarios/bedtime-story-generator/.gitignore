@@ -3,7 +3,7 @@ node_modules/
 vendor/
 
 # Build outputs
-api/bedtime-story-api
+api/bedtime-story-generator-api
 ui/dist/
 *.exe
 

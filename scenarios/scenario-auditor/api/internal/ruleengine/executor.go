@@ -228,7 +228,7 @@ func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, e
 		}
 	}
 
-	code := fmt.Sprintf("var %s = func(content []byte, filepath string, scenario string) (interface{}, error) {\n%s\n}", wrapperName, strings.Join(body, "\n"))
+	code := fmt.Sprintf("var %s = func(content []byte, filepath string, scenario string) (any, error) {\n%s\n}", wrapperName, strings.Join(body, "\n"))
 	return code, nil
 }
 

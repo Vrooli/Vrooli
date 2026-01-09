@@ -11,30 +11,22 @@ import (
 	"time"
 
 	"financial-calculators-hub/lib"
-)
 
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Service   string `json:"service"`
-	Timestamp string `json:"timestamp"`
-	Readiness bool   `json:"readiness"`
-}
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+)
 
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start financial-calculators-hub
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "financial-calculators-hub",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment - REQUIRED, no defaults
@@ -52,13 +44,15 @@ func main() {
 	setupRoutes()
 
 	log.Printf("Financial Calculators API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: http.DefaultServeMux,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
 func setupRoutes() {
-	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/api/v1/calculate/fire", handleFIRE)
 	http.HandleFunc("/api/v1/calculate/compound-interest", handleCompoundInterest)
 	http.HandleFunc("/api/v1/calculate/mortgage", handleMortgage)
@@ -70,16 +64,6 @@ func setupRoutes() {
 	http.HandleFunc("/api/v1/calculate/tax", handleTaxOptimizer)
 	http.HandleFunc("/api/v1/history", handleHistory)
 	http.HandleFunc("/api/v1/batch", handleBatchCalculations)
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(HealthResponse{
-		Status:    "healthy",
-		Service:   "financial-calculators-hub",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Readiness: true,
-	})
 }
 
 func handleFIRE(w http.ResponseWriter, r *http.Request) {
@@ -393,3 +377,4 @@ func exportCompoundInterest(w http.ResponseWriter, input lib.CompoundInterestInp
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid export format. Use csv, text, or pdf"})
 	}
 }
+// Test change

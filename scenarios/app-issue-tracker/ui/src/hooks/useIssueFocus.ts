@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { Issue } from '../data/sampleData';
+import type { Issue } from '../types/issue';
 
 interface SearchSyncHelpers {
   getParam: (key: string) => string | null;

@@ -1,0 +1,327 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1a",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1b",
+      "source": "click-projects-tab",
+      "target": "wait-for-projects",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "open-modal-x-test",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "open-modal-x-test",
+      "target": "assert-modal-visible-1",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible-1",
+      "target": "close-with-x",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "close-with-x",
+      "target": "assert-closed-x",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-closed-x",
+      "target": "open-modal-cancel-test",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "open-modal-cancel-test",
+      "target": "assert-modal-visible-2",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-modal-visible-2",
+      "target": "close-with-cancel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "close-with-cancel",
+      "target": "assert-closed-cancel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "assert-closed-cancel",
+      "target": "open-modal-escape-test",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "open-modal-escape-test",
+      "target": "assert-modal-visible-3",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "assert-modal-visible-3",
+      "target": "close-with-escape",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "close-with-escape",
+      "target": "assert-closed-escape",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Verifies the New Project modal closes through all affordances (X, Cancel, Escape, backdrop click)",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for new project button"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dashboard.newProjectButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-for-projects"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.newProjectButton"
+        },
+        "metadata": {
+          "label": "Open project modal (X button test)"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-modal-x-test"
+    },
+    {
+      "action": {
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dialogs.project.root",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Modal is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-modal-visible-1"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.base.closeButton"
+        },
+        "metadata": {
+          "label": "Click X button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "close-with-x"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Modal should close when X button is clicked",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "@selector/dialogs.project.root /*dup-1*/",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Modal closed (X button)"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-closed-x"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.newProjectButton /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Open project modal (Cancel button test)"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-modal-cancel-test"
+    },
+    {
+      "action": {
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dialogs.project.root /*dup-2*/",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Modal is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-modal-visible-2"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.project.cancelButton"
+        },
+        "metadata": {
+          "label": "Click Cancel button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "close-with-cancel"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Modal should close when Cancel button is clicked",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "@selector/dialogs.project.root /*dup-3*/",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Modal closed (Cancel button)"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-closed-cancel"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.newProjectButton /*dup-2*/"
+        },
+        "metadata": {
+          "label": "Open project modal (Escape key test)"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "open-modal-escape-test"
+    },
+    {
+      "action": {
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dialogs.project.root /*dup-4*/",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Modal is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-modal-visible-3"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Press Escape key"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "id": "close-with-escape"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Modal should close when Escape key is pressed",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "@selector/dialogs.project.root /*dup-5*/",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Modal closed (Escape key)"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-closed-escape"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
+}

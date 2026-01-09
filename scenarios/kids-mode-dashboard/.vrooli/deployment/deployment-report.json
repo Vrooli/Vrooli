@@ -1,0 +1,44 @@
+{
+  "scenario": "kids-mode-dashboard",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:56.230113323Z",
+  "dependencies": [],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "kids-mode-dashboard",
+    "generated_at": "2025-11-16T19:40:56.230113323Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/kids-mode-dashboard-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/kids-mode-dashboard",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": []
+  }
+}

@@ -1,0 +1,998 @@
+/**
+ * Vision Agent
+ *
+ * STABILITY: STABLE CORE
+ *
+ * This module implements the vision-based AI navigation agent.
+ * It orchestrates the observe-decide-act loop:
+ *
+ * 1. OBSERVE: Capture screenshot and extract interactive elements
+ * 2. DECIDE: Send to vision model to determine next action
+ * 3. ACT: Execute the action via Playwright
+ * 4. EMIT: Send step event to callback URL
+ * 5. REPEAT: Until goal achieved, max steps, or abort
+ *
+ * DESIGN PRINCIPLES:
+ * - Dependency injection for all external services (testing seams)
+ * - Clear separation between orchestration and execution
+ * - Graceful handling of abort signals
+ * - Comprehensive step tracking and emission
+ */
+
+import type { Page } from 'rebrowser-playwright';
+import type {
+  VisionAgent,
+  VisionAgentDeps,
+  NavigationConfig,
+  NavigationStep,
+  NavigationResult,
+  NavigationStatus,
+  LoggerInterface,
+  ConversationMessageInterface,
+} from './types';
+import type { BrowserAction, DoneAction, ScrollAction, RequestHumanAction } from '../action/types';
+import { detectCaptcha } from '../detection/captcha-detector';
+import type { HumanInterventionDetails } from './types';
+import type { TokenUsage, ElementLabel } from '../vision-client/types';
+import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
+import {
+  createLoopDetector,
+  createActionContext,
+  createScrollContext,
+  createHistoryEntry,
+  type LoopDetectionConfig,
+  type ActionHistoryEntry,
+  type ActionContext,
+} from './loop-detection';
+
+import { AI_DEFAULTS } from '../config';
+import {
+  isScreenshotBlockedByCaptcha,
+  isGoalAchieved,
+  isHumanInterventionRequested,
+} from './decisions';
+
+/**
+ * Configuration for VisionAgent behavior.
+ *
+ * CONTROL SURFACE: See ai/config.ts for default values and tradeoff documentation.
+ */
+export interface VisionAgentConfig {
+  /** Default max steps if not specified in NavigationConfig */
+  defaultMaxSteps?: number;
+  /** Delay between steps in ms (for rate limiting) */
+  stepDelayMs?: number;
+  /** Screenshot quality (1-100) */
+  screenshotQuality?: number;
+  /** Whether to capture full page screenshots */
+  fullPageScreenshot?: boolean;
+  /** Maximum conversation history messages to retain (for memory/context efficiency) */
+  maxHistoryMessages?: number;
+  /** Maximum element labels to include in context (for token efficiency) */
+  maxElementLabels?: number;
+  /** Delay after action execution to let page settle (ms) */
+  postActionSettleMs?: number;
+  /**
+   * Loop detection configuration.
+   * Controls how the agent detects when it's stuck in a loop.
+   * @see LoopDetectionConfig for available options
+   */
+  loopDetection?: Partial<LoopDetectionConfig>;
+}
+
+/**
+ * Create a VisionAgent instance.
+ *
+ * TESTING SEAM: Accepts all dependencies via injection for testability.
+ *
+ * @param deps - Injected dependencies
+ * @param config - Optional configuration
+ * @returns VisionAgent instance
+ */
+export function createVisionAgent(
+  deps: VisionAgentDeps,
+  config: VisionAgentConfig = {}
+): VisionAgent {
+  // Merge config with defaults from centralized AI config
+  // See ai/config.ts for default values and tradeoff documentation
+  const cfg = {
+    defaultMaxSteps: config.defaultMaxSteps ?? AI_DEFAULTS.visionAgent.maxSteps,
+    stepDelayMs: config.stepDelayMs ?? AI_DEFAULTS.visionAgent.stepDelayMs,
+    screenshotQuality: config.screenshotQuality ?? AI_DEFAULTS.screenshot.quality,
+    fullPageScreenshot: config.fullPageScreenshot ?? AI_DEFAULTS.screenshot.fullPage,
+    maxHistoryMessages: config.maxHistoryMessages ?? AI_DEFAULTS.visionAgent.maxHistoryMessages,
+    maxElementLabels: config.maxElementLabels ?? AI_DEFAULTS.visionAgent.maxElementLabels,
+    postActionSettleMs: config.postActionSettleMs ?? AI_DEFAULTS.visionAgent.postActionSettleMs,
+  };
+  const loopDetector = createLoopDetector(config.loopDetection);
+  let abortController: AbortController | null = null;
+  let isNavigating = false;
+  let isPausedState = false;
+  let resumeResolver: (() => void) | null = null;
+
+  return {
+    async navigate(navConfig: NavigationConfig): Promise<NavigationResult> {
+      if (isNavigating) {
+        return {
+          navigationId: navConfig.navigationId,
+          status: 'failed',
+          totalSteps: 0,
+          totalTokens: 0,
+          totalDurationMs: 0,
+          finalUrl: '',
+          error: 'Navigation already in progress',
+        };
+      }
+
+      isNavigating = true;
+      abortController = new AbortController();
+
+      const startTime = Date.now();
+      let totalTokens = 0;
+      let stepNumber = 0;
+      let status: NavigationStatus = 'completed';
+      let error: string | undefined;
+      let summary: string | undefined;
+
+      // Merge abort signals if external one provided
+      const signal = navConfig.abortSignal
+        ? mergeAbortSignals(navConfig.abortSignal, abortController.signal)
+        : abortController.signal;
+
+      const conversationHistory: ConversationMessageInterface[] = [];
+      const actionHistory: ActionHistoryEntry[] = []; // Track actions with context for intelligent loop detection
+      const maxSteps = navConfig.maxSteps ?? cfg.defaultMaxSteps;
+
+      deps.logger.info('Vision navigation started', {
+        navigationId: navConfig.navigationId,
+        prompt: navConfig.prompt,
+        model: navConfig.model,
+        maxSteps,
+      });
+
+      // Helper to check abort status
+      const checkAbort = (): boolean => {
+        if (signal.aborted) {
+          deps.logger.info('Abort signal detected', { navigationId: navConfig.navigationId });
+          return true;
+        }
+        return false;
+      };
+
+      try {
+        // Main navigation loop
+        while (stepNumber < maxSteps) {
+          // Check for abort at start of iteration
+          if (checkAbort()) {
+            status = 'aborted';
+            error = 'Navigation aborted by user';
+            break;
+          }
+
+          stepNumber++;
+          const stepStartTime = Date.now();
+
+          deps.logger.debug('Starting step', {
+            navigationId: navConfig.navigationId,
+            stepNumber,
+          });
+
+          // Step delay (for rate limiting)
+          if (cfg.stepDelayMs > 0 && stepNumber > 1) {
+            await delay(cfg.stepDelayMs);
+          }
+
+          // Get current URL (before any operations that might fail)
+          const currentUrl = navConfig.page.url();
+
+          // CAPTCHA DETECTION: Check for verification challenges BEFORE taking screenshot
+          // This is critical because CAPTCHAs (especially in iframes) can cause screenshot failures
+          const captchaResult = await detectCaptcha(navConfig.page);
+          if (captchaResult.detected) {
+            deps.logger.info('CAPTCHA detected programmatically', {
+              navigationId: navConfig.navigationId,
+              type: captchaResult.type,
+              confidence: captchaResult.confidence,
+            });
+
+            // Try to capture a screenshot, but don't fail if it doesn't work
+            // (user can see the live browser anyway)
+            let captchaScreenshot: Buffer = Buffer.alloc(0);
+            try {
+              captchaScreenshot = await deps.screenshotCapture.capture(navConfig.page, {
+                quality: cfg.screenshotQuality,
+                fullPage: cfg.fullPageScreenshot,
+              });
+            } catch (screenshotErr) {
+              deps.logger.warn('Screenshot failed during CAPTCHA detection (expected for some CAPTCHAs)', {
+                navigationId: navConfig.navigationId,
+                error: screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr),
+              });
+            }
+
+            // Emit awaiting_human step
+            const humanStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: {
+                type: 'request_human',
+                reason: captchaResult.reason,
+                instructions: captchaResult.instructions,
+                interventionType: captchaResult.type || 'captcha',
+              } as RequestHumanAction,
+              reasoning: `Detected ${captchaResult.type}: ${captchaResult.reason}`,
+              screenshot: captchaScreenshot,
+              currentUrl,
+              tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              awaitingHuman: true,
+              humanIntervention: {
+                reason: captchaResult.reason,
+                instructions: captchaResult.instructions,
+                interventionType: captchaResult.type || 'captcha',
+                trigger: 'programmatic',
+              },
+              elementLabels: [],
+            };
+
+            await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
+
+            // Pause and wait for resume or abort
+            isPausedState = true;
+            deps.logger.info('Pausing for human intervention', { navigationId: navConfig.navigationId });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+            isPausedState = false;
+
+            if (pauseResult === 'aborted') {
+              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
+
+            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+            // After resume, continue loop (will take new screenshot)
+            continue;
+          }
+
+          // OBSERVE: Capture screenshot and extract elements (only if no CAPTCHA detected)
+          let screenshot: Buffer;
+          let elementLabels: ElementLabel[];
+
+          try {
+            const observeResult = await observePhase(navConfig.page, deps, cfg);
+            screenshot = observeResult.screenshot;
+            elementLabels = observeResult.elementLabels.slice(0, cfg.maxElementLabels);
+
+            // Check for abort after screenshot capture
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
+          } catch (observeErr) {
+            // Screenshot failed - this often happens with CAPTCHAs that block page capture
+            const errMsg = observeErr instanceof Error ? observeErr.message : String(observeErr);
+            deps.logger.warn('Observe phase failed (screenshot error)', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              error: errMsg,
+            });
+
+            // DECISION: Check if screenshot failure indicates CAPTCHA/verification
+            // See decisions.ts for the patterns that trigger this
+            if (isScreenshotBlockedByCaptcha(errMsg)) {
+              deps.logger.info('Screenshot blocked - treating as potential CAPTCHA/verification', {
+                navigationId: navConfig.navigationId,
+              });
+
+              // Emit human intervention step (screenshot blocked could indicate CAPTCHA)
+              const blockedStep: NavigationStep = {
+                navigationId: navConfig.navigationId,
+                stepNumber,
+                action: {
+                  type: 'request_human',
+                  reason: 'Screenshot capture blocked - possible CAPTCHA or verification',
+                  instructions: 'Please check the browser for any verification challenges (CAPTCHA, "verify you\'re human", etc.). Complete them and click "I\'m Done".',
+                  interventionType: 'captcha',
+                } as RequestHumanAction,
+                reasoning: `Screenshot capture failed: ${errMsg}. This often indicates a CAPTCHA or iframe-based verification blocking page capture.`,
+                screenshot: Buffer.alloc(0),
+                currentUrl,
+                tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                durationMs: Date.now() - stepStartTime,
+                goalAchieved: false,
+                awaitingHuman: true,
+                humanIntervention: {
+                  reason: 'Screenshot capture blocked - possible CAPTCHA or verification challenge',
+                  instructions: 'Please check the browser for any verification challenges. Complete them and click "I\'m Done".',
+                  interventionType: 'captcha',
+                  trigger: 'programmatic',
+                },
+                elementLabels: [],
+              };
+
+              await safeEmit(deps, blockedStep, navConfig.callbackUrl, navConfig.onStep);
+
+              // Pause and wait for resume or abort
+              isPausedState = true;
+              deps.logger.info('Pausing for human intervention (screenshot blocked)', { navigationId: navConfig.navigationId });
+              const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+              isPausedState = false;
+
+              if (pauseResult === 'aborted') {
+                deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+                status = 'aborted';
+                error = 'Navigation aborted by user';
+                break;
+              }
+
+              deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+              // After resume, continue loop (will try again)
+              continue;
+            }
+
+            // Non-CAPTCHA screenshot failure - emit error and fail
+            const errorStep = createErrorStep(
+              navConfig.navigationId,
+              stepNumber,
+              Buffer.alloc(0),
+              currentUrl,
+              `Screenshot failed: ${errMsg}`,
+              Date.now() - stepStartTime
+            );
+            await safeEmit(deps, errorStep, navConfig.callbackUrl, navConfig.onStep);
+            status = 'failed';
+            error = `Screenshot failed: ${errMsg}`;
+            break;
+          }
+
+          // Build conversation history for context
+          updateConversationHistory(
+            conversationHistory,
+            stepNumber,
+            navConfig.prompt,
+            elementLabels
+          );
+
+          // PERFORMANCE: Trim old conversation history to prevent context overflow
+          trimConversationHistory(conversationHistory, cfg.maxHistoryMessages);
+
+          // DECIDE: Get action from vision model
+          let analysisResult: {
+            action: BrowserAction;
+            reasoning: string;
+            goalAchieved: boolean;
+            confidence: number;
+            tokensUsed: TokenUsage;
+          };
+
+          try {
+            analysisResult = await deps.visionClient.analyze({
+              screenshot,
+              elementLabels,
+              goal: navConfig.prompt,
+              conversationHistory,
+              currentUrl,
+            });
+          } catch (e) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            deps.logger.error('Vision model analysis failed', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              error: errMsg,
+            });
+
+            // Emit error step
+            const errorStep = createErrorStep(
+              navConfig.navigationId,
+              stepNumber,
+              screenshot,
+              currentUrl,
+              errMsg,
+              Date.now() - stepStartTime
+            );
+
+            await safeEmit(deps, errorStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'failed';
+            error = `Vision model error: ${errMsg}`;
+            break;
+          }
+
+          totalTokens += analysisResult.tokensUsed.totalTokens;
+
+          // Check for abort after vision API call (before executing action)
+          if (checkAbort()) {
+            status = 'aborted';
+            error = 'Navigation aborted by user';
+            break;
+          }
+
+          // Add assistant response to history
+          conversationHistory.push({
+            role: 'assistant',
+            content: `Action: ${JSON.stringify(analysisResult.action)}\nReasoning: ${analysisResult.reasoning}`,
+          });
+
+          deps.logger.debug('Vision model decision', {
+            navigationId: navConfig.navigationId,
+            stepNumber,
+            action: analysisResult.action.type,
+            goalAchieved: analysisResult.goalAchieved,
+            confidence: analysisResult.confidence,
+          });
+
+          // DECISION: Check if goal achieved (done action) - no execution needed
+          // See decisions.ts for goal achievement conditions
+          if (isGoalAchieved(analysisResult.goalAchieved, analysisResult.action.type)) {
+            const doneAction = analysisResult.action as DoneAction;
+            summary = doneAction.type === 'done' ? doneAction.result : analysisResult.reasoning;
+
+            // Emit final step
+            const finalStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: analysisResult.reasoning,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: true,
+              elementLabels,
+            };
+
+            await safeEmit(deps, finalStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'completed';
+            deps.logger.info('Goal achieved', {
+              navigationId: navConfig.navigationId,
+              totalSteps: stepNumber,
+              summary,
+            });
+            break;
+          }
+
+          // DECISION: Check if AI wants human help
+          // See decisions.ts for intervention request handling
+          if (isHumanInterventionRequested(analysisResult.action.type)) {
+            const humanAction = analysisResult.action as RequestHumanAction;
+
+            deps.logger.info('AI requested human intervention', {
+              navigationId: navConfig.navigationId,
+              reason: humanAction.reason,
+              interventionType: humanAction.interventionType,
+            });
+
+            // Emit awaiting_human step
+            const humanStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: humanAction,
+              reasoning: analysisResult.reasoning,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              awaitingHuman: true,
+              humanIntervention: {
+                reason: humanAction.reason,
+                instructions: humanAction.instructions,
+                interventionType: humanAction.interventionType,
+                trigger: 'ai_requested',
+              },
+              elementLabels,
+            };
+
+            await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
+
+            // Pause and wait for resume or abort
+            isPausedState = true;
+            deps.logger.info('Pausing for human intervention (AI requested)', { navigationId: navConfig.navigationId });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+            isPausedState = false;
+
+            if (pauseResult === 'aborted') {
+              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
+
+            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+            // After resume, continue loop
+            continue;
+          }
+
+          // ACT: Execute the action
+          const executionResult = await deps.actionExecutor.execute(
+            navConfig.page,
+            analysisResult.action,
+            elementLabels
+          );
+
+          // Check for abort after action execution (before next iteration)
+          if (checkAbort()) {
+            // Emit the step that was just completed before aborting
+            const abortedStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: analysisResult.reasoning,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              elementLabels,
+            };
+            await safeEmit(deps, abortedStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'aborted';
+            error = 'Navigation aborted by user';
+            break;
+          }
+
+          // LOOP DETECTION: Build context and check for loops
+          // We do this AFTER execution so we have context (e.g., scroll position change)
+          const urlAfterAction = navConfig.page.url();
+          const actionContext = buildActionContext(
+            analysisResult.action,
+            currentUrl,
+            urlAfterAction,
+            executionResult.context
+          );
+          const historyEntry = createHistoryEntry(analysisResult.action, actionContext, stepNumber);
+          actionHistory.push(historyEntry);
+
+          const loopCheck = loopDetector.detect(actionHistory);
+          if (loopCheck.isLoop) {
+            deps.logger.warn('Loop detected', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              reason: loopCheck.reason,
+              repeatedAction: loopCheck.repeatedAction,
+              strategy: loopCheck.detectionStrategy,
+            });
+
+            // Emit a step indicating the loop
+            const loopStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: `Loop detected: ${loopCheck.reason}`,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              error: loopCheck.reason,
+              elementLabels,
+            };
+
+            await safeEmit(deps, loopStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'loop_detected';
+            error = loopCheck.reason;
+            break;
+          }
+
+          if (!executionResult.success) {
+            deps.logger.warn('Action execution failed', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action.type,
+              error: executionResult.error,
+            });
+
+            // Add failure to conversation for retry context
+            conversationHistory.push({
+              role: 'user',
+              content: `The action failed with error: ${executionResult.error}. Please try a different approach.`,
+            });
+          }
+
+          // EMIT: Send step event
+          const step: NavigationStep = {
+            navigationId: navConfig.navigationId,
+            stepNumber,
+            action: analysisResult.action,
+            reasoning: analysisResult.reasoning,
+            screenshot,
+            currentUrl,
+            tokensUsed: analysisResult.tokensUsed,
+            durationMs: Date.now() - stepStartTime,
+            goalAchieved: false,
+            error: executionResult.error,
+            elementLabels,
+          };
+
+          await safeEmit(deps, step, navConfig.callbackUrl, navConfig.onStep);
+
+          // Delay after action to let page settle (configurable via postActionSettleMs)
+          if (cfg.postActionSettleMs > 0) {
+            await delay(cfg.postActionSettleMs);
+          }
+        }
+
+        // Check if we hit max steps
+        if (stepNumber >= maxSteps && status === 'completed') {
+          status = 'max_steps_reached';
+          error = `Maximum steps (${maxSteps}) reached without achieving goal`;
+          deps.logger.warn('Max steps reached', {
+            navigationId: navConfig.navigationId,
+            maxSteps,
+          });
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        deps.logger.error('Navigation failed unexpectedly', {
+          navigationId: navConfig.navigationId,
+          error: errMsg,
+        });
+        status = 'failed';
+        error = errMsg;
+      } finally {
+        isNavigating = false;
+        abortController = null;
+      }
+
+      const result: NavigationResult = {
+        navigationId: navConfig.navigationId,
+        status,
+        totalSteps: stepNumber,
+        totalTokens,
+        totalDurationMs: Date.now() - startTime,
+        finalUrl: navConfig.page.url(),
+        error,
+        summary,
+      };
+
+      deps.logger.info('Navigation completed', {
+        ...result,
+      });
+
+      return result;
+    },
+
+    abort(): void {
+      if (abortController) {
+        abortController.abort();
+        deps.logger.info('Abort signal sent');
+      }
+    },
+
+    isNavigating(): boolean {
+      return isNavigating;
+    },
+
+    resume(): void {
+      if (resumeResolver) {
+        resumeResolver();
+        resumeResolver = null;
+        deps.logger.info('Resume signal sent');
+      }
+    },
+
+    isPaused(): boolean {
+      return isPausedState;
+    },
+  };
+}
+
+/**
+ * OBSERVE phase: Capture screenshot and extract interactive elements.
+ */
+async function observePhase(
+  page: Page,
+  deps: VisionAgentDeps,
+  cfg: { screenshotQuality: number; fullPageScreenshot: boolean }
+): Promise<{ screenshot: Buffer; elementLabels: ElementLabel[] }> {
+  // Capture screenshot
+  const screenshot = await deps.screenshotCapture.capture(page, {
+    quality: cfg.screenshotQuality,
+    fullPage: cfg.fullPageScreenshot,
+  });
+
+  // Extract interactive elements
+  const elementLabels = await extractInteractiveElements(page);
+
+  return { screenshot, elementLabels };
+}
+
+/**
+ * Update conversation history with current step context.
+ */
+function updateConversationHistory(
+  history: ConversationMessageInterface[],
+  stepNumber: number,
+  prompt: string,
+  elementLabels: ElementLabel[]
+): void {
+  // Add system prompt on first step
+  if (stepNumber === 1) {
+    history.push({
+      role: 'system',
+      content: buildSystemPrompt(),
+    });
+
+    // Add user goal
+    history.push({
+      role: 'user',
+      content: `Goal: ${prompt}`,
+    });
+  }
+
+  // Add current state as user message
+  const elementContext = formatElementLabelsForPrompt(elementLabels);
+  history.push({
+    role: 'user',
+    content: `Current state (step ${stepNumber}):\n\n${elementContext}\n\nWhat action should I take next to achieve the goal?`,
+  });
+}
+
+/**
+ * PERFORMANCE: Trim conversation history to prevent context overflow.
+ * Keeps the system message and goal, plus the most recent messages.
+ */
+function trimConversationHistory(
+  history: ConversationMessageInterface[],
+  maxMessages: number
+): void {
+  if (history.length <= maxMessages) {
+    return;
+  }
+
+  // Find the indices of system message and goal (usually first 2 messages)
+  let systemAndGoalEnd = 0;
+  for (let i = 0; i < history.length && i < 3; i++) {
+    if (history[i].role === 'system') {
+      systemAndGoalEnd = i + 1;
+    } else if (i === 1 && history[i].role === 'user' && history[i].content.startsWith('Goal:')) {
+      systemAndGoalEnd = i + 1;
+    }
+  }
+
+  // Calculate how many messages to keep after system/goal
+  const messagesAfterSystemGoal = maxMessages - systemAndGoalEnd;
+  if (messagesAfterSystemGoal <= 0) {
+    return; // Can't trim without removing system/goal
+  }
+
+  // Remove old messages, keeping system/goal at the start and recent at the end
+  const messagesToRemove = history.length - maxMessages;
+  if (messagesToRemove > 0) {
+    // Remove from after systemAndGoalEnd
+    history.splice(systemAndGoalEnd, messagesToRemove);
+  }
+}
+
+/**
+ * Build system prompt for the vision model.
+ */
+function buildSystemPrompt(): string {
+  return `You are a browser automation agent. Your task is to navigate a web page to achieve the user's goal.
+
+You can see a screenshot of the current page and a list of interactive elements with numbered labels.
+
+For each step, analyze the page and decide on ONE action to take. Respond with:
+1. Your reasoning (what you observe and why you're taking this action)
+2. The action to take
+
+Available actions:
+- click(elementId) - Click on element with given ID
+- click(x, y) - Click at coordinates
+- type(elementId, "text") - Type text into an input element
+- type("text") - Type into the currently focused element
+- scroll(direction) - Scroll up/down/left/right
+- navigate("url") - Go to a specific URL
+- hover(elementId) - Hover over an element
+- select(elementId, "value") - Select option in dropdown
+- wait(ms) - Wait for specified milliseconds
+- keypress("key") - Press a keyboard key
+- done(success, "result") - Task is complete
+
+Respond in this format:
+REASONING: [Your analysis of what you see and why you're taking this action]
+ACTION: [action_name](parameters)
+
+Example:
+REASONING: I can see a login form with email and password fields. The email field is labeled [3]. I'll click on it to focus and then enter the email.
+ACTION: click(3)
+
+Important guidelines:
+- Always analyze what you see before acting
+- Take one step at a time
+- If you encounter an error, try a different approach
+- Use done(true, "result") when the goal is achieved
+- Use done(false, "reason") if the goal cannot be achieved`;
+}
+
+/**
+ * Create an error step for emission.
+ */
+function createErrorStep(
+  navigationId: string,
+  stepNumber: number,
+  screenshot: Buffer,
+  currentUrl: string,
+  error: string,
+  durationMs: number
+): NavigationStep {
+  return {
+    navigationId,
+    stepNumber,
+    action: { type: 'wait', ms: 0 },
+    reasoning: 'Error occurred during analysis',
+    screenshot,
+    currentUrl,
+    tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    durationMs,
+    goalAchieved: false,
+    error,
+  };
+}
+
+/**
+ * Safely emit a step, catching any emission errors.
+ */
+async function safeEmit(
+  deps: VisionAgentDeps,
+  step: NavigationStep,
+  callbackUrl: string,
+  onStep: (step: NavigationStep) => Promise<void>
+): Promise<void> {
+  try {
+    // Emit to callback URL
+    await deps.stepEmitter.emit(step, callbackUrl);
+  } catch (e) {
+    deps.logger.warn('Failed to emit step to callback URL', {
+      error: e instanceof Error ? e.message : String(e),
+      navigationId: step.navigationId,
+      stepNumber: step.stepNumber,
+    });
+  }
+
+  try {
+    // Call onStep callback
+    await onStep(step);
+  } catch (e) {
+    deps.logger.warn('onStep callback failed', {
+      error: e instanceof Error ? e.message : String(e),
+      navigationId: step.navigationId,
+      stepNumber: step.stepNumber,
+    });
+  }
+}
+
+/**
+ * Simple delay helper.
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Result of waiting for human intervention.
+ */
+type PauseResult = 'resumed' | 'aborted';
+
+/**
+ * Wait for human intervention with abort support.
+ * Returns 'resumed' if user completed intervention, 'aborted' if abort was triggered.
+ */
+function waitForHumanIntervention(
+  signal: AbortSignal,
+  setResumeResolver: (resolver: (() => void) | null) => void
+): Promise<PauseResult> {
+  return new Promise((resolve) => {
+    // If already aborted, return immediately
+    if (signal.aborted) {
+      resolve('aborted');
+      return;
+    }
+
+    // Set up abort handler
+    const onAbort = () => {
+      setResumeResolver(null);
+      resolve('aborted');
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    // Set up resume resolver
+    setResumeResolver(() => {
+      signal.removeEventListener('abort', onAbort);
+      setResumeResolver(null);
+      resolve('resumed');
+    });
+  });
+}
+
+/**
+ * Merge two abort signals into one.
+ */
+function mergeAbortSignals(
+  signal1: AbortSignal,
+  signal2: AbortSignal
+): AbortSignal {
+  const controller = new AbortController();
+
+  function onAbort() {
+    controller.abort();
+  }
+
+  if (signal1.aborted || signal2.aborted) {
+    controller.abort();
+  } else {
+    signal1.addEventListener('abort', onAbort, { once: true });
+    signal2.addEventListener('abort', onAbort, { once: true });
+  }
+
+  return controller.signal;
+}
+
+/**
+ * Create a console logger for simple use cases.
+ */
+export function createConsoleLogger(): LoggerInterface {
+  return {
+    debug(message: string, meta?: Record<string, unknown>) {
+      console.debug(`[DEBUG] ${message}`, meta ?? '');
+    },
+    info(message: string, meta?: Record<string, unknown>) {
+      console.info(`[INFO] ${message}`, meta ?? '');
+    },
+    warn(message: string, meta?: Record<string, unknown>) {
+      console.warn(`[WARN] ${message}`, meta ?? '');
+    },
+    error(message: string, meta?: Record<string, unknown>) {
+      console.error(`[ERROR] ${message}`, meta ?? '');
+    },
+  };
+}
+
+/**
+ * Create a no-op logger for testing.
+ */
+export function createNoopLogger(): LoggerInterface {
+  return {
+    debug() {},
+    info() {},
+    warn() {},
+    error() {},
+  };
+}
+
+/**
+ * Build action context for loop detection.
+ * Combines the base context with execution results (e.g., scroll position changes).
+ */
+function buildActionContext(
+  action: BrowserAction,
+  urlBefore: string,
+  urlAfter: string,
+  executionContext?: { scroll?: { positionBefore: { x: number; y: number }; positionAfter: { x: number; y: number } } }
+): ActionContext {
+  // Start with base context
+  const context = createActionContext(action, urlBefore, urlAfter);
+
+  // Add scroll context if available from execution
+  if (action.type === 'scroll' && executionContext?.scroll) {
+    const scrollAction = action as ScrollAction;
+    const loopConfig = createLoopDetector().getConfig();
+    context.scroll = createScrollContext(
+      scrollAction.direction,
+      executionContext.scroll.positionBefore,
+      executionContext.scroll.positionAfter,
+      loopConfig.scroll.minScrollDelta
+    );
+  }
+
+  return context;
+}

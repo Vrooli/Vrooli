@@ -1,6 +1,6 @@
 # Investigation Scripts
 
-This directory contains reusable investigation scripts that can be run by OpenCode agents and system administrators to diagnose performance issues.
+This directory contains reusable investigation scripts that can be run by agent-manager investigations and system administrators to diagnose performance issues.
 
 ## Structure
 
@@ -40,9 +40,9 @@ Each script should include metadata in comments:
 # Your investigation logic here
 ```
 
-## Usage by OpenCode Agents
+## Usage by Agent-Manager Investigations
 
-OpenCode agents have full read/write access to this directory and should:
+Agent-manager investigations have full read/write access to this directory and should:
 
 1. **Check existing scripts** before creating new ones
 2. **Improve existing scripts** rather than duplicating

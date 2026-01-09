@@ -1,0 +1,150 @@
+{
+  "scenario": "scenario-auditor",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.490935519Z",
+  "dependencies": [
+    {
+      "name": "claude-code",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "opencode",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "app-issue-tracker",
+      "type": "scenario",
+      "path": "../../app-issue-tracker",
+      "source": "declared",
+      "children": [
+        {
+          "name": "claude-code",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "codex",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "minio",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "ollama",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "postgres",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "qdrant",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "redis",
+          "type": "resource",
+          "source": "declared"
+        }
+      ]
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "scenario-auditor",
+    "generated_at": "2025-11-16T19:40:57.490935519Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scenario-auditor-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/scenario-auditor",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "claude-code",
+        "type": "resource"
+      },
+      {
+        "name": "codex",
+        "type": "resource"
+      },
+      {
+        "name": "minio",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "opencode",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      },
+      {
+        "name": "app-issue-tracker",
+        "type": "scenario"
+      }
+    ]
+  }
+}

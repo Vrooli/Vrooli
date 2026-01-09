@@ -4,7 +4,8 @@
   "description": "Interactive autumn foliage tracking and prediction UI",
   "main": "server.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "build": "node ./scripts/build.js"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"

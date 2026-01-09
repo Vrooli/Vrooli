@@ -1,0 +1,302 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "description": "Returns API/process health along with database and ffmpeg status flags.",
+      "category": "system"
+    },
+    {
+      "id": "api-health",
+      "path": "/api/health",
+      "method": "GET",
+      "summary": "API health (namespaced)",
+      "description": "Same payload as /health but exposed under the /api prefix for monitors that expect it.",
+      "category": "system"
+    },
+    {
+      "id": "api-status",
+      "path": "/api/status",
+      "method": "GET",
+      "summary": "Platform status",
+      "description": "Provides uptime, version, capability list, and aggregate counts of videos, jobs, and streams.",
+      "category": "system"
+    },
+    {
+      "id": "docs-page",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "Serve API docs",
+      "description": "Returns the static documentation page for the Video Tools API.",
+      "category": "docs"
+    },
+    {
+      "id": "upload-video",
+      "path": "/api/v1/video/upload",
+      "method": "POST",
+      "summary": "Upload a video",
+      "description": "Accepts a multipart/form-data payload containing the source video and optional metadata, persists it, and schedules analysis.",
+      "category": "videos",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data"
+      }
+    },
+    {
+      "id": "get-video",
+      "path": "/api/v1/video/{id}",
+      "method": "GET",
+      "summary": "Fetch video metadata",
+      "description": "Returns stored metadata for the requested video asset, including format, duration, and status.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "video-info",
+      "path": "/api/v1/video/{id}/info",
+      "method": "GET",
+      "summary": "Detailed video info",
+      "description": "Returns technical information such as resolution, frame rate, codecs, and file size.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "edit-video",
+      "path": "/api/v1/video/{id}/edit",
+      "method": "POST",
+      "summary": "Apply edit operations",
+      "description": "Accepts a JSON array of edit operations (trim, crop, overlays, etc.) and queues a processing job.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      },
+      "request": {
+        "type": "object",
+        "properties": {
+          "operations": "array of edit operations",
+          "output_format": "target container",
+          "quality": "quality profile"
+        }
+      }
+    },
+    {
+      "id": "convert-video",
+      "path": "/api/v1/video/{id}/convert",
+      "method": "POST",
+      "summary": "Convert video format",
+      "description": "Converts the video into a requested format/resolution/bitrate and records the processing job.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "extract-frames-get",
+      "path": "/api/v1/video/{id}/frames",
+      "method": "GET",
+      "summary": "Extract frames (query)",
+      "description": "Extracts still frames at optional timestamp/query parameters and returns generated file paths.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      },
+      "query": {
+        "timestamps": {
+          "type": "string",
+          "description": "Comma-separated timestamp list in seconds"
+        },
+        "format": {
+          "type": "string",
+          "description": "Output image format (jpg, png, etc.)"
+        }
+      }
+    },
+    {
+      "id": "extract-frames-post",
+      "path": "/api/v1/video/{id}/frames",
+      "method": "POST",
+      "summary": "Extract frames (body)",
+      "description": "Allows clients to send a JSON body describing frames to extract; uses the same processor behind the scenes.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "generate-thumbnail",
+      "path": "/api/v1/video/{id}/thumbnail",
+      "method": "POST",
+      "summary": "Generate thumbnail",
+      "description": "Generates a thumbnail image for the video (defaulting to the midpoint frame) and returns its location.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "extract-audio",
+      "path": "/api/v1/video/{id}/audio",
+      "method": "POST",
+      "summary": "Extract audio track",
+      "description": "Extracts the audio track from the video, stores it (mp3 by default), and returns the generated path.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "add-subtitles",
+      "path": "/api/v1/video/{id}/subtitles",
+      "method": "POST",
+      "summary": "Attach subtitles",
+      "description": "Accepts subtitle metadata (path + burn-in flag) and enqueues an edit job to merge subtitles into the video.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "compress-video",
+      "path": "/api/v1/video/{id}/compress",
+      "method": "POST",
+      "summary": "Compress video",
+      "description": "Compresses the video down to a target size/bitrate and stores the processed asset.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "analyze-video",
+      "path": "/api/v1/video/{id}/analyze",
+      "method": "POST",
+      "summary": "Trigger AI analysis",
+      "description": "Runs the analyzer to detect scenes, objects, and quality issues for the given video and stores the results.",
+      "category": "videos",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Video identifier"
+        }
+      }
+    },
+    {
+      "id": "list-jobs",
+      "path": "/api/v1/jobs",
+      "method": "GET",
+      "summary": "List processing jobs",
+      "description": "Returns queued and historical processing jobs with status, type, and timestamps.",
+      "category": "jobs"
+    },
+    {
+      "id": "get-job",
+      "path": "/api/v1/jobs/{id}",
+      "method": "GET",
+      "summary": "Get job status",
+      "description": "Fetches the current state of a processing job (pending, running, failed, complete).",
+      "category": "jobs",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Job identifier"
+        }
+      }
+    },
+    {
+      "id": "cancel-job",
+      "path": "/api/v1/jobs/{id}/cancel",
+      "method": "POST",
+      "summary": "Cancel job",
+      "description": "Attempts to cancel an in-flight processing job and mark it as aborted.",
+      "category": "jobs",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Job identifier"
+        }
+      }
+    },
+    {
+      "id": "create-stream",
+      "path": "/api/v1/stream/create",
+      "method": "POST",
+      "summary": "Create streaming session",
+      "description": "Creates a live/preview streaming session for a video asset and returns connection details.",
+      "category": "streaming"
+    },
+    {
+      "id": "start-stream",
+      "path": "/api/v1/stream/{id}/start",
+      "method": "POST",
+      "summary": "Start stream",
+      "description": "Marks a stream session as active and begins producing segments/metadata.",
+      "category": "streaming",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Stream identifier"
+        }
+      }
+    },
+    {
+      "id": "stop-stream",
+      "path": "/api/v1/stream/{id}/stop",
+      "method": "POST",
+      "summary": "Stop stream",
+      "description": "Stops an active stream session and finalizes its metrics/logs.",
+      "category": "streaming",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Stream identifier"
+        }
+      }
+    },
+    {
+      "id": "list-streams",
+      "path": "/api/v1/streams",
+      "method": "GET",
+      "summary": "List streams",
+      "description": "Returns active and historical streaming sessions with status information.",
+      "category": "streaming"
+    }
+  ]
+}

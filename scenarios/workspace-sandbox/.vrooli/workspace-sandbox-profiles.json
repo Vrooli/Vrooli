@@ -1,0 +1,31 @@
+[
+  {
+    "id": "vrooli-aware--copy-",
+    "name": "Vrooli-Aware (Copy)",
+    "description": "Access to Vrooli CLIs, configs, and localhost network for API communication.",
+    "builtin": false,
+    "networkAccess": "localhost",
+    "readOnlyBinds": {
+      "$HOME/.config/vrooli": "$HOME/.config/vrooli",
+      "$HOME/.local/bin": "/usr/local/bin",
+      "$VROOLI_ROOT": "/vrooli",
+      "/bin": "/bin",
+      "/etc/group": "/etc/group",
+      "/etc/hosts": "/etc/hosts",
+      "/etc/passwd": "/etc/passwd",
+      "/etc/resolv.conf": "/etc/resolv.conf",
+      "/lib": "/lib",
+      "/lib64": "/lib64",
+      "/usr": "/usr"
+    },
+    "readWriteBinds": {},
+    "environment": {
+      "HOME": "/tmp",
+      "PATH": "/usr/local/bin:/usr/bin:/bin",
+      "SHELL": "/bin/sh",
+      "VROOLI_ENV": "$VROOLI_ENV",
+      "VROOLI_ROOT": "/vrooli"
+    },
+    "hostname": "sandbox"
+  }
+]

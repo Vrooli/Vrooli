@@ -72,7 +72,7 @@ log::success() {
 }
 
 log::error() {
-    log::echo_color RED "[ERROR]   $*"
+    log::echo_color RED "[ERROR]   $*" >&2
 }
 
 log::warning() {

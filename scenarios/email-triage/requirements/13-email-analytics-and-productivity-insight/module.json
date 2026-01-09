@@ -1,0 +1,86 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "email-triage-should-have-email-analytics-and-productivity-insights",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-006",
+        "REQ-P0-010"
+      ],
+      "description": "Implement an analytics dashboard showing email usage patterns, response times, peak activity hours, common contacts, and productivity metrics. Include trend analysis for email volume, response rates, and handling efficiency over time.",
+      "id": "REQ-P1-005",
+      "prd_ref": "email-triage-should-have-email-analytics-and-productivity-insights",
+      "status": "draft",
+      "title": "Email Analytics Dashboard",
+      "validation": [
+        {
+          "notes": "Verify metrics calculation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test data aggregation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate visualization components",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test data collection across email sources",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify real-time updates",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dashboard loads within 3 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analytics queries complete within 5 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Provides actionable insights for email management",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Helps identify productivity bottlenecks",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Email analytics and productivity insights"
+}

@@ -1,4 +1,4 @@
-import {
+import type {
   SystemStatus,
   HealthSummary,
   Scenario,
@@ -18,14 +18,13 @@ import {
   AutomatedFixJobSnapshot,
   RuleScenarioTestResult,
   RuleScenarioBatchTestResult,
+  ProtectedScenariosResponse,
+  UpdateProtectedScenariosResponse,
+  PreferencesResponse,
 } from '@/types/api'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18507'
-
 const API_BASE = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
 })
 
@@ -57,13 +56,19 @@ class ApiService {
       ? summary.vulnerabilities
       : undefined
 
+    // Map summary status to SystemStatus type
+    const systemStatus: SystemStatus['status'] =
+      summary.status === 'critical' ? 'unhealthy' :
+      summary.status === 'unknown' ? 'unhealthy' :
+      summary.status === 'healthy' || summary.status === 'degraded' || summary.status === 'unhealthy' ? summary.status : 'unhealthy'
+
     return {
-      status: summary.status as any,
+      status: systemStatus,
       health_score: summary.system_health_score || 0,
       scenarios: scenariosMetric?.total ?? (typeof summary.scenarios === 'number' ? summary.scenarios : 0),
       vulnerabilities: vulnerabilitiesMetric?.total ?? (typeof summary.vulnerabilities === 'number' ? summary.vulnerabilities : 0),
-      standards_violations: (summary as any).standards_violations || 0,
-      endpoints: 0, // This field doesn't exist in current API response
+      standards_violations: typeof summary === 'object' && 'standards_violations' in summary ? (summary as any).standards_violations : 0,
+      endpoints: summary.endpoints?.total || 0,
       timestamp: summary.timestamp || new Date().toISOString(),
     }
   }
@@ -73,16 +78,21 @@ class ApiService {
     return this.fetch<HealthSummary>('/health/summary')
   }
 
-  async getScenarioHealth(name: string): Promise<any> {
-    return this.fetch(`/scenarios/${name}/health`)
-  }
-
   async getHealthAlerts(): Promise<{ alerts: HealthAlert[], count: number }> {
-    return this.fetch('/health/alerts')
+    return this.fetch<{ alerts: HealthAlert[], count: number }>('/health/alerts')
   }
 
-  async getHealthMetrics(scenario: string): Promise<any> {
-    return this.fetch(`/health/metrics/${scenario}`)
+  async getScenarioHealth(name: string): Promise<{
+    scenario: string
+    status: 'healthy' | 'degraded' | 'unhealthy'
+    health_score: number
+    score?: number
+    uptime?: number
+    response_time?: number
+    error_rate?: number
+    checks: Record<string, { status: string; message?: string }>
+  }> {
+    return this.fetch(`/scenarios/${name}/health`)
   }
 
   // Scenarios
@@ -132,10 +142,6 @@ class ApiService {
   async getRecentScans(): Promise<SecurityScan[]> {
     const response = await this.fetch<{ scans: SecurityScan[] }>('/scans/recent')
     return response.scans || []
-  }
-
-  async getDashboard(): Promise<any> {
-    return this.fetch('/dashboard')
   }
 
   // Performance
@@ -431,18 +437,26 @@ class ApiService {
     })
   }
 
-  async getResults(): Promise<any> {
-    return this.fetch('/scan-results')
+  async getPreferences(): Promise<PreferencesResponse> {
+    return this.fetch<PreferencesResponse>('/preferences')
   }
 
-  async getPreferences(): Promise<any> {
-    return this.fetch('/preferences')
-  }
-
-  async updatePreferences(preferences: any): Promise<any> {
-    return this.fetch('/preferences', {
+  async updatePreferences(preferences: Record<string, boolean>): Promise<PreferencesResponse> {
+    return this.fetch<PreferencesResponse>('/preferences', {
       method: 'PUT',
       body: JSON.stringify(preferences)
+    })
+  }
+
+  // Protected scenarios management
+  async getProtectedScenarios(): Promise<ProtectedScenariosResponse> {
+    return this.fetch('/protected-scenarios')
+  }
+
+  async updateProtectedScenarios(scenarios: string[]): Promise<UpdateProtectedScenariosResponse> {
+    return this.fetch('/protected-scenarios', {
+      method: 'POST',
+      body: JSON.stringify({ scenarios })
     })
   }
 }

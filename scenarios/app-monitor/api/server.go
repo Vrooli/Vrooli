@@ -16,6 +16,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/health"
 )
 
 // Server holds all server dependencies
@@ -27,11 +28,11 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	health    *handlers.HealthHandler
-	app       *handlers.AppHandler
-	system    *handlers.SystemHandler
-	docker    *handlers.DockerHandler
-	websocket *handlers.WebSocketHandler
+	app        *handlers.AppHandler
+	system     *handlers.SystemHandler
+	docker     *handlers.DockerHandler
+	websocket  *handlers.WebSocketHandler
+	lighthouse *handlers.LighthouseHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -67,15 +68,15 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	// Create handlers
 	handlers := &Handlers{
-		health:    handlers.NewHealthHandler(db, redis, docker),
-		app:       handlers.NewAppHandler(appService),
-		system:    handlers.NewSystemHandler(metricsService),
-		docker:    handlers.NewDockerHandler(docker),
-		websocket: handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		app:        handlers.NewAppHandler(appService),
+		system:     handlers.NewSystemHandler(metricsService),
+		docker:     handlers.NewDockerHandler(docker),
+		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse: handlers.NewLighthouseHandler(),
 	}
 
 	// Setup router
-	router := setupRouter(handlers, cfg)
+	router := setupRouter(handlers, cfg, db)
 
 	return &Server{
 		config:   cfg,
@@ -85,7 +86,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 // setupRouter configures all routes and middleware
-func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
+func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) *gin.Engine {
 	// Set Gin mode based on environment
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -114,13 +115,15 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 	}
 
 	// Health endpoints (no auth required)
-	r.GET("/health", h.health.Check)
-	r.GET("/api/health", h.health.APIHealth)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
+	r.GET("/health", gin.WrapF(healthHandler))
+	r.GET("/api/health", gin.WrapF(healthHandler))
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")
 	{
 		// System endpoints
+		v1.GET("/system/status", h.system.GetSystemStatus)
 		v1.GET("/system/metrics", h.system.GetSystemMetrics)
 
 		// App management endpoints
@@ -133,8 +136,16 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.POST("/apps/:id/view", h.app.RecordAppView)
 		v1.GET("/apps/:id/issues", h.app.GetAppIssues)
 		v1.POST("/apps/:id/report", h.app.ReportAppIssue)
+		v1.POST("/apps/:id/fallback-diagnostics", h.app.GetFallbackDiagnostics)
+		v1.GET("/apps/:id/diagnostics", h.app.GetAppCompleteDiagnostics)
 		v1.GET("/apps/:id/diagnostics/iframe-bridge", h.app.CheckAppIframeBridge)
+		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)
+		v1.GET("/apps/:id/diagnostics/health", h.app.CheckAppHealth)
 		v1.GET("/apps/:id/diagnostics/localhost", h.app.CheckAppLocalhostUsage)
+		v1.GET("/apps/:id/completeness", h.app.GetAppCompleteness)
+		v1.GET("/apps/:id/docs", h.app.GetAppDocuments)
+		v1.GET("/apps/:id/docs/*path", h.app.GetAppDocument)
+		v1.GET("/apps/:id/docs-search", h.app.SearchAppDocuments)
 		v1.GET("/apps/:id/logs", h.app.GetAppLogs)
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
@@ -153,6 +164,12 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		// Docker integration endpoints
 		v1.GET("/docker/info", h.docker.GetDockerInfo)
 		v1.GET("/docker/containers", h.docker.GetContainers)
+
+		// Lighthouse testing endpoints
+		v1.GET("/lighthouse/missing-configs", h.lighthouse.ListMissingConfigs)
+		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
+		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
+		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)
 	}
 
 	// WebSocket endpoint

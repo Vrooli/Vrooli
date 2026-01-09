@@ -189,7 +189,7 @@
         }
     },
     "api": {
-        "port": 8083,
+        "port": 8080,
         "cors_enabled": true,
         "rate_limiting": {
             "enabled": true,
@@ -210,14 +210,6 @@
         }
     },
     "integrations": {
-        "n8n": {
-            "enabled": true,
-            "workflows": [
-                "threshold-monitor",
-                "scheduled-reports",
-                "anomaly-investigator"
-            ]
-        },
         "node_red": {
             "enabled": true,
             "flows": [

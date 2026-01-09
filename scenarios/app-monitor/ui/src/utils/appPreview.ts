@@ -1,5 +1,13 @@
 import type { App } from '@/types';
+import { logger } from '@/services/logger';
 
+/**
+ * Normalizes an identifier string for comparison purposes.
+ * Returns lowercase, trimmed string or null if invalid.
+ *
+ * Note: The Go implementation in app_utils.go returns empty string instead of null,
+ * but both are functionally equivalent (falsy values that must be checked before use).
+ */
 export const normalizeIdentifier = (value?: string | null): string | null => {
   if (!value) {
     return null;
@@ -9,16 +17,45 @@ export const normalizeIdentifier = (value?: string | null): string | null => {
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
 };
 
+/**
+ * Collects all valid app identifiers (id, scenario_name, name) as normalized strings.
+ * Returns array of lowercase, trimmed identifiers.
+ */
 export const collectAppIdentifiers = (app: App): string[] => {
   return [app.id, app.scenario_name, app.name]
     .map(normalizeIdentifier)
     .filter((value): value is string => Boolean(value));
 };
 
+/**
+ * Resolves the primary identifier for an app, preserving original case.
+ * Priority: id > scenario_name > name
+ * Returns trimmed string or null if no valid identifier found.
+ */
 export const resolveAppIdentifier = (app: App): string | null => {
   const candidates: Array<string | undefined> = [app.id, app.scenario_name, app.name];
   const match = candidates.find(value => typeof value === 'string' && value.trim().length > 0);
   return match ? match.trim() : null;
+};
+
+/**
+ * Derives a unique key for an app for use in Map/Set structures.
+ * Unlike resolveAppIdentifier, this ALWAYS returns a non-null string,
+ * falling back to a generated UUID if no identifier is available.
+ * Preserves original case for display purposes.
+ */
+export const deriveAppKey = (app: App): string => {
+  const resolved = resolveAppIdentifier(app);
+  if (resolved) {
+    return resolved;
+  }
+
+  // Fallback to generated identifier
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `app-${Math.random().toString(36).slice(2)}`;
 };
 
 export const parseTimestampValue = (value?: string | null): number | null => {
@@ -36,6 +73,10 @@ export const parseTimestampValue = (value?: string | null): number | null => {
 
 const APP_PROXY_PREFIX = '/apps';
 
+export const buildProxyPreviewUrl = (identifier: string): string => {
+  return `${APP_PROXY_PREFIX}/${encodeURIComponent(identifier)}/proxy/`;
+};
+
 export const normalizeStatus = (status?: string | null) => (status ?? '').toLowerCase();
 
 export const isRunningStatus = (status?: string | null) => {
@@ -44,6 +85,16 @@ export const isRunningStatus = (status?: string | null) => {
 };
 
 export const isStoppedStatus = (status?: string | null) => normalizeStatus(status) === 'stopped';
+
+/**
+ * Checks if a scenario is explicitly stopped (not running, not partial data).
+ * A scenario is explicitly stopped when:
+ * - It has complete data (not is_partial)
+ * - Its status is "stopped"
+ */
+export const isScenarioExplicitlyStopped = (app: App | null): boolean => {
+  return Boolean(app && !app.is_partial && isStoppedStatus(app.status));
+};
 
 const parsePort = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -183,53 +234,138 @@ const findPortInEnvironment = (environment: Record<string, unknown>): number | n
   return fallbackPort;
 };
 
+/**
+ * Debug helper for UI port computation.
+ * Only logs when __DEBUG_UI_PORT is enabled on window object.
+ */
+const debugUIPort = (message: string, data?: unknown): void => {
+  if (typeof window !== 'undefined' && window.__DEBUG_UI_PORT) {
+    logger.debug(`[computeAppUIPort] ${message}`, data);
+  }
+};
+
+/**
+ * Attempts to extract UI port from app's primary_port configuration.
+ * Only returns a port if the primary_port_label explicitly indicates it's a UI port.
+ */
+const computePrimaryUIPort = (config: Record<string, unknown>, portMappings: Record<string, unknown>): number | null => {
+  const primaryPortLabel = typeof config.primary_port_label === 'string'
+    ? config.primary_port_label.toLowerCase()
+    : null;
+
+  // Only use primary_port if it's explicitly labeled as a UI port
+  if (primaryPortLabel && primaryPortLabel.includes('ui')) {
+    const primaryPort = parsePort(config.primary_port);
+    if (primaryPort !== null) {
+      debugUIPort('Found UI primary_port in config', primaryPort);
+      return primaryPort;
+    }
+
+    // Check if primary_port_label points to a UI-related port in mappings
+    const labeledPort = getPortFromMappings(portMappings, config.primary_port_label as string);
+    if (labeledPort !== null) {
+      debugUIPort('Found UI labeled port', labeledPort);
+      return labeledPort;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Attempts to find UI port in port_mappings using standard conventions.
+ * Checks for UI_PORT first (standard), then falls back to common UI port keys.
+ */
+const computeMappedUIPort = (portMappings: Record<string, unknown>): number | null => {
+  // Look for UI_PORT explicitly (the standard convention)
+  const uiPort = getPortFromMappings(portMappings, 'UI_PORT');
+  if (uiPort !== null) {
+    debugUIPort('Found UI_PORT in mappings', uiPort);
+    return uiPort;
+  }
+
+  // Check other UI-related port keys (fallback patterns)
+  for (const key of candidatePortKeys) {
+    const mappedPort = getPortFromMappings(portMappings, key);
+    if (mappedPort !== null) {
+      debugUIPort('Found UI port via candidatePortKeys', { key, port: mappedPort });
+      return mappedPort;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Attempts to find UI port in environment variables.
+ * First tries specific candidate keys, then performs heuristic search.
+ */
+const computeEnvironmentUIPort = (environment: Record<string, unknown>): number | null => {
+  // Check candidate port keys in environment
+  for (const key of candidatePortKeys) {
+    const envPort = getPortFromEnvironment(environment, key);
+    if (envPort !== null) {
+      debugUIPort('Found UI port in environment', { key, port: envPort });
+      return envPort;
+    }
+  }
+
+  // Perform heuristic search for UI-related environment variables
+  const environmentPort = findPortInEnvironment(environment);
+  if (environmentPort !== null) {
+    debugUIPort('Found UI port via environment heuristic', environmentPort);
+    return environmentPort;
+  }
+
+  return null;
+};
+
+/**
+ * Last resort: attempts to use app.port as the UI port.
+ * This fallback is used when no explicit UI port configuration is found.
+ */
+const computeFallbackUIPort = (app: App): number | null => {
+  const fallbackPort = parsePort(app.port);
+  if (fallbackPort !== null) {
+    debugUIPort('Using app.port fallback', fallbackPort);
+    return fallbackPort;
+  }
+
+  return null;
+};
+
+/**
+ * Determines the UI port for an app by checking multiple sources in priority order:
+ * 1. Primary port configuration (if labeled as UI)
+ * 2. Port mappings (UI_PORT or common UI port keys)
+ * 3. Environment variables (UI-related keys or heuristic search)
+ * 4. Fallback to app.port
+ *
+ * Returns null if no UI port can be determined.
+ */
 const computeAppUIPort = (app: App): number | null => {
   const portMappings = (app.port_mappings ?? {}) as Record<string, unknown>;
   const config = app.config ?? {};
   const environment = (app.environment ?? {}) as Record<string, unknown>;
 
-  const primaryPort = parsePort(config.primary_port);
-  if (primaryPort !== null) {
-    return primaryPort;
+  debugUIPort('Starting computation for app', {
+    appId: app.id,
+    portMappings,
+    config,
+    environment,
+  });
+
+  // Try each strategy in priority order
+  const port = computePrimaryUIPort(config, portMappings)
+    ?? computeMappedUIPort(portMappings)
+    ?? computeEnvironmentUIPort(environment)
+    ?? computeFallbackUIPort(app);
+
+  if (port === null) {
+    debugUIPort('No UI port found, returning null');
   }
 
-  if (typeof config.primary_port_label === 'string') {
-    const labeledPort = getPortFromMappings(portMappings, config.primary_port_label);
-    if (labeledPort !== null) {
-      return labeledPort;
-    }
-  }
-
-  for (const key of candidatePortKeys) {
-    const mappedPort = getPortFromMappings(portMappings, key);
-    if (mappedPort !== null) {
-      return mappedPort;
-    }
-
-    const envPort = getPortFromEnvironment(environment, key);
-    if (envPort !== null) {
-      return envPort;
-    }
-  }
-
-  for (const value of Object.values(portMappings)) {
-    const mappedPort = parsePort(unwrapValue(value));
-    if (mappedPort !== null) {
-      return mappedPort;
-    }
-  }
-
-  const environmentPort = findPortInEnvironment(environment);
-  if (environmentPort !== null) {
-    return environmentPort;
-  }
-
-  const fallbackPort = parsePort(app.port);
-  if (fallbackPort !== null) {
-    return fallbackPort;
-  }
-
-  return null;
+  return port;
 };
 
 export const buildPreviewUrl = (app: App): string | null => {
@@ -237,8 +373,8 @@ export const buildPreviewUrl = (app: App): string | null => {
   const environment = (app.environment ?? {}) as Record<string, unknown>;
   const uiPort = computeAppUIPort(app);
 
-  if (uiPort !== null) {
-    return `${APP_PROXY_PREFIX}/${encodeURIComponent(app.id)}/proxy/`;
+  if (uiPort !== null && typeof app.id === 'string' && app.id.trim()) {
+    return buildProxyPreviewUrl(app.id);
   }
 
   if (typeof config.ui_url === 'string' && config.ui_url.trim()) {
@@ -269,10 +405,37 @@ export const buildPreviewUrl = (app: App): string | null => {
 };
 
 export const locateAppByIdentifier = (apps: App[], identifier: string): App | null => {
+  if (!identifier) {
+    return null;
+  }
+
+  const normalized = identifier.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
   return (
-    apps.find(app => app.id === identifier || app.name === identifier || app.scenario_name === identifier) ??
-    null
+    apps.find(app => {
+      const candidates = [app.id, app.scenario_name, app.name]
+        .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+        .filter(value => value.length > 0);
+      return candidates.includes(normalized);
+    }) ?? null
   );
+};
+
+export const matchesAppIdentifier = (app: App, identifier?: string | null): boolean => {
+  if (!identifier) {
+    return false;
+  }
+
+  const normalized = normalizeIdentifier(identifier);
+  if (!normalized) {
+    return false;
+  }
+
+  const candidates = collectAppIdentifiers(app);
+  return candidates.includes(normalized);
 };
 
 export interface PortMetric {

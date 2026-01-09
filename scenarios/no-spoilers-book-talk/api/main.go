@@ -1,13 +1,17 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +30,9 @@ const (
 	maxFileSize    = 50 * 1024 * 1024 // 50MB max file size
 	maxChatHistory = 50               // Maximum chat history to return
 )
+
+//go:embed static/*
+var embeddedStaticFiles embed.FS
 
 // Book represents a book in the system
 type Book struct {
@@ -108,28 +115,6 @@ func NewBookTalkService(db *sql.DB, n8nURL, qdrantURL, dataDir string) *BookTalk
 		dataDir:    dataDir,
 		logger:     log.New(os.Stdout, "[book-talk-api] ", log.LstdFlags|log.Lshortfile),
 	}
-}
-
-// Health endpoint
-func (s *BookTalkService) Health(w http.ResponseWriter, r *http.Request) {
-	// Test database connection
-	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			s.httpError(w, "Database connection failed", http.StatusServiceUnavailable, err)
-			return
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":         "healthy",
-		"service":        serviceName,
-		"version":        apiVersion,
-		"timestamp":      time.Now().UTC(),
-		"data_directory": s.dataDir,
-		"n8n_url":        s.n8nBaseURL,
-		"qdrant_url":     s.qdrantURL,
-	})
 }
 
 // UploadBook handles book file uploads and processing
@@ -502,7 +487,7 @@ func (s *BookTalkService) ChatWithBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = s.db.Exec(`
-		INSERT INTO conversations (id, book_id, user_id, user_message, ai_response, 
+		INSERT INTO book_talk_conversations (id, book_id, user_id, user_message, ai_response, 
 		                          user_position, position_type, context_chunks_used, 
 		                          sources_referenced, position_boundary_respected, processing_time_ms)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -661,7 +646,7 @@ func (s *BookTalkService) GetConversations(w http.ResponseWriter, r *http.Reques
 		SELECT id, user_message, ai_response, user_position, position_type,
 		       context_chunks_used, sources_referenced, position_boundary_respected,
 		       processing_time_ms, created_at
-		FROM conversations 
+		FROM book_talk_conversations 
 		WHERE book_id = $1 AND user_id = $2 
 		ORDER BY created_at DESC 
 		LIMIT $3`
@@ -836,16 +821,11 @@ func min(a, b int) int {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start no-spoilers-book-talk
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "no-spoilers-book-talk",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 	// Configuration
 	port := os.Getenv("API_PORT")
@@ -854,11 +834,6 @@ func main() {
 		if port == "" {
 			port = "20300"
 		}
-	}
-
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		log.Fatalf("❌ POSTGRES_URL environment variable is required")
 	}
 
 	n8nURL := os.Getenv("N8N_BASE_URL")
@@ -876,10 +851,12 @@ func main() {
 		dataDir = "./data"
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	// Connect to database using api-core with automatic retry
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatal("Database connection failed:", err)
 	}
 	defer db.Close()
 
@@ -888,42 +865,6 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
 	// Initialize service
 	service := NewBookTalkService(db, n8nURL, qdrantURL, dataDir)
 
@@ -931,7 +872,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health endpoint
-	r.HandleFunc("/health", service.Health).Methods("GET")
+	r.HandleFunc("/health", health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// Book management
 	r.HandleFunc("/api/v1/books", service.GetBooks).Methods("GET")
@@ -943,9 +884,16 @@ func main() {
 	r.HandleFunc("/api/v1/books/{book_id}/progress", service.UpdateProgress).Methods("PUT")
 	r.HandleFunc("/api/v1/books/{book_id}/conversations", service.GetConversations).Methods("GET")
 
+	// Static UI assets served from embedded filesystem
+	staticFS, fsErr := fs.Sub(embeddedStaticFiles, "static")
+	if fsErr != nil {
+		log.Fatalf("Failed to load embedded static assets: %v", fsErr)
+	}
+	staticHandler := http.FileServer(http.FS(staticFS))
+	r.PathPrefix("/").Handler(staticHandler)
+
 	// Start server
 	log.Printf("Starting No Spoilers Book Talk API on port %s", port)
-	log.Printf("  Database: %s", dbURL)
 	log.Printf("  n8n: %s", n8nURL)
 	log.Printf("  Qdrant: %s", qdrantURL)
 	log.Printf("  Data directory: %s", dataDir)

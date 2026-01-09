@@ -1,0 +1,6 @@
+{
+  "runtime": {
+    "protected": true,
+    "protection_reason": "System health monitoring - needed to detect issues during automation"
+  }
+}

@@ -11,16 +11,17 @@ Interactive world map application for tracking and visualizing your travel histo
 - Travel bucket list management
 - Photo memories and notes for each location
 
-## Dependencies
-- **n8n**: Workflow automation for travel processing and achievement calculation
+-## Dependencies
 - **PostgreSQL**: Store travel records, achievements, and user data
 - **Qdrant**: Vector database for semantic search of travel memories
 - **Ollama** (optional): Generate travel insights and recommendations
 - **Redis** (optional): Cache map data for fast loading
 
+> **Note**: The Go API now handles travel automation (embeddings, achievements, persistence) internally, so no external workflow engine is required.
+
 ## How It Works
 1. Users add travel locations via UI or CLI
-2. n8n workflows process the location:
+2. The API processes the location:
    - Generate embeddings for semantic search
    - Calculate achievements and statistics
    - Store in PostgreSQL and Qdrant
@@ -44,16 +45,16 @@ Interactive world map application for tracking and visualizing your travel histo
 ## CLI Commands
 ```bash
 # Add a new travel location
-travel-map add "Paris, France" --date "2024-06-15" --type vacation
+travel-map-filler add "Paris, France" --date "2024-06-15" --type vacation
 
 # Search travel memories
-travel-map search "beach sunset"
+travel-map-filler search "beach sunset"
 
 # View statistics
-travel-map stats
+travel-map-filler stats
 
 # List all travels
-travel-map list --year 2024
+travel-map-filler list --year 2024
 ```
 
 ## API Endpoints
@@ -64,16 +65,11 @@ travel-map list --year 2024
 - `GET /api/achievements` - List earned achievements
 - `GET /api/map/data` - Get map visualization data
 
-## N8N Workflows
-1. **travel-tracker.json** - Process new travel entries, calculate achievements
-2. **travel-search.json** - Semantic search using embeddings
-3. **travel-list.json** - Generate travel lists with filters
-
 ## Testing
 ```bash
 # Test via CLI
-travel-map add "Tokyo, Japan" --type business
-travel-map stats
+travel-map-filler add "Tokyo, Japan" --type business
+travel-map-filler stats
 
 # Test via API
 curl -X POST http://localhost:8760/api/travels \

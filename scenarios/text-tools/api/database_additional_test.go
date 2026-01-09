@@ -1,46 +1,49 @@
 package main
 
 import (
+	"math"
+	"math/rand"
 	"testing"
 	"time"
 )
 
-func TestCalculateBackoff(t *testing.T) {
+func TestComputeBackoffDelay(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
 	tests := []struct {
-		name     string
-		current  time.Duration
-		expected time.Duration
+		name    string
+		attempt int
+		seed    int64
 	}{
 		{
-			name:     "InitialBackoff",
-			current:  1 * time.Second,
-			expected: 2 * time.Second,
+			name:    "InitialBackoff",
+			attempt: 1,
+			seed:    7,
 		},
 		{
-			name:     "DoubleBackoff",
-			current:  2 * time.Second,
-			expected: 4 * time.Second,
+			name:    "DoublingBackoff",
+			attempt: 2,
+			seed:    11,
 		},
 		{
-			name:     "MaxBackoffReached",
-			current:  40 * time.Second,
-			expected: 60 * time.Second, // Should cap at maxBackoff
-		},
-		{
-			name:     "ExceedsMaxBackoff",
-			current:  100 * time.Second,
-			expected: 60 * time.Second, // Should return maxBackoff
+			name:    "MaxBackoffCapped",
+			attempt: 10,
+			seed:    19,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := calculateBackoff(tt.current)
-			if result != tt.expected {
-				t.Errorf("calculateBackoff(%v) = %v, want %v", tt.current, result, tt.expected)
+			rng := rand.New(rand.NewSource(tt.seed))
+			result := sampleBackoff(tt.attempt, rng)
+
+			expectedBase := time.Duration(math.Min(float64(initialBackoff)*math.Pow(backoffFactor, float64(tt.attempt-1)), float64(maxBackoff)))
+			expectedRand := rand.New(rand.NewSource(tt.seed))
+			expected := expectedBase + time.Duration(expectedRand.Float64()*float64(expectedBase)*0.25)
+
+			if result != expected {
+				t.Errorf("sampleBackoff(attempt=%d) = %v, want %v", tt.attempt, result, expected)
 			}
 		})
 	}

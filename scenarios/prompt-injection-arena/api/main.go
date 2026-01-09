@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
-	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -93,6 +94,9 @@ type AgentTestResponse struct {
 // Database connection
 var db *sql.DB
 
+// Application configuration
+var appConfig *Config
+
 // Initialize database connection
 func initDB() {
 	var err error
@@ -100,100 +104,21 @@ func initDB() {
 	// Load environment variables
 	godotenv.Load()
 
-	// Get database configuration from environment (no defaults)
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
-	}
-
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
-	}
-
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
-	}
-
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
-	}
-
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		log.Fatal("❌ POSTGRES_DB environment variable is required")
-	}
-
-	// Construct connection string
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	db, err = sql.Open("postgres", psqlInfo)
+	// Load and validate configuration
+	config, err := LoadConfig()
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		logger.Fatal("Failed to load configuration", map[string]interface{}{"error": err.Error()})
 	}
+	appConfig = config
 
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-}
-
-// Health check endpoint
-func healthCheck(c *gin.Context) {
-	// Check database connection
-	if err := db.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "database connection failed",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
-		"service":   "prompt-injection-arena",
+	// Connect to database with exponential backoff
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
 	})
+	if err != nil {
+		logger.Fatal("Database connection failed", map[string]interface{}{"error": err.Error()})
+	}
+	logger.Info("Database connected successfully")
 }
 
 // Get injection techniques library
@@ -550,7 +475,7 @@ func testAgent(c *gin.Context) {
 	sessionID := uuid.New().String()
 
 	// Check if we should use mock mode (for testing without Ollama)
-	useMockMode := os.Getenv("USE_MOCK_TESTING") == "true"
+	useMockMode := appConfig.UseMockTesting
 
 	for _, injection := range injections {
 		var responseText string
@@ -625,7 +550,10 @@ func testAgent(c *gin.Context) {
 
 		// Save test result to database for persistence
 		if err := saveTestResult(result); err != nil {
-			log.Printf("Warning: Failed to save test result: %v", err)
+			logger.Warn("Failed to save test result", map[string]interface{}{
+				"error":      err.Error(),
+				"session_id": sessionID,
+			})
 		}
 	}
 
@@ -782,7 +710,11 @@ func getSimilarInjections(c *gin.Context) {
 
 	similar, err := FindSimilarInjections(queryText, limit)
 	if err != nil {
-		log.Printf("Error finding similar injections: %v", err)
+		logger.Error("Error finding similar injections", map[string]interface{}{
+			"error": err.Error(),
+			"query": queryText,
+			"limit": limit,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find similar techniques"})
 		return
 	}
@@ -817,7 +749,11 @@ func vectorSearch(c *gin.Context) {
 
 	results, err := FindSimilarInjections(request.Query, request.Limit)
 	if err != nil {
-		log.Printf("Vector search error: %v", err)
+		logger.Error("Vector search error", map[string]interface{}{
+			"error": err.Error(),
+			"query": request.Query,
+			"limit": request.Limit,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
 		return
 	}
@@ -858,7 +794,10 @@ func indexInjection(c *gin.Context) {
 	textToEmbed := fmt.Sprintf("%s %s %s %s", name, category, description, examplePrompt)
 	embedding, err := GenerateEmbedding(textToEmbed)
 	if err != nil {
-		log.Printf("Error generating embedding: %v", err)
+		logger.Error("Error generating embedding", map[string]interface{}{
+			"error":        err.Error(),
+			"injection_id": request.InjectionID,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate embedding"})
 		return
 	}
@@ -877,7 +816,10 @@ func indexInjection(c *gin.Context) {
 	}
 
 	if err := client.UpsertPoints("injection_techniques", []VectorPoint{point}); err != nil {
-		log.Printf("Error indexing injection: %v", err)
+		logger.Error("Error indexing injection", map[string]interface{}{
+			"error":        err.Error(),
+			"injection_id": request.InjectionID,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to index injection"})
 		return
 	}
@@ -969,7 +911,10 @@ func createTournamentHandler(c *gin.Context) {
 
 	tournament, err := CreateTournament(request.Name, request.Description, request.ScheduledAt, request.Config)
 	if err != nil {
-		log.Printf("Error creating tournament: %v", err)
+		logger.Error("Error creating tournament", map[string]interface{}{
+			"error": err.Error(),
+			"name":  request.Name,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tournament"})
 		return
 	}
@@ -993,7 +938,10 @@ func runTournamentHandler(c *gin.Context) {
 	go func() {
 		scheduler := NewTournamentScheduler(db)
 		if err := scheduler.RunTournament(tournamentID); err != nil {
-			log.Printf("Error running tournament %s: %v", tournamentID, err)
+			logger.Error("Error running tournament", map[string]interface{}{
+				"error":         err.Error(),
+				"tournament_id": tournamentID,
+			})
 		}
 	}()
 
@@ -1113,7 +1061,10 @@ func exportResearch(c *gin.Context) {
 	// Export data
 	data, err := ExportResearchData(format, request.Filters)
 	if err != nil {
-		log.Printf("Export error: %v", err)
+		logger.Error("Export error", map[string]interface{}{
+			"error":  err.Error(),
+			"format": format,
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Export failed"})
 		return
 	}
@@ -1165,18 +1116,58 @@ func getExportFormats(c *gin.Context) {
 	})
 }
 
-func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start prompt-injection-arena
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+// Admin: Clean up test injection data
+func cleanupTestData(c *gin.Context) {
+	// Delete test results first (foreign key constraint)
+	deleteResultsQuery := `
+		DELETE FROM test_results
+		WHERE injection_id IN (
+			SELECT id FROM injection_techniques
+			WHERE name LIKE 'Test Injection Technique%'
+		)
+	`
+	result, err := db.Exec(deleteResultsQuery)
+	if err != nil {
+		logger.Error("Failed to delete test results", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete test results"})
+		return
 	}
+
+	resultsDeleted, _ := result.RowsAffected()
+
+	// Delete test injection techniques
+	deleteInjectionsQuery := `DELETE FROM injection_techniques WHERE name LIKE 'Test Injection Technique%'`
+	result, err = db.Exec(deleteInjectionsQuery)
+	if err != nil {
+		logger.Error("Failed to delete test injections", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete test injections"})
+		return
+	}
+
+	injectionsDeleted, _ := result.RowsAffected()
+
+	logger.Info("Test data cleanup completed", map[string]interface{}{
+		"test_results_deleted":    resultsDeleted,
+		"test_injections_deleted": injectionsDeleted,
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":                 "Test data cleaned up successfully",
+		"test_results_deleted":    resultsDeleted,
+		"test_injections_deleted": injectionsDeleted,
+	})
+}
+
+func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "prompt-injection-arena",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
+	// Initialize structured logger after lifecycle check
+	InitLogger()
 
 	// Initialize database
 	initDB()
@@ -1184,12 +1175,14 @@ func main() {
 
 	// Initialize vector search (non-blocking)
 	go func() {
-		log.Println("Initializing vector search...")
+		logger.Info("Initializing vector search")
 		if err := InitializeVectorSearch(); err != nil {
-			log.Printf("Warning: Vector search initialization failed: %v", err)
-			log.Println("Vector search features will be limited")
+			logger.Warn("Vector search initialization failed", map[string]interface{}{
+				"error":   err.Error(),
+				"message": "Vector search features will be limited",
+			})
 		} else {
-			log.Println("Vector search initialized successfully")
+			logger.Info("Vector search initialized successfully")
 		}
 	}()
 
@@ -1199,7 +1192,7 @@ func main() {
 	// Configure trusted proxies for security
 	// Only trust localhost for local development
 	if err := r.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
-		log.Printf("Warning: Failed to set trusted proxies: %v", err)
+		logger.Warn("Failed to set trusted proxies", map[string]interface{}{"error": err.Error()})
 	}
 
 	// Add CORS middleware
@@ -1213,7 +1206,7 @@ func main() {
 	}))
 
 	// Health check
-	r.GET("/health", healthCheck)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// API routes
 	api := r.Group("/api/v1")
@@ -1246,14 +1239,19 @@ func main() {
 		// Research export
 		api.POST("/export/research", exportResearch)
 		api.GET("/export/formats", getExportFormats)
+
+		// Admin operations
+		api.POST("/admin/cleanup-test-data", cleanupTestData)
 	}
 
-	// Get port from environment
-	port := os.Getenv("API_PORT")
+	// Get port from validated configuration
+	port := appConfig.APIPort
 	if port == "" {
-		port = "20300"
+		logger.Fatal("API_PORT is required but not set in configuration")
 	}
 
-	log.Printf("Starting Prompt Injection Arena API on port %s", port)
-	log.Fatal(r.Run(":" + port))
+	logger.Info("Starting Prompt Injection Arena API", map[string]interface{}{"port": port})
+	if err := r.Run(":" + port); err != nil {
+		logger.Fatal("Server failed to start", map[string]interface{}{"error": err.Error()})
+	}
 }

@@ -142,7 +142,7 @@ secrets::source_port_registry() {
 #######################################
 # Resolve service reference to actual URL/port
 # Arguments:
-#   $1 - resource name (e.g., "ollama", "n8n")
+#   $1 - resource name (e.g., "ollama", "redis")
 #   $2 - property type (e.g., "url", "port", "host")
 # Returns:
 #   0 - success, value printed to stdout
@@ -426,7 +426,7 @@ secrets::process_bash_templates() {
 #######################################
 # Save API key to project secrets.json
 # Arguments:
-#   $1 - secret key name (e.g., "N8N_API_KEY") 
+#   $1 - secret key name (e.g., "AUTOMATION_API_KEY") 
 #   $2 - secret value
 # Returns:
 #   0 - success
@@ -488,9 +488,9 @@ secrets::save_key() {
 #######################################
 # Update service.json to use template substitution
 # Arguments:
-#   $1 - service path (e.g., "automation.n8n")
+#   $1 - service path (e.g., "automation.workflows")
 #   $2 - key to update (e.g., "apiKey")
-#   $3 - template variable name (e.g., "N8N_API_KEY")
+#   $3 - template variable name (e.g., "AUTOMATION_API_KEY")
 # Returns:
 #   0 - success
 #   1 - error
@@ -520,7 +520,8 @@ secrets::set_template() {
     # Update service.json with template substitution
     local updated_json
     local jq_path
-    jq_path=".resources.${service_path}.${key}"
+    local jq_namespace="dependencies.resources"
+    jq_path=".${jq_namespace}.${service_path}.${key}"
     local template_value="{{$template_var}}"
     
     updated_json=$(jq --arg path "$jq_path" --arg value "$template_value" '
@@ -792,12 +793,14 @@ secrets::update_project_config() {
   "$schema": "./schemas/service.schema.json",
   "version": "1.0.0",
   "enabled": true,
-  "resources": {
-    "ai": {},
-    "automation": {},
-    "storage": {},
-    "agents": {},
-    "execution": {}
+  "dependencies": {
+    "resources": {
+      "ai": {},
+      "automation": {},
+      "storage": {},
+      "agents": {},
+      "execution": {}
+    }
   }
 }'
     fi
@@ -805,7 +808,7 @@ secrets::update_project_config() {
     # Update the config with the new resource configuration
     local updated_config
     if updated_config=$(echo "$existing_config" | jq --arg path "$config_path" --argjson config "$config_json" '
-        setpath(["resources"] + ($path | split(".")); $config)
+        setpath(["dependencies", "resources"] + ($path | split(".")); $config)
     '); then
         # Write updated config
         echo "$updated_config" > "$project_config_file"
@@ -884,7 +887,7 @@ secrets::validate_all_configs() {
 # Substitute only known service references with whitelisted patterns
 # Only replaces ${service.KNOWN_RESOURCE.KNOWN_PROPERTY} patterns
 # where KNOWN_RESOURCE is in RESOURCE_PORTS and KNOWN_PROPERTY is url/port/host
-# This preserves n8n's JavaScript template literals and other ${} patterns
+# This preserves automation workflow template literals and other ${} patterns
 # Arguments:
 #   $1 - String with potential service references
 # Returns:
@@ -918,13 +921,13 @@ secrets::substitute_known_services() {
         
         # Determine the host to use based on the resource and context
         # For Ollama (and other host services), use host.docker.internal when accessed from Docker containers
-        # This enables n8n (in Docker) to reach Ollama (on host)
+        # This enables Docker-hosted automation workflows to reach Ollama (on host)
         local host="localhost"
         local url_prefix="http://localhost"
         
-        # Check if we're processing for a Docker context (n8n workflows)
+        # Check if we're processing for a Docker context (automation workflows)
         # Ollama and other native services need special handling when accessed from Docker
-        if [[ "$resource" == "ollama" ]] && [[ "${N8N_INJECT_CONTEXT:-}" == "true" || "${DOCKER_CONTEXT:-}" == "true" ]]; then
+        if [[ "$resource" == "ollama" ]] && [[ "${DOCKER_CONTEXT:-}" == "true" ]]; then
             # IMPORTANT: On Linux, Docker containers on custom networks CANNOT reach
             # host services via localhost, host.docker.internal, or gateway IPs
             # due to iptables/netfilter restrictions.
@@ -963,7 +966,7 @@ secrets::substitute_known_services() {
 
 #######################################
 # Substitute only uppercase secrets with format {{UPPERCASE_NAME}}
-# This preserves n8n's workflow expressions like {{ $json.field }}
+# This preserves automation workflow expressions like {{ $json.field }}
 # Arguments:
 #   $1 - String with potential secret placeholders
 # Returns:
@@ -1024,8 +1027,8 @@ secrets::substitute_uppercase_secrets() {
 }
 
 #######################################
-# Safe template substitution for n8n workflows
-# Only substitutes Vrooli-specific patterns, preserving n8n's syntax
+# Safe template substitution for automation workflows
+# Only substitutes Vrooli-specific patterns, preserving automation syntax
 # Combines targeted substitution of known services and uppercase secrets
 # Arguments:
 #   $1 - String with mixed template patterns

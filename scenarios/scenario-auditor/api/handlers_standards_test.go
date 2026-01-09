@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,7 +50,10 @@ func TestBuildRuleBucketsRespectsDisabledStates(t *testing.T) {
 		t.Fatalf("SetState returned error: %v", err)
 	}
 
-	buckets, active := buildRuleBuckets(rules, nil)
+	buckets, active, disabledRequested, missingRequested := buildRuleBuckets(rules, nil, false)
+	if len(disabledRequested) != 0 || len(missingRequested) != 0 {
+		t.Fatalf("expected no disabled/missing results for broad scan, got disabled=%v missing=%v", disabledRequested, missingRequested)
+	}
 
 	if _, ok := active["disabled_rule"]; ok {
 		t.Fatalf("expected disabled_rule to be filtered out when disabled via state store")
@@ -65,9 +71,23 @@ func TestBuildRuleBucketsRespectsDisabledStates(t *testing.T) {
 		t.Fatalf("expected enabled_rule to remain active, got %s", apiBucket[0].ID)
 	}
 
-	_, targetedActive := buildRuleBuckets(rules, []string{"disabled_rule"})
+	_, targetedActive, targetedDisabled, targetedMissing := buildRuleBuckets(rules, []string{"disabled_rule"}, false)
+	if len(targetedMissing) != 0 {
+		t.Fatalf("did not expect missing rules, got %v", targetedMissing)
+	}
+	if len(targetedDisabled) != 1 || targetedDisabled[0] != "disabled_rule" {
+		t.Fatalf("expected disabled_rule to be reported as disabled, got %v", targetedDisabled)
+	}
 	if len(targetedActive) != 0 {
 		t.Fatalf("expected no active targeted rules when the requested rule is disabled, got %d", len(targetedActive))
+	}
+
+	_, forcedActive, forcedDisabled, forcedMissing := buildRuleBuckets(rules, []string{"disabled_rule"}, true)
+	if len(forcedMissing) != 0 || len(forcedDisabled) != 0 {
+		t.Fatalf("did not expect disabled or missing results when forcing, got disabled=%v missing=%v", forcedDisabled, forcedMissing)
+	}
+	if len(forcedActive) != 1 {
+		t.Fatalf("expected forced run to include disabled_rule, got %d active rules", len(forcedActive))
 	}
 }
 
@@ -100,6 +120,50 @@ func TestClassifyFileTargetsPRD(t *testing.T) {
 	}
 	if len(targets) != 1 || targets[0] != targetDocumentation {
 		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
+	}
+}
+
+func TestGetStandardsViolationsSummaryHandler(t *testing.T) {
+	scenario := "summary-target"
+	violations := []StandardsViolation{
+		{ID: "V-1", ScenarioName: scenario, Severity: "critical", Title: "Critical issue", FilePath: "api/main.go", LineNumber: 10, Recommendation: "Patch immediately"},
+		{ID: "V-2", ScenarioName: scenario, Severity: "medium", Title: "Medium issue", FilePath: "ui/src/App.tsx", LineNumber: 42},
+		{ID: "V-3", ScenarioName: scenario, Severity: "low", Title: "Low issue", FilePath: "README.md", LineNumber: 5},
+	}
+	standardsStore.StoreViolations(scenario, violations)
+
+	req := httptest.NewRequest(http.MethodGet, "/standards/violations/summary?scenario="+scenario+"&limit=2&min_severity=medium", nil)
+	recorder := httptest.NewRecorder()
+
+	getStandardsViolationsSummaryHandler(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 response, got %d", recorder.Code)
+	}
+
+	var payload struct {
+		Summary *ViolationSummary `json:"summary"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if payload.Summary == nil {
+		t.Fatal("expected summary payload")
+	}
+	if payload.Summary.Total != len(violations) {
+		t.Fatalf("expected total %d, got %d", len(violations), payload.Summary.Total)
+	}
+	if payload.Summary.HighestSeverity != "critical" {
+		t.Fatalf("expected highest severity critical, got %s", payload.Summary.HighestSeverity)
+	}
+	if len(payload.Summary.TopViolations) == 0 {
+		t.Fatalf("expected top violations slice to be populated")
+	}
+	for _, v := range payload.Summary.TopViolations {
+		if normalizeSeverity(v.Severity) == "low" {
+			t.Fatalf("expected min_severity filter to exclude low severity entries, got %#v", v)
+		}
 	}
 }
 
@@ -175,26 +239,22 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 		t.Fatalf("failed to create cli directory: %v", err)
 	}
 
-	testPhasesPath := filepath.Join(scenarioPath, "test", "phases")
-	if err := os.MkdirAll(testPhasesPath, 0o755); err != nil {
-		t.Fatalf("failed to create test phases directory: %v", err)
+	testPath := filepath.Join(scenarioPath, "test")
+	if err := os.MkdirAll(testPath, 0o755); err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
 	}
 
 	// Create all required files except the Makefile to trigger a single violation.
+	// Note: Testing is now handled by test-genie via .vrooli/service.json lifecycle.test.
+	// Scenarios only need a test/ directory for artifacts (playbooks, fixtures, logs).
 	requiredFiles := map[string]string{
-		".vrooli/service.json":             "{}\n",
-		"api/main.go":                      "package main\nfunc main() {}\n",
-		"cli/install.sh":                   "#!/usr/bin/env bash\n",
-		"cli/demo":                         "#!/usr/bin/env bash\n",
-		"test/run-tests.sh":                "#!/usr/bin/env bash\n",
-		"test/phases/test-unit.sh":         "#!/usr/bin/env bash\n",
-		"test/phases/test-integration.sh":  "#!/usr/bin/env bash\n",
-		"test/phases/test-structure.sh":    "#!/usr/bin/env bash\n",
-		"test/phases/test-dependencies.sh": "#!/usr/bin/env bash\n",
-		"test/phases/test-business.sh":     "#!/usr/bin/env bash\n",
-		"test/phases/test-performance.sh":  "#!/usr/bin/env bash\n",
-		"PRD.md":                           "# Product Requirements\n",
-		"README.md":                        "# README\n",
+		".vrooli/service.json": "{}\n",
+		"api/main.go":          "package main\nfunc main() {}\n",
+		"cli/install.sh":       "#!/usr/bin/env bash\n",
+		"cli/demo":             "#!/usr/bin/env bash\n",
+		"test/.gitkeep":        "",
+		"PRD.md":               "# Product Requirements\n",
+		"README.md":            "# README\n",
 	}
 
 	for rel, contents := range requiredFiles {
@@ -209,7 +269,7 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 
 	t.Setenv("VROOLI_ROOT", root)
 
-	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, "", nil, nil)
+	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, filepath.Base(scenarioPath), nil, false, nil)
 	if err != nil {
 		t.Fatalf("performStandardsCheck returned error: %v", err)
 	}

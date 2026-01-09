@@ -229,7 +229,6 @@ func setTestEnv(t *testing.T) func() {
 		"VROOLI_LIFECYCLE_MANAGED": "true",
 		"API_PORT":                 "8090",
 		"N8N_BASE_URL":             "http://localhost:5678",
-		"WINDMILL_BASE_URL":        "http://localhost:8000",
 		"COMFYUI_BASE_URL":         "http://localhost:8188",
 		"MINIO_ENDPOINT":           "localhost:9000",
 		"VAULT_ADDR":               "http://localhost:8200",

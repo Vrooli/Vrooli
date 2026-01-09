@@ -1,0 +1,54 @@
+{
+  "description": "Real-time tracking of sandbox disk usage with configurable limits per-sandbox and total",
+  "module_id": "MOD-P2-020",
+  "prd_ref": "OT-P2-005",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "data",
+      "description": "Track per-sandbox size in bytes (SizeBytes field), aggregate statistics (TotalSizeBytes), and enforce configurable limits (MaxSandboxSizeMB, MaxTotalSizeMB). Size information exposed via API stats endpoint.",
+      "id": "REQ-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "implemented",
+      "title": "Sandbox Size Tracking and Limits",
+      "validation": [
+        {
+          "notes": "Test GC size limit filtering",
+          "phase": "unit",
+          "ref": "api/internal/gc/gc_test.go::TestGCService_DefaultPolicy_UsedWhenNil",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test metrics disk usage tracking",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestMetricsCollector_BasicOperations",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test config max size validation",
+          "phase": "unit",
+          "ref": "api/internal/config/config_test.go::TestConfigValidation",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Stats endpoint returns size information",
+          "phase": "api",
+          "ref": "api/internal/handlers/handlers_test.go::TestStatsHandler",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can monitor storage usage",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Size Accounting"
+}

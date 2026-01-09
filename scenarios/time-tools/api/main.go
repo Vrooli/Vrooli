@@ -1,12 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -66,16 +68,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start time-tools
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "time-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize logger
@@ -98,7 +95,7 @@ func main() {
 	api := router.PathPrefix("/api/v1").Subrouter()
 	
 	// Health check
-	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/health", health.Handler()).Methods("GET")
 	
 	// Time operations
 	api.HandleFunc("/time/convert", timezoneConvertHandler).Methods("POST")
@@ -121,12 +118,14 @@ func main() {
 	if port == "" {
 		logger.Fatal("PORT environment variable not set")
 	}
-	
-	addr := ":" + port
-	logger.Printf("Starting %s API server on %s", serviceName, addr)
+
+	logger.Printf("Starting %s API server on port %s", serviceName, port)
 	logger.Printf("API Version: %s", apiVersion)
-	
-	if err := http.ListenAndServe(addr, router); err != nil {
-		logger.Fatal(err)
+
+	if err := server.Run(server.Config{
+		Handler: router,
+		Port:    port,
+	}); err != nil {
+		logger.Fatalf("Server error: %v", err)
 	}
 }

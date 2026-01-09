@@ -1,0 +1,195 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "description": "Returns service status, timestamps, and dependency health so orchestrators know crypto-tools is ready.",
+      "category": "system"
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "description": "Serves the static documentation/Playground for the Crypto Tools API.",
+      "category": "system"
+    },
+    {
+      "id": "list-resources",
+      "path": "/api/v1/resources",
+      "method": "GET",
+      "summary": "List saved resources",
+      "description": "Returns stored crypto resources (wallets, APIs, keys) along with metadata.",
+      "category": "resources"
+    },
+    {
+      "id": "create-resource",
+      "path": "/api/v1/resources",
+      "method": "POST",
+      "summary": "Create resource",
+      "description": "Adds a crypto resource definition with connection/configuration metadata.",
+      "category": "resources",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "type": "string",
+          "config": "object"
+        }
+      }
+    },
+    {
+      "id": "get-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "GET",
+      "summary": "Get resource",
+      "description": "Returns a single resource record by ID.",
+      "category": "resources",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Resource identifier"
+        }
+      }
+    },
+    {
+      "id": "update-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "PUT",
+      "summary": "Update resource",
+      "description": "Updates configuration or metadata for a stored crypto resource.",
+      "category": "resources",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Resource identifier"
+        }
+      }
+    },
+    {
+      "id": "delete-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "DELETE",
+      "summary": "Delete resource",
+      "description": "Removes a stored resource and its secrets.",
+      "category": "resources",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Resource identifier"
+        }
+      }
+    },
+    {
+      "id": "execute-workflow",
+      "path": "/api/v1/execute",
+      "method": "POST",
+      "summary": "Execute crypto workflow",
+      "description": "Runs a programmable workflow (e.g., swap, transfer, hedging) using configured resources.",
+      "category": "workflows"
+    },
+    {
+      "id": "list-executions",
+      "path": "/api/v1/executions",
+      "method": "GET",
+      "summary": "List workflow executions",
+      "description": "Returns historical workflow executions with timestamps and outcomes.",
+      "category": "workflows"
+    },
+    {
+      "id": "get-execution",
+      "path": "/api/v1/executions/{id}",
+      "method": "GET",
+      "summary": "Get workflow execution",
+      "description": "Fetches the details and logs for a specific workflow execution.",
+      "category": "workflows",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Execution identifier"
+        }
+      }
+    },
+    {
+      "id": "hash",
+      "path": "/api/v1/crypto/hash",
+      "method": "POST",
+      "summary": "Generate hash",
+      "description": "Computes a hash using algorithms like SHA-256/SHA-512/BLAKE2 for provided payloads.",
+      "category": "crypto",
+      "request": {
+        "type": "object",
+        "properties": {
+          "algorithm": "string",
+          "data": "string"
+        }
+      }
+    },
+    {
+      "id": "encrypt",
+      "path": "/api/v1/crypto/encrypt",
+      "method": "POST",
+      "summary": "Encrypt data",
+      "description": "Encrypts a payload using symmetric/asymmetric algorithms and stored keys.",
+      "category": "crypto"
+    },
+    {
+      "id": "decrypt",
+      "path": "/api/v1/crypto/decrypt",
+      "method": "POST",
+      "summary": "Decrypt data",
+      "description": "Decrypts ciphertext using configured keys and algorithm parameters.",
+      "category": "crypto"
+    },
+    {
+      "id": "key-generate",
+      "path": "/api/v1/crypto/keys/generate",
+      "method": "POST",
+      "summary": "Generate key",
+      "description": "Generates a new keypair or symmetric key for future crypto operations.",
+      "category": "keys"
+    },
+    {
+      "id": "list-keys",
+      "path": "/api/v1/crypto/keys",
+      "method": "GET",
+      "summary": "List keys",
+      "description": "Returns stored keys with metadata (type, created_at, usage).",
+      "category": "keys"
+    },
+    {
+      "id": "get-key",
+      "path": "/api/v1/crypto/keys/{id}",
+      "method": "GET",
+      "summary": "Get key",
+      "description": "Retrieves key metadata and usage details for a given key identifier.",
+      "category": "keys",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Key identifier"
+        }
+      }
+    },
+    {
+      "id": "sign",
+      "path": "/api/v1/crypto/sign",
+      "method": "POST",
+      "summary": "Sign payload",
+      "description": "Signs arbitrary payloads using configured private keys.",
+      "category": "crypto"
+    },
+    {
+      "id": "verify",
+      "path": "/api/v1/crypto/verify",
+      "method": "POST",
+      "summary": "Verify signature",
+      "description": "Verifies signatures using stored or provided public keys.",
+      "category": "crypto"
+    }
+  ]
+}

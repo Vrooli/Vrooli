@@ -1,0 +1,71 @@
+{
+  "description": "Track PIDs/process groups spawned under sandbox, clean up on stop/delete",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "Track and manage all processes spawned within sandbox context",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-008",
+      "status": "implemented",
+      "title": "Process Group Tracking",
+      "validation": [
+        {
+          "notes": "Test process tracking logic",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestTrackerBasicOperations",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test running process detection",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestTrackedProcessIsRunning",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test process listing",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestGetProcesses",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test running process filtering",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestGetRunningProcesses",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test session workflow",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestSessionWorkflow",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test process statistics",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestGetAllStats",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test cleanup removes tracking data",
+          "phase": "unit",
+          "ref": "api/internal/process/tracker_test.go::TestCleanup",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Process/Session Tracking"
+}

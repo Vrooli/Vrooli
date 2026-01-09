@@ -141,7 +141,7 @@ Data-tools is in excellent shape. All core functionality works, performance exce
    - Production Impact: None (optional example endpoints)
 
 2. **TestWorkflowExecution** (1 failure)
-   - What: n8n/windmill workflow integration (optional feature)
+   - What: n8n workflow integration (optional feature)
    - Status: Database schema missing `input_data` column in executions table
    - Impact: ZERO - Data-tools core features don't depend on workflows
    - Production Impact: None (workflows are optional advanced feature)
@@ -453,7 +453,7 @@ Several test failures remain in edge cases and non-core functionality (6/34 test
    - Core Impact: NONE - Test data needs fixing, not production code
    - Issue: Test uses "test-dataset-12345" instead of proper UUID format
 
-4. **Workflow Execution Tests** (TestWorkflowExecution) - n8n/windmill integration
+4. **Workflow Execution Tests** (TestWorkflowExecution) - n8n integration
    - Status: Optional feature, not part of P0 requirements
    - Core Impact: NONE - Data-tools core features don't depend on workflows
    - Issue: Executions table schema needs `input_data` column for full workflow support

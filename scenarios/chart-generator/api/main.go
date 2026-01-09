@@ -1,12 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // ChartGenerationRequest represents a request to generate a chart
@@ -45,15 +48,6 @@ type ErrorResponse struct {
 	Code    string `json:"code,omitempty"`
 }
 
-// HealthResponse represents a health check response
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Service   string    `json:"service"`
-	Readiness bool      `json:"readiness"`
-}
-
 // StyleResponse represents available chart styles
 type StyleResponse struct {
 	ID          string `json:"id"`
@@ -66,78 +60,30 @@ type StyleResponse struct {
 var chartProcessor *ChartProcessor
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start chart-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	// Scenario name is auto-detected from directory structure
+	if preflight.Run(preflight.Config{}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize database connection (optional for chart generation)
 	var db *sql.DB
-	var err error
 
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
-		connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-
-		db, err = sql.Open("postgres", connStr)
-		if err == nil {
+	// Check if database is configured
+	if os.Getenv("POSTGRES_HOST") != "" || os.Getenv("POSTGRES_URL") != "" {
+		var err error
+		db, err = database.Connect(context.Background(), database.Config{
+			Driver: "postgres",
+		})
+		if err != nil {
+			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
+			db = nil
+		} else {
 			// Configure connection pool
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
-
-			// Implement exponential backoff for database connection
-			maxRetries := 10
-			baseDelay := 1 * time.Second
-			maxDelay := 30 * time.Second
-
-			log.Println("🔄 Attempting database connection with exponential backoff...")
-
-			var pingErr error
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				pingErr = db.Ping()
-				if pingErr == nil {
-					log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-					break
-				}
-
-				// Calculate exponential backoff delay
-				delay := time.Duration(math.Min(
-					float64(baseDelay)*math.Pow(2, float64(attempt)),
-					float64(maxDelay),
-				))
-
-				// Add random jitter to prevent thundering herd
-				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(rand.Float64() * jitterRange)
-				actualDelay := delay + jitter
-
-				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-				time.Sleep(actualDelay)
-			}
-
-			if pingErr != nil {
-				log.Printf("⚠️  Database connection failed after %d attempts: %v (continuing without database)", maxRetries, pingErr)
-				db = nil
-			}
-		} else {
-			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
-			db = nil
+			log.Println("🎉 Database connection pool established successfully!")
 		}
 	} else {
 		log.Println("📝 Database not configured (continuing without database)")
@@ -147,16 +93,11 @@ func main() {
 	chartProcessor = NewChartProcessor(db)
 	log.Println("🎨 Chart processor initialized")
 
-	// Get port from environment - no defaults allowed
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required but not set. The lifecycle system must provide this value.")
-	}
-
 	// Create router
 	r := mux.NewRouter()
 
-	// Health check endpoints
+	// Health check endpoints - use api-core/health for standardized response
+	healthHandler := createHealthHandler(db)
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/v1/health/generation", healthGenerationHandler).Methods("GET")
@@ -214,28 +155,30 @@ func main() {
 
 	handler := c.Handler(r)
 
-	// Start server
-	log.Printf("🎨 Chart Generator API starting on port %s", port)
-	log.Printf("📊 Health check: http://localhost:%s/health", port)
-	log.Printf("🚀 API endpoints: http://localhost:%s/api/v1/", port)
+	// Start server with graceful shutdown
+	cleanup := func(ctx context.Context) error {
+		if db != nil {
+			return db.Close()
+		}
+		return nil
+	}
 
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: cleanup,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
-// healthHandler handles basic health checks
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Service:   "chart-generator-api",
-		Readiness: true, // Service is ready once it starts accepting requests
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+// createHealthHandler creates the health endpoint handler using api-core/health.
+// Service name is auto-detected. Database is optional for this scenario
+// (nil db = degraded, not unhealthy).
+func createHealthHandler(db *sql.DB) http.HandlerFunc {
+	return health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Optional).
+		Handler()
 }
 
 // healthGenerationHandler tests actual chart generation capability
@@ -827,10 +770,10 @@ func getColorPalettesHandler(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		"recommended": map[string][]string{
-			"bar":     []string{"ocean", "corporate"},
-			"line":    []string{"sunset", "vibrant"},
-			"pie":     []string{"vibrant", "forest"},
-			"scatter": []string{"ocean", "vibrant"},
+			"bar":     {"ocean", "corporate"},
+			"line":    {"sunset", "vibrant"},
+			"pie":     {"vibrant", "forest"},
+			"scatter": {"ocean", "vibrant"},
 		},
 	}
 

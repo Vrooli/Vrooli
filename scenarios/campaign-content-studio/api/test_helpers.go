@@ -117,12 +117,11 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 
 	// Create mock service URLs
 	n8nURL := "http://localhost:5678"
-	windmillURL := "http://localhost:5681"
 	postgresURL := os.Getenv("TEST_POSTGRES_URL")
 	qdrantURL := "http://localhost:6333"
 	minioURL := "http://localhost:9000"
 
-	service := NewCampaignService(db, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL)
+	service := NewCampaignService(db, n8nURL, postgresURL, qdrantURL, minioURL)
 
 	// Create router
 	r := mux.NewRouter()

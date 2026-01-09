@@ -196,6 +196,7 @@ func TestGenerateHandler_AllPossiblePaths(t *testing.T) {
 	})
 
 	t.Run("LargeNumColors", func(t *testing.T) {
+		// Test that requesting 50 colors gets clamped to the max of 10
 		req := generateTestPaletteRequest("tech", "vibrant", 50, "")
 		w, err := makeHTTPRequest("POST", "/generate", req, generateHandler)
 		if err != nil {
@@ -203,7 +204,7 @@ func TestGenerateHandler_AllPossiblePaths(t *testing.T) {
 		}
 
 		response := assertJSONResponse(t, w, 200)
-		assertPaletteResponse(t, response, 50)
+		assertPaletteResponse(t, response, 10) // API caps at 10 colors
 	})
 
 	t.Run("BaseColorWithEachStyle", func(t *testing.T) {
@@ -305,6 +306,10 @@ func TestAssertHelpers(t *testing.T) {
 // TestInitRedis_ErrorPaths tests Redis initialization error handling
 func TestInitRedis_ErrorPaths(t *testing.T) {
 	t.Run("CustomPassword", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		originalClient := redisClient
 		os.Setenv("REDIS_PASSWORD", "testpass")
 		defer func() {
@@ -317,6 +322,10 @@ func TestInitRedis_ErrorPaths(t *testing.T) {
 	})
 
 	t.Run("DefaultHostPort", func(t *testing.T) {
+		// Initialize logger for test
+		cleanupLogger := setupTestLogger()
+		defer cleanupLogger()
+
 		originalClient := redisClient
 		os.Unsetenv("REDIS_HOST")
 		os.Unsetenv("REDIS_PORT")

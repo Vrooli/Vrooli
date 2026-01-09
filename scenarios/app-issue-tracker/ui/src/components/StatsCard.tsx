@@ -10,7 +10,7 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ title, value, subtitle, icon: Icon, tone = 'default', onClick }: StatsCardProps) {
-  const Component = (onClick ? 'button' : 'div') as const;
+  const Component = onClick ? 'button' : 'div';
   const componentProps = onClick ? { type: 'button' as const, onClick } : {};
   const classNames = [`stats-card`, tone];
 

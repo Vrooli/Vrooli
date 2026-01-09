@@ -1,0 +1,360 @@
+/**
+ * ProjectDetailView - Route wrapper for project detail page.
+ */
+import { lazy, Suspense, useCallback, useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { LoadingSpinner } from '@shared/ui';
+import { selectors } from '@constants/selectors';
+import { useProjectStore, type Project } from '@/domains/projects';
+import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
+import { useWorkflowStore } from '@stores/workflowStore';
+import { useModals } from '@shared/modals';
+import { logger } from '@utils/logger';
+import toast from 'react-hot-toast';
+
+const ProjectDetail = lazy(() => import('@/domains/projects/ProjectDetail'));
+const AIPromptModal = lazy(() => import('@/domains/ai/AIPromptModal'));
+const AssetImportModal = lazy(() => import('@/domains/import/modals/AssetImportModal'));
+const RoutineImportModal = lazy(() => import('@/domains/import/modals/RoutineImportModal'));
+
+export default function ProjectDetailView() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { projectId } = useParams<{ projectId: string }>();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedFolder, setSelectedFolder] = useState('/');
+  const [showRoutineImportModal, setShowRoutineImportModal] = useState(false);
+  const hasHandledOpenAI = useRef(false);
+  const hasHandledOpenImport = useRef(false);
+
+  const { projects, getProject, setCurrentProject } = useProjectStore();
+  const {
+    showAIModal,
+    openAIModal,
+    closeAIModal,
+    showWorkflowCreationModal,
+    openWorkflowCreationModal,
+    closeWorkflowCreationModal,
+    showAssetUploadModal,
+    assetUploadConfig,
+    closeAssetUploadModal,
+  } = useModals();
+
+  // Handle ?openAI=true query parameter
+  useEffect(() => {
+    if (!loading && project && searchParams.get('openAI') === 'true' && !hasHandledOpenAI.current) {
+      hasHandledOpenAI.current = true;
+      // Clear the query param to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+      openAIModal();
+    }
+  }, [loading, project, searchParams, setSearchParams, openAIModal]);
+
+  // Handle ?openImport=true query parameter
+  useEffect(() => {
+    if (!loading && project && searchParams.get('openImport') === 'true' && !hasHandledOpenImport.current) {
+      hasHandledOpenImport.current = true;
+      // Clear the query param to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+      setShowRoutineImportModal(true);
+    }
+  }, [loading, project, searchParams, setSearchParams]);
+
+  // Get initial preview workflow ID from URL query param
+  const initialPreviewWorkflowId = searchParams.get('preview') || undefined;
+
+  // Callback to update URL when preview changes
+  const handlePreviewChange = useCallback(
+    (workflowId: string | null) => {
+      if (workflowId) {
+        setSearchParams({ preview: workflowId }, { replace: true });
+      } else {
+        // Remove preview param when deselecting
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('preview');
+        setSearchParams(newParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
+
+  // Load project on mount
+  useEffect(() => {
+    const loadProject = async () => {
+      if (!projectId) {
+        navigate('/');
+        return;
+      }
+
+      setLoading(true);
+
+      // First check if project is already in store
+      let foundProject = projects.find((p) => p.id === projectId);
+
+      if (!foundProject) {
+        // Fetch from API
+        foundProject = (await getProject(projectId)) ?? undefined;
+      }
+
+      if (foundProject) {
+        setProject(foundProject);
+        setCurrentProject(foundProject);
+        setSelectedFolder(foundProject.folder_path ?? '/');
+      } else {
+        toast.error('Project not found');
+        navigate('/');
+      }
+
+      setLoading(false);
+    };
+
+    loadProject();
+  }, [projectId, projects, getProject, setCurrentProject, navigate]);
+
+  const handleBack = useCallback(() => {
+    // Go back in history if possible, otherwise navigate home
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  }, [navigate]);
+
+  const handleWorkflowSelect = useCallback(
+    async (workflow: Record<string, unknown> & { id?: string }) => {
+      if (!project || !workflow.id) return;
+      navigate(`/projects/${project.id}/workflows/${workflow.id}`);
+    },
+    [project, navigate]
+  );
+
+  const handleCreateWorkflow = useCallback(() => {
+    openWorkflowCreationModal();
+  }, [openWorkflowCreationModal]);
+
+  const handleCreateWorkflowDirect = useCallback(async () => {
+    if (!project?.id) {
+      toast.error('Select a project before creating a workflow.');
+      return;
+    }
+
+    const workflowName = `new-workflow-${Date.now()}`;
+    const folderPath = selectedFolder || '/';
+
+    try {
+      const workflow = await useWorkflowStore
+        .getState()
+        .createWorkflow(workflowName, folderPath, project.id);
+
+      if (workflow?.id) {
+        navigate(`/projects/${project.id}/workflows/${workflow.id}`);
+      }
+    } catch (error) {
+      logger.error(
+        'Failed to create workflow',
+        {
+          component: 'ProjectDetailView',
+          action: 'handleCreateWorkflowDirect',
+          projectId: project?.id,
+        },
+        error
+      );
+      toast.error('Failed to create workflow. Please try again.');
+    }
+  }, [project, selectedFolder, navigate]);
+
+  const handleStartRecording = useCallback(() => {
+    navigate('/record/new');
+  }, [navigate]);
+
+  const handleSwitchToManualBuilder = useCallback(async () => {
+    if (!project?.id) {
+      toast.error('Select a project before using the manual builder.');
+      return;
+    }
+
+    closeAIModal();
+
+    const workflowName = `new-workflow-${Date.now()}`;
+    const folderPath = selectedFolder || '/';
+
+    try {
+      const workflow = await useWorkflowStore
+        .getState()
+        .createWorkflow(workflowName, folderPath, project.id);
+
+      if (workflow?.id) {
+        navigate(`/projects/${project.id}/workflows/${workflow.id}`);
+      } else {
+        toast.error('Failed to create workflow.');
+      }
+    } catch (error) {
+      logger.error(
+        'Failed to create workflow',
+        {
+          component: 'ProjectDetailView',
+          action: 'handleSwitchToManualBuilder',
+          projectId: project?.id,
+        },
+        error
+      );
+      toast.error('Failed to open the manual builder. Please try again.');
+    }
+  }, [project, selectedFolder, closeAIModal, navigate]);
+
+  // Handler for workflow type selection from WorkflowCreationDialog
+  const handleWorkflowTypeSelected = useCallback(
+    async (type: WorkflowCreationType, selectedProject: Project) => {
+      // Since we're already on a project detail page, the selectedProject should be the current project
+      // But we use it for consistency with the dialog's interface
+
+      if (type === 'record') {
+        // Navigate to record mode
+        navigate('/record/new');
+      } else if (type === 'ai') {
+        // Open AI modal
+        openAIModal();
+      } else if (type === 'import') {
+        // Open workflow import modal
+        setShowRoutineImportModal(true);
+      } else if (type === 'visual') {
+        // Create an empty workflow and navigate to builder
+        const workflowName = `new-workflow-${Date.now()}`;
+        const folderPath = selectedFolder || '/';
+
+        try {
+          const workflow = await useWorkflowStore
+            .getState()
+            .createWorkflow(workflowName, folderPath, selectedProject.id);
+
+          if (workflow?.id) {
+            navigate(`/projects/${selectedProject.id}/workflows/${workflow.id}`);
+          } else {
+            toast.error('Failed to create workflow.');
+          }
+        } catch (error) {
+          logger.error(
+            'Failed to create workflow',
+            {
+              component: 'ProjectDetailView',
+              action: 'handleWorkflowTypeSelected',
+              projectId: selectedProject.id,
+            },
+            error
+          );
+          toast.error('Failed to create workflow. Please try again.');
+        }
+      }
+    },
+    [navigate, openAIModal, selectedFolder]
+  );
+
+  // Handler for creating a new project from the WorkflowCreationDialog
+  const handleOpenProjectModal = useCallback(() => {
+    // Navigate to dashboard with project creation
+    navigate('/?createProject=true');
+  }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-flow-bg">
+        <LoadingSpinner variant="default" size={24} message="Loading project..." />
+      </div>
+    );
+  }
+
+  if (!project) {
+    return null;
+  }
+
+  return (
+    <div data-testid={selectors.app.shell.ready} className="flex-1 flex flex-col min-h-0">
+      <Suspense
+        fallback={
+          <div className="h-screen flex items-center justify-center bg-flow-bg">
+            <LoadingSpinner variant="default" size={24} message="Loading project..." />
+          </div>
+        }
+      >
+        <ProjectDetail
+          project={project}
+          onBack={handleBack}
+          onWorkflowSelect={handleWorkflowSelect}
+          onCreateWorkflow={handleCreateWorkflow}
+          onCreateWorkflowDirect={handleCreateWorkflowDirect}
+          onStartRecording={handleStartRecording}
+          onImportWorkflow={() => setShowRoutineImportModal(true)}
+          initialPreviewWorkflowId={initialPreviewWorkflowId}
+          onPreviewChange={handlePreviewChange}
+        />
+      </Suspense>
+
+      {showAIModal && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading AI assistant..." />
+            </div>
+          }
+        >
+          <AIPromptModal
+            onClose={closeAIModal}
+            folder={selectedFolder}
+            projectId={project.id}
+            onSwitchToManual={handleSwitchToManualBuilder}
+          />
+        </Suspense>
+      )}
+
+      <WorkflowCreationDialog
+        isOpen={showWorkflowCreationModal}
+        onClose={closeWorkflowCreationModal}
+        onSelectType={handleWorkflowTypeSelected}
+        onCreateProject={handleOpenProjectModal}
+        preSelectedProject={project}
+      />
+
+      {showAssetUploadModal && assetUploadConfig && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading..." />
+            </div>
+          }
+        >
+          <AssetImportModal
+            isOpen={showAssetUploadModal}
+            onClose={closeAssetUploadModal}
+            folder={assetUploadConfig.folder}
+            projectId={assetUploadConfig.projectId}
+            onSuccess={() => {
+              // Refresh will happen automatically when project entries are refetched
+            }}
+          />
+        </Suspense>
+      )}
+
+      {showRoutineImportModal && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading..." />
+            </div>
+          }
+        >
+          <RoutineImportModal
+            isOpen={showRoutineImportModal}
+            onClose={() => setShowRoutineImportModal(false)}
+            projectId={project.id}
+            onSuccess={(workflow) => {
+              toast.success(`Workflow "${workflow.name}" imported successfully`);
+              // Navigate to the imported workflow
+              navigate(`/projects/${project.id}/workflows/${workflow.id}`);
+            }}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}

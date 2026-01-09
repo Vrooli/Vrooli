@@ -22,18 +22,20 @@ import (
 )
 
 type StandardsViolation struct {
-	ID             string `json:"id"`
-	ScenarioName   string `json:"scenario_name"`
-	Type           string `json:"type"`
-	Severity       string `json:"severity"`
-	Title          string `json:"title"`
-	Description    string `json:"description"`
-	FilePath       string `json:"file_path"`
-	LineNumber     int    `json:"line_number"`
-	CodeSnippet    string `json:"code_snippet,omitempty"`
-	Recommendation string `json:"recommendation"`
-	Standard       string `json:"standard"`
-	DiscoveredAt   string `json:"discovered_at"`
+	ID             string         `json:"id"`
+	ScenarioName   string         `json:"scenario_name"`
+	Type           string         `json:"type"`
+	Severity       string         `json:"severity"`
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	FilePath       string         `json:"file_path"`
+	LineNumber     int            `json:"line_number"`
+	CodeSnippet    string         `json:"code_snippet,omitempty"`
+	Recommendation string         `json:"recommendation"`
+	Standard       string         `json:"standard"`
+	DiscoveredAt   string         `json:"discovered_at"`
+	Source         string         `json:"source,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 
 type StandardsCheckResult struct {
@@ -48,6 +50,7 @@ type StandardsCheckResult struct {
 	Statistics   map[string]int       `json:"statistics"`
 	Message      string               `json:"message"`
 	ScenarioName string               `json:"scenario_name,omitempty"`
+	Summary      *ViolationSummary    `json:"summary,omitempty"`
 }
 
 const (
@@ -129,7 +132,7 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string) (StandardsScanStatus, error) {
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool) (StandardsScanStatus, error) {
 	targets, err := buildStandardsScanTargets(scenarioName)
 	if err != nil {
 		return StandardsScanStatus{}, err
@@ -160,7 +163,7 @@ func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standard
 	m.jobs[jobID] = job
 	m.mu.Unlock()
 
-	go job.run(ctx, targets, scenarioName, scanType, standards)
+	go job.run(ctx, targets, scenarioName, scanType, standards, forceDisabled)
 
 	return job.snapshot(), nil
 }
@@ -263,8 +266,122 @@ func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processe
 	})
 }
 
-func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string) {
-	logger := NewLogger()
+func getStandardsScanSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	job, ok := standardsScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
+		return
+	}
+
+	limit, minSeverity, groupBy := parseSummaryFilters(r)
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil {
+		HTTPError(w, "Summary not available; scan still running", http.StatusAccepted, nil)
+		return
+	}
+
+	summary := cloneSummary(status.Result.Summary, limit, minSeverity)
+	if summary == nil {
+		HTTPError(w, "Summary unavailable", http.StatusInternalServerError, nil)
+		return
+	}
+
+	resp := map[string]any{
+		"summary": summary,
+		"filters": map[string]any{
+			"limit":        limit,
+			"min_severity": minSeverity,
+			"group_by":     groupBy,
+		},
+	}
+	if groupBy == "rule" {
+		resp["groups"] = summary.ByRule
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+// getStandardsViolationsSummaryHandler returns an aggregated summary for cached violations
+func getStandardsViolationsSummaryHandler(w http.ResponseWriter, r *http.Request) {
+	scenario := strings.TrimSpace(r.URL.Query().Get("scenario"))
+	limit, minSeverity, groupBy := parseSummaryFilters(r)
+
+	// Default to "all" scenarios when no specific name is provided so users can
+	// quickly inspect fleet-wide trends from the cached violation store.
+	lookup := scenario
+	if lookup == "" {
+		lookup = "all"
+	}
+
+	violations := standardsStore.GetViolations(lookup)
+	records := convertStandardsViolationsToRecords(violations)
+	summary := buildViolationSummary(records, limit)
+	filtered := cloneSummary(&summary, limit, minSeverity)
+
+	response := map[string]any{
+		"scenario": scenario,
+		"summary":  filtered,
+		"filters": map[string]any{
+			"limit":        limit,
+			"min_severity": minSeverity,
+			"group_by":     groupBy,
+		},
+	}
+	if filtered != nil && groupBy == "rule" {
+		response["groups"] = filtered.ByRule
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func downloadStandardsScanArtifactHandler(w http.ResponseWriter, r *http.Request) {
+	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+	job, ok := standardsScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
+		return
+	}
+	status := job.snapshot()
+	if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
+		HTTPError(w, "No artifact recorded for this scan", http.StatusNotFound, nil)
+		return
+	}
+	artifactPath, err := resolveArtifactAbsolutePath(status.Result.Summary.Artifact.Path)
+	if err != nil {
+		HTTPError(w, "Artifact path invalid", http.StatusBadRequest, err)
+		return
+	}
+	file, err := os.Open(artifactPath)
+	if err != nil {
+		HTTPError(w, "Artifact not found", http.StatusNotFound, err)
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		HTTPError(w, "Unable to read artifact", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=standards-%s.json", jobID))
+	http.ServeContent(w, r, filepath.Base(artifactPath), info.ModTime(), file)
+}
+
+func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string, forceDisabled bool) {
 	jobSnapshot := job.snapshot()
 	start := jobSnapshot.StartedAt
 	if start.IsZero() {
@@ -303,7 +420,7 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 			})
 		}
 
-		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, scanType, specificStandards, onFile)
+		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, target.Name, specificStandards, forceDisabled, onFile)
 		if err != nil {
 			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
 				job.markCancelled()
@@ -345,6 +462,16 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 	if scenarioName != "all" {
 		result.ScenarioName = scenarioName
 	}
+
+	records := convertStandardsViolationsToRecords(allViolations)
+	summary := buildViolationSummary(records, maxSummaryBuffer)
+	if artifact, err := persistScanArtifact("standards", scenarioName, jobSnapshot.ID, result); err == nil {
+		summary.Artifact = artifact
+	} else {
+		logger.Warn("Failed to persist standards scan artifact", map[string]any{"error": err.Error(), "job_id": jobSnapshot.ID})
+	}
+	summary.RecommendedSteps = buildRecommendedSteps(&summary)
+	result.Summary = &summary
 
 	standardsStore.StoreViolations(scenarioName, allViolations)
 	logger.Info(fmt.Sprintf("Stored %d standards violations for %s", len(allViolations), scenarioName))
@@ -439,6 +566,24 @@ func computeViolationStats(violations []StandardsViolation) map[string]int {
 	return stats
 }
 
+func convertStandardsViolationsToRecords(violations []StandardsViolation) []violationRecord {
+	records := make([]violationRecord, 0, len(violations))
+	for _, violation := range violations {
+		records = append(records, violationRecord{
+			ID:             violation.ID,
+			Severity:       violation.Severity,
+			RuleID:         violation.Standard,
+			Title:          violation.Title,
+			FilePath:       violation.FilePath,
+			LineNumber:     violation.LineNumber,
+			Scenario:       violation.ScenarioName,
+			Source:         violation.Type,
+			Recommendation: violation.Recommendation,
+		})
+	}
+	return records
+}
+
 // Standards compliance check handler
 func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -449,13 +594,12 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		scenarioName = "all"
 	}
 
-	logger := NewLogger()
-
 	w.Header().Set("Content-Type", "application/json")
 
 	var checkRequest struct {
-		Type      string   `json:"type"`
-		Standards []string `json:"standards"`
+		Type          string   `json:"type"`
+		Standards     []string `json:"standards"`
+		ForceDisabled bool     `json:"force_disabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -465,7 +609,19 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		checkRequest.Type = "full"
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards)
+	if len(checkRequest.Standards) > 0 {
+		if err := validateTargetedStandards(checkRequest.Standards, checkRequest.ForceDisabled); err != nil {
+			var selectionErr *ruleSelectionError
+			if errors.As(err, &selectionErr) {
+				HTTPError(w, selectionErr.ClientMessage(), http.StatusUnprocessableEntity, nil)
+				return
+			}
+			HTTPError(w, "Failed to validate requested rules", http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
@@ -479,21 +635,27 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info(fmt.Sprintf("Started %s standards compliance scan %s for %s", checkRequest.Type, status.ID, scenarioName))
 
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"job_id": status.ID,
 		"status": status,
 	})
 }
 
-func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, onFile func(string, string)) ([]StandardsViolation, int, error) {
-	logger := NewLogger()
+func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
 
-	ruleInfos, err := LoadRulesFromFiles()
+	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
 	}
-
-	ruleBuckets, activeRules := buildRuleBuckets(ruleInfos, specificStandards)
+	ruleInfos := mergeWithExternalRules(internalRules)
+	normalizedStandards := normalizeRuleIDs(specificStandards)
+	ruleBuckets, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, normalizedStandards, forceDisabled)
+	if len(missingRequested) > 0 {
+		return nil, 0, fmt.Errorf("requested rules not found: %s", strings.Join(missingRequested, ", "))
+	}
+	if len(disabledRequested) > 0 && !forceDisabled {
+		return nil, 0, fmt.Errorf("requested rules are disabled: %s", strings.Join(disabledRequested, ", "))
+	}
 	if len(activeRules) == 0 {
 		return nil, 0, nil
 	}
@@ -526,6 +688,11 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		structurePaths[rootScenario] = scanPath
 	}
 
+	requestedSet := make(map[string]struct{}, len(normalizedStandards))
+	for _, id := range normalizedStandards {
+		requestedSet[id] = struct{}{}
+	}
+
 	var violations []StandardsViolation
 	filesScanned := 0
 
@@ -556,7 +723,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 
 		if info.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+			logger.Warn("Skipping large file during standards scan", map[string]any{
 				"path": path,
 				"size": info.Size(),
 			})
@@ -581,7 +748,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 
 		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
 			return nil
 		}
 
@@ -666,11 +833,25 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 		}
 	}
 
+	effectiveScenario := scenarioName
+	if strings.TrimSpace(effectiveScenario) == "" {
+		effectiveScenario = filepath.Base(scanPath)
+	}
+
+	externalViolations, err := runExternalRuleChecks(ctx, effectiveScenario, requestedSet, forceDisabled)
+	if err != nil {
+		logger.Warn("External standards checks failed", map[string]any{
+			"scenario": effectiveScenario,
+			"error":    err.Error(),
+		})
+	} else if len(externalViolations) > 0 {
+		violations = append(violations, externalViolations...)
+	}
+
 	return violations, filesScanned, nil
 }
 
 func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViolation, int, []string, error) {
-	logger := NewLogger()
 
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, 0, nil, fmt.Errorf("scenario name is required")
@@ -734,7 +915,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if entry.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]interface{}{
+			logger.Warn("Skipping large file during standards scan", map[string]any{
 				"path": path,
 				"size": entry.Size(),
 			})
@@ -779,7 +960,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]interface{}{"path": path})
+			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
 			return nil
 		}
 
@@ -831,54 +1012,90 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	return violations, filesScanned, targets, nil
 }
 
-func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string) (map[string][]RuleInfo, map[string]RuleInfo) {
+func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string, includeDisabled bool) (map[string][]RuleInfo, map[string]RuleInfo, []string, []string) {
 	allowed := make(map[string]struct{})
-	for _, item := range specific {
-		id := strings.TrimSpace(item)
-		if id != "" {
-			allowed[id] = struct{}{}
-		}
+	for _, id := range normalizeRuleIDs(specific) {
+		allowed[id] = struct{}{}
 	}
 
 	buckets := make(map[string][]RuleInfo)
 	active := make(map[string]RuleInfo)
 	states := ruleStateStore.GetAllStates()
+	var disabledRequested []string
+	var missingRequested []string
+	seenRequested := make(map[string]struct{})
 
-	for id, info := range ruleInfos {
-		if len(allowed) > 0 {
-			if _, ok := allowed[id]; !ok {
-				continue
-			}
-		}
-
-		if enabled, ok := states[id]; ok {
-			info.Enabled = enabled
-		}
-		if !info.Enabled {
-			continue
-		}
-
+	addRule := func(id string, info RuleInfo) {
 		targets := info.Targets
 		if len(targets) == 0 {
 			targets = defaultTargetsForRule(info)
 		} else {
 			targets = normalizeTargets(targets)
 		}
-
 		if len(targets) == 0 {
-			continue
+			return
 		}
-
 		info.Targets = targets
 		ruleInfos[id] = info
 		active[id] = info
-
 		for _, target := range targets {
 			buckets[target] = append(buckets[target], info)
 		}
 	}
 
-	return buckets, active
+	if len(allowed) > 0 {
+		for id := range allowed {
+			if _, seen := seenRequested[id]; seen {
+				continue
+			}
+			seenRequested[id] = struct{}{}
+			info, ok := ruleInfos[id]
+			if !ok {
+				missingRequested = append(missingRequested, id)
+				continue
+			}
+			enabled := info.Enabled
+			if state, ok := states[id]; ok {
+				enabled = state
+			}
+			if !enabled && !includeDisabled {
+				disabledRequested = append(disabledRequested, id)
+				continue
+			}
+			info.Enabled = true
+			addRule(id, info)
+		}
+	} else {
+		for id, info := range ruleInfos {
+			enabled := info.Enabled
+			if state, ok := states[id]; ok {
+				enabled = state
+			}
+			if !enabled {
+				continue
+			}
+			addRule(id, info)
+		}
+	}
+
+	return buckets, active, disabledRequested, missingRequested
+}
+
+func normalizeRuleIDs(ids []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+	for _, raw := range ids {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 func normalizeTargets(targets []string) []string {
@@ -927,6 +1144,52 @@ func collectRulesForTargets(targets []string, buckets map[string][]RuleInfo) map
 		}
 	}
 	return result
+}
+
+type ruleSelectionError struct {
+	MissingRules  []string
+	DisabledRules []string
+}
+
+func (e *ruleSelectionError) Error() string {
+	return e.ClientMessage()
+}
+
+func (e *ruleSelectionError) ClientMessage() string {
+	var parts []string
+	if len(e.MissingRules) > 0 {
+		parts = append(parts, fmt.Sprintf("Requested rules not found: %s", strings.Join(e.MissingRules, ", ")))
+	}
+	if len(e.DisabledRules) > 0 {
+		parts = append(parts, fmt.Sprintf("Requested rules are disabled: %s. Re-enable them or re-run with force_disabled=true.", strings.Join(e.DisabledRules, ", ")))
+	}
+	if len(parts) == 0 {
+		return "No active rules matched the request"
+	}
+	return strings.Join(parts, ". ")
+}
+
+func validateTargetedStandards(ruleIDs []string, forceDisabled bool) error {
+	normalized := normalizeRuleIDs(ruleIDs)
+	if len(normalized) == 0 {
+		return nil
+	}
+	internalRules, err := LoadRulesFromFiles()
+	if err != nil {
+		return err
+	}
+	allRules := mergeWithExternalRules(internalRules)
+	_, activeRules, disabledRequested, missingRequested := buildRuleBuckets(allRules, normalized, forceDisabled)
+	if len(missingRequested) > 0 {
+		return &ruleSelectionError{MissingRules: missingRequested}
+	}
+	if len(disabledRequested) > 0 && !forceDisabled {
+		return &ruleSelectionError{DisabledRules: disabledRequested}
+	}
+	if len(activeRules) == 0 {
+		return &ruleSelectionError{}
+	}
+	return nil
 }
 
 func classifyFileTargets(fullPath string) (string, string, []string) {
@@ -1067,6 +1330,7 @@ func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation
 		Recommendation: recommendation,
 		Standard:       standard,
 		DiscoveredAt:   time.Now().Format(time.RFC3339),
+		Source:         "scenario-auditor",
 	}
 }
 
@@ -1123,6 +1387,8 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	status, err := standardsScanManager.Cancel(jobID)
 	if err != nil {
 		if errors.Is(err, errStandardsScanNotFound) {
@@ -1130,9 +1396,8 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, errStandardsScanFinished) {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"success": false,
 				"status":  status,
 				"message": fmt.Sprintf("Scan already %s", status.Status),
@@ -1143,8 +1408,7 @@ func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"status":  status,
 	})
@@ -1158,7 +1422,7 @@ func getStandardsViolationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	violations := standardsStore.GetViolations(scenario)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"violations": violations,
 		"count":      len(violations),
 		"timestamp":  time.Now().Format(time.RFC3339),

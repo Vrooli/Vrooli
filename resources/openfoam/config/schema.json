@@ -1,217 +1,233 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "OpenFOAM Resource Configuration Schema",
-    "description": "Configuration schema for OpenFOAM CFD simulation platform",
-    "type": "object",
-    "properties": {
-        "port": {
-            "type": "integer",
-            "description": "API server port",
-            "minimum": 1024,
-            "maximum": 65535,
-            "default": 8090
-        },
-        "host": {
-            "type": "string",
-            "description": "API server host",
-            "default": "localhost"
-        },
-        "memory_limit": {
-            "type": "string",
-            "description": "Docker container memory limit",
-            "pattern": "^[0-9]+(m|g)$",
-            "default": "4g"
-        },
-        "cpu_limit": {
-            "type": "number",
-            "description": "Docker container CPU limit",
-            "minimum": 0.5,
-            "maximum": 16,
-            "default": 2
-        },
-        "storage_limit": {
-            "type": "string",
-            "description": "Maximum storage for cases and results",
-            "pattern": "^[0-9]+(M|G|T)$",
-            "default": "20G"
-        },
-        "solver_settings": {
-            "type": "object",
-            "description": "Default solver configuration",
-            "properties": {
-                "default_solver": {
-                    "type": "string",
-                    "description": "Default OpenFOAM solver",
-                    "enum": ["simpleFoam", "pimpleFoam", "buoyantFoam", "interFoam", "reactingFoam"],
-                    "default": "simpleFoam"
-                },
-                "max_iterations": {
-                    "type": "integer",
-                    "description": "Maximum solver iterations",
-                    "minimum": 100,
-                    "maximum": 100000,
-                    "default": 1000
-                },
-                "convergence_threshold": {
-                    "type": "number",
-                    "description": "Convergence criterion",
-                    "minimum": 1e-10,
-                    "maximum": 1e-2,
-                    "default": 1e-5
-                },
-                "parallel_cores": {
-                    "type": "integer",
-                    "description": "Number of cores for parallel processing",
-                    "minimum": 1,
-                    "maximum": 128,
-                    "default": 4
-                }
-            }
-        },
-        "mesh_settings": {
-            "type": "object",
-            "description": "Mesh generation configuration",
-            "properties": {
-                "max_cells": {
-                    "type": "integer",
-                    "description": "Maximum mesh cells allowed",
-                    "minimum": 1000,
-                    "maximum": 100000000,
-                    "default": 1000000
-                },
-                "quality_check": {
-                    "type": "boolean",
-                    "description": "Enable mesh quality checking",
-                    "default": true
-                },
-                "refinement_levels": {
-                    "type": "integer",
-                    "description": "Maximum refinement levels",
-                    "minimum": 0,
-                    "maximum": 10,
-                    "default": 3
-                }
-            }
-        },
-        "api_settings": {
-            "type": "object",
-            "description": "API server configuration",
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "description": "Enable API server",
-                    "default": true
-                },
-                "max_concurrent": {
-                    "type": "integer",
-                    "description": "Maximum concurrent simulations",
-                    "minimum": 1,
-                    "maximum": 20,
-                    "default": 5
-                },
-                "timeout": {
-                    "type": "integer",
-                    "description": "API request timeout in seconds",
-                    "minimum": 10,
-                    "maximum": 7200,
-                    "default": 3600
-                }
-            }
-        },
-        "paraview_integration": {
-            "type": "object",
-            "description": "ParaView visualization settings",
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "description": "Enable ParaView integration",
-                    "default": false
-                },
-                "port": {
-                    "type": "integer",
-                    "description": "ParaView server port",
-                    "minimum": 1024,
-                    "maximum": 65535,
-                    "default": 11111
-                },
-                "auto_launch": {
-                    "type": "boolean",
-                    "description": "Auto-launch ParaView with results",
-                    "default": false
-                }
-            }
-        },
-        "storage_paths": {
-            "type": "object",
-            "description": "Storage directory configuration",
-            "properties": {
-                "data_dir": {
-                    "type": "string",
-                    "description": "Data directory path",
-                    "default": "${HOME}/.vrooli/openfoam/data"
-                },
-                "cases_dir": {
-                    "type": "string",
-                    "description": "Cases directory path",
-                    "default": "${HOME}/.vrooli/openfoam/cases"
-                },
-                "results_dir": {
-                    "type": "string",
-                    "description": "Results directory path",
-                    "default": "${HOME}/.vrooli/openfoam/results"
-                }
-            }
-        },
-        "features": {
-            "type": "object",
-            "description": "Feature flags",
-            "properties": {
-                "enable_mpi": {
-                    "type": "boolean",
-                    "description": "Enable MPI parallel processing",
-                    "default": false
-                },
-                "enable_gpu": {
-                    "type": "boolean",
-                    "description": "Enable GPU acceleration",
-                    "default": false
-                },
-                "enable_cloud": {
-                    "type": "boolean",
-                    "description": "Enable cloud compute integration",
-                    "default": false
-                },
-                "auto_cleanup": {
-                    "type": "boolean",
-                    "description": "Auto-cleanup old cases",
-                    "default": true
-                }
-            }
-        },
-        "logging": {
-            "type": "object",
-            "description": "Logging configuration",
-            "properties": {
-                "level": {
-                    "type": "string",
-                    "description": "Log level",
-                    "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
-                    "default": "INFO"
-                },
-                "directory": {
-                    "type": "string",
-                    "description": "Log directory path",
-                    "default": "${HOME}/.vrooli/openfoam/logs"
-                },
-                "max_size": {
-                    "type": "string",
-                    "description": "Maximum log file size",
-                    "pattern": "^[0-9]+(K|M|G)$",
-                    "default": "100M"
-                }
-            }
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenFOAM Resource Configuration Schema",
+  "description": "Configuration schema for OpenFOAM CFD simulation platform",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8090
     },
-    "required": ["port", "memory_limit", "cpu_limit"],
-    "additionalProperties": false
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "localhost"
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Docker container memory limit",
+      "pattern": "^[0-9]+(m|g)$",
+      "default": "4g"
+    },
+    "cpu_limit": {
+      "type": "number",
+      "description": "Docker container CPU limit",
+      "minimum": 0.5,
+      "maximum": 16,
+      "default": 2
+    },
+    "storage_limit": {
+      "type": "string",
+      "description": "Maximum storage for cases and results",
+      "pattern": "^[0-9]+(M|G|T)$",
+      "default": "20G"
+    },
+    "solver_settings": {
+      "type": "object",
+      "description": "Default solver configuration",
+      "properties": {
+        "default_solver": {
+          "type": "string",
+          "description": "Default OpenFOAM solver",
+          "enum": [
+            "simpleFoam",
+            "pimpleFoam",
+            "buoyantFoam",
+            "interFoam",
+            "reactingFoam"
+          ],
+          "default": "simpleFoam"
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum solver iterations",
+          "minimum": 100,
+          "maximum": 100000,
+          "default": 1000
+        },
+        "convergence_threshold": {
+          "type": "number",
+          "description": "Convergence criterion",
+          "minimum": 1e-10,
+          "maximum": 0.01,
+          "default": 1e-05
+        },
+        "parallel_cores": {
+          "type": "integer",
+          "description": "Number of cores for parallel processing",
+          "minimum": 1,
+          "maximum": 128,
+          "default": 4
+        }
+      }
+    },
+    "mesh_settings": {
+      "type": "object",
+      "description": "Mesh generation configuration",
+      "properties": {
+        "max_cells": {
+          "type": "integer",
+          "description": "Maximum mesh cells allowed",
+          "minimum": 1000,
+          "maximum": 100000000,
+          "default": 1000000
+        },
+        "quality_check": {
+          "type": "boolean",
+          "description": "Enable mesh quality checking",
+          "default": true
+        },
+        "refinement_levels": {
+          "type": "integer",
+          "description": "Maximum refinement levels",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3
+        }
+      }
+    },
+    "api_settings": {
+      "type": "object",
+      "description": "API server configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable API server",
+          "default": true
+        },
+        "max_concurrent": {
+          "type": "integer",
+          "description": "Maximum concurrent simulations",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "API request timeout in seconds",
+          "minimum": 10,
+          "maximum": 7200,
+          "default": 3600
+        }
+      }
+    },
+    "paraview_integration": {
+      "type": "object",
+      "description": "ParaView visualization settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable ParaView integration",
+          "default": false
+        },
+        "port": {
+          "type": "integer",
+          "description": "ParaView server port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 11111
+        },
+        "auto_launch": {
+          "type": "boolean",
+          "description": "Auto-launch ParaView with results",
+          "default": false
+        }
+      }
+    },
+    "storage_paths": {
+      "type": "object",
+      "description": "Storage directory configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Data directory path",
+          "default": "${HOME}/.vrooli/openfoam/data"
+        },
+        "cases_dir": {
+          "type": "string",
+          "description": "Cases directory path",
+          "default": "${HOME}/.vrooli/openfoam/cases"
+        },
+        "results_dir": {
+          "type": "string",
+          "description": "Results directory path",
+          "default": "${HOME}/.vrooli/openfoam/results"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags",
+      "properties": {
+        "enable_mpi": {
+          "type": "boolean",
+          "description": "Enable MPI parallel processing",
+          "default": false
+        },
+        "enable_gpu": {
+          "type": "boolean",
+          "description": "Enable GPU acceleration",
+          "default": false
+        },
+        "enable_cloud": {
+          "type": "boolean",
+          "description": "Enable cloud compute integration",
+          "default": false
+        },
+        "auto_cleanup": {
+          "type": "boolean",
+          "description": "Auto-cleanup old cases",
+          "default": true
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Log level",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ],
+          "default": "INFO"
+        },
+        "directory": {
+          "type": "string",
+          "description": "Log directory path",
+          "default": "${HOME}/.vrooli/openfoam/logs"
+        },
+        "max_size": {
+          "type": "string",
+          "description": "Maximum log file size",
+          "pattern": "^[0-9]+(K|M|G)$",
+          "default": "100M"
+        }
+      }
+    }
+  },
+  "required": [
+    "port",
+    "memory_limit",
+    "cpu_limit"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/openfoam/schema.json"
 }

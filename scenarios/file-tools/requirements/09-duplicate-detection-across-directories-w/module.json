@@ -1,0 +1,57 @@
+{
+  "description": "Find duplicate files",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "System must identify duplicate files using content hashing",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Duplicate File Detection",
+      "validation": [
+        {
+          "notes": "Hash-based comparison",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handle empty files",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Recursive directory scanning",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Scan 10000 files within 5 minutes",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "100% accuracy in duplicate detection",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Duplicate detection across directories with hash-based similarity *(2025-09-24: Implemented MD5 hash detection)*"
+}

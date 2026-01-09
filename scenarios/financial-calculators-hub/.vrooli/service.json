@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "financial-calculators-hub",
@@ -18,7 +18,28 @@
       "api-service",
       "go-api",
       "professional-ui"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/financial-calculators-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -30,35 +51,6 @@
       "env_var": "UI_PORT",
       "description": "Financial calculators UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": false,
-      "required": false,
-      "purpose": "Store calculation history and saved scenarios",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently used calculations for performance"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Provide AI-powered explanations of financial results",
-      "models": [
-        "llama3.2"
-      ]
     }
   },
   "lifecycle": {
@@ -95,18 +87,24 @@
       "description": "Initialize Financial Calculators Hub",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/financial-calculators-hub-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "financial-calculators-hub"
-              ]
-            }
+          {
+            "type": "binaries",
+            "targets": [
+              "api/financial-calculators-hub-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "financial-calculators-hub",
+            "targets": [
+              "financial-calculators-hub"
+            ]
+          }
         ]
       },
       "steps": [
@@ -137,61 +135,46 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '💰 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "run": "echo '\ud83d\udcb0 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
           "description": "Display service URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Financial Calculators Hub services",
+      "description": "Start Financial Calculators Hub with production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./financial-calculators-hub-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/financial-calculators-hub-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "name": "start-api",
+          "run": "cd api && ./financial-calculators-hub-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/financial-calculators-hub-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
-           "description": "Display running services"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built UI",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\udcb0 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test Financial Calculators Hub",
+      "description": "Comprehensive phased testing for financial-calculators-hub",
       "steps": [
         {
-          "name": "test-calculations",
-          "run": "cd lib && go test ./...",
-          "description": "Test financial calculations"
-        },
-        {
-          "name": "test-api",
-          "run": "cd api && go test ./...",
-          "description": "Test API endpoints"
-        },
-        {
-          "name": "test-cli",
-          "run": "$HOME/.vrooli/bin/financial-calculators-hub fire --age 30 --savings 100000 --income 100000 --expenses 50000",
-          "description": "Test CLI FIRE calculation"
-        },
-        {
-          "name": "test-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
+          "name": "run-phased-tests",
+          "run": "test-genie execute financial-calculators-hub --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -209,6 +192,37 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store calculation history and saved scenarios",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently used calculations for performance"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Provide AI-powered explanations of financial results",
+        "models": [
+          "llama3.2"
+        ]
+      }
     }
   }
 }

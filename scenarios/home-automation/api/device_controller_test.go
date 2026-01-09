@@ -13,7 +13,7 @@ func TestNewDeviceController(t *testing.T) {
 
 	t.Run("Creates device controller with database", func(t *testing.T) {
 		db := MockDatabaseConnection(t)
-		dc := NewDeviceController(db)
+		dc := NewDeviceController(db, nil)
 
 		if dc == nil {
 			t.Fatal("NewDeviceController returned nil")
@@ -25,7 +25,7 @@ func TestNewDeviceController(t *testing.T) {
 	})
 
 	t.Run("Creates device controller with nil database", func(t *testing.T) {
-		dc := NewDeviceController(nil)
+		dc := NewDeviceController(nil, nil)
 
 		if dc == nil {
 			t.Fatal("NewDeviceController returned nil with nil db")
@@ -38,7 +38,7 @@ func TestValidateControlRequest(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	dc := NewDeviceController(nil)
+	dc := NewDeviceController(nil, nil)
 
 	tests := []struct {
 		name        string
@@ -145,6 +145,16 @@ func TestValidateControlRequest(t *testing.T) {
 			},
 			shouldError: false,
 		},
+		{
+			name: "Valid action set_mode",
+			req: DeviceControlRequest{
+				DeviceID:  "climate.living_room",
+				Action:    "set_mode",
+				UserID:    "test-user",
+				ProfileID: "test-profile",
+			},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -171,7 +181,7 @@ func TestCheckPermissions(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	dc := NewDeviceController(nil)
+	dc := NewDeviceController(nil, nil)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -259,7 +269,7 @@ func TestControlDeviceValidation(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	dc := NewDeviceController(nil)
+	dc := NewDeviceController(nil, nil)
 	ctx := context.Background()
 
 	t.Run("Returns error for missing device_id", func(t *testing.T) {
@@ -337,7 +347,7 @@ func TestControlDeviceResponseStructure(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	dc := NewDeviceController(nil)
+	dc := NewDeviceController(nil, nil)
 	ctx := context.Background()
 
 	t.Run("Response contains all required fields", func(t *testing.T) {

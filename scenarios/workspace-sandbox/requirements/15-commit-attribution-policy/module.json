@@ -1,0 +1,61 @@
+{
+  "description": "Configurable commit message templates and author attribution for applied patches",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Allow customization of commit message format and author attribution for sandbox changes via templates and policy configuration.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "implemented",
+      "title": "Configurable Commit Attribution",
+      "validation": [
+        {
+          "notes": "Test GetCommitAuthor with different author modes (reviewer, coauthored, agent)",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitAuthor",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test GetCommitMessage template rendering",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitMessage",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test GetCoAuthors returns co-authors in coauthored mode",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCoAuthors",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test FormatCommitMessage combines message with co-authors",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestFormatCommitMessage",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Template processing <100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Commits follow organization standards",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Commit Attribution Policy"
+}

@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/timeline/entry.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timeline";
+
+// =============================================================================
+// EXECUTION TIMELINE (BATCH API FORMAT)
+// =============================================================================
+//
+// @layer 4
+// @domain timeline
+// @imports base, timeline
+// @stability stable
+//
+// Defines the container for batch timeline data, returned by REST API
+// endpoints like GET /api/v1/executions/{id}/timeline.
+//
+// The individual entries use TimelineEntry from entry.proto, which is
+// the unified format for both streaming and batch access.
+//
+// USAGE CONTEXTS:
+//   - API: GET /api/v1/executions/{id}/timeline response
+//   - UI: Timeline viewer component data source
+//   - Export: Source data for execution replay videos
+//
+// @see shared.proto for "UNIFIED RECORDING/EXECUTION MODEL" design rationale
+//
+// =============================================================================
+
+// ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
+// Contains all timeline entries from a completed or in-progress execution.
+//
+// @usage GET /api/v1/executions/{id}/timeline response body
+message ExecutionTimeline {
+  // Unique identifier for this execution.
+  // @format uuid
+  string execution_id = 1;
+  // Workflow ID associated with the execution.
+  // @format uuid
+  string workflow_id = 2;
+  // Current execution status (pending, running, completed, failed, cancelled).
+  ExecutionStatus status = 3;
+  // Overall execution progress percentage (0-100).
+  int32 progress = 4;
+  // When the execution started.
+  google.protobuf.Timestamp started_at = 5;
+  // When the execution completed (null if still running).
+  optional google.protobuf.Timestamp completed_at = 6;
+  // Ordered list of timeline entries (one per action/step).
+  // Uses the unified TimelineEntry format.
+  repeated TimelineEntry entries = 7;
+  // Console and execution logs captured during the run.
+  repeated TimelineLog logs = 8;
+}

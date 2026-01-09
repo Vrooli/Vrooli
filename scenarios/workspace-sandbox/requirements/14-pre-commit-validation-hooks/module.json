@@ -1,0 +1,68 @@
+{
+  "description": "Configurable hooks to run tests/lint before final commit of approved changes",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Support configurable pre-commit hooks for running tests, linters and custom validation before finalizing sandbox changes. Must handle hook failures appropriately.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "implemented",
+      "title": "Pre-commit Validation Hooks",
+      "validation": [
+        {
+          "notes": "Test hook configuration and policy creation",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_ValidateBeforeApply",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify required/non-required hook failure behavior",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_GetValidationHooks",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test empty and configured hooks initialization",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestNewHookValidationPolicy_EmptyHooks,TestNewHookValidationPolicy_WithHooks",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test ValidationHookError implements DomainError",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestValidationHookError",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test environment variable setup for hooks",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestBuildHookEnv",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Hook overhead <500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Quality checks prevent invalid commits",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Pre-commit Validation Hooks"
+}

@@ -1,0 +1,134 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "category": "system",
+      "description": "Returns uptime plus dependency readiness; used by orchestrators."
+    },
+    {
+      "id": "parse-data",
+      "path": "/api/v1/data/parse",
+      "method": "POST",
+      "summary": "Parse raw data",
+      "category": "processing",
+      "description": "Parses pasted data using the configured parsers and returns structured output."
+    },
+    {
+      "id": "transform-data",
+      "path": "/api/v1/data/transform",
+      "method": "POST",
+      "summary": "Transform dataset",
+      "category": "processing",
+      "description": "Applies transformation recipes (cleaning, mapping, reshaping) to a dataset."
+    },
+    {
+      "id": "validate-data",
+      "path": "/api/v1/data/validate",
+      "method": "POST",
+      "summary": "Validate dataset",
+      "category": "processing",
+      "description": "Runs quality and schema validation rules returning any issues."
+    },
+    {
+      "id": "query-data",
+      "path": "/api/v1/data/query",
+      "method": "POST",
+      "summary": "Query dataset",
+      "category": "processing",
+      "description": "Executes SQL-like or expression queries over ingested data."
+    },
+    {
+      "id": "create-stream",
+      "path": "/api/v1/data/stream/create",
+      "method": "POST",
+      "summary": "Create streaming pipeline",
+      "category": "processing",
+      "description": "Creates a streaming transform for real-time ingestion or monitoring."
+    },
+    {
+      "id": "profile-data",
+      "path": "/api/v1/data/profile",
+      "method": "POST",
+      "summary": "Profile dataset",
+      "category": "processing",
+      "description": "Generates statistics, distributions, and anomaly signals for a dataset."
+    },
+    {
+      "id": "list-resources",
+      "path": "/api/v1/resources",
+      "method": "GET",
+      "summary": "List data resources",
+      "category": "resources",
+      "description": "Returns configured connections, datasets, or helpers."
+    },
+    {
+      "id": "create-resource",
+      "path": "/api/v1/resources",
+      "method": "POST",
+      "summary": "Create resource",
+      "category": "resources",
+      "description": "Registers a new resource definition (connection, dataset, etc.)."
+    },
+    {
+      "id": "get-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "GET",
+      "summary": "Get resource",
+      "category": "resources",
+      "description": "Returns metadata for a single resource by identifier."
+    },
+    {
+      "id": "update-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "PUT",
+      "summary": "Update resource",
+      "category": "resources",
+      "description": "Updates credentials or settings for a resource."
+    },
+    {
+      "id": "delete-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "DELETE",
+      "summary": "Delete resource",
+      "category": "resources",
+      "description": "Removes a resource and associated configuration."
+    },
+    {
+      "id": "execute-workflow",
+      "path": "/api/v1/execute",
+      "method": "POST",
+      "summary": "Execute workflow",
+      "category": "workflows",
+      "description": "Runs a saved workflow or ad-hoc pipeline and returns execution metadata."
+    },
+    {
+      "id": "list-executions",
+      "path": "/api/v1/executions",
+      "method": "GET",
+      "summary": "List executions",
+      "category": "workflows",
+      "description": "Returns execution history with status and timing."
+    },
+    {
+      "id": "get-execution",
+      "path": "/api/v1/executions/{id}",
+      "method": "GET",
+      "summary": "Get execution details",
+      "category": "workflows",
+      "description": "Returns logs, outputs, and status for an execution."
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "category": "system",
+      "description": "Serves the generated API documentation."
+    }
+  ]
+}

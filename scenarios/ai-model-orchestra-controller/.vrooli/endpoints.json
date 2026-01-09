@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health probe"
+    },
+    {
+      "id": "api-health",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "API health check"
+    },
+    {
+      "id": "select-model",
+      "path": "/api/v1/ai/select-model",
+      "method": "POST",
+      "summary": "Select optimal model for a workload",
+      "category": "routing"
+    },
+    {
+      "id": "route-request",
+      "path": "/api/v1/ai/route-request",
+      "method": "POST",
+      "summary": "Route an inference request to the chosen provider",
+      "category": "routing"
+    },
+    {
+      "id": "model-status",
+      "path": "/api/v1/ai/models/status",
+      "method": "GET",
+      "summary": "Get health and allocation data for managed models",
+      "category": "monitoring"
+    },
+    {
+      "id": "resource-metrics",
+      "path": "/api/v1/ai/resources/metrics",
+      "method": "GET",
+      "summary": "Retrieve resource utilization metrics",
+      "category": "monitoring"
+    },
+    {
+      "id": "dashboard",
+      "path": "/dashboard",
+      "method": "GET",
+      "summary": "Operator dashboard entry point",
+      "category": "ui"
+    }
+  ]
+}

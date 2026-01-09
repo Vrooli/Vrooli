@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "enabled_rules": {
+    "GO_CLI_WORKSPACE_INDEPENDENCE": true,
+    "REACT_VITE_UI_INSTALLS_DEPENDENCIES": true
+  }
+}

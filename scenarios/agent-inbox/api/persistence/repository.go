@@ -1,0 +1,275 @@
+// Package persistence provides database operations for the Agent Inbox scenario.
+// This package centralizes all database access, providing a clean seam for testing
+// and potential database abstraction.
+//
+// File organization by aggregate:
+//   - repository.go: Base repository and schema initialization
+//   - chat.go: Chat and message operations
+//   - label.go: Label operations
+//   - tool_call.go: Tool call record operations
+package persistence
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+)
+
+// Repository provides database operations for the inbox domain.
+// All database access flows through this interface, enabling test doubles
+// and potential database abstraction.
+type Repository struct {
+	db *sql.DB
+}
+
+// NewRepository creates a new repository with the given database connection.
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
+}
+
+// DB returns the underlying database connection for direct access when needed.
+func (r *Repository) DB() *sql.DB {
+	return r.db
+}
+
+// InitSchema initializes the database schema for the agent-inbox scenario.
+// This creates all required tables and indexes, and runs any necessary migrations.
+// Note: With per-scenario databases, we use the public schema directly.
+func (r *Repository) InitSchema(ctx context.Context) error {
+	// Create base tables
+	baseSchema := `
+	CREATE TABLE IF NOT EXISTS chats (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name TEXT NOT NULL DEFAULT 'New Chat',
+		preview TEXT NOT NULL DEFAULT '',
+		model TEXT NOT NULL DEFAULT 'anthropic/claude-3.5-sonnet',
+		view_mode TEXT NOT NULL DEFAULT 'bubble' CHECK (view_mode IN ('bubble', 'terminal')),
+		is_read BOOLEAN NOT NULL DEFAULT false,
+		is_archived BOOLEAN NOT NULL DEFAULT false,
+		is_starred BOOLEAN NOT NULL DEFAULT false,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS messages (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+		role TEXT NOT NULL,
+		content TEXT NOT NULL,
+		model TEXT,
+		token_count INTEGER DEFAULT 0,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
+	CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+
+	CREATE TABLE IF NOT EXISTS labels (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name TEXT NOT NULL UNIQUE,
+		color TEXT NOT NULL DEFAULT '#6366f1',
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS chat_labels (
+		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+		label_id UUID NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+		PRIMARY KEY (chat_id, label_id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_chat_labels_chat_id ON chat_labels(chat_id);
+	CREATE INDEX IF NOT EXISTS idx_chat_labels_label_id ON chat_labels(label_id);
+	`
+
+	if _, err := r.db.ExecContext(ctx, baseSchema); err != nil {
+		return fmt.Errorf("failed to create base schema: %w", err)
+	}
+
+	// Run migrations
+	migrations := []struct {
+		name string
+		sql  string
+	}{
+		{"add chats.system_prompt", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS system_prompt TEXT DEFAULT ''`},
+		{"add chats.tools_enabled", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS tools_enabled BOOLEAN DEFAULT true`},
+		{"add messages.tool_call_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS tool_call_id TEXT`},
+		{"add messages.tool_calls", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS tool_calls JSONB`},
+		{"add messages.response_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS response_id TEXT`},
+		{"add messages.finish_reason", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS finish_reason TEXT`},
+		{"create idx_messages_tool_call_id", `CREATE INDEX IF NOT EXISTS idx_messages_tool_call_id ON messages(tool_call_id) WHERE tool_call_id IS NOT NULL`},
+		{"add messages.search_vector", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS search_vector tsvector`},
+		{"create idx_messages_search", `CREATE INDEX IF NOT EXISTS idx_messages_search ON messages USING gin(search_vector)`},
+		{"add chats.search_vector", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS search_vector tsvector`},
+		{"create idx_chats_search", `CREATE INDEX IF NOT EXISTS idx_chats_search ON chats USING gin(search_vector)`},
+		{"create search update trigger function", `
+			CREATE OR REPLACE FUNCTION update_message_search_vector() RETURNS trigger AS $$
+			BEGIN
+				NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
+				RETURN NEW;
+			END
+			$$ LANGUAGE plpgsql`},
+		{"create message search trigger", `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'messages_search_update') THEN
+					CREATE TRIGGER messages_search_update
+					BEFORE INSERT OR UPDATE ON messages
+					FOR EACH ROW EXECUTE FUNCTION update_message_search_vector();
+				END IF;
+			END
+			$$`},
+		{"create chat search update trigger function", `
+			CREATE OR REPLACE FUNCTION update_chat_search_vector() RETURNS trigger AS $$
+			BEGIN
+				NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, ''));
+				RETURN NEW;
+			END
+			$$ LANGUAGE plpgsql`},
+		{"create chat search trigger", `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'chats_search_update') THEN
+					CREATE TRIGGER chats_search_update
+					BEFORE INSERT OR UPDATE ON chats
+					FOR EACH ROW EXECUTE FUNCTION update_chat_search_vector();
+				END IF;
+			END
+			$$`},
+		{"backfill message search vectors", `UPDATE messages SET search_vector = to_tsvector('english', COALESCE(content, '')) WHERE search_vector IS NULL`},
+		{"backfill chat search vectors", `UPDATE chats SET search_vector = to_tsvector('english', COALESCE(name, '')) WHERE search_vector IS NULL`},
+		{"create tool_calls table", `
+			CREATE TABLE IF NOT EXISTS tool_calls (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				tool_name TEXT NOT NULL,
+				arguments JSONB NOT NULL DEFAULT '{}',
+				result JSONB,
+				status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+				scenario_name TEXT,
+				external_run_id TEXT,
+				started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				completed_at TIMESTAMPTZ,
+				error_message TEXT
+			)`},
+		{"create idx_tool_calls_message_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_message_id ON tool_calls(message_id)`},
+		{"create idx_tool_calls_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_chat_id ON tool_calls(chat_id)`},
+		{"create idx_tool_calls_status", `CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status) WHERE status IN ('pending', 'running')`},
+		{"create usage_records table", `
+			CREATE TABLE IF NOT EXISTS usage_records (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+				model TEXT NOT NULL,
+				prompt_tokens INTEGER NOT NULL DEFAULT 0,
+				completion_tokens INTEGER NOT NULL DEFAULT 0,
+				total_tokens INTEGER NOT NULL DEFAULT 0,
+				prompt_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				completion_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				total_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"create idx_usage_records_chat_id", `CREATE INDEX IF NOT EXISTS idx_usage_records_chat_id ON usage_records(chat_id)`},
+		{"create idx_usage_records_created_at", `CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records(created_at)`},
+		{"create idx_usage_records_model", `CREATE INDEX IF NOT EXISTS idx_usage_records_model ON usage_records(model)`},
+		{"create tool_configurations table", `
+			CREATE TABLE IF NOT EXISTS tool_configurations (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+				scenario TEXT NOT NULL,
+				tool_name TEXT NOT NULL,
+				enabled BOOLEAN NOT NULL DEFAULT true,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				UNIQUE (chat_id, scenario, tool_name)
+			)`},
+		{"create idx_tool_configurations_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_chat_id ON tool_configurations(chat_id)`},
+		{"create idx_tool_configurations_global", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_global ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL`},
+		// Message branching support (ChatGPT-style regeneration)
+		{"add messages.parent_message_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_message_id UUID REFERENCES messages(id) ON DELETE CASCADE`},
+		{"create idx_messages_parent_id", `CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_message_id)`},
+		{"add messages.sibling_index", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS sibling_index INTEGER DEFAULT 0`},
+		{"add chats.active_leaf_message_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_leaf_message_id UUID REFERENCES messages(id) ON DELETE SET NULL`},
+		// Tool approval system
+		{"create user_settings table", `
+			CREATE TABLE IF NOT EXISTS user_settings (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				key VARCHAR(100) NOT NULL UNIQUE,
+				value JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"add tool_configurations.approval_override", `ALTER TABLE tool_configurations ADD COLUMN IF NOT EXISTS approval_override VARCHAR(10)`},
+		{"update tool_calls status check", `
+			DO $$
+			BEGIN
+				ALTER TABLE tool_calls DROP CONSTRAINT IF EXISTS tool_calls_status_check;
+				ALTER TABLE tool_calls ADD CONSTRAINT tool_calls_status_check
+					CHECK (status IN ('pending', 'pending_approval', 'approved', 'rejected', 'running', 'completed', 'failed', 'cancelled'));
+			EXCEPTION
+				WHEN others THEN NULL;
+			END
+			$$`},
+		{"create idx_tool_calls_pending_approval", `CREATE INDEX IF NOT EXISTS idx_tool_calls_pending_approval ON tool_calls(chat_id, status) WHERE status = 'pending_approval'`},
+		// Fix tool_calls.id column type: OpenRouter returns IDs like "call_abc123" which aren't valid UUIDs
+		{"fix tool_calls id column type", `
+			DO $$
+			BEGIN
+				-- Only run if id column is currently UUID type
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = current_schema()
+					  AND table_name = 'tool_calls'
+					  AND column_name = 'id'
+					  AND data_type = 'uuid'
+				) THEN
+					-- Drop any existing primary key constraint
+					ALTER TABLE tool_calls DROP CONSTRAINT IF EXISTS tool_calls_pkey;
+					-- Change column type from UUID to TEXT
+					ALTER TABLE tool_calls ALTER COLUMN id TYPE TEXT USING id::TEXT;
+					-- Remove the default (gen_random_uuid doesn't work for TEXT)
+					ALTER TABLE tool_calls ALTER COLUMN id DROP DEFAULT;
+					-- Re-add primary key constraint
+					ALTER TABLE tool_calls ADD PRIMARY KEY (id);
+				END IF;
+			END
+			$$`},
+		// Multimodal input support: attachments and web search
+		{"create attachments table", `
+			CREATE TABLE IF NOT EXISTS attachments (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+				file_name TEXT NOT NULL,
+				content_type TEXT NOT NULL,
+				file_size BIGINT NOT NULL,
+				storage_path TEXT NOT NULL UNIQUE,
+				width INTEGER,
+				height INTEGER,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"create idx_attachments_message_id", `CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id)`},
+		{"add chats.web_search_enabled", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS web_search_enabled BOOLEAN DEFAULT false`},
+		{"add messages.web_search", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_search BOOLEAN`},
+	}
+
+	for _, m := range migrations {
+		if _, err := r.db.ExecContext(ctx, m.sql); err != nil {
+			if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "duplicate") {
+				return fmt.Errorf("migration %q failed: %w", m.name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Helper functions
+
+func parsePostgresArray(arr string) []string {
+	arr = strings.Trim(arr, "{}")
+	if arr == "" {
+		return []string{}
+	}
+	return strings.Split(arr, ",")
+}

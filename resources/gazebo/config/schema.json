@@ -34,7 +34,11 @@
       "properties": {
         "physics_engine": {
           "type": "string",
-          "enum": ["dart", "bullet", "ode"],
+          "enum": [
+            "dart",
+            "bullet",
+            "ode"
+          ],
           "default": "dart",
           "description": "Physics engine to use"
         },
@@ -101,7 +105,11 @@
         },
         "render_engine": {
           "type": "string",
-          "enum": ["ogre", "ogre2", "optix"],
+          "enum": [
+            "ogre",
+            "ogre2",
+            "optix"
+          ],
           "default": "ogre2",
           "description": "Rendering engine"
         }
@@ -152,7 +160,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info",
           "description": "Log level"
         },
@@ -172,6 +185,11 @@
       }
     }
   },
-  "required": ["ports", "simulation", "resources"],
-  "additionalProperties": false
+  "required": [
+    "ports",
+    "simulation",
+    "resources"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/gazebo/schema.json"
 }

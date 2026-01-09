@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 ui/node_modules/
-!api/rules/ui/testdata/**/ui/node_modules/
-!api/rules/ui/testdata/**/ui/node_modules/**
+# Exclude node_modules from testdata directories
+**/testdata/**/node_modules/
 
 # Build artifacts
 dist/

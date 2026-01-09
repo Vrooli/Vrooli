@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "elo-swipe-must-have-cli-for-managing-lists-and-viewing-rankings",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "Command-line interface for creating, updating, and deleting ranking lists",
+      "id": "REQ-P0-007",
+      "prd_ref": "elo-swipe-must-have-cli-for-managing-lists-and-viewing-rankings",
+      "status": "draft",
+      "title": "CLI List Management",
+      "validation": [
+        {
+          "notes": "Test CLI commands",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify input validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm database updates via CLI",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI commands complete in \u003c1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Lists can be managed effectively via CLI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI for managing lists and viewing rankings"
+}

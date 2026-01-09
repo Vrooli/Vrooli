@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pricing Section Content",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "subtitle": { "type": "string" },
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "price", "description", "features"],
+        "properties": {
+          "name": { "type": "string" },
+          "price": { "type": "string" },
+          "description": { "type": "string" },
+          "features": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "cta_text": { "type": "string" },
+          "cta_url": { "type": "string" },
+          "highlighted": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

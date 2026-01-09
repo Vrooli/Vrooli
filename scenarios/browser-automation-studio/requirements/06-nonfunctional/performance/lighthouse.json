@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "auto_sync_enabled": true,
+    "description": "Lighthouse performance and accessibility requirements for browser-automation-studio",
+    "last_validated_at": "2026-01-07T13:06:43-05:00",
+    "module": "performance.vrooli",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BAS-PERF-DASHBOARD-LOAD",
+      "title": "Dashboard loads with acceptable performance score",
+      "status": "in_progress",
+      "prd_ref": "Performance Requirements \u003e Dashboard Load Time",
+      "category": "performance.vrooli",
+      "description": "Home page (dashboard) must achieve Lighthouse performance score of 0.75+ on desktop. This ensures users experience fast initial load and time-to-interactive for the primary entry point.",
+      "validation": [
+        {
+          "type": "lighthouse",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Lighthouse audit via test-performance.sh phase"
+        }
+      ]
+    },
+    {
+      "id": "BAS-A11Y-DASHBOARD",
+      "title": "Dashboard meets WCAG 2.1 AA accessibility standards",
+      "status": "in_progress",
+      "prd_ref": "Accessibility Requirements \u003e WCAG 2.1 AA Compliance",
+      "category": "accessibility.vrooli",
+      "description": "Dashboard page achieves Lighthouse accessibility score of 0.90+, ensuring keyboard navigation, screen reader support, color contrast, and ARIA labeling meet WCAG 2.1 AA standards.",
+      "validation": [
+        {
+          "type": "lighthouse",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Lighthouse audit via test-performance.sh phase"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PERF-WORKFLOW-INTERACTIVE",
+      "title": "Workflow builder becomes interactive within acceptable timeframe",
+      "status": "in_progress",
+      "prd_ref": "Performance Requirements \u003e Workflow Builder Interactivity",
+      "category": "performance.vrooli",
+      "description": "Workflow builder page achieves Lighthouse performance score of 0.65+. Lower threshold accounts for heavy Monaco editor and React Flow canvas initialization. Focus on Time to Interactive (TTI) and Total Blocking Time (TBT).",
+      "validation": [
+        {
+          "type": "lighthouse",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics."
+        }
+      ]
+    },
+    {
+      "id": "BAS-PERF-PROJECTS-PAGE",
+      "title": "Projects page loads efficiently",
+      "status": "in_progress",
+      "prd_ref": "Performance Requirements \u003e Project Management Performance",
+      "category": "performance.vrooli",
+      "description": "Projects listing/management page achieves Lighthouse performance score of 0.75+, ensuring fast navigation between projects.",
+      "validation": [
+        {
+          "type": "lighthouse",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "BAS-A11Y-MOBILE",
+      "title": "Mobile UI meets accessibility standards",
+      "status": "in_progress",
+      "prd_ref": "Accessibility Requirements \u003e Mobile Accessibility",
+      "category": "accessibility.vrooli",
+      "description": "Mobile viewport maintains Lighthouse accessibility score of 0.90+, ensuring touch targets, viewport configuration, and responsive design maintain accessibility on mobile devices.",
+      "validation": [
+        {
+          "type": "lighthouse",
+          "ref": ".vrooli/lighthouse.json",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Mobile viewport validation"
+        }
+      ]
+    }
+  ]
+}

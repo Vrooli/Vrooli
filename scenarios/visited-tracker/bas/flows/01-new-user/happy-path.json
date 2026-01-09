@@ -1,0 +1,202 @@
+{
+  "metadata": {
+    "name": "new-user-happy-path",
+    "description": "Complete new user journey: create campaign, track visits, view metrics",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"VT-REQ-001\", \"VT-REQ-002\", \"VT-REQ-003\", \"VT-REQ-007\"]",
+      "priority": "P0",
+      "test_type": "e2e"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "create-campaign",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+          "body": "{\"name\": \"my-first-campaign\", \"from_agent\": \"new-user-journey\", \"patterns\": [\"**/*.go\"], \"description\": \"My first visit tracking campaign\"}",
+          "expected_status": 201,
+          "store_result": "campaign"
+        },
+        "metadata": {
+          "label": "Create campaign"
+        }
+      }
+    },
+    {
+      "id": "sync-files",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/structure/sync",
+          "body": "{\"patterns\": [\"scenarios/visited-tracker/**/*.go\"]}",
+          "expected_status": 200,
+          "store_result": "sync_result"
+        },
+        "metadata": {
+          "label": "Sync files"
+        }
+      }
+    },
+    {
+      "id": "verify-files-discovered",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "sync_result.added > 0",
+          "store_result": "files_discovered"
+        },
+        "metadata": {
+          "label": "Verify files were discovered"
+        }
+      }
+    },
+    {
+      "id": "get-least-visited",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/least-visited?limit=1",
+          "expected_status": 200,
+          "store_result": "least_visited"
+        },
+        "metadata": {
+          "label": "Get least visited file"
+        }
+      }
+    },
+    {
+      "id": "record-first-visit",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+          "body": "{\"files\": [\"${least_visited.files[0].file_path}\"], \"context\": \"first-visit\", \"agent\": \"new-user\"}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Record first visit"
+        }
+      }
+    },
+    {
+      "id": "check-campaign-coverage",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/coverage",
+          "expected_status": 200,
+          "store_result": "coverage"
+        },
+        "metadata": {
+          "label": "Check campaign coverage"
+        }
+      }
+    },
+    {
+      "id": "view-in-ui",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_URL",
+          "url": "http://localhost:${UI_PORT}/campaign.html?id=${campaign.id}",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "View campaign in UI"
+        }
+      }
+    },
+    {
+      "id": "wait-files-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='files-list']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for files list"
+        }
+      }
+    },
+    {
+      "id": "verify-ui-shows-visit",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='file-row']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "File list should be visible in UI"
+        },
+        "metadata": {
+          "label": "Verify file list is visible in UI"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "create-campaign",
+      "target": "sync-files",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "sync-files",
+      "target": "verify-files-discovered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "verify-files-discovered",
+      "target": "get-least-visited",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "get-least-visited",
+      "target": "record-first-visit",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "record-first-visit",
+      "target": "check-campaign-coverage",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "check-campaign-coverage",
+      "target": "view-in-ui",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "view-in-ui",
+      "target": "wait-files-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "wait-files-list",
+      "target": "verify-ui-shows-visit",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

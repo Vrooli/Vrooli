@@ -1,3 +1,4 @@
+import { logger } from '@/services/logger';
 import { create } from 'zustand';
 import { resourceService } from '@/services/api';
 import type { ApiResponse, Resource } from '@/types';
@@ -59,7 +60,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
   error: null,
   hasInitialized: false,
 
-  loadResources: async ({ force = false } = {}) => {
+  loadResources: async ({ force = false } = {}): Promise<void> => {
     const { loading, hasInitialized, resources } = get();
     if (loading || (!force && hasInitialized && resources.length > 0)) {
       return;
@@ -77,7 +78,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
         set({ resources: [] });
       }
     } catch (error) {
-      console.warn('[resourcesStore] Failed to fetch resources', error);
+      logger.warn('[resourcesStore] Failed to fetch resources', error);
       if (!get().hasInitialized) {
         set({ error: 'Unable to load resources.' });
       }
@@ -89,7 +90,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     }
   },
 
-  setResourcesState: (updater) => {
+  setResourcesState: (updater): void => {
     set((state) => ({
       resources: typeof updater === 'function'
         ? (updater as (current: Resource[]) => Resource[])(state.resources)
@@ -97,7 +98,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     }));
   },
 
-  updateResource: (update) => {
+  updateResource: (update): void => {
     const identifier = update.id?.trim();
     if (!identifier) {
       return;
@@ -108,7 +109,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     }));
   },
 
-  startResource: async (id) => {
+  startResource: async (id): Promise<ApiResponse<Resource> | null> => {
     const response = await resourceService.startResource(id);
     if (response?.data) {
       set((state) => ({ resources: upsertResource(state.resources, response.data as ResourceLikeUpdate) }));
@@ -126,7 +127,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     return response ?? null;
   },
 
-  stopResource: async (id) => {
+  stopResource: async (id): Promise<ApiResponse<Resource> | null> => {
     const response = await resourceService.stopResource(id);
     if (response?.data) {
       set((state) => ({ resources: upsertResource(state.resources, response.data as ResourceLikeUpdate) }));
@@ -144,7 +145,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     return response ?? null;
   },
 
-  refreshResource: async (id) => {
+  refreshResource: async (id): Promise<Resource | null> => {
     const resource = await resourceService.getResourceStatus(id);
     if (resource) {
       set((state) => ({ resources: upsertResource(state.resources, resource) }));
@@ -153,5 +154,5 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
     return resource;
   },
 
-  clearError: () => set({ error: null }),
+  clearError: (): void => set({ error: null }),
 }));

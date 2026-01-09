@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for scenario-to-android scenario",
+    "last_updated": "2025-11-08T17:28:43Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {},
+      "node": {}
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  }
+}

@@ -1,9 +1,12 @@
+//go:build testing
 // +build testing
 
 package main
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"net/http"
 	"sync"
 	"testing"
@@ -59,25 +62,41 @@ func TestPerformance_GetSectors(t *testing.T) {
 		treeID := createTestTechTree(t, testDB)
 
 		// Create 10 sectors with stages
+		baseDelay := 5 * time.Millisecond
+		maxDelay := 40 * time.Millisecond
+		randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 		for i := 1; i <= 10; i++ {
 			sectorID := fmt.Sprintf("00000000-0000-0000-0000-00000000%04d", i+100)
-			testDB.Exec(`
+			if err := execWithBackoff(t, testDB, `
 				INSERT INTO sectors (id, tree_id, name, category, description, progress_percentage,
 					position_x, position_y, color, created_at, updated_at)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 			`, sectorID, treeID, fmt.Sprintf("Sector %d", i), "software",
-				"Test sector", float64(i*10), float64(i*50), float64(i*50), "#3498db")
+				"Test sector", float64(i*10), float64(i*50), float64(i*50), "#3498db"); err != nil {
+				t.Fatalf("failed to insert sector %d: %v", i, err)
+			}
+
+			delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(i-1)), float64(maxDelay)))
+			jitter := time.Duration(randSource.Float64() * float64(delay) * 0.25)
+			time.Sleep(delay + jitter)
 
 			// Create 5 stages per sector
 			for j := 1; j <= 5; j++ {
 				stageID := fmt.Sprintf("00000000-0000-0000-0000-00000%03d%03d", i, j)
 				examples := `["Example"]`
-				testDB.Exec(`
+				if err := execWithBackoff(t, testDB, `
 					INSERT INTO progression_stages (id, sector_id, stage_type, stage_order, name, description,
 						progress_percentage, examples, position_x, position_y, created_at, updated_at)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 				`, stageID, sectorID, "foundation", j, fmt.Sprintf("Stage %d", j),
-					"Test stage", float64(j*20), examples, float64(j*30), float64(j*30))
+					"Test stage", float64(j*20), examples, float64(j*30), float64(j*30)); err != nil {
+					t.Fatalf("failed to insert stage %d for sector %d: %v", j, i, err)
+				}
+
+				innerDelay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(j-1)), float64(maxDelay)))
+				innerJitter := time.Duration(randSource.Float64() * float64(innerDelay) * 0.25)
+				time.Sleep(innerDelay + innerJitter)
 
 				// Create scenario mappings
 				createTestScenarioMapping(t, testDB, stageID, fmt.Sprintf("scenario-%d-%d", i, j))

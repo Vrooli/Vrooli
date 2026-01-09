@@ -35,6 +35,8 @@ source "${APP_ROOT}/cli/lib/output-formatter.sh"
 RESOURCES_DIR="${var_RESOURCES_DIR}"
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 RESOURCE_REGISTRY="${var_ROOT_DIR}/.vrooli/resource-registry"
+JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JQ_RESOURCES_EXPR" ]] && JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Show help for resource commands
 show_resource_help() {
@@ -62,7 +64,6 @@ RESOURCE COMMANDS:
     vrooli resource <name> <command> [options]
     
     Example:
-    vrooli resource n8n inject workflow.json
     vrooli resource ollama status
     vrooli resource postgres backup
 
@@ -79,10 +80,7 @@ EXAMPLES:
     vrooli resource install ollama         # Install Ollama
     vrooli resource start postgres         # Start PostgreSQL
     vrooli resource start-all               # Start all enabled resources
-    vrooli resource stop n8n               # Stop n8n resource
     vrooli resource stop-all               # Stop all running resources
-    vrooli resource n8n inject file.json   # Use n8n CLI directly
-    vrooli resource n8n list-workflows     # n8n-specific command
 
 For more information: https://docs.vrooli.com/cli/resources
 EOF
@@ -163,21 +161,43 @@ route_to_resource_cli() {
     done
     
     if [[ -n "$cli_script" ]] && [[ -f "$cli_script" ]]; then
-        # Clear source guards before calling CLI to allow proper sourcing  
+        # Clear source guards before calling CLI to allow proper sourcing
         unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-        
+
         # Set up proper environment and working directory
         # VROOLI_ROOT is already set at the script level, no need to redefine
-        
-        # Simple, reliable execution with explicit environment
-        # Note: VROOLI_ROOT is already set and will be inherited by the subshell
-        (
-            cd "$VROOLI_ROOT"
-            # VROOLI_ROOT is already available from parent scope
-            export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
-            bash "$cli_script" "$@"
-        )
-        local exit_code=$?
+
+        # For lifecycle commands (start, stop, install), try v2.0 pattern first (manage <cmd>)
+        local cmd="${1:-}"
+        local exit_code=0
+
+        case "$cmd" in
+            start|stop|install)
+                # Try v2.0 pattern: cli.sh manage <cmd>
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" manage "$@" 2>&1
+                ) && return 0
+
+                # Fall back to direct: cli.sh <cmd>
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" "$@" 2>&1
+                )
+                exit_code=$?
+                ;;
+            *)
+                # Non-lifecycle commands: run directly
+                (
+                    cd "$VROOLI_ROOT"
+                    export OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+                    bash "$cli_script" "$@"
+                )
+                exit_code=$?
+                ;;
+        esac
         return $exit_code
     fi
     
@@ -284,10 +304,7 @@ collect_resource_list_data() {
     local config_resources=()
     local config_data=""
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_data=$(jq -r '
-            .resources | to_entries[] | 
-            "\(.key)/\(.value.enabled)"
-        ' "$RESOURCES_CONFIG" 2>/dev/null || echo "")
+        config_data=$(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | \"\(.key)/\(.value.enabled)\"" "$RESOURCES_CONFIG" 2>/dev/null || echo "")
         
         # Build array of configured resources
         while IFS= read -r resource_line; do
@@ -336,10 +353,10 @@ collect_resource_list_data() {
         local enabled="false"
         local registered="false"
         if [[ -f "$RESOURCES_CONFIG" ]]; then
-            local config_entry=$(jq -r --arg name "$name" '.resources[$name] // null' "$RESOURCES_CONFIG" 2>/dev/null)
+            local config_entry=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[\$name] // null" "$RESOURCES_CONFIG" 2>/dev/null)
             if [[ "$config_entry" != "null" ]]; then
                 registered="true"
-                enabled=$(jq -r --arg name "$name" '.resources[$name].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+                enabled=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[\$name].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
             fi
         fi
         
@@ -412,7 +429,7 @@ collect_resource_status_data() {
     # Check if enabled in config (flat structure)
     local enabled="false"
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        enabled=$(jq -r --arg res "$resource_name" '.resources[$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+        enabled=$(jq -r --arg res "$resource_name" "${JQ_RESOURCES_EXPR} | .[\$res].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
     fi
     
     # Check running status using resource CLI only
@@ -826,7 +843,6 @@ resource_start() {
         echo ""
         echo "Examples:"
         echo "  vrooli resource start postgres     # Start PostgreSQL"
-        echo "  vrooli resource start n8n          # Start n8n"
         return 0
     fi
     
@@ -906,11 +922,7 @@ resource_start_all() {
     
     # Parse enabled resources from config
     local enabled_resources
-    enabled_resources=$(jq -r '
-        .resources | to_entries[] | 
-        select(.value.enabled == true) | 
-        .key
-    ' "$RESOURCES_CONFIG" 2>/dev/null)
+    enabled_resources=$(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | select(.value.enabled == true) | .key" "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$enabled_resources" ]]; then
         log::info "No resources are enabled"
@@ -987,7 +999,6 @@ resource_stop() {
         echo ""
         echo "Examples:"
         echo "  vrooli resource stop postgres     # Stop PostgreSQL"
-        echo "  vrooli resource stop n8n          # Stop n8n"
         return 0
     fi
     
@@ -998,14 +1009,40 @@ resource_stop() {
     fi
     
     log::info "Stopping resource: $resource_name"
-    
-    # Try to route to resource CLI or manage.sh
+
+    # Try to route to resource CLI or manage.sh with v2.0 support
+    local exit_code=0
     if has_resource_cli "$resource_name"; then
-        route_to_resource_cli "$resource_name" stop
+        # Try v2.0 manage stop pattern first (most likely to work)
+        local resource_command="resource-${resource_name}"
+        if command -v "$resource_command" >/dev/null 2>&1; then
+            # Clear source guards before exec to allow proper sourcing
+            if (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
+                export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                "$resource_command" manage stop 2>&1); then
+                exit_code=0
+            elif (unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED;
+                  export VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$RESOURCES_DIR/.." && pwd)}";
+                  "$resource_command" stop 2>&1); then
+                exit_code=0
+            else
+                exit_code=1
+            fi
+        else
+            route_to_resource_cli "$resource_name" stop 2>&1 || exit_code=$?
+        fi
     else
-        route_to_manage_sh "$resource_name" stop
+        route_to_manage_sh "$resource_name" stop || exit_code=$?
     fi
-    
+
+    # Report result
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "Successfully stopped resource: $resource_name"
+    else
+        log::error "Failed to stop resource: $resource_name"
+        return $exit_code
+    fi
+
     # Update registry if available
     if command -v resource_registry::register >/dev/null 2>&1; then
         resource_registry::register "$resource_name" "stopped"
@@ -1030,82 +1067,49 @@ resource_stop_all() {
 		return 0
 	fi
 	
-	# Use new unified stop manager if available
+	# Use unified stop manager
 	local stop_manager="${VROOLI_ROOT}/scripts/lib/lifecycle/stop-manager.sh"
-	
-	if [[ -f "$stop_manager" ]]; then
-		log::info "Using unified stop system for resources..."
-		source "$stop_manager"
-		
-		# Parse flags for stop manager
-		local stop_args=()
-		local output_format="text"
-		
-		for arg in "$@"; do
-			case "$arg" in
-				--force)
-					export FORCE_STOP=true
-					;;
-				--verbose|-v)
-					export VERBOSE=true
-					;;
-				--dry-run|--check)
-					export DRY_RUN=true
-					;;
-				--json)
-					output_format="json"
-					# TODO: Implement JSON output in stop-manager
-					log::warning "JSON output not yet implemented in stop manager"
-					;;
-				*)
-					stop_args+=("$arg")
-					;;
-			esac
-		done
-		
-		if [[ "$output_format" == "text" ]]; then
-			log::header "Stopping All Resources"
-		fi
-		
-		stop::main resources "${stop_args[@]}"
-		return $?
+
+	if [[ ! -f "$stop_manager" ]]; then
+		log::error "Stop manager not found at: $stop_manager"
+		log::error "The unified stop system is not properly installed."
+		log::error "Please run 'vrooli setup' to reinstall, or check your Vrooli installation."
+		return 1
 	fi
-	
-	# Fallback to legacy implementation
-	log::warning "Stop manager not available, using legacy method"
-	
+
+	source "$stop_manager"
+
+	# Parse flags for stop manager
+	local stop_args=()
 	local output_format="text"
+
 	for arg in "$@"; do
-		if [[ "$arg" == "--json" ]]; then output_format="json"; fi
+		case "$arg" in
+			--force)
+				export FORCE_STOP=true
+				;;
+			--verbose|-v)
+				export VERBOSE=true
+				;;
+			--dry-run|--check)
+				export DRY_RUN=true
+				;;
+			--json)
+				output_format="json"
+				# TODO: Implement JSON output in stop-manager
+				log::warning "JSON output not yet implemented in stop manager"
+				;;
+			*)
+				stop_args+=("$arg")
+				;;
+		esac
 	done
-	
+
 	if [[ "$output_format" == "text" ]]; then
 		log::header "Stopping All Resources"
 	fi
-	
-	# Use the auto-install module if available
-	if command -v resource_auto::stop_all >/dev/null 2>&1; then
-		resource_auto::stop_all
-	else
-		# Simplified fallback - just try to stop all Docker containers
-		log::info "Stopping resources via Docker..."
-		
-		if command -v docker >/dev/null 2>&1; then
-			local containers
-			containers=$(docker ps -q)
-			if [[ -n "$containers" ]]; then
-				log::info "Stopping $(echo "$containers" | wc -l) containers..."
-				# Note: docker stop already returns 0 even if container doesn't exist, so || true is actually safe here
-				docker stop "$containers" 2>/dev/null || true
-				log::success "Resources stopped"
-			else
-				log::info "No resources running"
-			fi
-		else
-			log::error "Docker not available, cannot stop resources"
-			return 1
-		fi
-	fi
+
+	stop::main resources "${stop_args[@]}"
 }
 
 # Main command router

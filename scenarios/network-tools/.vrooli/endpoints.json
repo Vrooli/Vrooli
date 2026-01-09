@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "category": "system",
+      "description": "Reports network tools health and dependencies."
+    },
+    {
+      "id": "api-health",
+      "path": "/api/health",
+      "method": "GET",
+      "summary": "API namespace health",
+      "category": "system",
+      "description": "Health probe under /api for gateway compatibility."
+    },
+    {
+      "id": "network-http",
+      "path": "/api/v1/network/http",
+      "method": "POST",
+      "summary": "HTTP request test",
+      "category": "network",
+      "description": "Executes HTTP requests with configurable method/headers and returns diagnostics."
+    },
+    {
+      "id": "network-dns",
+      "path": "/api/v1/network/dns",
+      "method": "POST",
+      "summary": "DNS lookup",
+      "category": "network",
+      "description": "Performs DNS queries and returns resolution details."
+    },
+    {
+      "id": "network-connectivity",
+      "path": "/api/v1/network/test/connectivity",
+      "method": "POST",
+      "summary": "Connectivity test",
+      "category": "network",
+      "description": "Runs TCP ping/latency measurements for provided targets."
+    },
+    {
+      "id": "network-scan",
+      "path": "/api/v1/network/scan",
+      "method": "POST",
+      "summary": "Network scan",
+      "category": "network",
+      "description": "Scans hosts/ports and reports exposure."
+    },
+    {
+      "id": "network-api-test",
+      "path": "/api/v1/network/api/test",
+      "method": "POST",
+      "summary": "API contract test",
+      "category": "network",
+      "description": "Exercises API endpoints and validates responses."
+    },
+    {
+      "id": "network-ssl-validate",
+      "path": "/api/v1/network/ssl/validate",
+      "method": "POST",
+      "summary": "SSL validation",
+      "category": "network",
+      "description": "Validates TLS certificates, expiry, and policy compliance."
+    },
+    {
+      "id": "list-targets",
+      "path": "/api/v1/network/targets",
+      "method": "GET",
+      "summary": "List monitoring targets",
+      "category": "monitoring",
+      "description": "Returns saved network monitoring targets."
+    },
+    {
+      "id": "create-target",
+      "path": "/api/v1/network/targets",
+      "method": "POST",
+      "summary": "Create monitoring target",
+      "category": "monitoring",
+      "description": "Registers a new network target to monitor."
+    },
+    {
+      "id": "list-alerts",
+      "path": "/api/v1/network/alerts",
+      "method": "GET",
+      "summary": "List alerts",
+      "category": "monitoring",
+      "description": "Returns generated network alerts."
+    },
+    {
+      "id": "list-api-definitions",
+      "path": "/api/v1/api/definitions",
+      "method": "GET",
+      "summary": "List API definitions",
+      "category": "api-catalog",
+      "description": "Returns stored API definitions for testing."
+    },
+    {
+      "id": "create-api-definition",
+      "path": "/api/v1/api/definitions",
+      "method": "POST",
+      "summary": "Create API definition",
+      "category": "api-catalog",
+      "description": "Creates a new API definition entry."
+    },
+    {
+      "id": "get-api-definition",
+      "path": "/api/v1/api/definitions/{id}",
+      "method": "GET",
+      "summary": "Get API definition",
+      "category": "api-catalog",
+      "description": "Returns details for a specific API definition."
+    },
+    {
+      "id": "update-api-definition",
+      "path": "/api/v1/api/definitions/{id}",
+      "method": "PUT",
+      "summary": "Update API definition",
+      "category": "api-catalog",
+      "description": "Updates a stored API definition."
+    },
+    {
+      "id": "delete-api-definition",
+      "path": "/api/v1/api/definitions/{id}",
+      "method": "DELETE",
+      "summary": "Delete API definition",
+      "category": "api-catalog",
+      "description": "Deletes an API definition."
+    },
+    {
+      "id": "discover-apis",
+      "path": "/api/v1/api/discover",
+      "method": "POST",
+      "summary": "Discover API endpoints",
+      "category": "api-catalog",
+      "description": "Discovers API endpoints automatically from base URLs."
+    }
+  ]
+}

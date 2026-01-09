@@ -1,12 +1,15 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "visited-tracker",
     "displayName": "Visited Tracker",
-    "description": "Persistent file visit tracking with staleness detection for systematic code analysis",
+    "description": "Agent loop memory primitive enabling perfect cross-conversation file tracking for ecosystem-manager phases (Progress, UX, Refactor, Test)",
     "version": "1.0.0",
     "tags": [
+      "agent-loop-memory",
+      "phase-integration",
+      "ecosystem-manager",
       "file-tracking",
       "visit-tracking",
       "staleness-detection",
@@ -15,9 +18,30 @@
       "developer-tools",
       "prioritization",
       "go-api",
-      "postgres-storage",
-      "systematic-review"
-    ]
+      "systematic-review",
+      "campaign-management"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "developer-tools",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/visited-tracker"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,47 +55,55 @@
       "range": "35000-39999"
     }
   },
-  "resources": {},
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Visited Tracker health check configuration",
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Visited Tracker",
-       "condition": {
-         "checks": [
-            {
-               "type": "binaries",
-               "targets": [
-                   "api/visited-tracker-api"
-               ]
-            },
-             {
-                "type": "cli",
-                "targets": [
-                   "visited-tracker"
-                ]
-             },
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
           {
-            "type": "directory",
-            "path": "data/campaigns"
+            "type": "binaries",
+            "targets": [
+              "api/visited-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "visited-tracker",
+            "targets": [
+              "visited-tracker"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           }
         ]
       },
@@ -84,33 +116,38 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI into ~/.local/bin"
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o visited-tracker-api .",
-          "description": "Build Go API binary"
+          "description": "Build the Go API binary (visited-tracker-api) for lifecycle orchestration"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "run": "echo '\ud83d\ude80 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start visited tracker with API and UI servers",
+      "description": "Launch API and UI production server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./visited-tracker-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server",
           "condition": {
             "file_exists": "api/visited-tracker-api"
           }
@@ -118,43 +155,46 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI development server",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
-          "description": "Display all running service URLs"
+          "run": "echo '\ud83d\ude80 Visited Tracker ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display service URLs after startup"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for visited-tracker using the new testing architecture",
+      "description": "Comprehensive phased testing for visited-tracker",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "test/run-tests.sh",
-          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
+          "name": "run-phased-tests",
+          "run": "test-genie execute visited-tracker --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"visited-tracker-api\" || true; sleep 1; pkill -9 -f \"visited-tracker-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'visited-tracker-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/visited-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/visited-tracker.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'scenarios/visited-tracker.*server\\.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

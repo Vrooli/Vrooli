@@ -1,15 +1,24 @@
-import { debugFlags } from './state.js'
+// @ts-check
 
+import { debugFlags } from "./state.js";
+
+/**
+ * @param {import("./types.d.ts").TerminalTab | null | undefined} tab
+ * @param {string} message
+ * @param {Record<string, unknown> | undefined} [extra]
+ */
 export function debugLog(tab, message, extra) {
-  if (!tab || typeof window === 'undefined') return
-  const runtimeDebug = window.__WEB_CONSOLE_DEBUG__ || {}
-  const enabled = Boolean(runtimeDebug.inputTelemetry || debugFlags.inputTelemetry)
-  if (!enabled) return
-  const payload = extra ? { ...extra } : undefined
-  const prefix = `[web-console:${tab.id || 'unknown'}]`
+  if (!tab || typeof window === "undefined") return;
+  const runtimeDebug = window.__WEB_CONSOLE_DEBUG__ || {};
+  const enabled = Boolean(
+    runtimeDebug.inputTelemetry || debugFlags.inputTelemetry,
+  );
+  if (!enabled) return;
+  const payload = extra ? { ...extra } : undefined;
+  const prefix = `[web-console:${tab.id || "unknown"}]`;
   if (payload) {
-    console.debug(prefix, message, payload)
+    console.debug(prefix, message, payload);
   } else {
-    console.debug(prefix, message)
+    console.debug(prefix, message);
   }
 }

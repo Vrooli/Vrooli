@@ -427,80 +427,14 @@ custom_elements:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: scenario-dependency-analyzer
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/scenario-dependency-analyzer
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - ui/index.html
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli  
-    - initialization
-    - initialization/storage
-    - ui
-
-resources:
-  required: [postgres, claude-code, qdrant]
-  optional: [redis]
-  health_timeout: 120
-
-tests:
-  - name: "API health endpoint responds"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-
-  - name: "Dependency analysis completes successfully"
-    type: http
-    service: api
-    endpoint: /api/v1/analyze/chart-generator
-    method: GET
-    expect:
-      status: 200
-      body:
-        resources: []
-        scenarios: []
-
-  - name: "CLI analyze command works"
-    type: exec
-    command: ./cli/scenario-dependency-analyzer analyze chart-generator --output json
-    expect:
-      exit_code: 0
-      output_contains: ["resources", "dependencies"]
-
-  - name: "Dependency graph visualization loads"
-    type: http
-    service: api  
-    endpoint: /api/v1/graph/combined
-    method: GET
-    expect:
-      status: 200
-      body:
-        nodes: []
-        edges: []
-
-  - name: "Database schema is initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('scenario_dependencies', 'dependency_graphs')"
-    expect:
-      rows:
-        - count: 2
-```
+- **Phased testing:** `test/run-tests.sh` orchestrates the six standard phases (structure, dependencies, unit, integration, business, performance) via the shared runner in `scripts/scenarios/testing/shell/runner.sh`, with presets for `quick`, `smoke`, and `comprehensive` flows.
+- **Structure phase:** Verifies critical directories (`api/`, `cli/`, `ui/`, `.vrooli/`, `test/`, `initialization/storage/postgres/`) and files (`PRD.md`, `README.md`, `api/main.go`, `api/go.mod`, CLI wrapper, Postgres schema/seed assets) while ensuring the CLI wrapper is executable.
+- **Dependencies phase:** Executes `go list ./...` and `go mod verify` within `api/` to confirm module integrity without mutating the workspace, emitting warnings if the CLI wrapper is missing.
+- **Unit phase:** Delegates to `scripts/scenarios/testing/unit/run-all.sh`, enforcing Go coverage thresholds (warn <80%, fail <50%).
+- **Integration phase:** Auto-starts the scenario, validates live API endpoints (`/health`, `/api/v1/scenarios/{name}/dependencies`, `/api/v1/graph/combined`, `/api/v1/analyze/proposed`), and confirms the CLI can reach the running services.
+- **Business phase:** Runs high-level CLI workflows (`analyze all`, `graph combined`, `status --json`) and inspects generated JSON artifacts to ensure analyses return data using `jq` when available.
+- **Performance phase:** Benchmarks `scenario-dependency-analyzer analyze chart-generator --output json`, warning when execution exceeds the 60-second baseline and failing on timeouts.
+- **Lifecycle wiring:** `.vrooli/service.json` now maps the test lifecycle to a single step (`test/run-tests.sh`), keeping Makefile and CLI execution (`vrooli scenario test scenario-dependency-analyzer`) aligned with the phased architecture.
 
 ## 🚨 Risk Mitigation
 

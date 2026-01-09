@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;base";
+
+// =============================================================================
+// BROWSER PROFILE CONFIGURATION
+// =============================================================================
+//
+// @layer 1
+// @domain base
+// @imports none
+// @stability stable
+//
+// BrowserProfile controls anti-detection, fingerprinting, and human-like behavior
+// settings for browser automation. These settings help workflows avoid bot detection
+// and simulate more natural user interactions.
+//
+// Presets:
+//   - "stealth": Maximum anti-detection, human-like delays (slower but safer)
+//   - "balanced": Moderate anti-detection and delays (good default)
+//   - "fast": Minimal delays, basic anti-detection (fastest execution)
+//   - "none": No modifications (raw Playwright behavior)
+//   - "custom": Use the individual settings below
+//
+// USAGE CONTEXTS:
+//   - WorkflowSettingsV2: Default profile for workflow executions
+//   - ExecutionParameters: Override profile for specific execution runs
+//   - SessionProfile: Associated profile for recording sessions
+// =============================================================================
+
+// BrowserProfile contains anti-detection and human-like behavior settings.
+message BrowserProfile {
+  // Preset name: "stealth", "balanced", "fast", "none", or empty for custom.
+  optional string preset = 1;
+  // Browser identity and device characteristic settings.
+  optional FingerprintSettings fingerprint = 2;
+  // Human-like interaction pattern settings.
+  optional BehaviorSettings behavior = 3;
+  // Bot detection bypass settings.
+  optional AntiDetectionSettings anti_detection = 4;
+  // Proxy configuration.
+  optional ProxySettings proxy = 5;
+  // Custom HTTP headers sent with every request.
+  // Keys like "Host", "Content-Length", and "Cookie" are blocked.
+  map<string, string> extra_headers = 6;
+}
+
+// FingerprintSettings controls browser identity and device characteristics.
+message FingerprintSettings {
+  // Viewport dimensions (0 = use default)
+  optional int32 viewport_width = 1;
+  optional int32 viewport_height = 2;
+
+  // Device characteristics
+  optional double device_scale_factor = 3;   // Display scaling (1.0 = 100%)
+  optional int32 hardware_concurrency = 4;   // CPU cores to report
+  optional int32 device_memory = 5;          // GB of RAM to report
+
+  // Browser identity
+  optional string user_agent = 6;            // Custom user agent string
+  optional string user_agent_preset = 7;     // chrome-win, chrome-mac, firefox-linux, etc.
+
+  // Locale and timezone
+  optional string locale = 8;                // e.g., "en-US"
+  optional string timezone_id = 9;           // e.g., "America/New_York"
+
+  // Geolocation spoofing
+  optional bool geolocation_enabled = 10;
+  optional double latitude = 11;
+  optional double longitude = 12;
+  optional double accuracy = 13;             // Accuracy in meters
+
+  // Display preferences
+  optional string color_scheme = 14;         // light, dark, no-preference
+}
+
+// BehaviorSettings controls human-like interaction patterns.
+message BehaviorSettings {
+  // Typing behavior - milliseconds between keystrokes
+  optional int32 typing_delay_min = 1;
+  optional int32 typing_delay_max = 2;
+
+  // Typing behavior - pre-typing delay (pause before starting to type)
+  optional int32 typing_start_delay_min = 14;
+  optional int32 typing_start_delay_max = 15;
+
+  // Typing behavior - paste threshold (paste long text instead of typing)
+  // 0 = always type, -1 = always paste, >0 = paste if text length exceeds threshold
+  optional int32 typing_paste_threshold = 16;
+
+  // Typing behavior - enhanced variance (simulate human typing patterns)
+  // When enabled, typing speed varies based on character pairs, shifted chars, etc.
+  optional bool typing_variance_enabled = 17;
+
+  // Mouse movement style: "linear", "bezier", or "natural"
+  optional string mouse_movement_style = 3;
+  optional double mouse_jitter_amount = 4;   // Pixels of random movement
+
+  // Click behavior - milliseconds before clicking
+  optional int32 click_delay_min = 5;
+  optional int32 click_delay_max = 6;
+
+  // Scroll behavior: "smooth" or "stepped"
+  optional string scroll_style = 7;
+  optional int32 scroll_speed_min = 8;       // Min pixels per step
+  optional int32 scroll_speed_max = 9;       // Max pixels per step
+
+  // Random micro-pauses between actions
+  optional bool micro_pause_enabled = 10;
+  optional int32 micro_pause_min_ms = 11;
+  optional int32 micro_pause_max_ms = 12;
+  optional double micro_pause_frequency = 13; // 0.0-1.0 probability
+}
+
+// AntiDetectionSettings controls bot detection bypass techniques.
+message AntiDetectionSettings {
+  // Browser launch modifications
+  optional bool disable_automation_controlled = 1;  // --disable-blink-features=AutomationControlled
+  optional bool disable_webrtc = 2;                 // Prevent IP leak via WebRTC
+
+  // Navigator property patches
+  optional bool patch_navigator_webdriver = 3;      // Remove navigator.webdriver
+  optional bool patch_navigator_plugins = 4;        // Spoof plugins array
+  optional bool patch_navigator_languages = 5;      // Ensure consistent languages
+  optional bool patch_webgl = 6;                    // Spoof WebGL renderer/vendor
+  optional bool patch_canvas = 7;                   // Add noise to canvas fingerprint
+  optional bool patch_audio_context = 10;           // Add noise to AudioContext to prevent audio fingerprinting
+  optional bool headless_detection_bypass = 8;      // Bypass headless detection
+
+  // Additional fingerprinting protection
+  optional bool patch_fonts = 11;                   // Spoof font enumeration to return common fonts only
+  optional bool patch_screen_properties = 12;       // Spoof screen dimensions to match viewport
+  optional bool patch_battery_api = 13;             // Return consistent battery status
+  optional bool patch_connection_api = 14;          // Spoof network connection type
+
+  // Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
+  // - none: No ad blocking
+  // - ads_only: Block advertisements only (EasyList + uBlock filters)
+  // - ads_and_tracking: Block ads + tracking scripts (includes privacy lists)
+  optional string ad_blocking_mode = 9;
+
+  // Domains to exclude from ad blocking (e.g., "google.com", "gstatic.com").
+  // Wildcards supported: "*.google.com" matches all subdomains.
+  repeated string ad_blocking_whitelist = 15;
+}
+
+// ProxySettings controls routing browser traffic through a proxy server.
+// Supports HTTP, HTTPS, and SOCKS5 proxies.
+message ProxySettings {
+  // Whether proxy is enabled.
+  optional bool enabled = 1;
+  // Proxy URL (e.g., "http://proxy:8080" or "socks5://proxy:1080").
+  optional string server = 2;
+  // Comma-separated domains to bypass proxy (e.g., "localhost,.internal.com").
+  optional string bypass = 3;
+  // Proxy authentication username.
+  optional string username = 4;
+  // Proxy authentication password.
+  optional string password = 5;
+}

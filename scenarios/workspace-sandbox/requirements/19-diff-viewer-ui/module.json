@@ -1,0 +1,57 @@
+{
+  "description": "Web UI with file-level toggle approval, hunk selection, sandbox metadata display, one-click approve/reject",
+  "module_id": "MOD-P2-019",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Implement web UI for reviewing and approving changes with syntax highlighting, file-level toggle approval, hunk selection, sandbox metadata display, and one-click approve/reject workflow",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "implemented",
+      "title": "Web-Based Diff Viewer",
+      "validation": [
+        {
+          "notes": "Test App container renders with sandbox list",
+          "phase": "unit",
+          "ref": "ui/src/App.test.tsx::renders the sandbox list container",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test create sandbox button present",
+          "phase": "unit",
+          "ref": "ui/src/App.test.tsx::renders the create sandbox button",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "DiffViewer component with hunk selection",
+          "phase": "unit",
+          "ref": "ui/src/components/DiffViewer.tsx",
+          "status": "passed",
+          "type": "manual"
+        },
+        {
+          "notes": "Complete approval workflow via API",
+          "phase": "api",
+          "ref": "api/internal/handlers/handlers_test.go::TestApproveSandbox",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Users can efficiently review changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Diff Viewer UI"
+}

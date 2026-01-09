@@ -29,6 +29,64 @@ openrouter::models::require_jq() {
     return 0
 }
 
+openrouter::models::manual_models_path() {
+    local data_dir="${var_DATA_DIR:-${APP_ROOT}/data}"
+    echo "${data_dir}/openrouter/manual-models.json"
+}
+
+openrouter::models::append_manual() {
+    local normalized_json="${1:-[]}"
+    local provider_prefix="${2:-}"
+    local search_term="${3:-}"
+    local limit_value="${4:-null}"
+
+    local manual_path
+    manual_path=$(openrouter::models::manual_models_path)
+
+    if [[ ! -f "${manual_path}" ]]; then
+        echo "${normalized_json}"
+        return 0
+    fi
+
+    if ! openrouter::models::require_jq; then
+        echo "${normalized_json}"
+        return 0
+    fi
+
+    local manual_json
+    if ! manual_json=$(jq 'map(select(.id != null))' "${manual_path}" 2>/dev/null); then
+        log::warning "Skipping manual models: unable to parse ${manual_path}"
+        echo "${normalized_json}"
+        return 0
+    fi
+
+    local merged
+    merged=$(jq \
+        --arg provider "${provider_prefix}" \
+        --arg search "${search_term}" \
+        --argjson limit "${limit_value}" \
+        --argjson manual "${manual_json}" \
+        '
+        def matches_provider($p): ($p == "" or ((.id // "") | tostring | startswith($p)));
+        def matches_search($s): ($s == "" or (
+            (try ((.id // "") | tostring | test($s; "i")) catch false)
+            or (try ((.name // "") | tostring | test($s; "i")) catch false)
+            or (try ((.description // "") | tostring | test($s; "i")) catch false)
+        ));
+
+        . as $api_models
+        | ($manual | map(select(matches_provider($provider) and matches_search($search)))) as $manual_filtered
+        | ($api_models + $manual_filtered)
+        | unique_by(.id)
+        | (if ($limit != null and $limit > 0) then .[:$limit] else . end)
+        ' <<<"${normalized_json}") || {
+            echo "${normalized_json}"
+            return 0
+        }
+
+    echo "${merged}"
+}
+
 openrouter::models::fetch_catalog() {
     local timeout="${OPENROUTER_TIMEOUT:-30}"
 
@@ -78,13 +136,18 @@ openrouter::models::filter_catalog() {
           end;
 
         def matches_provider($prefix):
-          ($prefix == "" or (.id | startswith($prefix)));
+          ($prefix == "" or ((.id // "") | tostring | startswith($prefix)));
 
         def matches_search($term):
-          ($term == "" or ((.id // "") | test($term; "i") or (.name // "") | test($term; "i") or (.description // "") | test($term; "i")));
+          ($term == "" or (
+              (try ((.id // "") | tostring | test($term; "i")) catch false)
+              or (try ((.name // "") | tostring | test($term; "i")) catch false)
+              or (try ((.description // "") | tostring | test($term; "i")) catch false)
+          ));
 
         (.data // [])
-        | map(select(matches_provider($provider) and matches_search($search))
+        | map(select(type == "object"))
+        | map(try (select(matches_provider($provider) and matches_search($search))
             | . as $model
             | {
                 id: ($model.id // null),
@@ -106,10 +169,11 @@ openrouter::models::filter_catalog() {
                     output: ($model.architecture.output_modalities // [])
                 },
                 supported_parameters: ($model.supported_parameters // [])
-            }
-        )
+            }) catch empty)
         | (if ($limit != null and $limit > 0) then .[:$limit] else . end)
         ' <<<"${raw_json}") || return 1
+
+    normalized=$(openrouter::models::append_manual "${normalized}" "${provider_prefix}" "${search_term}" "${limit_value}")
 
     echo "${normalized}"
 }

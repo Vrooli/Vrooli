@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mongodb:
     image: mongo:7.0
@@ -25,9 +27,7 @@ services:
         condition: service_healthy
     environment:
       - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
-      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
-      - DITTO_POLICIES_SERVICE_HTTP_HOSTNAME=0.0.0.0
-      - DITTO_POLICIES_SERVICE_HTTP_PORT=8080
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m
     restart: unless-stopped
 
   things:
@@ -38,11 +38,11 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      policies:
+        condition: service_started
     environment:
       - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
-      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
-      - DITTO_THINGS_SERVICE_HTTP_HOSTNAME=0.0.0.0
-      - DITTO_THINGS_SERVICE_HTTP_PORT=8080
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m
     restart: unless-stopped
 
   things-search:
@@ -53,11 +53,11 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      things:
+        condition: service_started
     environment:
       - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
-      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
-      - DITTO_THINGS_SEARCH_SERVICE_HTTP_HOSTNAME=0.0.0.0
-      - DITTO_THINGS_SEARCH_SERVICE_HTTP_PORT=8080
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m
     restart: unless-stopped
 
   connectivity:
@@ -68,11 +68,11 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      things:
+        condition: service_started
     environment:
       - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
-      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
-      - DITTO_CONNECTIVITY_SERVICE_HTTP_HOSTNAME=0.0.0.0
-      - DITTO_CONNECTIVITY_SERVICE_HTTP_PORT=8080
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m
     restart: unless-stopped
 
   gateway:
@@ -81,31 +81,37 @@ services:
     networks:
       - ditto-network
     ports:
-      - "${DITTO_GATEWAY_PORT:-8094}:8080"
-    environment:
-      - DITTO_GATEWAY_AUTHENTICATION_DEVOPS_PASSWORD=${DITTO_PASSWORD:-ditto}
-      - DITTO_GATEWAY_AUTHENTICATION_STATUS_PASSWORD=${DITTO_PASSWORD:-ditto}
-      - ENABLE_DUMMY_AUTH=true
-      - ENABLE_PRE_AUTHENTICATION=true
-      - DITTO_GATEWAY_SERVICE_HTTP_HOSTNAME=0.0.0.0
-      - DITTO_GATEWAY_SERVICE_HTTP_PORT=8080
-      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
-      - DITTO_POLICIES_ENDPOINT=http://policies:8080
-      - DITTO_THINGS_ENDPOINT=http://things:8080
-      - DITTO_THINGS_SEARCH_ENDPOINT=http://things-search:8080
-      - DITTO_CONNECTIVITY_ENDPOINT=http://connectivity:8080
+      - "${DITTO_GATEWAY_PORT:-8089}:8080"
     depends_on:
       - policies
       - things
       - things-search
       - connectivity
+    environment:
+      - DITTO_GATEWAY_AUTHENTICATION_DEVOPS_PASSWORD=${DITTO_PASSWORD:-ditto}
+      - DITTO_GATEWAY_AUTHENTICATION_STATUS_PASSWORD=${DITTO_PASSWORD:-ditto}
+      - ENABLE_DUMMY_AUTH=true
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/status/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 60s
+
+  nginx:
+    image: nginx:alpine
+    container_name: ditto-nginx
+    networks:
+      - ditto-network
+    ports:
+      - "${DITTO_GATEWAY_PORT:-8089}:80"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
 
 networks:
   ditto-network:

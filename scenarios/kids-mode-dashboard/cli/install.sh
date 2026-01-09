@@ -1,20 +1,8 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "Installing kids-mode-dashboard..."
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/kids-mode-dashboard/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-# Initialize Go module for API if needed
-if [ ! -f "../api/go.mod" ]; then
-  cd ../api
-  go mod init kids-mode-dashboard
-  cd ../cli
-fi
-
-# Build API
-cd ../api
-go mod tidy
-go build -o kids-mode-dashboard-api .
-
-# Return to cli and make executable ready (assuming build later)
-cd ../cli
-echo "Installation complete. Run 'make build' or similar to build CLI."
+install_cli "$CLI_DIR/kids-mode-dashboard" "kids-mode-dashboard"

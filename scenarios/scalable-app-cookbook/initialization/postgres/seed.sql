@@ -1,6 +1,8 @@
 -- Seed data for Scalable App Cookbook
 -- Populates the database with core architectural patterns from the master outline
 
+SET search_path TO scalable_app_cookbook, public;
+
 -- Part A - Architectural Foundations
 
 -- 1. Architecture Styles & Boundaries
@@ -34,7 +36,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Strategic design pattern that divides complex domains into smaller, more manageable bounded contexts. Each context has its own ubiquitous language, models, and business rules, with explicit integration patterns between contexts.',
   'Use for complex business domains with multiple subdomains. Essential when different parts of the system have different business rules, data models, or evolution rates. Critical for large teams working on different business areas.',
   'Pros: Reduces complexity by establishing clear boundaries. Enables independent team ownership. Supports different technical approaches per context. Facilitates microservices extraction. Cons: Requires domain expertise. Complex inter-context integration. Potential for over-segmentation leading to chatty interfaces.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- 2. Non-Functional Requirements & SLOs
 INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_why, when_to_use, tradeoffs) VALUES
@@ -47,7 +58,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Service Level Indicators (SLIs) measure system behavior, Service Level Objectives (SLOs) define target reliability, and Error Budgets balance reliability with feature velocity. This framework provides objective reliability measurement and decision-making criteria.',
   'Use when you need objective reliability measurement, want to balance feature development with stability, or need to establish SRE practices. Essential for production systems with reliability requirements and multiple stakeholders with different risk tolerances.',
   'Pros: Objective reliability measurement. Data-driven decision making. Balances innovation with stability. Enables error budget policies. Cons: Requires monitoring infrastructure investment. Can be complex to implement correctly. Risk of gaming metrics if not carefully designed.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- 3. Multi-Tenant SaaS Patterns
 INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_why, when_to_use, tradeoffs) VALUES
@@ -70,7 +90,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Each tenant gets their own database schema within a shared database instance. Provides good isolation while sharing infrastructure costs and operational complexity. Uses row-level security and schema-level permissions for data protection.',
   'Use for SaaS applications needing good isolation without the operational overhead of separate databases. Ideal for B2B applications with moderate security requirements and predictable tenant sizes.',
   'Pros: Good isolation with shared infrastructure. Lower operational complexity than database-per-tenant. Cost-effective for many tenants. Cons: Shared database performance impact. Complex schema migration coordination. Potential for resource contention between tenants.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- 4. Data Architecture & Consistency
 INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_why, when_to_use, tradeoffs) VALUES
@@ -93,7 +122,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Ensures reliable event publishing by storing events in the same database transaction as business data changes. A separate process reads from the outbox table and publishes events to external systems, guaranteeing at-least-once delivery.',
   'Use when you need reliable event publishing without distributed transactions. Essential for microservices communication, audit trails, and any system where events must not be lost even if external systems are unavailable.',
   'Pros: Guaranteed event delivery without 2PC. Uses local transactions only. Survives external system failures. Simple to implement and understand. Cons: Requires additional outbox processing. Potential for duplicate events (requires idempotent consumers). Eventual consistency with external systems.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- 5. API Design & Evolution
 INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_why, when_to_use, tradeoffs) VALUES
@@ -116,7 +154,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Architectural pattern for composing multiple GraphQL services into a single unified graph. Each service owns part of the schema, and a gateway federates queries across services while maintaining type safety and resolving dependencies.',
   'Use when building GraphQL APIs across multiple microservices, need unified API experience, or want to maintain service autonomy while providing cohesive client experience. Essential for large organizations with multiple API teams.',
   'Pros: Unified API experience across services. Service autonomy with shared schema. Type safety across federation. Efficient query resolution. Cons: Complex federation logic. Potential for circular dependencies. Gateway becomes critical path. Schema coordination overhead.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- Part B - Resiliency & Scale
 
@@ -141,7 +188,16 @@ INSERT INTO patterns (title, chapter, section, maturity_level, tags, what_and_wh
   'Isolates critical resources into separate pools to prevent resource exhaustion in one area from affecting others. Like watertight compartments in ships, failures in one bulkhead don''t sink the entire system.',
   'Use when different operations have different criticality levels, varying resource requirements, or different SLA expectations. Critical for systems where some operations must remain available even when others are struggling.',
   'Pros: Fault isolation between different operations. Prevents resource starvation. Supports different SLA requirements. Enables priority-based resource allocation. Cons: Resource utilization inefficiency. Increased operational complexity. Requires careful resource planning.'
-);
+)
+ON CONFLICT (title) DO UPDATE SET
+  chapter = EXCLUDED.chapter,
+  section = EXCLUDED.section,
+  maturity_level = EXCLUDED.maturity_level,
+  tags = EXCLUDED.tags,
+  what_and_why = EXCLUDED.what_and_why,
+  when_to_use = EXCLUDED.when_to_use,
+  tradeoffs = EXCLUDED.tradeoffs,
+  updated_at = CURRENT_TIMESTAMP;
 
 -- Now create initial recipes for some core patterns
 

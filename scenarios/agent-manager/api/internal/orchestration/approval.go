@@ -1,0 +1,188 @@
+// Package orchestration provides the core orchestration service for agent-manager.
+//
+// This file contains APPROVAL WORKFLOW operations.
+// All approval-related logic is grouped here for easier understanding.
+
+package orchestration
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"github.com/google/uuid"
+)
+
+// =============================================================================
+// FULL APPROVAL
+// =============================================================================
+
+// ApproveRun applies all sandbox changes to the canonical repository.
+func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*ApproveResult, error) {
+	// Fetch and validate run
+	run, err := o.getRunForApproval(ctx, req.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if approvable using domain decision helper
+	if allowed, reason := run.IsApprovable(); !allowed {
+		return nil, domain.NewStateError("Run", string(run.Status), "approve", reason)
+	}
+
+	// Apply changes via sandbox
+	result, err := o.sandbox.Approve(ctx, sandbox.ApproveRequest{
+		SandboxID: *run.SandboxID,
+		Actor:     req.Actor,
+		CommitMsg: req.CommitMsg,
+		Force:     req.Force,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Update run to approved state
+	if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
+		log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
+	}
+
+	return mapApproveResult(result), nil
+}
+
+// =============================================================================
+// REJECTION
+// =============================================================================
+
+// RejectRun marks sandbox changes as rejected without applying.
+func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error {
+	// Fetch and validate run
+	run, err := o.getRunForApproval(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Check if rejectable using domain decision helper
+	if allowed, rejectReason := run.IsRejectable(); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "reject", rejectReason)
+	}
+
+	// Reject and cleanup sandbox
+	if run.SandboxID != nil && o.sandbox != nil {
+		// First mark as rejected in workspace-sandbox
+		if err := o.sandbox.Reject(ctx, *run.SandboxID, actor); err != nil {
+			log.Printf("Warning: failed to reject sandbox %s: %v", *run.SandboxID, err)
+		}
+		// Then delete to fully release the scope lock
+		// This ensures the sandbox is cleaned up and scope is available for new runs
+		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
+			log.Printf("Warning: failed to delete sandbox %s: %v", *run.SandboxID, err)
+		}
+	}
+
+	// Update run state
+	return o.markRunRejected(ctx, run, actor, reason)
+}
+
+// =============================================================================
+// PARTIAL APPROVAL
+// =============================================================================
+
+// PartialApprove approves only selected files from the sandbox.
+func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error) {
+	// Fetch and validate run
+	run, err := o.getRunForApproval(ctx, req.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if approvable (same rules as full approval)
+	if allowed, reason := run.IsApprovable(); !allowed {
+		return nil, domain.NewStateError("Run", string(run.Status), "partial_approve", reason)
+	}
+
+	// Apply partial changes via sandbox
+	result, err := o.sandbox.PartialApprove(ctx, sandbox.PartialApproveRequest{
+		SandboxID: *run.SandboxID,
+		FileIDs:   req.FileIDs,
+		Actor:     req.Actor,
+		CommitMsg: req.CommitMsg,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Update run state based on remaining files
+	if result.Remaining == 0 {
+		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
+			log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
+		}
+	} else {
+		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
+			log.Printf("Warning: failed to mark run %s as partially approved: %v", run.ID, err)
+		}
+	}
+
+	return mapApproveResult(result), nil
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+// getRunForApproval fetches a run and validates it has basic approval prerequisites.
+func (o *Orchestrator) getRunForApproval(ctx context.Context, runID uuid.UUID) (*domain.Run, error) {
+	run, err := o.GetRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+
+	if o.sandbox == nil {
+		return nil, domain.NewConfigMissingError("sandbox", "sandbox provider not configured", nil)
+	}
+
+	return run, nil
+}
+
+// markRunApproved updates run to fully approved state.
+func (o *Orchestrator) markRunApproved(ctx context.Context, run *domain.Run, actor string) error {
+	now := time.Now()
+	run.ApprovalState = domain.ApprovalStateApproved
+	run.ApprovedBy = actor
+	run.ApprovedAt = &now
+	run.UpdatedAt = now
+	return o.runs.Update(ctx, run)
+}
+
+// markRunRejected updates run to rejected state.
+func (o *Orchestrator) markRunRejected(ctx context.Context, run *domain.Run, actor, reason string) error {
+	now := time.Now()
+	run.ApprovalState = domain.ApprovalStateRejected
+	run.ApprovedBy = actor
+	run.ApprovedAt = &now
+	run.ErrorMsg = reason
+	run.UpdatedAt = now
+	return o.runs.Update(ctx, run)
+}
+
+// markRunPartiallyApproved updates run to partial approval state.
+func (o *Orchestrator) markRunPartiallyApproved(ctx context.Context, run *domain.Run) error {
+	now := time.Now()
+	run.ApprovalState = domain.ApprovalStatePartiallyApproved
+	run.UpdatedAt = now
+	return o.runs.Update(ctx, run)
+}
+
+// mapApproveResult converts sandbox result to orchestration result.
+func mapApproveResult(r *sandbox.ApproveResult) *ApproveResult {
+	return &ApproveResult{
+		Success:    r.Success,
+		Applied:    r.Applied,
+		Remaining:  r.Remaining,
+		IsPartial:  r.IsPartial,
+		CommitHash: r.CommitHash,
+		AppliedAt:  r.AppliedAt,
+		ErrorMsg:   r.ErrorMsg,
+	}
+}

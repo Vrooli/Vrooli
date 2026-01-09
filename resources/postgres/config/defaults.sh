@@ -29,65 +29,65 @@ _postgres_defaults_detect_project_root() {
 # Set project root for proper config paths
 POSTGRES_PROJECT_ROOT="$(_postgres_defaults_detect_project_root)"
 
-# Resource metadata
-readonly POSTGRES_RESOURCE_NAME="postgres"
-readonly POSTGRES_RESOURCE_CATEGORY="storage"
-readonly POSTGRES_DISPLAY_NAME="PostgreSQL Database"
-readonly POSTGRES_DESCRIPTION="Managed PostgreSQL instances for client isolation"
+# Resource metadata - use guards to prevent "readonly variable" errors when sourced multiple times
+[[ -z "${POSTGRES_RESOURCE_NAME:-}" ]] && readonly POSTGRES_RESOURCE_NAME="postgres"
+[[ -z "${POSTGRES_RESOURCE_CATEGORY:-}" ]] && readonly POSTGRES_RESOURCE_CATEGORY="storage"
+[[ -z "${POSTGRES_DISPLAY_NAME:-}" ]] && readonly POSTGRES_DISPLAY_NAME="PostgreSQL Database"
+[[ -z "${POSTGRES_DESCRIPTION:-}" ]] && readonly POSTGRES_DESCRIPTION="Managed PostgreSQL instances for client isolation"
 
 # Docker configuration
-readonly POSTGRES_IMAGE="postgres:16-alpine"
-readonly POSTGRES_CONTAINER_PREFIX="vrooli-postgres"
-readonly POSTGRES_VOLUME_PREFIX="vrooli-postgres"
-readonly POSTGRES_NETWORK="vrooli-network"
+[[ -z "${POSTGRES_IMAGE:-}" ]] && readonly POSTGRES_IMAGE="postgres:16-alpine"
+[[ -z "${POSTGRES_CONTAINER_PREFIX:-}" ]] && readonly POSTGRES_CONTAINER_PREFIX="vrooli-postgres"
+[[ -z "${POSTGRES_VOLUME_PREFIX:-}" ]] && readonly POSTGRES_VOLUME_PREFIX="vrooli-postgres"
+[[ -z "${POSTGRES_NETWORK:-}" ]] && readonly POSTGRES_NETWORK="vrooli-network"
 
 # Instance configuration
 [[ -z "${POSTGRES_DEFAULT_PORT:-}" ]] && readonly POSTGRES_DEFAULT_PORT=5433
-readonly POSTGRES_DEFAULT_USER="vrooli"
+[[ -z "${POSTGRES_DEFAULT_USER:-}" ]] && readonly POSTGRES_DEFAULT_USER="vrooli"
 [[ -z "${POSTGRES_DEFAULT_DB:-}" ]] && readonly POSTGRES_DEFAULT_DB="vrooli"
-readonly POSTGRES_MAX_INSTANCES=67
+[[ -z "${POSTGRES_MAX_INSTANCES:-}" ]] && readonly POSTGRES_MAX_INSTANCES=67
 
-# Port range for instances  
+# Port range for instances
 [[ -z "${POSTGRES_INSTANCE_PORT_RANGE_START:-}" ]] && readonly POSTGRES_INSTANCE_PORT_RANGE_START=5433
 [[ -z "${POSTGRES_INSTANCE_PORT_RANGE_END:-}" ]] && readonly POSTGRES_INSTANCE_PORT_RANGE_END=5499
 
 # Health check configuration
-readonly POSTGRES_HEALTH_CHECK_INTERVAL=30
-readonly POSTGRES_HEALTH_CHECK_TIMEOUT=5
-readonly POSTGRES_HEALTH_CHECK_RETRIES=5
+[[ -z "${POSTGRES_HEALTH_CHECK_INTERVAL:-}" ]] && readonly POSTGRES_HEALTH_CHECK_INTERVAL=30
+[[ -z "${POSTGRES_HEALTH_CHECK_TIMEOUT:-}" ]] && readonly POSTGRES_HEALTH_CHECK_TIMEOUT=5
+[[ -z "${POSTGRES_HEALTH_CHECK_RETRIES:-}" ]] && readonly POSTGRES_HEALTH_CHECK_RETRIES=5
 
 # Backup configuration (using project root)
-readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
-readonly POSTGRES_BACKUP_RETENTION_DAYS=7
+[[ -z "${POSTGRES_BACKUP_DIR:-}" ]] && readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
+[[ -z "${POSTGRES_BACKUP_RETENTION_DAYS:-}" ]] && readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
-readonly POSTGRES_TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
+[[ -z "${POSTGRES_TEMPLATE_DIR:-}" ]] && readonly POSTGRES_TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
 
 # Instance data directory
-readonly POSTGRES_INSTANCES_DIR="${APP_ROOT}/resources/postgres/instances"
+[[ -z "${POSTGRES_INSTANCES_DIR:-}" ]] && readonly POSTGRES_INSTANCES_DIR="${APP_ROOT}/resources/postgres/instances"
 
 # Configuration directory (using project root)
-readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"
+[[ -z "${POSTGRES_CONFIG_DIR:-}" ]] && readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"
 
 # Default PostgreSQL configuration
-readonly POSTGRES_DEFAULT_MAX_CONNECTIONS=100
-readonly POSTGRES_DEFAULT_SHARED_BUFFERS="128MB"
-readonly POSTGRES_DEFAULT_WORK_MEM="4MB"
+[[ -z "${POSTGRES_DEFAULT_MAX_CONNECTIONS:-}" ]] && readonly POSTGRES_DEFAULT_MAX_CONNECTIONS=100
+[[ -z "${POSTGRES_DEFAULT_SHARED_BUFFERS:-}" ]] && readonly POSTGRES_DEFAULT_SHARED_BUFFERS="128MB"
+[[ -z "${POSTGRES_DEFAULT_WORK_MEM:-}" ]] && readonly POSTGRES_DEFAULT_WORK_MEM="4MB"
 
 # Initialization wait time (seconds)
-readonly POSTGRES_INITIALIZATION_WAIT=5
+[[ -z "${POSTGRES_INITIALIZATION_WAIT:-}" ]] && readonly POSTGRES_INITIALIZATION_WAIT=5
 
 # Default locale settings
-readonly POSTGRES_DEFAULT_LOCALE="en_US.UTF-8"
-readonly POSTGRES_DEFAULT_ENCODING="UTF8"
+[[ -z "${POSTGRES_DEFAULT_LOCALE:-}" ]] && readonly POSTGRES_DEFAULT_LOCALE="en_US.UTF-8"
+[[ -z "${POSTGRES_DEFAULT_ENCODING:-}" ]] && readonly POSTGRES_DEFAULT_ENCODING="UTF8"
 
 # GUI (pgweb) configuration
-readonly POSTGRES_GUI_IMAGE="sosedoff/pgweb:latest"
-readonly POSTGRES_GUI_CONTAINER_PREFIX="vrooli-pgweb"
-readonly POSTGRES_GUI_DEFAULT_PORT=8080
-readonly POSTGRES_GUI_PORT_RANGE_START=8080
-readonly POSTGRES_GUI_PORT_RANGE_END=8099
-readonly POSTGRES_GUI_MAX_INSTANCES=20
+[[ -z "${POSTGRES_GUI_IMAGE:-}" ]] && readonly POSTGRES_GUI_IMAGE="sosedoff/pgweb:latest"
+[[ -z "${POSTGRES_GUI_CONTAINER_PREFIX:-}" ]] && readonly POSTGRES_GUI_CONTAINER_PREFIX="vrooli-pgweb"
+[[ -z "${POSTGRES_GUI_DEFAULT_PORT:-}" ]] && readonly POSTGRES_GUI_DEFAULT_PORT=8080
+[[ -z "${POSTGRES_GUI_PORT_RANGE_START:-}" ]] && readonly POSTGRES_GUI_PORT_RANGE_START=8080
+[[ -z "${POSTGRES_GUI_PORT_RANGE_END:-}" ]] && readonly POSTGRES_GUI_PORT_RANGE_END=8099
+[[ -z "${POSTGRES_GUI_MAX_INSTANCES:-}" ]] && readonly POSTGRES_GUI_MAX_INSTANCES=20
 
 #######################################
 # Export configuration variables

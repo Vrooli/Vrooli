@@ -64,7 +64,10 @@
                 "format": "ipv4"
               }
             },
-            "required": ["domain", "ip"]
+            "required": [
+              "domain",
+              "ip"
+            ]
           }
         }
       }
@@ -115,5 +118,6 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/pihole/schema.json"
 }

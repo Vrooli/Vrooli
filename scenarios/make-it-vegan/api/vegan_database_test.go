@@ -92,13 +92,13 @@ func TestCheckIngredientsLogic(t *testing.T) {
 	db := InitVeganDatabase()
 
 	tests := []struct {
-		name              string
-		ingredients       string
-		expectedVegan     bool
-		expectedNonVegan  int
-		expectedReasons   int
-		containsItems     []string
-		notContainsItems  []string
+		name             string
+		ingredients      string
+		expectedVegan    bool
+		expectedNonVegan int
+		expectedReasons  int
+		containsItems    []string
+		notContainsItems []string
 	}{
 		{
 			name:             "AllVeganIngredients",
@@ -251,10 +251,10 @@ func TestGetAlternatives(t *testing.T) {
 	db := InitVeganDatabase()
 
 	tests := []struct {
-		name              string
-		ingredient        string
+		name               string
+		ingredient         string
 		expectAlternatives bool
-		minAlternatives   int
+		minAlternatives    int
 	}{
 		{
 			name:               "MilkAlternatives",
@@ -347,43 +347,43 @@ func TestGetQuickSubstitute(t *testing.T) {
 	db := InitVeganDatabase()
 
 	tests := []struct {
-		name            string
-		ingredient      string
+		name             string
+		ingredient       string
 		expectSubstitute bool
 	}{
 		{
-			name:            "OneEggSubstitute",
-			ingredient:      "1 egg",
+			name:             "OneEggSubstitute",
+			ingredient:       "1 egg",
 			expectSubstitute: true,
 		},
 		{
-			name:            "OneCupMilkSubstitute",
-			ingredient:      "1 cup milk",
+			name:             "OneCupMilkSubstitute",
+			ingredient:       "1 cup milk",
 			expectSubstitute: true,
 		},
 		{
-			name:            "OneTablespoonButterSubstitute",
-			ingredient:      "1 tbsp butter",
+			name:             "OneTablespoonButterSubstitute",
+			ingredient:       "1 tbsp butter",
 			expectSubstitute: true,
 		},
 		{
-			name:            "HoneySubstitute",
-			ingredient:      "honey",
+			name:             "HoneySubstitute",
+			ingredient:       "honey",
 			expectSubstitute: true,
 		},
 		{
-			name:            "UnknownIngredient",
-			ingredient:      "unknown-ingredient",
+			name:             "UnknownIngredient",
+			ingredient:       "unknown-ingredient",
 			expectSubstitute: false,
 		},
 		{
-			name:            "CaseInsensitive",
-			ingredient:      "1 EGG",
+			name:             "CaseInsensitive",
+			ingredient:       "1 EGG",
 			expectSubstitute: true,
 		},
 		{
-			name:            "PartialMatch",
-			ingredient:      "egg",
+			name:             "PartialMatch",
+			ingredient:       "egg",
 			expectSubstitute: true,
 		},
 	}

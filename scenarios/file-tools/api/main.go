@@ -18,15 +18,17 @@ import (
 	"mime"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Config holds application configuration
@@ -34,7 +36,6 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	N8NURL      string
-	WindmillURL string
 	APIToken    string
 }
 
@@ -99,19 +100,16 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("API_PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", getEnv("POSTGRES_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable")),
 		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
 		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	server := &Server{
@@ -132,7 +130,8 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.authMiddleware)
 
 	// Health check (no auth)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
+	healthHandler := health.New().Version("1.2.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -204,25 +203,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 // Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "File Tools API",
-		"version":   "1.2.0",
-	}
-
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
-	}
-
-	s.sendJSON(w, http.StatusOK, health)
-}
-
 func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement based on your scenario needs
 	// Example: List resources from database
@@ -395,7 +375,7 @@ func (s *Server) handleExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Trigger workflow execution via n8n or Windmill
+	// TODO: Trigger workflow execution via n8n or another orchestration platform
 	// This is a template - customize based on your workflow platform
 
 	executionID := uuid.New().String()
@@ -1791,61 +1771,25 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// Run starts the server
-func (s *Server) Run() error {
-	srv := &http.Server{
-		Addr:         ":" + s.config.Port,
-		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Handle graceful shutdown
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
-
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
-		}
-
-		s.db.Close()
-	}()
-
-	log.Printf("Server starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
-
-	return srv.ListenAndServe()
-}
-
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start file-tools
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "file-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	log.Println("Starting File Tools API...")
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
-	if err := server.Run(); err != nil && err != http.ErrServerClosed {
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

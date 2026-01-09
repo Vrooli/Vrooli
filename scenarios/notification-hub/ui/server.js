@@ -5,12 +5,73 @@ const http = require('http');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
+if (STATIC_ROOT !== DIST_DIR) {
+    console.warn('[Notification Hub UI] dist bundle missing or stale. Run `npm run build` so lifecycle.setup.condition can verify ui/dist/index.html.');
+}
+
+// Fail fast if UI_PORT is not configured
+if (!process.env.UI_PORT) {
+    console.error('ERROR: UI_PORT environment variable is required');
+    process.exit(1);
+}
+
+// Fail fast if API_PORT is not configured
+if (!process.env.API_PORT) {
+    console.error('ERROR: API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const startTime = new Date();
 
+// Manual proxy function for API calls
+function proxyToApi(req, res, targetPort, apiPath) {
+    const options = {
+        hostname: 'localhost',
+        port: targetPort,
+        path: apiPath || req.url,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `localhost:${targetPort}`
+        }
+    };
+
+    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${targetPort}${options.path}`);
+
+    const proxyReq = http.request(options, (proxyRes) => {
+        res.status(proxyRes.statusCode);
+        Object.keys(proxyRes.headers).forEach(key => {
+            res.setHeader(key, proxyRes.headers[key]);
+        });
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Proxy error:', err.message);
+        res.status(502).json({
+            error: 'Server unavailable',
+            details: err.message,
+            target: `http://localhost:${targetPort}${options.path}`
+        });
+    });
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        req.pipe(proxyReq);
+    } else {
+        proxyReq.end();
+    }
+}
+
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
+
+// Serve node_modules for iframe-bridge (symlinked from packages)
+app.use('/@vrooli/iframe-bridge', express.static(path.join(__dirname, 'node_modules/@vrooli/iframe-bridge')));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -98,29 +159,20 @@ app.get('/health', async (req, res) => {
     res.status(statusCode).json(healthResponse);
 });
 
-// API proxy to Go backend
-app.use('/api', createProxyMiddleware({
-    target: `http://localhost:${API_PORT}`,
-    changeOrigin: true,
-    onError: (err, req, res) => {
-        console.error('API proxy error:', err);
-        res.status(500).json({ error: 'API connection error' });
-    }
-}));
+// API proxy to Go backend - routes /api/* to API server
+app.use('/api', (req, res) => {
+    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    proxyToApi(req, res, API_PORT, fullApiPath);
+});
 
 // Serve main dashboard
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
-// Serve profile management page
-app.get('/profiles', (req, res) => {
-    res.sendFile(path.join(__dirname, 'profiles.html'));
-});
-
-// Serve analytics page
-app.get('/analytics', (req, res) => {
-    res.sendFile(path.join(__dirname, 'analytics.html'));
+// Serve deep links through the primary single-page application shell
+app.get(['/profiles', '/analytics', '/providers', '/templates', '/contacts'], (req, res) => {
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 // Health check helper functions
@@ -131,11 +183,11 @@ function checkStaticFiles() {
     };
 
     // Check for essential static files
-    const requiredFiles = ['index.html', 'profiles.html', 'analytics.html'];
+    const requiredFiles = ['index.html'];
     const missingFiles = [];
 
     requiredFiles.forEach(fileName => {
-        const filePath = path.join(__dirname, fileName);
+        const filePath = path.join(STATIC_ROOT, fileName);
         try {
             if (fs.existsSync(filePath)) {
                 const stats = fs.statSync(filePath);

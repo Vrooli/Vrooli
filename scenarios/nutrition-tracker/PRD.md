@@ -37,7 +37,7 @@ The Nutrition Tracker is a comprehensive application for tracking nutrition inta
 ## 4. Technical Requirements
 - Backend: Go API with PostgreSQL
 - Frontend: Node.js/React UI
-- Workflows: n8n for automation
+- Automation: Direct API/CLI flows (shared n8n workflows removed)
 - AI: Ollama for local inference
 - Vector Search: Qdrant for food similarity
 

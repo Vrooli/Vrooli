@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "db-schema-explorer",
@@ -19,7 +19,28 @@
       "n8n-workflows",
       "qdrant-vectors",
       "ollama-integration"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/db-schema-explorer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,71 +52,6 @@
       "env_var": "UI_PORT",
       "description": "React UI server port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary database for schema introspection, query execution, and metadata storage",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for query history embeddings and semantic search capabilities"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "codellama",
-        "nomic-embed-text"
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/schema-inspector.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/query-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/query-optimizer.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Query result caching for improved performance"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": false,
-      "required": false,
-      "purpose": "High-quality diagram export as images"
     }
   },
   "lifecycle": {
@@ -132,16 +88,24 @@
       "description": "Initialize Database Schema Explorer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "db-schema-explorer-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["db-schema-explorer"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/db-schema-explorer-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "db-schema-explorer",
+            "targets": [
+              "db-schema-explorer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -181,13 +145,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Database Schema Explorer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+          "run": "echo '\ud83d\ude80 Database Schema Explorer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start schema explorer with API and UI servers",
+      "description": "Start schema explorer with API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -200,61 +164,27 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start React UI development server in background",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test schema explorer API, UI and CLI",
+      "description": "Comprehensive phased testing for db-schema-explorer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-schema-endpoint",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/schema/list",
-          "description": "Test schema listing endpoint"
-        },
-        {
-          "name": "test-query-generation",
-          "run": "bash tests/test-query-generation.sh",
-          "description": "Test natural language to SQL generation"
-        },
-        {
-          "name": "test-ui-build",
-          "run": "cd ui && npm test -- --watchAll=false",
-          "description": "Run UI test suite",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats db-schema-explorer.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/db-schema-explorer.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute db-schema-explorer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -272,6 +202,73 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary database for schema introspection, query execution, and metadata storage",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for query history embeddings and semantic search capabilities"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "codellama",
+          "nomic-embed-text"
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/schema-inspector.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/query-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/query-optimizer.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Query result caching for improved performance"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "purpose": "High-quality diagram export as images"
+      }
     }
   }
 }

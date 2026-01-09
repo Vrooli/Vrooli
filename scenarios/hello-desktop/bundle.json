@@ -1,0 +1,136 @@
+{
+  "schema_version": "v0.1",
+  "target": "desktop",
+  "app": {
+    "name": "Hello Desktop",
+    "version": "0.1.0",
+    "description": "Minimal scenario for validating desktop deployment pipeline"
+  },
+  "ipc": {
+    "mode": "loopback-http",
+    "host": "127.0.0.1",
+    "port": 39200,
+    "auth_token_path": "runtime/auth_token"
+  },
+  "telemetry": {
+    "file": "telemetry/deployment-telemetry.jsonl",
+    "upload_url": ""
+  },
+  "ports": {
+    "default_range": {
+      "min": 20000,
+      "max": 24000
+    },
+    "reserved": null
+  },
+  "services": [
+    {
+      "id": "hello-desktop-api",
+      "type": "api-binary",
+      "description": "Bundled API process for hello-desktop",
+      "binaries": {
+        "darwin-arm64": {
+          "path": "bin/darwin-arm64/hello-desktop-api"
+        },
+        "darwin-x64": {
+          "path": "bin/darwin-x64/hello-desktop-api"
+        },
+        "linux-arm64": {
+          "path": "bin/linux-arm64/hello-desktop-api"
+        },
+        "linux-x64": {
+          "path": "bin/linux-x64/hello-desktop-api"
+        },
+        "win-x64": {
+          "path": "bin/win-x64/hello-desktop-api.exe"
+        }
+      },
+      "data_dirs": [
+        "data/api"
+      ],
+      "log_dir": "logs/api",
+      "ports": {
+        "requested": [
+          {
+            "name": "api",
+            "range": {
+              "min": 23100,
+              "max": 23200
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/health",
+        "port_name": "api",
+        "interval_ms": 2000,
+        "timeout_ms": 15000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "port_open",
+        "port_name": "api",
+        "pattern": "",
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "id": "ui",
+      "type": "ui-bundle",
+      "description": "Production UI bundle served locally",
+      "binaries": {
+        "darwin-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "linux-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "win-x64": {
+          "path": "ui/dist/index.html"
+        }
+      },
+      "log_dir": "logs/ui",
+      "ports": {
+        "requested": [
+          {
+            "name": "ui",
+            "range": {
+              "min": 24100,
+              "max": 24200
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/",
+        "port_name": "ui",
+        "interval_ms": 2000,
+        "timeout_ms": 10000,
+        "retries": 3
+      },
+      "readiness": {
+        "type": "health_success",
+        "port_name": "ui",
+        "pattern": "",
+        "timeout_ms": 20000
+      },
+      "assets": [
+        {
+          "path": "ui/dist",
+          "sha256": "pending",
+          "size_bytes": 0
+        },
+        {
+          "path": "ui/dist/index.html",
+          "sha256": "pending",
+          "size_bytes": 0
+        }
+      ],
+      "critical": true
+    }
+  ]
+}

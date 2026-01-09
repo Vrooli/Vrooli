@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "idea-generator",
@@ -25,84 +25,41 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/idea-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
       "description": "Idea generator coordination API port",
       "range": "15000-19999",
-      "default": 15100
+      "port": 15100
     },
     "ui": {
       "env_var": "UI_PORT",
       "description": "Creative brainstorming web interface port",
       "range": "35000-39999",
-      "default": 35100
-    }
-  },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store campaigns, ideas, chat history, and user data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store uploaded documents and processed content",
-      "initialization": [
-        {
-          "file": "initialization/storage/minio/buckets.json",
-          "type": "config"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search of ideas and documents - enables AI-powered similarity matching and content discovery",
-      "initialization": [
-        {
-          "file": "initialization/storage/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache and real-time chat session management"
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": true,
-      "purpose": "Document processing and text extraction for uploaded files"
+      "port": 35100
     }
   },
   "lifecycle": {
@@ -139,18 +96,24 @@
       "description": "Initialize Idea Generator",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/idea-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "idea-generator"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/idea-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "idea-generator",
+            "targets": [
+              "idea-generator"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -171,21 +134,35 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o idea-generator-api .",
-          "description": "Build Go coordination API binary"
+          "description": "Build Go coordination API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install Node.js UI dependencies"
+          "description": "Install Node.js UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
+          "run": "echo '\ud83d\ude80 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -193,69 +170,38 @@
     "develop": {
       "description": "Start idea generator with Go API server and Node.js UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./idea-generator-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/idea-generator-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Node.js UI server in background",
+          "name": "start-api",
+          "run": "cd api && ./idea-generator-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "api/idea-generator-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test idea generator API and CLI",
+      "description": "Comprehensive phased testing for idea-generator",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/campaigns",
-          "description": "Test API campaigns endpoint"
-        },
-        {
-          "name": "test-workflows-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/workflows",
-          "description": "Test API workflows endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats idea-generator.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/idea-generator.bats"
-          }
-        },
-        {
-          "name": "test-integration",
-          "run": "./test.sh",
-          "description": "Run integration tests"
+          "name": "run-phased-tests",
+          "run": "test-genie execute idea-generator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -273,6 +219,72 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store campaigns, ideas, chat history, and user data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store uploaded documents and processed content",
+        "initialization": [
+          {
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "config"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search of ideas and documents - enables AI-powered similarity matching and content discovery",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and real-time chat session management"
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document processing and text extraction for uploaded files"
+      }
     }
   }
 }

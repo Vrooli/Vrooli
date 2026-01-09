@@ -277,6 +277,9 @@ cmd_analytics() {
         echo "$response" | jq -r '
             "  Total Views: \(.totalViews)",
             "  Total Leads: \(.totalLeads)",
+            "  Captured Leads: \(.capturedLeads)",
+            "  Capture Rate: \(.captureRate)%",
+            "  Completed Leads: \(.completedLeads)",
             "  Conversion Rate: \(.conversionRate)%",
             "  Average Time: \(.averageTime)s",
             "",

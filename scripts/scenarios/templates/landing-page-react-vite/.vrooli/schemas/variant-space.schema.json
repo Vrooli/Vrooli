@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.dev/schemas/landing-page-variant-space.json",
+  "title": "LandingPageVariantSpace",
+  "type": "object",
+  "required": ["_name", "_schemaVersion", "axes"],
+  "additionalProperties": false,
+  "properties": {
+    "_name": {
+      "type": "string",
+      "const": "landingPageVariantSpace"
+    },
+    "_schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "_note": {
+      "type": "string"
+    },
+    "_agentGuidelines": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "axes": {
+      "type": "object",
+      "description": "Axis registry. Keys are axis IDs like 'persona', 'jtbd', 'conversionStyle'.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["variants"],
+        "additionalProperties": false,
+        "properties": {
+          "_note": { "type": "string" },
+          "variants": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/definitions/axisVariant" }
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "_note": { "type": "string" },
+        "disallowedCombinations": {
+          "type": "array",
+          "description": "Each object maps axisId -> variantId (string).",
+          "items": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "axisVariant": {
+      "type": "object",
+      "required": ["id", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "examples": {
+          "type": "object",
+          "description": "Optional example copy for this variant.",
+          "additionalProperties": { "type": "string" },
+          "properties": {
+            "headline": { "type": "string" },
+            "tagline": { "type": "string" }
+          }
+        },
+        "defaultWeight": {
+          "type": "number"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "experimental", "deprecated"]
+        },
+        "agentHints": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

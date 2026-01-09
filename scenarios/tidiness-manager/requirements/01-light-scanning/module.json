@@ -1,0 +1,268 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Light Scanning Engine",
+    "description": "Cheap, fast static analysis using Makefile integration and file metrics"
+  },
+  "requirements": [
+    {
+      "id": "TM-LS-001",
+      "title": "Makefile integration for lint execution",
+      "prd_ref": "OT-P0-001",
+      "description": "Execute `make lint` for any scenario with a Makefile and capture full output",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/lint_execution_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/lint-execution.json"
+        }
+      ],
+      "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-002",
+      "title": "Makefile integration for type checking",
+      "prd_ref": "OT-P0-001",
+      "description": "Execute `make type` for any scenario with a Makefile and capture full output",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/type_execution_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/type-execution.json"
+        }
+      ],
+      "notes": "Parse typescript and Go type errors into structured format",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-003",
+      "title": "Lint output parser",
+      "prd_ref": "OT-P0-001",
+      "description": "Parse lint outputs into structured issues with scenario, file path, line/column, message, and tool",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/parsers_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/no_makefile_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/lint-parser.json"
+        }
+      ],
+      "notes": "Support multiple linter formats (eslint, golangci-lint). Parsers_test.go includes 34 unit tests plus 2 fuzz tests for comprehensive edge case coverage.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-004",
+      "title": "Type output parser",
+      "prd_ref": "OT-P0-001",
+      "description": "Parse type checker outputs into structured issues",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/parsers_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/type-parser.json"
+        }
+      ],
+      "notes": "Support typescript tsc and Go type errors. Comprehensive edge case coverage via 34 unit tests + fuzz tests.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-005",
+      "title": "File metrics - line counting",
+      "prd_ref": "OT-P0-002",
+      "description": "Compute per-file line counts for all source files matching configurable glob patterns",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/file_metrics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/file-metrics-lines.json"
+        }
+      ],
+      "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-006",
+      "title": "File metrics - long file flagging",
+      "prd_ref": "OT-P0-002",
+      "description": "Flag files exceeding configurable line count threshold as 'long file' issues",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/file_metrics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/long-file-detection.json"
+        }
+      ],
+      "notes": "Default threshold: 400-600 lines (configurable per scenario)",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-007",
+      "title": "Light scan performance - small scenarios",
+      "prd_ref": "OT-P0-003",
+      "description": "Light scans for scenarios <50 files must complete in under 60 seconds",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "ref": "api/scan_performance_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/light_scanner_integration_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/scan-performance-small.json"
+        }
+      ],
+      "notes": "CLI scan command wired, performance tests passing. Integration tests verify 30-file scenario completes in <60s (actual: ~7ms).",
+      "status": "complete"
+    },
+    {
+      "id": "TM-LS-008",
+      "title": "Light scan performance - medium scenarios",
+      "prd_ref": "OT-P0-003",
+      "description": "Light scans for scenarios <200 files must complete in under 120 seconds",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "ref": "api/scan_performance_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/end_to_end_scan_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-light-scanning/api/scan-performance-medium.json"
+        }
+      ],
+      "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",
+      "status": "complete"
+    }
+  ]
+}

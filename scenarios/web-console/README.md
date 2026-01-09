@@ -15,7 +15,7 @@ The console keeps shell access, agent CLIs, and status tooling available whereve
 - Metrics endpoint surfaces session counters (`web_console_*`) alongside panic-stop and timeout data.
 
 ### Browser UI (Vanilla JS + Xterm)
-- **Offline-first design**: All vendor libraries (xterm.js, lucide icons, html2canvas) bundled locally under `ui/public/lib/` so the console never depends on CDNs.
+- **Offline-first design**: Terminal dependencies are bundled locally (`@xterm/xterm` via Vite, lucide icons + html2canvas in `ui/public/lib/`) so the console never depends on CDNs.
 - Vite handles bundling and transpilation (targeting Safari 13+) to keep mobile Safari working even when modules use modern syntax.
 - Quick command panel issues pre-defined commands into the active terminal and queues them while a session boots.
 - **Automatic reconnection**: Detects WebSocket disconnects and reconnects to running sessions automatically.
@@ -24,9 +24,9 @@ The console keeps shell access, agent CLIs, and status tooling available whereve
 - `proxyToApi` helper maintains lifecycle-compliant networking.
 - `postMessage` bridge mirrors session status and responds to parent requests for transcripts, screenshots, and logs.
 
-**Vendor Libraries** (1.1MB total, all local):
-- xterm@5.3.0 - Terminal emulator
-- xterm-addon-fit@0.7.0 - Terminal size fitting
+**Vendor Libraries** (all local):
+- @xterm/xterm@5.5.0 - Terminal emulator
+- @xterm/addon-fit@0.10.0 - Terminal size fitting
 - lucide icons - UI icons
 - html2canvas@1.4.1 - Screenshot capture
 

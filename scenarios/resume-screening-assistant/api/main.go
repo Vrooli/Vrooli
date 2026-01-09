@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -15,17 +15,8 @@ import (
 
 type Config struct {
 	Port          string
-	N8NBaseURL    string
-	WindmillURL   string
 	PostgresURL   string
 	QdrantURL     string
-}
-
-type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-	Version string `json:"version"`
-	Time    string `json:"time"`
 }
 
 type JobsResponse struct {
@@ -55,8 +46,6 @@ func loadConfig() *Config {
 	
 	return &Config{
 		Port:          getEnv("API_PORT", getEnv("PORT", "")),
-		N8NBaseURL:    getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		PostgresURL:   postgresURL,
 		QdrantURL:     getEnv("QDRANT_URL", "http://localhost:6333"),
 	}
@@ -69,20 +58,8 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:  "healthy",
-		Service: "resume-screening-assistant-api",
-		Version: "1.0.0",
-		Time:    time.Now().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 func jobsHandler(w http.ResponseWriter, r *http.Request) {
-	// In a real implementation, this would query the database or call n8n
+	// In a real implementation, this would query the database or call a workflow engine
 	// For now, return mock data to demonstrate the endpoint
 	mockJobs := []interface{}{
 		map[string]interface{}{
@@ -241,7 +218,7 @@ func setupRoutes(config *Config) *mux.Router {
 	r := mux.NewRouter()
 
 	// Health endpoint
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API endpoints
 	r.HandleFunc("/api/jobs", jobsHandler).Methods("GET")
@@ -261,10 +238,8 @@ func setupRoutes(config *Config) *mux.Router {
 				"search":     "/api/search",
 			},
 			"resources": map[string]string{
-				"n8n":       config.N8NBaseURL,
-				"windmill":  config.WindmillURL,
-				"postgres":  "Connected",
-				"qdrant":    config.QdrantURL,
+				"postgres": "Connected",
+				"qdrant":   config.QdrantURL,
 			},
 		}
 
@@ -276,24 +251,17 @@ func setupRoutes(config *Config) *mux.Router {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start resume-screening-assistant
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "resume-screening-assistant",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	config := loadConfig()
 	
 	log.Printf("Starting Resume Screening Assistant API server...")
 	log.Printf("Port: %s", config.Port)
-	log.Printf("n8n URL: %s", config.N8NBaseURL)
-	log.Printf("Windmill URL: %s", config.WindmillURL)
 	log.Printf("Qdrant URL: %s", config.QdrantURL)
 
 	router := setupRoutes(config)

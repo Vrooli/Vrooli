@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -52,33 +59,64 @@ type AgentSession struct {
 	Output    string     `json:"output,omitempty"`
 }
 
+//go:embed webui/*
+var embeddedWebUI embed.FS
+
 var db *sql.DB
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start vrooli-assistant
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "vrooli-assistant",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize database connection
 	initDB()
-	defer db.Close()
 
 	// Create tables if they don't exist
 	createTables()
 
+	// Serve embedded web UI assets
+	webFS, err := fs.Sub(embeddedWebUI, "webui")
+	if err != nil {
+		log.Fatalf("Failed to load embedded web UI assets: %v", err)
+	}
+	spa := newSPAFileServer(http.FS(webFS), "index.html")
+
 	// Set up routes
+	router := newRouter(spa)
+
+	// Enable CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:*", "file://*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"*"},
+	})
+
+	handler := c.Handler(router)
+
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func newRouter(staticHandler http.Handler) *mux.Router {
 	router := mux.NewRouter()
 
-	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	// Health check - both paths for compatibility
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
+	router.HandleFunc("/api/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	router.HandleFunc("/api/v1/assistant/status", statusHandler).Methods("GET")
 
 	// Issue capture
@@ -96,103 +134,90 @@ func main() {
 	// Update issue status
 	router.HandleFunc("/api/v1/assistant/issues/{id}/status", updateStatusHandler).Methods("PUT")
 
-	// Enable CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:*", "file://*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"*"},
-	})
-
-	handler := c.Handler(router)
-
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
+	if staticHandler != nil {
+		router.PathPrefix("/").Handler(staticHandler)
 	}
 
-	log.Printf("Vrooli Assistant API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	return router
+}
+
+type spaFileServer struct {
+	fs    http.FileSystem
+	index string
+}
+
+func newSPAFileServer(fileSystem http.FileSystem, index string) http.Handler {
+	return spaFileServer{fs: fileSystem, index: index}
+}
+
+func (s spaFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/")
+
+	if path == "" {
+		s.serveIndex(w, r)
+		return
+	}
+
+	file, err := s.fs.Open(path)
+	if err != nil {
+		s.serveIndex(w, r)
+		return
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		s.serveIndex(w, r)
+		return
+	}
+
+	if info.IsDir() {
+		nestedPath := strings.TrimSuffix(path, "/") + "/" + s.index
+		nestedFile, nestedErr := s.fs.Open(nestedPath)
+		if nestedErr != nil {
+			s.serveIndex(w, r)
+			return
+		}
+		defer nestedFile.Close()
+
+		nestedInfo, nestedInfoErr := nestedFile.Stat()
+		if nestedInfoErr != nil {
+			s.serveIndex(w, r)
+			return
+		}
+
+		http.ServeContent(w, r, nestedInfo.Name(), nestedInfo.ModTime(), nestedFile)
+		return
+	}
+
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+}
+
+func (s spaFileServer) serveIndex(w http.ResponseWriter, r *http.Request) {
+	indexFile, err := s.fs.Open(s.index)
+	if err != nil {
+		http.Error(w, "Vrooli Assistant web UI is not built yet. Run `npm install && npm run build` inside ui/.", http.StatusServiceUnavailable)
+		return
+	}
+	defer indexFile.Close()
+
+	info, err := indexFile.Stat()
+	if err != nil {
+		http.Error(w, "Vrooli Assistant web UI is unavailable.", http.StatusInternalServerError)
+		return
+	}
+
+	http.ServeContent(w, r, info.Name(), info.ModTime(), indexFile)
 }
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", dbURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Database connection failed:", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🤖 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v", actualDelay)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
 }
 
 func createTables() {
@@ -230,11 +255,6 @@ func createTables() {
 			log.Printf("Failed to create table: %v", err)
 		}
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

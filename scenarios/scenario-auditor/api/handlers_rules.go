@@ -44,7 +44,6 @@ func initRuleStateStore() *RuleStateStore {
 }
 
 func (rs *RuleStateStore) enablePersistence() {
-	logger := NewLogger()
 
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -176,6 +175,17 @@ type Rule struct {
 	Implementation re.ImplementationStatus `json:"implementation"`
 }
 
+func ensureRuleIsInternal(w http.ResponseWriter, ruleID, action string) bool {
+	if !isExternalRule(ruleID) {
+		return true
+	}
+	if action == "" {
+		action = "be modified"
+	}
+	HTTPError(w, fmt.Sprintf("Rule %s is managed by an external provider and cannot %s via scenario-auditor", ruleID, action), http.StatusBadRequest, nil)
+	return false
+}
+
 type RuleCategory = re.Category
 
 type RuleTestStatus struct {
@@ -189,7 +199,6 @@ type RuleTestStatus struct {
 
 // getRulesHandler returns the list of available rules and categories
 func getRulesHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 	logger.Info("Fetching available rules")
 
 	svc, err := ruleService()
@@ -199,16 +208,18 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ruleInfos, err := svc.Load()
+	internalRuleInfos, err := svc.Load()
 	if err != nil {
 		logger.Error("Failed to load rules from service", err)
 		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
 		return
 	}
 
+	allRuleInfos := mergeWithExternalRules(internalRuleInfos)
+
 	rules := make(map[string]Rule)
 	states := ruleStateStore.GetAllStates()
-	for id, info := range ruleInfos {
+	for id, info := range allRuleInfos {
 		rule := convertInfoToRule(info)
 		if enabled, exists := states[id]; exists {
 			rule.Enabled = enabled
@@ -216,15 +227,22 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 		rules[id] = rule
 	}
 
-	testStatuses := computeRuleTestStatuses(svc, ruleInfos)
+	testStatuses := computeRuleTestStatuses(svc, internalRuleInfos)
 	ruleStatusMap := make(map[string]RuleTestStatus)
 	for id, rule := range rules {
 		status, ok := testStatuses[id]
 		if !ok {
-			// If we couldn't compute a status (e.g. metadata only), mark as needing attention
-			status = RuleTestStatus{
-				Warning:   "Rule metadata missing source file",
-				HasIssues: true,
+			if isExternalRule(id) {
+				status = RuleTestStatus{
+					Warning:   "Managed by external provider",
+					HasIssues: false,
+				}
+			} else {
+				// Metadata missing from local filesystem
+				status = RuleTestStatus{
+					Warning:   "Rule metadata missing source file",
+					HasIssues: true,
+				}
 			}
 		}
 
@@ -252,7 +270,7 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"rules":         filteredRules,
 		"categories":    categories,
 		"count":         len(filteredRules),
@@ -324,7 +342,6 @@ func computeRuleTestStatuses(svc *re.Service, ruleInfos map[string]re.Info) map[
 
 // createRuleHandler creates an issue in app-issue-tracker for rule creation
 func createRuleHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	var req createRuleRequest
 
@@ -384,11 +401,11 @@ func createRuleHandler(w http.ResponseWriter, r *http.Request) {
 			u.RawQuery = query.Encode()
 			issueURL = u.String()
 		} else {
-			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]interface{}{"error": err.Error()})
+			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]any{"error": err.Error()})
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"issueId":  result.IssueID,
 		"issueUrl": issueURL,
 		"message":  result.Message,
@@ -412,7 +429,6 @@ func deleteRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // toggleRuleHandler enables/disables a rule
 func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
@@ -422,6 +438,8 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
 		return
 	}
+	// External rules CAN be toggled, so we don't check ensureRuleIsInternal here
+
 
 	// Parse request body
 	var toggleReq struct {
@@ -442,7 +460,7 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"rule_id": ruleID,
 		"enabled": toggleReq.Enabled,
@@ -458,7 +476,6 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // getRuleHandler gets a single rule by ID including file content
 func getRuleHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
@@ -485,11 +502,34 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ruleInfo, exists := ruleInfos[ruleID]
-	if !exists {
+	if _, exists := ruleInfos[ruleID]; !exists {
+		if externalInfo, ok := loadExternalRuleInfos()[ruleID]; ok {
+			rule := convertInfoToRule(externalInfo)
+			if enabled, ok := ruleStateStore.GetState(ruleID); ok {
+				rule.Enabled = enabled
+			}
+			providerName := "external provider"
+			if provider, ok := externalRuleProviderFor(ruleID); ok && provider != nil {
+				providerName = provider.Name()
+			}
+			response := map[string]any{
+				"rule":           rule,
+				"file_content":   "",
+				"file_path":      "",
+				"execution_info": map[string]any{"notes": []string{fmt.Sprintf("Managed by %s", providerName)}},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.Error("Failed to encode rule response", err)
+				HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+			}
+			return
+		}
 		HTTPError(w, "Rule not found", http.StatusNotFound, nil)
 		return
 	}
+
+	ruleInfo := ruleInfos[ruleID]
 
 	// Read the file content
 	fileContent := ""
@@ -515,7 +555,7 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	executionInfo := re.BuildExecutionInfo(ruleInfo)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"rule":           rule,
 		"file_content":   fileContent,
 		"file_path":      ruleInfo.FilePath,
@@ -536,7 +576,6 @@ func getRuleCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 
 // createRuleWithAIHandler creates a rule using AI assistance
 func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	var req struct {
 		Name        string `json:"name"`
@@ -604,7 +643,7 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info(fmt.Sprintf("Started rule creation agent %s for %s", agentInfo.ID, metadata["rule_id"]))
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":  true,
 		"message":  fmt.Sprintf("Rule creation agent started for %s", safeFallback(spec.Name, metadata["rule_id"])),
 		"agent":    agentInfo,
@@ -620,7 +659,6 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 // editRuleWithAIHandler edits a rule using AI assistance
 func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
@@ -699,7 +737,7 @@ func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info(fmt.Sprintf("Started rule editing agent %s for %s", agentInfo.ID, ruleID))
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":  true,
 		"message":  fmt.Sprintf("Rule editing agent started for %s", ruleID),
 		"agent":    agentInfo,
@@ -715,7 +753,6 @@ func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 // testRuleHandler runs all test cases for a specific rule
 func testRuleHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
@@ -778,7 +815,7 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 		warning = "No test cases found for this rule"
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"rule_id":     ruleID,
 		"file_hash":   fileHash,
 		"total_tests": totalTests,
@@ -797,12 +834,14 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	vars := mux.Vars(r)
 	ruleID := strings.TrimSpace(vars["ruleId"])
 	if ruleID == "" {
 		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
+		return
+	}
+	if !ensureRuleIsInternal(w, ruleID, "be executed across scenarios") {
 		return
 	}
 
@@ -899,7 +938,7 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 	type scenarioResult struct {
 		index int
-		value map[string]interface{}
+		value map[string]any
 	}
 
 	jobs := make(chan scenarioJob)
@@ -914,7 +953,7 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			violations, filesScanned, _, evalErr := evaluateRuleOnScenario(ruleInfo, job.name)
 
-			result := map[string]interface{}{
+			result := map[string]any{
 				"rule_id":       ruleID,
 				"scenario":      job.name,
 				"files_scanned": filesScanned,
@@ -970,13 +1009,13 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		close(resultsCh)
 	}()
 
-	orderedResults := make([]map[string]interface{}, len(validScenarios))
+	orderedResults := make([]map[string]any, len(validScenarios))
 	for res := range resultsCh {
 		orderedResults[res.index] = res.value
 	}
 	elapsed := time.Since(overallStart)
 
-	filteredResults := make([]map[string]interface{}, 0, len(orderedResults))
+	filteredResults := make([]map[string]any, 0, len(orderedResults))
 	for _, result := range orderedResults {
 		if result != nil {
 			filteredResults = append(filteredResults, result)
@@ -984,13 +1023,13 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return appropriate response format
-	var response interface{}
+	var response any
 	if len(filteredResults) == 1 {
 		// Single scenario: backward compatible response
 		response = filteredResults[0]
 	} else {
 		// Multiple scenarios: batch response
-		response = map[string]interface{}{
+		response = map[string]any{
 			"rule_id":           ruleID,
 			"total_scenarios":   len(filteredResults),
 			"total_duration_ms": elapsed.Milliseconds(),
@@ -1008,7 +1047,6 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 // validateRuleHandler validates custom input against a rule
 func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
@@ -1065,7 +1103,7 @@ func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"rule_id":     ruleID,
 		"test_result": result,
 		"violations":  result.ActualViolations,
@@ -1081,7 +1119,6 @@ func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // clearTestCacheHandler clears test cache for a specific rule or all rules
 func clearTestCacheHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	// Extract rule ID from URL (optional)
 	vars := mux.Vars(r)
@@ -1093,34 +1130,32 @@ func clearTestCacheHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
+	var response map[string]any
 	if ruleID != "" {
 		logger.Info("Clearing test cache for rule: " + ruleID)
 		svc.ClearTestCache(ruleID)
 
-		response := map[string]interface{}{
+		response = map[string]any{
 			"success": true,
 			"message": fmt.Sprintf("Test cache cleared for rule %s", ruleID),
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
 	} else {
 		logger.Info("Clearing all test cache")
 		svc.ClearTestCache("")
 
-		response := map[string]interface{}{
+		response = map[string]any{
 			"success": true,
 			"message": "All test caches cleared",
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
 	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // getTestCoverageHandler returns test coverage metrics for all rules
 func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 	logger.Info("Fetching test coverage metrics")
 
 	svc, err := ruleService()
@@ -1142,7 +1177,7 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 	totalTestCases := 0
 	passingTests := 0
 	failingTests := 0
-	rulesCoverage := make(map[string]interface{})
+	rulesCoverage := make(map[string]any)
 	categoryCoverage := make(map[string]map[string]int)
 
 	// Initialize category maps
@@ -1204,7 +1239,7 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		rulesCoverage[ruleID] = map[string]interface{}{
+		rulesCoverage[ruleID] = map[string]any{
 			"has_tests":  hasTests,
 			"test_count": len(testCases),
 			"category":   category,
@@ -1232,8 +1267,8 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response
-	response := map[string]interface{}{
-		"coverage_metrics": map[string]interface{}{
+	response := map[string]any{
+		"coverage_metrics": map[string]any{
 			"total_rules":            totalRules,
 			"rules_with_tests":       rulesWithTests,
 			"rules_without_tests":    totalRules - rulesWithTests,
@@ -1241,7 +1276,7 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 			"total_test_cases":       totalTestCases,
 			"average_tests_per_rule": averageTestsPerRule,
 		},
-		"test_results": map[string]interface{}{
+		"test_results": map[string]any{
 			"total_run": totalTestsRun,
 			"passing":   passingTests,
 			"failing":   failingTests,

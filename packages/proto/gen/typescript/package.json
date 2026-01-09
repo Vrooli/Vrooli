@@ -1,0 +1,12 @@
+{
+  "name": "@vrooli/proto-types",
+  "version": "1.0.0",
+  "description": "Protocol Buffer generated TypeScript types for Vrooli",
+  "type": "module",
+  "peerDependencies": {
+    "@bufbuild/protobuf": "^2.10.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

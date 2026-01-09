@@ -1,222 +1,41 @@
-#!/usr/bin/env node
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { startScenarioServer } from '@vrooli/api-base/server'
 
-/**
- * Scenario-to-Desktop UI Server
- * Serves the web interface for desktop application generation
- */
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const morgan = require('morgan');
-const path = require('path');
-const fs = require('fs');
+const SERVICE_NAME = 'scenario-to-desktop'
+const VERSION = process.env.npm_package_version || '1.0.0'
+const API_HOST = process.env.API_HOST || '127.0.0.1'
+const UI_PORT = process.env.UI_PORT || process.env.PORT
+const API_PORT = process.env.API_PORT
+const PROXY_TIMEOUT_MS = process.env.PROXY_TIMEOUT_MS
 
-// Configuration
-const PORT = process.env.PORT || 3203;
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3202';
-const NODE_ENV = process.env.NODE_ENV || 'development';
-
-// Create Express app
-const app = express();
-
-const localFrameAncestors = [
-    "'self'",
-    'http://localhost:*',
-    'http://127.0.0.1:*',
-    'http://[::1]:*'
-];
-
-const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
-    .split(/\s+/)
-    .filter(Boolean);
-
-// Security middleware
-app.use(helmet({
-    frameguard: false,
-    contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", API_BASE_URL, 'ws:', 'wss:'],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"],
-            frameAncestors: [...localFrameAncestors, ...extraFrameAncestors],
-        },
-    },
-}));
-
-// CORS configuration
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: false
-}));
-
-// Compression and logging
-app.use(compression());
-if (NODE_ENV === 'development') {
-    app.use(morgan('dev'));
-} else {
-    app.use(morgan('combined'));
+function requireEnv(value, name) {
+  if (!value) {
+    throw new Error(`[scenario-to-desktop/ui] ${name} environment variable is required`)
+  }
+  return value
 }
 
-// Parse JSON bodies
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+export function startServer() {
+  const resolvedUiPort = requireEnv(UI_PORT, 'UI_PORT')
+  const resolvedApiPort = requireEnv(API_PORT, 'API_PORT')
+  const proxyTimeoutMs = Number.parseInt(PROXY_TIMEOUT_MS || '', 10)
 
-// Static files
-app.use('/static', express.static(path.join(__dirname, 'static')));
-
-// API proxy for development (optional)
-if (NODE_ENV === 'development') {
-    app.use('/api', (req, res) => {
-        res.status(502).json({
-            error: 'API proxy not implemented',
-            message: 'Please ensure the API server is running on port 3202',
-            api_url: API_BASE_URL
-        });
-    });
+  return startScenarioServer({
+    uiPort: resolvedUiPort,
+    apiPort: resolvedApiPort,
+    apiHost: API_HOST,
+    distDir: path.join(__dirname, 'dist'),
+    serviceName: SERVICE_NAME,
+    version: VERSION,
+    corsOrigins: '*',
+    proxyTimeoutMs: Number.isFinite(proxyTimeoutMs) ? proxyTimeoutMs : 120000,
+  })
 }
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        service: 'scenario-to-desktop-ui',
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-        api_base_url: API_BASE_URL
-    });
-});
-
-// Status endpoint
-app.get('/status', (req, res) => {
-    res.json({
-        service: {
-            name: 'scenario-to-desktop-ui',
-            version: '1.0.0',
-            description: 'Web UI for desktop application generation',
-            status: 'running'
-        },
-        configuration: {
-            port: PORT,
-            api_base_url: API_BASE_URL,
-            node_env: NODE_ENV
-        },
-        features: [
-            'Desktop app generation interface',
-            'Template browser',
-            'Build status monitoring',
-            'System statistics dashboard'
-        ]
-    });
-});
-
-// Serve main application
-app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'index.html');
-    
-    if (!fs.existsSync(indexPath)) {
-        return res.status(500).json({
-            error: 'UI files not found',
-            message: 'index.html not found in UI directory'
-        });
-    }
-    
-    // Read and serve the HTML file
-    let html = fs.readFileSync(indexPath, 'utf8');
-    
-    // Replace API URL placeholder if needed
-    html = html.replace(/API_BASE_URL\s*=\s*['"][^'"]*['"]/, `API_BASE_URL = '${API_BASE_URL}'`);
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-});
-
-// Serve favicon (if it exists)
-app.get('/favicon.ico', (req, res) => {
-    const faviconPath = path.join(__dirname, 'favicon.ico');
-    if (fs.existsSync(faviconPath)) {
-        res.sendFile(faviconPath);
-    } else {
-        res.status(404).end();
-    }
-});
-
-// Catch-all handler for SPA routing
-app.get('*', (req, res) => {
-    res.redirect('/');
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Error:', err);
-    
-    res.status(err.status || 500).json({
-        error: 'Internal Server Error',
-        message: NODE_ENV === 'development' ? err.message : 'Something went wrong',
-        ...(NODE_ENV === 'development' && { stack: err.stack })
-    });
-});
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        error: 'Not Found',
-        message: `Route ${req.method} ${req.path} not found`
-    });
-});
-
-// Graceful shutdown
-function shutdown(signal) {
-    console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
-    
-    server.close(() => {
-        console.log('Server closed. Goodbye!');
-        process.exit(0);
-    });
-    
-    // Force exit after timeout
-    setTimeout(() => {
-        console.log('Could not close connections in time, forcefully shutting down');
-        process.exit(1);
-    }, 10000);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  startServer()
 }
-
-// Start server
-const server = app.listen(PORT, () => {
-    console.log('🖥️  Scenario-to-Desktop UI Server');
-    console.log('==================================');
-    console.log(`✅ Server running on port ${PORT}`);
-    console.log(`🌐 Web interface: http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🔧 API endpoint: ${API_BASE_URL}`);
-    console.log(`📱 Environment: ${NODE_ENV}`);
-    console.log('');
-    console.log('Ready to generate desktop applications! 🚀');
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
-    process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    process.exit(1);
-});
-
-module.exports = app;

@@ -1,0 +1,108 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "description": "Reports API status, database connectivity, ffmpeg availability, and storage mode.",
+      "category": "system"
+    },
+    {
+      "id": "api-health",
+      "path": "/api/health",
+      "method": "GET",
+      "summary": "API namespace health",
+      "description": "Same payload as /health exposed under /api for compatibility.",
+      "category": "system"
+    },
+    {
+      "id": "edit-audio",
+      "path": "/api/v1/audio/edit",
+      "method": "POST",
+      "summary": "Edit audio",
+      "description": "Applies trim, merge, fade, normalization, and other editing operations on uploaded audio files.",
+      "category": "audio"
+    },
+    {
+      "id": "convert-audio",
+      "path": "/api/v1/audio/convert",
+      "method": "POST",
+      "summary": "Convert audio format",
+      "description": "Converts audio between codecs/sample rates/bitrates using ffmpeg.",
+      "category": "audio"
+    },
+    {
+      "id": "get-audio-metadata",
+      "path": "/api/v1/audio/metadata/{id}",
+      "method": "GET",
+      "summary": "Get audio metadata",
+      "description": "Returns stored metadata for a processed audio asset using its identifier.",
+      "category": "audio",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Metadata record identifier"
+        }
+      }
+    },
+    {
+      "id": "analyze-audio-metadata",
+      "path": "/api/v1/audio/metadata",
+      "method": "POST",
+      "summary": "Analyze metadata",
+      "description": "Uploads audio and extracts metadata such as duration, channels, loudness, and waveform statistics.",
+      "category": "audio"
+    },
+    {
+      "id": "enhance-audio",
+      "path": "/api/v1/audio/enhance",
+      "method": "POST",
+      "summary": "Enhance audio",
+      "description": "Applies denoise, EQ, dynamics, and quality improvements to audio inputs.",
+      "category": "audio"
+    },
+    {
+      "id": "analyze-audio",
+      "path": "/api/v1/audio/analyze",
+      "method": "POST",
+      "summary": "Analyze audio",
+      "description": "Runs deep analysis including loudness, spectral fingerprints, and scene detection.",
+      "category": "audio"
+    },
+    {
+      "id": "voice-activity-detection",
+      "path": "/api/v1/audio/vad",
+      "method": "POST",
+      "summary": "Voice activity detection",
+      "description": "Detects speech segments within the uploaded audio clip.",
+      "category": "audio"
+    },
+    {
+      "id": "remove-silence",
+      "path": "/api/v1/audio/remove-silence",
+      "method": "POST",
+      "summary": "Remove silence",
+      "description": "Trims leading/trailing or internal silence sections automatically.",
+      "category": "audio"
+    },
+    {
+      "id": "service-status",
+      "path": "/api/v1/status",
+      "method": "GET",
+      "summary": "Service status",
+      "description": "Returns uptime, directories, enabled capabilities, and resource availability for the audio tools service.",
+      "category": "system"
+    },
+    {
+      "id": "api-docs",
+      "path": "/api/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "description": "Serves generated API documentation with endpoint descriptions and sample payloads.",
+      "category": "system"
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package agent_inbox.v1;
+
+import "google/protobuf/timestamp.proto";
+import "agent-inbox/v1/domain/tool.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain;domain";
+
+// =============================================================================
+// TOOL DISCOVERY PROTOCOL - MANIFEST
+// =============================================================================
+//
+// @layer 2
+// @domain agent-inbox
+// @imports tool
+// @stability beta
+//
+// Defines the response format for the Tool Discovery Protocol v1.0.
+// Scenarios expose their tools via GET /api/v1/tools, returning a ToolManifest.
+//
+// USAGE CONTEXTS:
+//   - Tool Discovery: GET /api/v1/tools endpoint responses
+//   - Scenario Registration: Registering scenario capabilities
+//   - Tool Aggregation: Merging tools from multiple scenarios
+//
+// =============================================================================
+
+// =============================================================================
+// TOOL MANIFEST
+// =============================================================================
+
+// ToolManifest is the response from GET /api/v1/tools on a scenario.
+//
+// Contains scenario metadata and all available tools. This is the
+// canonical format for the Tool Discovery Protocol v1.0.
+//
+// @usage GET /api/v1/tools response, tool aggregation
+message ToolManifest {
+  // Protocol version for compatibility checking.
+  // Consumers should check this and handle unknown versions gracefully.
+  // @example "1.0"
+  string protocol_version = 1;
+
+  // Metadata about the scenario exposing these tools.
+  ScenarioInfo scenario = 2;
+
+  // Available tools provided by this scenario.
+  repeated ToolDefinition tools = 3;
+
+  // Optional category definitions for grouping tools.
+  repeated ToolCategory categories = 4;
+
+  // When this manifest was generated.
+  // Used for cache invalidation and freshness checks.
+  google.protobuf.Timestamp generated_at = 5;
+
+  // Capabilities supported by this scenario.
+  // Used for feature detection by consumers.
+  ManifestCapabilities capabilities = 6;
+}
+
+// =============================================================================
+// SCENARIO INFO
+// =============================================================================
+
+// ScenarioInfo provides metadata about a scenario exposing tools.
+//
+// @usage ToolManifest.scenario
+message ScenarioInfo {
+  // Scenario identifier (e.g., "agent-manager").
+  // Must match the scenario's directory name.
+  // @constraint 1-50 characters
+  string name = 1;
+
+  // Scenario version (semver format).
+  // @example "1.0.0"
+  string version = 2;
+
+  // Human-readable description of the scenario.
+  string description = 3;
+
+  // API base URL for this scenario.
+  // Used for remote tool invocation.
+  // @format uri
+  string base_url = 4;
+
+  // Health check endpoint path.
+  // @default "/health"
+  string health_endpoint = 5;
+
+  // Tool execution endpoint path template.
+  // Uses {tool_name} as placeholder.
+  // @default "/api/v1/tools/{tool_name}/execute"
+  string execute_endpoint_template = 6;
+}
+
+// =============================================================================
+// MANIFEST CAPABILITIES
+// =============================================================================
+
+// ManifestCapabilities describes optional features supported by the scenario.
+//
+// Allows consumers to detect feature availability without trial and error.
+//
+// @usage ToolManifest.capabilities
+message ManifestCapabilities {
+  // Whether the scenario supports async tool execution.
+  // If true, tools may include async_behavior in metadata.
+  bool supports_async = 1;
+
+  // Whether the scenario supports WebSocket status streaming.
+  // If true, consumers can subscribe to real-time status updates.
+  bool supports_websocket_status = 2;
+
+  // WebSocket endpoint for status streaming (if supported).
+  // @format uri
+  string websocket_endpoint = 3;
+
+  // Whether the scenario supports batch tool execution.
+  bool supports_batch_execution = 4;
+
+  // Whether the scenario supports tool result caching.
+  bool supports_caching = 5;
+
+  // Cache TTL for tool results in seconds (if caching is supported).
+  // @unit seconds
+  int32 cache_ttl_seconds = 6;
+}

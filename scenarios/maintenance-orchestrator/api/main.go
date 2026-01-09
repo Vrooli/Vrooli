@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,17 +24,11 @@ var (
 )
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start maintenance-orchestrator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "maintenance-orchestrator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Change working directory to project root for scenario discovery
@@ -154,7 +150,7 @@ func main() {
 	r.Use(corsMiddleware)
 
 	// Health endpoint (outside versioning for simplicity)
-	r.HandleFunc("/health", healthHandler(startTime)).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API v1 routes
 	v1 := r.PathPrefix("/api/v1").Subrouter()

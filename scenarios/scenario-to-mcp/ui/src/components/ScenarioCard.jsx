@@ -1,6 +1,7 @@
 import React from 'react';
 import MCPStatus from './MCPStatus';
 import { Plus, Terminal, Eye, Settings, AlertCircle } from 'lucide-react';
+import { buildApiUrl } from '../utils/apiClient';
 import './ScenarioCard.css';
 
 function ScenarioCard({ scenario, onAddMCP }) {
@@ -10,7 +11,8 @@ function ScenarioCard({ scenario, onAddMCP }) {
   };
 
   const handleViewDetails = () => {
-    window.open(`/api/v1/mcp/scenarios/${scenario.name}`, '_blank');
+    const detailsUrl = buildApiUrl(`mcp/scenarios/${scenario.name}`);
+    window.open(detailsUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (

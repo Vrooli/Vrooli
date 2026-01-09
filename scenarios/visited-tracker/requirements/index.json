@@ -1,0 +1,14 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [],
+  "imports": [
+    "01-campaign-tracking/module.json",
+    "02-web-interface/module.json",
+    "03-advanced-features/module.json",
+    "04-phase-integration/module.json"
+  ]
+}

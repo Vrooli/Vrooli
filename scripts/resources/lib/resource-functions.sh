@@ -143,14 +143,8 @@ wait_for_resource_health() {
     local resources_with_health
     # Note: For complex health check extraction, we use a targeted approach
     if json::load_service_config "$service_config"; then
-        resources_with_health=$(echo "$JSON_CONFIG_CACHE" | jq -r '
-            .resources | 
-            to_entries[] | 
-            .value | 
-            to_entries[] | 
-            select(.value.healthCheck // false) | 
-            "\(.key)|\(.value.healthCheck.type // "tcp")|\(.value.healthCheck.port // 0)|\(.value.healthCheck.endpoint // "")"
-        ' 2>/dev/null || echo "")
+        local jq_expr="${JSON_RESOURCES_EXPR} | to_entries[] | select(.value.healthCheck // false) | \"\\(.key)|\\(.value.healthCheck.type // \\\"tcp\\\")|\\(.value.healthCheck.port // 0)|\\(.value.healthCheck.endpoint // \\\"\\\")\""
+        resources_with_health=$(echo "$JSON_CONFIG_CACHE" | jq -r "$jq_expr" 2>/dev/null || echo "")
     else
         resources_with_health=""
     fi

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable this resource",
+      "default": true
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Describe how the scenario uses this resource"
+    }
+  },
+  "additionalProperties": true,
+  "$id": "https://vrooli.com/resources/node-red/schema.json",
+  "title": "Node Red Resource Configuration Schema",
+  "description": "Node-RED low-code automation and flow editor"
+}

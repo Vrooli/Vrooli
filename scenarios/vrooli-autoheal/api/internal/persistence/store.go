@@ -1,0 +1,748 @@
+// Package persistence provides database operations for health check results
+// [REQ:PERSIST-STORE-001] [REQ:PERSIST-QUERY-001] [REQ:PERSIST-QUERY-002]
+package persistence
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/lib/pq"
+
+	"vrooli-autoheal/internal/checks"
+)
+
+// Store handles database operations for health check data
+type Store struct {
+	db *sql.DB
+}
+
+// NewStore creates a new persistence store
+func NewStore(db *sql.DB) *Store {
+	return &Store{db: db}
+}
+
+// Ping checks database connectivity
+func (s *Store) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
+// SaveResult persists a health check result to the database
+func (s *Store) SaveResult(ctx context.Context, result checks.Result) error {
+	detailsJSON, err := json.Marshal(result.Details)
+	if err != nil {
+		detailsJSON = []byte("{}")
+	}
+
+	query := `
+		INSERT INTO health_results (check_id, status, message, details, duration_ms, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err = s.db.ExecContext(ctx, query,
+		result.CheckID,
+		result.Status,
+		result.Message,
+		detailsJSON,
+		result.Duration.Milliseconds(),
+		result.Timestamp,
+	)
+	return err
+}
+
+// GetLatestResultPerCheck retrieves the most recent result for each check.
+// Used to pre-populate the registry from the database on startup.
+func (s *Store) GetLatestResultPerCheck(ctx context.Context) ([]checks.Result, error) {
+	query := `
+		SELECT DISTINCT ON (check_id)
+			check_id, status, message, details, duration_ms, created_at
+		FROM health_results
+		ORDER BY check_id, created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []checks.Result
+	for rows.Next() {
+		var r checks.Result
+		var detailsJSON []byte
+		var durationMs int64
+
+		if err := rows.Scan(&r.CheckID, &r.Status, &r.Message, &detailsJSON, &durationMs, &r.Timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		r.Duration = time.Duration(durationMs) * time.Millisecond
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &r.Details)
+		}
+
+		results = append(results, r)
+	}
+
+	return results, rows.Err()
+}
+
+// GetRecentResults retrieves recent health check results
+func (s *Store) GetRecentResults(ctx context.Context, checkID string, limit int) ([]checks.Result, error) {
+	query := `
+		SELECT check_id, status, message, details, duration_ms, created_at
+		FROM health_results
+		WHERE check_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+	rows, err := s.db.QueryContext(ctx, query, checkID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []checks.Result
+	for rows.Next() {
+		var r checks.Result
+		var detailsJSON []byte
+		var durationMs int64
+
+		if err := rows.Scan(&r.CheckID, &r.Status, &r.Message, &detailsJSON, &durationMs, &r.Timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		r.Duration = checks.Result{}.Duration // Zero value, we store ms separately
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &r.Details)
+		}
+
+		results = append(results, r)
+	}
+
+	return results, rows.Err()
+}
+
+// CleanupOldResults removes health check results older than the retention period
+func (s *Store) CleanupOldResults(ctx context.Context, retentionHours int) (int64, error) {
+	query := `
+		DELETE FROM health_results
+		WHERE created_at < NOW() - INTERVAL '1 hour' * $1
+	`
+	result, err := s.db.ExecContext(ctx, query, retentionHours)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// Close closes the database connection
+func (s *Store) Close() error {
+	return s.db.Close()
+}
+
+// TimelineEvent represents a single event in the timeline
+type TimelineEvent struct {
+	CheckID   string                 `json:"checkId"`
+	Status    string                 `json:"status"`
+	Message   string                 `json:"message"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+	Timestamp string                 `json:"timestamp"`
+}
+
+// GetTimelineEvents retrieves recent events across all checks, ordered by time
+// [REQ:UI-EVENTS-001]
+func (s *Store) GetTimelineEvents(ctx context.Context, limit int) ([]TimelineEvent, error) {
+	query := `
+		SELECT check_id, status, message, details, created_at
+		FROM health_results
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var events []TimelineEvent
+	for rows.Next() {
+		var e TimelineEvent
+		var detailsJSON []byte
+		var timestamp time.Time
+
+		if err := rows.Scan(&e.CheckID, &e.Status, &e.Message, &detailsJSON, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		e.Timestamp = timestamp.UTC().Format(time.RFC3339)
+
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &e.Details)
+		}
+
+		events = append(events, e)
+	}
+
+	return events, rows.Err()
+}
+
+// UptimeStats represents uptime statistics over a time window
+type UptimeStats struct {
+	TotalEvents      int     `json:"totalEvents"`
+	OkEvents         int     `json:"okEvents"`
+	WarningEvents    int     `json:"warningEvents"`
+	CriticalEvents   int     `json:"criticalEvents"`
+	UptimePercentage float64 `json:"uptimePercentage"`
+	WindowHours      int     `json:"windowHours"`
+}
+
+// GetUptimeStats calculates uptime statistics over the given time window
+// [REQ:PERSIST-HISTORY-001]
+func (s *Store) GetUptimeStats(ctx context.Context, windowHours int) (*UptimeStats, error) {
+	query := `
+		SELECT
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) as ok_count,
+			SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_count,
+			SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END) as critical_count
+		FROM health_results
+		WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
+	`
+	var stats UptimeStats
+	err := s.db.QueryRowContext(ctx, query, windowHours).Scan(
+		&stats.TotalEvents,
+		&stats.OkEvents,
+		&stats.WarningEvents,
+		&stats.CriticalEvents,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+
+	stats.WindowHours = windowHours
+	if stats.TotalEvents > 0 {
+		stats.UptimePercentage = float64(stats.OkEvents) / float64(stats.TotalEvents) * 100
+	} else {
+		stats.UptimePercentage = 100 // No data = assume healthy
+	}
+
+	return &stats, nil
+}
+
+// UptimeHistoryBucket represents a time bucket with aggregated health status counts
+type UptimeHistoryBucket struct {
+	Timestamp time.Time `json:"timestamp"`
+	Total     int       `json:"total"`
+	Ok        int       `json:"ok"`
+	Warning   int       `json:"warning"`
+	Critical  int       `json:"critical"`
+}
+
+// UptimeHistory represents the full history response
+type UptimeHistory struct {
+	Buckets     []UptimeHistoryBucket `json:"buckets"`
+	Overall     UptimeStats           `json:"overall"`
+	WindowHours int                   `json:"windowHours"`
+	BucketCount int                   `json:"bucketCount"`
+}
+
+// GetUptimeHistory returns time-bucketed uptime data for charting
+// This returns the STATE SNAPSHOT at each bucket time - i.e., how many checks
+// were in each state at that point, NOT how many events occurred in that bucket.
+// [REQ:PERSIST-HISTORY-001] [REQ:UI-EVENTS-001]
+func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount int) (*UptimeHistory, error) {
+	if bucketCount <= 0 {
+		bucketCount = 24
+	}
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+
+	// Calculate bucket duration in minutes
+	bucketMinutes := (windowHours * 60) / bucketCount
+
+	// Query to get state snapshot at each bucket time
+	// For each bucket, we find the most recent status for each check that occurred
+	// at or before that bucket time, then count how many are ok/warning/critical.
+	// This gives us the "state of the world" at each point in time.
+	query := `
+		WITH time_series AS (
+			SELECT generate_series(
+				date_trunc('hour', NOW()) - INTERVAL '1 hour' * $1 + INTERVAL '1 minute' * $2,
+				NOW(),
+				INTERVAL '1 minute' * $2
+			) AS bucket_time
+		),
+		-- Get all unique check IDs that have results in our extended window
+		-- (include some buffer to catch checks that haven't run recently)
+		all_checks AS (
+			SELECT DISTINCT check_id
+			FROM health_results
+			WHERE created_at >= NOW() - INTERVAL '1 hour' * ($1 + 24)
+		),
+		-- For each bucket + check combination, find the most recent result at that time
+		check_states AS (
+			SELECT
+				ts.bucket_time,
+				ac.check_id,
+				(
+					SELECT status
+					FROM health_results hr
+					WHERE hr.check_id = ac.check_id
+					AND hr.created_at <= ts.bucket_time
+					ORDER BY hr.created_at DESC
+					LIMIT 1
+				) as status_at_time
+			FROM time_series ts
+			CROSS JOIN all_checks ac
+		)
+		SELECT
+			bucket_time,
+			COUNT(status_at_time) as total,
+			COUNT(CASE WHEN status_at_time = 'ok' THEN 1 END) as ok_count,
+			COUNT(CASE WHEN status_at_time = 'warning' THEN 1 END) as warning_count,
+			COUNT(CASE WHEN status_at_time = 'critical' THEN 1 END) as critical_count
+		FROM check_states
+		GROUP BY bucket_time
+		ORDER BY bucket_time ASC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, windowHours, bucketMinutes)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var buckets []UptimeHistoryBucket
+	var totalSnapshots, totalOk, totalWarning, totalCritical int
+
+	for rows.Next() {
+		var b UptimeHistoryBucket
+		if err := rows.Scan(&b.Timestamp, &b.Total, &b.Ok, &b.Warning, &b.Critical); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+		buckets = append(buckets, b)
+
+		totalSnapshots += b.Total
+		totalOk += b.Ok
+		totalWarning += b.Warning
+		totalCritical += b.Critical
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	// Calculate overall uptime as average across all snapshots
+	uptimePercent := 100.0
+	if totalSnapshots > 0 {
+		uptimePercent = float64(totalOk) / float64(totalSnapshots) * 100
+	}
+
+	return &UptimeHistory{
+		Buckets: buckets,
+		Overall: UptimeStats{
+			TotalEvents:      totalSnapshots,
+			OkEvents:         totalOk,
+			WarningEvents:    totalWarning,
+			CriticalEvents:   totalCritical,
+			UptimePercentage: uptimePercent,
+			WindowHours:      windowHours,
+		},
+		WindowHours: windowHours,
+		BucketCount: bucketCount,
+	}, nil
+}
+
+// CheckTrend represents per-check trend data
+type CheckTrend struct {
+	CheckID        string   `json:"checkId"`
+	Total          int      `json:"total"`
+	Ok             int      `json:"ok"`
+	Warning        int      `json:"warning"`
+	Critical       int      `json:"critical"`
+	UptimePercent  float64  `json:"uptimePercent"`
+	CurrentStatus  string   `json:"currentStatus"`
+	RecentStatuses []string `json:"recentStatuses"`
+	LastChecked    string   `json:"lastChecked"`
+}
+
+// CheckTrendsResponse contains all check trends
+type CheckTrendsResponse struct {
+	Trends      []CheckTrend `json:"trends"`
+	WindowHours int          `json:"windowHours"`
+	TotalChecks int          `json:"totalChecks"`
+}
+
+// GetCheckTrends returns per-check trend data aggregated over the time window
+// [REQ:PERSIST-HISTORY-001]
+func (s *Store) GetCheckTrends(ctx context.Context, windowHours int) (*CheckTrendsResponse, error) {
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+
+	// Query to get per-check aggregated stats
+	query := `
+		WITH check_stats AS (
+			SELECT
+				check_id,
+				COUNT(*) as total,
+				COUNT(CASE WHEN status = 'ok' THEN 1 END) as ok_count,
+				COUNT(CASE WHEN status = 'warning' THEN 1 END) as warning_count,
+				COUNT(CASE WHEN status = 'critical' THEN 1 END) as critical_count,
+				MAX(created_at) as last_checked
+			FROM health_results
+			WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
+			GROUP BY check_id
+		),
+		recent_statuses AS (
+			SELECT
+				check_id,
+				status,
+				ROW_NUMBER() OVER (PARTITION BY check_id ORDER BY created_at DESC) as rn
+			FROM health_results
+			WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
+		)
+		SELECT
+			cs.check_id,
+			cs.total,
+			cs.ok_count,
+			cs.warning_count,
+			cs.critical_count,
+			cs.last_checked,
+			(SELECT status FROM recent_statuses WHERE check_id = cs.check_id AND rn = 1) as current_status,
+			ARRAY(
+				SELECT status FROM recent_statuses
+				WHERE check_id = cs.check_id AND rn <= 12
+				ORDER BY rn
+			) as recent_statuses
+		FROM check_stats cs
+		ORDER BY
+			CASE WHEN cs.ok_count * 100.0 / NULLIF(cs.total, 0) IS NULL THEN 100
+			     ELSE cs.ok_count * 100.0 / cs.total
+			END ASC,
+			cs.check_id ASC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, windowHours)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var trends []CheckTrend
+	for rows.Next() {
+		var t CheckTrend
+		var lastChecked time.Time
+		var currentStatus sql.NullString
+		var recentStatuses []string
+
+		if err := rows.Scan(
+			&t.CheckID, &t.Total, &t.Ok, &t.Warning, &t.Critical,
+			&lastChecked, &currentStatus, pq.Array(&recentStatuses),
+		); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		t.LastChecked = lastChecked.UTC().Format(time.RFC3339)
+		if currentStatus.Valid {
+			t.CurrentStatus = currentStatus.String
+		} else {
+			t.CurrentStatus = "ok"
+		}
+		t.RecentStatuses = recentStatuses
+
+		if t.Total > 0 {
+			t.UptimePercent = float64(t.Ok) / float64(t.Total) * 100
+		} else {
+			t.UptimePercent = 100
+		}
+
+		trends = append(trends, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &CheckTrendsResponse{
+		Trends:      trends,
+		WindowHours: windowHours,
+		TotalChecks: len(trends),
+	}, nil
+}
+
+// Incident represents a status transition event
+type Incident struct {
+	Timestamp  string `json:"timestamp"`
+	CheckID    string `json:"checkId"`
+	FromStatus string `json:"fromStatus"`
+	ToStatus   string `json:"toStatus"`
+	Message    string `json:"message"`
+}
+
+// IncidentsResponse contains all incidents
+type IncidentsResponse struct {
+	Incidents   []Incident `json:"incidents"`
+	WindowHours int        `json:"windowHours"`
+	Total       int        `json:"total"`
+}
+
+// GetIncidents returns status transition events over the time window
+// [REQ:PERSIST-HISTORY-001]
+func (s *Store) GetIncidents(ctx context.Context, windowHours, limit int) (*IncidentsResponse, error) {
+	if windowHours <= 0 {
+		windowHours = 24
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	// Query to detect status transitions using LAG window function
+	query := `
+		WITH ordered_results AS (
+			SELECT
+				check_id,
+				status,
+				message,
+				created_at,
+				LAG(status) OVER (PARTITION BY check_id ORDER BY created_at) as prev_status
+			FROM health_results
+			WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
+		)
+		SELECT
+			check_id,
+			created_at,
+			prev_status,
+			status,
+			message
+		FROM ordered_results
+		WHERE prev_status IS NOT NULL AND prev_status != status
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, windowHours, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var incidents []Incident
+	for rows.Next() {
+		var i Incident
+		var timestamp time.Time
+
+		if err := rows.Scan(&i.CheckID, &timestamp, &i.FromStatus, &i.ToStatus, &i.Message); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		i.Timestamp = timestamp.UTC().Format(time.RFC3339)
+		incidents = append(incidents, i)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &IncidentsResponse{
+		Incidents:   incidents,
+		WindowHours: windowHours,
+		Total:       len(incidents),
+	}, nil
+}
+
+// ActionLog represents a logged recovery action execution
+// [REQ:HEAL-ACTION-001]
+type ActionLog struct {
+	ID         int64  `json:"id"`
+	CheckID    string `json:"checkId"`
+	ActionID   string `json:"actionId"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+	DurationMs int64  `json:"durationMs"`
+	Timestamp  string `json:"timestamp"`
+}
+
+// ActionLogsResponse contains action history
+type ActionLogsResponse struct {
+	Logs  []ActionLog `json:"logs"`
+	Total int         `json:"total"`
+}
+
+// SaveActionLog persists a recovery action execution to the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+	query := `
+		INSERT INTO action_logs (check_id, action_id, success, message, output, error, duration_ms, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+	`
+	_, err := s.db.ExecContext(ctx, query, checkID, actionID, success, message, output, errMsg, durationMs)
+	return err
+}
+
+// GetActionLogs retrieves recent action logs
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetActionLogs(ctx context.Context, limit int) (*ActionLogsResponse, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	query := `
+		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		FROM action_logs
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []ActionLog
+	for rows.Next() {
+		var l ActionLog
+		var timestamp time.Time
+
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		l.Timestamp = timestamp.UTC().Format(time.RFC3339)
+		logs = append(logs, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &ActionLogsResponse{
+		Logs:  logs,
+		Total: len(logs),
+	}, nil
+}
+
+// GetActionLogsForCheck retrieves action logs for a specific check
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*ActionLogsResponse, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 20
+	}
+
+	query := `
+		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		FROM action_logs
+		WHERE check_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, checkID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []ActionLog
+	for rows.Next() {
+		var l ActionLog
+		var timestamp time.Time
+
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		l.Timestamp = timestamp.UTC().Format(time.RFC3339)
+		logs = append(logs, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &ActionLogsResponse{
+		Logs:  logs,
+		Total: len(logs),
+	}, nil
+}
+
+// SaveHealTracker persists a heal tracker state to the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) SaveHealTracker(ctx context.Context, checkID string, tracker *checks.HealTracker) error {
+	query := `
+		INSERT INTO heal_trackers (check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (check_id) DO UPDATE SET
+			last_attempt = EXCLUDED.last_attempt,
+			last_success = EXCLUDED.last_success,
+			consecutive_failures = EXCLUDED.consecutive_failures,
+			total_attempts = EXCLUDED.total_attempts,
+			total_successes = EXCLUDED.total_successes,
+			cooldown_until = EXCLUDED.cooldown_until,
+			updated_at = NOW()
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		checkID,
+		tracker.LastAttempt,
+		tracker.LastSuccess,
+		tracker.ConsecutiveFailures,
+		tracker.TotalAttempts,
+		tracker.TotalSuccesses,
+		tracker.CooldownUntil,
+	)
+	return err
+}
+
+// GetAllHealTrackers retrieves all heal tracker states from the database
+// Used to restore in-memory state on startup
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetAllHealTrackers(ctx context.Context) (map[string]*checks.HealTracker, error) {
+	query := `
+		SELECT check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until
+		FROM heal_trackers
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	trackers := make(map[string]*checks.HealTracker)
+	for rows.Next() {
+		var checkID string
+		var tracker checks.HealTracker
+
+		if err := rows.Scan(
+			&checkID,
+			&tracker.LastAttempt,
+			&tracker.LastSuccess,
+			&tracker.ConsecutiveFailures,
+			&tracker.TotalAttempts,
+			&tracker.TotalSuccesses,
+			&tracker.CooldownUntil,
+		); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		trackers[checkID] = &tracker
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return trackers, nil
+}
+
+// DeleteHealTracker removes a heal tracker from the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) DeleteHealTracker(ctx context.Context, checkID string) error {
+	query := `DELETE FROM heal_trackers WHERE check_id = $1`
+	_, err := s.db.ExecContext(ctx, query, checkID)
+	return err
+}

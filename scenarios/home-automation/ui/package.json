@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "rm -rf dist && mkdir -p dist && cp index.html dist/index.html && cp app.js dist/app.js && cp styles.css dist/styles.css",
     "preview": "vite preview",
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
   },

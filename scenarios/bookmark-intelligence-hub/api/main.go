@@ -6,18 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -31,20 +31,12 @@ type Config struct {
 
 // Server represents the API server
 type Server struct {
-	config     *Config
-	db         *sql.DB
-	router     *mux.Router
-	httpServer *http.Server
+	config *Config
+	db     *sql.DB
+	router *mux.Router
 }
 
 // Response structures
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Database  string    `json:"database"`
-	Huginn    string    `json:"huginn"`
-}
 
 type ErrorResponse struct {
 	Error     string    `json:"error"`
@@ -69,17 +61,11 @@ type StatsResponse struct {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start bookmark-intelligence-hub
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "bookmark-intelligence-hub",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Load configuration
@@ -89,88 +75,29 @@ func main() {
 	}
 
 	// Create server
-	server, err := NewServer(config)
+	srv, err := NewServer(config)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
-	defer server.Close()
 
-	// Setup graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle shutdown signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		log.Println("Received shutdown signal, shutting down gracefully...")
-		cancel()
-	}()
-
-	// Start server
+	// Start server with graceful shutdown
 	log.Printf("🔖 Bookmark Intelligence Hub API starting on port %d", config.Port)
-	if err := server.Start(ctx); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
 // NewServer creates a new API server instance
 func NewServer(config *Config) (*Server, error) {
 	// Connect to database
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
-	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("database connection failed after %d attempts: %w", maxRetries, pingErr)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	log.Println("🎉 Database connection pool established successfully!")
@@ -193,8 +120,13 @@ func (s *Server) setupRoutes() {
 	// API versioning
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Profile management
 	api.HandleFunc("/profiles", s.handleGetProfiles).Methods("GET")
@@ -240,34 +172,6 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.authMiddleware)
 }
 
-// Start starts the HTTP server
-func (s *Server) Start(ctx context.Context) error {
-	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.config.Port),
-		Handler: s.router,
-	}
-
-	// Start server in a goroutine
-	serverError := make(chan error, 1)
-	go func() {
-		serverError <- s.httpServer.ListenAndServe()
-	}()
-
-	// Wait for context cancellation or server error
-	select {
-	case <-ctx.Done():
-		// Graceful shutdown
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		return s.httpServer.Shutdown(shutdownCtx)
-	case err := <-serverError:
-		if err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	}
-}
-
 // Close cleans up server resources
 func (s *Server) Close() error {
 	if s.db != nil {
@@ -276,28 +180,6 @@ func (s *Server) Close() error {
 	return nil
 }
 
-// Health check handler
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbStatus := "healthy"
-	if err := s.db.Ping(); err != nil {
-		dbStatus = "unhealthy: " + err.Error()
-	}
-
-	// Check Huginn connection (placeholder)
-	huginnStatus := "unknown"
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Database:  dbStatus,
-		Huginn:    huginnStatus,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 // Get all profiles
 func (s *Server) handleGetProfiles(w http.ResponseWriter, r *http.Request) {
@@ -592,8 +474,8 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check
-		if r.URL.Path == "/health" {
+		// Skip auth for health check endpoints
+		if r.URL.Path == "/health" || r.URL.Path == "/api/v1/health" {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -8,8 +8,34 @@ readonly CLI_NAME="math-tools"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:8095"
-readonly DEFAULT_TOKEN="math-tools-api-token"
+# Note: API token should be provided via MATH_TOOLS_API_TOKEN environment variable
+# or stored in config file. No default token for security.
+
+# Auto-detect API port from running scenario
+detect_api_port() {
+    # Try to find the running math-tools-api process and its port
+    local pid
+    pid=$(pgrep -f 'math-tools-api' 2>/dev/null | head -1 || true)
+    if [[ -n "$pid" ]]; then
+        # Check the process environment for API_PORT
+        local port
+        port=$(cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep '^API_PORT=' | cut -d= -f2 || true)
+        if [[ -n "$port" ]]; then
+            echo "http://localhost:${port}"
+            return 0
+        fi
+
+        # Alternative: check what port the process is listening on
+        port=$(ss -tlnp 2>/dev/null | grep "$pid" | grep -oP ':\K[0-9]+' | head -1 || true)
+        if [[ -n "$port" ]]; then
+            echo "http://localhost:${port}"
+            return 0
+        fi
+    fi
+
+    # Fall back to default port
+    echo "http://localhost:8095"
+}
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -25,32 +51,40 @@ init_config() {
     fi
     
     if [[ ! -f "$CONFIG_FILE" ]]; then
+        local detected_api_base=$(detect_api_port)
         cat > "$CONFIG_FILE" <<EOF
 {
-    "api_base": "$DEFAULT_API_BASE",
-    "api_token": "$DEFAULT_TOKEN",
+    "api_base": "$detected_api_base",
+    "api_token": "",
     "output_format": "table",
     "precision": 10,
     "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
         echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+        echo -e "${YELLOW}⚠${NC}  Set API token via MATH_TOOLS_API_TOKEN environment variable or update config file"
     fi
 }
 
 # Load configuration
 load_config() {
+    # Detect API port dynamically
+    local detected_api_base=$(detect_api_port)
+
     if [[ -f "$CONFIG_FILE" ]]; then
-        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
-        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
+        API_BASE=$(jq -r '.api_base // "'$detected_api_base'"' "$CONFIG_FILE" 2>/dev/null || echo "$detected_api_base")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
         OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
         PRECISION=$(jq -r '.precision // 10' "$CONFIG_FILE" 2>/dev/null || echo "10")
     else
-        API_BASE="$DEFAULT_API_BASE"
-        API_TOKEN="$DEFAULT_TOKEN"
+        API_BASE="$detected_api_base"
+        API_TOKEN=""
         OUTPUT_FORMAT="table"
         PRECISION="10"
     fi
+
+    # Allow environment variable to override config
+    API_TOKEN="${MATH_TOOLS_API_TOKEN:-$API_TOKEN}"
 }
 
 # Make API request
@@ -101,10 +135,11 @@ format_output() {
 # Command: status
 cmd_status() {
     echo -e "${BLUE}🔍 Checking Math Tools status...${NC}"
-    
+
     response=$(api_request "GET" "/health")
     if [[ $? -eq 0 ]]; then
-        status=$(echo "$response" | jq -r '.status // "unknown"')
+        # Try new format first (.data.status), then fall back to old format (.status)
+        status=$(echo "$response" | jq -r '.data.status // .status // "unknown"')
         if [[ "$status" == "healthy" ]]; then
             echo -e "${GREEN}✓${NC} Math Tools API is healthy"
             echo "$response" | jq '.' 2>/dev/null
@@ -399,11 +434,10 @@ main() {
     # Initialize configuration
     init_config
     load_config
-    
-    # Override with environment variables if set
+
+    # Override API base with environment variable if set
     API_BASE="${MATH_TOOLS_API_BASE:-$API_BASE}"
-    API_TOKEN="${MATH_TOOLS_API_TOKEN:-$API_TOKEN}"
-    
+
     # Parse command
     local command="${1:-help}"
     shift || true

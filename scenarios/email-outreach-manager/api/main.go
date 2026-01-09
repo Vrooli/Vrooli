@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -55,6 +60,13 @@ type GenerateTemplateRequest struct {
 }
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "email-outreach-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	// Get port from environment or use default
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -71,7 +83,7 @@ func main() {
 	router := gin.Default()
 
 	// Health check endpoint
-	router.GET("/health", healthCheck)
+	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
@@ -97,66 +109,17 @@ func main() {
 }
 
 func initDB() error {
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "email_outreach"
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
 	log.Println("Database connection established")
 	return nil
-}
-
-func healthCheck(c *gin.Context) {
-	health := gin.H{
-		"status": "healthy",
-		"service": "email-outreach-manager",
-		"timestamp": time.Now().Format(time.RFC3339),
-	}
-
-	// Check database connection
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			health["database"] = "unhealthy"
-			health["database_error"] = err.Error()
-			c.JSON(http.StatusServiceUnavailable, health)
-			return
-		}
-		health["database"] = "healthy"
-	} else {
-		health["database"] = "not_configured"
-	}
-
-	c.JSON(http.StatusOK, health)
 }
 
 func listCampaigns(c *gin.Context) {

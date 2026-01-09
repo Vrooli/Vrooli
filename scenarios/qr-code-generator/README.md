@@ -26,7 +26,7 @@ vrooli scenario run qr-code-generator
 
 - **Web UI**: Dynamic port (shown on startup) - Retro gaming style interface
 - **API**: Dynamic port (shown on startup) - REST API endpoints  
-- **CLI**: `qr-generator` command with automatic port detection
+- **CLI**: `qr-code-generator` command with automatic port detection
 
 ## API Endpoints
 
@@ -77,13 +77,13 @@ Returns supported formats, sizes, and error correction levels.
 ### Generate Single QR Code
 ```bash
 # Display JSON response
-qr-generator generate "Hello World"
+qr-code-generator generate "Hello World"
 
 # Save to file
-qr-generator generate "Hello World" --output hello.png
+qr-code-generator generate "Hello World" --output hello.png
 
 # Custom size
-qr-generator generate "Hello World" --size 512 --output large.png
+qr-code-generator generate "Hello World" --size 512 --output large.png
 ```
 
 ### Batch Processing
@@ -92,12 +92,12 @@ qr-generator generate "Hello World" --size 512 --output large.png
 echo -e "https://vrooli.com\nhttps://github.com" > urls.txt
 
 # Process batch
-qr-generator batch urls.txt --size 256
+qr-code-generator batch urls.txt --size 256
 ```
 
 ### Help
 ```bash
-qr-generator help
+qr-code-generator help
 ```
 
 ## Configuration
@@ -164,7 +164,7 @@ vrooli scenario logs qr-code-generator --step start-ui
 ### CLI can't find API
 The CLI automatically detects the API port. Override if needed:
 ```bash
-API_URL=http://localhost:PORT qr-generator generate "test"
+API_URL=http://localhost:PORT qr-code-generator generate "test"
 ```
 
 ## Development

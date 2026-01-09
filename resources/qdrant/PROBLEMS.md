@@ -84,46 +84,6 @@ resource_cost: "minimal"
 ```
 <!-- EMBED:ACTIVEPROBLEM:END -->
 
-<!-- EMBED:ACTIVEPROBLEM:START -->
-### Collection Index Corruption After Restart
-**Status:** [active]
-**Severity:** [high]
-**Frequency:** [rare]
-**Impact:** [system_down]
-**Discovered:** 2025-08-20
-**Discovered By:** [app-debugger]
-**Last Occurrence:** 2025-08-24 08:30
-
-#### Description
-Qdrant collections occasionally becoming corrupted after Docker container restarts, particularly during unclean shutdowns. Collections show inconsistent vector counts, search results become unreliable, and some vectors become inaccessible.
-
-#### Reproduction Steps
-1. Populate collection with large dataset during active operations
-2. Force container restart (simulating system crash or Docker daemon restart)
-3. Observe collection integrity issues upon restart
-4. Search queries return inconsistent or missing results
-
-#### Impact Assessment
-- **Users Affected:** All users dependent on affected collections (variable impact)
-- **Business Impact:** Search functionality compromised, potential data loss
-- **Technical Impact:** Collection rebuild required, extended downtime
-- **Urgency Factors:** Data integrity critical for semantic search accuracy
-
-#### Investigation Status
-- **Root Cause:** WAL (Write-Ahead Log) not properly synced during graceful shutdown
-- **Workarounds:** Regular collection backups, scheduled restarts during low activity
-- **Related Issues:** Docker volume persistence, graceful shutdown handling
-- **Attempted Solutions:** Enabled collection persistence settings, improved shutdown hooks
-
-#### Priority Estimates
-```yaml
-impact: 9           
-urgency: "high"
-success_prob: 0.7   
-resource_cost: "moderate"
-```
-<!-- EMBED:ACTIVEPROBLEM:END -->
-
 ## Intermittent Issues
 
 <!-- EMBED:INTERMITTENTPROBLEM:START -->
@@ -221,39 +181,6 @@ Multiple processes attempting to create the same collection simultaneously, resu
 - **Resolution Time:** 2 days from detection to fix
 - **Effectiveness:** Zero collection creation conflicts for 8 days post-fix
 - **Improvements:** Collection creation success rate improved from 70% to 100%
-<!-- EMBED:RESOLVEDPROBLEM:END -->
-
-<!-- EMBED:RESOLVEDPROBLEM:START -->
-### Vector Dimension Mismatch Errors
-**Resolved:** 2025-08-17
-**Duration:** 5 days active
-**Resolution:** [configuration]
-**Resolved By:** [app-debugger]
-
-#### Problem Summary
-Embedding operations failing due to vector dimension mismatches between different AI models and existing collection configurations, causing insertion failures.
-
-#### Root Cause
-- **Technical Cause:** Collection configurations hard-coded for specific embedding models
-- **Process Cause:** No validation of vector dimensions before insertion
-- **Knowledge Cause:** Insufficient documentation of model compatibility requirements
-
-#### Solution Implemented
-- **Changes Made:** Added dynamic dimension validation, created model-specific collections
-- **Validation:** Tested compatibility with multiple embedding models (OpenAI, Cohere, local)
-- **Rollback Plan:** Manual collection recreation if validation logic fails
-- **Documentation:** Created embedding model compatibility matrix
-
-#### Lessons Learned
-- **Prevention:** Validate vector dimensions at collection creation and insertion time
-- **Detection:** Monitor insertion error rates and dimension mismatch patterns
-- **Response:** Create flexible collection configurations for different embedding models
-- **Knowledge Gaps:** Better understanding of embedding model output characteristics
-
-#### Success Metrics
-- **Resolution Time:** 1 day from detection to implementation
-- **Effectiveness:** Dimension mismatch errors reduced from 15% to 0%
-- **Improvements:** Multi-model embedding support successfully implemented
 <!-- EMBED:RESOLVEDPROBLEM:END -->
 
 ## Problem Patterns

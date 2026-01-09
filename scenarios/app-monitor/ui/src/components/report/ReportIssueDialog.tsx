@@ -29,14 +29,18 @@ import {
   type RefObject,
 } from 'react';
 
+import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
-import ReportLogsSection from './ReportLogsSection';
 import ReportScreenshotPanel from './ReportScreenshotPanel';
+import type { ReportElementCapture } from './reportTypes';
 import useReportIssueState, { type BridgePreviewState } from './useReportIssueState';
 
 const REPORT_APP_LOGS_PANEL_ID = 'app-report-dialog-logs';
 const REPORT_CONSOLE_LOGS_PANEL_ID = 'app-report-dialog-console';
 const REPORT_NETWORK_PANEL_ID = 'app-report-dialog-network';
+const REPORT_HEALTH_PANEL_ID = 'app-report-dialog-health';
+const REPORT_STATUS_PANEL_ID = 'app-report-dialog-status';
+const REPORT_COMPLETENESS_PANEL_ID = 'app-report-dialog-completeness';
 
 interface ReportIssueDialogProps {
   isOpen: boolean;
@@ -67,6 +71,11 @@ interface ReportIssueDialogProps {
   getRecentNetworkEvents: () => BridgeNetworkEvent[];
   requestNetworkBatch: (options?: { since?: number; afterSeq?: number; limit?: number }) => Promise<BridgeNetworkEvent[]>;
   bridgeCompliance: BridgeComplianceResult | null;
+  elementCaptures: ReportElementCapture[];
+  onElementCaptureNoteChange: (captureId: string, note: string) => void;
+  onElementCaptureRemove: (captureId: string) => void;
+  onElementCapturesReset: () => void;
+  onPrimaryCaptureDraftChange?: (hasCapture: boolean) => void;
 }
 
 const ReportIssueDialog = (props: ReportIssueDialogProps) => {
@@ -74,6 +83,13 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     isOpen,
     bridgeState,
     canCaptureScreenshot,
+    appId,
+    app,
+    activePreviewUrl,
+    elementCaptures,
+    onElementCaptureNoteChange,
+    onElementCaptureRemove,
+    onElementCapturesReset,
   } = props;
 
   const {
@@ -83,16 +99,16 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     logs,
     consoleLogs,
     network,
+    health,
+    status,
+    completeness,
     existingIssues,
     diagnostics,
     screenshot,
+    diagnosticsSummaryIncluded,
+    setIncludeDiagnosticsSummary,
   } = useReportIssueState(props);
 
-  if (!isOpen) {
-    return null;
-  }
-
-  const { result } = form;
   const sendDisabled = form.submitting || (
     screenshot.reportIncludeScreenshot
     && canCaptureScreenshot
@@ -100,6 +116,25 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   );
 
   const existingIssuesLoading = existingIssues.status === 'loading';
+
+  // Track loading states for all data sources that will be included in the report
+  const dataLoadingSources = [
+    { name: 'app logs', loading: logs.includeAppLogs && logs.loading },
+    {
+      name: consoleLogs.fromFallback ? 'console logs (fallback)' : 'console logs',
+      loading: consoleLogs.includeConsoleLogs && consoleLogs.loading
+    },
+    {
+      name: network.fromFallback ? 'network requests (fallback)' : 'network requests',
+      loading: network.includeNetworkRequests && network.loading
+    },
+    { name: 'health checks', loading: health.includeHealthChecks && health.loading },
+    { name: 'app status', loading: status.includeAppStatus && status.loading },
+    { name: 'completeness score', loading: completeness.includeCompleteness && completeness.loading },
+  ].filter(source => source.loading);
+
+  const dataLoadingCount = dataLoadingSources.length;
+  const hasIncompleteData = dataLoadingCount > 0;
   const existingIssuesError = existingIssues.status === 'error';
   const existingIssuesShouldWarn = existingIssues.status === 'ready'
     && (existingIssues.openCount > 0 || existingIssues.activeCount > 0);
@@ -116,13 +151,16 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     : relevantIssues.slice(0, 3);
   const issueSummaryLabel = `Active issues exist for this app`;
 
-  let existingIssuesCheckedLabel: string | null = null;
-  if (existingIssues.lastFetched) {
-    const parsed = new Date(existingIssues.lastFetched);
-    if (!Number.isNaN(parsed.getTime())) {
-      existingIssuesCheckedLabel = parsed.toLocaleTimeString();
-    }
-  }
+  const existingIssuesCheckedLabel = existingIssues.lastFetched
+    ? (() => {
+        try {
+          const parsed = new Date(existingIssues.lastFetched);
+          return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleTimeString();
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
   const existingIssuesMeta = existingIssues.stale
     ? 'Snapshot may be out of date.'
@@ -131,6 +169,15 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
       : existingIssues.fromCache
         ? 'Showing cached results.'
         : null;
+  const captureNoteCount = useMemo(
+    () => elementCaptures.reduce(
+      (total, capture) => (capture.note.trim() ? total + 1 : total),
+      0,
+    ),
+    [elementCaptures],
+  );
+  const hasDescription = form.message.trim().length > 0;
+  const descriptionRequired = !hasDescription && captureNoteCount === 0 && !diagnosticsSummaryIncluded;
   const [issuesCollapsed, setIssuesCollapsed] = useState(false);
   const prevIssuesWarningRef = useRef(existingIssuesShouldWarn);
   useEffect(() => {
@@ -142,96 +189,65 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   const handleToggleIssuesCollapse = () => {
     setIssuesCollapsed(prev => !prev);
   };
-  const existingIssuesMetaLabel = useMemo(() => {
-    if (!existingIssuesShouldWarn) {
-      return existingIssuesMeta ?? null;
-    }
+  const existingIssuesMetaLabel = useMemo(
+    () => existingIssuesMeta ?? null,
+    [existingIssuesMeta],
+  );
 
-    const parts: string[] = [];
-    if (existingIssuesMeta) {
-      parts.push(existingIssuesMeta);
-    }
+  const issueDisplayName = useMemo(() => {
+    const candidates = [
+      app?.name,
+      app?.scenario_name,
+      appId,
+    ];
+    const match = candidates
+      .map(value => (value ?? '').toString().trim())
+      .find(value => value.length > 0);
+    return match ?? 'Unknown app';
+  }, [app?.name, app?.scenario_name, appId]);
 
-    return parts.join(' • ');
-  }, [
-    existingIssuesShouldWarn,
-    existingIssuesMeta,
-  ]);
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div
-      className="report-dialog__overlay"
-      role="presentation"
-      onClick={modal.handleOverlayClick}
+    <ResponsiveDialog
+      isOpen
+      onDismiss={modal.handleDismiss}
+      ariaLabelledBy="app-report-dialog-title"
+      size="xl"
+      className="report-dialog"
+      overlayClassName="report-dialog__overlay"
     >
-      <div
-        className="report-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="app-report-dialog-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="report-dialog__header">
+      <div className="report-dialog__header">
           <h2 id="app-report-dialog-title" className="report-dialog__title">
             <Bug aria-hidden size={20} />
             <span>Report an Issue</span>
+            {issueDisplayName && (
+              <span className="report-dialog__app-chip" title={issueDisplayName}>
+                {issueDisplayName}
+              </span>
+            )}
           </h2>
           <button
             type="button"
             className="report-dialog__close"
-            onClick={modal.handleDialogClose}
-            disabled={form.submitting}
+            onClick={modal.handleDismiss}
             aria-label="Close report dialog"
           >
             <X aria-hidden size={16} />
           </button>
-        </div>
-
-        {result ? (
-          <div className="report-dialog__state">
-            <p className="report-dialog__success">
-              {result.message ?? 'Issue report sent successfully.'}
-            </p>
-            {result.issueId && (
-              <p className="report-dialog__success-id">
-                Tracking ID: <span>{result.issueId}</span>
-              </p>
-            )}
-            {result.issueUrl && (
-              <div className="report-dialog__success-link">
-                <button
-                  type="button"
-                  className="report-dialog__button"
-                  onClick={() => {
-                    // Preserve Referer so the proxy can resolve shared asset paths for the external tab.
-                    window.open(result.issueUrl, '_blank', 'noopener');
-                  }}
-                >
-                  <ExternalLink aria-hidden size={16} />
-                  <span>Open in Issue Tracker</span>
-                </button>
-              </div>
-            )}
-            <div className="report-dialog__actions">
-              <button
-                type="button"
-                className="report-dialog__button report-dialog__button--primary"
-                onClick={modal.handleDialogClose}
-              >
-                Close
-              </button>
-            </div>
+      </div>
+      <form className="report-dialog__form" onSubmit={form.handleSubmit}>
+        <div className="report-dialog__body">
+          <div className="report-dialog__layout">
+            <div className="report-dialog__lane report-dialog__lane--primary">
+        {existingIssuesLoading && (
+          <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
+            <Loader2 aria-hidden size={16} className="spinning" />
+            <span>Checking existing issues…</span>
           </div>
-        ) : (
-          <form className="report-dialog__form" onSubmit={form.handleSubmit}>
-            <div className="report-dialog__layout">
-              <div className="report-dialog__lane report-dialog__lane--primary">
-                {existingIssuesLoading && (
-                  <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
-                    <Loader2 aria-hidden size={16} className="spinning" />
-                    <span>Checking existing issues…</span>
-                  </div>
-                )}
+        )}
 
                 {existingIssuesError && (
                   <div className="report-dialog__issues-alert report-dialog__issues-alert--error">
@@ -380,19 +396,17 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   rows={6}
                   placeholder="What are you seeing? Include steps to reproduce if possible."
                   disabled={form.submitting}
-                  required
+                  required={descriptionRequired}
                 />
 
-                <ReportDiagnosticsPanel diagnostics={diagnostics} />
-
-                <ReportLogsSection
-                  logs={logs}
-                  consoleLogs={consoleLogs}
-                  network={network}
-                  bridgeCaps={bridgeState.caps}
-                  appLogsPanelId={REPORT_APP_LOGS_PANEL_ID}
-                  consoleLogsPanelId={REPORT_CONSOLE_LOGS_PANEL_ID}
-                  networkPanelId={REPORT_NETWORK_PANEL_ID}
+                <ReportDiagnosticsPanel
+                  diagnostics={diagnostics}
+                  includeSummary={diagnosticsSummaryIncluded}
+                  onIncludeSummaryChange={setIncludeDiagnosticsSummary}
+                  disabled={form.submitting}
+                  pageStatus={consoleLogs.fromFallback ? consoleLogs.pageStatus : null}
+                  activePreviewUrl={activePreviewUrl}
+                  app={app}
                 />
               </div>
 
@@ -401,44 +415,81 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 canCaptureScreenshot={canCaptureScreenshot}
                 reportIncludeScreenshot={screenshot.reportIncludeScreenshot}
                 reportSubmitting={form.submitting}
+                elementCaptures={elementCaptures}
+                onElementNoteChange={onElementCaptureNoteChange}
+                onElementRemove={onElementCaptureRemove}
+                logsPanel={{
+                  logs,
+                  consoleLogs,
+                  network,
+                  health,
+                  status,
+                  completeness,
+                  bridgeCaps: bridgeState.caps,
+                  appLogsPanelId: REPORT_APP_LOGS_PANEL_ID,
+                  consoleLogsPanelId: REPORT_CONSOLE_LOGS_PANEL_ID,
+                  networkPanelId: REPORT_NETWORK_PANEL_ID,
+                  healthPanelId: REPORT_HEALTH_PANEL_ID,
+                  statusPanelId: REPORT_STATUS_PANEL_ID,
+                  completenessPanelId: REPORT_COMPLETENESS_PANEL_ID,
+                }}
               />
+          </div>
+        </div>
+
+        <div className="report-dialog__footer">
+          {form.error && (
+            <p className="report-dialog__error" role="alert">
+              {form.error}
+            </p>
+          )}
+
+          {hasIncompleteData && !form.submitting && (
+            <div className="report-dialog__data-loading-notice" role="status">
+              <div className="report-dialog__data-loading-content">
+                <Loader2 aria-hidden size={14} className="spinning" />
+                <span>
+                  {dataLoadingCount === 1
+                    ? `${dataLoadingSources[0].name} still loading…`
+                    : `${dataLoadingCount} data sources still loading…`}
+                </span>
+              </div>
+              <span className="report-dialog__data-loading-hint">
+                You can send now or wait for complete diagnostics
+              </span>
             </div>
+          )}
 
-            {form.error && (
-              <p className="report-dialog__error" role="alert">
-                {form.error}
-              </p>
-            )}
+          <div className="report-dialog__actions">
+            <button
+              type="button"
+              className="report-dialog__button"
+              onClick={() => {
+                onElementCapturesReset();
+                modal.handleReset();
+              }}
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              className="report-dialog__button report-dialog__button--primary"
+              disabled={sendDisabled}
+            >
+              {form.submitting ? (
+                <>
+                  <Loader2 aria-hidden size={16} className="spinning" />
+                  Sending…
+                </>
+              ) : (
+                'Send Report'
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
 
-            <div className="report-dialog__actions">
-              <button
-                type="button"
-                className="report-dialog__button"
-                onClick={modal.handleDialogClose}
-                disabled={form.submitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="report-dialog__button report-dialog__button--primary"
-                disabled={sendDisabled}
-              >
-                {form.submitting ? (
-                  <>
-                    <Loader2 aria-hidden size={16} className="spinning" />
-                    Sending…
-                  </>
-                ) : (
-                  'Send Report'
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-
-      </div>
-    </div>
+  </ResponsiveDialog>
   );
 };
 

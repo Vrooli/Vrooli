@@ -1,0 +1,8 @@
+{
+  "module_id": "update-rollback",
+  "title": "Update & Rollback Management",
+  "priority": "P1",
+  "description": "Change detection, update distribution, and rollback capabilities",
+  "requirements": [],
+  "_metadata": {}
+}

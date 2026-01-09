@@ -6,7 +6,10 @@
   "properties": {
     "provider": {
       "type": "string",
-      "enum": ["ollama", "openrouter"],
+      "enum": [
+        "ollama",
+        "openrouter"
+      ],
       "default": "ollama",
       "description": "AI provider to use for inference (only ollama and openrouter currently implemented)"
     },
@@ -150,6 +153,9 @@
       }
     }
   },
-  "required": ["provider"],
-  "additionalProperties": false
+  "required": [
+    "provider"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/cline/schema.json"
 }

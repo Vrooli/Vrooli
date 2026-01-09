@@ -1,0 +1,111 @@
+{
+  "schema_version": "0.1",
+  "target": "desktop",
+  "app": {
+    "name": "Fixture App",
+    "version": "0.1.0"
+  },
+  "ipc": {
+    "mode": "http",
+    "host": "127.0.0.1",
+    "port": 47710,
+    "auth_token_path": "runtime/auth-token"
+  },
+  "telemetry": {
+    "file": "runtime/telemetry.jsonl"
+  },
+  "ports": {
+    "default_range": {
+      "min": 47000,
+      "max": 47100
+    },
+    "reserved": [47710]
+  },
+  "secrets": [
+    {
+      "id": "API_KEY",
+      "class": "user_prompt",
+      "required": true,
+      "prompt": {
+        "label": "API Key",
+        "hint": "Fixture key for dry-run validation"
+      },
+      "target": {
+        "type": "env",
+        "name": "API_KEY"
+      }
+    }
+  ],
+  "services": [
+    {
+      "id": "api",
+      "type": "backend",
+      "binaries": {
+        "linux-x64": {
+          "path": "bin/fixture-api",
+          "args": ["--port", "${api.http}"]
+        },
+        "darwin-x64": {
+          "path": "bin/fixture-api",
+          "args": ["--port", "${api.http}"]
+        },
+        "win-x64": {
+          "path": "bin/fixture-api.exe",
+          "args": ["--port", "${api.http}"]
+        }
+      },
+      "env": {
+        "LOG_LEVEL": "info"
+      },
+      "ports": {
+        "requested": [
+          {
+            "name": "http",
+            "range": {
+              "min": 47000,
+              "max": 47010
+            }
+          }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/health",
+        "port_name": "http",
+        "interval_ms": 1000,
+        "timeout_ms": 1000,
+        "retries": 1
+      },
+      "readiness": {
+        "type": "health_success",
+        "timeout_ms": 5000
+      },
+      "log_dir": "logs/api.log",
+      "secrets": ["API_KEY"]
+    },
+    {
+      "id": "worker",
+      "type": "worker",
+      "binaries": {
+        "linux-x64": {
+          "path": "bin/fixture-worker"
+        },
+        "darwin-x64": {
+          "path": "bin/fixture-worker"
+        },
+        "win-x64": {
+          "path": "bin/fixture-worker.exe"
+        }
+      },
+      "health": {
+        "type": "command",
+        "command": ["true"]
+      },
+      "readiness": {
+        "type": "dependencies_ready"
+      },
+      "log_dir": "logs/worker.log",
+      "dependencies": ["api"]
+    }
+  ]
+}

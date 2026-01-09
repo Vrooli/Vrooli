@@ -13,7 +13,10 @@
     "api_tier": {
       "type": "string",
       "description": "API tier level",
-      "enum": ["free", "premium"],
+      "enum": [
+        "free",
+        "premium"
+      ],
       "default": "free"
     },
     "port": {
@@ -42,7 +45,11 @@
         "backend": {
           "type": "string",
           "description": "Cache backend",
-          "enum": ["memory", "redis", "sqlite"],
+          "enum": [
+            "memory",
+            "redis",
+            "sqlite"
+          ],
           "default": "memory"
         }
       }
@@ -128,9 +135,16 @@
           "description": "Events to notify",
           "items": {
             "type": "string",
-            "enum": ["scan_complete", "threat_detected", "quota_warning"]
+            "enum": [
+              "scan_complete",
+              "threat_detected",
+              "quota_warning"
+            ]
           },
-          "default": ["scan_complete", "threat_detected"]
+          "default": [
+            "scan_complete",
+            "threat_detected"
+          ]
         }
       }
     },
@@ -141,13 +155,22 @@
         "level": {
           "type": "string",
           "description": "Log level",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
           "default": "INFO"
         },
         "format": {
           "type": "string",
           "description": "Log format",
-          "enum": ["text", "json"],
+          "enum": [
+            "text",
+            "json"
+          ],
           "default": "json"
         },
         "sensitive": {
@@ -185,6 +208,9 @@
       }
     }
   },
-  "required": ["api_key"],
-  "additionalProperties": false
+  "required": [
+    "api_key"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/virustotal/schema.json"
 }

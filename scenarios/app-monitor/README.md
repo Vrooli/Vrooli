@@ -85,11 +85,6 @@ export APP_MONITOR_API_URL="http://localhost:$API_PORT" # Optional: API URL over
 ## UI Style
 Clean, professional monitoring dashboard with real-time updates. Dark theme with status-based color coding (green=healthy, yellow=degraded, red=unhealthy). Includes charts for metrics visualization and a grid layout for multiple app monitoring.
 
-## Integration Points
-- **system-monitor**: Can be queried for overall system health
-- **app-debugger**: Provides health data for debugging
-- **deployment-manager**: Checks app health before deployments
-- **agent-dashboard**: Includes app health in agent status views
 
 ## Database Schema
 - `apps` - Application registry

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Metareasoning Manager</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🧠</div>
+        <div class="brand-copy">
+          <h1>Metareasoning Manager</h1>
+          <p>Think about thinking, on demand.</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item" data-target="overview" aria-pressed="true">Overview</button>
+        <button class="nav-item" data-target="workflows">Workflows</button>
+        <button class="nav-item" data-target="insights">Insights</button>
+      </nav>
+      <div class="sidebar-footer">
+        <h2>Quick Links</h2>
+        <ul>
+          <li><a href="https://docs.vrooli.com" target="_blank" rel="noreferrer">Vrooli Docs</a></li>
+          <li><a href="https://windmill.dev" target="_blank" rel="noreferrer">Windmill Apps</a></li>
+          <li><a href="https://n8n.io" target="_blank" rel="noreferrer">n8n Workflow Hub</a></li>
+        </ul>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <h2>Agent Metareasoning Control Center</h2>
+          <p class="subtitle">Monitor reasoning health, explore reusable workflows, and launch guided analyses for any scenario.</p>
+        </div>
+        <div class="health-chip" id="health-chip">Loading status…</div>
+      </header>
+
+      <section class="section" data-panel="overview">
+        <div class="section-header">
+          <h3>Operational Health</h3>
+          <span class="section-subtitle">Live signals from the metareasoning coordination API</span>
+        </div>
+        <div class="card-grid" id="health-grid">
+          <article class="card metric-card" data-metric="status">
+            <h4>Status</h4>
+            <p class="metric-value" id="health-status">—</p>
+            <p class="metric-caption">API heartbeat confirmation</p>
+          </article>
+          <article class="card metric-card" data-metric="version">
+            <h4>Version</h4>
+            <p class="metric-value" id="health-version">—</p>
+            <p class="metric-caption">Running build identifier</p>
+          </article>
+          <article class="card metric-card" data-metric="latency">
+            <h4>Recent Latency</h4>
+            <p class="metric-value" id="health-latency">—</p>
+            <p class="metric-caption">Synthetic call to /workflows</p>
+          </article>
+          <article class="card metric-card" data-metric="catalog">
+            <h4>Workflow Catalog</h4>
+            <p class="metric-value" id="health-catalog">—</p>
+            <p class="metric-caption">Registered reasoning playbooks</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section hidden" data-panel="workflows">
+        <div class="section-header">
+          <h3>Workflow Library</h3>
+          <span class="section-subtitle">Reusable reasoning blueprints across Windmill and n8n</span>
+        </div>
+        <div class="filter-bar">
+          <input type="search" id="workflow-search" placeholder="Search by name, tag, or platform" aria-label="Search workflows" />
+          <select id="platform-filter" aria-label="Filter by platform">
+            <option value="all">All Platforms</option>
+            <option value="windmill">Windmill</option>
+            <option value="n8n">n8n</option>
+          </select>
+        </div>
+        <div class="workflow-grid" id="workflow-grid" aria-live="polite">
+          <div class="empty-state" id="workflow-empty">Loading workflows…</div>
+        </div>
+      </section>
+
+      <section class="section hidden" data-panel="insights">
+        <div class="section-header">
+          <h3>Reasoning Insights</h3>
+          <span class="section-subtitle">Kick off guided analyses with a single prompt</span>
+        </div>
+        <div class="insight-layout">
+          <form class="analysis-form" id="analysis-form">
+            <label class="form-field">
+              <span>Reasoning Pattern</span>
+              <select id="analysis-pattern">
+                <option value="pros-cons">Pros vs Cons</option>
+                <option value="swot">SWOT Analysis</option>
+                <option value="risk-assessment">Risk Assessment</option>
+                <option value="self-review">Self Review</option>
+                <option value="chain">Reasoning Chain</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Topic or Decision</span>
+              <input type="text" id="analysis-topic" placeholder="e.g. Expand into LATAM market" required />
+            </label>
+            <label class="form-field">
+              <span>Context & Constraints</span>
+              <textarea id="analysis-context" placeholder="Add key facts, constraints, success metrics, or stakeholders" rows="4"></textarea>
+            </label>
+            <button type="submit" class="primary-button">Run Structured Analysis</button>
+            <p class="form-hint">Results stream through the API so they stay consistent across CLI, UI, and automation workflows.</p>
+          </form>
+          <div class="analysis-output" id="analysis-output">
+            <div class="analysis-placeholder">Submit a scenario to generate reasoning output.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

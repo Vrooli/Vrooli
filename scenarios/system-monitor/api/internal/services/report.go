@@ -10,6 +10,7 @@ import (
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
+	"system-monitor-api/internal/repository/memory"
 )
 
 // ReportService handles report generation and analysis
@@ -105,7 +106,7 @@ func (s *ReportService) calculateTimeRange(reportType string) repository.TimeRan
 	now := time.Now()
 	
 	// Get earliest metrics time to ensure we don't request data before collection started
-	if memRepo, ok := s.repo.(*repository.MemoryRepository); ok {
+	if memRepo, ok := s.repo.(*memory.MemoryRepository); ok {
 		earliest, err := memRepo.GetEarliestMetricTime(context.Background())
 		if err == nil {
 			// Determine the intended start time

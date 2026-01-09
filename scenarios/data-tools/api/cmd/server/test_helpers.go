@@ -59,7 +59,6 @@ func setupTestDirectory(t *testing.T) *TestEnv {
 		Port:        "18000",
 		DatabaseURL: testDBURL,
 		N8NURL:      "http://localhost:5678",
-		WindmillURL: "http://localhost:5681",
 		APIToken:    "test-token",
 	}
 

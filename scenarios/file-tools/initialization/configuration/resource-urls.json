@@ -40,17 +40,6 @@
   },
   
   "automation": {
-    {% if "windmill" in resources.required %}
-    "windmill": {
-      "base_url": "http://localhost:5681",
-      "health_endpoint": "/api/version",
-      "api_endpoint": "/api",
-      "apps_endpoint": "/api/apps",
-      "scripts_endpoint": "/api/scripts",
-      "timeout_seconds": 30
-    },
-    {% endif %}
-    
     {% if "node-red" in resources.required %}
     "node_red": {
       "base_url": "http://localhost:1880",

@@ -1,0 +1,144 @@
+{
+  "id": "saas-landing-page",
+  "name": "SaaS Landing Page",
+  "description": "Modern landing page template for SaaS products with hero, features, pricing, and CTA sections. Includes A/B testing, analytics, and Stripe payments out of the box.",
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Vrooli Team",
+    "category": "saas",
+    "tags": ["saas", "landing-page", "conversion", "ab-testing", "stripe"],
+    "created_at": "2025-11-21",
+    "updated_at": "2025-11-28"
+  },
+  "sections": {
+    "required": [
+      { "$ref": "../../sections/hero.json", "id": "hero" },
+      { "$ref": "../../sections/features.json", "id": "features" },
+      { "$ref": "../../sections/pricing.json", "id": "pricing" },
+      { "$ref": "../../sections/cta.json", "id": "cta" }
+    ],
+    "optional": [
+      { "$ref": "../../sections/social-proof.json", "id": "social-proof" },
+      { "$ref": "../../sections/video.json", "id": "demo-video" },
+      { "$ref": "../../sections/testimonials.json", "id": "testimonials" },
+      { "$ref": "../../sections/faq.json", "id": "faq" },
+      { "$ref": "../../sections/footer.json", "id": "footer" }
+    ]
+  },
+  "metrics_hooks": [
+    {
+      "id": "page_view",
+      "name": "Page View",
+      "description": "Track landing page loads",
+      "event_type": "pageview",
+      "required_fields": ["variant_id", "session_id", "timestamp"]
+    },
+    {
+      "id": "scroll_depth",
+      "name": "Scroll Depth",
+      "description": "Track how far users scroll",
+      "event_type": "scroll",
+      "required_fields": ["variant_id", "session_id", "depth_percent", "timestamp"]
+    },
+    {
+      "id": "cta_click",
+      "name": "CTA Click",
+      "description": "Track CTA button clicks",
+      "event_type": "click",
+      "required_fields": ["variant_id", "session_id", "element_id", "timestamp"]
+    },
+    {
+      "id": "form_submit",
+      "name": "Form Submit",
+      "description": "Track form submissions (signup, contact, etc.)",
+      "event_type": "form_submit",
+      "required_fields": ["variant_id", "session_id", "form_id", "timestamp"]
+    },
+    {
+      "id": "conversion",
+      "name": "Conversion",
+      "description": "Track successful Stripe checkout completions",
+      "event_type": "conversion",
+      "required_fields": ["variant_id", "session_id", "stripe_session_id", "amount", "timestamp"]
+    }
+  ],
+  "customization_schema": {
+    "branding": {
+      "logo_url": {
+        "type": "string",
+        "label": "Logo URL",
+        "placeholder": "/assets/logo.svg"
+      },
+      "primary_color": {
+        "type": "string",
+        "label": "Primary Color (hex)",
+        "placeholder": "#3b82f6"
+      },
+      "secondary_color": {
+        "type": "string",
+        "label": "Secondary Color (hex)",
+        "placeholder": "#8b5cf6"
+      },
+      "font_family": {
+        "type": "string",
+        "label": "Font Family",
+        "placeholder": "Inter, system-ui, sans-serif"
+      }
+    },
+    "seo": {
+      "title": {
+        "type": "string",
+        "label": "Page Title",
+        "max_length": 60
+      },
+      "description": {
+        "type": "string",
+        "label": "Meta Description",
+        "max_length": 160
+      },
+      "og_image": {
+        "type": "string",
+        "label": "Social Share Image URL"
+      }
+    },
+    "stripe": {
+      "publishable_key": {
+        "type": "string",
+        "label": "Stripe Publishable Key",
+        "placeholder": "pk_live_xxxxx"
+      },
+      "webhook_secret": {
+        "type": "string",
+        "label": "Stripe Webhook Secret",
+        "placeholder": "whsec_xxxxx"
+      }
+    }
+  },
+  "frontend_aesthetics": {
+    "style": "modern, bold, high-contrast",
+    "colors": "Deep blues and purples with bright accent colors. Avoid flat pastels.",
+    "typography": "Custom font stack, not Inter/Roboto/Arial. Large headings with strong hierarchy.",
+    "layout": "Asymmetric sections with layered gradients and geometric shapes. No flat solid backgrounds.",
+    "components": "Rounded corners (8-16px), subtle shadows, smooth transitions. Lucide icons throughout.",
+    "animations": "Fade-in on scroll, hover effects on CTAs, smooth gradient shifts."
+  },
+  "tech_stack": {
+    "frontend": "React + TypeScript + Vite + TailwindCSS + shadcn/ui + Lucide icons",
+    "backend": "Go (Gin framework) + PostgreSQL",
+    "payments": "Stripe Checkout + Webhooks",
+    "analytics": "Custom events API (variant-tagged metrics)",
+    "deployment": "Vrooli lifecycle system (local or production)"
+  },
+  "generated_structure": {
+    "directories": ["api/", "ui/src/", "ui/public/", "initialization/postgres/", "test/", "docs/"],
+    "key_files": [
+      ".vrooli/service.json",
+      "Makefile",
+      "README.md",
+      "PRD.md",
+      "api/main.go",
+      "ui/src/App.tsx",
+      "initialization/postgres/schema.sql"
+    ]
+  }
+}

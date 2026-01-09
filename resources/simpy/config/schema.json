@@ -21,7 +21,13 @@
       "type": "string",
       "description": "Python version requirement",
       "default": "3.12",
-      "enum": ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      "enum": [
+        "3.8",
+        "3.9",
+        "3.10",
+        "3.11",
+        "3.12"
+      ]
     },
     "packages": {
       "type": "array",
@@ -29,7 +35,14 @@
       "items": {
         "type": "string"
       },
-      "default": ["simpy", "numpy", "pandas", "matplotlib", "scipy", "networkx"]
+      "default": [
+        "simpy",
+        "numpy",
+        "pandas",
+        "matplotlib",
+        "scipy",
+        "networkx"
+      ]
     },
     "visualization": {
       "type": "object",
@@ -43,7 +56,11 @@
         "backend": {
           "type": "string",
           "description": "Visualization backend",
-          "enum": ["matplotlib", "plotly", "seaborn"],
+          "enum": [
+            "matplotlib",
+            "plotly",
+            "seaborn"
+          ],
           "default": "matplotlib"
         }
       }
@@ -119,6 +136,10 @@
       }
     }
   },
-  "required": ["port", "host"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "host"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/simpy/schema.json"
 }

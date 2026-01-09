@@ -19,27 +19,39 @@ func NewLogger(prefix string) *Logger {
 }
 
 // Info logs informational messages
-func (l *Logger) Info(msg string) {
-	l.Printf("INFO: %s", msg)
-}
-
-// Error logs error messages
-func (l *Logger) Error(msg string, err error) {
-	if err != nil {
-		l.Printf("ERROR: %s: %v", msg, err)
+func (l *Logger) Info(format string, args ...interface{}) {
+	if len(args) == 0 {
+		l.Printf("INFO: %s", format)
 	} else {
-		l.Printf("ERROR: %s", msg)
+		l.Printf("INFO: "+format, args...)
 	}
 }
 
-// Warning logs warning messages  
-func (l *Logger) Warning(msg string) {
-	l.Printf("WARNING: %s", msg)
+// Error logs error messages
+func (l *Logger) Error(format string, args ...interface{}) {
+	if len(args) == 0 {
+		l.Printf("ERROR: %s", format)
+	} else {
+		l.Printf("ERROR: "+format, args...)
+	}
+}
+
+// Warning logs warning messages
+func (l *Logger) Warning(format string, args ...interface{}) {
+	if len(args) == 0 {
+		l.Printf("WARNING: %s", format)
+	} else {
+		l.Printf("WARNING: "+format, args...)
+	}
 }
 
 // Debug logs debug messages (only if DEBUG env var is set)
-func (l *Logger) Debug(msg string) {
+func (l *Logger) Debug(format string, args ...interface{}) {
 	if os.Getenv("DEBUG") != "" {
-		l.Printf("DEBUG: %s", msg)
+		if len(args) == 0 {
+			l.Printf("DEBUG: %s", format)
+		} else {
+			l.Printf("DEBUG: "+format, args...)
+		}
 	}
 }

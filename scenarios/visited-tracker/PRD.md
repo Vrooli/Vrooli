@@ -1,84 +1,52 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-Persistent file visit tracking with staleness detection for systematic code analysis
+## 🎯 Overview
+- **Purpose**: Persistent file visit tracking with staleness detection for systematic code analysis across large codebases, enabling agent loops to maintain perfect memory across conversations
+- **Primary users/verticals**: Agent loops in ecosystem-manager (Progress, UX, Refactor, Test phases), maintenance scenarios, code quality automation, Claude Code agents performing systematic multi-file work across conversations
+- **Deployment surfaces**: CLI (programmatic integration for agent loops), API (web interface and external integrations), UI (manual campaign management)
+- **Value promise**: Enables agent loops to maintain perfect memory across conversations, ensuring comprehensive coverage without redundant work, with phase-specific metadata storage for handoff between analysis modes (UX → Refactor → Test) and staleness scoring to prioritize neglected files
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-Enables maintenance scenarios to efficiently track which files have been analyzed, ensuring comprehensive coverage across large codebases without redundant work. Agents can prioritize stale files and systematically work through entire projects over multiple conversations.
+## 🎯 Operational Targets
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-- **API analysis scenarios** (like api-manager) can use this to systematically review all scenario APIs
-- **Test coverage scenarios** (like test-genie) can track which files need testing attention
-- **Documentation scenarios** can identify files that lack proper documentation
-- **Code quality scenarios** can prioritize refactoring based on file staleness
-- **Security audit scenarios** can ensure all files are regularly reviewed for vulnerabilities
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Campaign tracking system | Campaign-based file tracking with visit counts, staleness scoring, CLI interface, and JSON persistence
+- [ ] OT-P0-002 | Zero-friction agent integration | Auto-creation shorthand with location + tag + glob pattern for seamless agent loop usage without manual campaign management
+- [x] OT-P0-003 | Phase metadata and handoff context | Campaign-level and file-level notes for storing phase-specific metadata, work-in-progress tracking, and cross-phase handoff information
+- [x] OT-P0-004 | Precise campaign control | Manual prioritization and exclusion controls for fine-tuning file coverage and handling exceptional cases
+- [ ] OT-P0-005 | Clutter prevention and limits | Smart default exclusions (data/, tmp/, coverage/, dist/, build/) and configurable campaign size limits to maintain focused campaigns
+- [ ] OT-P0-006 | Smart campaign sync | Should gracefully handle new, renamed, and removed files in campaign target pattern, auto-syncing on campaign read (cached 30 seconds) and write commands to ensure campaign matches actual ground-truth files
 
-## 📊 Success Metrics
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | HTTP API endpoints | HTTP API with CRUD operations, prioritization queries, and export/import capabilities
+- [ ] OT-P1-002 | Web interface | Web interface for manual campaign management and visualization
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [x] Campaign-based file tracking with patterns (*.go, *.js, etc.)
-  - [x] Visit count tracking for each file in a campaign
-  - [x] Staleness scoring based on visit frequency and modification time
-  - [x] CLI interface for programmatic integration
-  - [x] JSON file storage for persistence and portability
-  
-- **Should Have (P1)**
-  - [x] HTTP API for web interface and external integrations
-  - [x] Web interface for manual campaign management
-  - [x] File synchronization with glob pattern matching
-  - [x] Least visited and most stale file prioritization
-  - [x] Campaign export/import capabilities
-  
-- **Nice to Have (P2)**
-  - [ ] Advanced analytics and staleness trend analysis
-  - [ ] Integration with git history for enhanced staleness detection
-  - [ ] Multi-project campaign management
-  - [ ] Automated file discovery and pattern suggestions
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Advanced analytics and scaling | Advanced analytics with staleness trend analysis and multi-project management
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| File sync performance | < 2s for 1000 files | CLI timing logs |
-| API response time | < 100ms for common operations | HTTP monitoring |
-| Data persistence | 100% reliability | Automated testing |
-| CLI response time | < 1s for common operations | Performance testing |
+## 🧱 Tech Direction Snapshot
+- Preferred stacks / frameworks: Go API (file tracking and staleness calculation), React UI (campaign management dashboard), CLI (agent integration)
+- Data + storage expectations: File-based JSON storage for simplicity and portability, optional PostgreSQL for enhanced querying, optional Redis for caching
+- Integration strategy: CLI-first for agent integration, HTTP API for web interface, file-based storage for transparency and manual intervention
+- Non-goals / guardrails: Not an end-user application (internal developer tool), no complex database requirements (file-based is sufficient), no real-time collaboration features (single-agent focused)
 
-## 🔗 Dependencies
+## 🤝 Dependencies & Launch Plan
+- Required resources: Local file system (for tracking file modifications and storing campaign data)
+- Optional resources: postgres (for enhanced data storage), redis (for caching and performance optimization)
+- Scenario dependencies: Used by api-manager, test-genie, and other maintenance scenarios
+- Operational risks: Must handle large codebases (1000+ files) efficiently, must maintain state across multiple agent conversations
+- Launch sequencing: Phase 1 - Deploy CLI and file-based storage (1 week), Phase 2 - Add HTTP API and web interface (2 weeks), Phase 3 - Integration with maintenance scenarios (ongoing)
 
-### Required Resources
-- Local file system (for tracking file modifications and storing campaign data)
+## 🎨 UX & Branding
+- Look & feel: Minimal developer-focused UI with dark theme, clean data tables, simple campaign management
+- Accessibility: Keyboard navigation for all operations, high contrast for readability, screen reader support for campaign status
+- Voice & messaging: Technical, systematic, focused on comprehensive coverage - "Never miss a file, never repeat work"
+- Branding hooks: Staleness indicators (🔥 Critical staleness, ⚠️ High staleness, ✅ Recently visited)
 
-### Optional Resources
-- postgres (for enhanced data storage and querying capabilities)
-- redis (for caching and performance optimization)
+## 📎 Appendix
 
-### Integration Points
-- **Input**: Called by maintenance scenarios (api-manager, test-genie, etc.)
-- **Output**: Provides prioritized file lists and staleness metrics
-- **Data Flow**: Receives file patterns and directory paths, returns visit recommendations
-
-## 📋 Implementation Notes
-
-### Key Design Decisions
-- File-based JSON storage for simplicity and portability
-- Campaign-based organization for different analysis projects
-- Staleness scoring algorithm based on visit frequency and file modification time
-- HTTP API + CLI dual interface for flexibility
-
-### Technical Constraints
-- Must work across different file types and directory structures
-- Should handle large codebases (1000+ files) efficiently
-- Must maintain state across multiple agent conversations
-- Designed as internal developer tool, not end-user application
-
-### Future Considerations
-- Machine learning for intelligent file prioritization based on change patterns
-- Integration with version control systems for enhanced context
-- Support for remote repositories and distributed development teams
-- Advanced analytics for development workflow optimization
+Performance targets, staleness algorithm details, and integration patterns are maintained in the scenario's README.md and supporting documentation.

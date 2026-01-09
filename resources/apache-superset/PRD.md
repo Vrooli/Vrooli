@@ -20,7 +20,7 @@ Apache Superset provides modern data exploration and dashboarding at scale, conn
 - **Real-Time Monitoring**: Live dashboards update as data flows through the system
 - **Self-Service Analytics**: Drag-and-drop dashboard creation without coding
 - **Embedded Intelligence**: Dashboards integrate directly into scenario UIs via iframe
-- **Alert-Driven Actions**: Threshold breaches trigger n8n/Windmill workflows automatically
+- **Alert-Driven Actions**: Threshold breaches trigger n8n workflows automatically
 
 ### Enabling Value
 **New scenarios enabled by this resource:**
@@ -78,8 +78,6 @@ Apache Superset provides modern data exploration and dashboarding at scale, conn
 ## P2 Requirements (Nice to Have) ☐
 
 ### Workflow Integration
-- [ ] **n8n Webhook Triggers**: Alert thresholds trigger automation workflows
-- [ ] **Windmill Integration**: Execute Windmill scripts from dashboard actions
 - [ ] **Bi-directional Sync**: Write-back capabilities for data correction
 - [ ] **Custom Visualizations**: Extend with D3.js custom chart types
 

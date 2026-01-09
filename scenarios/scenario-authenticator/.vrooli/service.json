@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "scenario-authenticator",
@@ -19,7 +19,28 @@
       "go-api",
       "postgres-storage",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-authenticator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -33,54 +54,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user accounts, API keys, and audit logs",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/applications.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Session storage, token blacklisting, and rate limiting",
-      "initialization": [
-        {
-          "file": "initialization/redis/config.lua",
-          "type": "script"
-        }
-      ]
-    },
-    "mailpit": {
-      "type": "mailpit",
-      "enabled": false,
-      "required": false,
-      "purpose": "Email sending for password reset and verification",
-      "fallback": "Log email content to console"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Authentication service health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -101,15 +81,19 @@
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "redis_connection",
-          "type": "resource",
+          "type": "redis",
           "target": "redis",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -120,16 +104,24 @@
       "description": "Initialize Scenario Authenticator",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "scenario-authenticator-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["scenario-authenticator"]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-authenticator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "scenario-authenticator",
+            "targets": [
+              "scenario-authenticator"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -202,9 +194,12 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && pnpm run start",
-          "description": "Start authentication UI server",
-          "background": true
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",
@@ -214,12 +209,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing using modern testing architecture",
+      "description": "Comprehensive phased testing for scenario-authenticator",
       "steps": [
         {
-          "name": "run-comprehensive-tests",
-          "run": "test/run-tests.sh",
-          "description": "Execute comprehensive phased testing"
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-authenticator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -239,34 +234,47 @@
       ]
     }
   },
-  "integration": {
-    "shared_capabilities": [
-      {
-        "name": "auth_validation",
-        "description": "JWT token validation for any scenario",
-        "endpoint": "/api/v1/auth/validate"
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user accounts, API keys, and audit logs",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/applications.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
       },
-      {
-        "name": "user_management",
-        "description": "User CRUD operations",
-        "endpoint": "/api/v1/users",
-        "cli": "scenario-authenticator user"
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Session storage, token blacklisting, and rate limiting",
+        "initialization": [
+          {
+            "file": "initialization/redis/config.lua",
+            "type": "script"
+          }
+        ]
       },
-      {
-        "name": "session_management",
-        "description": "Session creation and validation",
-        "endpoint": "/api/v1/sessions",
-        "cli": "scenario-authenticator session"
-      },
-      {
-        "name": "password_reset",
-        "description": "Password reset functionality",
-        "endpoint": "/api/v1/auth/reset-password"
+      "mailpit": {
+        "type": "mailpit",
+        "enabled": false,
+        "required": false,
+        "purpose": "Email sending for password reset and verification",
+        "fallback": "Log email content to console"
       }
-    ],
-    "example_integration": {
-      "api": "const isValid = await fetch(`http://localhost:${process.env.API_PORT}/api/v1/auth/validate`, { headers: { 'Authorization': `Bearer ${token}` } });",
-      "cli": "scenario-authenticator token validate $TOKEN"
     }
   }
 }

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -77,7 +80,6 @@ type Config struct {
 	Port              string
 	PostgresURL       string
 	N8NBaseURL        string
-	WindmillBaseURL   string
 	ComfyUIBaseURL    string
 	WhisperBaseURL    string
 	MinioEndpoint     string
@@ -118,7 +120,6 @@ func loadConfig() *Config {
 		Port:              port,
 		PostgresURL:       postgresURL,
 		N8NBaseURL:        getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillBaseURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		ComfyUIBaseURL:    getEnv("COMFYUI_BASE_URL", "http://localhost:8188"),
 		WhisperBaseURL:    getEnv("WHISPER_BASE_URL", "http://localhost:9000"),
 		MinioEndpoint:     getEnv("MINIO_ENDPOINT", "localhost:9000"),
@@ -138,11 +139,13 @@ func getEnv(key, defaultValue string) string {
 // Database connection
 var db *sql.DB
 
-func initDB(config *Config) error {
+func initDB() error {
 	var err error
-	db, err = sql.Open("postgres", config.PostgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Set connection pool settings
@@ -150,68 +153,11 @@ func initDB(config *Config) error {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🎨 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
-	
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
 
 // HTTP handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "image-generation-pipeline",
-		"version":   "1.0.0",
-		"timestamp": time.Now().Unix(),
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 func campaignsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -603,32 +549,25 @@ func generationsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start image-generation-pipeline
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "image-generation-pipeline",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	log.Println("🚀 Starting Image Generation Pipeline API...")
 
-	config := loadConfig()
-
 	// Initialize database
-	if err := initDB(config); err != nil {
+	if err := initDB(); err != nil {
 		log.Fatalf("❌ Database initialization failed: %v", err)
 	}
-	defer db.Close()
 
 	// Setup routes
 	r := mux.NewRouter()
 
 	// API routes
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/campaigns", campaignsHandler).Methods("GET", "POST")
 	r.HandleFunc("/api/brands", brandsHandler).Methods("GET", "POST")
@@ -644,11 +583,11 @@ func main() {
 	)(r)
 
 	// Start server
-	log.Printf("✅ Server starting on port %s", config.Port)
-	log.Printf("🔗 Health check: http://localhost:%s/health", config.Port)
-	log.Printf("🔗 API endpoints: http://localhost:%s/api/", config.Port)
-
-	if err := http.ListenAndServe(":"+config.Port, corsHandler); err != nil {
-		log.Fatalf("❌ Server failed to start: %v", err)
+	log.Println("✅ Image Generation Pipeline API starting...")
+	if err := server.Run(server.Config{
+		Handler: corsHandler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

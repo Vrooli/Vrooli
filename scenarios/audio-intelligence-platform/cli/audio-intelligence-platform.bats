@@ -4,7 +4,7 @@
 # Setup test environment
 setup() {
     # Point to local CLI script
-    CLI_SCRIPT="$BATS_TEST_DIRNAME/audio-intelligence-platform-cli.sh"
+    CLI_SCRIPT="$BATS_TEST_DIRNAME/audio-intelligence-platform"
     export AUDIO_INTELLIGENCE_PLATFORM_API_BASE="http://localhost:${API_PORT:-8090}"
 }
 

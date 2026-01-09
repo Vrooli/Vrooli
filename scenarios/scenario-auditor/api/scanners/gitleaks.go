@@ -326,7 +326,7 @@ func (g *GitleaksScanner) parseGitleaksReport(reportFile string) ([]Finding, err
 		}
 
 		// Add metadata
-		finding.Metadata = map[string]interface{}{
+		finding.Metadata = map[string]any{
 			"entropy":     gf.Entropy,
 			"fingerprint": gf.Fingerprint,
 		}

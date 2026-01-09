@@ -1,11 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"time"
@@ -80,76 +83,13 @@ type ListFeatureRequestsQuery struct {
 func NewServer() (*Server, error) {
 	godotenv.Load()
 
-	// ALL database configuration MUST come from environment - no defaults
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		return nil, fmt.Errorf("missing required database configuration - ensure POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB are set")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	db, err := sql.Open("postgres", connStr)
+	// Connect to database with exponential backoff
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Configure connection pool for better resilience
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
-
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &Server{
@@ -162,7 +102,8 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Feature request endpoints
 	s.router.HandleFunc("/api/v1/scenarios/{scenario_id}/feature-requests", s.handleListFeatureRequests).Methods("GET")
@@ -175,14 +116,6 @@ func (s *Server) setupRoutes() {
 	// Scenario management endpoints
 	s.router.HandleFunc("/api/v1/scenarios", s.handleListScenarios).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{id}", s.handleGetScenario).Methods("GET")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-	}
-	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleListFeatureRequests(w http.ResponseWriter, r *http.Request) {
@@ -672,16 +605,11 @@ func joinStrings(strs []string, sep string) string {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start feature-request-voting
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "feature-request-voting",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	server, err := NewServer()
@@ -712,3 +640,4 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+// Test change

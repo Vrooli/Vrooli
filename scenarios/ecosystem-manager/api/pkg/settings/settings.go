@@ -1,6 +1,11 @@
 package settings
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -12,67 +17,89 @@ type RecyclerSettings struct {
 	ModelName           string `json:"model_name"`
 	CompletionThreshold int    `json:"completion_threshold"`
 	FailureThreshold    int    `json:"failure_threshold"`
+	MaxRetries          int    `json:"max_retries"`
+	RetryDelaySeconds   int    `json:"retry_delay_seconds"`
 }
 
 // Settings represents the application settings
 type Settings struct {
 	// Display settings
-	Theme string `json:"theme"`
+	Theme         string `json:"theme"`
+	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots           int  `json:"slots"`
-	RefreshInterval int  `json:"refresh_interval"`
+	Slots           int `json:"slots"`
+	CooldownSeconds int `json:"cooldown_seconds"`
+	// Legacy field for backward compatibility; populated only on load and not persisted.
+	RefreshInterval int  `json:"refresh_interval,omitempty"`
 	Active          bool `json:"active"`
-	MaxTasks        int  `json:"max_tasks"` // Maximum tasks to process (0 = unlimited)
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
 	AllowedTools    string `json:"allowed_tools"`
 	SkipPermissions bool   `json:"skip_permissions"`
-	TaskTimeout     int    `json:"task_timeout"` // Task execution timeout in minutes
+	TaskTimeout     int    `json:"task_timeout"`     // Task execution timeout in minutes
+	IdleTimeoutCap  int    `json:"idle_timeout_cap"` // Max idle time allowed before watchdog cancellation (minutes)
+	RunnerType      string `json:"runner_type"`      // AI runner type: claude-code, codex, opencode
 
 	// Recycler automation settings
 	Recycler RecyclerSettings `json:"recycler"`
 }
 
-// Global settings with thread safety
-var (
-	currentSettings = Settings{
+// persistencePath points to the on-disk settings file (optional).
+var persistencePath string
+
+// newDefaultSettings returns a fresh Settings instance with default values.
+// This is the single source of truth for default settings.
+func newDefaultSettings() Settings {
+	return Settings{
 		Theme:           "light",
-		Slots:           1,
-		RefreshInterval: 30,
-		Active:          false, // ALWAYS start inactive for safety
-		MaxTasks:        0,     // 0 = unlimited
-		MaxTurns:        60,
-		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
-		SkipPermissions: true,
-		TaskTimeout:     30, // 30 minutes default timeout
+		CondensedMode:   DefaultCondensedMode,
+		Slots:           DefaultSlots,
+		CooldownSeconds: DefaultCooldownSeconds,
+		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
+		MaxTurns:        DefaultMaxTurns,
+		AllowedTools:    DefaultAllowedTools,
+		SkipPermissions: DefaultSkipPermissions,
+		TaskTimeout:     DefaultTaskTimeout,
+		IdleTimeoutCap:  DefaultIdleTimeoutCap,
+		RunnerType:      DefaultRunnerType,
 		Recycler: RecyclerSettings{
-			EnabledFor:          "off",
-			IntervalSeconds:     60,
-			ModelProvider:       "ollama",
-			ModelName:           "llama3.1:8b",
-			CompletionThreshold: 3,
-			FailureThreshold:    5,
+			EnabledFor:          DefaultRecyclerEnabledFor,
+			IntervalSeconds:     DefaultRecyclerInterval,
+			ModelProvider:       DefaultRecyclerModelProvider,
+			ModelName:           DefaultRecyclerModelID,
+			CompletionThreshold: DefaultRecyclerCompletionThreshold,
+			FailureThreshold:    DefaultRecyclerFailureThreshold,
+			MaxRetries:          DefaultRecyclerMaxRetries,
+			RetryDelaySeconds:   DefaultRecyclerRetryDelaySeconds,
 		},
 	}
-	settingsMutex sync.RWMutex
+}
+
+// Global settings with thread safety
+var (
+	currentSettings = newDefaultSettings()
+	settingsMutex   sync.RWMutex
+	persistMutex    sync.Mutex
 )
+
+// SetPersistencePath configures the on-disk path used to persist settings.
+func SetPersistencePath(path string) {
+	persistencePath = path
+}
 
 // GetSettings returns a copy of the current settings (thread-safe)
 func GetSettings() Settings {
 	settingsMutex.RLock()
 	defer settingsMutex.RUnlock()
-	settingsCopy := currentSettings
-	settingsCopy.MaxTasks = 0 // Max tasks feature disabled globally
-	return settingsCopy
+	return currentSettings
 }
 
 // UpdateSettings updates the current settings (thread-safe)
 func UpdateSettings(newSettings Settings) {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
-	newSettings.MaxTasks = 0 // Enforce disabled state regardless of client input
 	currentSettings = newSettings
 }
 
@@ -81,26 +108,7 @@ func ResetSettings() Settings {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
 
-	currentSettings = Settings{
-		Theme:           "light",
-		Slots:           1,
-		RefreshInterval: 30,
-		Active:          false, // ALWAYS reset to inactive for safety
-		MaxTasks:        0,     // 0 = unlimited
-		MaxTurns:        60,
-		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
-		SkipPermissions: true,
-		TaskTimeout:     30, // 30 minutes default timeout
-		Recycler: RecyclerSettings{
-			EnabledFor:          "off",
-			IntervalSeconds:     60,
-			ModelProvider:       "ollama",
-			ModelName:           "llama3.1:8b",
-			CompletionThreshold: 3,
-			FailureThreshold:    5,
-		},
-	}
-
+	currentSettings = newDefaultSettings()
 	return currentSettings
 }
 
@@ -111,34 +119,6 @@ func IsActive() bool {
 	return currentSettings.Active
 }
 
-// GetMaxTurns returns the current max turns setting
-func GetMaxTurns() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.MaxTurns
-}
-
-// GetAllowedTools returns the current allowed tools setting
-func GetAllowedTools() string {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.AllowedTools
-}
-
-// GetSkipPermissions returns the current skip permissions setting
-func GetSkipPermissions() bool {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.SkipPermissions
-}
-
-// GetTaskTimeout returns the current task timeout setting in minutes
-func GetTaskTimeout() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.TaskTimeout
-}
-
 // GetRecyclerSettings returns current recycler configuration.
 func GetRecyclerSettings() RecyclerSettings {
 	settingsMutex.RLock()
@@ -146,9 +126,171 @@ func GetRecyclerSettings() RecyclerSettings {
 	return currentSettings.Recycler
 }
 
-// GetMaxTasks returns the maximum number of tasks to process (0 = unlimited)
-func GetMaxTasks() int {
-	settingsMutex.RLock()
-	defer settingsMutex.RUnlock()
-	return currentSettings.MaxTasks
+// ValidateAndNormalize enforces constraints and fills missing fields using the previous values.
+func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
+	s := input
+
+	if s.Slots < MinSlots || s.Slots > MaxSlots {
+		return previous, fmt.Errorf("Slots must be between %d and %d", MinSlots, MaxSlots)
+	}
+	// Migrate legacy refresh_interval to cooldown_seconds
+	if s.CooldownSeconds == 0 && s.RefreshInterval > 0 {
+		s.CooldownSeconds = s.RefreshInterval
+	}
+	if s.CooldownSeconds < MinCooldownSeconds || s.CooldownSeconds > MaxCooldownSeconds {
+		return previous, fmt.Errorf("Cooldown must be between %d and %d seconds", MinCooldownSeconds, MaxCooldownSeconds)
+	}
+	if s.MaxTurns < MinMaxTurns || s.MaxTurns > MaxMaxTurns {
+		return previous, fmt.Errorf("Max turns must be between %d and %d", MinMaxTurns, MaxMaxTurns)
+	}
+	if s.TaskTimeout < MinTaskTimeout || s.TaskTimeout > MaxTaskTimeout {
+		return previous, fmt.Errorf("Task timeout must be between %d and %d minutes", MinTaskTimeout, MaxTaskTimeout)
+	}
+	if s.IdleTimeoutCap == 0 {
+		s.IdleTimeoutCap = previous.IdleTimeoutCap
+	}
+	if s.IdleTimeoutCap < MinIdleTimeoutCap || s.IdleTimeoutCap > MaxIdleTimeoutCap {
+		return previous, fmt.Errorf("Idle timeout cap must be between %d and %d minutes", MinIdleTimeoutCap, MaxIdleTimeoutCap)
+	}
+
+	// Validate runner type
+	if s.RunnerType == "" {
+		s.RunnerType = previous.RunnerType
+	}
+	if s.RunnerType == "" {
+		s.RunnerType = DefaultRunnerType
+	}
+	s.RunnerType = strings.ToLower(strings.TrimSpace(s.RunnerType))
+	validRunner := false
+	for _, valid := range ValidRunnerTypes {
+		if s.RunnerType == valid {
+			validRunner = true
+			break
+		}
+	}
+	if !validRunner {
+		return previous, fmt.Errorf("Runner type must be one of: %s", strings.Join(ValidRunnerTypes, ", "))
+	}
+
+	recycler := s.Recycler
+	if recycler.EnabledFor == "" {
+		recycler.EnabledFor = previous.Recycler.EnabledFor
+	}
+	recycler.EnabledFor = strings.ToLower(strings.TrimSpace(recycler.EnabledFor))
+	switch recycler.EnabledFor {
+	case "", "off", "resources", "scenarios", "both":
+		if recycler.EnabledFor == "" {
+			recycler.EnabledFor = "off"
+		}
+	default:
+		return previous, fmt.Errorf("Recycler enabled_for must be one of off, resources, scenarios, both")
+	}
+
+	if recycler.IntervalSeconds == 0 {
+		recycler.IntervalSeconds = previous.Recycler.IntervalSeconds
+	}
+	if recycler.IntervalSeconds < MinRecyclerInterval || recycler.IntervalSeconds > MaxRecyclerInterval {
+		return previous, fmt.Errorf("Recycler interval must be between %d and %d seconds", MinRecyclerInterval, MaxRecyclerInterval)
+	}
+
+	if recycler.ModelProvider == "" {
+		recycler.ModelProvider = previous.Recycler.ModelProvider
+	}
+	recycler.ModelProvider = strings.ToLower(strings.TrimSpace(recycler.ModelProvider))
+	if recycler.ModelProvider != "ollama" && recycler.ModelProvider != "openrouter" {
+		return previous, fmt.Errorf("Recycler model_provider must be 'ollama' or 'openrouter'")
+	}
+
+	if recycler.ModelName == "" {
+		recycler.ModelName = previous.Recycler.ModelName
+	}
+
+	if recycler.CompletionThreshold == 0 {
+		recycler.CompletionThreshold = previous.Recycler.CompletionThreshold
+	}
+	if recycler.CompletionThreshold < MinRecyclerCompletionThreshold || recycler.CompletionThreshold > MaxRecyclerCompletionThreshold {
+		return previous, fmt.Errorf("Recycler completion_threshold must be between %d and %d", MinRecyclerCompletionThreshold, MaxRecyclerCompletionThreshold)
+	}
+
+	if recycler.FailureThreshold == 0 {
+		recycler.FailureThreshold = previous.Recycler.FailureThreshold
+	}
+	if recycler.FailureThreshold < MinRecyclerFailureThreshold || recycler.FailureThreshold > MaxRecyclerFailureThreshold {
+		return previous, fmt.Errorf("Recycler failure_threshold must be between %d and %d", MinRecyclerFailureThreshold, MaxRecyclerFailureThreshold)
+	}
+
+	if recycler.MaxRetries < MinRecyclerMaxRetries || recycler.MaxRetries > MaxRecyclerMaxRetries {
+		return previous, fmt.Errorf("Recycler max_retries must be between %d and %d", MinRecyclerMaxRetries, MaxRecyclerMaxRetries)
+	}
+	if recycler.RetryDelaySeconds == 0 {
+		recycler.RetryDelaySeconds = previous.Recycler.RetryDelaySeconds
+	}
+	if recycler.RetryDelaySeconds < MinRecyclerRetryDelaySecs || recycler.RetryDelaySeconds > MaxRecyclerRetryDelaySecs {
+		return previous, fmt.Errorf("Recycler retry_delay_seconds must be between %d and %d", MinRecyclerRetryDelaySecs, MaxRecyclerRetryDelaySecs)
+	}
+
+	s.Recycler = recycler
+	return s, nil
+}
+
+// SaveToDisk persists current settings to the configured path, always forcing Active=false.
+func SaveToDisk() error {
+	if persistencePath == "" {
+		return nil
+	}
+
+	persistMutex.Lock()
+	defer persistMutex.Unlock()
+
+	settings := GetSettings()
+	settings.Active = false
+
+	if err := os.MkdirAll(filepath.Dir(persistencePath), 0o755); err != nil {
+		return fmt.Errorf("failed creating persistence directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed marshaling settings: %w", err)
+	}
+
+	tmpPath := persistencePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return fmt.Errorf("failed writing temp settings file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, persistencePath); err != nil {
+		return fmt.Errorf("failed replacing settings file: %w", err)
+	}
+
+	return nil
+}
+
+// LoadFromDisk loads persisted settings (if present) and applies them, forcing Active=false.
+func LoadFromDisk() error {
+	if persistencePath == "" {
+		return nil
+	}
+
+	data, err := os.ReadFile(persistencePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed reading settings file: %w", err)
+	}
+
+	var loaded Settings
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		return fmt.Errorf("failed unmarshaling settings file: %w", err)
+	}
+
+	loaded.Active = false // always start inactive
+	validated, err := ValidateAndNormalize(loaded, currentSettings)
+	if err != nil {
+		return fmt.Errorf("persisted settings invalid: %w", err)
+	}
+
+	UpdateSettings(validated)
+	return nil
 }

@@ -2,507 +2,342 @@ package database
 
 import (
 	"context"
-	"errors"
-	"io/ioutil"
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
-// setupTestDB creates a test database connection
+func testBackend() string {
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
+	if backend == "" {
+		backend = strings.ToLower(strings.TrimSpace(os.Getenv("BAS_DB_BACKEND")))
+	}
+	if backend == "" {
+		backend = "sqlite"
+	}
+	return backend
+}
+
 func setupTestDB(t *testing.T) (*DB, func()) {
-	dbURL := os.Getenv("TEST_DATABASE_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("DATABASE_URL")
+	t.Helper()
+
+	backend := testBackend()
+	if backend != "sqlite" {
+		t.Skipf("unsupported test backend %q (set BAS_TEST_BACKEND=sqlite)", backend)
 	}
 
-	if dbURL == "" {
-		t.Skip("No database URL configured - skipping database tests")
-	}
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "bas-test.db")
+	dsn := fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
+		dbPath,
+	)
 
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	db, err := NewConnection(log)
+	sqlDB, err := sqlx.Connect("sqlite", dsn)
 	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
+		t.Fatalf("connect sqlite: %v", err)
 	}
 
-	cleanup := func() {
-		// Clean up test data
-		ctx := context.Background()
-		queries := []string{
-			"DELETE FROM execution_logs WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
-			"DELETE FROM screenshots WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
-			"DELETE FROM extracted_data WHERE execution_id IN (SELECT id FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%'))",
-			"DELETE FROM executions WHERE workflow_id IN (SELECT id FROM workflows WHERE folder_path LIKE '/test%')",
-			"DELETE FROM workflows WHERE folder_path LIKE '/test%'",
-			"DELETE FROM projects WHERE folder_path LIKE '/test%'",
-		}
+	log := logrus.New()
+	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.PanicLevel)
 
-		for _, query := range queries {
-			db.ExecContext(ctx, query)
-		}
-
-		db.Close()
+	wrapped := &DB{
+		DB:      sqlDB,
+		log:     log,
+		dialect: DialectSQLite,
+	}
+	if err := wrapped.initSchema(); err != nil {
+		_ = sqlDB.Close()
+		t.Fatalf("init schema: %v", err)
 	}
 
-	return db, cleanup
+	return wrapped, func() {
+		_ = sqlDB.Close()
+	}
 }
 
-func TestCreateProject(t *testing.T) {
+func TestProjectCRUD(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
 
-	repo := NewRepository(db, log)
-
-	t.Run("Success", func(t *testing.T) {
-		project := &Project{
-			ID:          uuid.New(),
-			Name:        "Test Project",
-			Description: "A test project",
-			FolderPath:  "/test/project1",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		ctx := context.Background()
-		err := repo.CreateProject(ctx, project)
-		if err != nil {
-			t.Fatalf("Failed to create project: %v", err)
-		}
-
-		// Verify project was created
-		retrieved, err := repo.GetProject(ctx, project.ID)
-		if err != nil {
-			t.Fatalf("Failed to get project: %v", err)
-		}
-
-		if retrieved.Name != project.Name {
-			t.Errorf("Expected name %s, got %s", project.Name, retrieved.Name)
-		}
-	})
-
-	t.Run("GenerateID", func(t *testing.T) {
-		project := &Project{
-			Name:       "Test Project 2",
-			FolderPath: "/test/project2",
-		}
-
-		ctx := context.Background()
-		err := repo.CreateProject(ctx, project)
-		if err != nil {
-			t.Fatalf("Failed to create project: %v", err)
-		}
-
-		if project.ID == uuid.Nil {
-			t.Error("Expected project ID to be generated")
-		}
-	})
-
-	t.Run("DuplicateName", func(t *testing.T) {
-		project1 := &Project{
-			ID:         uuid.New(),
-			Name:       "Duplicate Project",
-			FolderPath: "/test/duplicate1",
-		}
-
-		ctx := context.Background()
-		if err := repo.CreateProject(ctx, project1); err != nil {
-			t.Fatalf("Failed to create first project: %v", err)
-		}
-
-		project2 := &Project{
-			ID:         uuid.New(),
-			Name:       "Duplicate Project",
-			FolderPath: "/test/duplicate2",
-		}
-
-		// This should succeed because uniqueness is on folder_path, not name
-		if err := repo.CreateProject(ctx, project2); err != nil {
-			t.Errorf("Second project with same name should succeed: %v", err)
-		}
-	})
-}
-
-func TestGetProject(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	repo := NewRepository(db, log)
-
-	// Create test project
-	project := &Project{
+	project := &ProjectIndex{
 		ID:         uuid.New(),
 		Name:       "Test Project",
-		FolderPath: "/test/get-project",
+		FolderPath: "/test/project1",
 	}
 
-	ctx := context.Background()
 	if err := repo.CreateProject(ctx, project); err != nil {
-		t.Fatalf("Failed to create project: %v", err)
+		t.Fatalf("CreateProject: %v", err)
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		retrieved, err := repo.GetProject(ctx, project.ID)
-		if err != nil {
-			t.Fatalf("Failed to get project: %v", err)
-		}
+	got, err := repo.GetProject(ctx, project.ID)
+	if err != nil {
+		t.Fatalf("GetProject: %v", err)
+	}
+	if got.Name != project.Name {
+		t.Fatalf("expected project name %q, got %q", project.Name, got.Name)
+	}
 
-		if retrieved.ID != project.ID {
-			t.Errorf("Expected ID %s, got %s", project.ID, retrieved.ID)
-		}
-	})
+	byName, err := repo.GetProjectByName(ctx, project.Name)
+	if err != nil {
+		t.Fatalf("GetProjectByName: %v", err)
+	}
+	if byName.ID != project.ID {
+		t.Fatalf("expected project id %s, got %s", project.ID, byName.ID)
+	}
 
-	t.Run("NotFound", func(t *testing.T) {
-		nonExistentID := uuid.New()
-		_, err := repo.GetProject(ctx, nonExistentID)
-		if err == nil {
-			t.Error("Expected error for non-existent project")
-		}
-		if !errors.Is(err, ErrNotFound) && err.Error() != "sql: no rows in result set" {
-			t.Errorf("Expected ErrNotFound or no rows error, got: %v", err)
-		}
-	})
+	byFolder, err := repo.GetProjectByFolderPath(ctx, project.FolderPath)
+	if err != nil {
+		t.Fatalf("GetProjectByFolderPath: %v", err)
+	}
+	if byFolder.ID != project.ID {
+		t.Fatalf("expected project id %s, got %s", project.ID, byFolder.ID)
+	}
+
+	projects, err := repo.ListProjects(ctx, 10, 0)
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(projects) != 1 {
+		t.Fatalf("expected 1 project, got %d", len(projects))
+	}
+
+	project.Name = "Renamed Project"
+	if err := repo.UpdateProject(ctx, project); err != nil {
+		t.Fatalf("UpdateProject: %v", err)
+	}
+
+	got, err = repo.GetProject(ctx, project.ID)
+	if err != nil {
+		t.Fatalf("GetProject after update: %v", err)
+	}
+	if got.Name != "Renamed Project" {
+		t.Fatalf("expected updated name, got %q", got.Name)
+	}
+
+	if err := repo.DeleteProject(ctx, project.ID); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	if _, err := repo.GetProject(ctx, project.ID); err == nil {
+		t.Fatalf("expected GetProject to fail after delete")
+	}
 }
 
-func TestUpdateProject(t *testing.T) {
+func TestWorkflowCRUD(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
 
-	repo := NewRepository(db, log)
+	projectID := uuid.New()
+	if err := repo.CreateProject(ctx, &ProjectIndex{ID: projectID, Name: "P1", FolderPath: "/p1"}); err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
 
-	// Create test project
-	project := &Project{
+	wf := &WorkflowIndex{
 		ID:         uuid.New(),
-		Name:       "Original Name",
-		FolderPath: "/test/update-project",
+		ProjectID:  &projectID,
+		Name:       "Workflow A",
+		FolderPath: "/p1/workflows",
+		FilePath:   "bas/workflows/workflow-a.json",
+		Version:    1,
+	}
+	if err := repo.CreateWorkflow(ctx, wf); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
 	}
 
-	ctx := context.Background()
-	if err := repo.CreateProject(ctx, project); err != nil {
-		t.Fatalf("Failed to create project: %v", err)
+	got, err := repo.GetWorkflow(ctx, wf.ID)
+	if err != nil {
+		t.Fatalf("GetWorkflow: %v", err)
+	}
+	if got.Name != wf.Name {
+		t.Fatalf("expected workflow name %q, got %q", wf.Name, got.Name)
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		project.Name = "Updated Name"
-		project.Description = "Updated description"
+	gotByName, err := repo.GetWorkflowByName(ctx, wf.Name, wf.FolderPath)
+	if err != nil {
+		t.Fatalf("GetWorkflowByName: %v", err)
+	}
+	if gotByName.ID != wf.ID {
+		t.Fatalf("expected workflow id %s, got %s", wf.ID, gotByName.ID)
+	}
 
-		err := repo.UpdateProject(ctx, project)
-		if err != nil {
-			t.Fatalf("Failed to update project: %v", err)
-		}
+	byProject, err := repo.ListWorkflowsByProject(ctx, projectID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListWorkflowsByProject: %v", err)
+	}
+	if len(byProject) != 1 {
+		t.Fatalf("expected 1 workflow, got %d", len(byProject))
+	}
 
-		// Verify update
-		retrieved, err := repo.GetProject(ctx, project.ID)
-		if err != nil {
-			t.Fatalf("Failed to get project: %v", err)
-		}
+	wf.Version = 2
+	if err := repo.UpdateWorkflow(ctx, wf); err != nil {
+		t.Fatalf("UpdateWorkflow: %v", err)
+	}
 
-		if retrieved.Name != "Updated Name" {
-			t.Errorf("Expected name 'Updated Name', got %s", retrieved.Name)
-		}
-	})
+	got, err = repo.GetWorkflow(ctx, wf.ID)
+	if err != nil {
+		t.Fatalf("GetWorkflow after update: %v", err)
+	}
+	if got.Version != 2 {
+		t.Fatalf("expected updated version 2, got %d", got.Version)
+	}
 
-	t.Run("NotFound", func(t *testing.T) {
-		nonExistentProject := &Project{
-			ID:         uuid.New(),
-			Name:       "Non-existent",
-			FolderPath: "/test/non-existent",
-		}
-
-		err := repo.UpdateProject(ctx, nonExistentProject)
-		if err == nil {
-			t.Error("Expected error for non-existent project")
-		}
-	})
+	if err := repo.DeleteWorkflow(ctx, wf.ID); err != nil {
+		t.Fatalf("DeleteWorkflow: %v", err)
+	}
+	if _, err := repo.GetWorkflow(ctx, wf.ID); err == nil {
+		t.Fatalf("expected GetWorkflow to fail after delete")
+	}
 }
 
-func TestDeleteProject(t *testing.T) {
+func TestExecutionCRUD(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	repo := NewRepository(db, log)
-
-	t.Run("Success", func(t *testing.T) {
-		project := &Project{
-			ID:         uuid.New(),
-			Name:       "Project to Delete",
-			FolderPath: "/test/delete-project",
-		}
-
-		ctx := context.Background()
-		if err := repo.CreateProject(ctx, project); err != nil {
-			t.Fatalf("Failed to create project: %v", err)
-		}
-
-		err := repo.DeleteProject(ctx, project.ID)
-		if err != nil {
-			t.Fatalf("Failed to delete project: %v", err)
-		}
-
-		// Verify deletion
-		_, err = repo.GetProject(ctx, project.ID)
-		if err == nil {
-			t.Error("Expected error when getting deleted project")
-		}
-	})
-
-	t.Run("NotFound", func(t *testing.T) {
-		nonExistentID := uuid.New()
-		ctx := context.Background()
-		err := repo.DeleteProject(ctx, nonExistentID)
-		if err == nil {
-			t.Error("Expected error for non-existent project")
-		}
-	})
-}
-
-func TestListProjects(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	repo := NewRepository(db, log)
-
+	repo := NewRepository(db, logrus.New())
 	ctx := context.Background()
 
-	// Create test projects
-	for i := 0; i < 5; i++ {
-		project := &Project{
-			ID:         uuid.New(),
-			Name:       "Test Project " + string(rune(i+'A')),
-			FolderPath: "/test/list-project-" + string(rune(i+'a')),
-		}
-		if err := repo.CreateProject(ctx, project); err != nil {
-			t.Fatalf("Failed to create project: %v", err)
-		}
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W1", FolderPath: "/w1", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		projects, err := repo.ListProjects(ctx, 10, 0)
-		if err != nil {
-			t.Fatalf("Failed to list projects: %v", err)
-		}
-
-		if len(projects) < 5 {
-			t.Errorf("Expected at least 5 projects, got %d", len(projects))
-		}
-	})
-
-	t.Run("Pagination", func(t *testing.T) {
-		projects, err := repo.ListProjects(ctx, 2, 0)
-		if err != nil {
-			t.Fatalf("Failed to list projects: %v", err)
-		}
-
-		if len(projects) > 2 {
-			t.Errorf("Expected at most 2 projects, got %d", len(projects))
-		}
-	})
-}
-
-func TestWorkflowOperations(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	repo := NewRepository(db, log)
-	ctx := context.Background()
-
-	// Create a test project
-	project := &Project{
+	exec := &ExecutionIndex{
 		ID:         uuid.New(),
-		Name:       "Workflow Test Project",
-		FolderPath: "/test/workflow-project",
+		WorkflowID: workflowID,
+		Status:     ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+		ResultPath: "data/recordings/execution-1/result.json",
 	}
-	if err := repo.CreateProject(ctx, project); err != nil {
-		t.Fatalf("Failed to create project: %v", err)
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
 	}
 
-	t.Run("CreateWorkflow", func(t *testing.T) {
-		workflow := &Workflow{
-			ID:         uuid.New(),
-			ProjectID:  &project.ID,
-			Name:       "Test Workflow",
-			FolderPath: "/test/workflows",
-			FlowDefinition: JSONMap{
-				"nodes": []interface{}{},
-				"edges": []interface{}{},
-			},
-			Tags:      []string{"test"},
-			Version:   1,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
+	got, err := repo.GetExecution(ctx, exec.ID)
+	if err != nil {
+		t.Fatalf("GetExecution: %v", err)
+	}
+	if got.Status != ExecutionStatusRunning {
+		t.Fatalf("expected status %q, got %q", ExecutionStatusRunning, got.Status)
+	}
 
-		err := repo.CreateWorkflow(ctx, workflow)
-		if err != nil {
-			t.Fatalf("Failed to create workflow: %v", err)
-		}
+	completedAt := time.Now().UTC()
+	exec.Status = ExecutionStatusCompleted
+	exec.CompletedAt = &completedAt
+	if err := repo.UpdateExecution(ctx, exec); err != nil {
+		t.Fatalf("UpdateExecution: %v", err)
+	}
 
-		// Verify creation
-		retrieved, err := repo.GetWorkflow(ctx, workflow.ID)
-		if err != nil {
-			t.Fatalf("Failed to get workflow: %v", err)
-		}
+	list, err := repo.ListExecutions(ctx, &workflowID, nil, 10, 0)
+	if err != nil {
+		t.Fatalf("ListExecutions: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 execution, got %d", len(list))
+	}
 
-		if retrieved.Name != workflow.Name {
-			t.Errorf("Expected name %s, got %s", workflow.Name, retrieved.Name)
-		}
-	})
+	listByStatus, err := repo.ListExecutionsByStatus(ctx, ExecutionStatusCompleted, 10, 0)
+	if err != nil {
+		t.Fatalf("ListExecutionsByStatus: %v", err)
+	}
+	if len(listByStatus) != 1 {
+		t.Fatalf("expected 1 execution by status, got %d", len(listByStatus))
+	}
 
-	t.Run("GetWorkflowByName", func(t *testing.T) {
-		workflow := &Workflow{
-			ID:         uuid.New(),
-			Name:       "Named Workflow",
-			FolderPath: "/test/named-workflow",
-			FlowDefinition: JSONMap{
-				"nodes": []interface{}{},
-			},
-			Tags:    []string{},
-			Version: 1,
-		}
-
-		if err := repo.CreateWorkflow(ctx, workflow); err != nil {
-			t.Fatalf("Failed to create workflow: %v", err)
-		}
-
-		retrieved, err := repo.GetWorkflowByName(ctx, "Named Workflow", "/test/named-workflow")
-		if err != nil {
-			t.Fatalf("Failed to get workflow by name: %v", err)
-		}
-
-		if retrieved.ID != workflow.ID {
-			t.Errorf("Expected ID %s, got %s", workflow.ID, retrieved.ID)
-		}
-	})
+	if err := repo.DeleteExecution(ctx, exec.ID); err != nil {
+		t.Fatalf("DeleteExecution: %v", err)
+	}
+	if _, err := repo.GetExecution(ctx, exec.ID); err == nil {
+		t.Fatalf("expected GetExecution to fail after delete")
+	}
 }
 
-func TestExecutionOperations(t *testing.T) {
+func TestExecutionStatusUpdatePreservesResultPath(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	log := logrus.New()
-	log.SetOutput(ioutil.Discard)
-
-	repo := NewRepository(db, log)
+	repo := NewRepository(db, logrus.New())
 	ctx := context.Background()
 
-	// Create test workflow
-	workflow := &Workflow{
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W1", FolderPath: "/w1", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	exec := &ExecutionIndex{
 		ID:         uuid.New(),
-		Name:       "Execution Test Workflow",
-		FolderPath: "/test/execution-workflow",
-		FlowDefinition: JSONMap{
-			"nodes": []interface{}{},
-		},
-		Tags:    []string{},
-		Version: 1,
+		WorkflowID: workflowID,
+		Status:     ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+		ResultPath: "data/recordings/execution-2/result.json",
 	}
-	if err := repo.CreateWorkflow(ctx, workflow); err != nil {
-		t.Fatalf("Failed to create workflow: %v", err)
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
 	}
 
-	t.Run("CreateExecution", func(t *testing.T) {
-		execution := &Execution{
-			ID:         uuid.New(),
-			WorkflowID: workflow.ID,
-			Status:     "pending",
-			StartedAt:  time.Now(),
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-		}
+	completedAt := time.Now().UTC()
+	errMsg := "completed"
+	if err := repo.UpdateExecutionStatus(ctx, exec.ID, ExecutionStatusCompleted, &errMsg, &completedAt, time.Now().UTC()); err != nil {
+		t.Fatalf("UpdateExecutionStatus: %v", err)
+	}
 
-		err := repo.CreateExecution(ctx, execution)
-		if err != nil {
-			t.Fatalf("Failed to create execution: %v", err)
-		}
+	got, err := repo.GetExecution(ctx, exec.ID)
+	if err != nil {
+		t.Fatalf("GetExecution: %v", err)
+	}
+	if got.ResultPath != exec.ResultPath {
+		t.Fatalf("expected result_path %q, got %q", exec.ResultPath, got.ResultPath)
+	}
+	if got.Status != ExecutionStatusCompleted {
+		t.Fatalf("expected status %q, got %q", ExecutionStatusCompleted, got.Status)
+	}
+}
 
-		// Verify creation
-		retrieved, err := repo.GetExecution(ctx, execution.ID)
-		if err != nil {
-			t.Fatalf("Failed to get execution: %v", err)
-		}
+func TestExecutionResultPathUpdate(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 
-		if retrieved.Status != "pending" {
-			t.Errorf("Expected status pending, got %s", retrieved.Status)
-		}
-	})
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
 
-	t.Run("UpdateExecution", func(t *testing.T) {
-		execution := &Execution{
-			ID:         uuid.New(),
-			WorkflowID: workflow.ID,
-			Status:     "pending",
-			StartedAt:  time.Now(),
-		}
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W2", FolderPath: "/w2", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
 
-		if err := repo.CreateExecution(ctx, execution); err != nil {
-			t.Fatalf("Failed to create execution: %v", err)
-		}
+	exec := &ExecutionIndex{
+		ID:         uuid.New(),
+		WorkflowID: workflowID,
+		Status:     ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+	}
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
 
-		// Update status
-		execution.Status = "completed"
-		completedAt := time.Now()
-		execution.CompletedAt = &completedAt
+	resultPath := "data/recordings/execution-3/result.json"
+	if err := repo.UpdateExecutionResultPath(ctx, exec.ID, resultPath, time.Now().UTC()); err != nil {
+		t.Fatalf("UpdateExecutionResultPath: %v", err)
+	}
 
-		err := repo.UpdateExecution(ctx, execution)
-		if err != nil {
-			t.Fatalf("Failed to update execution: %v", err)
-		}
-
-		// Verify update
-		retrieved, err := repo.GetExecution(ctx, execution.ID)
-		if err != nil {
-			t.Fatalf("Failed to get execution: %v", err)
-		}
-
-		if retrieved.Status != "completed" {
-			t.Errorf("Expected status completed, got %s", retrieved.Status)
-		}
-	})
-
-	t.Run("ListExecutions", func(t *testing.T) {
-		// Create multiple executions
-		for i := 0; i < 3; i++ {
-			execution := &Execution{
-				ID:         uuid.New(),
-				WorkflowID: workflow.ID,
-				Status:     "pending",
-				StartedAt:  time.Now(),
-			}
-			if err := repo.CreateExecution(ctx, execution); err != nil {
-				t.Fatalf("Failed to create execution: %v", err)
-			}
-		}
-
-		executions, err := repo.ListExecutions(ctx, &workflow.ID, 10, 0)
-		if err != nil {
-			t.Fatalf("Failed to list executions: %v", err)
-		}
-
-		if len(executions) < 3 {
-			t.Errorf("Expected at least 3 executions, got %d", len(executions))
-		}
-	})
+	got, err := repo.GetExecution(ctx, exec.ID)
+	if err != nil {
+		t.Fatalf("GetExecution: %v", err)
+	}
+	if got.ResultPath != resultPath {
+		t.Fatalf("expected result_path %q, got %q", resultPath, got.ResultPath)
+	}
 }

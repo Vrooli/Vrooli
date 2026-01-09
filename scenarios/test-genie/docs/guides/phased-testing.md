@@ -1,0 +1,418 @@
+# Phased Testing Architecture
+
+This guide explains Vrooli's comprehensive phased testing architecture and how to use Test Genie for scenario validation.
+
+## Overview
+
+Vrooli uses a **11-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+
+## The 11-Phase Architecture
+
+```mermaid
+graph TB
+    subgraph "Static Phases (No Runtime)"
+        P1[Phase 1: Structure<br/>15s<br/>Files & config]
+        P2[Phase 2: Standards<br/>60s<br/>scenario-auditor rules]
+        P3[Phase 3: Dependencies<br/>30s<br/>Packages & resources]
+        P4[Phase 4: Lint<br/>30s<br/>Type checking]
+        P5[Phase 5: Docs<br/>60s<br/>Markdown, links]
+    end
+
+    subgraph "Runtime Phases (Scenario Running)"
+        P6[Phase 6: Smoke<br/>90s<br/>UI load, iframe-bridge]
+        P7[Phase 7: Unit<br/>60s<br/>Go, Node, Python]
+        P8[Phase 8: Integration<br/>120s<br/>API, CLI, BATS]
+        P9[Phase 9: Playbooks<br/>120s<br/>BAS browser automation]
+        P10[Phase 10: Business<br/>180s<br/>Requirements & coverage]
+        P11[Phase 11: Performance<br/>60s<br/>Benchmarks & load]
+    end
+
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
+
+    style P1 fill:#fff3e0
+    style P2 fill:#f3e5f5
+    style P3 fill:#e8f5e9
+    style P4 fill:#e3f2fd
+    style P5 fill:#fff9c4
+    style P6 fill:#fff3e0
+    style P7 fill:#e1f5fe
+    style P8 fill:#e1f5fe
+    style P9 fill:#ffe0b2
+    style P10 fill:#f8bbd0
+```
+
+| Phase | Timeout | Purpose | Requires Runtime |
+|-------|---------|---------|------------------|
+| **Structure** | 15s | Validate files and configuration | No |
+| **Standards** | 60s | scenario-auditor standards rules | No |
+| **Dependencies** | 30s | Check tools and resources | No |
+| **Lint** | 30s | Type checking and linting | No |
+| **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
+| **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
+| **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
+| **Integration** | 120s | Test API endpoints and CLI commands | Yes |
+| **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
+| **Business** | 180s | Validate requirements coverage | Yes |
+| **Performance** | 60s | Run benchmarks (optional) | Yes |
+
+See [Phases Overview](../phases/README.md) for detailed phase definitions.
+
+## Running Tests with Test Genie
+
+### Using Test Presets
+
+Test Genie provides preconfigured presets for common testing scenarios:
+
+```bash
+# Quick sanity check (~1 min)
+test-genie execute my-scenario --preset quick
+
+# Smoke test before pushing (~4 min)
+test-genie execute my-scenario --preset smoke
+
+# Full validation before release (~8 min)
+test-genie execute my-scenario --preset comprehensive
+```
+
+| Preset | Phases | Use Case |
+|--------|--------|----------|
+| **Quick** | Structure, Standards, Docs, Unit | Fast feedback during development |
+| **Smoke** | Structure, Standards, Lint, Docs, Integration | Pre-push validation |
+| **Comprehensive** | All 11 phases | Full coverage before release |
+
+See [Presets Reference](../reference/presets.md) for detailed preset definitions.
+
+### Using the REST API
+
+For CI/CD and agent automation, use the synchronous execution API:
+
+```bash
+# Get API port
+API_PORT=$(vrooli scenario port test-genie API_PORT)
+
+# Execute with comprehensive preset
+curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "preset": "comprehensive",
+    "failFast": true
+  }'
+```
+
+See [Sync Execution Guide](sync-execution.md) for complete API usage.
+
+### Using the Makefile
+
+From within a scenario directory:
+
+```bash
+cd scenarios/my-scenario
+make test     # Run all tests via test-genie
+make logs     # View test logs
+```
+
+## What Each Phase Validates
+
+### Phase 1: Structure Validation
+
+**Purpose**: Ensure scenario has required files and valid configuration.
+
+**Checks**:
+- Required files exist (README.md, PRD.md, Makefile)
+- `.vrooli/service.json` is valid JSON with required fields
+- Test directory structure is correct
+- File permissions are appropriate
+
+**Example failures**:
+- Missing `.vrooli/service.json`
+- Schema validation failure in configuration
+- Missing test directory
+
+### Phase 2: Dependencies Check
+
+**Purpose**: Verify all required tools and resources are available.
+
+**Checks**:
+- Language runtimes (Go, Node.js, Python) at required versions
+- Package managers (pnpm, go mod) functional
+- Required CLI tools present
+- Resource dependencies declared in service.json
+
+**Example failures**:
+- Missing Go runtime
+- pnpm not installed
+- Declared resource not available
+
+### Phase 3: Lint
+
+**Purpose**: Run static analysis and type checking to catch errors before runtime.
+
+**Checks**:
+- Go: `golangci-lint` (fallback `go vet`)
+- TypeScript/JavaScript: `tsc --noEmit`, `eslint`
+- Python: `ruff`/`flake8`, optional `mypy`
+
+Warnings are informational; type errors fail. See [Lint Phase](../phases/lint/README.md).
+
+### Phase 4: Docs Validation
+
+**Purpose**: Ensure documentation stays portable and healthy.
+
+**Checks**:
+- Markdown structure (unclosed fences)
+- Mermaid diagram headers + bracket balance
+- Link integrity (local files must exist; external URLs HTTP-checked)
+- Absolute filesystem paths are blocked (`/home/...`, `C:\...`)
+
+See [Docs Phase](../phases/docs/README.md) for configuration options.
+
+### Phase 5: Unit Tests
+
+**Purpose**: Run unit tests for all languages present in the scenario.
+
+**Runners**:
+| Language | Detection | Command |
+|----------|-----------|---------|
+| Go | `go.mod` in `api/` | `go test ./...` |
+| Node.js | `package.json` in `ui/` | `pnpm test` |
+| Python | `pytest.ini` or `test_*.py` | `pytest` |
+
+**Coverage requirements**:
+- Warning: < 80%
+- Error: < 70%
+
+See [Scenario Unit Testing](scenario-unit-testing.md) for writing effective unit tests.
+
+### Phase 6: Integration Tests
+
+**Purpose**: Validate component interactions with running scenario.
+
+**Requires**: Scenario must be running
+
+**Checks**:
+- API health endpoints responding
+- UI accessible
+- CLI commands functional
+- Cross-component communication working
+
+**Example tests**:
+```bash
+# API health check
+curl -f http://localhost:${API_PORT}/health
+
+# UI accessibility
+curl -f http://localhost:${UI_PORT}
+
+# CLI functionality
+my-scenario-cli --version
+```
+
+### Phase 7: Playbooks (E2E) Tests
+
+**Purpose**: Validate end-to-end UI workflows via BAS playbooks.
+
+**Requires**: Scenario + BAS running
+
+**Validates**:
+- Declarative browser workflows in `bas/cases/` (via `bas/registry.json`)
+- Isolation + seeds (temporary DB/Redis + `coverage/runtime/seed-state.json`)
+- Contract correctness with BAS execution + timeline responses
+
+See [Playbooks Phase](../phases/playbooks/README.md) for authoring guidance.
+
+### Phase 8: Business Logic Tests
+
+**Purpose**: Validate end-to-end workflows and business requirements.
+
+**Requires**: Scenario must be running
+
+**Validates**:
+- Complete user journeys (multi-step workflows)
+- Business rules and domain logic
+- Data integrity across operations
+- Error recovery workflows
+
+**Example workflow test**:
+```bash
+# Create → Update → Verify workflow
+project_id=$(curl -s -X POST "$API_URL/projects" -d '{"name":"Test"}' | jq -r '.id')
+curl -s -X PUT "$API_URL/projects/$project_id" -d '{"name":"Updated"}'
+result=$(curl -s "$API_URL/projects/$project_id" | jq -r '.name')
+[ "$result" = "Updated" ] && echo "PASS" || echo "FAIL"
+```
+
+For UI workflows, use [BAS playbooks](ui-testability.md) instead of curl-based testing.
+
+### Phase 9: Performance Tests
+
+**Purpose**: Establish performance baselines and detect regressions.
+
+**Requires**: Scenario must be running
+
+**Measures**:
+- API response times (p50, p95, p99)
+- Build duration (Go, UI)
+- Resource usage
+- Throughput under load
+
+**Example checks**:
+```bash
+# Build time budget
+time go build -o /dev/null ./... # Should complete < 30s
+
+# API response time
+time curl -s "$API_URL/health" # Should respond < 100ms
+```
+
+## Test Directory Structure
+
+Scenarios should have this test structure:
+
+```
+scenario/
+├── .vrooli/
+│   ├── service.json      # Scenario configuration (lifecycle.test.steps invokes test-genie)
+│   └── testing.json      # Test-genie configuration (optional)
+├── test/                  # Test artifacts directory
+│   └── playbooks/        # BAS workflow tests (optional)
+├── api/
+│   └── *_test.go         # Go unit tests
+└── ui/
+    └── *.test.ts         # Vitest/Jest tests
+```
+
+> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `coverage/run-tests.sh` + `coverage/phases/*` pattern is deprecated.
+
+## Configuration with `.vrooli/testing.json`
+
+Customize test-genie behavior per scenario:
+
+```json
+{
+  "phases": {
+    "unit": {
+      "timeout": 120,
+      "coverageWarn": 85,
+      "coverageError": 75
+    },
+    "performance": {
+      "enabled": false
+    }
+  },
+  "requirements": {
+    "sync": true,
+    "syncOnSuccess": true
+  },
+  "presets": {
+    "default": "smoke"
+  }
+}
+```
+
+See [Phases Overview](../phases/README.md) for all configuration options.
+
+## Requirements Tracking
+
+Tag tests with `[REQ:ID]` to automatically track requirement coverage:
+
+```go
+func TestCreateProject(t *testing.T) {
+    t.Run("creates project with valid data [REQ:MY-PROJECT-CREATE]", func(t *testing.T) {
+        // Test implementation
+    })
+}
+```
+
+```typescript
+describe('projectStore [REQ:MY-PROJECT-CRUD]', () => {
+    it('creates project', () => { /* ... */ });
+    it('updates project', () => { /* ... */ });
+});
+```
+
+After running comprehensive tests, requirements are automatically synced:
+
+```bash
+test-genie execute my-scenario --preset comprehensive
+# Requirements synced to requirements/index.json
+```
+
+See [Requirements Sync Guide](requirements-sync.md) for complete documentation.
+
+## Dynamic Port Discovery
+
+Never hardcode ports. Use dynamic discovery:
+
+```bash
+# Get ports from vrooli CLI
+API_PORT=$(vrooli scenario port "$scenario_name" API_PORT)
+UI_PORT=$(vrooli scenario port "$scenario_name" UI_PORT)
+
+# Build URLs
+API_URL="http://localhost:$API_PORT"
+UI_URL="http://localhost:$UI_PORT"
+```
+
+## Coverage Standards
+
+| Component | Minimum | Target |
+|-----------|---------|--------|
+| Unit Tests | 70% | 80%+ |
+| Integration | All endpoints | All endpoints |
+| Business Logic | Core workflows | All PRD requirements |
+| Performance | Baselines set | No regressions |
+
+## Common Issues & Solutions
+
+| Issue | Solution |
+|-------|----------|
+| "service.json not found" | Create `.vrooli/service.json` |
+| "Invalid JSON" | Validate: `jq empty .vrooli/service.json` |
+| "Port discovery fails" | Ensure scenario is running |
+| "Phase skipped" | Check if scenario needs to be running |
+| "Coverage too low" | Add more unit tests |
+| "Timeout exceeded" | Increase in `.vrooli/testing.json` |
+
+## Testing Checklist
+
+Before considering a scenario test-ready:
+
+- [ ] `.vrooli/service.json` properly configured with `lifecycle.test.steps` invoking `test-genie execute`
+- [ ] Test directory exists for artifacts (playbooks, fixtures, logs)
+- [ ] Unit tests with coverage > 70%
+- [ ] `[REQ:ID]` tags on tests matching PRD requirements
+- [ ] Integration tests for all API endpoints
+- [ ] Business logic tests for core workflows
+- [ ] Performance baselines established
+- [ ] Dynamic port discovery (no hardcoded ports)
+- [ ] `make test` works from scenario directory
+
+## See Also
+
+### Phase Documentation
+- [Phases Overview](../phases/README.md) - Complete phase reference with mermaid diagrams
+- [Structure Phase](../phases/structure/README.md) - File and CLI validation
+- [Unit Phase](../phases/unit/README.md) - Test runners and coverage
+- [Integration Phase](../phases/integration/README.md) - CLI and API testing
+- [Playbooks Phase](../phases/playbooks/README.md) - BAS browser automation
+- [Business Phase](../phases/business/README.md) - Requirements validation
+- [Performance Phase](../phases/performance/README.md) - Build benchmarks and Lighthouse
+
+### Related Guides
+- [Requirements Sync](../phases/business/requirements-sync.md) - Automatic requirement tracking
+- [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing effective unit tests
+- [Performance Testing](../phases/performance/performance-testing.md) - Build benchmarks and Lighthouse audits
+- [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
+- [Dashboard Guide](dashboard-guide.md) - Using the web UI
+- [CLI Testing](../phases/integration/cli-testing.md) - BATS testing for CLIs
+- [UI Testability](ui-testability.md) - Design testable UIs
+- [Sync Execution](sync-execution.md) - API usage for CI/CD
+- [Troubleshooting](troubleshooting.md) - Debug common issues
+
+### Reference
+- [Presets](../reference/presets.md) - Preset configurations
+- [API Endpoints](../reference/api-endpoints.md) - REST API reference
+- [Test Runners](../phases/unit/test-runners.md) - Language-specific runners
+
+### Concepts
+- [Architecture](../concepts/architecture.md) - Go orchestrator design

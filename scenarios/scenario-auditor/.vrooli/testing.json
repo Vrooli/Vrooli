@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for scenario-auditor",
+    "last_updated": "2025-11-08T17:17:00Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {
+        "coverage": {
+          "warn_threshold": 70,
+          "error_threshold": 50
+        }
+      }
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  }
+}

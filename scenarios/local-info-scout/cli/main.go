@@ -32,6 +32,11 @@ type Place struct {
 	Description string   `json:"description"`
 }
 
+type SearchResponse struct {
+	Places  []Place  `json:"places"`
+	Sources []string `json:"sources"`
+}
+
 func main() {
 	// Lifecycle protection check
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
@@ -175,11 +180,12 @@ func search(apiURL, query string, lat, lon, radius float64, category string) {
 		os.Exit(1)
 	}
 	
-	var places []Place
-	if err := json.Unmarshal(body, &places); err != nil {
+	var searchResp SearchResponse
+	if err := json.Unmarshal(body, &searchResp); err != nil {
 		fmt.Printf("Error parsing results: %v\n", err)
 		os.Exit(1)
 	}
+	places := searchResp.Places
 	
 	// Display results
 	fmt.Printf("\n🔍 Search results for \"%s\" near (%.4f, %.4f):\n\n", query, lat, lon)

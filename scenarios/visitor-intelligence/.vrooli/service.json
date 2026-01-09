@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "visitor-intelligence",
@@ -19,43 +19,34 @@
       "postgres-storage",
       "redis-cache",
       "javascript-tracking"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/visitor-intelligence"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
       "description": "Visitor tracking and analytics API port",
       "range": "15000-19999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Visitor profiles, events, and behavioral data storage",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Session caching, rate limiting, and real-time data processing"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visitor behavioral analysis and intent prediction",
-      "models": [
-        "llama3.2",
-        "mistral"
-      ]
     }
   },
   "lifecycle": {
@@ -97,20 +88,21 @@
     },
     "setup": {
       "description": "Initialize Visitor Intelligence system",
-       "condition": {
-         "checks": [
-            {
-               "type": "binaries",
-               "targets": [
-                  "visitor-intelligence-api"
-               ]
-            },
-              {
-                 "type": "cli",
-                 "targets": [
-                   "visitor-intelligence"
-                 ]
-              },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/visitor-intelligence-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "visitor-intelligence",
+            "targets": [
+              "visitor-intelligence"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -130,23 +122,25 @@
         },
         {
           "name": "initialize-database",
-          "run": "cd initialization/storage/postgres && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql",
-          "description": "Initialize PostgreSQL schema",
-          "env": {
-            "PGPASSWORD": "${POSTGRES_PASSWORD}"
-          }
+          "run": "cd initialization/storage/postgres && PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql",
+          "description": "Initialize PostgreSQL schema"
         },
         {
-          "name": "build-tracking-script",
-          "run": "cd ui && npm install && npm run build",
-          "description": "Build tracking JavaScript library",
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build tracking JavaScript library"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -154,55 +148,29 @@
     "develop": {
       "description": "Start visitor intelligence with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./visitor-intelligence-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/visitor-intelligence-api"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
-           "description": "Display all running service URLs and integration example"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./visitor-intelligence-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/visitor-intelligence-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+          "description": "Display all running service URLs and integration example"
+        }
       ]
     },
     "test": {
-      "description": "Test visitor intelligence API and CLI",
+      "description": "Comprehensive phased testing for visitor-intelligence",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-tracking-endpoint",
-          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"fingerprint\":\"test\",\"event_type\":\"pageview\",\"scenario\":\"test\"}' http://localhost:${API_PORT}/api/v1/visitor/track",
-          "description": "Test visitor tracking endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats visitor-intelligence.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/visitor-intelligence.bats"
-          }
-        },
-        {
-          "name": "test-database-connection",
-          "run": "visitor-intelligence status --json",
-          "description": "Test database connectivity via CLI"
+          "name": "run-phased-tests",
+          "run": "test-genie execute visitor-intelligence --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -220,6 +188,38 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Visitor profiles, events, and behavioral data storage",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Session caching, rate limiting, and real-time data processing"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visitor behavioral analysis and intent prediction",
+        "models": [
+          "llama3.2",
+          "mistral"
+        ]
+      }
     }
   }
 }

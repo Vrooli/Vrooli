@@ -1,17 +1,17 @@
 # Scenario Makefile
-# 
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# NEVER run scenarios directly (./api/scenario-to-ios-api). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
-#   make run   - Start this scenario
+#   make start - Start this scenario
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -37,11 +37,13 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: start ## Start this scenario (alias for start)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -79,6 +81,42 @@ build: ## Build the scenario (if applicable)
 		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
 	else \
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
+	fi
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@if [ -d api ] && [ -f api/go.mod ]; then \
+		echo "$(BLUE)🎨 Formatting Go code...$(RESET)"; \
+		cd api && gofumpt -w . 2>/dev/null || go fmt ./... || echo "$(YELLOW)No Go formatter available$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to format$(RESET)"; \
+	fi
+
+fmt-ui: ## Format UI code
+	@if [ -d ui ] && [ -f ui/package.json ]; then \
+		echo "$(BLUE)🎨 Formatting UI code...$(RESET)"; \
+		cd ui && npm run format 2>/dev/null || echo "$(YELLOW)No UI formatter configured$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to format$(RESET)"; \
+	fi
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && [ -f api/go.mod ]; then \
+		echo "$(BLUE)🔍 Linting Go code...$(RESET)"; \
+		cd api && golangci-lint run 2>/dev/null || go vet ./... || echo "$(YELLOW)No Go linter available$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to lint$(RESET)"; \
+	fi
+
+lint-ui: ## Lint UI code
+	@if [ -d ui ] && [ -f ui/package.json ]; then \
+		echo "$(BLUE)🔍 Linting UI code...$(RESET)"; \
+		cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)No UI linter configured$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to lint$(RESET)"; \
 	fi
 
 # Shortcuts

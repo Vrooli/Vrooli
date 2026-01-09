@@ -69,16 +69,10 @@ required:
     purpose: Store date plans, preferences, memories, and user relationships
     integration_pattern: Direct database connection via Go API
     access_method: Connection string from environment
-    
-  - resource_name: n8n
-    purpose: Orchestrate complex date planning workflows and external integrations
-    integration_pattern: Shared workflows + scenario-specific workflows
-    access_method: Webhook triggers and manual execution
-    
   - resource_name: ollama
     purpose: Generate creative date ideas and personalized suggestions
-    integration_pattern: Shared ollama.json workflow
-    access_method: initialization/n8n/ollama.json via webhook
+    integration_pattern: Direct API calls
+    access_method: Ollama HTTP API
     
 optional:
   - resource_name: redis
@@ -96,26 +90,16 @@ optional:
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: AI-powered date suggestion generation and preference analysis
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
+  1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-postgres [action]
       purpose: Database health checks and maintenance
-    - command: resource-n8n list-workflows
-      purpose: Workflow discovery and health validation
   
-  3_direct_api:          # LAST: Direct API only when necessary
+  2_direct_api:          # LAST: Direct API only when necessary
     - justification: High-frequency preference lookups require direct DB access for performance
       endpoint: PostgreSQL connection for real-time preference queries
 
 # Shared workflow guidelines:
-shared_workflow_criteria:
-  - preference-analyzer.json: Analyzes couple compatibility and suggests date types
-  - venue-matcher.json: Matches date preferences to local venues using semantic search
-  - date-orchestrator.json: Coordinates multi-step date experiences with timing
+shared_workflow_criteria: []
 ```
 
 ### Data Models
@@ -533,24 +517,20 @@ structure:
     - cli/date-night-planner
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/date-orchestrator.json
-    - initialization/automation/n8n/preference-analyzer.json
-    - initialization/automation/n8n/venue-matcher.json
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
-    - initialization/automation/n8n
     - initialization/storage/postgres
     - ui
     - test
 
 # Resource validation:
 resources:
-  required: [postgres, n8n, ollama]
+  required: [postgres, ollama]
   optional: [redis, qdrant]
-  health_timeout: 90  # Extra time for n8n workflow initialization
+  health_timeout: 60
 
 # Declarative tests:
 tests:
@@ -562,13 +542,6 @@ tests:
     method: GET
     expect:
       status: 200
-      
-  - name: "N8N workflows are active"
-    type: exec
-    command: resource-n8n list-workflows --active
-    expect:
-      exit_code: 0
-      output_contains: ["date-orchestrator", "preference-analyzer", "venue-matcher"]
       
   # API endpoint tests:
   - name: "Date suggestion API responds correctly"
@@ -629,7 +602,7 @@ tests:
 - [ ] Retrieves partner preferences from contact-book
 - [ ] Discovers local venues via local-info-scout
 - [ ] Gets creative date ideas from research-assistant
-- [ ] All n8n workflows deploy and activate successfully
+- [ ] Workflow orchestration verified via Go handlers (n8n removed)
 - [ ] CLI commands provide comprehensive help and error messages
 
 ### Capability Verification
@@ -770,7 +743,7 @@ UI screenshot captured showing:
 - Navigation tabs: Get Suggestions, My Plans, Memories, Preferences
 - Functional form with Couple ID, Date Type dropdown, Budget slider, Date picker
 - Weather preference radio buttons (Indoor/Outdoor/Flexible)
-- Status indicators showing API, Database, and Workflows health (all green)
+- Status indicators showing API and Database health (all green)
 - Clean, responsive design matching PRD specifications
 
 #### Test Evidence
@@ -779,7 +752,7 @@ UI screenshot captured showing:
 ✅ Go compilation successful
 ✅ API health endpoint responding
 ✅ Database connectivity confirmed
-✅ Workflow health check (n8n available)
+✅ Workflow orchestration health (in-API planner)
 ✅ Date suggestion endpoint working with weather backup
 ✅ CLI help command functional
 ✅ CLI suggest command returns 5 suggestions
@@ -872,7 +845,7 @@ UI screenshot captured showing:
 - Navigation tabs: Get Suggestions, My Plans, Memories, Preferences
 - Functional form with Couple ID, Date Type dropdown, Budget slider, Date picker
 - Weather preference radio buttons (Indoor/Outdoor/Flexible)
-- Status indicators showing API, Database, and Workflows health (all green)
+- Status indicators showing API and Database health (all green)
 - Clean, responsive design matching PRD specifications
 
 #### Test Evidence
@@ -881,7 +854,7 @@ UI screenshot captured showing:
 ✅ Go compilation successful
 ✅ API health endpoint responding
 ✅ Database connectivity confirmed
-✅ Workflow health check (n8n available)
+✅ Workflow orchestration health (in-API planner)
 ✅ Date suggestion endpoint working with weather backup
 ✅ CLI help command functional
 ✅ CLI suggest command returns 5 suggestions
@@ -948,7 +921,7 @@ Returns: 5 suggestions with titles, costs, and activities
 - **API**: Running healthy on port 19437
 - **UI**: Running healthy on port 38845
 - **Database**: Connected and schema applied ✅
-- **Workflows**: n8n available (workflows inactive, non-blocking)
+- **Workflows**: In-API orchestration healthy (n8n removed)
 - **Tests**: 100% pass rate (8/8)
 
 ### Previous: Standards Hardening (2025-10-12 14:50)
@@ -987,7 +960,7 @@ Returns: 5 suggestions with titles, costs, and activities
 - **API**: Running with lifecycle protection
 - **UI**: Accessible on assigned port
 - **Database**: Schema applied and healthy
-- **Workflows**: n8n available but workflows not yet imported
+- **Workflows**: In-API orchestration ready (no external workflow engine)
 - **Tests**: 100% pass rate (8/8 core + 1/1 structure)
 
 ## Previous Implementation Summary (2025-10-03)
@@ -1096,7 +1069,7 @@ Returns: 5 suggestions with titles, costs, and activities
 ### Completed P0 Requirements ✅
 1. **Date Suggestion API** - Fully functional with personalized recommendations ✅
 2. **Database Schema** - Complete with all required tables and functions ✅
-3. **n8n Workflows** - 4 workflows created (date-orchestrator, preference-analyzer, venue-matcher, memory-recorder) ✅
+3. **Workflow Orchestration** - In-API flow handlers replace legacy n8n workflows ✅
 4. **CLI Tool** - Full-featured bash CLI with suggest, plan, and status commands ✅
 5. **UI Interface** - Pastel-themed responsive web interface with all core features ✅
 6. **API Endpoints** - All required endpoints implemented with health checks ✅
@@ -1157,7 +1130,7 @@ Returns: 5 suggestions with titles, costs, and activities
 - [ ] Ride-sharing platform integration
 
 #### Technical Debt
-- [ ] Import n8n workflows (currently inactive but not blocking)
+- [ ] Solidify in-API workflow orchestration (replace remaining stubs)
 - [ ] Populate database with real venue data
 - [ ] Add preference learning algorithm
 - [ ] Implement photo storage for date memories

@@ -7,11 +7,16 @@ set -e  # Exit on error
 
 # Configuration
 CLI_VERSION="1.0.0"
-API_BASE_URL="http://localhost:3202"
-DEFAULT_OUTPUT_DIR="./desktop-app"
+# Use environment variable for API URL, fallback to default port (middle of range 15000-19999)
+API_PORT="${API_PORT:-${PORT:-15200}}"
+API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT}}"
 DEFAULT_FRAMEWORK="electron"
 DEFAULT_TEMPLATE="basic"
 DEFAULT_PLATFORMS="win,mac,linux"
+DEFAULT_SERVER_TYPE="external"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT_OVERRIDE:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+SCENARIOS_DIR="${SCENARIOS_DIR_OVERRIDE:-${REPO_ROOT}/scenarios}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,6 +47,23 @@ info() {
 
 success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+prompt_for_value() {
+    local prompt_text="$1"
+    local value=""
+    if [ -t 0 ]; then
+        read -r -p "$prompt_text: " value
+    fi
+    echo "$value"
+}
+
+load_saved_desktop_config() {
+    local scenario_name="$1"
+    local config_file="${SCENARIOS_DIR}/${scenario_name}/.vrooli/desktop-config.json"
+    if [ -f "$config_file" ]; then
+        cat "$config_file"
+    fi
 }
 
 # Check dependencies
@@ -143,16 +165,18 @@ COMMANDS:
     version             Show version information
     status              Show desktop generation system status
     templates           List available desktop application templates
-    
+
     generate <scenario> Generate desktop application for a scenario
     build <path>        Build a desktop application project
     test <path>         Test desktop application functionality
     package <path>      Package desktop application for distribution
+    telemetry           Collect and upload deployment telemetry from built apps
+    signing             Manage code signing configuration for scenarios
 
 GLOBAL OPTIONS:
     --verbose, -v       Enable verbose output
     --json             Output in JSON format (where applicable)
-    --api-url <url>    API base URL (default: http://localhost:3202)
+    --api-url <url>    API base URL (default: http://localhost:${API_PORT})
     --help, -h         Show help for specific command
 
 EXAMPLES:
@@ -201,7 +225,19 @@ EOF
 }
 
 cmd_status() {
-    check_api_health
+	check_api_health
+
+	if [ "$server_type" = "external" ]; then
+		if [ -z "$server_url" ] || [ -z "$api_url" ]; then
+			error "Thin clients require --server-url and --api-url so the desktop wrapper knows where to connect."
+			exit 1
+		fi
+	fi
+
+	if [ "$deployment_mode" != "external-server" ]; then
+		warn "Deployment mode '$deployment_mode' isn't supported yet. Using thin client (external-server)."
+		deployment_mode="external-server"
+	fi
     
     local response
     response=$(api_call "GET" "/api/v1/status")
@@ -259,9 +295,9 @@ cmd_templates() {
   Description: \(.description)
   Framework: \(.framework)
   Complexity: \(.complexity)
-  Use cases: \(.use_cases | join(\", \"))
-  Features: \(.features | join(\", \"))
-  Examples: \(.examples | join(\", \"))
+  Use cases: \(.use_cases | join(", "))
+  Features: \(.features | join(", "))
+  Examples: \(.examples | join(", "))
 "'
     fi
 }
@@ -274,22 +310,35 @@ cmd_generate() {
         exit 1
     fi
     
-    local scenario_name="$1"
-    shift
+	local scenario_name="$1"
+	shift
     
     # Parse options
-    local framework="$DEFAULT_FRAMEWORK"
-    local template="$DEFAULT_TEMPLATE"
-    local platforms="$DEFAULT_PLATFORMS"
-    local output="$DEFAULT_OUTPUT_DIR"
-    local features=""
-    local config_file=""
+	local framework="$DEFAULT_FRAMEWORK"
+	local template="$DEFAULT_TEMPLATE"
+	local platforms="$DEFAULT_PLATFORMS"
+	local default_output_path="${SCENARIOS_DIR}/${scenario_name}/platforms/electron"
+	local output=""
+	local location_mode="proper" # proper | temp | custom
+	local features=""
+	local config_file=""
+	local deployment_mode="external-server"
+	local app_display_name="${scenario_name} Desktop"
+	local app_description="Desktop application for ${scenario_name} scenario"
+	local icon_path=""
+	local server_type="$DEFAULT_SERVER_TYPE"
+	local server_url=""
+	local api_url=""
+	local proxy_url=""
+	local bundle_manifest_path=""
+	local auto_manage_vrooli="false"
+	local vrooli_binary_path="vrooli"
     
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --framework)
-                framework="$2"
-                shift 2
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			--framework)
+				framework="$2"
+				shift 2
                 ;;
             --template)
                 template="$2"
@@ -303,14 +352,62 @@ cmd_generate() {
                 output="$2"
                 shift 2
                 ;;
+			--location)
+				location_mode="$2"
+				shift 2
+				;;
             --features)
                 features="$2"
                 shift 2
                 ;;
-            --config)
-                config_file="$2"
-                shift 2
-                ;;
+			--config)
+				config_file="$2"
+				shift 2
+				;;
+			--app-display-name)
+				app_display_name="$2"
+				shift 2
+				;;
+			--app-description)
+				app_description="$2"
+				shift 2
+				;;
+			--icon)
+				icon_path="$2"
+				shift 2
+				;;
+			--deployment-mode)
+				deployment_mode="$2"
+				shift 2
+				;;
+			--server-type)
+				server_type="$2"
+				shift 2
+				;;
+			--server-url)
+				server_url="$2"
+				shift 2
+				;;
+			--api-url)
+				api_url="$2"
+				shift 2
+				;;
+			--proxy-url)
+				proxy_url="$2"
+				shift 2
+				;;
+			--bundle-manifest)
+				bundle_manifest_path="$2"
+				shift 2
+				;;
+			--auto-manage-vrooli|--auto-manage-tier1)
+				auto_manage_vrooli="true"
+				shift 1
+				;;
+			--vrooli-binary)
+				vrooli_binary_path="$2"
+				shift 2
+				;;
             --help|-h)
                 cmd_generate_help
                 exit 0
@@ -320,13 +417,105 @@ cmd_generate() {
                 exit 1
                 ;;
         esac
-    done
-    
-    check_api_health
+	done
+
+	local saved_config_file="${SCENARIOS_DIR}/${scenario_name}/.vrooli/desktop-config.json"
+	local saved_config_json=""
+	if [ -f "$saved_config_file" ]; then
+		saved_config_json=$(cat "$saved_config_file")
+	fi
+
+	if [ -z "$server_url" ] && [ -n "$saved_config_json" ]; then
+		server_url=$(echo "$saved_config_json" | jq -r '.server_url // empty')
+	fi
+	if [ -z "$api_url" ] && [ -n "$saved_config_json" ]; then
+		api_url=$(echo "$saved_config_json" | jq -r '.api_url // empty')
+	fi
+	if [ -z "$proxy_url" ] && [ -n "$saved_config_json" ]; then
+		proxy_url=$(echo "$saved_config_json" | jq -r '.proxy_url // .server_url // empty')
+	fi
+	if [ -z "$bundle_manifest_path" ] && [ -n "$saved_config_json" ]; then
+		bundle_manifest_path=$(echo "$saved_config_json" | jq -r '.bundle_manifest_path // empty')
+	fi
+	if [ "$deployment_mode" = "external-server" ] && [ -n "$saved_config_json" ]; then
+		local saved_mode=$(echo "$saved_config_json" | jq -r '.deployment_mode // empty')
+		if [ -n "$saved_mode" ]; then
+			deployment_mode="$saved_mode"
+		fi
+	fi
+	if [ "$auto_manage_vrooli" = "false" ] && [ -n "$saved_config_json" ]; then
+		local saved_auto=$(echo "$saved_config_json" | jq -r '.auto_manage_vrooli // empty')
+		if [ "$saved_auto" = "true" ]; then
+			auto_manage_vrooli="true"
+		fi
+	fi
+	if [ "$vrooli_binary_path" = "vrooli" ] && [ -n "$saved_config_json" ]; then
+		local saved_cli=$(echo "$saved_config_json" | jq -r '.vrooli_binary_path // empty')
+		if [ -n "$saved_cli" ]; then
+			vrooli_binary_path="$saved_cli"
+		fi
+	fi
+	if [ "$server_type" = "$DEFAULT_SERVER_TYPE" ] && [ -n "$saved_config_json" ]; then
+		local saved_server_type=$(echo "$saved_config_json" | jq -r '.server_type // empty')
+		if [ -n "$saved_server_type" ]; then
+			server_type="$saved_server_type"
+		fi
+	fi
+
+	if [ -z "$proxy_url" ] && [ -n "$server_url" ]; then
+		proxy_url="$server_url"
+	fi
+
+	case "$location_mode" in
+		proper|temp|staging|custom)
+			;;
+		*)
+			error "Invalid location: $location_mode (use proper|temp|custom)"
+			exit 1
+			;;
+	esac
+	if [ "$location_mode" = "custom" ] && [ -z "$output" ]; then
+		error "Custom location requires --output <path>"
+		exit 1
+	fi
+	if [ "$location_mode" != "custom" ]; then
+		# Let the API choose the canonical destination or staging path.
+		output=""
+	fi
+
+	check_api_health
+
+	if [ "$deployment_mode" = "bundled" ]; then
+		if [ -z "$proxy_url" ]; then
+			proxy_url="http://127.0.0.1"
+		fi
+		server_url="$proxy_url"
+		api_url="$proxy_url"
+		auto_manage_vrooli="false"
+		server_type="external"
+	elif [ "$server_type" = "external" ]; then
+		if [ -z "$proxy_url" ]; then
+			proxy_url=$(prompt_for_value "Enter the proxy URL you already open in a browser (e.g. https://app-monitor.example.dev/apps/${scenario_name}/proxy/)")
+		fi
+		if [ -z "$proxy_url" ]; then
+			error "Missing proxy URL. Provide --proxy-url or configure ${saved_config_file}."
+			exit 1
+		fi
+		proxy_url="${proxy_url%/}/"
+		server_url="$proxy_url"
+		api_url="${proxy_url}api"
+	fi
     
     # Build configuration
     local config
-    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
+	local server_path_value="ui/server.js"
+	local api_endpoint_value="http://localhost:3001/api"
+	if [ "$server_type" = "external" ]; then
+		server_path_value="$server_url"
+		api_endpoint_value="$api_url"
+	fi
+
+	if [ -n "$config_file" ] && [ -f "$config_file" ]; then
         info "Using configuration file: $config_file"
         config=$(cat "$config_file")
     else
@@ -335,23 +524,25 @@ cmd_generate() {
         IFS=',' read -ra ADDR <<< "$platforms"
         platform_array=$(printf '%s\n' "${ADDR[@]}" | jq -R . | jq -s .)
         
-        config=$(cat << EOF
+		config=$(cat << EOF
 {
   "app_name": "${scenario_name}",
-  "app_display_name": "${scenario_name^} Desktop",
-  "app_description": "Desktop application for ${scenario_name} scenario",
+  "app_display_name": "${app_display_name}",
+  "app_description": "${app_description}",
   "version": "1.0.0",
   "author": "Vrooli Platform",
   "license": "MIT",
   "app_id": "com.vrooli.${scenario_name//-/.}",
-  "server_type": "node",
+  "icon": "${icon_path}",
+  "server_type": "${server_type}",
   "server_port": 3000,
-  "server_path": "ui/server.js",
-  "api_endpoint": "http://localhost:3001/api",
+  "server_path": "${server_path_value}",
+  "api_endpoint": "${api_endpoint_value}",
   "framework": "$framework",
   "template_type": "$template",
   "platforms": $platform_array,
   "output_path": "$output",
+  "location_mode": "$location_mode",
   "features": {
     "splash": true,
     "autoUpdater": true,
@@ -361,17 +552,46 @@ cmd_generate() {
     "width": 1200,
     "height": 800,
     "background": "#f5f5f5"
-  }
-}
+  },
+  "deployment_mode": "${deployment_mode}",
+  "bundle_manifest_path": "${bundle_manifest_path}",
+  "proxy_url": "${proxy_url}",
+  "auto_manage_vrooli": ${auto_manage_vrooli},
+  "vrooli_binary_path": "${vrooli_binary_path}",
+  "external_server_url": "${server_url}",
+  "external_api_url": "${api_url}"
+	}
 EOF
 )
     fi
+    config=$(echo "$config" | jq --arg mode "$location_mode" --arg output "$output" '
+      .location_mode = ($mode // "proper") |
+      (if $mode != "custom" then
+         .output_path = ""
+       elif ($output | length) > 0 then
+         .output_path = $output
+       else
+         .
+       end)
+    ')
     
-    log "Generating desktop application for $scenario_name..."
-    log "Framework: $framework"
-    log "Template: $template"
-    log "Platforms: $platforms"
-    log "Output: $output"
+	local output_preview="$output"
+	if [ -z "$output_preview" ]; then
+		if [ "$location_mode" = "temp" ] || [ "$location_mode" = "staging" ]; then
+			output_preview="${REPO_ROOT}/scenarios/scenario-to-desktop/data/staging/${scenario_name}/<build-id>"
+		else
+			output_preview="$default_output_path"
+		fi
+	fi
+
+	log "Generating desktop application for $scenario_name..."
+	log "Framework: $framework"
+	log "Template: $template"
+	log "Platforms: $platforms"
+	log "Location: $location_mode"
+	log "Output (planned): $output_preview"
+	log "Server type: $server_type"
+	log "Deployment mode: $deployment_mode"
     
     local response
     response=$(api_call "POST" "/api/v1/desktop/generate" "$config")
@@ -405,9 +625,21 @@ OPTIONS:
     --framework <framework>    Desktop framework (electron, tauri, neutralino) [default: electron]
     --template <template>      Application template (basic, advanced, multi_window, kiosk) [default: basic]
     --platforms <platforms>    Target platforms, comma-separated (win,mac,linux) [default: win,mac,linux]
-    --output <path>           Output directory for generated application [default: ./desktop-app]
+    --location <mode>         Output location: proper (canonical), temp (gitignored staging), custom [default: proper]
+    --output <path>           Output directory (required when --location=custom; otherwise auto-selected)
     --features <features>     Comma-separated list of features (tray,updater,menus)
     --config <file>           Use JSON configuration file instead of command-line options
+    --app-display-name <name> Override the desktop product name (window titles, installers)
+    --app-description <text>  Override the desktop description shown in metadata
+    --icon <path>             Path to a PNG icon (copied to assets/icon.png for packaging)
+    --deployment-mode <mode>  Deployment intent (external-server|cloud-api|bundled) [default: external-server]
+    --bundle-manifest <path>  Path to bundle.json when deployment-mode=bundled
+    --server-type <type>      Server strategy (external|node|static|executable) [default: external]
+    --proxy-url <url>         Proxy/Cloudflare URL you already open in a browser (preferred)
+    --server-url <url>        Legacy alias for --proxy-url
+    --api-url <url>           Legacy alias for --proxy-url + /api
+    --auto-manage-vrooli      Let the desktop app run `vrooli setup/start/stop` locally (advanced)
+    --vrooli-binary <path>    Path to vrooli CLI when auto-managing the scenario [default: vrooli]
 
 EXAMPLES:
     # Basic generation
@@ -434,7 +666,7 @@ CONFIGURATION FILE FORMAT:
       "framework": "electron",
       "template_type": "basic",
       "platforms": ["win", "mac", "linux"],
-      "output_path": "./desktop-app"
+      "output_path": ""
     }
 EOF
 }
@@ -807,6 +1039,727 @@ cmd_wait_for_build() {
     exit 1
 }
 
+cmd_telemetry() {
+    if [ $# -eq 0 ] || [[ $1 = "help" || $1 = "--help" || $1 = "-h" ]]; then
+        cmd_telemetry_help
+        return
+    fi
+
+    case $1 in
+        collect)
+            shift
+            cmd_telemetry_collect "$@"
+            ;;
+        *)
+            error "Unknown telemetry subcommand: $1"
+            cmd_telemetry_help
+            exit 1
+            ;;
+    esac
+}
+
+cmd_telemetry_collect() {
+    local scenario=""
+    local file_path=""
+    local deployment_mode="external-server"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --file)
+                file_path="$2"
+                shift 2
+                ;;
+            --deployment-mode)
+                deployment_mode="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cmd_telemetry_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "--scenario is required"
+        exit 1
+    fi
+    if [ -z "$file_path" ]; then
+        error "--file is required"
+        exit 1
+    fi
+    if [ ! -f "$file_path" ]; then
+        error "Telemetry file not found: $file_path"
+        exit 1
+    fi
+
+    local events_json
+    if ! events_json=$(jq -Rs 'split("\n") | map(select(length > 0) | (try (fromjson) catch {"raw": .}))' "$file_path"); then
+        error "Failed to parse telemetry JSONL at $file_path"
+        exit 1
+    fi
+
+    local payload
+    payload=$(jq -n --arg scenario "$scenario" --arg mode "$deployment_mode" --arg source "$file_path" --argjson events "$events_json" '{scenario_name:$scenario,deployment_mode:$mode,source:$source,events:$events}')
+
+    local response
+    response=$(api_call "POST" "/api/v1/deployment/telemetry" "$payload")
+    success "Uploaded telemetry for $scenario"
+    echo "$response" | jq .
+}
+
+cmd_telemetry_help() {
+    cat << 'EOF'
+Telemetry commands
+
+USAGE:
+    scenario-to-desktop telemetry collect --scenario <name> --file <deployment-telemetry.jsonl>
+
+OPTIONS:
+    --scenario <name>         Scenario name the telemetry belongs to
+    --file <path>             Path to deployment-telemetry.jsonl generated by the desktop app
+    --deployment-mode <mode>  Override deployment mode metadata (default: external-server)
+
+EXAMPLE:
+    scenario-to-desktop telemetry collect \
+        --scenario picker-wheel \
+        --file "$HOME/Library/Application Support/Picker Wheel/deployment-telemetry.jsonl"
+EOF
+}
+
+# =============================================================================
+# Code Signing Commands
+# =============================================================================
+
+cmd_signing() {
+    if [ $# -eq 0 ] || [[ $1 = "help" || $1 = "--help" || $1 = "-h" ]]; then
+        cmd_signing_help
+        return
+    fi
+
+    case $1 in
+        get)
+            shift
+            cmd_signing_get "$@"
+            ;;
+        set)
+            shift
+            cmd_signing_set "$@"
+            ;;
+        generate-key)
+            shift
+            cmd_signing_generate_key "$@"
+            ;;
+        validate)
+            shift
+            cmd_signing_validate "$@"
+            ;;
+        detect)
+            shift
+            cmd_signing_detect "$@"
+            ;;
+        ready)
+            shift
+            cmd_signing_ready "$@"
+            ;;
+        *)
+            error "Unknown signing subcommand: $1"
+            cmd_signing_help
+            exit 1
+            ;;
+    esac
+}
+
+cmd_signing_help() {
+    cat << 'EOF'
+Code signing configuration commands
+
+USAGE:
+    scenario-to-desktop signing <SUBCOMMAND> [OPTIONS]
+
+SUBCOMMANDS:
+    get <scenario>          Get signing configuration for a scenario
+    set <scenario>          Configure signing for a scenario (interactive or from JSON)
+    generate-key <scenario> Generate a Linux GPG key and update signing config
+    validate <scenario>     Validate signing configuration
+    detect                  Detect available signing tools and certificates
+    ready <scenario>        Check if signing is ready for a scenario
+
+EXAMPLES:
+    # Get current signing config
+    scenario-to-desktop signing get picker-wheel
+
+    # Set signing config from JSON file
+    scenario-to-desktop signing set picker-wheel --file signing-config.json
+
+    # Set Windows signing interactively
+    scenario-to-desktop signing set picker-wheel --platform windows
+
+    # Validate signing configuration
+    scenario-to-desktop signing validate picker-wheel
+
+    # Detect available signing tools and certificates
+    scenario-to-desktop signing detect
+
+    # Check if ready for signed builds
+    scenario-to-desktop signing ready picker-wheel
+
+    # Generate a Linux GPG key for signing (stored under scenarios/<name>/signing/gnupg)
+    scenario-to-desktop signing generate-key picker-wheel --email you@example.com --name "Your Name"
+EOF
+}
+
+cmd_signing_get() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing get <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing get <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}/${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local enabled
+        enabled=$(echo "$response" | jq -r '.enabled // false')
+
+        echo -e "${WHITE}Signing Configuration: ${scenario}${NC}"
+        echo "================================="
+        echo "Enabled: $enabled"
+        echo
+
+        # Windows config
+        local win_config
+        win_config=$(echo "$response" | jq -r '.windows // empty')
+        if [ -n "$win_config" ] && [ "$win_config" != "null" ]; then
+            echo -e "${WHITE}Windows (Authenticode):${NC}"
+            echo "  Certificate Source: $(echo "$win_config" | jq -r '.certificate_source // "not set"')"
+            echo "  Certificate File: $(echo "$win_config" | jq -r '.certificate_file // "not set"')"
+            echo "  Timestamp Server: $(echo "$win_config" | jq -r '.timestamp_server // "default"')"
+            echo
+        fi
+
+        # macOS config
+        local mac_config
+        mac_config=$(echo "$response" | jq -r '.macos // empty')
+        if [ -n "$mac_config" ] && [ "$mac_config" != "null" ]; then
+            echo -e "${WHITE}macOS (Developer ID):${NC}"
+            echo "  Identity: $(echo "$mac_config" | jq -r '.identity // "not set"')"
+            echo "  Team ID: $(echo "$mac_config" | jq -r '.team_id // "not set"')"
+            echo "  Hardened Runtime: $(echo "$mac_config" | jq -r '.hardened_runtime // false')"
+            echo "  Notarize: $(echo "$mac_config" | jq -r '.notarize // false')"
+            echo
+        fi
+
+        # Linux config
+        local linux_config
+        linux_config=$(echo "$response" | jq -r '.linux // empty')
+        if [ -n "$linux_config" ] && [ "$linux_config" != "null" ]; then
+            echo -e "${WHITE}Linux (GPG):${NC}"
+            echo "  GPG Key ID: $(echo "$linux_config" | jq -r '.gpg_key_id // "not set"')"
+            echo
+        fi
+    fi
+}
+
+cmd_signing_set() {
+    local scenario=""
+    local platform=""
+    local config_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --file|-f)
+                config_file="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing set <scenario> [--platform <windows|macos|linux>] [--file <config.json>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing set <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local config_json=""
+
+    if [ -n "$config_file" ]; then
+        if [ ! -f "$config_file" ]; then
+            error "Config file not found: $config_file"
+            exit 1
+        fi
+        config_json=$(cat "$config_file")
+    else
+        # Interactive mode
+        if [ -n "$platform" ]; then
+            config_json=$(cmd_signing_set_interactive_platform "$platform")
+        else
+            config_json=$(cmd_signing_set_interactive_full)
+        fi
+    fi
+
+    local endpoint="/api/v1/signing/${scenario}"
+    local method="PUT"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}/${platform}"
+        method="PATCH"
+    fi
+
+    local response
+    response=$(api_call "$method" "$endpoint" "$config_json")
+
+    local status
+    status=$(echo "$response" | jq -r '.status // empty')
+
+    if [ "$status" = "saved" ] || [ "$status" = "updated" ]; then
+        success "Signing configuration saved for $scenario"
+    else
+        error "Failed to save signing configuration"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_signing_set_interactive_platform() {
+    local platform="$1"
+
+    case "$platform" in
+        windows)
+            echo "Configuring Windows Authenticode signing..."
+            local cert_source cert_file cert_password_env timestamp_server
+            cert_source=$(prompt_for_value "Certificate source (file/store)")
+            cert_file=$(prompt_for_value "Certificate file path (.pfx)")
+            cert_password_env=$(prompt_for_value "Password environment variable name")
+            timestamp_server=$(prompt_for_value "Timestamp server URL (press Enter for default)")
+
+            cat << EOF
+{
+  "certificate_source": "${cert_source:-file}",
+  "certificate_file": "$cert_file",
+  "certificate_password_env": "${cert_password_env:-WIN_CSC_KEY_PASSWORD}",
+  "timestamp_server": "${timestamp_server:-http://timestamp.digicert.com}"
+}
+EOF
+            ;;
+        macos)
+            echo "Configuring macOS Developer ID signing..."
+            local identity team_id hardened notarize
+            identity=$(prompt_for_value "Signing identity (e.g., 'Developer ID Application: Name (TEAMID)')")
+            team_id=$(prompt_for_value "Team ID (10-character)")
+            hardened=$(prompt_for_value "Enable hardened runtime? (yes/no)")
+            notarize=$(prompt_for_value "Enable notarization? (yes/no)")
+
+            cat << EOF
+{
+  "identity": "$identity",
+  "team_id": "$team_id",
+  "hardened_runtime": $([[ "$hardened" == "yes" ]] && echo "true" || echo "false"),
+  "notarize": $([[ "$notarize" == "yes" ]] && echo "true" || echo "false")
+}
+EOF
+            ;;
+        linux)
+            echo "Configuring Linux GPG signing..."
+            local gpg_key_id
+            gpg_key_id=$(prompt_for_value "GPG Key ID or fingerprint")
+
+            cat << EOF
+{
+  "gpg_key_id": "$gpg_key_id"
+}
+EOF
+            ;;
+        *)
+            error "Unknown platform: $platform"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_signing_set_interactive_full() {
+    echo "Configuring code signing (press Enter to skip platforms)..."
+    echo
+
+    local enabled
+    enabled=$(prompt_for_value "Enable code signing? (yes/no)")
+
+    if [[ "$enabled" != "yes" ]]; then
+        echo '{"enabled": false}'
+        return
+    fi
+
+    cat << EOF
+{
+  "enabled": true,
+  "windows": null,
+  "macos": null,
+  "linux": null
+}
+EOF
+}
+
+cmd_signing_generate_key() {
+    local scenario=""
+    local name=""
+    local email=""
+    local passphrase=""
+    local passphrase_env="GPG_PASSPHRASE"
+    local homedir=""
+    local expiry="1y"
+    local force="false"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --passphrase)
+                passphrase="$2"
+                shift 2
+                ;;
+            --prompt-passphrase)
+                read -rs -p "Enter GPG passphrase (input hidden): " passphrase
+                echo
+                shift
+                ;;
+            --passphrase-env)
+                passphrase_env="$2"
+                shift 2
+                ;;
+            --homedir)
+                homedir="$2"
+                shift 2
+                ;;
+            --expiry)
+                expiry="$2"
+                shift 2
+                ;;
+            --force)
+                force="true"
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing generate-key <scenario> [--name <name>] [--email <email>] [--passphrase <value>|--prompt-passphrase] [--passphrase-env <ENV>] [--homedir <path>] [--expiry <1y>] [--force]"
+                return 0
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                    shift
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing generate-key <scenario> ..."
+        exit 1
+    fi
+
+    check_api_health
+
+    local body
+    body=$(jq -n \
+        --arg name "$name" \
+        --arg email "$email" \
+        --arg pass "$passphrase" \
+        --arg env "$passphrase_env" \
+        --arg homedir "$homedir" \
+        --arg expiry "$expiry" \
+        --argjson force $force \
+        '{name:$name,email:$email,passphrase:$pass,passphrase_env:$env,homedir:$homedir,expiry:$expiry,force:$force,export_public:true}')
+
+    local response
+    response=$(api_call "POST" "/api/v1/signing/${scenario}/linux/generate-key" "$body")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+        return
+    fi
+
+    echo -e "${WHITE}Linux GPG key generated${NC}"
+    echo "$response" | jq -r '
+        "  Fingerprint: \(.fingerprint)",
+        "  Key ID:       \(.key_id)",
+        "  Homedir:      \(.homedir)",
+        (if .public_key then "  Public key exported below:" else "" end)
+    '
+    if echo "$response" | jq -e '.public_key' >/dev/null 2>&1; then
+        echo
+        echo "$response" | jq -r '.public_key'
+    fi
+}
+
+cmd_signing_validate() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing validate <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing validate <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}/validate"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "POST" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local valid
+        valid=$(echo "$response" | jq -r '.valid')
+
+        echo -e "${WHITE}Validation Results: ${scenario}${NC}"
+        echo "================================="
+
+        if [ "$valid" = "true" ]; then
+            success "Configuration is valid"
+        else
+            error "Configuration has errors"
+        fi
+        echo
+
+        # Show errors
+        local errors
+        errors=$(echo "$response" | jq -r '.errors[]? | "  ❌ [\(.code)] \(.message)"')
+        if [ -n "$errors" ]; then
+            echo -e "${RED}Errors:${NC}"
+            echo "$errors"
+            echo
+        fi
+
+        # Show warnings
+        local warnings
+        warnings=$(echo "$response" | jq -r '.warnings[]? | "  ⚠️  [\(.code)] \(.message)"')
+        if [ -n "$warnings" ]; then
+            echo -e "${YELLOW}Warnings:${NC}"
+            echo "$warnings"
+            echo
+        fi
+
+        # Show platform status
+        echo -e "${WHITE}Platform Status:${NC}"
+        echo "$response" | jq -r '.platforms | to_entries[]? | "  \(.key): \(if .value.configured then "configured" else "not configured" end)"'
+    fi
+}
+
+cmd_signing_detect() {
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing detect [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/detect"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        echo -e "${WHITE}Signing Tools Detection${NC}"
+        echo "========================"
+        echo
+
+        # Show tools
+        echo "$response" | jq -r '.platforms[]? | "
+\u001b[1;37m\(.platform | ascii_upcase)\u001b[0m
+  Tools:
+\(.tools[]? | "    \(if .installed then "✅" else "❌" end) \(.tool)\(if .version then " (\(.version))" else "" end)\(if .error then " - \(.error)" else "" end)")
+
+  Certificates:
+\(.certificates[]? | "    📜 \(.name)\(if .is_expired then " [EXPIRED]" else "" end)\(if .days_to_expiry >= 0 then " (expires in \(.days_to_expiry) days)" else "" end)")
+"'
+    fi
+}
+
+cmd_signing_ready() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing ready <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing ready <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}/ready"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local ready
+        ready=$(echo "$response" | jq -r '.ready')
+
+        echo -e "${WHITE}Signing Readiness: ${scenario}${NC}"
+        echo "================================="
+
+        if [ "$ready" = "true" ]; then
+            success "Ready for signed builds!"
+        else
+            error "Not ready for signed builds"
+            echo
+            local issues
+            issues=$(echo "$response" | jq -r '.issues[]?')
+            if [ -n "$issues" ]; then
+                echo "Issues:"
+                echo "$issues" | while read -r issue; do
+                    echo "  - $issue"
+                done
+            fi
+        fi
+    fi
+}
+
 # Main function
 main() {
     # Global options
@@ -882,6 +1835,12 @@ main() {
             ;;
         package)
             cmd_package "$@"
+            ;;
+        telemetry)
+            cmd_telemetry "$@"
+            ;;
+        signing)
+            cmd_signing "$@"
             ;;
         *)
             error "Unknown command: $command"

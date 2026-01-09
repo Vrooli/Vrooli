@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -30,6 +31,8 @@ type ScreenshotInfo struct {
 	SizeBytes    int64
 	Width        int
 	Height       int
+	ObjectName   string
+	Path         string
 }
 
 // NewMinIOClient creates a new MinIO client for screenshot storage
@@ -107,7 +110,10 @@ func (m *MinIOClient) ensureBucket(ctx context.Context) error {
 // StoreScreenshot stores a screenshot file in MinIO
 func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
 	// Generate object name
-	objectName := fmt.Sprintf("screenshots/%s/%s-%s.png", executionID, stepName, uuid.New())
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, stepName)
+
+	// Derive image dimensions before streaming to storage so replay UI can size thumbnails accurately.
+	width, height := decodeDimensions(data)
 
 	// Upload to MinIO
 	reader := bytes.NewReader(data)
@@ -129,27 +135,13 @@ func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID
 	screenshotURL := fmt.Sprintf("/api/v1/screenshots/%s", objectName)
 	thumbnailURL := fmt.Sprintf("/api/v1/screenshots/thumbnail/%s", objectName)
 
-	// Get screenshot dimensions from environment or parse from image
-	// These would typically be parsed from the actual image data
-	width := 0
-	height := 0
-	if widthStr := os.Getenv("SCREENSHOT_DEFAULT_WIDTH"); widthStr != "" {
-		if w, err := strconv.Atoi(widthStr); err == nil {
-			width = w
-		}
-	}
-	if heightStr := os.Getenv("SCREENSHOT_DEFAULT_HEIGHT"); heightStr != "" {
-		if h, err := strconv.Atoi(heightStr); err == nil {
-			height = h
-		}
-	}
-
 	return &ScreenshotInfo{
 		URL:          screenshotURL,
 		ThumbnailURL: thumbnailURL,
 		SizeBytes:    int64(len(data)),
 		Width:        width,  // Should be parsed from actual image
 		Height:       height, // Should be parsed from actual image
+		ObjectName:   objectName,
 	}, nil
 }
 
@@ -169,6 +161,22 @@ func (m *MinIOClient) GetScreenshot(ctx context.Context, objectName string) (io.
 	return object, &info, nil
 }
 
+// GetArtifact retrieves a stored artifact from MinIO.
+func (m *MinIOClient) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	object, err := m.client.GetObject(ctx, m.bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get artifact: %w", err)
+	}
+
+	info, err := object.Stat()
+	if err != nil {
+		object.Close()
+		return nil, nil, fmt.Errorf("failed to get artifact info: %w", err)
+	}
+
+	return object, &info, nil
+}
+
 // DeleteScreenshot deletes a screenshot from MinIO
 func (m *MinIOClient) DeleteScreenshot(ctx context.Context, objectName string) error {
 	err := m.client.RemoveObject(ctx, m.bucketName, objectName, minio.RemoveObjectOptions{})
@@ -180,10 +188,69 @@ func (m *MinIOClient) DeleteScreenshot(ctx context.Context, objectName string) e
 	return nil
 }
 
+// StoreArtifactFromFile uploads a file into MinIO and returns the artifact metadata.
+func (m *MinIOClient) StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
+	}
+	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
+	derivedType := detectContentTypeFromFile(filePath, contentType)
+
+	_, err = m.client.FPutObject(ctx, m.bucketName, objectName, filePath, minio.PutObjectOptions{
+		ContentType: derivedType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to store artifact: %w", err)
+	}
+
+	m.log.WithFields(logrus.Fields{
+		"execution_id": executionID,
+		"label":        label,
+		"object_name":  objectName,
+		"size_bytes":   info.Size(),
+	}).Info("Artifact stored in MinIO")
+
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   info.Size(),
+		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
+}
+
+// StoreArtifact stores raw bytes at a specific object name in MinIO.
+func (m *MinIOClient) StoreArtifact(ctx context.Context, objectName string, data []byte, contentType string) (*ArtifactInfo, error) {
+	if strings.TrimSpace(objectName) == "" {
+		return nil, fmt.Errorf("object name is required")
+	}
+	if contentType == "" {
+		if ext := filepath.Ext(objectName); ext != "" {
+			contentType = mime.TypeByExtension(ext)
+		}
+		if contentType == "" {
+			contentType = http.DetectContentType(data)
+		}
+	}
+	reader := bytes.NewReader(data)
+	_, err := m.client.PutObject(ctx, m.bucketName, objectName, reader, int64(len(data)), minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to store artifact: %w", err)
+	}
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   int64(len(data)),
+		ContentType: contentType,
+		ObjectName:  objectName,
+	}, nil
+}
+
 // ListExecutionScreenshots lists all screenshots for an execution
 func (m *MinIOClient) ListExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]string, error) {
-	prefix := fmt.Sprintf("screenshots/%s/", executionID)
-	
+	prefix := fmt.Sprintf("%s/artifacts/screenshots/", executionID)
+
 	objectCh := m.client.ListObjects(ctx, m.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
@@ -237,3 +304,6 @@ func (m *MinIOClient) HealthCheck(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Compile-time interface enforcement
+var _ StorageInterface = (*MinIOClient)(nil)

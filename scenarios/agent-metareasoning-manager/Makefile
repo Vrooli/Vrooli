@@ -1,26 +1,44 @@
-# Agent Metareasoning Manager
+# Agent Metareasoning Manager Scenario Makefile
 # 
-# This Makefile ensures the scenario is always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/agent-metareasoning-manager). ALWAYS use these commands.
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show help
-#   make run       - Start metareasoning manager
-#   make stop      - Stop metareasoning manager
-#   make dev       - Start in development mode with hot reload
-#   make test      - Run all tests
-#   make coverage  - Run tests with coverage report
-#   make logs      - Show scenario logs
-#   make clean     - Clean build artifacts
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-.PHONY: help run stop dev test test-verbose test-short test-integration coverage coverage-html logs logs-follow status clean build lint fmt deps benchmark profile check fmt-go fmt-ui lint-go lint-ui
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui test-verbose test-short test-integration coverage coverage-html logs-follow deps benchmark profile check
 
 # Default target - show help
 .DEFAULT_GOAL := help
 
 # Get scenario name
-SCENARIO_NAME := agent-metareasoning-manager
-BINARY_NAME := agent-metareasoning-manager-api
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+# Colors for output
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+help: ## Show this help message
+	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+
+BINARY_NAME := $(SCENARIO_NAME)-api
 
 # Test configuration
 COVERAGE_TARGET := 90
@@ -28,63 +46,34 @@ POSTGRES_PORT ?= 5432
 API_PORT ?= 8090
 TEST_DB_URL := postgres://postgres:postgres@localhost:$(POSTGRES_PORT)/metareasoning_test?sslmode=disable
 
-# Colors for output
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-CYAN := \033[1;36m
-RESET := \033[0m
-
-help: ## Show this help message
-	@echo "$(BLUE)🧠 Agent Metareasoning Manager Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Lifecycle Commands:$(RESET)"
-	@grep -E '^(run|stop|dev|logs|status):.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)Development Commands:$(RESET)"
-	@grep -E '^(test|coverage|lint|fmt|build|clean):.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)Additional Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		grep -v -E '^(run|stop|dev|logs|status|test|coverage|lint|fmt|build|clean|help):' | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(BINARY_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
-
 # ============================================================================
 # LIFECYCLE COMMANDS - Use Vrooli lifecycle system
 # ============================================================================
 
-run: ## Start metareasoning manager (via Vrooli lifecycle)
-	@echo "$(BLUE)🚀 Starting Agent Metareasoning Manager...$(RESET)"
-	@echo "$(CYAN)Coordinating meta-cognitive reasoning processes$(RESET)"
+run: ## Start this scenario (uses Vrooli lifecycle)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
 
-stop: ## Stop metareasoning manager
-	@echo "$(YELLOW)⏹️  Stopping Agent Metareasoning Manager...$(RESET)"
+start: run ## Start this scenario
+
+stop: ## Stop this scenario
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
-dev: ## Start in development mode with hot reload
-	@echo "$(BLUE)🔧 Starting in development mode...$(RESET)"
+dev: ## Start in development mode
+	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-logs: ## Show recent logs
-	@echo "$(BLUE)📜 Recent Metareasoning Manager logs:$(RESET)"
+logs: ## Show recent logs for this scenario
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 logs-follow: ## Follow logs in real-time
-	@echo "$(BLUE)📜 Following Metareasoning Manager logs...$(RESET)"
+	@echo "$(BLUE)📜 Following logs for $(SCENARIO_NAME)...$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --follow
 
 status: ## Check if scenario is running
-	@echo "$(BLUE)📊 Metareasoning Manager Status:$(RESET)"
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 # ============================================================================
@@ -110,7 +99,7 @@ test-integration: ## Run integration tests (requires running services)
 coverage: ## Run tests with coverage report
 	@echo "$(BLUE)🧪 Running tests with coverage...$(RESET)"
 	@cd api && TEST_DATABASE_URL=$(TEST_DB_URL) go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-	@echo "\n$(CYAN)Coverage Report:$(RESET)"
+	@echo "\n$(BLUE)Coverage Report:$(RESET)"
 	@cd api && go tool cover -func=coverage.out
 	@echo "\nGenerating HTML report..."
 	@cd api && go tool cover -html=coverage.out -o coverage.html
@@ -134,7 +123,7 @@ coverage-html: coverage ## Open coverage report in browser
 	fi
 
 lint: ## Lint all code
-	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
+	@echo "$(BLUE)🔍 Linting code...$(RESET)"
 	@$(MAKE) lint-go
 	@$(MAKE) lint-ui
 

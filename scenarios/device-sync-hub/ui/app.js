@@ -6,6 +6,8 @@ class DeviceSyncApp {
     this.apiUrl = this.getApiUrl();
     this.wsUrl = this.getWebSocketUrl();
     this.authUrl = this.getAuthUrl();
+    this.authUiUrl = this.getAuthUiUrl();
+    this.authApiBase = this.getAuthApiBase();
     this.authToken = localStorage.getItem('auth_token');
     this.user = null;
     this.ws = null;
@@ -70,6 +72,18 @@ class DeviceSyncApp {
     return `${protocol}//auth.${hostname}`;
   }
 
+  getAuthUiUrl() {
+    const metaAuthUiUrl = document.querySelector('meta[name="auth-ui-url"]');
+    if (metaAuthUiUrl && metaAuthUiUrl.content) {
+      return metaAuthUiUrl.content;
+    }
+    return this.authUrl;
+  }
+
+  getAuthApiBase() {
+    return `${this.apiUrl}/api/v1/auth`;
+  }
+
   // Generate or get stored device ID
   getDeviceId() {
     let deviceId = localStorage.getItem('device_id');
@@ -105,7 +119,7 @@ class DeviceSyncApp {
     }
 
     try {
-      const response = await fetch(`${this.authUrl}/api/v1/auth/validate`, {
+      const response = await fetch(`${this.authApiBase}/validate`, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`
         }
@@ -134,7 +148,7 @@ class DeviceSyncApp {
 
   async login(email, password) {
     try {
-      const response = await fetch(`${this.authUrl}/api/v1/auth/login`, {
+      const response = await fetch(`${this.authApiBase}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -609,10 +623,25 @@ class DeviceSyncApp {
     // Set register link dynamically
     const registerLink = document.getElementById('register-link');
     if (registerLink) {
-      // Assume register UI is on next port after auth service
-      const authUrl = new URL(this.authUrl);
-      const registerPort = parseInt(authUrl.port) + 1;
-      registerLink.href = `${authUrl.protocol}//${authUrl.hostname}:${registerPort}/register`;
+      if (this.authUiUrl) {
+        try {
+          const registerUrl = new URL(this.authUiUrl, window.location.origin);
+          registerUrl.pathname = '/register';
+          registerUrl.hash = '';
+          registerLink.href = registerUrl.toString();
+        } catch (error) {
+          const sanitizedBase = this.authUiUrl.replace(/\/$/, '');
+          if (sanitizedBase.startsWith('http')) {
+            registerLink.href = `${sanitizedBase}/register`;
+          } else {
+            registerLink.href = `${window.location.origin}${sanitizedBase}/register`;
+          }
+        }
+      } else {
+        registerLink.removeAttribute('href');
+        registerLink.setAttribute('aria-disabled', 'true');
+        registerLink.addEventListener('click', (event) => event.preventDefault());
+      }
     }
 
     // Auth form

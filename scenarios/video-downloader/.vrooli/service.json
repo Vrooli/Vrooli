@@ -1,10 +1,34 @@
 {
-  "service": {
-    "name": "video-downloader"
-  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
-  "description": "Video downloader service with Go API and React UI",
-  "enabled": true,
+  "service": {
+    "name": "video-downloader",
+    "displayName": "Video Downloader",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/video-downloader"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Video downloader service with Go API and React UI",
+    "version": "2.0.0"
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -20,7 +44,8 @@
     "health": {
       "description": "Video Downloader health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -30,6 +55,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -39,26 +72,32 @@
     "setup": {
       "description": "Initialize Video Downloader",
       "condition": {
-         "checks": [
-            {
-               "type": "binaries",
-               "targets": [
-                  "video-downloader-api"
-               ]
-            },
-             {
-                "type": "cli",
-                "targets": [
-                   "video-downloader"
-                ]
-             },
-            {
-               "type": "dependencies",
-               "paths": [
-                  "ui/package.json"
-               ]
-            }
-         ]
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/video-downloader-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "video-downloader",
+            "targets": [
+              "video-downloader"
+            ]
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          }
+        ]
       },
       "steps": [
         {
@@ -72,47 +111,62 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o video-downloader-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install --no-fund --no-audit",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo '📹 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83d\udcf9 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
     },
     "develop": {
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./video-downloader-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/video-downloader-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./video-downloader-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/video-downloader-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
-           "description": "Display running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+          "description": "Display running service URLs"
+        }
       ]
     },
-    "timeout": 90,
     "stop": {
       "description": "Stop services",
       "steps": [
@@ -127,14 +181,33 @@
           "description": "Stop UI process"
         }
       ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for video-downloader",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute video-downloader --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
     }
   },
-  "resources": {
-    "redis": {
-      "required": false
+  "dependencies": {
+    "resources": {
+      "redis": {
+        "required": false
+      },
+      "postgres": {
+        "required": false
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
     },
-    "postgres": {
-      "required": false
-    }
+    "scenarios": {}
   }
 }

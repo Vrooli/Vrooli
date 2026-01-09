@@ -247,13 +247,5 @@ func generateUUID() string {
 
 // setupTestRouter creates a test router with all handlers
 func setupTestRouter() *mux.Router {
-	router := mux.NewRouter()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/v1/assistant/status", statusHandler).Methods("GET")
-	router.HandleFunc("/api/v1/assistant/capture", captureHandler).Methods("POST")
-	router.HandleFunc("/api/v1/assistant/spawn-agent", spawnAgentHandler).Methods("POST")
-	router.HandleFunc("/api/v1/assistant/history", historyHandler).Methods("GET")
-	router.HandleFunc("/api/v1/assistant/issues/{id}", issueHandler).Methods("GET")
-	router.HandleFunc("/api/v1/assistant/issues/{id}/status", updateStatusHandler).Methods("PUT")
-	return router
+	return newRouter(nil)
 }

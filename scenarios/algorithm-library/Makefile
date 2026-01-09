@@ -4,13 +4,13 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make        - Show help
-#   make start  - Start this scenario (preferred)
-#   make run    - Start this scenario (alias)
-#   make stop   - Stop this scenario
-#   make test   - Run scenario tests
-#   make logs   - Show scenario logs
-#   make clean  - Clean build artifacts
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+#   make run   - Start this scenario (alias)
 
 .PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
@@ -93,7 +93,7 @@ fmt: ## Format all code
 
 fmt-go: ## Format Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(CYAN)Formatting Go code...$(RESET)"; \
+		echo "$(BLUE)Formatting Go code...$(RESET)"; \
 		if command -v gofumpt >/dev/null 2>&1; then \
 			cd api && gofumpt -w .; \
 			echo "$(GREEN)✓ Go code formatted with gofumpt$(RESET)"; \
@@ -109,7 +109,7 @@ fmt-go: ## Format Go code
 
 fmt-ui: ## Format TypeScript/JavaScript code
 	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		echo "$(CYAN)Formatting UI code...$(RESET)"; \
+		echo "$(BLUE)Formatting UI code...$(RESET)"; \
 		if command -v prettier >/dev/null 2>&1; then \
 			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}"; \
 			echo "$(GREEN)✓ UI code formatted with prettier$(RESET)"; \
@@ -128,7 +128,7 @@ lint: ## Lint all code
 
 lint-go: ## Lint Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(CYAN)Linting Go code...$(RESET)"; \
+		echo "$(BLUE)Linting Go code...$(RESET)"; \
 		if command -v golangci-lint >/dev/null 2>&1; then \
 			cd api && golangci-lint run; \
 			echo "$(GREEN)✓ Go code linted$(RESET)"; \
@@ -141,7 +141,7 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint TypeScript/JavaScript code
 	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		echo "$(CYAN)Linting UI code...$(RESET)"; \
+		echo "$(BLUE)Linting UI code...$(RESET)"; \
 		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
 			cd ui && npm run lint 2>/dev/null || npx eslint . 2>/dev/null || echo "$(YELLOW)ESLint configuration needed$(RESET)"; \
 		else \

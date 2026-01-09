@@ -44,25 +44,6 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - 🛡️ **Security Isolation** - Sandboxed Chrome instances with security profiles
 - 🔌 **Resource Adapters** - Provide UI automation fallbacks for other resources (NEW!)
 
-## Workflow Metadata (NEW!)
-
-The workflow interpreter now enforces descriptive metadata on every YAML definition:
-
-- Declare metadata inside the `workflow:` block (`name`, `description`, `version`, `tags`).
-- At runtime, the interpreter persists this metadata to `~/.vrooli/browserless/debug/<workflow>/YYYYMMDD_HHMMSS/metadata.json` alongside execution artifacts.
-- Missing names automatically fall back to the filename, and a `name_inferred` flag is recorded in the metadata file.
-- Downstream tools (scenarios, adapters, analytics) can parse this JSON to display friendly names, descriptions, and tags without re-reading the original YAML.
-
-**New CLI shortcuts**
-
-```bash
-# Inspect a single workflow definition
-resource-browserless workflow describe resources/browserless/examples/core/01-navigation.yaml
-
-# List every example workflow with metadata (JSON output)
-resource-browserless workflow catalog --json
-```
-
 ## When to Use
 
 ### Use Browserless When You Need:
@@ -71,7 +52,7 @@ resource-browserless workflow catalog --json
 - **Visual Testing** - Screenshot comparison and visual regression testing
 - **PDF Generation** - High-quality PDF conversion with browser rendering
 - **Complex Scraping** - Sites with dynamic content or anti-bot measures
-- **Conditional Workflows** - Intelligent automation with branching logic (NEW!)
+- **As a Backend for BAS** - Headless Chrome/CDP backend for Vrooli Ascension executions
 
 ### Alternatives to Consider:
 - **Simple HTTP Requests**: Use curl/wget for static content
@@ -85,7 +66,6 @@ Browserless now provides **UI automation adapters** for other resources, enablin
 
 ### Available Adapters
 
-- **n8n** - Execute workflows, manage credentials, import/export via browser
 - **vault** - Manage secrets and policies through UI automation (preview)
 
 ### Using Adapters
@@ -93,9 +73,6 @@ Browserless now provides **UI automation adapters** for other resources, enablin
 The new "for" pattern allows browserless to act as an adapter:
 
 ```bash
-# Execute n8n workflow when API is down
-resource-browserless for n8n execute-workflow my-workflow-id
-
 # Add Vault secrets via UI
 resource-browserless for vault add-secret secret/myapp key=value
 
@@ -164,7 +141,6 @@ resource-browserless benchmark
 resource-browserless benchmark navigation
 resource-browserless benchmark screenshots
 resource-browserless benchmark extraction
-resource-browserless benchmark workflows
 
 # Show benchmark summary
 resource-browserless benchmark summary
@@ -178,7 +154,6 @@ resource-browserless benchmark compare file1.json file2.json
 - **Navigation**: Page load times for simple and complex pages
 - **Screenshots**: Time to capture regular and full-page screenshots  
 - **Extraction**: Text, attribute, and element detection performance
-- **Workflows**: End-to-end workflow execution times
 
 Benchmarks track min, max, average, median, and 95th percentile metrics.
 
@@ -191,80 +166,7 @@ Benchmarks track min, max, average, median, and 95th percentile metrics.
 
 See [docs/ADAPTERS.md](docs/ADAPTERS.md) for complete documentation.
 
-## Conditional Workflows (NEW!)
-
-Browserless workflows now support sophisticated conditional branching for intelligent automation:
-
-### Condition Types
-- **URL Matching** - Branch based on current URL patterns
-- **Element Visibility** - Check if elements are present/visible
-- **Text Content** - Match element text with exact/contains/regex
-- **Error Detection** - Automatic error message detection
-- **Input States** - Check checkbox/radio button states
-- **JavaScript** - Custom JavaScript conditions
-
-### Example: Auto-Login Detection
-```yaml
-steps:
-  - action: "navigate"
-    url: "https://app.example.com/dashboard"
-    
-  - action: "condition"
-    condition_type: "url"
-    url_pattern: "/login"
-    then_steps:
-      # Automatically handle login
-      - action: "fill"
-        selector: "#username"
-        text: "${params.username}"
-      - action: "fill"
-        selector: "#password"
-        text: "${params.password}"
-      - action: "click"
-        selector: "button[type='submit']"
-    else_steps:
-      - action: "log"
-        message: "Already authenticated"
-```
-
-### Example: Error Recovery
-```yaml
-steps:
-  - action: "condition"
-    condition_type: "has_errors"
-    error_patterns: "error,failed,invalid"
-    then_steps:
-      - action: "screenshot"
-        path: "error-state.png"
-      - action: "wait"
-        duration: 2000
-      - action: "jump"
-        label: "retry_action"
-```
-
-### Documentation
-See [Conditional Branching Guide](docs/CONDITIONAL_BRANCHING.md) for:
-- Complete condition type reference
-- Advanced branching patterns
-- Login detection examples
-- Error recovery strategies
-- Performance considerations
-
 ## Integration Examples
-
-### With n8n Automation
-```javascript
-// n8n HTTP Request node configuration
-{
-  "method": "POST",
-  "url": "http://vrooli-browserless:4110/screenshot",
-  "body": {
-    "url": "https://example.com",
-    "fullPage": true,
-    "type": "png"
-  }
-}
-```
 
 ### With Ollama AI
 ```bash
@@ -461,6 +363,78 @@ When running usage examples, output files are managed automatically:
 ./cli.sh recover
 ```
 
+## Known Issues & Version Selection
+
+### Chrome Process Leak in Latest Version
+
+**Issue**: The `latest` tag (sha256:96cc9039..., published ~7 days ago) has a Chrome process leak that causes process accumulation over time. This leads to "fork: Resource temporarily unavailable" errors after extended use.
+
+**Symptoms**:
+- Chrome/defunct processes accumulate in container
+- After ~600+ processes: browserless fails to spawn new Chrome instances
+- Error messages: "fork: Resource temporarily unavailable" or "pthread_create: Resource temporarily unavailable"
+- UI smoke tests fail with "Browserless returned invalid response"
+
+**Root Cause**: Regression introduced in the `latest` version between v2.38.2 release and current `latest` build.
+
+**Solution**: We've pinned to **v2.38.2** which does NOT have this issue.
+
+### Version Testing Results
+
+Extensive testing (50+ consecutive UI smoke tests) confirms:
+
+**v2.38.2 (RECOMMENDED)**:
+- ✅ Processes: Stable at 4 total, 0 Chrome/defunct
+- ✅ Memory: Stable at ~170-190MiB
+- ✅ Health: No degradation over 50+ tests
+- ✅ All tests pass consistently
+
+**latest (NOT RECOMMENDED)**:
+- ❌ Process leak: ~1 Chrome process per test accumulated
+- ❌ After 10 tests: 17 total, 11 Chrome/defunct processes
+- ❌ After 600+ tests: Container unusable, requires restart
+- ❌ Memory accumulation and eventual failure
+
+### Current Configuration
+
+We've updated the configuration to use v2.38.2:
+- Image: `ghcr.io/browserless/chrome:v2.38.2`
+- Digest: `sha256:7c206dfaca4781bb477c6495ff2b5477a932c07a79fd7504bab3cf149e3e4be4`
+- Published: ~29 days ago
+- Status: Stable, no known process leak issues
+
+### Monitoring for Process Leaks
+
+Our enhanced health diagnostics now detect process accumulation:
+
+```bash
+# Check for process leaks
+vrooli resource browserless status
+
+# Automated detection thresholds:
+# - >50 Chrome processes: Status = degraded, restart recommended
+# - >20 Chrome processes: Status = warning, monitor for accumulation
+# - >10 defunct processes: Status = warning, cleanup issues detected
+```
+
+The UI smoke test framework also provides detailed diagnostics when browserless failures occur, including process leak detection and recommended recovery steps.
+
+### Recovery from Process Leak
+
+If you encounter a process leak (shouldn't happen with v2.38.2):
+
+```bash
+# Restart browserless to clear accumulated processes
+docker restart vrooli-browserless
+
+# Verify clean state
+vrooli resource browserless status
+# Should show: "Processes: 4 total, 0 Chrome/defunct"
+
+# If using latest tag, downgrade to v2.38.2
+# (Already done in current configuration)
+```
+
 ## Troubleshooting
 
 ### Container Won't Start
@@ -552,10 +526,11 @@ Access the built-in dashboard at http://localhost:4110 for:
 # Custom configuration
 CONCURRENT=10              # Max concurrent browsers
 TIMEOUT=30000              # Default timeout (ms)
-PREBOOT_CHROME=true        # Pre-warm browsers
-KEEP_ALIVE=true           # Keep browsers alive
 WORKSPACE_DELETE_EXPIRED=true  # Auto-cleanup
 WORKSPACE_EXPIRE_DAYS=7    # Cleanup after 7 days
+
+# Note: PREBOOT_CHROME, KEEP_ALIVE, and CHROME_REFRESH_TIME are deprecated
+# in browserless v2 and have been removed from our configuration
 ```
 
 ### Network Configuration
@@ -601,7 +576,7 @@ mkdir -p /data/browserless
 - **[Installation Guide](docs/INSTALLATION.md)** - Prerequisites, setup options, verification
 - **[Configuration](docs/CONFIGURATION.md)** - Settings, environment variables, customization
 - **[API Reference](docs/API.md)** - Endpoints, parameters, request/response examples
-- **[Usage Guide](docs/USAGE.md)** - Common tasks, workflows, integration patterns
+- **[Usage Guide](docs/USAGE.md)** - Common tasks and integration patterns
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues, solutions, debugging
 - **[Advanced Topics](docs/ADVANCED.md)** - Architecture, scaling, security, performance
 

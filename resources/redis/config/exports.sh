@@ -23,6 +23,16 @@ export REDIS_RESOURCE_NAME="redis"
 export REDIS_RESOURCE_DIR="${REDIS_RESOURCE_DIR:-${var_SCRIPTS_RESOURCES_DIR}/caching/redis}"
 export REDIS_RESOURCE_DIR="${REDIS_RESOURCE_DIR:-${APP_ROOT}/resources/redis}"
 
+# Playbooks isolation override: honor injected Redis URL and skip recomputing defaults.
+if [[ "${TEST_GENIE_PLAYBOOKS:-0}" == "1" ]]; then
+    override_url="${PLAYBOOKS_REDIS_URL:-${REDIS_URL:-}}"
+    if [[ -n "$override_url" ]]; then
+        export REDIS_URL="$override_url"
+        _redis_debug "Playbooks isolation detected; using injected REDIS_URL and skipping defaults"
+        return 0 2>/dev/null || exit 0
+    fi
+fi
+
 # Get port from registry (if function is available)
 if declare -f secrets::source_port_registry &>/dev/null; then
     secrets::source_port_registry

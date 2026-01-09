@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "scenario-dependency-analyzer",
@@ -19,7 +19,28 @@
       "claude-code-integration",
       "qdrant-vectors",
       "graph-visualization"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-dependency-analyzer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,42 +52,6 @@
       "env_var": "UI_PORT",
       "description": "Dependency graph visualization UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store dependency metadata, analysis results, optimization recommendations, and graph data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
     }
   },
   "lifecycle": {
@@ -100,8 +85,7 @@
           "target": "http://localhost:${API_PORT}/api/v1/health/analysis",
           "critical": true,
           "timeout": 15000,
-          "interval": 300000,
-          "description": "Test actual dependency analysis capability"
+          "interval": 300000
         }
       ],
       "timeout": 5000,
@@ -119,7 +103,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "scenario-dependency-analyzer",
             "targets": [
               "scenario-dependency-analyzer"
             ]
@@ -147,16 +137,26 @@
           "description": "Initialize PostgreSQL schema and seed initial data"
         },
         {
-          "name": "initial-analysis",
-          "run": "echo 'Running initial dependency analysis of existing scenarios...' && ./cli/scenario-dependency-analyzer analyze all --output json > /tmp/initial-analysis.json && echo 'Initial analysis complete. Results saved to /tmp/initial-analysis.json'",
-          "description": "Perform initial dependency analysis of all existing scenarios",
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
           "condition": {
-            "file_exists": "cli/scenario-dependency-analyzer"
+            "file_exists": "ui/package.json"
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "verify-cli",
+          "run": "echo '\u2705 CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
+          "description": "Verify CLI installation"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
+          "run": "echo '\ud83d\udd0d Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n\ud83d\udcca Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -175,70 +175,27 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${UI_PORT}",
-          "description": "Start dependency graph visualization UI server",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/index.html"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help'",
+          "run": "echo '\ud83d\udd0d Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n\ud83d\udccb CLI Usage: scenario-dependency-analyzer --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive testing of dependency analysis capabilities",
+      "description": "Comprehensive phased testing for scenario-dependency-analyzer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go API compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-scenario-analysis",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dependencies",
-          "description": "Test scenario dependency analysis endpoint"
-        },
-        {
-          "name": "test-graph-generation",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/graph/combined",
-          "description": "Test dependency graph generation endpoint"
-        },
-        {
-          "name": "test-proposed-scenario-analysis",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/analyze/proposed -H 'Content-Type: application/json' -d '{\"name\":\"test-scenario\",\"description\":\"A test scenario for validating prediction\",\"requirements\":[\"postgres\",\"ollama\"]}'",
-          "description": "Test proposed scenario analysis endpoint"
-        },
-        {
-          "name": "test-cli-basic-analysis",
-          "run": "./cli/scenario-dependency-analyzer analyze chart-generator --output json",
-          "description": "Test CLI scenario analysis"
-        },
-        {
-          "name": "test-cli-graph-generation",
-          "run": "./cli/scenario-dependency-analyzer graph resources --format json",
-          "description": "Test CLI graph generation"
-        },
-        {
-          "name": "test-database-schema",
-          "run": "resource-postgres execute 'SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN (\"scenario_dependencies\", \"dependency_graphs\", \"optimization_recommendations\");'",
-          "description": "Verify database schema initialization"
-        },
-        {
-          "name": "test-full-system-analysis",
-          "run": "./cli/scenario-dependency-analyzer analyze all --output json > /tmp/test-full-analysis.json && echo 'Full system analysis test completed'",
-          "description": "Test analysis of all scenarios in the system"
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-dependency-analyzer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -262,5 +219,50 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store dependency metadata, analysis results, optimization recommendations, and graph data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate embeddings for semantic similarity matching against Qdrant"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
+      }
+    },
+    "scenarios": {}
   }
 }

@@ -82,15 +82,15 @@ required:
     integration_pattern: Pub/Sub for alert distribution
     access_method: resource-redis CLI for queue management
     
-  - resource_name: n8n
+  - resource_name: node-red
     purpose: Orchestrate monitoring workflows
-    integration_pattern: Scheduled and triggered workflows
-    access_method: resource-n8n CLI for workflow management
+    integration_pattern: Scheduled and triggered flows
+    access_method: resource-node-red CLI for flow management
     
   - resource_name: ollama
     purpose: AI analysis of anomalies (llama3.2:3b)
-    integration_pattern: Shared workflow for inference
-    access_method: ollama.json shared workflow
+    integration_pattern: Investigation prompt execution via agent-manager
+    access_method: initialization/claude-code/anomaly-check.md
     
 optional:
   - resource_name: grafana
@@ -103,20 +103,15 @@ optional:
 ```yaml
 integration_priorities:
   1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: AI model inference for anomaly analysis
-      reused_by: [research-assistant, product-manager-agent]
+    - workflow: metric-collector.json
+      location: initialization/node-red/
+      purpose: Collect host metrics and fan out to storage
+      reused_by: [load-tester, api-monitor]
       
-    - workflow: rate-limiter.json
-      location: initialization/automation/n8n/
-      purpose: Prevent API overload during investigations
-      reused_by: [api-monitor, load-tester]
-      
-    - workflow: structured-data-extractor.json
-      location: initialization/automation/n8n/
-      purpose: Parse system logs and metrics
-      reused_by: [log-analyzer, audit-system]
+    - workflow: anomaly-detector.json
+      location: initialization/node-red/
+      purpose: Analyze metric trends and trigger investigations
+      reused_by: [log-analyzer, incident-response-manager]
       
   2_resource_cli:
     - command: resource-questdb query "SELECT * FROM metrics WHERE time > now() - '1h'"
@@ -130,12 +125,11 @@ integration_priorities:
       endpoint: tcp://localhost:9009 (QuestDB ILP)
       
     - justification: WebSocket needed for live dashboard updates
-      endpoint: ws://localhost:3003/metrics
+      endpoint: ws://localhost:${UI_PORT}/metrics
 
 shared_workflow_validation:
-  - ollama.json handles any LLM inference task
-  - rate-limiter.json is generic rate limiting
-  - structured-data-extractor.json parses any structured text
+  - metric-collector.json collects system telemetry for storage
+  - anomaly-detector.json evaluates triggers and opens investigations
 ```
 
 ### Data Models
@@ -512,7 +506,7 @@ discovery:
       - Performance baselines
       - Alert management
     interfaces:
-      - api: http://localhost:8083/api/v1
+      - api: http://localhost:${API_PORT}/api/v1
       - cli: system-monitor
       - events: monitor.*
       - metrics: tcp://localhost:9009 (QuestDB)
@@ -579,93 +573,35 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# File: scenario-test.yaml
-version: 1.0
-scenario: system-monitor
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - README.md
-    - api/main.go
-    - api/go.mod
-    - cli/system-monitor
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/questdb/schema.sql
-    - initialization/automation/n8n/threshold-monitor.json
-    - initialization/automation/n8n/anomaly-investigator.json
-    - ui/index.html
-    - ui/matrix.js
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization/storage/postgres
-    - initialization/storage/questdb
-    - initialization/automation/n8n
-    - ui
-
-resources:
-  required: [postgres, questdb, redis, n8n, ollama]
-  optional: [grafana]
-  health_timeout: 60
-
-tests:
-  - name: "QuestDB Metrics Ingestion"
-    type: tcp
-    service: questdb
-    port: 9009
-    send: "metrics,host=test cpu=50.0 1234567890000000000\n"
-    expect:
-      response: ""  # ILP protocol returns empty on success
-      
-  - name: "Current Metrics API"
-    type: http
-    service: api
-    endpoint: /api/v1/metrics/current
-    method: GET
-    expect:
-      status: 200
-      body:
-        cpu: "*"
-        memory: "*"
-        timestamp: "*"
-        
-  - name: "CLI Status Command"
-    type: exec
-    command: ./cli/system-monitor status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy", "cpu", "memory"]
-      
-  - name: "Anomaly Detection Workflow"
-    type: n8n
-    workflow: threshold-monitor
-    expect:
-      active: true
-      schedule: "*/1 * * * *"  # Every minute
-      
-  - name: "Matrix Dashboard Loads"
-    type: http
-    service: ui
-    endpoint: /
-    method: GET
-    expect:
-      status: 200
-      body_contains: ["matrix-rain", "metric-grid"]
+```bash
+# test/run-tests.sh (excerpt)
+testing::runner::register_phase --name structure --script "test/phases/test-structure.sh"
+testing::runner::register_phase --name dependencies --script "test/phases/test-dependencies.sh"
+testing::runner::register_phase --name unit --script "test/phases/test-unit.sh"
+testing::runner::register_phase --name integration --script "test/phases/test-integration.sh" --requires-runtime true
+testing::runner::register_phase --name business --script "test/phases/test-business.sh" --requires-runtime true
+testing::runner::register_phase --name performance --script "test/phases/test-performance.sh"
 ```
+- **Structure** validates required files/directories, gofmt cleanliness, and optional UI lint checks.
+- **Dependencies** dry-runs Go module analysis and `npm install` to ensure manifests stay resolvable.
+- **Unit** leverages the shared multi-language runner with scenario-specific coverage thresholds.
+- **Integration** executes `go test -tags=integration` against API services for workflow coverage.
+- **Business** exercises `/health`, `/api/v1/metrics/current`, and report generation while verifying the React dashboard responds.
+- **Performance** runs best-effort Go benchmarks and targeted performance tests, emitting warnings when regressions appear.
 
 ### Test Execution Gates
 ```bash
-./test.sh --scenario system-monitor --validation complete
-./test.sh --metrics      # Verify metric collection
-./test.sh --anomaly      # Test anomaly detection
-./test.sh --performance  # Validate < 100ms latency
-./test.sh --ui           # Check Matrix theme rendering
+# Full suite with managed runtime
+test/run-tests.sh comprehensive
+
+# Quick developer loop (structure + unit)
+test/run-tests.sh quick
+
+# Integration/business when the scenario is already running
+test/run-tests.sh business --allow-skip-missing-runtime
+
+# Lifecycle entrypoint
+vrooli scenario test system-monitor
 ```
 
 ### Performance Validation
@@ -738,7 +674,7 @@ tests:
 ### External Resources
 - [QuestDB Documentation](https://questdb.io/docs/)
 - [Prometheus Metric Types](https://prometheus.io/docs/concepts/metric_types/)
-- [Matrix Digital Rain](https://en.wikipedia.org/wiki/Matrix_digital_rain)
+- [Matrix Code](https://matrix.fandom.com/wiki/Matrix_code)
 
 ---
 

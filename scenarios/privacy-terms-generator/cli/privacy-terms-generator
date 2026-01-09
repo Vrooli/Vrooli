@@ -5,8 +5,13 @@
 
 set -euo pipefail
 
-# Get script location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script location (resolve symlinks)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# If symlinked, resolve to actual file location
+if [ -L "$SCRIPT_PATH" ]; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Source generator functions
@@ -38,6 +43,7 @@ Usage: privacy-terms-generator <command> [options]
 
 Commands:
   generate <type>     Generate a legal document
+  compliance <juris>  Generate compliance checklist for jurisdiction
   list-templates      Show available templates
   update-templates    Fetch latest templates from web
   search <query>      Search for relevant legal clauses
@@ -101,8 +107,24 @@ History Command:
     --limit <n>                Number of history entries to show (default: 10)
     --json                     Output in JSON format
 
+Compliance Command:
+  privacy-terms-generator compliance <jurisdiction> [options]
+
+  Jurisdictions:
+    EU, GDPR                   Generate GDPR compliance checklist
+    US, CCPA                   Generate CCPA compliance checklist
+    UK                         Generate UK-GDPR compliance checklist
+    CA, PIPEDA                 Generate PIPEDA compliance checklist (Canada)
+    general                    Generate general compliance checklist
+
+  Options:
+    --business-name <name>     Business name to include in checklist
+    --output <file>            Save checklist to file
+
 Examples:
   privacy-terms-generator generate privacy --business-name "Acme Corp" --jurisdiction US
+  privacy-terms-generator compliance GDPR --business-name "Acme Corp"
+  privacy-terms-generator compliance US --output ccpa-checklist.md
   privacy-terms-generator list-templates --stale
   privacy-terms-generator update-templates --force
   privacy-terms-generator search "data collection clauses" --type privacy --limit 3
@@ -436,6 +458,49 @@ cmd_search() {
     fi
 }
 
+# Generate compliance checklist
+cmd_compliance() {
+    local jurisdiction="$1"
+    shift
+
+    local business_name="Your Business"
+    local output_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --business-name)
+                business_name="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$jurisdiction" ]; then
+        print_error "Jurisdiction is required (EU|US|UK|CA|general)"
+        exit 1
+    fi
+
+    print_info "Generating compliance checklist for ${jurisdiction}..."
+
+    # Generate checklist by directly calling the compliance_checklist.sh script
+    local checklist
+    if [ -n "$output_file" ]; then
+        "${SCENARIO_ROOT}/lib/compliance_checklist.sh" "$jurisdiction" "$business_name" > "$output_file"
+        print_success "Compliance checklist saved to ${output_file}"
+    else
+        checklist=$("${SCENARIO_ROOT}/lib/compliance_checklist.sh" "$jurisdiction" "$business_name")
+        echo ""
+        echo "$checklist"
+    fi
+}
+
 # Show document history
 cmd_history() {
     local doc_id="$1"
@@ -488,7 +553,7 @@ cmd_history() {
 }
 
 # Main command dispatcher
-main() {
+cli_main() {
     case "${1:-}" in
         generate)
             shift
@@ -497,6 +562,10 @@ main() {
                 exit 1
             fi
             cmd_generate "$@"
+            ;;
+        compliance)
+            shift
+            cmd_compliance "$@"
             ;;
         list-templates)
             shift
@@ -535,4 +604,4 @@ main() {
 }
 
 # Run main function
-main "$@"
+cli_main "$@"

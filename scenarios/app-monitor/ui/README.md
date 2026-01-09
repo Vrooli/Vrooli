@@ -74,16 +74,16 @@ npm run debug
 ui/
 ├── src/
 │   ├── components/       # React components
-│   │   ├── Layout.tsx    # Main layout with sidebar
-│   │   ├── AppCard.tsx   # App display card
-│   │   ├── AppModal.tsx  # App details modal
-│   │   └── views/        # Page views
-│   │       ├── AppsView.tsx
+│   │   ├── Shell.tsx     # Overlay shell with bottom nav
+│   │   ├── tabSwitcher/  # Tab switcher dialog surface
+│   │   ├── AppPreviewToolbar.tsx
+│   │   └── views/        # Content panes rendered inside Shell
 │   │       ├── AppPreviewView.tsx
-│   │       ├── LogsView.tsx
-│   │       ├── ResourcesView.tsx
-│   │       └── TerminalView.tsx
+│   │       ├── HomeView.tsx
+│   │       └── ResourceDetailView.tsx
 │   ├── hooks/            # Custom React hooks
+│   │   ├── useAppCatalog.ts
+│   │   ├── useResourcesCatalog.ts
 │   │   └── useWebSocket.ts
 │   ├── services/         # API services
 │   │   └── api.ts

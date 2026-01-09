@@ -77,11 +77,6 @@ required:
     integration_pattern: MinIO client API for object operations
     access_method: MinIO Go client library
     
-  - resource_name: n8n
-    purpose: Backup orchestration and scheduling workflows
-    integration_pattern: Shared workflows for automation
-    access_method: N8n workflow API and webhooks
-    
 optional:
   - resource_name: redis
     purpose: Caching backup status and job queues
@@ -89,22 +84,13 @@ optional:
     access_method: Redis Go client library
 ```
 
+**Update**: Shared n8n workflows were removed; orchestration is now via resource CLIs and direct APIs.
+
 ### Resource Integration Standards
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: postgres-utils.json
-      location: initialization/automation/n8n/
-      purpose: PostgreSQL backup and restore operations
-    - workflow: file-system-ops.json
-      location: initialization/automation/n8n/
-      purpose: File system backup operations
-    - workflow: storage-manager.json
-      location: initialization/automation/n8n/
-      purpose: MinIO backup storage management
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
+  1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-postgres backup
       purpose: Create PostgreSQL database dumps
     - command: resource-minio upload
@@ -117,7 +103,7 @@ integration_priorities:
 # Shared workflow guidelines:
 shared_workflow_criteria:
   - Must be truly reusable across multiple scenarios
-  - Place in initialization/automation/n8n/ if generic
+  - Place in shared automation library (non-n8n) if generic
   - Document reusability in workflow description
   - List all scenarios that will use this workflow: [disaster-recovery, maintenance-orchestrator, scenario-migrator]
 ```
@@ -557,7 +543,7 @@ discovery:
   metadata:
     description: Comprehensive backup management for all Vrooli data
     keywords: [backup, restore, disaster-recovery, data-protection, maintenance]
-    dependencies: [postgres, minio, n8n]
+    dependencies: [postgres, minio]
     enhances: [all scenarios - provides data protection]
 ```
 
@@ -584,7 +570,7 @@ versioning:
 | Recovery failure | Low | Critical | Automated recovery testing, multiple restore methods |
 
 ### Operational Risks
-- **Drift Prevention**: PRD serves as single source of truth, validated by scenario-test.yaml
+- **Drift Prevention**: PRD remains the single source of truth, validated by phased tests executed via `test/run-tests.sh`
 - **Version Compatibility**: Semantic versioning with clear breaking change documentation
 - **Resource Conflicts**: Resource allocation managed through service.json priorities
 - **Data Integrity**: Multiple verification layers and automated testing
@@ -593,129 +579,23 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# REQUIRED: scenario-test.yaml in scenario root
-version: 1.0
-scenario: data-backup-manager
+Phased testing supersedes the legacy `scenario-test.yaml`. The shared runner (`test/run-tests.sh`) executes six deterministic phases:
 
-# Structure validation - files and directories that MUST exist:
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/data-backup-manager
-    - cli/install.sh
-    - initialization/postgres/schema.sql
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/n8n
-    - initialization/postgres
-    - data/backups
+1. **Structure** – validates required files/directories (`test/phases/test-structure.sh`).
+2. **Dependencies** – ensures Go modules, CLI artefacts, and resource prerequisites are present (`test/phases/test-dependencies.sh`).
+3. **Unit** – runs Go unit tests with coverage thresholds and aggregates results into `coverage/data-backup-manager` (`test/phases/test-unit.sh`).
+4. **Integration** – exercises live API endpoints, PostgreSQL connectivity, and MinIO access patterns (`test/phases/test-integration.sh`).
+5. **Business** – verifies end-to-end backup workflows, validation rules, and schedule orchestration (`test/phases/test-business.sh`).
+6. **Performance** – records latency benchmarks and concurrent request handling for core endpoints (`test/phases/test-performance.sh`).
 
-# Resource validation:
-resources:
-  required: [postgres, minio, n8n]
-  optional: [redis]
-  health_timeout: 60
+Run the suite locally:
 
-# Declarative tests:
-tests:
-  # Resource health checks:
-  - name: "PostgreSQL is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "MinIO is accessible"
-    type: http
-    service: minio
-    endpoint: /minio/health/live
-    method: GET
-    expect:
-      status: 200
-      
-  # API endpoint tests:
-  - name: "API health endpoint responds"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      body:
-        status: "healthy"
-        
-  - name: "Backup status endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/backup/status
-    method: GET
-    expect:
-      status: 200
-      body:
-        system_status: ["healthy", "degraded", "critical"]
-        
-  # CLI command tests:
-  - name: "CLI status command executes"
-    type: exec
-    command: ./cli/data-backup-manager status --json
-    expect:
-      exit_code: 0
-      output_contains: ["system_status"]
-      
-  - name: "CLI backup command validation"
-    type: exec
-    command: ./cli/data-backup-manager backup --help
-    expect:
-      exit_code: 0
-      output_contains: ["targets", "type", "retention"]
-      
-  # Database tests:
-  - name: "Backup metadata schema exists"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('backup_jobs', 'backup_schedules', 'restore_points')"
-    expect:
-      rows: 
-        - count: 3
-        
-  # Functional tests:
-  - name: "Create test backup"
-    type: http
-    service: api
-    endpoint: /api/v1/backup/create
-    method: POST
-    body:
-      type: "full"
-      targets: ["test-data"]
-      description: "Integration test backup"
-    expect:
-      status: 201
-      body:
-        job_id: "not_null"
-        status: "pending"
-```
-
-### Test Execution Gates
 ```bash
-# All tests must pass via:
-vrooli test scenario data-backup-manager --validation complete
-
-# Individual test categories:
-vrooli test scenario data-backup-manager --structure    # Verify file/directory structure
-vrooli test scenario data-backup-manager --resources    # Check resource health
-vrooli test scenario data-backup-manager --integration  # Run integration tests
-vrooli test scenario data-backup-manager --performance  # Validate performance targets
+cd scenarios/data-backup-manager
+./test/run-tests.sh comprehensive
 ```
+
+The `.vrooli/service.json` `test` lifecycle references the same entry point so CI and lifecycle hooks enforce identical validation gates.
 
 ### Performance Validation
 - [ ] API response times meet SLA targets
@@ -783,7 +663,7 @@ vrooli test scenario data-backup-manager --performance  # Validate performance t
 ### External Resources
 - PostgreSQL Backup Documentation: https://www.postgresql.org/docs/current/backup.html
 - MinIO Client Reference: https://docs.min.io/docs/minio-client-complete-guide.html
-- N8n Workflow API: https://docs.n8n.io/api/
+- Automation Orchestration: Rely on resource CLIs and direct APIs (n8n workflows removed)
 
 ---
 

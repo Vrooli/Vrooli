@@ -124,6 +124,8 @@ agent-metareasoning-manager api                                       # Show API
 agent-metareasoning-manager analyze pros-cons "Remote work policy"   # Run analysis
 agent-metareasoning-manager list                                      # Show available workflows
 agent-metareasoning-manager version                                   # Show CLI version
+open http://localhost:${UI_PORT}                                      # Launch dashboard (macOS)
+xdg-open http://localhost:${UI_PORT}                                   # Launch dashboard (Linux)
 ```
 
 ### **API Direct Usage**
@@ -167,7 +169,7 @@ agent-metareasoning-manager/
 │   ├── main.go                    # Database-driven API server
 │   └── go.mod                     # Dependencies (uuid, mux, pq)
 ├── cli/                           # Command-line interface
-│   └── agent-metareasoning-manager-cli.sh  # Thin API wrapper (90 lines)
+│   └── agent-metareasoning-manager         # Thin API wrapper (90 lines)
 ├── initialization/
 │   ├── automation/n8n/            # 5 reasoning workflows
 │   ├── automation/windmill/       # UI dashboards and apps
@@ -325,7 +327,7 @@ curl -f http://localhost:$API_PORT/health                  # Go API
 - [Windmill App Creation](../../resources/automation/windmill/)  
 - [Go Runtime Setup](../../lib/runtimes/go.sh)
 - [Scenario Architecture Guide](../../../docs/scenarios/)
-- [Direct Scenario Execution](../../../docs/scenarios/DEPLOYMENT.md)
+- [Deployment Hub · Tier 1 Local Stack](../../../docs/deployment/tiers/tier-1-local-dev.md)
 
 ---
 

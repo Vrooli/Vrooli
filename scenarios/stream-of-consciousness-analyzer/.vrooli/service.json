@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "stream-of-consciousness-analyzer",
@@ -21,7 +21,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/stream-of-consciousness-analyzer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -35,86 +56,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "chain-of-thought-orchestrator",
-        "embedding-generator",
-        "ollama",
-        "rate-limiter"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/process-stream.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/organize-thoughts.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/extract-insights.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/campaign-context-builder.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/autonomous-thought-processor.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store organized thoughts, insights, and campaigns",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache for real-time processing and session management"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for semantic search across thoughts and insights",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collections"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2:3b",
-        "nomic-embed-text"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Stream of Consciousness Analyzer health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -122,6 +70,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -134,16 +90,24 @@
       "description": "Initialize Stream of Consciousness Analyzer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "stream-of-consciousness-analyzer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["stream-of-consciousness-analyzer"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/stream-of-consciousness-analyzer-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "stream-of-consciousness-analyzer",
+            "targets": [
+              "stream-of-consciousness-analyzer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -162,9 +126,27 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-deps",
-          "run": "cd ui && npm install && cd ../api && npm install",
-          "description": "Install dependencies"
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o stream-of-consciousness-analyzer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -176,35 +158,38 @@
     "develop": {
       "description": "Start Stream of Consciousness Analyzer services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./stream-of-consciousness-analyzer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/stream-of-consciousness-analyzer-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./stream-of-consciousness-analyzer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/stream-of-consciousness-analyzer-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test Stream Analyzer",
+      "description": "Comprehensive phased testing for stream-of-consciousness-analyzer",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
+          "name": "run-phased-tests",
+          "run": "test-genie execute stream-of-consciousness-analyzer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -222,6 +207,82 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "chain-of-thought-orchestrator",
+          "embedding-generator",
+          "ollama",
+          "rate-limiter"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/process-stream.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/organize-thoughts.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/extract-insights.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/campaign-context-builder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/autonomous-thought-processor.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store organized thoughts, insights, and campaigns",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache for real-time processing and session management"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across thoughts and insights",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

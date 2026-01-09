@@ -4,6 +4,30 @@ if (typeof window !== 'undefined' && window.parent !== window) {
     initIframeBridgeChild({ appId: 'text-tools-ui' })
 }
 
+const trimTrailingSlashes = (value = '') => value.replace(/\/+$/, '')
+const ensureLeadingSlash = (value = '') => (value.startsWith('/') ? value : `/${value}`)
+
+const resolveApiOrigin = () => {
+    if (typeof window === 'undefined') {
+        return undefined
+    }
+
+    if (typeof window.resolveTextToolsApiOrigin === 'function') {
+        return window.resolveTextToolsApiOrigin()
+    }
+
+    return undefined
+}
+
+const buildApiUrl = (path) => {
+    const origin = resolveApiOrigin()
+    if (!origin) {
+        return undefined
+    }
+
+    return `${trimTrailingSlashes(origin)}${ensureLeadingSlash(path)}`
+}
+
 const APIClient = window.APIClient
 const DiffModule = window.DiffModule
 const SearchModule = window.SearchModule
@@ -52,7 +76,11 @@ class TextToolsApp {
             window.API_PORT = config.api_port;
         } catch (error) {
             console.error('Failed to detect API port:', error);
-            throw new Error('Unable to detect API port. Please ensure the Text Tools API is running.');
+            const hasProxyBootstrap = typeof window.__APP_MONITOR_PROXY_INFO__ !== 'undefined';
+
+            if (!hasProxyBootstrap) {
+                throw new Error('Unable to detect API port. Please ensure the Text Tools API is running.');
+            }
         }
     }
 
@@ -235,7 +263,19 @@ class TextToolsApp {
 
     showAPIDocs() {
         // Open API documentation in modal or new tab
-        const docsURL = `http://localhost:${window.API_PORT}/docs`;
+        let docsURL = buildApiUrl('/docs');
+
+        if (!docsURL) {
+            if (window.API_PORT) {
+                const protocol = window.location?.protocol === 'https:' ? 'https:' : 'http:';
+                docsURL = `${protocol}//localhost:${window.API_PORT}/docs`;
+            } else if (window.location?.origin) {
+                docsURL = `${trimTrailingSlashes(window.location.origin)}/docs`;
+            } else {
+                docsURL = '/docs';
+            }
+        }
+
         window.open(docsURL, '_blank');
     }
 

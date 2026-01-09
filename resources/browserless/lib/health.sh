@@ -69,14 +69,20 @@ browserless::check_api_health() {
         "/metrics"
         "/config"
     )
-    
+
     for endpoint in "${endpoints[@]}"; do
         if ! http::check_endpoint "http://localhost:$BROWSERLESS_PORT$endpoint"; then
             log::debug "API endpoint $endpoint is not responding"
             return 1
         fi
     done
-    
+
+    # Require CDP creation to work, not just HTTP up
+    if ! browserless::check_json_version; then
+        log::debug "/json/version failed or missing websocket URL"
+        return 1
+    fi
+
     return 0
 }
 
@@ -112,6 +118,19 @@ browserless::check_functional_health() {
         # Not a failure, just a warning
     fi
     
+    return 0
+}
+
+#######################################
+# Verify /json/version returns a usable WebSocket URL
+#######################################
+browserless::check_json_version() {
+    local version_payload
+    version_payload=$(timeout 5 curl -sf "http://localhost:$BROWSERLESS_PORT/json/version" 2>/dev/null) || return 1
+
+    local ws_url
+    ws_url=$(echo "$version_payload" | jq -r '.webSocketDebuggerUrl // empty' 2>/dev/null)
+    [[ -z "$ws_url" || "$ws_url" == "null" ]] && return 1
     return 0
 }
 

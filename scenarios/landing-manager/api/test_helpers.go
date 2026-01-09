@@ -1,0 +1,94 @@
+package main
+
+import (
+	"database/sql"
+	"os"
+	"testing"
+
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+
+	"landing-manager/handlers"
+	"landing-manager/services"
+)
+
+// setupTestDB creates a test database connection
+// This is the canonical setup function used across all test files
+func setupTestDB(t *testing.T) *sql.DB {
+	// Build database URL from lifecycle environment variables
+	dbURL := os.Getenv("POSTGRES_URL")
+	if dbURL == "" {
+		// Try to build from individual env vars
+		host := os.Getenv("POSTGRES_HOST")
+		port := os.Getenv("POSTGRES_PORT")
+		user := os.Getenv("POSTGRES_USER")
+		password := os.Getenv("POSTGRES_PASSWORD")
+		dbname := os.Getenv("POSTGRES_DB")
+		sslmode := os.Getenv("POSTGRES_SSLMODE")
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+
+		if host != "" && user != "" && dbname != "" {
+			if port == "" {
+				port = "5432"
+			}
+			dbURL = "postgresql://" + user + ":" + password + "@" + host + ":" + port + "/" + dbname + "?sslmode=" + sslmode
+		}
+	}
+
+	if dbURL == "" {
+		// Fallback to default test database URL if env vars not set
+		dbURL = os.Getenv("TEST_DATABASE_URL")
+		if dbURL == "" {
+			dbURL = "postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/landing-manager?sslmode=disable"
+		}
+		t.Logf("Using fallback database URL (lifecycle env vars not detected)")
+	}
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		t.Fatalf("Failed to connect to test database: %v", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		t.Fatalf("Failed to ping test database: %v", err)
+	}
+
+	return db
+}
+
+// setupTestServer creates a complete test server instance with all services initialized
+func setupTestServer(t *testing.T) (*Server, func()) {
+	db := setupTestDB(t)
+
+	// Clean up any existing test data BEFORE creating the server
+	// This prevents duplicate key violations from previous test runs
+	db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')")
+	db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'")
+
+	// Initialize all services
+	registry := services.NewTemplateRegistry()
+	generator := services.NewScenarioGenerator(registry)
+	personaService := services.NewPersonaService(registry.GetTemplatesDir())
+	previewService := services.NewPreviewService()
+	analyticsService := services.NewAnalyticsService()
+
+	// Create handler with all dependencies
+	handler := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
+
+	server := &Server{
+		db:      db,
+		router:  mux.NewRouter(),
+		handler: handler,
+	}
+
+	cleanup := func() {
+		// Clean up test data after test completes
+		db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')")
+		db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'")
+		db.Close()
+	}
+
+	return server, cleanup
+}

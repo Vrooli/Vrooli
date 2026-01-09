@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-light-scanning/module.json",
+    "02-smart-scanning/module.json",
+    "03-agent-api/module.json",
+    "04-ui-dashboard/module.json",
+    "05-auto-campaigns/module.json",
+    "06-issue-management/module.json",
+    "07-data-auditability/module.json",
+    "08-future-features/module.json"
+  ],
+  "requirements": []
+}

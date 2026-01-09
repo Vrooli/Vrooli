@@ -30,13 +30,22 @@
     "attack_strength": {
       "type": "string",
       "description": "Active scan attack strength",
-      "enum": ["LOW", "MEDIUM", "HIGH", "INSANE"],
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "INSANE"
+      ],
       "default": "MEDIUM"
     },
     "alert_threshold": {
       "type": "string",
       "description": "Alert reporting threshold",
-      "enum": ["LOW", "MEDIUM", "HIGH"],
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
       "default": "MEDIUM"
     },
     "scan_timeout": {
@@ -68,7 +77,12 @@
     "log_level": {
       "type": "string",
       "description": "Logging verbosity",
-      "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARN",
+        "ERROR"
+      ],
       "default": "INFO"
     },
     "data_dir": {
@@ -78,5 +92,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/owasp-zap/schema.json"
 }

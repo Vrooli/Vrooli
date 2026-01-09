@@ -1,0 +1,61 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "elo-swipe-must-have-tinder-like-swipe-ui-for-binary-comparisons",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement a touch/mouse-enabled swipe interface showing two items for comparison with left/right swipe actions",
+      "id": "REQ-P0-001",
+      "prd_ref": "elo-swipe-must-have-tinder-like-swipe-ui-for-binary-comparisons",
+      "status": "draft",
+      "title": "Swipeable Card Interface",
+      "validation": [
+        {
+          "notes": "Verify swipe animations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test touch events",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate card content display",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm swipe actions trigger rating updates",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Swipe animation must complete in \u003c100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can successfully complete comparisons with intuitive swipe actions",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Tinder-like swipe UI for binary comparisons"
+}

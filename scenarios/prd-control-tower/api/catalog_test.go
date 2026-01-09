@@ -1,11 +1,16 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test description extraction
 func TestExtractDescription(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -82,6 +87,7 @@ This is the description after blank lines.
 	}
 }
 
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test description extraction for nonexistent files
 func TestExtractDescriptionNonexistentFile(t *testing.T) {
 	result := extractDescription("/nonexistent/file.md")
 	if result != "" {
@@ -89,6 +95,7 @@ func TestExtractDescriptionNonexistentFile(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-STATUS] Catalog view - Test draft status detection
 func TestHasDraft(t *testing.T) {
 	// Create temporary draft directory structure
 	tmpDir := t.TempDir()
@@ -135,7 +142,7 @@ func TestHasDraft(t *testing.T) {
 		},
 	}
 
-	// Note: This test is limited because hasDraft uses a hardcoded relative path.
+	// Note: This test is limited because hasDraftOnDisk uses a hardcoded relative path.
 	// In a real implementation, we'd refactor hasDraft to accept a base path parameter.
 	// For now, we'll test the logic indirectly through getDraftPath.
 	for _, tt := range tests {
@@ -150,6 +157,7 @@ func TestHasDraft(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-FUNC-001][REQ:PCT-CATALOG-ENUMERATE] Catalog view - Test entity enumeration
 func TestEnumerateEntities(t *testing.T) {
 	// Create temporary directory structure
 	tmpDir := t.TempDir()
@@ -241,6 +249,200 @@ func TestEnumerateEntities(t *testing.T) {
 	}
 }
 
+type stubRow struct {
+	err    error
+	values []any
+}
+
+func (r stubRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	if len(dest) != len(r.values) {
+		return fmt.Errorf("unexpected scan destination count: got %d, want %d", len(dest), len(r.values))
+	}
+
+	for i := range dest {
+		switch target := dest[i].(type) {
+		case *string:
+			value, ok := r.values[i].(string)
+			if !ok {
+				return fmt.Errorf("scan value %d has type %T, want string", i, r.values[i])
+			}
+			*target = value
+		case *sql.NullString:
+			value, ok := r.values[i].(sql.NullString)
+			if !ok {
+				return fmt.Errorf("scan value %d has type %T, want sql.NullString", i, r.values[i])
+			}
+			*target = value
+		case *time.Time:
+			value, ok := r.values[i].(time.Time)
+			if !ok {
+				return fmt.Errorf("scan value %d has type %T, want time.Time", i, r.values[i])
+			}
+			*target = value
+		default:
+			return fmt.Errorf("unsupported scan destination type %T", target)
+		}
+	}
+
+	return nil
+}
+
+type stubDraftStore struct {
+	row       rowScanner
+	execErr   error
+	execCalls []draftStoreExecCall
+}
+
+type draftStoreExecCall struct {
+	query string
+	args  []any
+}
+
+func (s *stubDraftStore) QueryRow(_ string, _ ...any) rowScanner {
+	return s.row
+}
+
+func (s *stubDraftStore) Exec(query string, args ...any) (sql.Result, error) {
+	s.execCalls = append(s.execCalls, draftStoreExecCall{query: query, args: args})
+	if s.execErr != nil {
+		return nil, s.execErr
+	}
+	return stubResult{}, nil
+}
+
+type stubResult struct{}
+
+func (stubResult) LastInsertId() (int64, error) { return 0, nil }
+
+func (stubResult) RowsAffected() (int64, error) { return 0, nil }
+
+// [REQ:PCT-DRAFT-CREATE] Create new draft from template or existing PRD
+func TestEnsureDraftFromPublishedPRDCreatesDraft(t *testing.T) {
+	store := &stubDraftStore{
+		row: stubRow{err: sql.ErrNoRows},
+	}
+
+	content := "# PRD\n\nContent"
+	draft, err := ensureDraftFromPublishedPRD(store, "scenario", "test-scenario", content)
+	if err != nil {
+		t.Fatalf("ensureDraftFromPublishedPRD() unexpected error: %v", err)
+	}
+
+	if draft.EntityType != "scenario" {
+		t.Errorf("draft.EntityType = %q, want %q", draft.EntityType, "scenario")
+	}
+	if draft.EntityName != "test-scenario" {
+		t.Errorf("draft.EntityName = %q, want %q", draft.EntityName, "test-scenario")
+	}
+	if draft.Content != content {
+		t.Errorf("draft.Content = %q, want %q", draft.Content, content)
+	}
+	if draft.Status != "draft" {
+		t.Errorf("draft.Status = %q, want %q", draft.Status, "draft")
+	}
+	if time.Since(draft.CreatedAt) > time.Second {
+		t.Errorf("draft.CreatedAt is too old: %v", draft.CreatedAt)
+	}
+	if time.Since(draft.UpdatedAt) > time.Second {
+		t.Errorf("draft.UpdatedAt is too old: %v", draft.UpdatedAt)
+	}
+
+	if len(store.execCalls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(store.execCalls))
+	}
+	if !strings.Contains(store.execCalls[0].query, "INSERT INTO drafts") {
+		t.Errorf("expected insert query, got %q", store.execCalls[0].query)
+	}
+}
+
+// [REQ:PCT-DRAFT-CREATE] Create new draft from template or existing PRD
+func TestEnsureDraftFromPublishedPRDReusesDraft(t *testing.T) {
+	createdAt := time.Now().Add(-2 * time.Hour)
+	updatedAt := createdAt.Add(time.Hour)
+	store := &stubDraftStore{
+		row: stubRow{
+			values: []any{
+				"draft-id",
+				"scenario",
+				"test-scenario",
+				"# Existing Draft",
+				sql.NullString{String: "owner", Valid: true},
+				createdAt,
+				updatedAt,
+				"draft",
+			},
+		},
+	}
+
+	content := "# Updated Content"
+	draft, err := ensureDraftFromPublishedPRD(store, "scenario", "test-scenario", content)
+	if err != nil {
+		t.Fatalf("ensureDraftFromPublishedPRD() unexpected error: %v", err)
+	}
+
+	if draft.Content != "# Existing Draft" {
+		t.Errorf("draft.Content = %q, want %q", draft.Content, "# Existing Draft")
+	}
+	if draft.Owner != "owner" {
+		t.Errorf("draft.Owner = %q, want %q", draft.Owner, "owner")
+	}
+	if !draft.UpdatedAt.Equal(updatedAt) {
+		t.Errorf("draft.UpdatedAt changed: got %v, want %v", draft.UpdatedAt, updatedAt)
+	}
+	if len(store.execCalls) != 0 {
+		t.Fatalf("expected no exec calls, got %d", len(store.execCalls))
+	}
+}
+
+// [REQ:PCT-DRAFT-CREATE] Create new draft from template or existing PRD
+func TestEnsureDraftFromPublishedPRDResetsPublishedDraft(t *testing.T) {
+	createdAt := time.Now().Add(-24 * time.Hour)
+	updatedAt := createdAt.Add(6 * time.Hour)
+	store := &stubDraftStore{
+		row: stubRow{
+			values: []any{
+				"draft-id",
+				"scenario",
+				"test-scenario",
+				"# Old Content",
+				sql.NullString{},
+				createdAt,
+				updatedAt,
+				"published",
+			},
+		},
+	}
+
+	content := "# Fresh Content"
+	draft, err := ensureDraftFromPublishedPRD(store, "scenario", "test-scenario", content)
+	if err != nil {
+		t.Fatalf("ensureDraftFromPublishedPRD() unexpected error: %v", err)
+	}
+
+	if draft.Content != content {
+		t.Errorf("draft.Content = %q, want %q", draft.Content, content)
+	}
+	if draft.Status != "draft" {
+		t.Errorf("draft.Status = %q, want %q", draft.Status, "draft")
+	}
+	if !draft.CreatedAt.Equal(createdAt) {
+		t.Errorf("draft.CreatedAt changed: got %v, want %v", draft.CreatedAt, createdAt)
+	}
+	if !draft.UpdatedAt.After(updatedAt) {
+		t.Errorf("draft.UpdatedAt = %v, want after %v", draft.UpdatedAt, updatedAt)
+	}
+	if len(store.execCalls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(store.execCalls))
+	}
+	if !strings.Contains(strings.ToUpper(store.execCalls[0].query), "UPDATE DRAFTS") {
+		t.Errorf("expected update query, got %q", store.execCalls[0].query)
+	}
+}
+
+// [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestEnumerateEntitiesWithMixedContent(t *testing.T) {
 	// Test that enumerateEntities only processes directories, not files
 	tmpDir := t.TempDir()

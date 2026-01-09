@@ -2,6 +2,9 @@ id: resource-improver-blender-20250110
 title: Improve Blender resource
 type: resource
 operation: improver
+target: Blender
+targets:
+    - Blender
 category: ""
 priority: low
 effort_estimate: 1h
@@ -10,7 +13,7 @@ dependencies: []
 blocks: []
 related_scenarios: []
 related_resources: []
-status: failed
+status: archived
 current_phase: failed
 started_at: "2025-09-30T02:12:06-04:00"
 completed_at: "2025-09-30T02:12:36-04:00"

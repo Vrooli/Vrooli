@@ -138,7 +138,7 @@ minio::install::update_vrooli_config() {
     fi
     
     # Create or update configuration
-    if resources::update_config "storage.minio" '{
+    if resources::update_config "storage" "minio" "" '{
         "enabled": true,
         "endpoint": "localhost:'"${MINIO_PORT}"'",
         "useSSL": false,

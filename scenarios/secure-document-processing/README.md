@@ -6,7 +6,7 @@ Enterprise-grade secure document processing pipeline with encryption, compliance
 
 ## Key Features
 - Secure document intake and encryption using Vault
-- Automated processing workflows with n8n
+- Automated processing workflows handled in the Go API
 - Semantic search powered by Qdrant and Ollama
 - Compliance auditing and metadata management with PostgreSQL
 - Object storage with MinIO for encrypted documents
@@ -16,7 +16,7 @@ Enterprise-grade secure document processing pipeline with encryption, compliance
 ## Architecture
 - **API**: Go-based coordination server
 - **UI**: Node.js web interface
-- **Automation**: n8n workflows for intake, processing, and indexing
+- **Automation**: In-API orchestration for intake, processing, and indexing
 - **AI**: Ollama for embeddings and semantic analysis
 - **Storage**: PostgreSQL (metadata), MinIO (files), Qdrant (vectors)
 - **Security**: Vault for key management and encryption
@@ -29,7 +29,6 @@ make run  # or vrooli scenario run secure-document-processing
 Access:
 - UI: http://localhost:${UI_PORT}
 - API: http://localhost:${API_PORT}
-- n8n: http://localhost:${RESOURCE_PORTS[n8n]}
 
 ## Testing
 ```bash

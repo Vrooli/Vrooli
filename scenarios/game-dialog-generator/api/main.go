@@ -1,12 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -102,80 +104,19 @@ var (
 
 // Database initialization
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to open database connection: %v", err)
+		log.Fatal("Database connection failed:", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
 
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-	
 	log.Println("🎉 Database connection pool established successfully!")
 }
 
@@ -195,43 +136,6 @@ func initClients() {
 	}
 	
 	log.Printf("🎮 Initialized clients - Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
-}
-
-// Health check handler
-func healthHandler(c *gin.Context) {
-	status := gin.H{
-		"status":    "healthy",
-		"service":   "game-dialog-generator",
-		"theme":     "jungle-platformer",
-		"timestamp": time.Now().UTC(),
-		"resources": gin.H{
-			"database": "connected",
-			"ollama":   "available",
-			"qdrant":   "available",
-		},
-	}
-	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		status["resources"].(gin.H)["database"] = "disconnected"
-		status["status"] = "degraded"
-	}
-	
-	// Test Ollama connection
-	resp, err := restClient.R().Get(ollamaURL + "/api/version")
-	if err != nil || resp.StatusCode() != 200 {
-		status["resources"].(gin.H)["ollama"] = "unavailable"
-		status["status"] = "degraded"
-	}
-	
-	// Test Qdrant connection
-	resp, err = restClient.R().Get(qdrantURL + "/health")
-	if err != nil || resp.StatusCode() != 200 {
-		status["resources"].(gin.H)["qdrant"] = "unavailable"
-		status["status"] = "degraded"
-	}
-	
-	c.JSON(http.StatusOK, status)
 }
 
 // Character management handlers
@@ -769,16 +673,11 @@ func listProjectsHandler(c *gin.Context) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start game-dialog-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "game-dialog-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Load environment variables
@@ -806,7 +705,7 @@ func main() {
 	})
 	
 	// Health check endpoint
-	r.GET("/health", healthHandler)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	
 	// Character management routes
 	api := r.Group("/api/v1")

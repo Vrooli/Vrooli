@@ -59,7 +59,13 @@
     "compression_type": {
       "type": "string",
       "description": "Default compression type for topics",
-      "enum": ["none", "gzip", "snappy", "lz4", "zstd"],
+      "enum": [
+        "none",
+        "gzip",
+        "snappy",
+        "lz4",
+        "zstd"
+      ],
       "default": "snappy"
     },
     "max_message_bytes": {
@@ -117,6 +123,11 @@
       }
     }
   },
-  "required": ["port", "controller_port", "heap_size"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "controller_port",
+    "heap_size"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/kafka/schema.json"
 }

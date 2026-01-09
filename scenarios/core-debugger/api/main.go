@@ -14,6 +14,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Types
@@ -113,7 +116,9 @@ func loadComponents() {
 }
 
 // Handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+
+// componentHealthHandler checks all registered components (scenario-specific health)
+func componentHealthHandler(w http.ResponseWriter, r *http.Request) {
 	health := checkAllComponents()
 	
 	// Count active issues
@@ -399,44 +404,37 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start core-debugger
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "core-debugger",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	router := mux.NewRouter()
 
+	// Health check (standardized)
+	healthHandler := health.Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
+
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/component-health", componentHealthHandler).Methods("GET")
 	api.HandleFunc("/issues", listIssuesHandler).Methods("GET")
 	api.HandleFunc("/issues", reportIssueHandler).Methods("POST")
 	api.HandleFunc("/issues/{id}/workarounds", getWorkaroundsHandler).Methods("GET")
 	api.HandleFunc("/issues/{id}/analyze", analyzeIssueHandler).Methods("POST")
 
-	// Health check at root
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-
 	// Apply CORS
 	handler := corsMiddleware(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("Core Debugger API starting on port %s", port)
+	log.Println("Core Debugger API starting...")
 	log.Printf("Data directory: %s", dataDir)
 
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: handler,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

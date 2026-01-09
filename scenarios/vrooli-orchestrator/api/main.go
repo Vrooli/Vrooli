@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -301,17 +306,6 @@ func (o *OrchestratorService) GetStatus(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(status)
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   serviceName,
-		"version":   apiVersion,
-		"timestamp": time.Now().UTC(),
-	})
-}
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
@@ -336,83 +330,30 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start vrooli-orchestrator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "vrooli-orchestrator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	logger := NewLogger()
 	
-	// Load configuration - REQUIRED environment variables
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	
-	// Use port registry for resource ports
-	postgresPort := getResourcePort("postgres")
-	
-	// Database configuration
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Build from individual components or defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		if dbHost == "" {
-			dbHost = "localhost"
-		}
-		
-		dbPort := os.Getenv("POSTGRES_PORT")
-		if dbPort == "" {
-			dbPort = postgresPort
-		}
-		
-		dbUser := os.Getenv("POSTGRES_USER")
-		if dbUser == "" {
-			dbUser = "postgres"
-		}
-		
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-if dbPassword == "" {
-	logger.Error("POSTGRES_PASSWORD environment variable is required", nil)
-	os.Exit(1)
-}
-		
-		dbName := os.Getenv("POSTGRES_DB")
-		if dbName == "" {
-			dbName = "postgres"
-		}
-		
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
-	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Error("Failed to open database connection", err)
+		logger.Error("Failed to connect to database", err)
 		os.Exit(1)
 	}
-	defer db.Close()
-	
+
 	// Configure connection pool
 	db.SetMaxOpenConns(maxDBConnections)
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
-	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		logger.Error("Failed to connect to database", err)
-		os.Exit(1)
-	}
-	
+
 	logger.Info("✅ Database connected successfully")
 	
 	// Initialize orchestrator service
@@ -422,7 +363,7 @@ if dbPassword == "" {
 	r := mux.NewRouter()
 	
 	// Health endpoint
-	r.HandleFunc("/health", Health).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 	
 	// Profile management endpoints
 	r.HandleFunc("/api/v1/profiles", orchestrator.ListProfiles).Methods("GET")
@@ -438,11 +379,11 @@ if dbPassword == "" {
 	// System status endpoint
 	r.HandleFunc("/api/v1/status", orchestrator.GetStatus).Methods("GET")
 	
-	// Start server
-	logger.Info(fmt.Sprintf("🚀 Vrooli Orchestrator API starting on port %s", port))
-	logger.Info(fmt.Sprintf("   Database: Connected"))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
 		logger.Error("Server failed", err)
 		os.Exit(1)
 	}

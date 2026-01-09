@@ -42,7 +42,7 @@ const CharacterItem = memo(function CharacterItem({
 
   return (
     <div 
-      className="character-item"
+      className={`character-item character-item--${viewMode}`}
       onClick={handleClick}
       onKeyPress={handleKeyPress}
       tabIndex={0}

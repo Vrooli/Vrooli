@@ -429,7 +429,7 @@ structure:
     - cli/install.sh
     - data/issues/.gitkeep
     - data/health/.gitkeep
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api
@@ -500,7 +500,6 @@ tests:
 
 ### Related PRDs
 - app-monitor/PRD.md - Application monitoring (complementary)
-- app-debugger/PRD.md - Application debugging (different scope)
 
 ---
 

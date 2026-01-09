@@ -1,7 +1,7 @@
-# OpenCode Anomaly Check Prompt
+# Agent-Manager Anomaly Check Prompt
 
 ## Overview
-This directory contains the prompt template used by the System Monitor's "Run Anomaly Check" feature to drive the OpenCode investigation agent.
+This directory contains the prompt template used by the System Monitor's "Run Anomaly Check" feature to drive the agent-manager investigation run.
 
 ## Hot-Reloading Feature
 The prompt file (`anomaly-check.md`) is **hot-reloadable**, meaning you can edit it while the System Monitor app is running and changes will take effect immediately on the next anomaly check - no restart required!

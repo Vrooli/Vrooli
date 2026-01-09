@@ -118,12 +118,27 @@ This scenario provides security testing capabilities that can be used by:
 - Complete audit trails for accountability
 - Rate limiting prevents abuse
 
+## ⚙️ Configuration
+
+### Environment Variables
+
+The following environment variables can be configured to customize resource connections:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `API_PORT` | API server port | Auto-assigned (15000-19999) | Yes (auto) |
+| `UI_PORT` | UI server port | Auto-assigned (35000-39999) | Yes (auto) |
+| `OLLAMA_URL` | Ollama API endpoint | `http://localhost:11434` | No |
+| `QDRANT_URL` | Qdrant vector database endpoint | `http://localhost:6333` | No |
+| `POSTGRES_*` | PostgreSQL connection parameters | Auto-configured by lifecycle | No |
+
+**Note**: Port assignments are managed automatically by the Vrooli lifecycle system. Manual configuration is only needed for custom deployments.
+
 ## 📚 Documentation
 
-- [API Documentation](docs/api.md) - Complete REST API specification
-- [CLI Reference](docs/cli.md) - Command-line interface documentation  
-- [Security Model](docs/security.md) - Safety guarantees and constraints
-- [Research Guidelines](docs/research.md) - Ethical guidelines for security research
+- **[API Documentation](docs/api.md)** - Complete REST API reference with examples and integration guides
+- **[CLI Reference](docs/cli.md)** - Comprehensive command-line interface guide with advanced usage patterns
+- **[Security & Ethics Guidelines](docs/security.md)** - Responsible research practices, ethical boundaries, and compliance requirements
 
 ---
 

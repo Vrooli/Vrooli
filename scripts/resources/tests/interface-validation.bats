@@ -327,7 +327,7 @@ get_resources_by_category() {
     # to keep test execution time reasonable
     local sample_resources=(
         "$RESOURCES_DIR/ai/ollama"
-        "$RESOURCES_DIR/automation/n8n"
+        "$RESOURCES_DIR/automation/node-red"
         "$RESOURCES_DIR/storage/minio"
     )
     

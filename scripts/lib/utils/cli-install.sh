@@ -4,6 +4,24 @@
 
 set -euo pipefail
 
+copy_cli_binary() {
+    local source_path="$1"
+    local target="$2"
+
+    if [[ -e "$target" ]]; then
+        local resolved_source
+        local resolved_target
+        resolved_source=$(readlink -f "$source_path" 2>/dev/null || realpath "$source_path" 2>/dev/null || echo "$source_path")
+        resolved_target=$(readlink -f "$target" 2>/dev/null || realpath "$target" 2>/dev/null || echo "$target")
+        if [[ "$resolved_source" == "$resolved_target" ]]; then
+            rm -f "$target"
+        fi
+    fi
+
+    cp "$source_path" "$target"
+    chmod +x "$target"
+}
+
 # Find best installation directory
 find_install_dir() {
     local dirs=("$HOME/.local/bin" "$HOME/bin" "/usr/local/bin")
@@ -32,18 +50,19 @@ install_cli() {
     
     # Install with appropriate permissions
     if [[ -w "$install_dir" ]]; then
-        cp "$source_path" "$target"
-        chmod +x "$target"
+        copy_cli_binary "$source_path" "$target"
     elif [[ "$install_dir" == "/usr/local/bin" ]] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-        sudo cp "$source_path" "$target"
+        local tmp_file
+        tmp_file=$(mktemp)
+        cp "$source_path" "$tmp_file"
+        sudo mv "$tmp_file" "$target"
         sudo chmod +x "$target"
     else
         # Fall back to user directory
         install_dir="$HOME/.local/bin"
         mkdir -p "$install_dir"
         target="$install_dir/$cli_name"
-        cp "$source_path" "$target"
-        chmod +x "$target"
+        copy_cli_binary "$source_path" "$target"
     fi
     
     echo "✅ $cli_name installed to $target"

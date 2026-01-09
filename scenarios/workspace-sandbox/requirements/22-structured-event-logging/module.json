@@ -1,0 +1,61 @@
+{
+  "description": "Emit structured logs for create/mount/run/diff/approve/reject/delete/gc with failure details",
+  "module_id": "MOD-P2-022",
+  "prd_ref": "OT-P2-007",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "observability",
+      "description": "Emit structured JSON logs for all sandbox lifecycle events including create, mount, stop, approve, reject, delete, and gc. Include contextual metadata (sandbox ID, actor, duration) and error details. Support log levels (debug, info, warn, error) and context-aware logging.",
+      "id": "REQ-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "implemented",
+      "title": "Structured Event Logging",
+      "validation": [
+        {
+          "notes": "Test log level filtering",
+          "phase": "unit",
+          "ref": "api/internal/logging/logging_test.go::TestShouldLog",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test structured log output format",
+          "phase": "unit",
+          "ref": "api/internal/logging/logging_test.go::TestLogOutput",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test all log levels",
+          "phase": "unit",
+          "ref": "api/internal/logging/logging_test.go::TestLogLevels",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test concurrent logging safety",
+          "phase": "unit",
+          "ref": "api/internal/logging/logging_test.go::TestConcurrentLogging",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Log aggregation systems can parse output",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can debug issues from logs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Structured Event Logging"
+}

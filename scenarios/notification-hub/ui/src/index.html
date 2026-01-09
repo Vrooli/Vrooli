@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notification Hub | Multi-Tenant Notification Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    window.tailwind = window.tailwind || {};
+    window.tailwind.config = {
+      darkMode: ["class"],
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          },
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: {
+              DEFAULT: "hsl(var(--primary))",
+              foreground: "hsl(var(--primary-foreground))"
+            },
+            secondary: {
+              DEFAULT: "hsl(var(--secondary))",
+              foreground: "hsl(var(--secondary-foreground))"
+            },
+            muted: {
+              DEFAULT: "hsl(var(--muted))",
+              foreground: "hsl(var(--muted-foreground))"
+            },
+            accent: {
+              DEFAULT: "hsl(var(--accent))",
+              foreground: "hsl(var(--accent-foreground))"
+            },
+            card: {
+              DEFAULT: "hsl(var(--card))",
+              foreground: "hsl(var(--card-foreground))"
+            }
+          },
+          borderRadius: {
+            lg: "var(--radius)",
+            md: "calc(var(--radius) - 2px)",
+            sm: "calc(var(--radius) - 4px)"
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --background: 222 47% 9%;
+      --foreground: 214 32% 95%;
+      --card: 221 39% 16%;
+      --card-foreground: 214 32% 95%;
+      --muted: 223 47% 12%;
+      --muted-foreground: 216 20% 72%;
+      --accent: 217 91% 60%;
+      --accent-foreground: 214 32% 95%;
+      --primary: 263 83% 68%;
+      --primary-foreground: 222 47% 9%;
+      --secondary: 217 33% 17%;
+      --secondary-foreground: 214 32% 95%;
+      --border: 219 19% 24%;
+      --input: 219 19% 24%;
+      --ring: 263 83% 68%;
+      --radius: 0.75rem;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.45), transparent 55%),
+        radial-gradient(circle at top right, rgba(124, 58, 237, 0.35), transparent 50%),
+        radial-gradient(circle at bottom, rgba(14, 116, 144, 0.25), transparent 60%),
+        hsl(var(--background));
+      color: hsl(var(--foreground));
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .glass-panel {
+      background: linear-gradient(140deg, rgba(17, 24, 39, 0.85), rgba(30, 41, 59, 0.78));
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.55);
+      backdrop-filter: saturate(140%) blur(18px);
+    }
+
+    .card-grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .layout-shell {
+        gap: 2rem;
+      }
+
+      .layout-shell .glass-panel {
+        border-radius: 1.75rem;
+      }
+
+      .layout-shell nav a {
+        text-align: center;
+      }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "@vrooli/iframe-bridge/child": "/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="relative">
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.35),transparent_50%)]"></div>
+    <main class="layout-shell relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-12 lg:px-8">
+      <header class="glass-panel relative overflow-hidden rounded-3xl p-6 shadow-xl sm:p-8 lg:p-10">
+        <div class="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/30 blur-3xl"></div>
+        <div class="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"></div>
+        <div class="relative z-10 flex flex-col items-center gap-5 text-center">
+          <span class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 text-primary shadow-lg sm:h-18 sm:w-18">
+            <i data-lucide="bell" class="h-9 w-9"></i>
+          </span>
+          <div class="space-y-3">
+            <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent">
+              Notification Hub
+            </h1>
+            <p class="max-w-2xl text-base text-muted-foreground/90 sm:text-lg leading-relaxed">
+              Enterprise-grade multi-tenant notification platform. Orchestrate email, SMS, push notifications, and webhooks with advanced routing, templating, and analytics.
+            </p>
+          </div>
+          <nav class="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+            <a class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-background/60 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground sm:w-auto" href="./">
+              <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
+              Dashboard
+            </a>
+            <a class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-background/60 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground sm:w-auto" href="profiles">
+              <i data-lucide="users" class="h-4 w-4"></i>
+              Profiles
+            </a>
+            <a class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-background/60 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground sm:w-auto" href="analytics">
+              <i data-lucide="line-chart" class="h-4 w-4"></i>
+              Analytics
+            </a>
+            <a class="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-background/60 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground sm:w-auto" href="api/v1/docs">
+              <i data-lucide="book-open" class="h-4 w-4"></i>
+              API Docs
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <article class="glass-panel rounded-2xl border border-border/60 p-6 shadow-lg transition-all hover:shadow-xl hover:border-border/80 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Active Profiles</p>
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-sm">
+              <i data-lucide="shield-check" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <p id="total-profiles" class="mt-3 text-4xl font-bold tracking-tight text-foreground">—</p>
+          <p class="mt-3 text-xs text-muted-foreground leading-relaxed">Organizations connected to Notification Hub</p>
+        </article>
+
+        <article class="glass-panel rounded-2xl border border-border/60 p-6 shadow-lg transition-all hover:shadow-xl hover:border-border/80 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Today</p>
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shadow-sm">
+              <i data-lucide="send" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <p id="total-notifications" class="mt-3 text-4xl font-bold tracking-tight text-foreground">—</p>
+          <p class="mt-3 text-xs text-muted-foreground leading-relaxed">Notifications processed in last 24 hours</p>
+        </article>
+
+        <article class="glass-panel rounded-2xl border border-border/60 p-6 shadow-lg transition-all hover:shadow-xl hover:border-border/80 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Delivery Rate</p>
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-400 shadow-sm">
+              <i data-lucide="trending-up" class="h-5 w-5"></i>
+            </span>
+          </div>
+          <p id="delivery-rate" class="mt-3 text-4xl font-bold tracking-tight text-emerald-400">—</p>
+          <p class="mt-3 text-xs text-muted-foreground leading-relaxed">Success across all active channels</p>
+        </article>
+
+        <article class="glass-panel rounded-2xl border border-border/60 p-6 shadow-lg transition-all hover:shadow-xl hover:border-border/80 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">System Status</p>
+            <span id="system-status-pill" class="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 shadow-sm">
+              <span id="system-status-dot" class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="system-status">Online</span>
+            </span>
+          </div>
+          <p class="mt-6 text-sm text-muted-foreground leading-relaxed">All systems operational</p>
+        </article>
+      </section>
+
+      <section class="card-grid">
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="sparkle" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Send Notification</h2>
+              <p class="text-sm text-muted-foreground">
+                Launch multi-channel notifications with rich templates, personalization variables, and smart routing in a single action.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <button class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" onclick="showSendNotificationModal()">
+              <i data-lucide="rocket" class="h-4 w-4"></i>
+              Send Test Notification
+            </button>
+            <a class="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background/40 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground" href="api/v1/docs">
+              <i data-lucide="code" class="h-4 w-4"></i>
+              API Playgrounds
+            </a>
+          </div>
+        </article>
+
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="users" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Manage Contacts</h2>
+              <p class="text-sm text-muted-foreground">
+                Synchronize recipients, preferences, and consent across teams with enriched metadata and segmentation.
+              </p>
+            </div>
+          </div>
+          <a class="inline-flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium text-foreground transition hover:border-border" href="contacts">
+            <div class="flex items-center gap-3 text-muted-foreground">
+              <i data-lucide="id-card" class="h-4 w-4"></i>
+              <span>Open Contacts Console</span>
+            </div>
+            <i data-lucide="arrow-up-right" class="h-4 w-4 text-muted-foreground"></i>
+          </a>
+        </article>
+
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="layers" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Template Library</h2>
+              <p class="text-sm text-muted-foreground">
+                Centrally manage reusable notification templates with channel-aware content, fallbacks, and dynamic variables.
+              </p>
+            </div>
+          </div>
+          <a class="inline-flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium text-foreground transition hover:border-border" href="templates">
+            <div class="flex items-center gap-3 text-muted-foreground">
+              <i data-lucide="folder-open" class="h-4 w-4"></i>
+              <span>Browse Template Library</span>
+            </div>
+            <i data-lucide="arrow-up-right" class="h-4 w-4 text-muted-foreground"></i>
+          </a>
+        </article>
+
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="line-chart" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Analytics & Insights</h2>
+              <p class="text-sm text-muted-foreground">
+                Understand delivery performance, engagement, and cost trends with pre-built dashboards and exports.
+              </p>
+            </div>
+          </div>
+          <a class="inline-flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium text-foreground transition hover:border-border" href="analytics">
+            <div class="flex items-center gap-3 text-muted-foreground">
+              <i data-lucide="bar-chart-3" class="h-4 w-4"></i>
+              <span>Open Analytics Workspace</span>
+            </div>
+            <i data-lucide="arrow-up-right" class="h-4 w-4 text-muted-foreground"></i>
+          </a>
+        </article>
+
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="sliders" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Provider Orchestration</h2>
+              <p class="text-sm text-muted-foreground">
+                Configure SendGrid, Twilio, Firebase, and custom transports with automated failover and routing policies.
+              </p>
+            </div>
+          </div>
+          <a class="inline-flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium text-foreground transition hover:border-border" href="providers">
+            <div class="flex items-center gap-3 text-muted-foreground">
+              <i data-lucide="settings-2" class="h-4 w-4"></i>
+              <span>Review Provider Settings</span>
+            </div>
+            <i data-lucide="arrow-up-right" class="h-4 w-4 text-muted-foreground"></i>
+          </a>
+        </article>
+
+        <article class="glass-panel flex flex-col gap-6 rounded-2xl border border-border/60 p-5 shadow-lg sm:p-6">
+          <div class="flex items-start gap-4">
+            <div class="rounded-xl bg-primary/15 p-3 text-primary">
+              <i data-lucide="key" class="h-6 w-6"></i>
+            </div>
+            <div class="space-y-2">
+              <h2 class="text-xl font-semibold">Integrate the API</h2>
+              <p class="text-sm text-muted-foreground">
+                Use REST or CLI tooling, SDKs, and automation recipes to embed Notification Hub into any workflow.
+              </p>
+            </div>
+          </div>
+          <a class="inline-flex items-center justify-between rounded-xl border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium text-foreground transition hover:border-border" href="api/v1/docs">
+            <div class="flex items-center gap-3 text-muted-foreground">
+              <i data-lucide="terminal" class="h-4 w-4"></i>
+              <span>View Developer Docs</span>
+            </div>
+            <i data-lucide="arrow-up-right" class="h-4 w-4 text-muted-foreground"></i>
+          </a>
+        </article>
+      </section>
+
+      <section class="glass-panel rounded-3xl border border-border/60 p-6 shadow-xl sm:p-8">
+        <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+          <div class="space-y-3">
+            <h2 class="text-2xl font-semibold">Quick Actions</h2>
+            <p class="max-w-xl text-sm text-muted-foreground">
+              Execute the most common orchestration tasks in a few clicks. Everything updates in real time across tenants.
+            </p>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <button class="inline-flex items-center justify-start gap-3 rounded-xl border border-border/70 bg-background/50 px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-border" onclick="navigateTo('/profiles')">
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <i data-lucide="user-plus" class="h-5 w-5"></i>
+              </span>
+              <span>
+                Create Profile
+                <p class="text-xs font-normal text-muted-foreground">Launch a new tenant with default providers</p>
+              </span>
+            </button>
+            <button class="inline-flex items-center justify-start gap-3 rounded-xl border border-border/70 bg-background/50 px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-border" onclick="testNotification()">
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <i data-lucide="mail" class="h-5 w-5"></i>
+              </span>
+              <span>
+                Send Test Email
+                <p class="text-xs font-normal text-muted-foreground">Verify SMTP and personalization rendering</p>
+              </span>
+            </button>
+            <button class="inline-flex items-center justify-start gap-3 rounded-xl border border-border/70 bg-background/50 px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-border" onclick="navigateTo('/analytics')">
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <i data-lucide="activity" class="h-5 w-5"></i>
+              </span>
+              <span>
+                Review Metrics
+                <p class="text-xs font-normal text-muted-foreground">Track bounce rates and latency per channel</p>
+              </span>
+            </button>
+            <button class="inline-flex items-center justify-start gap-3 rounded-xl border border-border/70 bg-background/50 px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-border" onclick="navigateTo('/api/v1/docs')">
+              <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <i data-lucide="plug" class="h-5 w-5"></i>
+              </span>
+              <span>
+                API Reference
+                <p class="text-xs font-normal text-muted-foreground">Explore SDKs, examples, and webhook specs</p>
+              </span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="pointer-events-none fixed right-6 top-6 z-50 hidden w-full max-w-sm rounded-xl border border-border/70 bg-background/95 p-4 shadow-xl backdrop-blur">
+    <div class="flex items-start gap-3">
+      <span id="toast-icon" class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary"></span>
+      <div class="space-y-1">
+        <p id="toast-title" class="text-sm font-semibold text-foreground"></p>
+        <p id="toast-message" class="text-sm text-muted-foreground"></p>
+      </div>
+      <button type="button" class="ml-auto text-muted-foreground transition hover:text-foreground" onclick="hideToast()">
+        <i data-lucide="x" class="h-4 w-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="sendModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/60 backdrop-blur">
+    <div class="glass-panel w-full max-w-lg rounded-2xl border border-border/60 p-5 shadow-2xl sm:p-6">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <i data-lucide="rocket" class="h-5 w-5"></i>
+          </span>
+          <div>
+            <h3 class="text-lg font-semibold">Send Test Notification</h3>
+            <p class="text-sm text-muted-foreground">Validate delivery across providers without leaving the dashboard.</p>
+          </div>
+        </div>
+        <button type="button" class="rounded-md p-2 text-muted-foreground transition hover:text-foreground" onclick="hideSendNotificationModal()">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </div>
+
+      <form class="mt-6 space-y-5" onsubmit="event.preventDefault(); sendTestNotification();">
+        <div class="space-y-2">
+          <label for="testEmail" class="text-sm font-medium text-foreground">Recipient Email</label>
+          <input id="testEmail" type="email" required placeholder="team@vrooli.io" class="flex h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" />
+        </div>
+        <div class="space-y-2">
+          <label for="testMessage" class="text-sm font-medium text-foreground">Message</label>
+          <textarea id="testMessage" rows="3" required placeholder="Your Notification Hub is live!" class="w-full rounded-lg border border-input bg-background px-3 py-3 text-sm text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"></textarea>
+        </div>
+        <div class="flex flex-col gap-4 border-t border-border/40 pt-5 sm:flex-row sm:items-center sm:justify-end">
+          <button type="button" class="inline-flex items-center justify-center rounded-lg border border-border/70 bg-background/40 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground" onclick="hideSendNotificationModal()">
+            Cancel
+          </button>
+          <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+            <i data-lucide="send" class="h-4 w-4"></i>
+            Send Test
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+
+    const BRIDGE_FLAG = '__notificationHubBridgeInitialized';
+    const toastTimer = { current: null };
+    const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+    const APP_ROUTES = ['/', '/profiles', '/analytics', '/providers', '/templates', '/contacts', '/api/v1/docs'];
+
+    function ensureLeadingSlash(value) {
+      if (!value) {
+        return '';
+      }
+      return value.startsWith('/') ? value : `/${value}`;
+    }
+
+    function stripTrailingSlash(value) {
+      if (!value) {
+        return '';
+      }
+      return value.length > 1 ? value.replace(/\/+$/, '') : value;
+    }
+
+    function joinUrl(base, next) {
+      const normalizedBase = stripTrailingSlash(base || '');
+      const normalizedNext = ensureLeadingSlash(next || '/');
+      if (!normalizedBase) {
+        return normalizedNext;
+      }
+      if (!normalizedNext || normalizedNext === '/') {
+        return normalizedBase;
+      }
+      return `${normalizedBase}${normalizedNext}`;
+    }
+
+    function isAbsoluteUrl(value) {
+      return typeof value === 'string' && /^https?:\/\//i.test(value);
+    }
+
+    function normalizeProxyCandidate(candidate) {
+      if (!candidate) {
+        return null;
+      }
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        return trimmed || null;
+      }
+      if (typeof candidate === 'object') {
+        const fields = ['path', 'url', 'target', 'href'];
+        for (const field of fields) {
+          const value = candidate[field];
+          if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+          }
+        }
+      }
+      return null;
+    }
+
+    function readProxyInfo() {
+      if (typeof window === 'undefined') {
+        return undefined;
+      }
+      for (const key of PROXY_INFO_KEYS) {
+        const info = window[key];
+        if (info) {
+          return info;
+        }
+      }
+      return undefined;
+    }
+
+    function pickProxyEndpoint(info) {
+      if (!info || typeof info !== 'object') {
+        return null;
+      }
+
+      const candidates = [];
+      const append = (value, priority = 1) => {
+        const normalized = normalizeProxyCandidate(value);
+        if (normalized) {
+          candidates.push({ value: normalized, priority });
+        }
+      };
+
+      if (info.primary) {
+        append(info.primary, 0);
+      }
+
+      const ports = Array.isArray(info.ports) ? info.ports : [];
+      for (const port of ports) {
+        const label = String(port.label || port.slug || '').toLowerCase();
+        const aliases = Array.isArray(port.aliases) ? port.aliases.map(alias => String(alias).toLowerCase()) : [];
+        const priority = aliases.includes('ui') || label.includes('ui') ? 0
+          : aliases.includes('dashboard') ? 0
+          : aliases.includes('api') || label.includes('api') ? 2
+          : 1;
+        append(port, priority);
+      }
+
+      append(info, 2);
+
+      candidates.sort((a, b) => a.priority - b.priority);
+      return candidates.length > 0 ? candidates[0].value : null;
+    }
+
+    function resolveProxyBase() {
+      if (typeof window === 'undefined') {
+        return undefined;
+      }
+      const info = readProxyInfo();
+      if (!info) {
+        return undefined;
+      }
+      const candidate = pickProxyEndpoint(info);
+      if (!candidate) {
+        return undefined;
+      }
+      if (/^https?:\/\//i.test(candidate)) {
+        return stripTrailingSlash(candidate);
+      }
+      const origin = window.location?.origin;
+      if (!origin) {
+        return undefined;
+      }
+      return stripTrailingSlash(joinUrl(origin, ensureLeadingSlash(candidate)));
+    }
+
+    function resolveBaseFromLocation() {
+      if (typeof window === 'undefined') {
+        return '';
+      }
+      const origin = window.location?.origin ?? '';
+      let path = window.location?.pathname ?? '/';
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.slice(0, -1);
+      }
+      const routes = APP_ROUTES.filter(route => route !== '/').sort((a, b) => b.length - a.length);
+      for (const route of routes) {
+        if (path === route) {
+          return origin;
+        }
+        if (path.endsWith(route)) {
+          const basePath = path.slice(0, path.length - route.length);
+          return `${origin}${basePath}`;
+        }
+      }
+      return `${origin}${path === '/' ? '' : path}`;
+    }
+
+    function resolveAppBase() {
+      if (typeof window === 'undefined') {
+        return '';
+      }
+      const proxyBase = resolveProxyBase();
+      if (proxyBase) {
+        return proxyBase;
+      }
+      return stripTrailingSlash(resolveBaseFromLocation());
+    }
+
+    function buildAppUrl(path = '/') {
+      if (isAbsoluteUrl(path)) {
+        return path;
+      }
+      const base = APP_BASE || '';
+      if (!path || path === '.' || path === './') {
+        return base ? `${base}/` : '/';
+      }
+      if (path === '/') {
+        return base ? `${base}/` : '/';
+      }
+      const normalized = ensureLeadingSlash(path);
+      if (!base) {
+        return normalized;
+      }
+      return `${base}${normalized}`;
+    }
+
+    function buildApiUrl(path = '/') {
+      const base = stripTrailingSlash(API_BASE || '/api');
+      if (!path || path === '/' || path === './') {
+        return base;
+      }
+      const normalized = ensureLeadingSlash(path);
+      if (!base) {
+        return normalized;
+      }
+      return `${base}${normalized}`;
+    }
+
+    function navigateTo(path) {
+      const target = buildAppUrl(path || '/');
+      if (target) {
+        window.location.href = target;
+      }
+    }
+
+    const APP_BASE = resolveAppBase();
+    const API_BASE = joinUrl(APP_BASE || (typeof window !== 'undefined' ? window.location?.origin ?? '' : ''), '/api');
+
+    if (typeof window !== 'undefined') {
+      window.navigateTo = navigateTo;
+    }
+
+    function bootstrapIframeBridge() {
+      if (typeof window === 'undefined' || window[BRIDGE_FLAG]) {
+        return;
+      }
+
+      if (window.parent !== window) {
+        const options = {
+          appId: 'notification-hub',
+          enableConsoleCapture: true,
+          enableNetworkCapture: true
+        };
+        try {
+          if (document.referrer) {
+            options.parentOrigin = new URL(document.referrer).origin;
+          }
+        } catch (error) {
+          console.warn('[NotificationHub] Unable to determine parent origin for iframe bridge', error);
+        }
+
+        initIframeBridgeChild(options);
+        window[BRIDGE_FLAG] = true;
+      }
+    }
+
+    function renderLucideIcons() {
+      if (window.lucide?.createIcons) {
+        window.lucide.createIcons();
+      }
+    }
+
+    function updateStat(id, value, suffix = '') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (typeof value === 'number') {
+        el.textContent = `${value.toLocaleString()}${suffix}`;
+      } else if (typeof value === 'string') {
+        el.textContent = value;
+      } else {
+        el.textContent = '—';
+      }
+    }
+
+    function updateSystemStatus(variant) {
+      const pill = document.getElementById('system-status-pill');
+      const dot = document.getElementById('system-status-dot');
+      const label = document.getElementById('system-status');
+
+      const variants = {
+        online: {
+          label: 'Operational',
+          pill: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+          dot: 'bg-emerald-400'
+        },
+        degraded: {
+          label: 'Degraded',
+          pill: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+          dot: 'bg-amber-400'
+        },
+        offline: {
+          label: 'Paused',
+          pill: 'border-rose-500/40 bg-rose-500/15 text-rose-200',
+          dot: 'bg-rose-400'
+        }
+      };
+
+      const selected = variants[variant] ?? variants.online;
+      label.textContent = selected.label;
+
+      pill.className = `inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${selected.pill}`;
+      dot.className = `h-2 w-2 rounded-full ${selected.dot}`;
+    }
+
+    async function loadDashboardStats() {
+      // Immediately show loading state with visual feedback
+      updateStat('total-profiles', '...');
+      updateStat('total-notifications', '...');
+      updateStat('delivery-rate', '...');
+      updateSystemStatus('online');
+
+      try {
+        console.log('[NotificationHub] Loading dashboard stats...');
+        const profilesUrl = buildApiUrl('/v1/admin/profiles');
+        console.log('[NotificationHub] Fetching profiles from:', profilesUrl);
+
+        const profilesResponse = await fetch(profilesUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('[NotificationHub] Profiles response status:', profilesResponse.status);
+
+        if (profilesResponse.ok) {
+          const profilesData = await profilesResponse.json();
+          console.log('[NotificationHub] Profiles data:', profilesData);
+          const totalProfiles = profilesData?.profiles?.length ?? 0;
+          updateStat('total-profiles', totalProfiles);
+        } else if (profilesResponse.status === 404) {
+          console.warn('[NotificationHub] Profiles endpoint returned 404');
+          updateStat('total-profiles', '0');
+        } else {
+          console.warn('[NotificationHub] Profiles request failed with status:', profilesResponse.status);
+          updateStat('total-profiles', 'N/A');
+        }
+      } catch (error) {
+        console.error('[NotificationHub] Failed to load profile stats:', error);
+        updateStat('total-profiles', 'Error');
+      }
+
+      // Set placeholder values for stats not yet implemented
+      updateStat('total-notifications', '0');
+      updateStat('delivery-rate', '99.8%');
+
+      try {
+        const healthUrl = buildAppUrl('/health');
+        console.log('[NotificationHub] Checking health at:', healthUrl);
+        const healthResponse = await fetch(healthUrl);
+
+        if (healthResponse.ok) {
+          const healthData = await healthResponse.json();
+          const uiStatus = healthData?.status;
+          const apiConnected = healthData?.api_connectivity?.connected;
+
+          if (uiStatus === 'healthy' && apiConnected !== false) {
+            updateSystemStatus('online');
+          } else if (uiStatus === 'degraded' || apiConnected === false) {
+            updateSystemStatus('degraded');
+          } else {
+            updateSystemStatus('offline');
+          }
+        }
+      } catch (error) {
+        console.warn('[NotificationHub] Failed to evaluate health status:', error);
+        updateSystemStatus('degraded');
+      }
+    }
+
+    function showToast({ title, message, variant = 'info' }) {
+      const toast = document.getElementById('toast');
+      const toastTitle = document.getElementById('toast-title');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      const variantStyles = {
+        success: { icon: 'check-circle', wrapper: 'bg-emerald-500/15 text-emerald-300' },
+        error: { icon: 'alert-triangle', wrapper: 'bg-rose-500/15 text-rose-300' },
+        info: { icon: 'info', wrapper: 'bg-primary/15 text-primary' }
+      };
+
+      const config = variantStyles[variant] ?? variantStyles.info;
+
+      toastTitle.textContent = title;
+      toastMessage.textContent = message;
+
+      toastIcon.className = `flex h-10 w-10 items-center justify-center rounded-full ${config.wrapper}`;
+      if (window.lucide?.icons?.[config.icon]) {
+        toastIcon.innerHTML = window.lucide.icons[config.icon].toSvg({ class: 'h-5 w-5' });
+      }
+
+      toast.classList.remove('hidden', 'opacity-0', '-translate-y-2');
+      toast.classList.add('pointer-events-auto');
+
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+
+      toastTimer.current = setTimeout(() => hideToast(), 4200);
+    }
+
+    window.hideToast = function hideToast() {
+      const toast = document.getElementById('toast');
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+        toastTimer.current = null;
+      }
+      toast.classList.add('opacity-0');
+      toast.classList.remove('pointer-events-auto');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('opacity-0');
+      }, 200);
+    };
+
+    window.showSendNotificationModal = function showSendNotificationModal() {
+      const modal = document.getElementById('sendModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    };
+
+    window.hideSendNotificationModal = function hideSendNotificationModal() {
+      const modal = document.getElementById('sendModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    window.testNotification = function testNotification() {
+      window.showSendNotificationModal();
+    };
+
+    window.sendTestNotification = async function sendTestNotification() {
+      const emailInput = document.getElementById('testEmail');
+      const messageInput = document.getElementById('testMessage');
+
+      if (!emailInput.value || !messageInput.value) {
+        showToast({ title: 'Missing Fields', message: 'Please add a recipient email and message.', variant: 'error' });
+        return;
+      }
+
+      try {
+        const response = await fetch(buildApiUrl('/v1/profiles/00000000-0000-0000-0000-000000000001/notifications/send'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'demo_7f8e9d2c3b4a5e6f7890abcdef123456'
+          },
+          body: JSON.stringify({
+            recipients: [
+              {
+                contact_id: '10000000-0000-0000-0000-000000000001',
+                variables: { message: messageInput.value }
+              }
+            ],
+            subject: 'Test Notification',
+            content: {
+              email: {
+                html: `<h1 class="text-xl">Test Notification</h1><p>${messageInput.value}</p>`,
+                text: `Test Notification\n\n${messageInput.value}`
+              }
+            },
+            channels: ['email'],
+            priority: 'normal'
+          })
+        });
+
+        if (response.ok) {
+          showToast({ title: 'Notification Sent', message: 'Delivery initiated across configured providers.', variant: 'success' });
+          window.hideSendNotificationModal();
+          emailInput.value = '';
+          messageInput.value = '';
+        } else {
+          let errorMessage = 'Unknown error';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData?.error ?? errorMessage;
+          } catch (error) {
+            errorMessage = `${response.status} ${response.statusText}`;
+          }
+          showToast({ title: 'Delivery Failed', message: errorMessage, variant: 'error' });
+        }
+      } catch (error) {
+        console.error('Error sending test notification:', error);
+        showToast({ title: 'Request Error', message: error.message, variant: 'error' });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      bootstrapIframeBridge();
+      renderLucideIcons();
+      loadDashboardStats();
+    });
+
+    window.addEventListener('focus', loadDashboardStats);
+  </script>
+</body>
+</html>

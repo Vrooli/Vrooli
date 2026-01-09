@@ -34,17 +34,17 @@ validate::scenario() {
     
     # Check resources section
     local resources
-    resources=$(echo "$config" | jq -r '.resources // {}')
+    resources=$(echo "$config" | jq -r '.dependencies.resources // {}')
     if [[ "$resources" == "{}" ]]; then
         log::warn "No resources defined in scenario"
     fi
     
     # Validate each resource configuration
     local resource_names
-    resource_names=$(echo "$config" | jq -r '.resources | keys[]' 2>/dev/null || true)
+    resource_names=$(echo "$config" | jq -r '.dependencies.resources | keys[]' 2>/dev/null || true)
     
     for resource in $resource_names; do
-        if ! validate::resource_config "$resource" "$(echo "$config" | jq -c ".resources[\"$resource\"]")"; then
+        if ! validate::resource_config "$resource" "$(echo "$config" | jq -c ".dependencies.resources[\"$resource\"]")"; then
             is_valid=false
         fi
     done
@@ -137,12 +137,6 @@ validate::content_item() {
     
     # Validate based on resource type
     case "$resource" in
-        n8n)
-            if [[ "$type" != "workflow" ]] && [[ "$type" != "credential" ]]; then
-                log::error "      Item $index: Invalid type '$type' for n8n (expected: workflow, credential)"
-                is_valid=false
-            fi
-            ;;
         postgres)
             if [[ "$type" != "schema" ]] && [[ "$type" != "migration" ]] && [[ "$type" != "seed" ]]; then
                 log::error "      Item $index: Invalid type '$type' for postgres (expected: schema, migration, seed)"

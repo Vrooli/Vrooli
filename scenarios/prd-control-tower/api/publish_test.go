@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFile(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -169,6 +170,7 @@ This is a test PRD.
 	}
 }
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFilePreservesContent(t *testing.T) {
 	// Test that copyFile preserves exact byte content
 	tmpDir := t.TempDir()
@@ -202,6 +204,7 @@ func TestCopyFilePreservesContent(t *testing.T) {
 	}
 }
 
+// [REQ:PCT-DRAFT-PUBLISH] Publishing atomically updates PRD.md and clears draft
 func TestCopyFileOverwritesExisting(t *testing.T) {
 	// Test that copyFile overwrites existing destination file
 	tmpDir := t.TempDir()
@@ -228,5 +231,94 @@ func TestCopyFileOverwritesExisting(t *testing.T) {
 
 	if string(content) != "New Content" {
 		t.Errorf("Destination content = %q, want %q", string(content), "New Content")
+	}
+}
+
+func TestValidateOperationalTargetsLinkage_EmptyRequirementsIndexSkips(t *testing.T) {
+	vrooliRoot := t.TempDir()
+	t.Setenv("VROOLI_ROOT", vrooliRoot)
+
+	entityType := "scenario"
+	entityName := "sample-scenario"
+	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
+	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+		t.Fatalf("mkdir requirements dir: %v", err)
+	}
+
+	// Empty registry (typical scaffold output).
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":[]}`), 0644); err != nil {
+		t.Fatalf("write requirements index: %v", err)
+	}
+
+	content := `# PRD
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-1 | Basic viability target | Description
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-2 | Nice improvement | Description
+`
+
+	if err := validateOperationalTargetsLinkage(entityType, entityName, content); err != nil {
+		t.Fatalf("expected no error for empty requirements index, got %v", err)
+	}
+}
+
+func TestValidateOperationalTargetsLinkage_NonEmptyRequirementsIndexEnforcesLinks(t *testing.T) {
+	vrooliRoot := t.TempDir()
+	t.Setenv("VROOLI_ROOT", vrooliRoot)
+
+	entityType := "scenario"
+	entityName := "sample-scenario"
+	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
+	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+		t.Fatalf("mkdir requirements dir: %v", err)
+	}
+
+	// Non-empty imports triggers enforcement.
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":["01-core/requirements.json"]}`), 0644); err != nil {
+		t.Fatalf("write requirements index: %v", err)
+	}
+
+	content := `# PRD
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-1 | Basic viability target | Description
+`
+
+	if err := validateOperationalTargetsLinkage(entityType, entityName, content); err == nil {
+		t.Fatalf("expected error when requirements exist but P0 target has no linked requirements")
+	}
+}
+
+func TestValidateOperationalTargetsLinkage_InvalidRequirementsIndexErrors(t *testing.T) {
+	vrooliRoot := t.TempDir()
+	t.Setenv("VROOLI_ROOT", vrooliRoot)
+
+	entityType := "scenario"
+	entityName := "sample-scenario"
+	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
+	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+		t.Fatalf("mkdir requirements dir: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`not-json`), 0644); err != nil {
+		t.Fatalf("write requirements index: %v", err)
+	}
+
+	content := `# PRD
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-1 | Basic viability target | Description
+`
+
+	if err := validateOperationalTargetsLinkage(entityType, entityName, content); err == nil {
+		t.Fatalf("expected error when requirements index is invalid JSON")
 	}
 }

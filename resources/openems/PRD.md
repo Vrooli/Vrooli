@@ -19,7 +19,7 @@
 - [x] **Basic Lifecycle**: Support start/stop/restart operations through CLI
 
 ### P1 Requirements (Should Have)
-- [x] **n8n Workflow Integration**: Automated energy management workflows with visual automation flows
+- [x] **Workflow Automation Integration**: Automated energy management workflows with visual automation flows
 - [x] **Apache Superset Dashboards**: Energy analytics dashboard templates for real-time monitoring
 - [x] **Eclipse Ditto Digital Twins**: Digital twin models for DER assets with co-simulation support
 - [x] **Energy Forecast Models**: Solar generation, battery optimization, and consumption forecasting
@@ -142,7 +142,7 @@
   - Implemented API validation for REST/JSON-RPC/Modbus
   - Added health monitoring and lifecycle management
 - 2025-01-16: Completed P1 requirements (100%)
-  - Implemented n8n workflow integration for energy automation (solar optimization, peak shaving, SCADA ingestion)
+  - Implemented workflow automation integration for energy automation (solar optimization, peak shaving, SCADA ingestion)
   - Created Apache Superset dashboard templates (energy overview, solar analytics, battery management, grid interaction)
   - Added Eclipse Ditto digital twin integration with SimPy/Blender co-simulation support
   - Developed energy forecast models for solar generation, battery optimization, and consumption prediction
@@ -153,7 +153,7 @@
   - Implemented comprehensive alert rules for grid outages, battery faults, and peak demand
 
 ## Research Findings
-- **Similar Work**: zigbee2mqtt (IoT integration), questdb (time-series), n8n (workflow automation)
+- **Similar Work**: zigbee2mqtt (IoT integration), questdb (time-series), workflow automation platforms
 - **Template Selected**: v2.0 resource contract with containerized service pattern
 - **Unique Value**: First comprehensive energy management platform in Vrooli
 - **External References**: 

@@ -504,9 +504,122 @@
     </footer>
 
     <script>
-        // API endpoint
-        const API_BASE = 'http://localhost:15000/api/v1/legal';
-        
+        const API_PATH = '/api/v1/legal';
+
+        const stripTrailingSlash = (value) => (value ? value.replace(/\/+$/, '') : '');
+        const ensureLeadingSlash = (value) => {
+            if (!value) {
+                return '';
+            }
+            return value.startsWith('/') ? value : `/${value}`;
+        };
+        const joinUrl = (base, next) => {
+            const normalizedBase = stripTrailingSlash(base || '');
+            if (!next) {
+                return normalizedBase;
+            }
+            return `${normalizedBase}${ensureLeadingSlash(next)}`;
+        };
+        const isLocalHostname = (hostname) => /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i.test(hostname || '');
+
+        function resolveProxyBase() {
+            if (typeof window === 'undefined') {
+                return null;
+            }
+
+            const info = window.__APP_MONITOR_PROXY_INFO__ || window.__APP_MONITOR_PROXY_INDEX__;
+            if (!info) {
+                return null;
+            }
+
+            const candidates = [];
+
+            const appendCandidate = (value) => {
+                if (!value) {
+                    return;
+                }
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    if (trimmed) {
+                        candidates.push(trimmed);
+                    }
+                    return;
+                }
+                if (typeof value === 'object') {
+                    appendCandidate(value.url);
+                    appendCandidate(value.path);
+                    appendCandidate(value.target);
+                    appendCandidate(value.endpoint);
+                }
+            };
+
+            const ports = Array.isArray(info.ports) ? info.ports : [];
+            const apiPorts = ports.filter((entry) => {
+                const label = String(entry?.label || entry?.slug || '').toLowerCase();
+                const aliases = Array.isArray(entry?.aliases)
+                    ? entry.aliases.map((alias) => String(alias).toLowerCase())
+                    : [];
+                return label.includes('api') || aliases.includes('api') || aliases.includes('api_port');
+            });
+            const orderedPorts = apiPorts.concat(ports.filter((entry) => !apiPorts.includes(entry)));
+            orderedPorts.forEach((entry) => appendCandidate(entry));
+
+            appendCandidate(info.primary);
+            if (Array.isArray(info.endpoints)) {
+                info.endpoints.forEach((endpoint) => appendCandidate(endpoint));
+            }
+
+            const candidate = candidates.find(Boolean);
+            if (!candidate) {
+                return null;
+            }
+
+            if (/^https?:\/\//i.test(candidate)) {
+                return stripTrailingSlash(candidate);
+            }
+
+            const origin = window.location?.origin;
+            if (!origin) {
+                return null;
+            }
+
+            return stripTrailingSlash(`${origin}${ensureLeadingSlash(candidate)}`);
+        }
+
+        function computeApiBase() {
+            // Note: This is client-side only code (no SSR), so window is always defined
+            const proxied = resolveProxyBase();
+            if (proxied) {
+                return joinUrl(proxied, API_PATH);
+            }
+
+            const metaBase = document.querySelector('meta[name="api-base"]')?.content?.trim();
+            if (metaBase) {
+                return joinUrl(metaBase, API_PATH);
+            }
+
+            const { origin, protocol, hostname } = window.location || {};
+            const host = hostname || '127.0.0.1';
+            const isLocal = isLocalHostname(host);
+
+            if (origin && !isLocal) {
+                return joinUrl(origin, API_PATH);
+            }
+
+            // Attempt to read API port from window globals (injected by server or iframe bridge)
+            const fallbackPort = window.PRIVACY_TERMS_GENERATOR_API_PORT || window.API_PORT;
+            if (!fallbackPort) {
+                console.error('API port not configured. Expected window.API_PORT or window.PRIVACY_TERMS_GENERATOR_API_PORT to be set.');
+                // Return a best-guess URL for development, but log the misconfiguration
+                return `http://${host}:15000${API_PATH}`;
+            }
+            const scheme = protocol === 'https:' ? 'https' : 'http';
+            const base = `${scheme}://${host}${isLocal ? `:${fallbackPort}` : ''}`;
+            return joinUrl(base, API_PATH);
+        }
+
+        const API_BASE = computeApiBase();
+
         function showStatus(message, type = 'info') {
             const statusEl = document.getElementById('statusMessage');
             statusEl.className = `status-message active status-${type}`;

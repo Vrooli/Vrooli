@@ -115,7 +115,7 @@ All systems re-validated with **zero regressions** found:
    - Accessible and rendering correctly
    - Romantic pastel theme applied beautifully
    - Navigation tabs: Get Suggestions, My Plans, Memories, Preferences
-   - Status indicators: API, Database, Workflows all showing
+   - Status indicators: API and Database showing
    - Form elements: Couple ID, Date Type, Budget, Date picker visible
 
 4. **Test Suite** ✅
@@ -123,7 +123,7 @@ All systems re-validated with **zero regressions** found:
    - Go build: Success
    - API health: Pass
    - Database health: Pass
-   - Workflow health: Pass (n8n available)
+   - Workflow health: Pass (in-API orchestration)
    - Suggest endpoint: Pass
    - CLI help: Pass
    - CLI suggest: Pass
@@ -163,22 +163,17 @@ The date-night-planner scenario is in **excellent production-ready condition** w
 
 #### Future Enhancement Opportunities (P1/P2)
 These are **optional enhancements**, not blockers or problems:
-1. **n8n Workflow Activation** (P1 - nice to have)
-   - Current: n8n workflows exist but are not actively imported
-   - Impact: Scenario functions perfectly without them using fallback logic
-   - Enhancement: Would enable more sophisticated AI-powered suggestions
-
-2. **Calendar Integration** (P1 - partial implementation)
+1. **Calendar Integration** (P1 - partial implementation)
    - Current: API structure exists, no actual external calendar API connected
    - Impact: Date suggestions work fine without calendar integration
    - Enhancement: Would enable optimal timing suggestions based on existing schedules
 
-3. **Social Media Integration** (P1 - future)
+2. **Social Media Integration** (P1 - future)
    - Current: Not implemented
    - Impact: No impact on core functionality
    - Enhancement: Would add trending date ideas from social platforms
 
-4. **Database Seed Data** (P2 - optional)
+3. **Database Seed Data** (P2 - optional)
    - Current: Schema exists but no pre-populated venue data
    - Impact: Suggestions use built-in templates successfully
    - Enhancement: Would add local venue recommendations
@@ -258,11 +253,7 @@ These are **optional enhancements**, not blockers or problems:
    - Would require OAuth setup and API integrations
 
 ### Infrastructure Issues
-1. **N8N Workflow Import**
-   - Workflows created but not actively imported/running
-   - Need to verify n8n resource is running and workflows are deployed
-
-2. **Database Population**
+1. **Database Population**
    - Schema exists but no seed data
    - Need to add sample venues and date ideas
 
@@ -276,8 +267,7 @@ These are **optional enhancements**, not blockers or problems:
 ### Next Steps (P1)
 1. Implement actual calendar integration or uncheck the box
 2. Fix major standards violations
-3. Import and activate n8n workflows
-4. Add database seed data
+3. Add database seed data
 
 ### Future Improvements (P2)
 1. Social media integration

@@ -1,11 +1,10 @@
 package discovery
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,20 +13,26 @@ import (
 
 // DiscoverScenarios gets all available scenarios from vrooli CLI
 func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
+	return discoverScenarios(execRunner)
+}
+
+func discoverScenarios(runner commandRunner) ([]tasks.ScenarioInfo, error) {
 	var scenarios []tasks.ScenarioInfo
 
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
 	// Get all scenarios from vrooli CLI (now includes unregistered scenarios)
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	output, err := runner.Run(ctx, "vrooli", "scenario", "list", "--json")
 	if err != nil {
 		log.Printf("Error: Failed to get vrooli scenarios: %v", err)
 		return scenarios, err
 	}
 
 	var vrooliResponse struct {
-		Scenarios []map[string]interface{} `json:"scenarios"`
+		Scenarios []map[string]any `json:"scenarios"`
 	}
-	
+
 	if err := json.Unmarshal(output, &vrooliResponse); err != nil {
 		log.Printf("Error: Failed to parse vrooli scenario list output: %v", err)
 		return scenarios, err
@@ -37,14 +42,12 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 		scenarioName := getStringField(vs, "name")
 		if scenarioName != "" {
 			scenario := tasks.ScenarioInfo{
-				Name:           scenarioName,
-				Path:           getStringField(vs, "path"),
-				Category:       inferScenarioCategory(scenarioName), // Still infer category from name
-				Description:    getStringField(vs, "description"),
-				Version:        getStringField(vs, "version"),
-				Status:         getStringField(vs, "status"),
-				// Note: Scenarios don't have completion/health metrics - these are process-level concerns
-				// PRDComplete, Healthy, P0Requirements, P0Completed are omitted (will default to 0/false)
+				Name:        scenarioName,
+				Path:        getStringField(vs, "path"),
+				Category:    inferScenarioCategory(scenarioName), // Still infer category from name
+				Description: getStringField(vs, "description"),
+				Version:     getStringField(vs, "version"),
+				Status:      getStringField(vs, "status"),
 			}
 			scenarios = append(scenarios, scenario)
 		}
@@ -57,30 +60,6 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 
 	log.Printf("Discovered %d scenarios from vrooli CLI", len(scenarios))
 	return scenarios, nil
-}
-
-// CheckResourceHealth checks if a resource is healthy
-// Note: Health checking is now handled by vrooli CLI's resource status command
-// This function is kept for backward compatibility and always returns true
-func CheckResourceHealth(resourceName, resourceDir string) bool {
-	// Health checks are now delegated to vrooli CLI
-	// Use: vrooli resource status <resource-name>
-	return true
-}
-
-// CheckScenarioHealth checks if a scenario is healthy
-func CheckScenarioHealth(scenarioName, scenarioDir string) bool {
-	// Check if scenario has basic structure
-	requiredFiles := []string{"PRD.md", "README.md"}
-
-	for _, file := range requiredFiles {
-		filePath := filepath.Join(scenarioDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // GetScenarioPRDStatus parses a PRD.md file to get completion status
@@ -245,40 +224,3 @@ func inferScenarioCategory(name string) string {
 // Legacy filesystem functions kept for backward compatibility
 // Note: CLI-based discovery is now the primary method (see DiscoverScenarios)
 // These functions remain as fallbacks for scenarios not registered with vrooli CLI
-
-func extractScenarioDescription(scenarioPath string) string {
-	// Try to read PRD.md first
-	prdPath := filepath.Join(scenarioPath, "PRD.md")
-	if desc := ExtractDescriptionFromPRD(prdPath); desc != "No description available" {
-		return desc
-	}
-
-	// Try to read README.md
-	readmePath := filepath.Join(scenarioPath, "README.md")
-	if data, err := os.ReadFile(readmePath); err == nil {
-		content := string(data)
-		lines := strings.Split(content, "\n")
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(trimmed) > 10 {
-				if len(trimmed) > 100 {
-					return trimmed[:100] + "..."
-				}
-				return trimmed
-			}
-		}
-	}
-
-	// Try to read service.json for description
-	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	if data, err := os.ReadFile(servicePath); err == nil {
-		var serviceConfig map[string]interface{}
-		if json.Unmarshal(data, &serviceConfig) == nil {
-			if desc := getStringField(serviceConfig, "description"); desc != "" {
-				return desc
-			}
-		}
-	}
-
-	return "Unregistered scenario - no description available"
-}

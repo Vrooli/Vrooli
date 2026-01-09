@@ -1,20 +1,21 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Contact struct {
@@ -77,25 +78,12 @@ var db *sql.DB
 var relationshipProcessor *RelationshipProcessor
 
 func initDB() {
-	// ALL database configuration MUST come from environment - no defaults
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	// Configure connection pool
@@ -103,58 +91,9 @@ func initDB() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-	
 	log.Println("🎉 Database connection pool established successfully!")
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-}
 
 func getContactsHandler(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, name, nickname, relationship_type, birthday, email, phone, notes, tags 
@@ -520,27 +459,25 @@ func getInsightsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start personal-relationship-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "personal-relationship-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	initDB()
-	defer db.Close()
 
 	// Initialize RelationshipProcessor
 	relationshipProcessor = NewRelationshipProcessor(db)
 
 	r := mux.NewRouter()
 
-	// Health check
+	// Health check using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Contact routes
@@ -576,12 +513,11 @@ func main() {
 
 	handler := c.Handler(r)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Personal Relationship Manager API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

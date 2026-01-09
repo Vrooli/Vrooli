@@ -5,23 +5,14 @@ set -euo pipefail
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 source "${SCRIPT_DIR}/../utils/var.sh"
 source "${SCRIPT_DIR}/../utils/log.sh"
+source "${SCRIPT_DIR}/dependencies.sh"
 
 scenario::run() {
     local scenario_name="$1"
     shift
-    
-    local scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
-    
-    if [[ ! -d "$scenario_path" ]]; then
-        log::error "Scenario not found: $scenario_name"
-        return 1
-    fi
-    
-    # Get the phase (default to 'develop' if not specified)
-    local phase="${1:-develop}"
-    shift || true
-    
-    # Check for optional flags
+
+    # Check for optional flags (must happen before phase parsing)
+    local custom_path=""
     local clean_stale=false
     local allow_skip_missing_runtime=false
     local manage_runtime=false
@@ -29,6 +20,8 @@ scenario::run() {
     local prior_allow_value=""
     local had_prior_manage_var=false
     local prior_manage_value=""
+    local had_prior_gowork_var=false
+    local prior_gowork_value=""
 
     if [[ -n "${TEST_ALLOW_SKIP_MISSING_RUNTIME+x}" ]]; then
         had_prior_allow_var=true
@@ -40,9 +33,23 @@ scenario::run() {
         prior_manage_value="${TEST_MANAGE_RUNTIME}"
     fi
 
+    if [[ -n "${GOWORK+x}" ]]; then
+        had_prior_gowork_var=true
+        prior_gowork_value="${GOWORK}"
+    fi
+
+    # Get the phase (default to 'develop' if not specified)
+    local phase="${1:-develop}"
+    shift || true
+
+    local selection=""
     local -a remaining_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --path)
+                custom_path="$2"
+                shift 2
+                ;;
             --clean-stale)
                 clean_stale=true
                 shift
@@ -56,15 +63,80 @@ scenario::run() {
                 shift
                 ;;
             *)
-                remaining_args+=("$1")
-                shift
+                if [[ "$phase" == "test" && -z "$selection" && "$1" != "-"* ]]; then
+                    selection="$1"
+                    shift
+                else
+                    remaining_args+=("$1")
+                    shift
+                fi
                 ;;
         esac
     done
 
+    # Resolve scenario path (support both default and custom paths)
+    local scenario_path
+    if [[ -n "$custom_path" ]]; then
+        # Custom path provided - make it absolute
+        if [[ "$custom_path" = /* ]]; then
+            scenario_path="$custom_path"
+        else
+            scenario_path="$(cd "$(dirname "$custom_path")" 2>/dev/null && pwd)/$(basename "$custom_path")"
+        fi
+    else
+        # Default: look in standard scenarios directory
+        scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
+    fi
+
+    if [[ ! -d "$scenario_path" ]]; then
+        log::error "Scenario not found: $scenario_name (path: $scenario_path)"
+        return 1
+    fi
+
+    if [[ ${#SCENARIO_DEPENDENCY_STACK[@]} -eq 0 ]]; then
+        scenario::dependencies::ready_reset
+    fi
+
+    if scenario::dependencies::phase_requires_bootstrap "$phase"; then
+        scenario::dependencies::stack_push "$scenario_name"
+        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
+            scenario::dependencies::stack_pop "$scenario_name"
+            return 1
+        fi
+        scenario::dependencies::stack_pop "$scenario_name"
+    fi
+
     if [[ "$allow_skip_missing_runtime" == "true" && "$manage_runtime" == "true" ]]; then
         log::warning "⚠️  --manage-runtime overrides --allow-skip-missing-runtime"
         allow_skip_missing_runtime=false
+    fi
+
+    if [[ "$phase" == "test" && -n "$selection" ]]; then
+        local -a valid_selections=(structure dependencies unit integration business performance all e2e)
+        local is_valid=false
+        for sel in "${valid_selections[@]}"; do
+            if [[ "$selection" == "$sel" ]]; then
+                is_valid=true
+                break
+            fi
+        done
+
+        if [[ "$is_valid" == "false" ]]; then
+            log::error "Invalid test selector: $selection"
+            log::info "Valid selections: ${valid_selections[*]}"
+            return 1
+        fi
+
+        if [[ "$selection" == "e2e" ]]; then
+            log::info "Note: 'e2e' runs the integration phase (current end-to-end coverage)."
+            selection="integration"
+        fi
+
+        if [[ "$selection" == "all" ]]; then
+            remaining_args+=("all")
+        else
+            remaining_args+=("$selection")
+        fi
     fi
     
     # For develop phase, check if already running and healthy
@@ -75,20 +147,67 @@ scenario::run() {
         # Check if scenario is already running and healthy
         if lifecycle::is_scenario_running "$scenario_name"; then
             if lifecycle::is_scenario_healthy "$scenario_name"; then
-                log::success "✓ Scenario '$scenario_name' is already running and healthy"
-                
-                # Show ports for user convenience
-                local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
-                if [[ -f "$scenario_dir/start-api.json" ]]; then
-                    local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
-                    [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                # Even if running and healthy, check if setup is needed (stale code)
+                # This ensures code changes trigger rebuild even when scenario is running
+                cd "$scenario_path" || return 1
+
+                # Source setup utilities for staleness detection
+                source "${SCRIPT_DIR}/../utils/setup.sh" 2>/dev/null || true
+
+                local force_setup="${FORCE_SETUP:-false}"
+                local force_setup_target="${FORCE_SETUP_SCENARIO:-}"
+                local force_setup_applies=false
+                if [[ "$force_setup" == "true" ]]; then
+                    if [[ -z "$force_setup_target" || "$force_setup_target" == "$scenario_name" ]]; then
+                        # Only honor forced rebuilds for the scenario the user
+                        # explicitly restarted so dependencies stay untouched.
+                        force_setup_applies=true
+                    fi
                 fi
-                if [[ -f "$scenario_dir/start-ui.json" ]]; then
-                    local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
-                    [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                if command -v setup::is_needed >/dev/null 2>&1; then
+                    if setup::is_needed "$scenario_path"; then
+                        log::warning "⚠️  Scenario running but code is stale (${SETUP_REASONS[*]:-binaries/bundles outdated}), restarting..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2
+                        # Continue to normal execution below
+                    elif [[ "$force_setup_applies" == "true" ]]; then
+                        log::info "🔄 Forced restart requested, stopping and rebuilding..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2
+                        # Continue to normal execution below
+                    else
+                        log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                        # Show ports for user convenience
+                        local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                        if [[ -f "$scenario_dir/start-api.json" ]]; then
+                            local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                            [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                        fi
+                        if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                            local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                            [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                        fi
+
+                        return 0  # Already running, healthy, and code is current
+                    fi
+                else
+                    # setup::is_needed not available, fall back to old behavior
+                    log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                    # Show ports for user convenience
+                    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                    if [[ -f "$scenario_dir/start-api.json" ]]; then
+                        local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                        [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                    fi
+                    if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                        local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                        [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                    fi
+
+                    return 0  # Already running and healthy
                 fi
-                
-                return 0  # Already running and healthy, nothing to do
             else
                 log::warning "⚠ Scenario '$scenario_name' is running but unhealthy, restarting..."
                 lifecycle::stop_scenario_processes "$scenario_name"
@@ -141,10 +260,30 @@ scenario::run() {
         export TEST_MANAGE_RUNTIME="true"
     fi
 
+    # Default to disabling Go workspace mode for scenario lifecycle execution so a broken
+    # repo-wide go.work can't block unrelated scenarios. Opt-in by setting
+    # VROOLI_SCENARIO_GOWORK=on, or by setting GOWORK explicitly.
+    local scenario_gowork_mode="${VROOLI_SCENARIO_GOWORK:-off}"
+    local scenario_did_disable_gowork=false
+    if [[ "$had_prior_gowork_var" == "false" && "$scenario_gowork_mode" != "on" && "$scenario_gowork_mode" != "auto" ]]; then
+        export GOWORK=off
+        scenario_did_disable_gowork=true
+    fi
+
+    # Export custom path if provided, so lifecycle.sh can use it
+    if [[ -n "$custom_path" ]]; then
+        export SCENARIO_CUSTOM_PATH="$scenario_path"
+    fi
+
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
     "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
+
+    # Clean up custom path export
+    if [[ -n "$custom_path" ]]; then
+        unset SCENARIO_CUSTOM_PATH
+    fi
 
     if [[ "$allow_skip_missing_runtime" == "true" ]]; then
         if [[ "$had_prior_allow_var" == "true" ]]; then
@@ -159,6 +298,14 @@ scenario::run() {
             export TEST_MANAGE_RUNTIME="${prior_manage_value}"
         else
             unset TEST_MANAGE_RUNTIME || true
+        fi
+    fi
+
+    if [[ "$scenario_did_disable_gowork" == "true" ]]; then
+        if [[ "$had_prior_gowork_var" == "true" ]]; then
+            export GOWORK="${prior_gowork_value}"
+        else
+            unset GOWORK || true
         fi
     fi
 

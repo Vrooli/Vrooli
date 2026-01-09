@@ -1,0 +1,54 @@
+{
+  "description": "PATH-injected wrapper that explains correct workflow for blocked git commands during agent runs",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "description": "Implement a PATH-injected git wrapper that intercepts restricted commands during sandbox sessions and provides helpful workflow guidance messages.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "implemented",
+      "title": "Git Command Safety Wrapper",
+      "validation": [
+        {
+          "notes": "Test CreateSafeGitWrapper creates script that blocks restricted commands",
+          "phase": "unit",
+          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Wrapper intercepts git commit/stash/checkout/clean/reset commands",
+          "phase": "manual",
+          "ref": "api/internal/driver/bwrap.go:CreateSafeGitWrapper",
+          "status": "passing",
+          "type": "inspection"
+        },
+        {
+          "notes": "Test with real git operations",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Wrapper overhead <10ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users understand workflow restrictions",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Safe-Git Wrapper"
+}

@@ -1,0 +1,608 @@
+import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+
+declare global {
+  interface Window {
+    __SECRETS_MANAGER_CONFIG__?: {
+      apiBaseUrl?: string;
+    };
+  }
+}
+
+let API_BASE_URL: string | null = null;
+
+const getApiBaseUrl = () => {
+  if (API_BASE_URL === null) {
+    const explicitUrl = typeof window !== "undefined" ? window.__SECRETS_MANAGER_CONFIG__?.apiBaseUrl : undefined;
+    API_BASE_URL = explicitUrl && explicitUrl.trim().length > 0 ? explicitUrl : resolveApiBase({ appendSuffix: true });
+  }
+
+  return API_BASE_URL;
+};
+
+const jsonFetch = async <T>(path: string, init?: RequestInit) => {
+  const response = await fetch(
+    buildApiUrl(path, {
+      baseUrl: getApiBaseUrl()
+    }),
+    {
+      headers: {
+        "Content-Type": "application/json"
+      },
+      cache: "no-store",
+      ...init
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status}): ${response.statusText}`);
+  }
+
+  return (await response.json()) as T;
+};
+
+export interface HealthResponse {
+  status: string;
+  service: string;
+  version?: string;
+  timestamp: string;
+  readiness?: boolean;
+  status_notes?: string[];
+  dependencies?: {
+    database?: {
+      connected: boolean;
+      error?: {
+        category: string;
+        code: string;
+        message: string;
+        retryable: boolean;
+      };
+      latency_ms: number;
+    };
+    [key: string]: any;
+  };
+}
+
+export interface VaultMissingSecret {
+  resource_name: string;
+  secret_name: string;
+  secret_path: string;
+  required: boolean;
+  description: string;
+}
+
+export interface VaultResourceStatus {
+  resource_name: string;
+  secrets_total: number;
+  secrets_found: number;
+  secrets_missing: number;
+  secrets_optional: number;
+  health_status: string;
+  last_checked: string;
+}
+
+export interface VaultSecretsStatus {
+  total_resources: number;
+  configured_resources: number;
+  missing_secrets: VaultMissingSecret[];
+  resource_statuses: VaultResourceStatus[];
+  last_updated: string;
+}
+
+export interface ComplianceResponse {
+  overall_score: number;
+  vault_secrets_health: number;
+  vulnerability_summary: Record<string, number>;
+  remediation_progress: {
+    configured_components: number;
+    critical_issues: number;
+    high_issues: number;
+    medium_issues: number;
+    low_issues: number;
+    security_score: number;
+    vault_secrets_health: number;
+    overall_compliance: number;
+  };
+  total_resources: number;
+  configured_resources: number;
+  configured_components: number;
+  total_components: number;
+  total_vulnerabilities: number;
+  components_summary?: {
+    resources_scanned: number;
+    scenarios_scanned: number;
+    total_components: number;
+    configured_count: number;
+  };
+  last_updated: string;
+}
+
+export interface SecurityVulnerability {
+  id: string;
+  component_type: string;
+  component_name: string;
+  file_path: string;
+  line_number: number;
+  severity: "critical" | "high" | "medium" | "low";
+  type: string;
+  title: string;
+  description: string;
+  recommendation: string;
+  can_auto_fix: boolean;
+  discovered_at: string;
+  status?: string;
+  fingerprint?: string;
+  last_observed_at?: string;
+}
+
+export interface VulnerabilityResponse {
+  vulnerabilities: SecurityVulnerability[];
+  total_count: number;
+  scan_id: string;
+  scan_duration: number;
+  risk_score: number;
+  recommendations?: Array<{ vulnerability_type: string; description: string; priority: string }>;
+}
+
+export interface JourneyCard {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  cta_label: string;
+  cta_action: string;
+  primers: string[];
+  badge: string;
+}
+
+export interface TierReadiness {
+  tier: string;
+  label: string;
+  strategized: number;
+  total: number;
+  ready_percent: number;
+  blocking_secret_sample: string[];
+}
+
+export interface ResourceSecretInsight {
+  secret_key: string;
+  secret_type: string;
+  classification: string;
+  required: boolean;
+  tier_strategies: Record<string, string>;
+}
+
+export interface ResourceInsight {
+  resource_name: string;
+  total_secrets: number;
+  valid_secrets: number;
+  missing_secrets: number;
+  invalid_secrets: number;
+  last_validation?: string;
+  secrets: ResourceSecretInsight[];
+}
+
+export interface OrientationSummary {
+  hero_stats: {
+    vault_configured: number;
+    vault_total: number;
+    missing_secrets: number;
+    risk_score: number;
+    overall_score: number;
+    last_scan: string;
+    readiness_label: string;
+    confidence: number;
+  };
+  journeys: JourneyCard[];
+  tier_readiness: TierReadiness[];
+  resource_insights: ResourceInsight[];
+  vulnerability_insights: { severity: string; count: number; message: string }[];
+  updated_at: string;
+}
+
+export interface CampaignSummary {
+  id: string;
+  scenario: string;
+  tier: string;
+  status: string;
+  progress: number;
+  blockers: number;
+  updated_at: string;
+  next_action?: string;
+  last_step?: string;
+  summary?: {
+    strategized_secrets: number;
+    total_secrets: number;
+    requires_action: number;
+  };
+}
+
+export interface CampaignListResponse {
+  campaigns: CampaignSummary[];
+  count: number;
+}
+
+export interface ResourceSecretDetail {
+  id: string;
+  secret_key: string;
+  secret_type: string;
+  description: string;
+  classification: string;
+  required: boolean;
+  owner_team: string;
+  owner_contact: string;
+  tier_strategies: Record<string, string>;
+  validation_state: string;
+  last_validated?: string;
+}
+
+export interface ResourceDetail {
+  resource_name: string;
+  valid_secrets: number;
+  missing_secrets: number;
+  total_secrets: number;
+  last_validation?: string;
+  secrets: ResourceSecretDetail[];
+  open_vulnerabilities: SecurityVulnerability[];
+}
+
+export interface DeploymentManifestSecret {
+  resource_name: string;
+  secret_key: string;
+  secret_type: string;
+  required: boolean;
+  classification: string;
+  description?: string;
+  owner_team?: string;
+  owner_contact?: string;
+  handling_strategy: string;
+  fallback_strategy?: string;
+  requires_user_input: boolean;
+  prompt?: { label?: string; description?: string };
+  generator_template?: Record<string, unknown> | null;
+  bundle_hints?: Record<string, unknown> | null;
+  tier_strategies?: Record<string, string>;
+}
+
+export interface DeploymentManifestSummary {
+  total_secrets: number;
+  strategized_secrets: number;
+  requires_action: number;
+  blocking_secrets: string[];
+  blocking_secret_details?: Array<{
+    secret: string;
+    resource: string;
+    source: string;
+    dependency_path?: string[];
+  }>;
+  classification_weights: Record<string, number>;
+  strategy_breakdown: Record<string, number>;
+  scope_readiness: Record<string, string>;
+}
+
+export interface DependencyRequirementSummary {
+  ram_mb?: number;
+  disk_mb?: number;
+  cpu_cores?: number;
+  network?: string;
+  source?: string;
+  confidence?: string;
+}
+
+export interface DependencyTierSupport {
+  supported: boolean;
+  fitness_score: number;
+  notes?: string;
+  reason?: string;
+  alternatives?: string[];
+}
+
+export interface DependencyInsight {
+  name: string;
+  kind: string;
+  resource_type?: string;
+  source?: string;
+  alternatives?: string[];
+  requirements?: DependencyRequirementSummary;
+  tier_support?: Record<string, DependencyTierSupport>;
+}
+
+export interface TierAggregateView {
+  fitness_score: number;
+  dependency_count?: number;
+  blocking_dependencies?: string[];
+  estimated_requirements?: DependencyRequirementSummary;
+}
+
+export interface DeploymentManifestResponse {
+  scenario: string;
+  tier: string;
+  generated_at: string;
+  resources: string[];
+  secrets: DeploymentManifestSecret[];
+  summary: DeploymentManifestSummary;
+  analyzer_generated_at?: string;
+  dependencies?: DependencyInsight[];
+  tier_aggregates?: Record<string, TierAggregateView>;
+}
+
+export interface DeploymentManifestRequest {
+  scenario: string;
+  tier: string;
+  resources?: string[];
+  include_optional?: boolean;
+}
+
+export interface DeploymentReadinessResponse {
+  scenario: string;
+  tier: string;
+  resources: string[];
+  summary: DeploymentManifestSummary;
+  generated_at: string;
+}
+
+export const fetchHealth = () => jsonFetch<HealthResponse>("/health");
+
+export const fetchVaultStatus = (resource?: string) => {
+  const search = resource ? `?resource=${encodeURIComponent(resource)}` : "";
+  return jsonFetch<VaultSecretsStatus>(`/vault/secrets/status${search}`);
+};
+
+export const fetchCompliance = () => jsonFetch<ComplianceResponse>("/security/compliance");
+
+export interface VulnerabilityFilters {
+  component?: string;
+  componentType?: string;
+  severity?: string;
+}
+
+export const fetchVulnerabilities = (filters: VulnerabilityFilters) => {
+  const params = new URLSearchParams();
+  if (filters.component) {
+    params.set("component", filters.component);
+  }
+  if (filters.componentType) {
+    params.set("component_type", filters.componentType);
+  }
+  if (filters.severity) {
+    params.set("severity", filters.severity);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return jsonFetch<VulnerabilityResponse>(`/vulnerabilities${suffix}`);
+};
+
+export const fetchOrientationSummary = () => jsonFetch<OrientationSummary>("/orientation/summary");
+
+export const generateDeploymentManifest = (payload: DeploymentManifestRequest) =>
+  jsonFetch<DeploymentManifestResponse>("/deployment/secrets", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const fetchDeploymentReadiness = (payload: DeploymentManifestRequest) =>
+  jsonFetch<DeploymentReadinessResponse>("/deployment/readiness", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const fetchResourceDetail = (resource: string) => jsonFetch<ResourceDetail>(`/resources/${resource}`);
+
+export interface UpdateResourceSecretPayload {
+  classification?: string;
+  description?: string;
+  required?: boolean;
+  owner_team?: string;
+  owner_contact?: string;
+}
+
+export const updateResourceSecret = (resource: string, secret: string, payload: UpdateResourceSecretPayload) =>
+  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+
+export interface UpdateSecretStrategyPayload {
+  tier: string;
+  handling_strategy: string;
+  fallback_strategy?: string;
+  requires_user_input?: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  generator_template?: Record<string, unknown>;
+  bundle_hints?: Record<string, unknown>;
+}
+
+export const updateSecretStrategy = (resource: string, secret: string, payload: UpdateSecretStrategyPayload) =>
+  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}/strategy`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export interface UpdateVulnerabilityStatusPayload {
+  status: string;
+  assigned_to?: string;
+}
+
+export const updateVulnerabilityStatus = (id: string, payload: UpdateVulnerabilityStatusPayload) =>
+  jsonFetch<{ id: string; status: string }>(`/vulnerabilities/${id}/status`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export interface ProvisionSecretsPayload {
+  resource: string;
+  secret_key?: string;
+  secret_value?: string;
+  secrets?: Record<string, string>;
+}
+
+export interface ProvisionSecretsResponse {
+  success: boolean;
+  message?: string;
+  local_stored: number;
+  vault_stored: number;
+  total_provisioned: number;
+}
+
+export const provisionSecrets = (payload: ProvisionSecretsPayload) =>
+  jsonFetch<ProvisionSecretsResponse>("/secrets/provision", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export interface ScenarioSummary {
+  name: string;
+  description?: string;
+  version?: string;
+  status?: string;
+  tags?: string[];
+  path?: string;
+}
+
+export const fetchScenarios = () =>
+  jsonFetch<{ scenarios: ScenarioSummary[]; count: number }>("/scenarios");
+
+export const fetchCampaigns = (options?: { includeReadiness?: boolean; scenario?: string }) => {
+  const includeReadiness = options?.includeReadiness ?? false;
+  const scenario = options?.scenario;
+  const params = new URLSearchParams();
+  if (includeReadiness) params.set("include_readiness", "true");
+  if (scenario) params.set("scenario", scenario);
+  const suffix = params.toString();
+  return jsonFetch<CampaignListResponse>(`/campaigns${suffix ? `?${suffix}` : ""}`);
+};
+
+// =============================================================================
+// Scenario Secret Strategy Overrides
+// =============================================================================
+
+export interface ScenarioSecretOverride {
+  id: string;
+  scenario_name: string;
+  resource_secret_id: string;
+  resource_name: string;
+  secret_key: string;
+  tier: string;
+  handling_strategy?: string;
+  fallback_strategy?: string;
+  requires_user_input?: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  generator_template?: Record<string, unknown>;
+  bundle_hints?: Record<string, unknown>;
+  override_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EffectiveSecretStrategy {
+  resource_name: string;
+  secret_key: string;
+  tier: string;
+  handling_strategy: string;
+  fallback_strategy?: string;
+  requires_user_input: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  is_overridden: boolean;
+  overridden_fields?: string[];
+  override_reason?: string;
+}
+
+export interface OverridesListResponse {
+  scenario: string;
+  tier?: string;
+  overrides: ScenarioSecretOverride[];
+  count: number;
+}
+
+export interface EffectiveStrategiesResponse {
+  scenario: string;
+  tier: string;
+  strategies: EffectiveSecretStrategy[];
+  count: number;
+}
+
+export interface SetOverridePayload {
+  handling_strategy?: string;
+  fallback_strategy?: string;
+  requires_user_input?: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  generator_template?: Record<string, unknown>;
+  bundle_hints?: Record<string, unknown>;
+  override_reason?: string;
+}
+
+export interface CopyFromTierPayload {
+  source_tier: string;
+  target_tier: string;
+  overwrite?: boolean;
+}
+
+export interface CopyFromScenarioPayload {
+  source_scenario: string;
+  tier: string;
+  overwrite?: boolean;
+}
+
+// Fetch all overrides for a scenario (all tiers)
+export const fetchScenarioOverrides = (scenario: string) =>
+  jsonFetch<OverridesListResponse>(`/scenarios/${encodeURIComponent(scenario)}/overrides`);
+
+// Fetch overrides for a scenario and tier
+export const fetchScenarioTierOverrides = (scenario: string, tier: string) =>
+  jsonFetch<OverridesListResponse>(`/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}`);
+
+// Fetch a specific override
+export const fetchScenarioOverride = (scenario: string, tier: string, resource: string, secret: string) =>
+  jsonFetch<ScenarioSecretOverride>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`
+  );
+
+// Create or update a scenario override
+export const setScenarioOverride = (scenario: string, tier: string, resource: string, secret: string, payload: SetOverridePayload) =>
+  jsonFetch<ScenarioSecretOverride>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// Delete a scenario override (revert to resource default)
+export const deleteScenarioOverride = (scenario: string, tier: string, resource: string, secret: string) =>
+  jsonFetch<{ success: boolean; message: string }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`,
+    { method: "DELETE" }
+  );
+
+// Fetch effective strategies for a scenario and tier (merged resource defaults + overrides)
+export const fetchEffectiveStrategies = (scenario: string, tier: string, resources?: string[]) => {
+  const params = new URLSearchParams();
+  if (resources?.length) params.set("resources", resources.join(","));
+  const suffix = params.toString();
+  return jsonFetch<EffectiveStrategiesResponse>(
+    `/scenarios/${encodeURIComponent(scenario)}/effective/${encodeURIComponent(tier)}${suffix ? `?${suffix}` : ""}`
+  );
+};
+
+// Copy overrides from one tier to another within the same scenario
+export const copyOverridesFromTier = (scenario: string, payload: CopyFromTierPayload) =>
+  jsonFetch<{ success: boolean; copied: number }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/copy-from-tier`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// Copy overrides from another scenario
+export const copyOverridesFromScenario = (scenario: string, payload: CopyFromScenarioPayload) =>
+  jsonFetch<{ success: boolean; copied: number }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/copy-from-scenario`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );

@@ -26,10 +26,6 @@ teardown() {
     [ "$(ports::get_resource_port "browserless")" = "4110" ]
 }
 
-@test "ports::get_resource_port returns correct port for n8n" {
-    [ "$(ports::get_resource_port "n8n")" = "5678" ]
-}
-
 @test "ports::get_resource_port returns empty for invalid resource" {
     [ "$(ports::get_resource_port "nonexistent")" = "" ]
 }
@@ -40,11 +36,6 @@ teardown() {
 
 @test "ports::validate_assignment accepts valid ollama port" {
     run ports::validate_assignment "11434" "ollama"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::validate_assignment accepts valid n8n port" {
-    run ports::validate_assignment "5678" "n8n"
     [ "$status" -eq 0 ]
 }
 
@@ -104,7 +95,6 @@ teardown() {
     # Check that output contains expected resource ports
     [[ "$output" == *"11434"* ]] # Ollama
     [[ "$output" == *"4110"* ]]  # Browserless  
-    [[ "$output" == *"5678"* ]]  # n8n
 }
 
 @test "ports::find_available_in_range finds available port" {

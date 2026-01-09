@@ -8,7 +8,11 @@
       "type": "string",
       "description": "Blender version to use",
       "default": "4.0",
-      "enum": ["3.6", "4.0", "4.1"]
+      "enum": [
+        "3.6",
+        "4.0",
+        "4.1"
+      ]
     },
     "port": {
       "type": "integer",
@@ -30,7 +34,10 @@
     "deployment_mode": {
       "type": "string",
       "description": "Deployment mode for Blender",
-      "enum": ["native", "docker"],
+      "enum": [
+        "native",
+        "docker"
+      ],
       "default": "docker"
     },
     "rendering": {
@@ -40,7 +47,11 @@
         "engine": {
           "type": "string",
           "description": "Default rendering engine",
-          "enum": ["CYCLES", "EEVEE", "WORKBENCH"],
+          "enum": [
+            "CYCLES",
+            "EEVEE",
+            "WORKBENCH"
+          ],
           "default": "CYCLES"
         },
         "gpu_enabled": {
@@ -93,7 +104,11 @@
         "gravity": {
           "type": "array",
           "description": "Gravity vector [x, y, z]",
-          "default": [0, 0, -9.81],
+          "default": [
+            0,
+            0,
+            -9.81
+          ],
           "items": {
             "type": "number"
           },
@@ -151,6 +166,10 @@
       }
     }
   },
-  "required": ["version", "data_dir"],
-  "additionalProperties": false
+  "required": [
+    "version",
+    "data_dir"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/blender/schema.json"
 }

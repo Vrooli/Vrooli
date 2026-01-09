@@ -338,9 +338,7 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 			}
 		}
 
-		buildsMux.RLock()
-		totalBuilds := len(builds)
-		buildsMux.RUnlock()
+		totalBuilds := buildManager.Count()
 
 		if totalBuilds < buildCount {
 			t.Errorf("Expected at least %d builds in memory, got %d", buildCount, totalBuilds)
@@ -402,7 +400,7 @@ func BenchmarkGenerateExtension(b *testing.B) {
 	}
 
 	config = cfg
-	builds = make(map[string]*ExtensionBuild)
+	buildManager = NewBuildManager()
 
 	req := TestData.GenerateExtensionRequest(
 		"benchmark-scenario",
@@ -437,7 +435,7 @@ func BenchmarkHealthCheck(b *testing.B) {
 	}
 
 	config = cfg
-	builds = make(map[string]*ExtensionBuild)
+	buildManager = NewBuildManager()
 
 	b.ResetTimer()
 
@@ -473,7 +471,7 @@ func BenchmarkBuildIDGeneration(b *testing.B) {
 
 func BenchmarkCountBuildsByStatus(b *testing.B) {
 	// Setup test builds
-	builds = make(map[string]*ExtensionBuild)
+	buildManager = NewBuildManager()
 	for i := 0; i < 1000; i++ {
 		status := "building"
 		if i%3 == 0 {
@@ -481,12 +479,12 @@ func BenchmarkCountBuildsByStatus(b *testing.B) {
 		} else if i%3 == 1 {
 			status = "failed"
 		}
-		builds[fmt.Sprintf("build-%d", i)] = &ExtensionBuild{Status: status}
+		buildManager.Add(&ExtensionBuild{BuildID: fmt.Sprintf("build-%d", i), Status: status})
 	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = countBuildsByStatus("building")
+		_ = buildManager.CountByStatus("building")
 	}
 }

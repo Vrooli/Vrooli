@@ -64,38 +64,60 @@ codex::status::collect_data() {
         fi
     fi
     
-    # Check configuration
-    if codex::is_configured; then
-        api_configured="true"
+    # Check if Codex CLI is installed
+    if command -v codex &>/dev/null; then
+        cli_installed="true"
+        cli_version=$(codex::cli::version 2>/dev/null || echo "unknown")
         installed="true"
-        
-        # Check API availability (skip in fast mode)
+
+        # Check API availability via login status (skip in fast mode)
         if [[ "$fast" == "true" ]]; then
-            # Assume available if configured in fast mode
+            # Assume available if CLI is installed in fast mode
             api_available="N/A"
             health="healthy"
             healthy="true"
-            details="Codex API configured (fast mode)"
+            details="Codex CLI available (fast mode)"
             status="running"
             running="true"
-        elif codex::is_available; then
-            api_available="true"
-            health="healthy"
-            healthy="true"
-            details="Codex API is available and configured"
-            
-            # Mark as running if healthy
-            if [[ "${status}" != "running" ]]; then
-                status="running"
-                running="true"
-                codex::save_status "running"
-            fi
         else
-            health="partial"
-            details="Codex configured but API not responding"
+            # Check login status - returns 0=logged in, 1=not logged in, 2=unknown
+            codex::is_available
+            local avail_status=$?
+
+            case $avail_status in
+                0)
+                    # Logged in and available
+                    api_available="true"
+                    api_configured="true"
+                    health="healthy"
+                    healthy="true"
+                    details="Codex CLI logged in and available (v${cli_version})"
+                    status="running"
+                    running="true"
+                    codex::save_status "running"
+                    ;;
+                1)
+                    # Not logged in
+                    api_available="false"
+                    api_configured="false"
+                    health="partial"
+                    details="Codex CLI installed but not logged in. Run: codex login"
+                    ;;
+                2|*)
+                    # Unknown status - don't mark as unhealthy
+                    api_available="unknown"
+                    api_configured="unknown"
+                    health="unknown"
+                    healthy="unknown"
+                    details="Codex CLI installed, login status unknown (v${cli_version})"
+                    status="running"
+                    running="true"
+                    ;;
+            esac
         fi
     else
-        details="OpenAI API key not configured"
+        # Codex CLI not installed
+        details="Codex CLI not installed. Run: resource-codex manage install-cli"
     fi
     
     # Count injected scripts (skip in fast mode)

@@ -93,8 +93,8 @@ func TestNetworkScanHandlerComprehensive(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/v1/network/scan",
 			Body: map[string]interface{}{
-				"target": "127.0.0.1",
-				"ports":  []int{22, 80},
+				"target":  "127.0.0.1",
+				"ports":   []int{22, 80},
 				"timeout": 1000,
 			},
 		})

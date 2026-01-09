@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { Issue } from '../data/sampleData';
+import type { Issue } from '../types/issue';
 import type { PriorityFilterValue } from '../types/issueCreation';
 
 interface UseIssueFiltersOptions {
@@ -39,9 +39,9 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
   const availableApps = useMemo(() => {
     const apps = new Set<string>();
     issues.forEach((issue) => {
-      if (issue.app) {
-        apps.add(issue.app);
-      }
+      issue.targets.forEach((target) => {
+        apps.add(target.id);
+      });
     });
     if (appFilter !== 'all' && appFilter.trim()) {
       apps.add(appFilter.trim());
@@ -52,7 +52,7 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
       const matchesPriority = priorityFilter === 'all' || issue.priority === priorityFilter;
-      const matchesApp = appFilter === 'all' || issue.app === appFilter;
+      const matchesApp = appFilter === 'all' || issue.targets.some((target) => target.id === appFilter);
 
       if (!searchFilter.trim()) {
         return matchesPriority && matchesApp;
@@ -62,7 +62,7 @@ export function useIssueFilters({ issues }: UseIssueFiltersOptions): UseIssueFil
       const matchesSearch =
         issue.id.toLowerCase().includes(query) ||
         issue.title.toLowerCase().includes(query) ||
-        issue.description.toLowerCase().includes(query) ||
+        (issue.description?.toLowerCase().includes(query) ?? false) ||
         issue.assignee.toLowerCase().includes(query) ||
         issue.tags.some((tag) => tag.toLowerCase().includes(query)) ||
         (issue.reporterName?.toLowerCase().includes(query) ?? false) ||

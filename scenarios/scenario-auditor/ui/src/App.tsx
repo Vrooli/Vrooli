@@ -19,19 +19,20 @@ import {
   X,
   Zap
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import AutomatedFixPanel from './components/AutomatedFixPanel'
-import Dashboard from './components/Dashboard'
-import HealthMonitor from './components/HealthMonitor'
-import PerformanceMetrics from './components/PerformanceMetrics'
-import ScenarioDetail from './components/ScenarioDetail'
-import ScenariosList from './components/ScenariosList'
-import SettingsPanel from './components/SettingsPanel'
-import StandardsCompliance from './components/StandardsCompliance'
-import VulnerabilityScanner from './components/VulnerabilityScanner'
-import RulesManager from './pages/RulesManager'
 import { apiService } from './services/api'
+
+// Lazy load route components for better performance
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const ScenariosList = lazy(() => import('./components/ScenariosList'))
+const ScenarioDetail = lazy(() => import('./components/ScenarioDetail'))
+const VulnerabilityScanner = lazy(() => import('./components/VulnerabilityScanner'))
+const StandardsCompliance = lazy(() => import('./components/StandardsCompliance'))
+const RulesManager = lazy(() => import('./pages/RulesManager'))
+const PerformanceMetrics = lazy(() => import('./components/PerformanceMetrics'))
+const AutomatedFixPanel = lazy(() => import('./components/AutomatedFixPanel'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'))
 
 export default function App() {
   const navigate = useNavigate()
@@ -79,7 +80,6 @@ export default function App() {
     { id: 'vulnerabilities', name: 'Security Scanner', icon: Shield, path: '/vulnerabilities' },
     { id: 'standards', name: 'Standards Compliance', icon: AlertTriangle, path: '/standards' },
     { id: 'rules', name: 'Rules Manager', icon: ClipboardList, path: '/rules' },
-    { id: 'health', name: 'Health Monitor', icon: Activity, path: '/monitoring' },
     { id: 'performance', name: 'Performance', icon: Zap, path: '/performance' },
     { id: 'automated-fixes', name: 'Automated Fixes', icon: Terminal, path: '/fixes' },
     { id: 'settings', name: 'Settings', icon: Settings, path: '/settings' },
@@ -510,21 +510,29 @@ export default function App() {
         {/* Page content */}
         <main className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-7xl">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/scenarios" element={<ScenariosList />} />
-              <Route path="/scenario/:id" element={<ScenarioDetail />} />
-              <Route path="/vulnerabilities" element={<VulnerabilityScanner />} />
-              <Route path="/standards" element={<StandardsCompliance />} />
-              <Route path="/rules" element={<RulesManager />} />
-              <Route path="/scan-results" element={<Navigate to="/vulnerabilities" replace />} />
-              <Route path="/monitoring" element={<HealthMonitor />} />
-              <Route path="/performance" element={<PerformanceMetrics />} />
-              <Route path="/fixes" element={<AutomatedFixPanel />} />
-              <Route path="/preferences" element={<Navigate to="/settings" replace />} />
-              <Route path="/settings" element={<SettingsPanel />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-[400px]">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+                  <p className="text-sm text-dark-600">Loading...</p>
+                </div>
+              </div>
+            }>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/scenarios" element={<ScenariosList />} />
+                <Route path="/scenario/:id" element={<ScenarioDetail />} />
+                <Route path="/vulnerabilities" element={<VulnerabilityScanner />} />
+                <Route path="/standards" element={<StandardsCompliance />} />
+                <Route path="/rules" element={<RulesManager />} />
+                <Route path="/scan-results" element={<Navigate to="/vulnerabilities" replace />} />
+                <Route path="/performance" element={<PerformanceMetrics />} />
+                <Route path="/fixes" element={<AutomatedFixPanel />} />
+                <Route path="/preferences" element={<Navigate to="/settings" replace />} />
+                <Route path="/settings" element={<SettingsPanel />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </div>
         </main>
       </div>

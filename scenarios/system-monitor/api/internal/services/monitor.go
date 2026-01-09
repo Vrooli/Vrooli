@@ -3,12 +3,12 @@ package services
 import (
 	"context"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
 	"system-monitor-api/internal/collectors"
 	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
 )
@@ -19,6 +19,9 @@ type MonitorService struct {
 	repo       repository.MetricsRepository
 	collectors *collectors.CollectorRegistry
 	alertSvc   interface{} // Can be *AlertService or mock
+	infra      infrastructure.Provider
+	active     bool
+	lastRun    map[string]time.Time
 	mu         sync.RWMutex
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -33,6 +36,9 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, al
 		repo:       repo,
 		collectors: collectors.NewCollectorRegistry(),
 		alertSvc:   alertSvc,
+		infra:      infrastructure.NewStaticProvider(),
+		active:     true,
+		lastRun:    make(map[string]time.Time),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
@@ -73,9 +79,23 @@ func (s *MonitorService) Stop() {
 	log.Println("Monitor service stopped")
 }
 
+// SetActive toggles metric collection without shutting down the service.
+func (s *MonitorService) SetActive(active bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.active = active
+}
+
+// IsActive returns whether metric collection is active.
+func (s *MonitorService) IsActive() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.active
+}
+
 // collectionLoop continuously collects metrics
 func (s *MonitorService) collectionLoop() {
-	ticker := time.NewTicker(s.config.Monitoring.MetricsInterval)
+	ticker := time.NewTicker(s.collectionTickInterval())
 	defer ticker.Stop()
 
 	for {
@@ -83,9 +103,57 @@ func (s *MonitorService) collectionLoop() {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
+			if !s.IsActive() {
+				continue
+			}
 			s.collectMetrics()
 		}
 	}
+}
+
+func (s *MonitorService) collectionTickInterval() time.Duration {
+	base := s.config.Monitoring.MetricsInterval
+	if base <= 0 {
+		base = 10 * time.Second
+	}
+
+	minInterval := base
+	for _, collector := range s.collectors.GetEnabled() {
+		interval := collector.GetInterval()
+		if interval > 0 && interval < minInterval {
+			minInterval = interval
+		}
+	}
+
+	if minInterval < time.Second {
+		minInterval = time.Second
+	}
+
+	return minInterval
+}
+
+func (s *MonitorService) shouldCollect(name string, interval time.Duration, now time.Time) bool {
+	if interval <= 0 {
+		interval = s.config.Monitoring.MetricsInterval
+	}
+	if interval <= 0 {
+		interval = 10 * time.Second
+	}
+
+	s.mu.RLock()
+	lastRun, exists := s.lastRun[name]
+	s.mu.RUnlock()
+
+	if exists && now.Sub(lastRun) < interval {
+		return false
+	}
+	return true
+}
+
+func (s *MonitorService) markCollected(name string, now time.Time) {
+	s.mu.Lock()
+	s.lastRun[name] = now
+	s.mu.Unlock()
 }
 
 // collectMetrics collects metrics from all enabled collectors
@@ -93,8 +161,25 @@ func (s *MonitorService) collectMetrics() {
 	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
 	defer cancel()
 
-	// Collect from all collectors
-	metricsData, errors := s.collectors.CollectAll(ctx)
+	now := time.Now()
+	var metricsData []*collectors.MetricData
+	var errors []error
+
+	for _, collector := range s.collectors.GetEnabled() {
+		name := collector.GetName()
+		interval := collector.GetInterval()
+		if !s.shouldCollect(name, interval, now) {
+			continue
+		}
+
+		data, err := collector.Collect(ctx)
+		s.markCollected(name, now)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+		metricsData = append(metricsData, data)
+	}
 
 	// Log any collection errors
 	for _, err := range errors {
@@ -121,20 +206,66 @@ func (s *MonitorService) GetCurrentMetrics(ctx context.Context) (*models.Metrics
 	return metrics, nil
 }
 
+// GetCurrentMetricsFresh performs on-demand metric collection using existing collectors.
+func (s *MonitorService) GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error) {
+	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
+	memData, _ := s.collectFromRegistry(ctx, "memory")
+	netData, _ := s.collectFromRegistry(ctx, "network")
+	gpuData, _ := s.collectFromRegistry(ctx, "gpu")
+
+	cpuUsage := 0.0
+	if cpuData != nil {
+		if val, ok := cpuData.Values["usage_percent"].(float64); ok {
+			cpuUsage = val
+		}
+	}
+
+	memUsage := 0.0
+	if memData != nil {
+		if val, ok := memData.Values["usage_percent"].(float64); ok {
+			memUsage = val
+		}
+	}
+
+	tcpConnections := 0
+	if netData != nil {
+		if val, ok := netData.Values["tcp_connections"].(int); ok {
+			tcpConnections = val
+		}
+	}
+
+	var gpuUsagePtr *float64
+	if gpuData != nil {
+		if val, ok := gpuData.Values["total_usage_percent"].(float64); ok {
+			usage := val
+			gpuUsagePtr = &usage
+		}
+	}
+
+	return &models.MetricsResponse{
+		CPUUsage:       cpuUsage,
+		MemoryUsage:    memUsage,
+		TCPConnections: tcpConnections,
+		GPUUsage:       gpuUsagePtr,
+		Timestamp:      time.Now(),
+	}, nil
+}
+
+func (s *MonitorService) collectFromRegistry(ctx context.Context, name string) (*collectors.MetricData, error) {
+	collector, ok := s.collectors.Get(name)
+	if !ok || !collector.IsEnabled() {
+		return nil, nil
+	}
+	return collector.Collect(ctx)
+}
+
 // collectCurrentMetrics performs real-time metric collection
 func (s *MonitorService) collectCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error) {
-	cpuCollector := collectors.NewCPUCollector()
-	memCollector := collectors.NewMemoryCollector()
-	netCollector := collectors.NewNetworkCollector()
-	gpuCollector := collectors.NewGPUCollector()
-
-	cpuData, _ := cpuCollector.Collect(ctx)
-	memData, _ := memCollector.Collect(ctx)
-	netData, _ := netCollector.Collect(ctx)
+	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
+	memData, _ := s.collectFromRegistry(ctx, "memory")
+	netData, _ := s.collectFromRegistry(ctx, "network")
 	var gpuData *collectors.MetricData
-	if gpuCollector.IsEnabled() {
-		gpuData, _ = gpuCollector.Collect(ctx)
-	}
+	gpuData, _ = s.collectFromRegistry(ctx, "gpu")
 
 	cpuUsage := 0.0
 	if cpuData != nil {
@@ -320,8 +451,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 		detailed.GPUDetails = &metrics
 	}
 
-	// Add service dependencies check
-	detailed.SystemDetails.ServiceDependencies = s.checkServiceDependencies()
+	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
 }
@@ -371,138 +501,7 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 
 // GetInfrastructureMonitorData retrieves infrastructure monitoring data
 func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*models.InfrastructureMonitorData, error) {
-	result := &models.InfrastructureMonitorData{
-		Timestamp: time.Now(),
-	}
-
-	// Get connection pools
-	result.DatabasePools = []models.ConnectionPool{
-		{
-			Name:     "postgres-main",
-			Active:   8,
-			Idle:     2,
-			MaxSize:  10,
-			Waiting:  0,
-			Healthy:  true,
-			LeakRisk: "low",
-		},
-	}
-
-	result.HTTPClientPools = []models.ConnectionPool{
-		{
-			Name:     "scenario-api-1->ollama",
-			Active:   3,
-			Idle:     7,
-			MaxSize:  10,
-			Waiting:  0,
-			Healthy:  true,
-			LeakRisk: "low",
-		},
-	}
-
-	// Message queue stats
-	result.MessageQueues = models.MessageQueueInfo{
-		RedisPubSub: models.RedisPubSubInfo{
-			Subscribers: 12,
-			Channels:    5,
-		},
-		BackgroundJobs: models.BackgroundJobsInfo{
-			Pending: 3,
-			Active:  1,
-			Failed:  0,
-		},
-	}
-
-	// Storage I/O stats
-	result.StorageIO = models.StorageIOInfo{
-		DiskQueueDepth: 0.2,
-		IOWaitPercent:  2.5,
-		ReadMBPerSec:   15.0,
-		WriteMBPerSec:  8.0,
-	}
-
-	return result, nil
-}
-
-// checkServiceDependencies checks the health of dependent services
-func (s *MonitorService) checkServiceDependencies() []models.ServiceHealth {
-	services := []models.ServiceHealth{
-		{
-			Name:      "postgres",
-			Status:    "healthy",
-			LatencyMs: 2.5,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:5432",
-		},
-		{
-			Name:      "redis",
-			Status:    "healthy",
-			LatencyMs: 0.8,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:6379",
-		},
-		{
-			Name:      "qdrant",
-			Status:    "healthy",
-			LatencyMs: 4.1,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:6333",
-		},
-		{
-			Name:      "ollama",
-			Status:    "healthy",
-			LatencyMs: 15.2,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:11434",
-		},
-	}
-
-	return services
-}
-
-// Helper functions
-
-func getFloat64Value(m map[string]interface{}, key string) float64 {
-	if val, ok := m[key].(float64); ok {
-		return val
-	}
-	return 0.0
-}
-
-func getIntValue(m map[string]interface{}, key string) int {
-	if val, ok := m[key].(int); ok {
-		return val
-	}
-	if val, ok := m[key].(float64); ok {
-		return int(val)
-	}
-	return 0
-}
-
-func getInt64Value(m map[string]interface{}, key string) int64 {
-	if val, ok := m[key].(int64); ok {
-		return val
-	}
-	if val, ok := m[key].(float64); ok {
-		return int64(val)
-	}
-	return 0
-}
-
-func getFloat64Slice(m map[string]interface{}, key string) []float64 {
-	if val, ok := m[key].([]float64); ok {
-		return val
-	}
-	if val, ok := m[key].([]interface{}); ok {
-		result := make([]float64, 0, len(val))
-		for _, v := range val {
-			if f, ok := v.(float64); ok {
-				result = append(result, f)
-			}
-		}
-		return result
-	}
-	return []float64{}
+	return s.infra.GetInfrastructureMonitorData(ctx)
 }
 
 func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
@@ -515,24 +514,4 @@ func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 		FDs:        getIntValue(proc, "fd_count"),
 		Status:     getStringValue(proc, "status"),
 	}
-}
-
-func getStringValue(m map[string]interface{}, key string) string {
-	if val, ok := m[key].(string); ok {
-		return val
-	}
-	return ""
-}
-
-func getBoolValue(m map[string]interface{}, key string) bool {
-	if val, ok := m[key].(bool); ok {
-		return val
-	}
-	if val, ok := m[key].(string); ok {
-		return strings.EqualFold(val, "true") || val == "1"
-	}
-	if val, ok := m[key].(float64); ok {
-		return val != 0
-	}
-	return false
 }

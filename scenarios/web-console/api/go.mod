@@ -1,11 +1,12 @@
 module webconsole
 
-go 1.24
-
-toolchain go1.24.7
+go 1.21
 
 require (
 	github.com/creack/pty v1.1.21
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/vrooli/api-core v0.0.0
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

@@ -1,15 +1,21 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -39,132 +45,51 @@ type SpinResult struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-	Version string `json:"version"`
-}
-
-var db *sql.DB
-var wheels []Wheel
-var history []SpinResult
+var (
+	db      *sql.DB
+	wheels  []Wheel
+	history []SpinResult
+	logger  *slog.Logger
+)
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Println("❌ Database configuration missing. Using in-memory fallback. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-			return
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Printf("Failed to open database connection: %v - using in-memory fallback", err)
-		return
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Printf("❌ Database connection failed after %d attempts: %v - using in-memory fallback", maxRetries, pingErr)
+		logger.Warn("database connection failed, using in-memory fallback",
+			"error", err)
 		db = nil
 		return
 	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	logger.Info("database connection pool established successfully")
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start picker-wheel
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "picker-wheel",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
+
+	// Initialize structured logger
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
 	// Initialize database connection
 	initDB()
-	defer func() {
-		if db != nil {
-			db.Close()
-		}
-	}()
 
 	// Initialize in-memory data as fallback
 	wheels = getDefaultWheels()
 	history = []SpinResult{}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API endpoints
@@ -185,20 +110,23 @@ func main() {
 
 	handler := c.Handler(router)
 
-	log.Printf("🎯 Picker Wheel API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	logger.Info("picker wheel API starting",
+		"service", "picker-wheel-api",
+		"version", "1.0.0")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 // getEnv removed to prevent hardcoded defaults
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:  "healthy",
-		Service: "picker-wheel-api",
-		Version: "1.0.0",
-	}
-	json.NewEncoder(w).Encode(response)
-}
 
 func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -210,16 +138,19 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.Query(`
-        SELECT id, name, description, options, theme, times_used, created_at 
-        FROM wheels 
-        WHERE is_public = true 
+        SELECT id, name, description, options, theme, times_used, created_at
+        FROM wheels
+        WHERE is_public = true
         ORDER BY times_used DESC, created_at DESC
         LIMIT 20
     `)
 	if err != nil {
-		log.Printf("Error querying wheels: %v", err)
+		logger.Error("failed to query wheels from database",
+			"error", err,
+			"fallback", "in-memory wheels")
 		// Return in-memory wheels on any database error
 		wheels = getDefaultWheels()
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(wheels)
 		return
 	}
@@ -232,12 +163,15 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&wheel.ID, &wheel.Name, &wheel.Description,
 			&optionsJSON, &wheel.Theme, &wheel.TimesUsed, &wheel.CreatedAt)
 		if err != nil {
-			log.Printf("Error scanning wheel: %v", err)
+			logger.Error("failed to scan wheel row",
+				"error", err)
 			continue
 		}
 
 		if err := json.Unmarshal(optionsJSON, &wheel.Options); err != nil {
-			log.Printf("Error unmarshalling options: %v", err)
+			logger.Error("failed to unmarshal wheel options",
+				"error", err,
+				"wheel_id", wheel.ID)
 			continue
 		}
 
@@ -282,11 +216,14 @@ func createWheelHandler(w http.ResponseWriter, r *http.Request) {
     `, wheel.Name, wheel.Description, optionsJSON, wheel.Theme, false).Scan(&id)
 
 	if err != nil {
-		log.Printf("Error creating wheel in database: %v - falling back to in-memory", err)
+		logger.Error("failed to create wheel in database, using in-memory fallback",
+			"error", err,
+			"wheel_name", wheel.Name)
 		// Fallback to in-memory on database error
 		wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
 		wheels = append(wheels, wheel)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(wheel)
 		return
 	}
@@ -466,22 +403,26 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 	// Store in database if available
 	if db != nil {
 		_, err := db.Exec(`
-			INSERT INTO spin_history (wheel_id, result, session_id, timestamp) 
+			INSERT INTO spin_history (wheel_id, result, session_id, timestamp)
 			VALUES ($1, $2, $3, $4)
 		`, spinRequest.WheelID, selectedOption, spinRequest.SessionID, result.Timestamp)
 
 		if err != nil {
-			log.Printf("Error storing spin history: %v", err)
+			logger.Error("failed to store spin history in database",
+				"error", err,
+				"wheel_id", spinRequest.WheelID)
 		}
 
 		// Also update times_used for the wheel
 		_, err = db.Exec(`
-			UPDATE wheels SET times_used = times_used + 1 
+			UPDATE wheels SET times_used = times_used + 1
 			WHERE id = $1
 		`, spinRequest.WheelID)
 
 		if err != nil {
-			log.Printf("Error updating wheel usage count: %v", err)
+			logger.Error("failed to update wheel usage count",
+				"error", err,
+				"wheel_id", spinRequest.WheelID)
 		}
 	}
 

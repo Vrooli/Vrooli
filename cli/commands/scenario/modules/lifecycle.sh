@@ -12,13 +12,13 @@ scenario::lifecycle::start() {
         scenario_names+=("$1")
         shift
     done
-    
-    [[ ${#scenario_names[@]} -eq 0 ]] && { 
+
+    [[ ${#scenario_names[@]} -eq 0 ]] && {
         log::error "Scenario name(s) required"
         log::info "Usage: vrooli scenario start <name> [name2] [name3]..."
         return 1
     }
-    
+
     local open_after=false
     local -a passthrough_args=()
 
@@ -27,6 +27,11 @@ scenario::lifecycle::start() {
             --open)
                 open_after=true
                 shift
+                ;;
+            --path)
+                # Pass --path through to scenario::run
+                passthrough_args+=("--path" "$2")
+                shift 2
                 ;;
             *)
                 passthrough_args+=("$1")
@@ -40,7 +45,7 @@ scenario::lifecycle::start() {
     if [[ ${#scenario_names[@]} -gt 1 ]]; then
         log::info "Starting ${#scenario_names[@]} scenarios: ${scenario_names[*]}"
     fi
-    
+
     for scenario_name in "${scenario_names[@]}"; do
         if [[ ${#scenario_names[@]} -gt 1 ]]; then
             log::info "Starting scenario: $scenario_name"
@@ -64,7 +69,7 @@ scenario::lifecycle::start() {
             fi
         fi
     done
-    
+
     return $overall_result
 }
 
@@ -126,23 +131,41 @@ scenario::lifecycle::start_all() {
 # Restart a scenario (stop then start)
 scenario::lifecycle::restart() {
     local scenario_name="${1:-}"
-    [[ -z "$scenario_name" ]] && { 
+    [[ -z "$scenario_name" ]] && {
         log::error "Scenario name required"
         log::info "Usage: vrooli scenario restart <name>"
         return 1
     }
     shift
-    
+
     log::info "Restarting scenario: $scenario_name"
-    
+
     # Stop if running (ignore errors - scenario might not be running)
     scenario::lifecycle::stop "$scenario_name" 2>/dev/null || true
-    
+
     # Brief pause
     sleep 1
-    
-    # Start with any additional options passed through
-    scenario::lifecycle::start "$scenario_name" "$@"
+
+    # Start with FORCE_SETUP to ensure setup checks run even if scenario was healthy
+    # This is critical for detecting stale code after agent modifications
+    (
+        export FORCE_SETUP=true
+        export FORCE_SETUP_SCENARIO="$scenario_name"
+        scenario::lifecycle::start "$scenario_name" "$@"
+    )
+}
+
+scenario::lifecycle::setup() {
+    local scenario_name="${1:-}"
+    [[ -z "$scenario_name" ]] && {
+        log::error "Scenario name required"
+        log::info "Usage: vrooli scenario setup <name>"
+        return 1
+    }
+    shift
+
+    log::info "Running setup for scenario: $scenario_name"
+    scenario::run "$scenario_name" setup "$@"
 }
 
 # Stop a specific scenario
@@ -273,7 +296,7 @@ scenario::lifecycle::test() {
     local scenario_name="${1:-}"
     [[ -z "$scenario_name" ]] && { 
         log::error "Scenario name required"
-        log::info "Usage: vrooli scenario test <name> [--allow-skip-missing-runtime] [--manage-runtime]"
+        log::info "Usage: vrooli scenario test <name> [phase|all|e2e] [--allow-skip-missing-runtime] [--manage-runtime]"
         return 1
     }
     shift

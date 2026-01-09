@@ -1,0 +1,194 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "description": "Reports service status, version, and dependency connectivity for monitoring.",
+      "category": "system"
+    },
+    {
+      "id": "health-api",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "API health",
+      "description": "Versioned health endpoint consumed by other scenarios and clients.",
+      "category": "system"
+    },
+    {
+      "id": "create-token",
+      "path": "/api/v1/tokens/create",
+      "method": "POST",
+      "summary": "Create fungible token",
+      "description": "Registers a new household token with symbol, name, type, and optional metadata or max supply.",
+      "category": "tokens",
+      "request": {
+        "type": "object",
+        "required": ["symbol", "name", "type"],
+        "properties": {
+          "symbol": "string",
+          "name": "string",
+          "type": "string",
+          "initial_supply": "number",
+          "max_supply": "number",
+          "metadata": "object"
+        }
+      }
+    },
+    {
+      "id": "mint-token",
+      "path": "/api/v1/tokens/mint",
+      "method": "POST",
+      "summary": "Mint tokens",
+      "description": "Mints tokens into a target wallet and records the resulting transaction hash.",
+      "category": "tokens",
+      "request": {
+        "type": "object",
+        "required": ["token_id", "to_wallet", "amount"],
+        "properties": {
+          "token_id": "string",
+          "to_wallet": "string",
+          "amount": "number",
+          "metadata": "object"
+        }
+      }
+    },
+    {
+      "id": "transfer-token",
+      "path": "/api/v1/tokens/transfer",
+      "method": "POST",
+      "summary": "Transfer tokens",
+      "description": "Moves token balances between wallets with optional memo and compliance metadata.",
+      "category": "tokens"
+    },
+    {
+      "id": "swap-token",
+      "path": "/api/v1/tokens/swap",
+      "method": "POST",
+      "summary": "Swap tokens",
+      "description": "Performs a swap between two tokens using configured exchange rates and slippage limits.",
+      "category": "tokens"
+    },
+    {
+      "id": "list-tokens",
+      "path": "/api/v1/tokens",
+      "method": "GET",
+      "summary": "List tokens",
+      "description": "Returns the tokens defined inside the household with supply and metadata.",
+      "category": "tokens"
+    },
+    {
+      "id": "get-token",
+      "path": "/api/v1/tokens/{id}",
+      "method": "GET",
+      "summary": "Get token details",
+      "description": "Returns a single token definition along with metadata and supply statistics.",
+      "category": "tokens",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Token identifier"
+        }
+      }
+    },
+    {
+      "id": "create-wallet",
+      "path": "/api/v1/wallets/create",
+      "method": "POST",
+      "summary": "Create wallet",
+      "description": "Creates a wallet for a user, scenario, or shared household pool.",
+      "category": "wallets"
+    },
+    {
+      "id": "wallet-balance",
+      "path": "/api/v1/wallets/{wallet_id}/balance",
+      "method": "GET",
+      "summary": "Get wallet balance",
+      "description": "Returns token balances, locked amounts, and estimated USD value for a wallet.",
+      "category": "wallets",
+      "params": {
+        "wallet_id": {
+          "type": "string",
+          "description": "Wallet identifier"
+        }
+      }
+    },
+    {
+      "id": "get-wallet",
+      "path": "/api/v1/wallets/{wallet_id}",
+      "method": "GET",
+      "summary": "Get wallet profile",
+      "description": "Retrieves wallet metadata, owner context, and creation timestamps.",
+      "category": "wallets",
+      "params": {
+        "wallet_id": {
+          "type": "string",
+          "description": "Wallet identifier"
+        }
+      }
+    },
+    {
+      "id": "list-achievements",
+      "path": "/api/v1/achievements/{user_id}",
+      "method": "GET",
+      "summary": "List earned achievements",
+      "description": "Returns NFT-style achievement records for the specified user.",
+      "category": "achievements",
+      "params": {
+        "user_id": {
+          "type": "string",
+          "description": "User identifier"
+        }
+      }
+    },
+    {
+      "id": "award-achievement",
+      "path": "/api/v1/achievements/award",
+      "method": "POST",
+      "summary": "Award achievement",
+      "description": "Creates an achievement token/NFT for a user with rarity and scenario context.",
+      "category": "achievements"
+    },
+    {
+      "id": "list-transactions",
+      "path": "/api/v1/transactions",
+      "method": "GET",
+      "summary": "List transactions",
+      "description": "Returns recent token movements filtered by wallet, token, or status.",
+      "category": "transactions"
+    },
+    {
+      "id": "get-transaction",
+      "path": "/api/v1/transactions/{hash}",
+      "method": "GET",
+      "summary": "Get transaction",
+      "description": "Fetches one transaction record by hash.",
+      "category": "transactions",
+      "params": {
+        "hash": {
+          "type": "string",
+          "description": "Transaction hash"
+        }
+      }
+    },
+    {
+      "id": "set-economy-rules",
+      "path": "/api/v1/admin/economy/rules",
+      "method": "POST",
+      "summary": "Set economy rules",
+      "description": "Administrative endpoint to update household reward multipliers, caps, and conversion logic.",
+      "category": "admin"
+    },
+    {
+      "id": "admin-analytics",
+      "path": "/api/v1/admin/analytics",
+      "method": "GET",
+      "summary": "Economy analytics",
+      "description": "Returns dashboard analytics for token velocity, wallet engagement, and achievement stats.",
+      "category": "admin"
+    }
+  ]
+}

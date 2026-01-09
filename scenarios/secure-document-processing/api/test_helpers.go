@@ -109,7 +109,7 @@ func setupTestEnv() func() {
 	originalEnv := make(map[string]string)
 
 	// Save original environment
-	envVars := []string{"API_PORT", "PORT", "N8N_BASE_URL", "WINDMILL_BASE_URL",
+	envVars := []string{"API_PORT", "PORT", "WINDMILL_BASE_URL",
 		"VAULT_URL", "MINIO_URL", "UNSTRUCTURED_URL", "QDRANT_URL", "VROOLI_LIFECYCLE_MANAGED"}
 
 	for _, key := range envVars {
@@ -119,7 +119,6 @@ func setupTestEnv() func() {
 	// Set test environment
 	os.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 	os.Setenv("API_PORT", "9999")
-	os.Setenv("N8N_BASE_URL", "http://localhost:5678")
 	os.Setenv("WINDMILL_BASE_URL", "http://localhost:8000")
 	os.Setenv("VAULT_URL", "http://localhost:8200")
 	os.Setenv("MINIO_URL", "http://localhost:9000")

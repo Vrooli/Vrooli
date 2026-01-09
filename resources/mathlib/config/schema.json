@@ -64,7 +64,12 @@
     "logLevel": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["debug", "info", "warn", "error"],
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
       "default": "info"
     },
     "apiKey": {
@@ -73,6 +78,10 @@
       "default": ""
     }
   },
-  "required": ["port", "workDir"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "workDir"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/mathlib/schema.json"
 }

@@ -1,0 +1,247 @@
+{
+  "edges": [
+    {
+      "id": "e1",
+      "source": "call-open-project",
+      "target": "wait-for-workflows-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1b",
+      "source": "wait-for-workflows-tab",
+      "target": "click-workflows-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1c",
+      "source": "click-workflows-tab",
+      "target": "assert-workflows-tab-active",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "verify-workflow-content-visible",
+      "target": "click-executions-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-executions-tab",
+      "target": "assert-executions-tab-active",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "assert-executions-tab-active",
+      "target": "assert-workflows-tab-inactive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "verify-execution-content-visible",
+      "target": "click-workflows-tab-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "click-workflows-tab-again",
+      "target": "assert-workflows-tab-active-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11-bridge-e12",
+      "source": "assert-workflows-tab-inactive",
+      "target": "verify-execution-content-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5-bridge-e6",
+      "source": "assert-workflows-tab-active",
+      "target": "verify-workflow-content-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates switching between Workflows and Executions tabs in Project Detail view",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Demo project via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-project"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflows tab should be active by default",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflows.tab[class*=\"active\"], @selector/workflows.tab[aria-selected=\"true\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Workflows tab is active by default"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-workflows-tab-active"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.tab"
+        },
+        "metadata": {
+          "label": "Ensure workflows tab is selected"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-workflows-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for workflows tab"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.tab",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "wait-for-workflows-tab"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length \u003e 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
+          "store_result": "workflowContentVisible"
+        },
+        "metadata": {
+          "label": "Verify workflow list/grid is visible"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-workflow-content-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.tabs.executions"
+        },
+        "metadata": {
+          "label": "Click Executions tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/projects.tabs.executions[class*=\\\"active\\\"], @selector/projects.tabs.executions[aria-selected=\\\"true\\\"]",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-executions-tab"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Executions tab should become active after clicking",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.tabs.executions[class*=\"active\"], @selector/projects.tabs.executions[aria-selected=\"true\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Executions tab is now active"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-executions-tab-active"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflows tab should be inactive when executions tab is active",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "@selector/workflows.tab[aria-selected=\"true\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Workflows tab is now inactive"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-workflows-tab-inactive"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
+          "store_result": "executionContentVisible"
+        },
+        "metadata": {
+          "label": "Verify execution history content is visible"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-execution-content-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.tab"
+        },
+        "metadata": {
+          "label": "Switch back to Workflows tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflows.tab[class*=\\\"active\\\"], @selector/workflows.tab[aria-selected=\\\"true\\\"]",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-workflows-tab-again"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflows tab should be active again after switching back",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflows.tab[class*=\"active\"], @selector/workflows.tab[aria-selected=\"true\"] /*dup-1*/",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Workflows tab is active again"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-workflows-tab-active-again"
+    }
+  ],
+  "settings": {
+    "entry_selector_timeout_ms": 10000,
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
+}

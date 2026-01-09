@@ -8,16 +8,23 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AgentSettings, DashboardStats, Issue, IssueStatus, ProcessorSettings } from '../data/sampleData';
+import type { Issue, IssueStatus } from '../types/issue';
+import type { AgentSettings, DashboardStats, ProcessorSettings } from '../data/sampleData';
 import {
   fetchIssueStats,
   fetchProcessorState,
   fetchRateLimitStatus,
+  fetchIssueStatuses,
+  fetchRunningProcesses,
   createIssue as createIssueRequest,
   deleteIssue as deleteIssueRequest,
   listIssues,
   updateIssueStatus as updateIssueStatusRequest,
+  updateIssue as updateIssueRequest,
+  stopRunningProcess,
   type RateLimitStatusPayload,
+  type IssueStatusMetadata,
+  type RunningProcessPayload,
 } from '../services/issues';
 export type { RateLimitStatusPayload } from '../services/issues';
 import {
@@ -25,15 +32,19 @@ import {
   type ApiStatsPayload,
   buildDashboardStats,
   transformIssue,
+  getFallbackStatuses,
+  setValidStatuses,
+  formatStatusLabel,
 } from '../utils/issues';
 import type { SnackVariant } from '../notifications/snackBus';
-import type { CreateIssueInput } from '../types/issueCreation';
+import type { CreateIssueInput, UpdateIssueInput } from '../types/issueCreation';
 import { useProcessorSettingsManager } from './useProcessorSettingsManager';
-import { useAgentSettingsManager } from './useAgentSettingsManager';
+import { useAgentSettingsManager, type SettingsConstraints } from './useAgentSettingsManager';
 import {
   useIssueRealtimeSync,
   type RunningProcessMap,
   type ConnectionStatus,
+  type RunningProcessSeed,
 } from './useIssueRealtimeSync';
 
 const DEFAULT_STATS: DashboardStats = {
@@ -50,6 +61,11 @@ const DEFAULT_STATS: DashboardStats = {
   statusTrend: buildDashboardStats([], null).statusTrend,
 };
 
+const DEFAULT_STATUS_CATALOG: IssueStatusMetadata[] = getFallbackStatuses().map((status) => ({
+  id: status,
+  label: formatStatusLabel(status),
+}));
+
 interface IssueTrackerDataProviderProps {
   apiBaseUrl: string;
   issueFetchLimit: number;
@@ -58,10 +74,13 @@ interface IssueTrackerDataProviderProps {
 }
 
 interface IssueTrackerDataContextValue {
+  apiBaseUrl: string;
   issues: Issue[];
   dashboardStats: DashboardStats;
   loading: boolean;
   loadError: string | null;
+  statusCatalog: IssueStatusMetadata[];
+  validStatuses: IssueStatus[];
   processorError: string | null;
   processorSettings: ProcessorSettings;
   updateProcessorSettings: (updater: React.SetStateAction<ProcessorSettings>) => void;
@@ -70,11 +89,14 @@ interface IssueTrackerDataContextValue {
   rateLimitStatus: RateLimitStatusPayload | null;
   agentSettings: AgentSettings;
   updateAgentSettings: (updater: React.SetStateAction<AgentSettings>) => void;
+  agentConstraints: SettingsConstraints | null;
   fetchAllData: () => Promise<void>;
   toggleProcessorActive: () => void;
   createIssue: (input: CreateIssueInput) => Promise<string | null>;
   updateIssueStatus: (issueId: string, nextStatus: IssueStatus) => Promise<void>;
+  updateIssueDetails: (input: UpdateIssueInput) => Promise<void>;
   deleteIssue: (issueId: string) => Promise<void>;
+  stopAgent: (issueId: string) => Promise<void>;
   runningProcesses: RunningProcessMap;
   connectionStatus: ConnectionStatus;
   websocketError: Error | null;
@@ -96,6 +118,13 @@ export function IssueTrackerDataProvider({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatusPayload | null>(null);
   const [realtimeReady, setRealtimeReady] = useState(false);
+  const [statusCatalog, setStatusCatalog] = useState<IssueStatusMetadata[]>(DEFAULT_STATUS_CATALOG);
+  const [initialRunningProcesses, setInitialRunningProcesses] = useState<RunningProcessSeed | null>(null);
+
+  const validStatuses = useMemo<IssueStatus[]>(
+    () => statusCatalog.map((status) => status.id as IssueStatus),
+    [statusCatalog],
+  );
 
   const lastStatsFromApiRef = useRef<ApiStatsPayload | null>(null);
 
@@ -115,7 +144,7 @@ export function IssueTrackerDataProvider({
     onError: (message) => showSnackbar(message, 'error'),
   });
 
-  const { agentSettings, updateAgentSettings } = useAgentSettingsManager({
+  const { agentSettings, updateAgentSettings, constraints: agentConstraints } = useAgentSettingsManager({
     apiBaseUrl,
     onSaveError: (message) => showSnackbar(message, 'error'),
   });
@@ -126,6 +155,33 @@ export function IssueTrackerDataProvider({
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatuses() {
+      try {
+        const fetched = await fetchIssueStatuses(apiBaseUrl);
+        const nextCatalog = fetched.length > 0 ? fetched : DEFAULT_STATUS_CATALOG;
+        if (!cancelled) {
+          setStatusCatalog(nextCatalog);
+          setValidStatuses(nextCatalog.map((status) => status.id));
+        }
+      } catch (error) {
+        // Silently fall back to default status catalog
+        if (!cancelled) {
+          setStatusCatalog(DEFAULT_STATUS_CATALOG);
+          setValidStatuses(DEFAULT_STATUS_CATALOG.map((status) => status.id));
+        }
+      }
+    }
+
+    loadStatuses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl]);
 
   const updateIssuesState = useCallback(
     (
@@ -151,15 +207,16 @@ export function IssueTrackerDataProvider({
       setLoadError(null);
       clearProcessorError();
       setRealtimeReady(false);
+      setInitialRunningProcesses(null);
     }
 
     let mappedIssues: Issue[] = [];
+    let runningProcessesSnapshot: RunningProcessPayload[] = [];
 
     try {
       const rawIssues = await listIssues(apiBaseUrl, issueFetchLimit);
       mappedIssues = rawIssues.map((issue) => transformIssue(issue, { apiBaseUrl }));
     } catch (error) {
-      console.error('Failed to load issues', error);
       if (isMountedRef.current) {
         setLoadError('Failed to load issues from the API.');
         setLoading(false);
@@ -175,12 +232,23 @@ export function IssueTrackerDataProvider({
         statsFromApi = stats;
       }
     } catch (error) {
-      console.warn('Failed to load stats', error);
+      // Stats are supplementary, continue without them
+    }
+
+    try {
+      runningProcessesSnapshot = await fetchRunningProcesses(apiBaseUrl);
+    } catch (error) {
+      // Running processes are supplementary, continue without them
+      runningProcessesSnapshot = [];
     }
 
     if (isMountedRef.current) {
       lastStatsFromApiRef.current = statsFromApi;
       updateIssuesState(() => mappedIssues, { invalidateRemoteStats: false });
+      setInitialRunningProcesses({
+        processes: runningProcessesSnapshot,
+        version: Date.now(),
+      });
       setRealtimeReady(true);
     }
 
@@ -194,7 +262,7 @@ export function IssueTrackerDataProvider({
         }
       }
     } catch (error) {
-      console.warn('Failed to load processor settings', error);
+      // Report processor error to UI without console noise
       if (isMountedRef.current) {
         reportProcessorError('Failed to load automation status.');
       }
@@ -206,7 +274,7 @@ export function IssueTrackerDataProvider({
         setRateLimitStatus(status ?? null);
       }
     } catch (error) {
-      console.warn('Failed to load rate limit status', error);
+      // Rate limit status is optional, continue without it
       if (isMountedRef.current) {
         setRateLimitStatus(null);
       }
@@ -237,14 +305,18 @@ export function IssueTrackerDataProvider({
     setRateLimitStatus,
     reportProcessorError,
     enabled: realtimeReady,
+    initialRunningProcesses,
   });
 
   const contextValue = useMemo<IssueTrackerDataContextValue>(
     () => ({
+      apiBaseUrl,
       issues,
       dashboardStats,
       loading,
       loadError,
+      statusCatalog,
+      validStatuses,
       processorError,
       processorSettings,
       updateProcessorSettings,
@@ -253,6 +325,7 @@ export function IssueTrackerDataProvider({
       rateLimitStatus,
       agentSettings,
       updateAgentSettings,
+      agentConstraints,
       fetchAllData,
       toggleProcessorActive,
       createIssue: async (input: CreateIssueInput) => {
@@ -272,6 +345,17 @@ export function IssueTrackerDataProvider({
           await fetchAllData();
         }
         return issueId;
+      },
+      updateIssueDetails: async (input: UpdateIssueInput) => {
+        const { issue: updatedIssue } = await updateIssueRequest(apiBaseUrl, input);
+        if (updatedIssue) {
+          const transformed = transformIssue(updatedIssue, { apiBaseUrl });
+          updateIssuesState((previous) =>
+            previous.map((issue) => (issue.id === transformed.id ? transformed : issue)),
+          );
+        } else {
+          await fetchAllData();
+        }
       },
       updateIssueStatus: async (issueId: string, nextStatus: IssueStatus) => {
         const { issue: updatedIssue } = await updateIssueStatusRequest(apiBaseUrl, issueId, nextStatus);
@@ -298,6 +382,14 @@ export function IssueTrackerDataProvider({
         updateIssuesState((previous) => previous.filter((issue) => issue.id !== issueId));
         removeProcess(issueId);
       },
+      stopAgent: async (issueId: string) => {
+        try {
+          await stopRunningProcess(apiBaseUrl, issueId);
+          removeProcess(issueId);
+        } catch (error) {
+          showSnackbar('Failed to stop agent. Please try again.', 'error');
+        }
+      },
       runningProcesses,
       connectionStatus,
       websocketError,
@@ -308,6 +400,8 @@ export function IssueTrackerDataProvider({
       dashboardStats,
       loading,
       loadError,
+      statusCatalog,
+      validStatuses,
       processorError,
       processorSettings,
       issuesProcessed,
@@ -323,6 +417,7 @@ export function IssueTrackerDataProvider({
       updateIssuesState,
       removeProcess,
       apiBaseUrl,
+      showSnackbar,
     ],
   );
 

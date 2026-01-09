@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -16,6 +16,10 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type App struct {
@@ -96,94 +100,28 @@ type RankedItem struct {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start elo-swipe
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "elo-swipe",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	app := &App{}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all database environment variables (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, and password)")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
+	// Connect to database using api-core with automatic retry
 	var err error
-	app.DB, err = sql.Open("postgres", postgresURL)
+	app.DB, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatal("Database connection failed:", err)
 	}
-	defer app.DB.Close()
 
 	// Set connection pool settings
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
 	app.DB.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = app.DB.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd (up to 25% of delay)
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -193,12 +131,13 @@ func main() {
 	// Setup routes
 	router := mux.NewRouter()
 
-	// Root-level health endpoint for ecosystem monitoring
-	router.HandleFunc("/health", app.HealthCheck).Methods("GET")
+	// Health endpoints - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/health", app.HealthCheck).Methods("GET")
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 	api.HandleFunc("/lists", app.GetLists).Methods("GET")
 	api.HandleFunc("/lists", app.CreateList).Methods("POST")
 	api.HandleFunc("/lists/{id}", app.GetList).Methods("GET")
@@ -221,53 +160,18 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("Elo Swipe API server starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
-}
-
-// getEnv removed to prevent hardcoded defaults
-
-func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	dbConnected := true
-	var dbLatency float64
-	dbStart := time.Now()
-	err := app.DB.Ping()
-	if err == nil {
-		dbLatency = float64(time.Since(dbStart).Milliseconds())
-	} else {
-		dbConnected = false
-	}
-
-	// Build health response per schema
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	healthResponse := map[string]interface{}{
-		"status":    status,
-		"service":   "elo-swipe-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbConnected,
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      nil,
-			},
+	log.Printf("Elo Swipe API server starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if app.DB != nil {
+				return app.DB.Close()
+			}
+			return nil
 		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(healthResponse)
 }
 
 func (app *App) GetLists(w http.ResponseWriter, r *http.Request) {
@@ -840,3 +744,4 @@ func (app *App) RefreshPairingQueue(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response)
 }
+// Test change

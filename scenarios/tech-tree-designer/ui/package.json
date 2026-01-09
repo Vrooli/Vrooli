@@ -1,40 +1,49 @@
 {
   "name": "tech-tree-designer-ui",
   "version": "1.0.0",
+  "type": "module",
   "description": "Strategic visualization interface for complete civilization technology roadmap",
-  "main": "src/index.js",
+  "main": "src/main.tsx",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite",
-    "test": "echo 'Tests coming soon' && exit 0"
+    "start": "node server.js",
+    "test": "echo 'Tests coming soon' && exit 0",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/dagre": "^0.7.53",
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "axios": "^1.6.2",
+    "d3": "^7.8.5",
+    "dagre": "^0.8.5",
+    "express": "^4.21.2",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-flow-renderer": "^10.3.17",
-    "d3": "^7.8.5",
-    "axios": "^1.6.2",
-    "lucide-react": "^0.294.0",
-    "recharts": "^2.8.0",
-    "framer-motion": "^10.16.16",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "recharts": "^2.8.0"
   },
   "devDependencies": {
+    "@types/node": "^22.7.4",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.9.3",
     "vite": "^5.0.8"
   },
   "keywords": [
     "tech-tree",
-    "strategic-planning", 
+    "strategic-planning",
     "civilization-intelligence",
     "digital-twin-roadmap",
     "superintelligence-pathway",
     "technology-visualization"
   ],
   "author": "Vrooli Strategic Intelligence",
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

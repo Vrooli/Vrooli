@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "name": "cli-campaign-management",
+    "description": "Test campaign management via CLI interface",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"VT-REQ-004\"]",
+      "priority": "P0",
+      "test_type": "cli"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "create-campaign-cli",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker campaigns create --name 'cli-test-campaign' --pattern '**/*.go' --from-agent 'cli-automation' --json",
+          "expected_exit_code": 0,
+          "store_result": "campaign_json",
+          "parse_json": true
+        },
+        "metadata": {
+          "label": "Create campaign via CLI"
+        }
+      }
+    },
+    {
+      "id": "list-campaigns",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker campaigns list --json",
+          "expected_exit_code": 0,
+          "expected_output_contains": "cli-test-campaign"
+        },
+        "metadata": {
+          "label": "List campaigns"
+        }
+      }
+    },
+    {
+      "id": "get-campaign-status",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker --campaign-id ${campaign_json.id} status --json",
+          "expected_exit_code": 0,
+          "store_result": "status_json",
+          "parse_json": true
+        },
+        "metadata": {
+          "label": "Get campaign status"
+        }
+      }
+    },
+    {
+      "id": "record-visit-cli",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker --campaign-id ${campaign_json.id} visit api/main.go --context 'cli-test'",
+          "expected_exit_code": 0
+        },
+        "metadata": {
+          "label": "Record visit via CLI"
+        }
+      }
+    },
+    {
+      "id": "query-least-visited-cli",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker --campaign-id ${campaign_json.id} least-visited --limit 5 --json",
+          "expected_exit_code": 0,
+          "parse_json": true
+        },
+        "metadata": {
+          "label": "Query least visited via CLI"
+        }
+      }
+    },
+    {
+      "id": "delete-campaign-cli",
+      "action": {
+        "type": "ACTION_TYPE_SHELL",
+        "shell": {
+          "command": "visited-tracker campaigns delete ${campaign_json.id}",
+          "expected_exit_code": 0
+        },
+        "metadata": {
+          "label": "Delete campaign via CLI"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "create-campaign-cli",
+      "target": "list-campaigns",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "list-campaigns",
+      "target": "get-campaign-status",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "get-campaign-status",
+      "target": "record-visit-cli",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "record-visit-cli",
+      "target": "query-least-visited-cli",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "query-least-visited-cli",
+      "target": "delete-campaign-cli",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

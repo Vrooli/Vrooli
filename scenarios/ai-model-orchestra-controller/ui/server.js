@@ -7,6 +7,8 @@ const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
 const API_PORT = process.env.API_PORT;
 const API_HOST = process.env.ORCHESTRATOR_HOST;
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_DIR = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
 
 // Validate required environment variables
 if (!PORT) {
@@ -32,8 +34,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static files
-app.use(express.static(__dirname));
+// Serve static assets from the production bundle when available
+app.use(express.static(STATIC_DIR));
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
+
+function resolveDashboardFile() {
+    const builtDashboard = path.join(DIST_DIR, 'index.html');
+    if (fs.existsSync(builtDashboard)) {
+        return builtDashboard;
+    }
+    return path.join(__dirname, 'dashboard.html');
+}
 
 // API proxy configuration endpoint
 app.get('/api/config', (req, res) => {
@@ -166,7 +177,7 @@ app.get('/health', async (req, res) => {
 
 // Serve main dashboard
 app.get('/', (req, res) => {
-    const dashboardFile = path.join(__dirname, 'dashboard.html');
+    const dashboardFile = resolveDashboardFile();
     if (fs.existsSync(dashboardFile)) {
         res.sendFile(dashboardFile);
     } else {
@@ -179,7 +190,7 @@ app.get('/', (req, res) => {
 
 // Serve dashboard at explicit path
 app.get('/dashboard', (req, res) => {
-    const dashboardFile = path.join(__dirname, 'dashboard.html');
+    const dashboardFile = resolveDashboardFile();
     if (fs.existsSync(dashboardFile)) {
         res.sendFile(dashboardFile);
     } else {

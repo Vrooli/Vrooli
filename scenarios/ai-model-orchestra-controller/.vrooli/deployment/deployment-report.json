@@ -1,0 +1,73 @@
+{
+  "scenario": "ai-model-orchestra-controller",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:53.964151044Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "ai-model-orchestra-controller",
+    "generated_at": "2025-11-16T19:40:53.964151044Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/ai-model-orchestra-controller-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/ai-model-orchestra-controller",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      }
+    ]
+  }
+}

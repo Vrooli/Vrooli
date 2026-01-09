@@ -1,28 +1,51 @@
-import { state, debugFlags } from './state.js'
+// @ts-check
 
-let diagnosticsTimer = null
-let lastSnapshot = null
+import { state, debugFlags } from "./state.js";
 
+/**
+ * @typedef {{
+ *   timestamp: number;
+ *   tabCount: number;
+ *   tabIds: string[];
+ *   domTerminals: number;
+ *   domNodes: number;
+ *   resourceEntries: number | null;
+ *   paintEntries: number | null;
+ *   totalEntries: number | null;
+ *   heap: Performance['memory'] | null;
+ * }} DiagnosticsSnapshot
+ */
+
+/** @type {ReturnType<typeof setInterval> | null} */
+let diagnosticsTimer = null;
+/** @type {DiagnosticsSnapshot | null} */
+let lastSnapshot = null;
+
+/**
+ * @returns {DiagnosticsSnapshot}
+ */
 function sampleDiagnostics() {
-  const tabIds = state.tabs.map((tab) => tab.id)
-  const domTerminals = document.querySelectorAll('.terminal-screen').length
-  const domNodes = document.querySelectorAll('*').length
-  const resourceEntries = typeof performance !== 'undefined'
-    ? performance.getEntriesByType('resource').length
-    : null
-  const paintEntries = typeof performance !== 'undefined'
-    ? performance.getEntriesByType('paint').length
-    : null
-  const totalEntries = typeof performance !== 'undefined'
-    ? performance.getEntries().length
-    : null
-  const heap = (typeof performance !== 'undefined' && performance.memory)
-    ? {
-        usedJSHeapSize: performance.memory.usedJSHeapSize,
-        totalJSHeapSize: performance.memory.totalJSHeapSize,
-        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
-      }
-    : null
+  const tabIds = state.tabs.map((tab) => tab.id);
+  const domTerminals = document.querySelectorAll(".terminal-screen").length;
+  const domNodes = document.querySelectorAll("*").length;
+  const resourceEntries =
+    typeof performance !== "undefined"
+      ? performance.getEntriesByType("resource").length
+      : null;
+  const paintEntries =
+    typeof performance !== "undefined"
+      ? performance.getEntriesByType("paint").length
+      : null;
+  const totalEntries =
+    typeof performance !== "undefined" ? performance.getEntries().length : null;
+  const heap =
+    typeof performance !== "undefined" && performance.memory
+      ? {
+          usedJSHeapSize: performance.memory.usedJSHeapSize,
+          totalJSHeapSize: performance.memory.totalJSHeapSize,
+          jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+        }
+      : null;
 
   return {
     timestamp: Date.now(),
@@ -33,58 +56,65 @@ function sampleDiagnostics() {
     resourceEntries,
     paintEntries,
     totalEntries,
-    heap
-  }
+    heap,
+  };
 }
 
+/**
+ * @param {DiagnosticsSnapshot} snapshot
+ */
 function logDiagnostics(snapshot) {
   const messageParts = [
-    `[workspace] tabs=${snapshot.tabCount} domTerminals=${snapshot.domTerminals} domNodes=${snapshot.domNodes}`
-  ]
+    `[workspace] tabs=${snapshot.tabCount} domTerminals=${snapshot.domTerminals} domNodes=${snapshot.domNodes}`,
+  ];
   if (snapshot.resourceEntries !== null) {
-    messageParts.push(`resources=${snapshot.resourceEntries}`)
+    messageParts.push(`resources=${snapshot.resourceEntries}`);
   }
   if (snapshot.totalEntries !== null) {
-    messageParts.push(`perfEntries=${snapshot.totalEntries}`)
+    messageParts.push(`perfEntries=${snapshot.totalEntries}`);
   }
   if (snapshot.heap && Number.isFinite(snapshot.heap.usedJSHeapSize)) {
-    const mb = (snapshot.heap.usedJSHeapSize / (1024 * 1024)).toFixed(2)
-    messageParts.push(`heap=${mb}MB`)
+    const mb = (snapshot.heap.usedJSHeapSize / (1024 * 1024)).toFixed(2);
+    messageParts.push(`heap=${mb}MB`);
   }
-  console.debug(messageParts.join(' | '), snapshot.tabIds)
+  console.debug(messageParts.join(" | "), snapshot.tabIds);
 }
 
+/**
+ * @param {DiagnosticsSnapshot | null} prev
+ * @param {DiagnosticsSnapshot} next
+ */
 function hasMeaningfulChange(prev, next) {
-  if (!prev) return true
-  if (prev.tabCount !== next.tabCount) return true
-  if (prev.domTerminals !== next.domTerminals) return true
-  if (prev.domNodes !== next.domNodes) return true
-  if (prev.resourceEntries !== next.resourceEntries) return true
-  if (prev.totalEntries !== next.totalEntries) return true
-  return false
+  if (!prev) return true;
+  if (prev.tabCount !== next.tabCount) return true;
+  if (prev.domTerminals !== next.domTerminals) return true;
+  if (prev.domNodes !== next.domNodes) return true;
+  if (prev.resourceEntries !== next.resourceEntries) return true;
+  if (prev.totalEntries !== next.totalEntries) return true;
+  return false;
 }
 
 export function initializeDiagnostics() {
-  if (typeof window === 'undefined') return
-  if (!debugFlags.metrics) return
-  if (diagnosticsTimer !== null) return
+  if (typeof window === "undefined") return;
+  if (!debugFlags.metrics) return;
+  if (diagnosticsTimer !== null) return;
 
   const logSnapshot = () => {
-    const snapshot = sampleDiagnostics()
+    const snapshot = sampleDiagnostics();
     if (hasMeaningfulChange(lastSnapshot, snapshot)) {
-      logDiagnostics(snapshot)
-      lastSnapshot = snapshot
-      window.__WEB_CONSOLE_DIAGNOSTICS__ = snapshot
+      logDiagnostics(snapshot);
+      lastSnapshot = snapshot;
+      window.__WEB_CONSOLE_DIAGNOSTICS__ = snapshot;
     }
-  }
+  };
 
-  logSnapshot()
-  diagnosticsTimer = window.setInterval(logSnapshot, 5000)
+  logSnapshot();
+  diagnosticsTimer = window.setInterval(logSnapshot, 5000);
 
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener("beforeunload", () => {
     if (diagnosticsTimer !== null) {
-      window.clearInterval(diagnosticsTimer)
-      diagnosticsTimer = null
+      window.clearInterval(diagnosticsTimer);
+      diagnosticsTimer = null;
     }
-  })
+  });
 }

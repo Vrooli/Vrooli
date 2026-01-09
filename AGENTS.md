@@ -8,10 +8,10 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 1. **Commands**: 
    - Run `vrooli help` to see available.
 1. **Testing**: 
-   - Run `vrooli test help` to see available test commands.
+   - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
-5. **Documentation**: Read `docs/` files at session start for context
+5. **Documentation**: Run `vrooli info` at session start for the canonical project briefing
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
    - **Alternative**: `vrooli scenario start <name>` for direct CLI management
@@ -23,40 +23,44 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 
 ### Key Definitions
 - **Resources**: Core local services (AI/ML like claude-code, ollama; storage like postgres, redis, qdrant; development helpers like judge0, browserless, vault) that scenarios can compose.
-- **Scenarios**: Full applications—APIs, CLIs, UIs, workflows—that combine resources and other scenarios to deliver reusable business capabilities.
-- **Business Model**: Every scenario targets measurable value; deliverables can deploy directly, ship as SaaS, or serve enterprise installs, so revenue impact must be explicit.
-- **Execution Principles**: Memory-first, no duplicated work, incremental validated progress, cross-scenario synergy, quality over quantity, and relentless focus on business value.
+- **Scenarios**: Full applications or microservices - with APIs, CLIs, and UIs - that combine resources and other scenarios to deliver reusable business capabilities.
 
 **CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
 
 ### The Core Vision
-- **Shared Local Resources:** Apps share local resources like N8n, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
-- **Scenarios Become Capabilities:** Every app (which is generated from a *scenario*) built becomes a permanent tool the system can use forever
+- **Shared Local Resources:** Apps share local resources like Ollama, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
+- **Scenarios Become Capabilities:** Every app (which is generated from a scenario) built becomes a permanent tool the system can use forever
 - **Recursive Improvement:** Agents build tools → Tools make agents smarter → Smarter agents build better tools → ∞
 - **Compound Intelligence:** The system literally cannot forget how to solve problems, only get better at solving them
+- **Scenario-Based Business Model**: Scenarios target measurable value; deliverables can deploy directly, ship as SaaS, serve enterprise installs, or simply act as internal tools or microservices for other scenarios to leverage. Each scenario we complete should increase Vrooli's capabilities and/or be a new monetizable service
 
 ### The Evolution That Changed Everything
 - **Phase 1 (Past):** Web platform where agents could only interact through APIs (limited but proved the concept)
-- **Phase 2 (Current):** AI inference servers with local resource access - agents can now build complete applications
-- **Phase 3 (Future):** Specialized servers for engineering, science, finance - unlimited domain expansion
+- **Phase 2 (Current):** Physical server with local resource access - agents can now build complete applications by building off of existing resources and scenarios
+- **Phase 3 (Future):** Specialized servers for engineering, science, finance. Hardware line where businesses and households can run their own specialized Vrooli server
 
 ### Understanding Scenarios
 Scenarios are NOT just test cases or demos. They serve triple duty:
-1. **Validation:** Prove agents can autonomously build complex systems (from SaaS businesses to AI assistants)
-2. **Products:** Generate real revenue when deployed ($10K-50K typical value per scenario)
+1. **Products:** Generate real revenue when deployed
+2. **Validation:** Serve as implementation references for building future scenarios
+
 3. **Capabilities:** Become new tools that enhance Vrooli itself or solve future problems
 
-When working with scenarios, remember: **You're not building tests. You're building businesses and expanding intelligence.**
+When working with scenarios, remember: **You're building businesses and expanding intelligence.**
+
+### Deployment Vision
+- Current deployments run via the Tier 1 local stack (full Vrooli installation + app-monitor Cloudflare tunnel).
+- Future tiers (desktop, mobile, SaaS, enterprise) are documented in the [Deployment Hub](docs/deployment/README.md); consult it whenever considering packaging or delivery tasks.
 
 ### Working with Resources
-Local resources (Ollama, n8n, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
+Local resources (Ollama, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
 - Each resource multiplies what agents can accomplish
 - Agents discover novel combinations we haven't imagined
 - Resources enable the shift from "calling APIs" to "building the APIs"
 
 ### The Recursive Learning Loop in Practice
 1. Agent solves problem using available resources
-2. Solution gets crystallized as reusable workflow/app
+2. Solution gets crystallized as reusable scenario
 3. Future agents use that solution as a building block
 4. More complex problems become solvable
 5. Each iteration makes ALL future iterations more powerful
@@ -79,7 +83,7 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 vrooli develop
 
 # Run tests
-vrooli test help  # See available test commands
+vrooli scenario test <name>  # Run scenario test suite
 
 # Manage scenarios (PREFERRED method)
 cd scenarios/<scenario-name> && make start   # ✅ BEST - comprehensive management
@@ -108,25 +112,36 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 
 ## 🔍 Available Tools
 - **ast-grep (sg)**: For syntax-aware code search - default to `ast-grep --lang <language> --pattern '<pattern>'` over `grep` for structural matching
-- **jq/yq**: For JSON/YAML processing - use these for analyzing service.json, package.json, n8n workflows, and YAML configs instead of manual parsing
+- **jq/yq**: For JSON/YAML processing
 - **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 
 ## 📚 Session Start Checklist
-1. [ ] Read `/docs/context.md` for project overview
+1. [ ] Run `vrooli info` for the consolidated project overview
 
-## 🔧 Local Resources Setup
-**Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`
-- **First Run**: If no config exists, resource is installed by default
-- **Subsequent Runs**: Only installs resources explicitly enabled in configuration
-- **Skip Resources**: Use `--resources none` to skip all resource installation
-- **CI/CD**: Automatically defaults to `none` to prevent unwanted installations
+## 🔧 Setup Configuration
+
+**Environment Profiles** (`--environment`):
+- `development` (default): Full setup with all dev tools (bats, shellcheck, ast-grep, Go dev tools, Helm, etc.)
+- `production`: Production runtimes only, skips dev tools - ideal for VPS deployments
+- `minimal`: Only Docker + essential system deps - fastest possible setup
+
+**Resource Installation** (`--resources`):
+- `enabled` (default): Install resources marked as enabled in `.vrooli/service.json`
+- `none`: Skip all resource installation
+- `<list>`: Install only specified resources (comma-separated, e.g., `postgres,redis`)
+
+**Examples**:
+```bash
+./scripts/manage.sh setup --yes yes                           # Full dev setup
+./scripts/manage.sh setup --environment production            # Production (no dev tools)
+./scripts/manage.sh setup --environment minimal --resources none  # Fastest possible
+./scripts/manage.sh setup --resources postgres,redis          # Only specific resources
+```
 
 **Resource Management**:
 - Enable/disable resources by editing `.vrooli/service.json`
 - Resources marked as enabled will be installed on next setup run
-- Use `--resources <specific>` to override and install specific resources
-- Remember: More resources = more capabilities = smarter agents
 
 ## ⏱️ Timeout Guidelines for Long-Running Commands
 **Remember to set appropriate timeouts when running:**

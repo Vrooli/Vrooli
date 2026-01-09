@@ -1,0 +1,102 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "email-triage-must-have-imapsmtp-integration-with-mail-in-a-box-for-email-access-2025-09-24-mock-email-service-working",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "System must integrate with mail-in-a-box via IMAP protocol for email retrieval",
+      "id": "REQ-P0-003",
+      "prd_ref": "email-triage-must-have-imapsmtp-integration-with-mail-in-a-box-for-email-access-2025-09-24-mock-email-service-working",
+      "status": "draft",
+      "title": "IMAP Integration",
+      "validation": [
+        {
+          "notes": "Test IMAP connection",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify email retrieval",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end email fetch testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Email fetch \u003c 2s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successful email retrieval from mail-in-a-box",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "System must integrate with mail-in-a-box via SMTP protocol for email sending",
+      "id": "REQ-P0-004",
+      "prd_ref": "email-triage-must-have-imapsmtp-integration-with-mail-in-a-box-for-email-access-2025-09-24-mock-email-service-working",
+      "status": "draft",
+      "title": "SMTP Integration",
+      "validation": [
+        {
+          "notes": "Test SMTP connection",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify email sending",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end email send testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Email send \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successful email sending through mail-in-a-box",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "IMAP/SMTP integration with mail-in-a-box for email access (2025-09-24: Mock email service working)"
+}

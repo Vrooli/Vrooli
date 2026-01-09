@@ -1,0 +1,621 @@
+/* Lighthouse Tab Container */
+.lighthouse-tab {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  --color-text-primary: var(--app-text-primary, #f5f6ff);
+  --color-text-secondary: var(--app-text-muted, rgba(245, 246, 255, 0.72));
+  --color-text-tertiary: rgba(245, 246, 255, 0.55);
+  --color-primary: var(--app-accent, #7aa0ff);
+  --color-primary-hover: #9cb8ff;
+  --color-border: var(--app-border, rgba(122, 160, 255, 0.3));
+  --color-border-hover: rgba(122, 160, 255, 0.55);
+  --color-bg-secondary: var(--app-bg-alt, rgba(11, 16, 34, 0.9));
+  --color-bg-tertiary: rgba(18, 26, 52, 0.85);
+  --color-bg-hover: rgba(122, 160, 255, 0.12);
+  --color-surface: var(--app-surface, rgba(16, 19, 32, 0.92));
+  --color-error: var(--app-danger, #ff6f91);
+  --color-error-bg: rgba(255, 111, 145, 0.22);
+  --color-success: var(--app-success, #33e29a);
+  --color-success-bg: rgba(51, 226, 154, 0.2);
+  --color-warning: var(--app-warning, #ffd166);
+  --color-warning-bg: rgba(255, 209, 102, 0.22);
+  --color-danger: var(--app-danger, #ff6f91);
+  --color-danger-bg: rgba(255, 111, 145, 0.22);
+}
+
+/* Loading/Empty/Error States */
+.lighthouse-tab__loading,
+.lighthouse-tab__empty,
+.lighthouse-tab__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  text-align: center;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.lighthouse-tab__loading-icon {
+  animation: spin 1s linear infinite;
+  color: var(--color-primary, #3b82f6);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lighthouse-tab__error {
+  color: var(--color-error, #ff6f91);
+}
+
+.lighthouse-tab__error-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary, rgba(245, 246, 255, 0.55));
+  margin-top: 0.5rem;
+}
+
+.lighthouse-tab__error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.lighthouse-tab__error-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-primary, #3b82f6);
+  background: var(--color-primary, #3b82f6);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lighthouse-tab__error-button:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.lighthouse-tab__error-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lighthouse-tab__error-button--secondary {
+  background: transparent;
+  color: var(--color-primary, #7aa0ff);
+  border-color: var(--color-border, rgba(122, 160, 255, 0.3));
+}
+
+.lighthouse-tab__error-button--secondary:hover:not(:disabled) {
+  border-color: var(--color-primary, #7aa0ff);
+}
+
+.lighthouse-tab__error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-bg, rgba(255, 111, 145, 0.2));
+  color: var(--color-error, #ff6f91);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Header */
+.lighthouse-tab__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border, rgba(122, 160, 255, 0.25));
+}
+
+.lighthouse-tab__header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lighthouse-tab__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #f5f6ff);
+}
+
+.lighthouse-tab__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+  margin: 0;
+}
+
+/* Run Button */
+.lighthouse-tab__run-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border, rgba(122, 160, 255, 0.35));
+  border-radius: 0.5rem;
+  background: var(--color-bg-secondary, rgba(11, 18, 40, 0.85));
+  color: var(--color-text-primary, #f5f6ff);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lighthouse-tab__run-button:hover:not(:disabled) {
+  background: var(--color-bg-tertiary, rgba(18, 26, 52, 0.9));
+  border-color: var(--color-border-hover, rgba(122, 160, 255, 0.55));
+}
+
+.lighthouse-tab__run-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lighthouse-tab__run-button--primary {
+  background: var(--color-primary, #7aa0ff);
+  color: white;
+  border-color: var(--color-primary, #7aa0ff);
+}
+
+.lighthouse-tab__run-button--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover, #9cb8ff);
+  border-color: var(--color-primary-hover, #9cb8ff);
+}
+
+.lighthouse-tab__run-button-icon--spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Bulk dialog */
+.lighthouse-bulk-dialog {
+  background: var(--color-surface, rgba(16, 19, 32, 0.95));
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  width: min(640px, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--color-text-primary, #f5f6ff);
+}
+
+.lighthouse-bulk-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lighthouse-bulk-dialog__header h3 {
+  margin: 0;
+}
+
+.lighthouse-bulk-dialog__header p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+}
+
+.lighthouse-bulk-dialog__close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.lighthouse-bulk-dialog__error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--color-error-bg, rgba(255, 111, 145, 0.2));
+  color: var(--color-error, #ff6f91);
+  font-size: 0.9rem;
+}
+
+.lighthouse-bulk-dialog__list {
+  border: 1px solid var(--color-border, rgba(122, 160, 255, 0.35));
+  border-radius: 0.75rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.25rem;
+  background: var(--color-bg-secondary, rgba(11, 18, 40, 0.85));
+}
+
+.lighthouse-bulk-dialog__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  justify-content: center;
+}
+
+.lighthouse-bulk-dialog__list-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lighthouse-bulk-dialog__list-item:hover {
+  background: var(--color-bg-tertiary, rgba(18, 26, 52, 0.9));
+}
+
+.lighthouse-bulk-dialog__list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lighthouse-bulk-dialog__list-info span {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.65));
+}
+
+.lighthouse-bulk-dialog__selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+}
+
+.lighthouse-bulk-dialog__selection-actions button {
+  border: none;
+  background: none;
+  color: var(--color-primary, #7aa0ff);
+  cursor: pointer;
+  padding: 0;
+}
+
+.lighthouse-bulk-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Sections */
+.lighthouse-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lighthouse-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #f5f6ff);
+}
+
+/* Score Cards Grid */
+.lighthouse-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.lighthouse-score-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border, rgba(122, 160, 255, 0.3));
+  border-radius: 0.5rem;
+  background: var(--color-bg-secondary, rgba(11, 18, 40, 0.85));
+}
+
+.lighthouse-score-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lighthouse-score-card__page {
+  font-weight: 600;
+  color: var(--color-text-primary, #f5f6ff);
+  text-transform: capitalize;
+}
+
+.lighthouse-score-card__viewport {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-tertiary, rgba(18, 26, 52, 0.85));
+  border-radius: 0.25rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+  text-transform: capitalize;
+}
+
+.lighthouse-score-card__scores {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.lighthouse-score-card__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-primary, #7aa0ff);
+  text-decoration: none;
+  border-top: 1px solid var(--color-border, rgba(122, 160, 255, 0.3));
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  transition: color 0.2s;
+}
+
+.lighthouse-score-card__link:hover {
+  color: var(--color-primary-hover, #9cb8ff);
+}
+
+/* Score Badge */
+.lighthouse-score-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background: var(--color-bg-tertiary, rgba(18, 26, 52, 0.85));
+}
+
+.lighthouse-score-badge--good {
+  border-left: 3px solid var(--color-success, #33e29a);
+}
+
+.lighthouse-score-badge--average {
+  border-left: 3px solid var(--color-warning, #ffd166);
+}
+
+.lighthouse-score-badge--poor {
+  border-left: 3px solid var(--color-danger, #ff6f91);
+}
+
+.lighthouse-score-badge__icon {
+  font-size: 1.25rem;
+}
+
+.lighthouse-score-badge__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.lighthouse-score-badge__label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+  line-height: 1;
+}
+
+.lighthouse-score-badge__score {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lighthouse-score-badge--good .lighthouse-score-badge__score {
+  color: var(--color-success, #33e29a);
+}
+
+.lighthouse-score-badge--average .lighthouse-score-badge__score {
+  color: var(--color-warning, #ffd166);
+}
+
+.lighthouse-score-badge--poor .lighthouse-score-badge__score {
+  color: var(--color-danger, #ff6f91);
+}
+
+/* Score Chip (for tables) */
+.lighthouse-score-chip {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lighthouse-score-chip--good {
+  background: var(--color-success-bg, rgba(51, 226, 154, 0.2));
+  color: var(--color-success, #33e29a);
+}
+
+.lighthouse-score-chip--average {
+  background: var(--color-warning-bg, rgba(255, 209, 102, 0.22));
+  color: var(--color-warning, #ffd166);
+}
+
+.lighthouse-score-chip--poor {
+  background: var(--color-danger-bg, rgba(255, 111, 145, 0.22));
+  color: var(--color-danger, #ff6f91);
+}
+
+/* Reports Table */
+.lighthouse-reports-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-border, rgba(122, 160, 255, 0.25));
+  border-radius: 0.5rem;
+}
+
+.lighthouse-reports-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lighthouse-reports-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary, rgba(11, 18, 40, 0.85));
+  font-weight: 600;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+  border-bottom: 1px solid var(--color-border, rgba(122, 160, 255, 0.25));
+}
+
+.lighthouse-reports-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border, rgba(122, 160, 255, 0.2));
+}
+
+.lighthouse-reports-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.lighthouse-reports-table tbody tr:hover {
+  background: var(--color-bg-hover, rgba(122, 160, 255, 0.12));
+}
+
+.lighthouse-reports-table__page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lighthouse-reports-table__viewport {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, rgba(245, 246, 255, 0.55));
+}
+
+.lighthouse-reports-table__link {
+  color: var(--color-primary, #7aa0ff);
+  transition: color 0.2s;
+}
+
+.lighthouse-reports-table__link:hover {
+  color: var(--color-primary-hover, #9cb8ff);
+}
+
+/* Mini Chart (Trend Visualization) */
+.lighthouse-mini-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-secondary, rgba(11, 18, 40, 0.85));
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border, rgba(122, 160, 255, 0.25));
+}
+
+.lighthouse-mini-chart__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lighthouse-mini-chart__label {
+  flex-shrink: 0;
+  width: 120px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #f5f6ff);
+  text-transform: capitalize;
+}
+
+.lighthouse-mini-chart__bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+}
+
+.lighthouse-mini-chart__bar {
+  flex: 1;
+  min-width: 8px;
+  border-radius: 2px 2px 0 0;
+  transition: all 0.2s;
+  cursor: help;
+}
+
+.lighthouse-mini-chart__bar:hover {
+  opacity: 0.8;
+}
+
+.lighthouse-mini-chart__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-width: 60px;
+}
+
+.lighthouse-mini-chart__avg {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f5f6ff);
+}
+
+.lighthouse-mini-chart__trend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-secondary, rgba(245, 246, 255, 0.72));
+}
+
+.lighthouse-mini-chart__trend--up {
+  color: var(--color-success, #33e29a);
+}
+
+.lighthouse-mini-chart__trend--down {
+  color: var(--color-danger, #ff6f91);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lighthouse-scores-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lighthouse-tab__header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .lighthouse-tab__run-button--primary {
+    align-self: stretch;
+  }
+
+  .lighthouse-mini-chart__label {
+    width: 80px;
+    font-size: 0.75rem;
+  }
+
+  .lighthouse-mini-chart__bars {
+    height: 30px;
+  }
+}

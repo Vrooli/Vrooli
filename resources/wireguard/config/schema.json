@@ -56,10 +56,20 @@
     "log_level": {
       "type": "string",
       "description": "Logging verbosity level",
-      "enum": ["debug", "info", "warn", "error"],
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
       "default": "info"
     }
   },
-  "required": ["port", "network", "container_name"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "network",
+    "container_name"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/wireguard/schema.json"
 }

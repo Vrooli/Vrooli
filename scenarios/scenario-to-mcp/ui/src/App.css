@@ -46,7 +46,8 @@
   margin-left: 2.5rem;
 }
 
-.refresh-btn {
+.refresh-btn,
+.docs-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -59,15 +60,36 @@
   transition: all 0.2s;
 }
 
-.refresh-btn:hover {
+.refresh-btn:hover,
+.docs-btn:hover {
   background: #00ff0022;
   border-color: #00ff0088;
   box-shadow: 0 0 10px #00ff0044;
 }
 
-.refresh-btn:disabled {
+.refresh-btn:disabled,
+.docs-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.docs-btn {
+  position: relative;
+  color: #a8ffbf;
+}
+
+.docs-btn .docs-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0 0.25rem;
+  background: rgba(0, 255, 128, 0.15);
+  border: 1px solid rgba(0, 255, 128, 0.45);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #00ff88;
+  text-shadow: none;
 }
 
 .spinning {

@@ -1,3 +1,4 @@
+//go:build !test
 // +build !test
 
 package main
@@ -221,7 +222,7 @@ func setupTestCache(t *testing.T) *CacheClient {
 	// Create a cache client that's disabled for predictable testing
 	return &CacheClient{
 		redis:  nil,
-		enable: false,
+		Enable: false,
 	}
 }
 

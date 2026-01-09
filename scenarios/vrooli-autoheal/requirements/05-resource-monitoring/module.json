@@ -1,0 +1,94 @@
+{
+  "module": "resource-monitoring",
+  "description": "Health monitoring and auto-repair for Vrooli resources",
+  "prd_refs": [
+    "OT-P0-006"
+  ],
+  "requirements": [
+    {
+      "id": "RES-MON-001",
+      "title": "Resource status check via CLI",
+      "description": "Use vrooli resource status <name> --json to check resource health",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RES-MON-002",
+      "title": "Resource health interpretation",
+      "description": "Parse running and healthy fields from status response",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RES-MON-003",
+      "title": "Auto-restart unhealthy resources",
+      "description": "If resource is not running or unhealthy, attempt restart via vrooli resource restart",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RES-MON-004",
+      "title": "Configurable resource list",
+      "description": "List of monitored resources is configuration-driven (postgres, redis, qdrant, ollama, etc.)",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "RES-MON-005",
+      "title": "Restart failure handling",
+      "description": "Log error and return critical status if restart fails",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

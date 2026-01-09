@@ -184,9 +184,9 @@ Agent DID complete successfully (405 char structured report) but was marked as f
 
 **Impact**: Documentation is inaccurate and users can't use the documented commands
 
-**Solution**: Fixed all references in service.json to use `app-issue-tracker.sh` instead of the non-existent v2 version
+**Solution**: Fixed all references in service.json to use the `app-issue-tracker` CLI instead of the non-existent v2 version
 
-**Fix Applied**: ✅ All CLI references now point to the correct `app-issue-tracker.sh` file (2025-09-30)
+**Fix Applied**: ✅ All CLI references now point to the correct `app-issue-tracker` file (2025-09-30)
 
 ### 3. Port Configuration Hardcoding
 **Problem**: Some documentation references port 15000 but actual port is dynamically allocated (currently 19982)

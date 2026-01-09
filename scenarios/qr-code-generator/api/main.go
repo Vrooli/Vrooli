@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -46,50 +47,31 @@ type BatchResponse struct {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "qr-code-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
 
-🚀 Instead, use:
-   vrooli scenario start qr-code-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
+	// Require explicit port configuration
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		fmt.Fprintf(os.Stderr, "❌ Error: API_PORT environment variable is required\n")
+		fmt.Fprintf(os.Stderr, "💡 This service must be run through the Vrooli lifecycle system.\n")
 		os.Exit(1)
 	}
 
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
-
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/batch", batchHandler)
 	http.HandleFunc("/formats", formatsHandler)
 
-	log.Printf("QR Code Generator API starting on port %s", port)
+	// Use structured logging format
+	log.Printf("[INFO] service=qr-code-generator action=starting port=%s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+		log.Fatalf("[ERROR] service=qr-code-generator action=start_failed error=%v", err)
 	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "healthy",
-		"service": "qr-code-generator",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"features": map[string]bool{
-			"generate": true,
-			"batch": true,
-			"formats": true,
-		},
-	})
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {

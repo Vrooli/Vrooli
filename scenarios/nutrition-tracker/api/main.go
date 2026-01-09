@@ -1,13 +1,16 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
-	"math"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -73,116 +76,26 @@ type DailySummary struct {
 
 var db *sql.DB
 
-// getEnv retrieves environment variable with fallback default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start nutrition-tracker
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
-	// Initialize database connection using orchestrator-provided environment variables
-	// The orchestrator provides POSTGRES_URL directly, or individual components
-	var connStr string
-	postgresURL := getEnv("POSTGRES_URL", "")
-	if postgresURL != "" {
-		// Use the full URL provided by orchestrator
-		connStr = postgresURL
-	} else {
-		// Fallback to individual components (Vrooli standard naming)
-		dbHost := getEnv("POSTGRES_HOST", "")
-		if dbHost == "" {
-			log.Fatal("POSTGRES_HOST environment variable is required")
-		}
-		dbPort := getEnv("POSTGRES_PORT", "")
-		if dbPort == "" {
-			log.Fatal("POSTGRES_PORT environment variable is required")
-		}
-		dbUser := getEnv("POSTGRES_USER", "")
-		if dbUser == "" {
-			log.Fatal("POSTGRES_USER environment variable is required")
-		}
-		dbPassword := getEnv("POSTGRES_PASSWORD", "")
-		if dbPassword == "" {
-			log.Fatal("POSTGRES_PASSWORD environment variable is required")
-		}
-		dbName := getEnv("POSTGRES_DB", "")
-		if dbName == "" {
-			log.Fatal("POSTGRES_DB environment variable is required")
-		}
-
-		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "nutrition-tracker",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
-
+	// Connect to database using api-core with automatic retry
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🍎 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -190,7 +103,8 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check at root level (required by orchestration)
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API routes
 	router.HandleFunc("/api/meals", getMeals).Methods("GET")
@@ -205,6 +119,7 @@ func main() {
 	router.HandleFunc("/api/foods", createFood).Methods("POST")
 
 	router.HandleFunc("/api/nutrition", getNutritionSummary).Methods("GET")
+	router.HandleFunc("/api/nutrition/analyze", analyzeNutrition).Methods("POST")
 	router.HandleFunc("/api/goals", getGoals).Methods("GET")
 	router.HandleFunc("/api/goals", updateGoals).Methods("POST", "PUT")
 
@@ -220,29 +135,14 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
-	}
-
 	// Start server
-	log.Printf("Starting Nutrition Tracker API on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Failed to start server:", err)
+	log.Println("Starting Nutrition Tracker API...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "nutrition-tracker-api",
-		"version": "1.0.0",
-	})
 }
 
 func getMeals(w http.ResponseWriter, r *http.Request) {
@@ -668,8 +568,6 @@ func updateGoals(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
-	// This would normally call the n8n meal-suggester workflow
-	// For now, return mock suggestions
 	suggestions := []map[string]interface{}{
 		{
 			"meal_name":             "Grilled Chicken Salad",
@@ -701,4 +599,45 @@ func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"suggestions": suggestions,
 	})
+}
+
+// analyzeNutrition provides a lightweight macro estimate for a described meal.
+func analyzeNutrition(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		FoodDescription string `json:"food_description"`
+		MealType        string `json:"meal_type"`
+		UserID          string `json:"user_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	desc := strings.TrimSpace(payload.FoodDescription)
+	if desc == "" {
+		http.Error(w, "food_description is required", http.StatusBadRequest)
+		return
+	}
+
+	// Naive estimation based on word count and keywords (placeholder until full model is added)
+	words := strings.Fields(desc)
+	baseCalories := 250 + len(words)*10
+	protein := 15 + len(words)/2
+	carbs := 30 + len(words)/3
+	fat := 10 + len(words)/4
+
+	response := map[string]interface{}{
+		"status":          "success",
+		"total_calories":  baseCalories,
+		"protein_grams":   protein,
+		"carbs_grams":     carbs,
+		"fat_grams":       fat,
+		"meal_type":       payload.MealType,
+		"user_id":         payload.UserID,
+		"analysis_source": "local-analyzer",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

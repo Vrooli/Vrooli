@@ -1,19 +1,29 @@
-import { useEffect, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import ResponsiveDialog from './dialog/ResponsiveDialog';
+
+type ModalSize = 'compact' | 'default' | 'wide' | 'xl';
 
 interface ModalProps {
   onClose: () => void;
   labelledBy?: string;
   panelClassName?: string;
   children: ReactNode;
+  size?: ModalSize;
+  ariaLabel?: string;
+  role?: 'dialog' | 'alertdialog';
 }
 
-export function Modal({ onClose, labelledBy, panelClassName, children }: ModalProps) {
-  const handleBackdropMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  };
+export function Modal({
+  onClose,
+  labelledBy,
+  panelClassName,
+  children,
+  size = 'default',
+  ariaLabel,
+  role = 'dialog',
+}: ModalProps) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -28,17 +38,34 @@ export function Modal({ onClose, labelledBy, panelClassName, children }: ModalPr
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const { style } = document.body;
+    const previousOverflow = style.overflow;
+    style.overflow = 'hidden';
+
+    return () => {
+      style.overflow = previousOverflow;
+    };
+  }, []);
+
   const modalContent = (
-    <div className="modal-backdrop" onMouseDown={handleBackdropMouseDown}>
-      <div
-        className={`modal-panel${panelClassName ? ` ${panelClassName}` : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-      >
-        {children}
-      </div>
-    </div>
+    <ResponsiveDialog
+      isOpen
+      onDismiss={onClose}
+      ariaLabelledBy={labelledBy}
+      ariaLabel={ariaLabel}
+      overlayClassName="modal-backdrop"
+      className={`modal-panel${panelClassName ? ` ${panelClassName}` : ''}`}
+      contentRef={contentRef}
+      size={size}
+      role={role}
+    >
+      {children}
+    </ResponsiveDialog>
   );
 
   return typeof document !== 'undefined'

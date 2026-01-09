@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "description": "Draft lifecycle management (create, read, update, delete, publish) requirements",
+    "domain": "drafts",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-DRAFT-CREATE",
+      "category": "drafts.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Create new draft from template or existing PRD",
+      "description": "Verifies POST /api/v1/drafts creates draft in database and filesystem with proper metadata.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHandleCreateDraft with validation and filesystem sync"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "POST /api/v1/drafts endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of draft creation workflow"
+        }
+      ]
+    },
+    {
+      "id": "PCT-DRAFT-SAVE",
+      "category": "drafts.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Draft content persists to database and filesystem atomically",
+      "description": "Ensures PUT /api/v1/drafts/{id} updates both database record and draft file with proper error handling.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHandleUpdateDraft with database and filesystem validation"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "PUT /api/v1/drafts/{id} endpoint integration tests"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of draft save workflow"
+        }
+      ]
+    },
+    {
+      "id": "PCT-DRAFT-DELETE",
+      "category": "drafts.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Draft deletion removes database record and filesystem entry",
+      "description": "Validates DELETE /api/v1/drafts/{id} cleans up both database and filesystem with confirmation.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHandleDeleteDraft with cleanup verification"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "DELETE /api/v1/drafts/{id} endpoint integration tests"
+        }
+      ]
+    },
+    {
+      "id": "PCT-DRAFT-PUBLISH",
+      "category": "drafts.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Publishing atomically updates PRD.md and clears draft",
+      "description": "Confirms POST /api/v1/drafts/{id}/publish writes PRD.md with backup and removes draft safely.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/publish_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHandlePublishDraft validates atomic publish operation"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of complete draft lifecycle including publish"
+        }
+      ]
+    },
+    {
+      "id": "PCT-DRAFT-EDIT",
+      "category": "drafts.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Draft editor supports split-pane editing with live preview",
+      "description": "Confirms DraftEditorPane renders edit/split/preview modes with textarea and markdown rendering.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Draft content validation and persistence tests"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Draft API endpoints validate content editing workflow"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of draft editor and content editing"
+        }
+      ]
+    }
+  ]
+}

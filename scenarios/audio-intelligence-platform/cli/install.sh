@@ -5,4 +5,4 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLI_DIR="${APP_ROOT}/scenarios/audio-intelligence-platform/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/audio-intelligence-platform-cli.sh" "audio-intelligence-platform"
+install_cli "$CLI_DIR/audio-intelligence-platform" "audio-intelligence-platform"

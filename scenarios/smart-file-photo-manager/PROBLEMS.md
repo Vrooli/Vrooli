@@ -98,7 +98,7 @@ This is by design for the simplified deployment. For production, migrate to full
 1. Fix schema issue (#1)
 2. Create test script for file upload workflow
 3. Add BATS tests for CLI commands
-4. Implement phased testing structure per docs/scenarios/PHASED_TESTING_ARCHITECTURE.md
+4. Implement phased testing structure per docs/testing/architecture/PHASED_TESTING.md
 
 ---
 

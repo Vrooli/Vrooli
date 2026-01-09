@@ -304,7 +304,7 @@ func TestScanResultSerialization(t *testing.T) {
 				Suggestion:  "Use parameterized queries",
 			},
 		},
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"version": "1.0",
 			"rules":   10,
 		},

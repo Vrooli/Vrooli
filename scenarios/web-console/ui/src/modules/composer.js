@@ -1,171 +1,264 @@
-import { elements, state } from './state.js'
+// @ts-check
 
-let submitHandler = null
-let submitErrorHandler = null
-let getActiveTabFn = () => null
+import { elements, state } from "./state.js";
 
-export function configureComposer({ onSubmit, onSubmitError, getActiveTab }) {
-  submitHandler = typeof onSubmit === 'function' ? onSubmit : null
-  submitErrorHandler = typeof onSubmitError === 'function' ? onSubmitError : null
-  getActiveTabFn = typeof getActiveTab === 'function' ? getActiveTab : (() => null)
+/** @typedef {import("./types.d.ts").TerminalTab} TerminalTab */
+
+/**
+ * @typedef {{ tab: TerminalTab; value: string; appendNewline: boolean }} ComposerSubmitPayload
+ * @typedef {{ value: string; appendNewline: boolean }} ComposerErrorPayload
+ */
+
+/** @type {((payload: ComposerSubmitPayload) => boolean | void | Promise<boolean | void>) | null} */
+let submitHandler = null;
+/** @type {((payload: ComposerErrorPayload) => void) | null} */
+let submitErrorHandler = null;
+/** @type {() => TerminalTab | null} */
+let getActiveTabFn = () => null;
+
+/**
+ * @param {{
+ *  onSubmit?: (payload: ComposerSubmitPayload) => boolean | void | Promise<boolean | void>;
+ *  onSubmitError?: (payload: ComposerErrorPayload) => void;
+ *  getActiveTab?: () => TerminalTab | null;
+ * }} [options]
+ */
+export function configureComposer({ onSubmit, onSubmitError, getActiveTab } = {}) {
+  submitHandler = typeof onSubmit === "function" ? onSubmit : null;
+  submitErrorHandler =
+    typeof onSubmitError === "function" ? onSubmitError : null;
+  getActiveTabFn =
+    typeof getActiveTab === "function" ? getActiveTab : () => null;
 }
 
 export function initializeComposerUI() {
-  if (elements.composeBtn) {
-    elements.composeBtn.addEventListener('click', () => openComposeDialog())
+  if (elements.composeBtn instanceof HTMLButtonElement) {
+    elements.composeBtn.addEventListener("click", () => openComposeDialog());
   }
-  if (elements.composeCancel) {
-    elements.composeCancel.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+  if (elements.composeCancel instanceof HTMLButtonElement) {
+    elements.composeCancel.addEventListener("click", () =>
+      closeComposeDialog({ preserveValue: false }),
+    );
   }
-  if (elements.composeClose) {
-    elements.composeClose.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+  if (elements.composeClose instanceof HTMLButtonElement) {
+    elements.composeClose.addEventListener("click", () =>
+      closeComposeDialog({ preserveValue: false }),
+    );
   }
   if (elements.composeBackdrop) {
-    elements.composeBackdrop.addEventListener('click', () => closeComposeDialog({ preserveValue: false }))
+    elements.composeBackdrop.addEventListener("click", () =>
+      closeComposeDialog({ preserveValue: false }),
+    );
   }
-  if (elements.composeForm) {
-    elements.composeForm.addEventListener('submit', handleComposeSubmit)
+  if (elements.composeForm instanceof HTMLFormElement) {
+    elements.composeForm.addEventListener("submit", handleComposeSubmit);
   }
-  if (elements.composeTextarea) {
-    elements.composeTextarea.addEventListener('input', updateComposeFeedback)
+  if (elements.composeTextarea instanceof HTMLTextAreaElement) {
+    elements.composeTextarea.addEventListener("input", updateComposeFeedback);
   }
-  if (elements.composeAppendNewline) {
-    elements.composeAppendNewline.addEventListener('change', updateComposeFeedback)
+  if (elements.composeAppendNewline instanceof HTMLInputElement) {
+    elements.composeAppendNewline.addEventListener(
+      "change",
+      updateComposeFeedback,
+    );
   }
-  updateComposeFeedback()
+  updateComposeFeedback();
 }
 
 export function isComposerOpen() {
-  return state.composer.open === true
+  return state.composer.open === true;
 }
 
-export function openComposeDialog(prefill = '') {
-  if (!elements.composeDialog || !elements.composeTextarea) return
+export function openComposeDialog(prefill = "") {
+  const dialog = elements.composeDialog;
+  const textarea =
+    elements.composeTextarea instanceof HTMLTextAreaElement
+      ? elements.composeTextarea
+      : null;
+  const appendToggle =
+    elements.composeAppendNewline instanceof HTMLInputElement
+      ? elements.composeAppendNewline
+      : null;
+  if (!dialog || !textarea) return;
   if (state.composer.open) {
-    elements.composeTextarea.focus()
-    return
+    textarea.focus();
+    return;
   }
 
-  if (!prefill && typeof window !== 'undefined' && window.getSelection) {
+  if (!prefill && typeof window !== "undefined" && window.getSelection) {
     try {
-      const selected = window.getSelection().toString()
+      const selection = window.getSelection();
+      const selected = selection ? selection.toString() : "";
       if (selected && selected.trim().length > 0) {
-        prefill = selected.trimEnd()
+        prefill = selected.trimEnd();
       }
     } catch (_error) {
       // ignore selection access issues
     }
   }
 
-  state.composer.open = true
-  state.composer.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  state.composer.open = true;
+  state.composer.previousFocus =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
 
-  elements.composeDialog.classList.remove('hidden')
-  elements.composeBackdrop?.classList.remove('hidden')
-  elements.composeDialog.setAttribute('aria-hidden', 'false')
+  dialog.classList.remove("hidden");
+  elements.composeBackdrop?.classList.remove("hidden");
+  dialog.setAttribute("aria-hidden", "false");
 
-  elements.composeTextarea.value = prefill || ''
-  if (elements.composeAppendNewline) {
-    elements.composeAppendNewline.checked = state.composer.appendNewline !== false
+  textarea.value = prefill || "";
+  if (appendToggle) {
+    appendToggle.checked = state.composer.appendNewline !== false;
   }
-  updateComposeFeedback()
+  updateComposeFeedback();
 
   requestAnimationFrame(() => {
-    elements.composeTextarea?.focus()
-    elements.composeTextarea?.select()
-  })
+    textarea.focus();
+    textarea.select();
+  });
 }
 
+/**
+ * @param {{ preserveValue?: boolean }} [options]
+ */
 export function closeComposeDialog(options = {}) {
   if (!state.composer.open) {
-    return
+    return;
   }
-  state.composer.open = false
+  state.composer.open = false;
 
-  elements.composeDialog?.classList.add('hidden')
-  elements.composeBackdrop?.classList.add('hidden')
-  elements.composeDialog?.setAttribute('aria-hidden', 'true')
+  const dialog = elements.composeDialog;
+  const textarea =
+    elements.composeTextarea instanceof HTMLTextAreaElement
+      ? elements.composeTextarea
+      : null;
+  dialog?.classList.add("hidden");
+  elements.composeBackdrop?.classList.add("hidden");
+  dialog?.setAttribute("aria-hidden", "true");
 
-  if (!options.preserveValue && elements.composeTextarea) {
-    elements.composeTextarea.value = ''
+  const preserveValue = options.preserveValue === true;
+  if (!preserveValue && textarea) {
+    textarea.value = "";
   }
 
-  updateComposeFeedback()
+  updateComposeFeedback();
 
-  if (state.composer.previousFocus && typeof state.composer.previousFocus.focus === 'function') {
+  if (
+    state.composer.previousFocus &&
+    typeof state.composer.previousFocus.focus === "function"
+  ) {
     try {
-      state.composer.previousFocus.focus()
+      state.composer.previousFocus.focus();
     } catch (_error) {
       // ignore focus failures
     }
   }
-  state.composer.previousFocus = null
+  state.composer.previousFocus = null;
 }
 
 export function updateComposeFeedback() {
-  if (!elements.composeTextarea || !elements.composeSend) return
-  const value = elements.composeTextarea.value || ''
-  const newline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
-  state.composer.appendNewline = newline
+  const textarea =
+    elements.composeTextarea instanceof HTMLTextAreaElement
+      ? elements.composeTextarea
+      : null;
+  const sendButton =
+    elements.composeSend instanceof HTMLButtonElement
+      ? elements.composeSend
+      : null;
+  const appendToggle =
+    elements.composeAppendNewline instanceof HTMLInputElement
+      ? elements.composeAppendNewline
+      : null;
+  if (!textarea || !sendButton) return;
+  const value = textarea.value || "";
+  const newline = appendToggle ? appendToggle.checked : true;
+  state.composer.appendNewline = newline;
 
-  const needsNewline = newline && !value.endsWith('\n')
+  const needsNewline = newline && !value.endsWith("\n");
 
-  const tab = getActiveTabFn()
+  const tab = getActiveTabFn();
 
   if (elements.composeCharCount) {
-    const totalChars = value.length + (needsNewline ? 1 : 0)
+    const totalChars = value.length + (needsNewline ? 1 : 0);
     const baseLabel = needsNewline
       ? `${totalChars} chars (includes appended newline)`
-      : `${totalChars} chars`
-    elements.composeCharCount.textContent = tab ? baseLabel : `No active terminal · ${baseLabel}`
+      : `${totalChars} chars`;
+    elements.composeCharCount.textContent = tab
+      ? baseLabel
+      : `No active terminal · ${baseLabel}`;
   }
 
-  const trimmed = value.trim()
-  elements.composeSend.disabled = !tab || trimmed.length === 0
+  const trimmed = value.trim();
+  sendButton.disabled = !tab || trimmed.length === 0;
 }
 
+/**
+ * @param {SubmitEvent} event
+ */
 function handleComposeSubmit(event) {
-  event.preventDefault()
-  if (!elements.composeTextarea) return
-  const tab = getActiveTabFn()
+  event.preventDefault();
+  const textarea =
+    elements.composeTextarea instanceof HTMLTextAreaElement
+      ? elements.composeTextarea
+      : null;
+  if (!textarea) return;
+  const tab = getActiveTabFn();
   if (!tab) {
-    updateComposeFeedback()
-    return
+    updateComposeFeedback();
+    return;
   }
 
-  const value = elements.composeTextarea.value
-  const trimmed = value.trim()
+  const value = textarea.value;
+  const trimmed = value.trim();
   if (!trimmed) {
-    updateComposeFeedback()
-    return
+    updateComposeFeedback();
+    return;
   }
 
-  const appendNewline = elements.composeAppendNewline ? elements.composeAppendNewline.checked : true
+  const appendToggle =
+    elements.composeAppendNewline instanceof HTMLInputElement
+      ? elements.composeAppendNewline
+      : null;
+  const appendNewline = appendToggle ? appendToggle.checked : true;
 
   if (!submitHandler) {
-    closeComposeDialog({ preserveValue: true })
-    return
+    closeComposeDialog({ preserveValue: true });
+    return;
   }
 
-  const result = submitHandler({ tab, value, appendNewline })
+  const outcome = submitHandler({ tab, value, appendNewline });
 
-  if (result && typeof result.then === 'function') {
-    result.then((sent) => handlePostSubmit(sent, value, appendNewline)).catch(() => handlePostSubmit(false, value, appendNewline))
-  } else {
-    handlePostSubmit(result !== false, value, appendNewline)
-  }
+  Promise.resolve(outcome)
+    .then((sent) => handlePostSubmit(sent !== false, value, appendNewline))
+    .catch(() => handlePostSubmit(false, value, appendNewline));
 }
 
+/**
+ * @param {boolean} success
+ * @param {string} value
+ * @param {boolean} appendNewline
+ */
 function handlePostSubmit(success, value, appendNewline) {
   if (success) {
-    elements.composeTextarea.value = ''
-    updateComposeFeedback()
-    closeComposeDialog({ preserveValue: false })
+    const textarea =
+      elements.composeTextarea instanceof HTMLTextAreaElement
+        ? elements.composeTextarea
+        : null;
+    if (textarea) {
+      textarea.value = "";
+    }
+    updateComposeFeedback();
+    closeComposeDialog({ preserveValue: false });
   } else {
     // Keep dialog open so the user can try again
-    elements.composeTextarea.focus()
+    const textarea =
+      elements.composeTextarea instanceof HTMLTextAreaElement
+        ? elements.composeTextarea
+        : null;
+    textarea?.focus();
     if (submitErrorHandler) {
-      submitErrorHandler({ value, appendNewline })
+      submitErrorHandler({ value, appendNewline });
     }
   }
 }

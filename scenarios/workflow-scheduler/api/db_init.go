@@ -12,7 +12,7 @@ import (
 // InitializeDatabase creates tables if they don't exist
 func InitializeDatabase(db *sql.DB) error {
 	log.Println("🔧 Checking database schema...")
-	
+
 	// Check if schedules table exists
 	var exists bool
 	err := db.QueryRow(`
@@ -22,18 +22,18 @@ func InitializeDatabase(db *sql.DB) error {
 			AND table_name = 'schedules'
 		)
 	`).Scan(&exists)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to check if tables exist: %v", err)
 	}
-	
+
 	if exists {
 		log.Println("✅ Database schema already initialized")
 		return nil
 	}
-	
+
 	log.Println("📝 Initializing database schema...")
-	
+
 	// Try to read and execute schema.sql
 	schemaPath := filepath.Join("..", "initialization", "storage", "postgres", "schema.sql")
 	schemaBytes, err := ioutil.ReadFile(schemaPath)
@@ -42,10 +42,10 @@ func InitializeDatabase(db *sql.DB) error {
 		log.Println("⚠️ Schema file not found, using minimal embedded schema")
 		return createMinimalSchema(db)
 	}
-	
+
 	// Execute schema
 	schemaSQL := string(schemaBytes)
-	
+
 	// Split by semicolon and execute each statement
 	statements := strings.Split(schemaSQL, ";")
 	for _, stmt := range statements {
@@ -53,14 +53,14 @@ func InitializeDatabase(db *sql.DB) error {
 		if stmt == "" {
 			continue
 		}
-		
+
 		_, err = db.Exec(stmt)
 		if err != nil {
 			// Log but continue - some statements might fail if already exist
 			log.Printf("⚠️ Schema statement warning: %v", err)
 		}
 	}
-	
+
 	log.Println("✅ Database schema initialized successfully")
 	return nil
 }
@@ -100,7 +100,7 @@ func createMinimalSchema(db *sql.DB) error {
 		next_execution_at TIMESTAMP WITH TIME ZONE
 	);
 	
-	-- Create schedule_executions table (separate from n8n workflow executions)
+	-- Create schedule_executions table
 	CREATE TABLE IF NOT EXISTS schedule_executions (
 		id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 		schedule_id UUID REFERENCES schedules(id) ON DELETE CASCADE,
@@ -149,12 +149,12 @@ func createMinimalSchema(db *sql.DB) error {
 		('First day of month', 'Runs monthly on the 1st at midnight', '0 0 1 * *', 'Monthly', true)
 	ON CONFLICT DO NOTHING;
 	`
-	
+
 	// Execute minimal schema
 	_, err := db.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("failed to create minimal schema: %v", err)
 	}
-	
+
 	return nil
 }

@@ -26,7 +26,12 @@ export function MetricsDialog({
   onOpenIssue,
 }: MetricsDialogProps) {
   return (
-    <Modal onClose={onClose} labelledBy="metrics-dialog-title" panelClassName="modal-panel--wide">
+    <Modal
+      onClose={onClose}
+      labelledBy="metrics-dialog-title"
+      panelClassName="modal-panel--wide"
+      size="xl"
+    >
       <div className="modal-header">
         <div>
           <p className="modal-eyebrow">Dashboard</p>

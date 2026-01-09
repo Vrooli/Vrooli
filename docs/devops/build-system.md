@@ -54,8 +54,8 @@ vrooli scenario test <name>
 # List available scenarios
 vrooli scenario list
 
-# Check scenario configuration
-vrooli scenario info <name>
+# Check scenario configuration / remediation guidance
+vrooli scenario status <name>
 ```
 
 ### What About "vrooli build"?

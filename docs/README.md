@@ -10,9 +10,9 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 - [Technology Stack](#technology-stack)
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md)
 - [Development Guidelines](#development-guidelines)
+- **[Testing Guide](#testing-guide)** → **[Complete Testing Documentation](TESTING.md)**
 - [Task Management System](#task-management-system)
 - [Memory Management](#memory-management)
-- [Testing Guide](#testing-guide)
 - [Common Tasks](#common-tasks)
 - [Emergent Capabilities](#emergent-capabilities)
 - [Documentation Structure](#documentation-structure)
@@ -57,7 +57,6 @@ Vrooli is a resource orchestration platform for generating complete business app
 
 ### Core Resources
 - **AI**: Ollama (local LLM), Whisper (speech-to-text), ComfyUI (image generation)
-- **Automation**: N8n (visual workflows), Node-RED (real-time flows), Windmill (code-first)
 - **Storage**: PostgreSQL (relational), Redis (cache), Qdrant (vector), MinIO (object)
 - **Agents**: Agent-S2 (screen automation), Browserless (web automation)
 - **Search**: SearXNG (privacy-respecting metasearch)
@@ -118,15 +117,16 @@ Scenarios are complete business applications that orchestrate resources. Each sc
 ```bash
 # List and explore available scenarios
 vrooli scenario list                    # See all available scenarios
-vrooli scenario info <name>             # Get details about a specific scenario
+vrooli scenario status <name>           # Get live status + remediation tips
 
 # Run scenarios directly (no build needed!)
 vrooli scenario run research-assistant  # Run a scenario
 vrooli scenario test <name>             # Test scenario integration
 
-# Create new scenarios from templates
-cp -r scenarios/templates/basic scenarios/my-new-app
+# Create new scenarios from the React + Vite template
+vrooli scenario generate react-vite --id my-new-app --display-name "My New App" --description "Business-ready scenario"
 cd scenarios/my-new-app
+pnpm install --dir ui
 vrooli scenario run <scenario-name>      # Run scenario directly
 ```
 
@@ -149,11 +149,11 @@ resource-ollama logs                   # View resource logs
 2. Configure required resources in `.vrooli/service.json`
 3. Implement business logic by orchestrating resources
 4. Test with `vrooli scenario test <name>`
-5. Deploy directly with `vrooli scenario deploy <name>`
+5. Plan deployments via the [Deployment Hub](deployment/README.md) — Tier 1 (full Vrooli stack) is supported today; other tiers require the roadmap steps outlined there.
 
 **Adding New Capabilities:**
 - Need AI? Enable Ollama or OpenRouter resources
-- Need automation? Enable N8n or Windmill resources  
+- Need automation? Enable the N8n resource  
 - Need storage? PostgreSQL, Redis, and Qdrant are available
 - Scenarios automatically leverage available resources
 
@@ -191,21 +191,47 @@ You have no persistent memory between sessions. **After every memory reset, rely
 
 ## Testing Guide
 
-### Testing Approach
-- Write tests alongside code in `__test` directories
-- Use descriptive test names following pattern: `should [expected behavior] when [condition]`
-- **IMPORTANT**: Use testcontainers for Redis and PostgreSQL - DO NOT mock these databases
-  - More computationally expensive but MUCH more reliable than mocks
-  - Integration tests should use real database connections via testcontainers
-  - See scenario test files for examples of proper resource testing
-- Mock external APIs and services (LLM providers, Stripe, etc.) but not core infrastructure
-- Aim for >80% code coverage
-- Testing framework: Vitest
+**→ For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
+Vrooli employs a sophisticated, automated testing system with **zero-overhead requirement tracking** from PRD to test validation:
+
+### Quick Testing
+
+```bash
+# Test a scenario
+cd scenarios/my-scenario && make test
+
+# Run via test-genie CLI
+test-genie execute my-scenario --preset comprehensive
+
+# Generate tests automatically
+test-genie generate my-scenario --types unit,integration
+```
+
+### Key Testing Features
+
+- **🎯 Automatic Requirement Tracking** - Tag tests with `[REQ:ID]`, system handles the rest
+- **📊 6-Phase Progressive Validation** - Structure → Dependencies → Unit → Integration → Business → Performance
+- **🤖 AI-Powered Test Generation** - test-genie scenario generates comprehensive test suites
+- **🔄 Auto-Sync** - Test results automatically update requirement registry
+- **🌐 Multi-Framework** - Unified system for Go, Vitest, Python, BAS workflows
+
+### Essential Reading
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[Testing Hub](TESTING.md)** | Quick navigation, decision tree | Everyone |
+| **[Requirement Flow](testing/architecture/REQUIREMENT_FLOW.md)** | PRD → test → validation flow | AI agents, architects |
+| **[Quick Start](testing/guides/quick-start.md)** | Write first test in 5 minutes | Developers |
+| **[Safety Guidelines](testing/safety/GUIDELINES.md)** | Prevent data loss in tests | **CRITICAL** - Read first |
+| **[Requirement Tracking](testing/guides/requirement-tracking.md)** | Complete tracking system | Scenario builders |
+
+**Remember**: Vrooli scenarios are $10K-50K revenue applications. Comprehensive testing ensures production quality.
 
 ## Common Tasks
 
 ### Creating a New Scenario
-1. Use scenario templates: `cp -r scenarios/templates/basic scenarios/my-scenario`
+1. Use the official template: `vrooli scenario generate react-vite --id my-scenario --display-name "My Scenario" --description "One sentence summary"`
 2. Edit `service.json` to define resource dependencies
 3. Implement business logic using resource orchestration
 4. Add integration tests in `test.sh`
@@ -339,9 +365,9 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 - `defect-reporting.md` - Bug reporting process
 
 ### 🚀 **Deployment Documentation** (`/docs/deployment/`)
-- **[Deployment Guide](deployment/README.md)** - Choose the right deployment approach
-- **[Direct Scenario Deployment](scenarios/DEPLOYMENT.md)** - Run scenarios directly (recommended)
-- **[Production Deployment](deployment/production-deployment-guide.md)** - Cloud production setup
+- **[Deployment Hub](deployment/README.md)** - Tiered deployment vision + roadmap
+- **[Tier 1 · Local / Developer Stack](deployment/tiers/tier-1-local-dev.md)** - How we access every scenario today via app-monitor + Cloudflare
+- **[Legacy References](deployment/history/)** - Archived Kubernetes/Vault packaging docs
 
 ### 🛠️ **DevOps Documentation** (`/docs/devops/`)
 - `ci-cd.md` - CI/CD pipeline details
@@ -379,7 +405,7 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 
 **How Tasks Work in Vrooli**: Tasks are executed through scenarios that orchestrate resources:
 
-- **Automation Scenarios**: Use N8n, Windmill, or Node-RED resources for workflow automation
+- **Automation Scenarios**: Use N8n or Node-RED resources for workflow automation
 - **AI Task Scenarios**: Leverage Ollama and other AI resources for intelligent task processing  
 - **Business Process Scenarios**: Combine multiple resources to handle complex business workflows
 - **Meta-Scenarios**: Self-improving scenarios that enhance Vrooli itself (Scenario Generator, System Monitor)

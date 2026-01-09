@@ -1,0 +1,54 @@
+{
+  "description": "Integrate with workspace-sandbox for isolated execution",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Integrate with workspace-sandbox API to create and manage sandboxed environments",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-005",
+      "status": "implemented",
+      "title": "Sandbox Creation Integration",
+      "validation": [
+        {
+          "notes": "Test sandbox client create operation",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Create",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox client get operation",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox not found handling",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox cleanup/deletion",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Delete",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox availability check",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_IsAvailable",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Sandbox Integration"
+}

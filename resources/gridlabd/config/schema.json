@@ -21,7 +21,12 @@
     },
     "log_level": {
       "type": "string",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
       "default": "INFO",
       "description": "Logging level"
     },
@@ -55,13 +60,17 @@
     },
     "solver": {
       "type": "string",
-      "enum": ["NR", "FBS", "GS"],
+      "enum": [
+        "NR",
+        "FBS",
+        "GS"
+      ],
       "default": "NR",
       "description": "Power flow solver method"
     },
     "convergence_limit": {
       "type": "number",
-      "minimum": 0.000001,
+      "minimum": 1e-06,
       "maximum": 0.01,
       "default": 0.0001,
       "description": "Convergence tolerance"
@@ -77,6 +86,10 @@
       "description": "Enable result visualization"
     }
   },
-  "required": ["port", "data_dir"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "data_dir"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/gridlabd/schema.json"
 }

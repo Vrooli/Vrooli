@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-to-cloud status"
+      }
+    },
+    {
+      "id": "manifest_validate",
+      "path": "/manifest/validate",
+      "method": "POST",
+      "summary": "Validate cloud deployment manifest",
+      "description": "Validates a deployment-manager exported cloud manifest and returns actionable issues.",
+      "category": "manifest",
+      "examples": [
+        {
+          "name": "Validate manifest",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/manifest/validate -H 'Content-Type: application/json' -d @cloud-manifest.json"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-to-cloud manifest-validate cloud-manifest.json"
+      }
+    },
+    {
+      "id": "plan",
+      "path": "/plan",
+      "method": "POST",
+      "summary": "Generate a deploy plan",
+      "description": "Creates a deterministic plan from a validated manifest (preflight, bundling, install, deploy, verify).",
+      "category": "deploy",
+      "examples": [
+        {
+          "name": "Plan deploy",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/plan -H 'Content-Type: application/json' -d @cloud-manifest.json"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-to-cloud plan cloud-manifest.json"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "manifest-validate",
+      "description": "Validate a deployment-manager cloud manifest",
+      "endpoint_id": "manifest_validate"
+    },
+    {
+      "name": "plan",
+      "description": "Generate a deterministic deploy plan from a manifest",
+      "endpoint_id": "plan"
+    }
+  ]
+}

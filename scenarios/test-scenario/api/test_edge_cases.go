@@ -5,6 +5,14 @@ import (
 	"net/http"
 )
 
+// Dependency hooks allow tests to simulate validation/data failures without
+// mutating scenario logic. Production defaults retain the original behavior.
+var (
+	validateFunc    = func(r *http.Request) error { return nil }
+	getDataFunc     = func() (interface{}, error) { return nil, nil }
+	validateErrFunc = func(err error) error { return err }
+)
+
 // Edge Case 1: Status code in variable
 func handleWithVariable(w http.ResponseWriter, r *http.Request) {
 	status := 200
@@ -76,7 +84,7 @@ func handleMultipleStatuses(w http.ResponseWriter, r *http.Request) {
 }
 
 func validate(r *http.Request) error {
-	return nil
+	return validateFunc(r)
 }
 
 // Edge Case 7: Error variable named differently
@@ -105,11 +113,11 @@ func handleNestedErrors(w http.ResponseWriter, r *http.Request) {
 }
 
 func getData() (interface{}, error) {
-	return nil, nil
+	return getDataFunc()
 }
 
 func validateError(err error) error {
-	return err
+	return validateErrFunc(err)
 }
 
 // Edge Case 9: Comments with "error" keyword shouldn't trigger

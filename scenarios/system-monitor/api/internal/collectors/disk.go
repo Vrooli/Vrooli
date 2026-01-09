@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -19,12 +18,16 @@ import (
 // DiskCollector collects disk metrics
 type DiskCollector struct {
 	BaseCollector
+	lastInotifySample time.Time
+	lastInotifyStats  map[string]interface{}
+	inotifyInterval   time.Duration
 }
 
 // NewDiskCollector creates a new disk collector
 func NewDiskCollector() *DiskCollector {
 	return &DiskCollector{
-		BaseCollector: NewBaseCollector("disk", 30*time.Second),
+		BaseCollector:   NewBaseCollector("disk", 30*time.Second),
+		inotifyInterval: 5 * time.Minute,
 	}
 }
 
@@ -62,8 +65,7 @@ func (c *DiskCollector) getDiskUsage() map[string]interface{} {
 		return usage
 	}
 
-	cmd := exec.Command("bash", "-c", "df -B1 / | tail -1 | awk '{print $2, $3, $4}'")
-	output, err := cmd.Output()
+	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 / | tail -1 | awk '{print $2, $3, $4}'")
 	if err != nil {
 		return usage
 	}
@@ -104,21 +106,9 @@ func (c *DiskCollector) getIOStats() map[string]interface{} {
 	}
 
 	// Get I/O wait percentage from /proc/stat
-	cmd := exec.Command("bash", "-c", "grep '^cpu ' /proc/stat | awk '{print ($5/($2+$3+$4+$5+$6+$7+$8))*100}'")
-	output, err := cmd.Output()
+	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "grep '^cpu ' /proc/stat | awk '{print ($5/($2+$3+$4+$5+$6+$7+$8))*100}'")
 	if err == nil {
 		ioStats["io_wait_percent"], _ = strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	}
-
-	// Get iostat data if available
-	cmd = exec.Command("bash", "-c", "iostat -x 1 2 | grep -A1 avg-cpu | tail -1")
-	output, err = cmd.Output()
-	if err == nil {
-		// Parse iostat output
-		fields := strings.Fields(string(output))
-		if len(fields) >= 6 {
-			ioStats["io_wait_percent"], _ = strconv.ParseFloat(fields[3], 64)
-		}
 	}
 
 	// Mock additional stats for now
@@ -174,6 +164,10 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 
 // getInotifyStats returns inotify watcher and instance utilisation
 func (c *DiskCollector) getInotifyStats() map[string]interface{} {
+	if !c.lastInotifySample.IsZero() && time.Since(c.lastInotifySample) < c.inotifyInterval {
+		return cloneMap(c.lastInotifyStats)
+	}
+
 	stats := map[string]interface{}{
 		"supported":         runtime.GOOS == "linux",
 		"watches_used":      0,
@@ -192,6 +186,8 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 		stats["instances_max"] = 1024
 		stats["watches_percent"] = (float64(stats["watches_used"].(int)) / float64(stats["watches_max"].(int))) * 100
 		stats["instances_percent"] = (float64(stats["instances_used"].(int)) / float64(stats["instances_max"].(int))) * 100
+		c.lastInotifySample = time.Now()
+		c.lastInotifyStats = cloneMap(stats)
 		return stats
 	}
 
@@ -217,6 +213,8 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 		stats["instances_percent"] = math.Min(100, (float64(instancesUsed)/float64(instancesMax))*100)
 	}
 
+	c.lastInotifySample = time.Now()
+	c.lastInotifyStats = cloneMap(stats)
 	return stats
 }
 
@@ -302,14 +300,24 @@ func countInotifyUsage(watchLimit, instanceLimit int) (int, int) {
 	return watchesUsed, instancesUsed
 }
 
+func cloneMap(source map[string]interface{}) map[string]interface{} {
+	if source == nil {
+		return map[string]interface{}{}
+	}
+	clone := make(map[string]interface{}, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}
+
 // GetDiskPartitions returns information about disk partitions
 func GetDiskPartitions() ([]map[string]interface{}, error) {
 	if runtime.GOOS != "linux" {
 		return []map[string]interface{}{}, nil
 	}
 
-	cmd := exec.Command("bash", "-c", "df -B1 --output=source,size,used,avail,pcent,target | tail -n +2")
-	output, err := cmd.Output()
+	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 --output=source,size,used,avail,pcent,target | tail -n +2")
 	if err != nil {
 		return nil, err
 	}
@@ -390,8 +398,7 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 		limit = 8
 	}
 	cmdStr := fmt.Sprintf("du -x -B1 --max-depth=%d %s 2>/dev/null | sort -nr | head -n %d", depth, shellQuote(mount), limit+1)
-	cmd := exec.Command("bash", "-c", cmdStr)
-	output, err := cmd.Output()
+	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", cmdStr)
 	if err != nil {
 		return entries, err
 	}
@@ -439,8 +446,7 @@ func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 		limit = 8
 	}
 	cmdStr := fmt.Sprintf("find %s -xdev -type f -size +52428800c -printf '%%s\\t%%p\\n' 2>/dev/null | sort -nr | head -n %d", shellQuote(mount), limit)
-	cmd := exec.Command("bash", "-c", cmdStr)
-	output, err := cmd.Output()
+	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", cmdStr)
 	if err != nil {
 		return entries, err
 	}

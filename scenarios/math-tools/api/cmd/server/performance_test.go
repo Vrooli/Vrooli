@@ -313,7 +313,8 @@ func TestMemoryUsage(t *testing.T) {
 				start := time.Now()
 				testEndpoint(t, server, "POST", "/api/v1/math/statistics", body, testToken, http.StatusOK, func(resp map[string]interface{}) error {
 					// Verify we got valid results
-					if resp["results"] == nil {
+					respData, ok := resp["data"].(map[string]interface{})
+					if !ok || respData["results"] == nil {
 						t.Error("Should have results for large dataset")
 					}
 					return nil

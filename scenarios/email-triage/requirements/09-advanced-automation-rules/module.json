@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "email-triage-should-have-advanced-automation-rules-scheduled-sends-follow-up-reminders",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-008"
+      ],
+      "description": "Implement advanced automation including scheduled sends and follow-up reminders",
+      "id": "REQ-P1-001",
+      "prd_ref": "email-triage-should-have-advanced-automation-rules-scheduled-sends-follow-up-reminders",
+      "status": "draft",
+      "title": "Advanced Automation Rules",
+      "validation": [
+        {
+          "notes": "Test scheduling logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify reminder system",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full automation workflow test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rule execution \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "95% automation reliability",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Advanced automation rules (scheduled sends, follow-up reminders)"
+}

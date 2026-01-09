@@ -1,0 +1,55 @@
+{
+  "edges": [
+    {
+      "id": "edge-open-assert",
+      "source": "call-open-demo-workflow",
+      "target": "assert-builder",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Ensures the demo project and default workflow remain available after boot.",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "2"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow builder should render after loading the seeded workflow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflowBuilder.canvas.root",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Builder is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-builder"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
+}

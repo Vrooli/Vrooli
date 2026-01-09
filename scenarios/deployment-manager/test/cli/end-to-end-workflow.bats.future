@@ -1,0 +1,134 @@
+#!/usr/bin/env bats
+
+# [REQ:DM-P0-001,DM-P0-003,DM-P0-012,DM-P0-013,DM-P0-023,DM-P0-028] Complete deployment workflow tests
+
+setup() {
+  export API_URL="${API_URL:-http://localhost:18722}"
+  export TEST_SCENARIO="picker-wheel"
+  export TEST_PROFILE_NAME="E2E-Test-$(date +%s)"
+  export TEST_DEPLOYMENT_ID=""
+}
+
+teardown() {
+  # Cleanup
+  if [ -n "$TEST_PROFILE_ID" ]; then
+    deployment-manager profiles delete "$TEST_PROFILE_ID" 2>/dev/null || true
+  fi
+}
+
+# [REQ:DM-P0-001,DM-P0-003,DM-P0-012,DM-P0-013,DM-P0-023,DM-P0-028] Complete workflow from analysis to deployment
+@test "E2E: Full deployment workflow - analyze, profile, validate, deploy" {
+  # Step 1: Analyze dependencies
+  run deployment-manager analyze "$TEST_SCENARIO"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dependencies"* ]]
+
+  # Step 2: Calculate fitness score
+  run deployment-manager fitness --scenario "$TEST_SCENARIO" --tier 1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"score"* ]]
+
+  # Step 3: Create deployment profile
+  run deployment-manager profile create \
+    --name "$TEST_PROFILE_NAME" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "1"
+
+  [ "$status" -eq 0 ]
+  TEST_PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "profile-test")
+
+  # Step 4: Validate profile
+  run deployment-manager profiles validate "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+
+  # Step 5: Deploy (if validation passed)
+  if [[ "$output" == *"passed"* ]] || [[ "$output" == *"Ready"* ]]; then
+    run deployment-manager deploy "$TEST_PROFILE_ID"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"deployment"* ]]
+  fi
+}
+
+# [REQ:DM-P0-014,DM-P0-015,DM-P0-034,DM-P0-035] Profile versioning and rollback workflow
+@test "E2E: Profile version management and rollback" {
+  # Create initial profile
+  run deployment-manager profile create \
+    --name "$TEST_PROFILE_NAME" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "1"
+
+  [ "$status" -eq 0 ]
+  TEST_PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "profile-test")
+
+  # Update profile (creates new version)
+  run deployment-manager profiles update "$TEST_PROFILE_ID" \
+    --tiers "1,2"
+
+  [ "$status" -eq 0 ]
+
+  # List versions
+  run deployment-manager profiles versions "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"version"* ]]
+
+  # Rollback to previous version
+  run deployment-manager profiles rollback "$TEST_PROFILE_ID" --version 1
+  [ "$status" -eq 0 ]
+}
+
+# [REQ:DM-P0-018,DM-P0-019,DM-P0-020,DM-P0-021,DM-P0-022] Secret management workflow
+@test "E2E: Complete secret management flow" {
+  # Create profile
+  run deployment-manager profile create \
+    --name "$TEST_PROFILE_NAME" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "2"
+
+  [ "$status" -eq 0 ]
+  TEST_PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "profile-test")
+
+  # Identify required secrets
+  run deployment-manager secrets identify "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+
+  # Categorize secrets
+  run deployment-manager secrets categorize "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+
+  # Set secret values
+  run deployment-manager secrets set "$TEST_PROFILE_ID" \
+    --key "TEST_SECRET" \
+    --value "test-value" \
+    --tier "desktop"
+
+  [ "$status" -eq 0 ]
+
+  # Validate secrets are complete
+  run deployment-manager secrets validate "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+}
+
+# [REQ:DM-P0-007,DM-P0-008,DM-P0-009,DM-P0-010,DM-P0-011] Dependency swapping workflow
+@test "E2E: Dependency analysis and swapping" {
+  # Analyze dependencies
+  run deployment-manager analyze "$TEST_SCENARIO"
+  [ "$status" -eq 0 ]
+
+  # Get swap suggestions
+  run deployment-manager swaps suggest "$TEST_SCENARIO" --tier 3
+  [ "$status" -eq 0 ]
+
+  # Create profile with swaps
+  run deployment-manager profile create \
+    --name "$TEST_PROFILE_NAME" \
+    --scenario "$TEST_SCENARIO" \
+    --tiers "3" \
+    --swap "postgres=sqlite"
+
+  [ "$status" -eq 0 ]
+  TEST_PROFILE_ID=$(echo "$output" | grep -oP 'ID: \K[^\s]+' || echo "profile-test")
+
+  # Validate swapped profile
+  run deployment-manager profiles validate "$TEST_PROFILE_ID"
+  [ "$status" -eq 0 ]
+}

@@ -1,0 +1,147 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting prompts with JSON payload support",
+      "id": "REQ-P0-001",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+      "status": "draft",
+      "title": "REST API for Prompt CRUD",
+      "validation": [
+        {
+          "notes": "All CRUD endpoints return correct HTTP status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Input validation for required fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "JSON payload structure validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Complete CRUD flow using API client",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error handling for invalid requests",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response time under 200ms for single prompt operations",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successfully manage prompts via API endpoints",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data persistence verified",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement REST API endpoints for campaign management with hierarchical structure support",
+      "id": "REQ-P0-002",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+      "status": "draft",
+      "title": "Campaign CRUD API",
+      "validation": [
+        {
+          "notes": "Campaign CRUD operations functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Hierarchical relationship validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Referential integrity checks",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full campaign lifecycle testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parent-child relationship verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Campaign tree operations complete within 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Campaigns can be organized hierarchically",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Campaign structure maintains integrity",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CRUD operations for prompts and campaigns via API"
+}

@@ -12,51 +12,40 @@
       "automation",
       "ai-coordinator",
       "vrooli-core"
-    ]
-  },
-  "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Swarm Manager API port",
-       "range": "15000-19999"
-     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "port": 31011,
-      "description": "Swarm Manager dashboard UI port"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/swarm-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Task metadata, execution history, and configuration storage",
-      "schema": "swarm_manager"
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Swarm Manager API port",
+      "range": "15000-19999"
     },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "description": "Task locks, real-time updates, and pub/sub messaging"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "description": "Task embeddings, pattern recognition, and learning system"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "description": "Task analysis, priority estimation, and work execution"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "description": "Local LLM for lightweight task analysis"
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "port": 37510,
+      "description": "Swarm Manager dashboard UI port"
     }
   },
   "lifecycle": {
@@ -65,7 +54,7 @@
       "description": "Swarm Manager health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -76,6 +65,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -85,63 +82,103 @@
     "setup": {
       "description": "Initialize Swarm Manager",
       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "swarm-manager-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["swarm-manager"]
-            }
-         ]
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/swarm-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "swarm-manager",
+            "targets": [
+              "swarm-manager"
+            ]
+          }
+        ]
       },
       "steps": [
         {
           "name": "verify-directories",
-          "run": "ls -la tasks/ | head -5"
+          "run": "ls -la tasks/ | head -5",
+          "description": "Surface existing task modules"
+        },
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o swarm-manager-api ."
+          "run": "cd api && go mod download && go build -o swarm-manager-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error"
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Swarm Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: swarm-manager --help'",
+          "description": "Display service access URLs"
         }
       ]
     },
-     "develop": {
-       "description": "Start Swarm Manager services",
-       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./swarm-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/swarm-manager-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
-         }
-       ]
-     },
-    "test": {
-      "description": "Run Swarm Manager tests",
+    "develop": {
+      "description": "Start Swarm Manager services",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "cd api && go test ./..."
+          "name": "start-api",
+          "run": "cd api && ./swarm-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/swarm-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for swarm-manager",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute swarm-manager --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -168,6 +205,49 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Task metadata, execution history, and configuration storage",
+        "schema": "swarm_manager"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "description": "Task locks, real-time updates, and pub/sub messaging"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Task embeddings, pattern recognition, and learning system"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "Task analysis, priority estimation, and work execution"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "description": "Local LLM for lightweight task analysis"
+      }
+    },
+    "scenarios": {
+      "core-debugger": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via direct_cli"
+      }
     }
   }
 }

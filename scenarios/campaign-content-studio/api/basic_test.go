@@ -228,7 +228,6 @@ func TestNewCampaignService(t *testing.T) {
 		service := NewCampaignService(
 			nil,
 			"http://localhost:5678",
-			"http://localhost:5681",
 			"postgres://localhost/test",
 			"http://localhost:6333",
 			"http://localhost:9000",
@@ -254,7 +253,6 @@ func TestNewCampaignService(t *testing.T) {
 	t.Run("Service_URLs", func(t *testing.T) {
 		testURLs := map[string]string{
 			"n8n":      "http://n8n:5678",
-			"windmill": "http://windmill:5681",
 			"postgres": "postgres://db:5432/campaign",
 			"qdrant":   "http://qdrant:6333",
 			"minio":    "http://minio:9000",
@@ -263,7 +261,6 @@ func TestNewCampaignService(t *testing.T) {
 		service := NewCampaignService(
 			nil,
 			testURLs["n8n"],
-			testURLs["windmill"],
 			testURLs["postgres"],
 			testURLs["qdrant"],
 			testURLs["minio"],
@@ -272,10 +269,6 @@ func TestNewCampaignService(t *testing.T) {
 		if service.n8nBaseURL != testURLs["n8n"] {
 			t.Errorf("n8nBaseURL mismatch: expected '%s', got '%s'",
 				testURLs["n8n"], service.n8nBaseURL)
-		}
-		if service.windmillURL != testURLs["windmill"] {
-			t.Errorf("windmillURL mismatch: expected '%s', got '%s'",
-				testURLs["windmill"], service.windmillURL)
 		}
 		if service.qdrantURL != testURLs["qdrant"] {
 			t.Errorf("qdrantURL mismatch: expected '%s', got '%s'",

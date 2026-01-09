@@ -30,7 +30,15 @@
           "type": "integer",
           "description": "Serial baudrate",
           "default": 115200,
-          "enum": [2400, 9600, 19200, 38400, 57600, 115200, 250000]
+          "enum": [
+            2400,
+            9600,
+            19200,
+            38400,
+            57600,
+            115200,
+            250000
+          ]
         },
         "virtual": {
           "type": "boolean",
@@ -146,6 +154,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/octoprint/schema.json"
 }

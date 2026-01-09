@@ -1,0 +1,968 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search, RefreshCw, Undo2, Redo2, RotateCcw, ChevronDown } from "lucide-react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Alert } from "../ui/alert";
+import { HelpTooltip } from "../ui/tooltip";
+import { SSHKeySetup } from "./SSHKeySetup";
+import { ValidationSummary } from "./ValidationSummary";
+import { AutoFixPanel } from "./AutoFixPanel";
+import { AnnotatedCodeBlock, type LineAnnotation } from "../ui/annotated-code-block";
+import { mapJsonPathsToLines } from "../../lib/jsonPathToLine";
+import { selectors } from "../../consts/selectors";
+import type { useDeployment } from "../../hooks/useDeployment";
+import {
+  listScenarios,
+  checkReachability,
+  getScenarioDependencies,
+  type ScenarioInfo,
+  type ReachabilityResult,
+  type PortConfig,
+} from "../../lib/api";
+
+type Mode = "form" | "json";
+
+interface StepManifestProps {
+  deployment: ReturnType<typeof useDeployment>;
+}
+
+// Parse port range to get a reasonable default (first port in range)
+function getPortFromConfig(config: PortConfig): number | null {
+  if (config.port) return config.port;
+  if (config.range) {
+    const match = config.range.match(/^(\d+)/);
+    if (match) return parseInt(match[1], 10);
+  }
+  return null;
+}
+
+// Convert service.json port key to a human-readable label
+function portKeyToLabel(key: string): string {
+  // Handle common cases
+  const labels: Record<string, string> = {
+    ui: "UI Port",
+    api: "API Port",
+    ws: "WebSocket Port",
+    websocket: "WebSocket Port",
+  };
+  if (labels[key]) return labels[key];
+
+  // Convert snake_case or kebab-case to Title Case
+  return key
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    + " Port";
+}
+
+export function StepManifest({ deployment }: StepManifestProps) {
+  const {
+    manifestJson,
+    setManifestJson,
+    parsedManifest,
+    validationIssues,
+    validationError,
+    isValidating,
+    validate,
+    normalizedManifest,
+    applyAllFixes,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    resetManifestToDefaults,
+    resetManifestWithScenario,
+  } = deployment;
+  const [mode, setMode] = useState<Mode>("form");
+  const [showResetMenu, setShowResetMenu] = useState(false);
+  const resetMenuRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle when not typing in an input/textarea (except our JSON editor)
+      const target = e.target as HTMLElement;
+      const isEditorTextarea = target.getAttribute("data-testid") === selectors.manifest.input;
+      const isInputElement = target.tagName === "INPUT" || (target.tagName === "TEXTAREA" && !isEditorTextarea);
+
+      if (isInputElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+      // Also support Ctrl+Y for redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
+  // Close reset menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (resetMenuRef.current && !resetMenuRef.current.contains(e.target as Node)) {
+        setShowResetMenu(false);
+      }
+    };
+
+    if (showResetMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showResetMenu]);
+
+  // Debounced validation
+  const validateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidatedJsonRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Skip if JSON hasn't changed since last validation
+    if (manifestJson === lastValidatedJsonRef.current) {
+      return;
+    }
+
+    // Skip if JSON is invalid (parse error will be shown)
+    if (!parsedManifest.ok) {
+      return;
+    }
+
+    // Clear previous timeout
+    if (validateTimeoutRef.current) {
+      clearTimeout(validateTimeoutRef.current);
+    }
+
+    // Debounce validation
+    validateTimeoutRef.current = setTimeout(() => {
+      lastValidatedJsonRef.current = manifestJson;
+      validate();
+    }, 800);
+
+    return () => {
+      if (validateTimeoutRef.current) {
+        clearTimeout(validateTimeoutRef.current);
+      }
+    };
+  }, [manifestJson, parsedManifest.ok, validate]);
+
+  // Scenarios list state
+  const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
+  const [scenariosLoading, setScenariosLoading] = useState(true);
+  const [scenariosError, setScenariosError] = useState<string | null>(null);
+  const [scenarioSearch, setScenarioSearch] = useState("");
+  const [showScenarioDropdown, setShowScenarioDropdown] = useState(false);
+
+  // Reachability check state
+  const [hostReachability, setHostReachability] = useState<ReachabilityResult | null>(null);
+  const [domainReachability, setDomainReachability] = useState<ReachabilityResult | null>(null);
+  const [isCheckingHost, setIsCheckingHost] = useState(false);
+  const [isCheckingDomain, setIsCheckingDomain] = useState(false);
+
+  // Dependency fetching state
+  const [isFetchingDependencies, setIsFetchingDependencies] = useState(false);
+  const [dependencySource, setDependencySource] = useState<string | null>(null);
+  const [fetchedResources, setFetchedResources] = useState<string[]>([]);
+
+  // Fetch scenarios on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchScenarios() {
+      try {
+        setScenariosLoading(true);
+        const res = await listScenarios();
+        if (!cancelled) {
+          setScenarios(res.scenarios);
+          setScenariosError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setScenariosError(e instanceof Error ? e.message : "Failed to load scenarios");
+        }
+      } finally {
+        if (!cancelled) {
+          setScenariosLoading(false);
+        }
+      }
+    }
+    fetchScenarios();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Form state derived from parsed manifest
+  const formValues = parsedManifest.ok
+    ? {
+        host: parsedManifest.value.target?.vps?.host ?? "",
+        scenarioId: parsedManifest.value.scenario?.id ?? "",
+        domain: parsedManifest.value.edge?.domain ?? "",
+        ports: parsedManifest.value.ports ?? {},
+        includePackages: parsedManifest.value.bundle?.include_packages ?? true,
+        includeAutoheal: parsedManifest.value.bundle?.include_autoheal ?? true,
+        caddyEnabled: parsedManifest.value.edge?.caddy?.enabled ?? true,
+        caddyEmail: parsedManifest.value.edge?.caddy?.email ?? "",
+      }
+    : null;
+
+  // Scenario validation
+  const selectedScenario = useMemo(() => {
+    if (!formValues?.scenarioId) return null;
+    return scenarios.find((s) => s.id === formValues.scenarioId) ?? null;
+  }, [scenarios, formValues?.scenarioId]);
+
+  const scenarioIdError = useMemo(() => {
+    if (!formValues?.scenarioId) return null;
+    if (scenariosLoading) return null;
+    if (scenarios.length === 0) return null; // Can't validate without list
+    if (!selectedScenario) {
+      return `Scenario "${formValues.scenarioId}" not found. Choose from available scenarios.`;
+    }
+    return null;
+  }, [formValues?.scenarioId, scenarios, selectedScenario, scenariosLoading]);
+
+  // Filter scenarios for dropdown
+  const filteredScenarios = useMemo(() => {
+    if (!scenarioSearch) return scenarios;
+    const search = scenarioSearch.toLowerCase();
+    return scenarios.filter(
+      (s) =>
+        s.id.toLowerCase().includes(search) ||
+        s.displayName?.toLowerCase().includes(search) ||
+        s.description?.toLowerCase().includes(search)
+    );
+  }, [scenarios, scenarioSearch]);
+
+  // Check host reachability with debounce
+  const checkHostReachabilityDebounced = useCallback(async (host: string) => {
+    if (!host || host === "203.0.113.10") {
+      setHostReachability(null);
+      return;
+    }
+    setIsCheckingHost(true);
+    try {
+      const res = await checkReachability(host, undefined);
+      const result = res.results.find((r) => r.type === "host");
+      setHostReachability(result ?? null);
+    } catch {
+      setHostReachability(null);
+    } finally {
+      setIsCheckingHost(false);
+    }
+  }, []);
+
+  // Check domain reachability with debounce
+  const checkDomainReachabilityDebounced = useCallback(async (domain: string) => {
+    if (!domain || domain === "example.com") {
+      setDomainReachability(null);
+      return;
+    }
+    setIsCheckingDomain(true);
+    try {
+      const res = await checkReachability(undefined, domain);
+      const result = res.results.find((r) => r.type === "domain");
+      setDomainReachability(result ?? null);
+    } catch {
+      setDomainReachability(null);
+    } finally {
+      setIsCheckingDomain(false);
+    }
+  }, []);
+
+  // Debounced reachability checks
+  useEffect(() => {
+    if (!formValues?.host) return;
+    const timer = setTimeout(() => {
+      checkHostReachabilityDebounced(formValues.host);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [formValues?.host, checkHostReachabilityDebounced]);
+
+  useEffect(() => {
+    if (!formValues?.domain) return;
+    const timer = setTimeout(() => {
+      checkDomainReachabilityDebounced(formValues.domain);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [formValues?.domain, checkDomainReachabilityDebounced]);
+
+  const updateFormField = (field: string, value: string | number | boolean) => {
+    if (!parsedManifest.ok) return;
+
+    const manifest = { ...parsedManifest.value };
+
+    switch (field) {
+      case "host":
+        manifest.target = { ...manifest.target, vps: { ...manifest.target.vps, host: value as string } };
+        break;
+      case "scenarioId": {
+        const scenarioId = value as string;
+        manifest.scenario = { ...manifest.scenario, id: scenarioId };
+        manifest.dependencies = { ...manifest.dependencies, scenarios: [scenarioId], resources: [] };
+
+        // Auto-populate ALL ports from the selected scenario's service.json
+        const scenario = scenarios.find((s) => s.id === scenarioId);
+        if (scenario?.ports) {
+          const ports: Record<string, number> = {};
+          for (const [key, config] of Object.entries(scenario.ports)) {
+            const port = getPortFromConfig(config);
+            if (port) {
+              // Normalize websocket -> ws for consistency
+              const normalizedKey = key === "websocket" ? "ws" : key;
+              ports[normalizedKey] = port;
+            }
+          }
+          manifest.ports = ports;
+        } else {
+          // Clear ports if scenario has none defined
+          manifest.ports = {};
+        }
+
+        // Fetch dependencies from API asynchronously
+        // This enriches the manifest with resource dependencies after the initial update
+        setIsFetchingDependencies(true);
+        setDependencySource(null);
+        setFetchedResources([]);
+
+        getScenarioDependencies(scenarioId)
+          .then((deps) => {
+            // Use functional update to get the latest manifest state (avoid stale closure)
+            setManifestJson((prevJson) => {
+              try {
+                const updatedManifest = JSON.parse(prevJson);
+                updatedManifest.dependencies = {
+                  ...updatedManifest.dependencies,
+                  scenarios: [scenarioId, ...deps.scenarios.filter((s) => s !== scenarioId)],
+                  resources: deps.resources,
+                };
+                return JSON.stringify(updatedManifest, null, 2);
+              } catch {
+                return prevJson;
+              }
+            });
+            setDependencySource(deps.source);
+            setFetchedResources(deps.resources);
+          })
+          .catch((err) => {
+            console.warn("Failed to fetch scenario dependencies:", err);
+            // Keep the manifest as-is with empty resources
+          })
+          .finally(() => {
+            setIsFetchingDependencies(false);
+          });
+
+        break;
+      }
+      case "domain":
+        manifest.edge = { ...manifest.edge, domain: value as string };
+        break;
+      case "includePackages":
+        manifest.bundle = { ...manifest.bundle, include_packages: value as boolean };
+        break;
+      case "includeAutoheal": {
+        const enabled = value as boolean;
+        manifest.bundle = { ...manifest.bundle, include_autoheal: enabled };
+
+        // When autoheal is enabled, also fetch its dependencies and merge with existing
+        if (enabled) {
+          getScenarioDependencies("vrooli-autoheal")
+            .then((deps) => {
+              // Use functional update to get the latest manifest state (avoid stale closure)
+              setManifestJson((prevJson) => {
+                try {
+                  const currentManifest = JSON.parse(prevJson);
+                  const existingResources = currentManifest.dependencies?.resources ?? [];
+
+                  // Merge resources (deduplicated)
+                  const mergedResources = [...new Set([...existingResources, ...deps.resources])];
+
+                  currentManifest.dependencies = {
+                    ...currentManifest.dependencies,
+                    resources: mergedResources,
+                  };
+                  return JSON.stringify(currentManifest, null, 2);
+                } catch {
+                  return prevJson;
+                }
+              });
+
+              // Update fetched resources display if there are new ones
+              if (deps.resources.length > 0) {
+                setFetchedResources((prev) => [...new Set([...prev, ...deps.resources])]);
+              }
+            })
+            .catch((err) => {
+              console.warn("Failed to fetch vrooli-autoheal dependencies:", err);
+            });
+        }
+        break;
+      }
+      case "caddyEnabled":
+        manifest.edge = { ...manifest.edge, caddy: { ...manifest.edge.caddy, enabled: value as boolean } };
+        break;
+      case "caddyEmail":
+        manifest.edge = { ...manifest.edge, caddy: { ...manifest.edge.caddy, email: value as string } };
+        break;
+      default:
+        // Handle dynamic port fields (e.g., "port:ui", "port:playwright_driver")
+        if (field.startsWith("port:")) {
+          const portKey = field.slice(5);
+          manifest.ports = { ...manifest.ports, [portKey]: value as number };
+        }
+        break;
+    }
+
+    setManifestJson(JSON.stringify(manifest, null, 2));
+  };
+
+  const selectScenario = (scenarioId: string) => {
+    updateFormField("scenarioId", scenarioId);
+    setScenarioSearch("");
+    setShowScenarioDropdown(false);
+  };
+
+  // Get warning/status message for host
+  const hostWarning = useMemo(() => {
+    if (!hostReachability) return undefined;
+    if (hostReachability.reachable) return undefined;
+    return hostReachability.hint ?? hostReachability.message;
+  }, [hostReachability]);
+
+  // Get warning/status message for domain
+  const domainWarning = useMemo(() => {
+    if (!domainReachability) return undefined;
+    if (domainReachability.reachable) return undefined;
+    return domainReachability.hint ?? domainReachability.message;
+  }, [domainReachability]);
+
+  // Get success hint for host/domain
+  const hostHint = useMemo(() => {
+    if (isCheckingHost) return "Checking reachability...";
+    if (hostReachability?.reachable) return `✓ ${hostReachability.message}`;
+    return "The IP address or hostname of your VPS";
+  }, [hostReachability, isCheckingHost]);
+
+  const domainHint = useMemo(() => {
+    if (isCheckingDomain) return "Checking DNS...";
+    if (domainReachability?.reachable) return `✓ ${domainReachability.message}`;
+    return "Domain name for HTTPS (requires DNS configured)";
+  }, [domainReachability, isCheckingDomain]);
+
+  // Compute line annotations from validation issues for JSON mode
+  const lineAnnotations = useMemo((): LineAnnotation[] => {
+    if (!validationIssues || validationIssues.length === 0) return [];
+
+    const pathMapping = mapJsonPathsToLines(manifestJson);
+    const annotations: LineAnnotation[] = [];
+
+    for (const issue of validationIssues) {
+      const lineInfo = pathMapping[issue.path];
+      if (lineInfo) {
+        annotations.push({
+          line: lineInfo.line,
+          severity: issue.severity,
+          message: issue.message,
+          hint: issue.hint,
+          path: issue.path,
+          fixable: normalizedManifest !== null,
+        });
+      }
+    }
+
+    return annotations;
+  }, [validationIssues, manifestJson, normalizedManifest]);
+
+  return (
+    <div className="space-y-6">
+      {/* Mode Toggle and Actions */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={mode === "form" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("form")}
+          >
+            <FormInput className="h-4 w-4 mr-1.5" />
+            Form
+          </Button>
+          <Button
+            variant={mode === "json" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("json")}
+          >
+            <Code className="h-4 w-4 mr-1.5" />
+            JSON
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {/* Undo/Redo buttons */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={undo}
+            disabled={!canUndo}
+            className="text-slate-400 hover:text-slate-200 px-2"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={redo}
+            disabled={!canRedo}
+            className="text-slate-400 hover:text-slate-200 px-2"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
+          {/* Reset dropdown */}
+          <div className="relative" ref={resetMenuRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowResetMenu(!showResetMenu)}
+              className="text-slate-400 hover:text-slate-200"
+            >
+              <RotateCcw className="h-4 w-4 mr-1.5" />
+              Reset
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+
+            {showResetMenu && (
+              <div className="absolute right-0 mt-1 w-56 rounded-lg border border-white/10 bg-slate-900 shadow-lg z-20">
+                <div className="p-1">
+                  {selectedScenario && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ports: Record<string, number> = {};
+                        if (selectedScenario.ports) {
+                          for (const [key, config] of Object.entries(selectedScenario.ports)) {
+                            const port = getPortFromConfig(config);
+                            if (port) {
+                              const normalizedKey = key === "websocket" ? "ws" : key;
+                              ports[normalizedKey] = port;
+                            }
+                          }
+                        }
+                        resetManifestWithScenario(selectedScenario.id, ports);
+                        setShowResetMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-800 text-slate-200"
+                    >
+                      <div className="font-medium">Reset with current scenario</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        Keep "{selectedScenario.id}" selected, reset other fields
+                      </div>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetManifestToDefaults();
+                      setShowResetMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-800 text-slate-200"
+                  >
+                    <div className="font-medium">Reset to defaults</div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Clear all fields and start fresh
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              lastValidatedJsonRef.current = null;
+              validate();
+            }}
+            disabled={isValidating || !parsedManifest.ok}
+            className="text-slate-400 hover:text-slate-200"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+            Revalidate
+          </Button>
+        </div>
+      </div>
+
+      {/* JSON Parse Error */}
+      {!parsedManifest.ok && (
+        <Alert variant="error" title="Invalid JSON">
+          {parsedManifest.error}
+        </Alert>
+      )}
+
+      {/* Validation Summary (shown in Form mode) */}
+      {mode === "form" && (
+        <ValidationSummary
+          issues={validationIssues}
+          error={validationError}
+          isValidating={isValidating}
+          onViewInJson={() => setMode("json")}
+        />
+      )}
+
+      {/* Form Mode */}
+      {mode === "form" && formValues && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Scenario Section - Moved to top for logical flow */}
+          <div className="space-y-4 md:col-span-2">
+            <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              Scenario
+              <HelpTooltip content="The scenario to deploy. Must exist in your Vrooli installation." />
+            </h3>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search scenarios..."
+                  value={showScenarioDropdown ? scenarioSearch : formValues.scenarioId}
+                  onChange={(e) => {
+                    setScenarioSearch(e.target.value);
+                    if (!showScenarioDropdown) {
+                      setShowScenarioDropdown(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    setShowScenarioDropdown(true);
+                    setScenarioSearch("");
+                  }}
+                  onBlur={() => {
+                    // Delay to allow click on dropdown item
+                    setTimeout(() => setShowScenarioDropdown(false), 200);
+                  }}
+                  className={`w-full rounded-lg border bg-black/30 pl-9 pr-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500 ${
+                    scenarioIdError ? "border-red-500/50" : "border-white/10"
+                  }`}
+                />
+                {scenariosLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
+                  </div>
+                )}
+              </div>
+
+              {/* Scenario Dropdown */}
+              {showScenarioDropdown && !scenariosLoading && (
+                <div className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-white/10 bg-slate-900 shadow-lg">
+                  {scenariosError ? (
+                    <div className="px-3 py-2 text-sm text-red-400">{scenariosError}</div>
+                  ) : filteredScenarios.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">No scenarios found</div>
+                  ) : (
+                    filteredScenarios.map((scenario) => (
+                      <button
+                        key={scenario.id}
+                        type="button"
+                        onClick={() => selectScenario(scenario.id)}
+                        className={`w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-2 ${
+                          scenario.id === formValues.scenarioId ? "bg-slate-800" : ""
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-100 font-medium truncate">
+                              {scenario.id}
+                            </span>
+                            {scenario.id === formValues.scenarioId && (
+                              <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                            )}
+                          </div>
+                          {scenario.displayName && scenario.displayName !== scenario.id && (
+                            <div className="text-xs text-slate-400 truncate">{scenario.displayName}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Selected scenario info */}
+              {selectedScenario && !showScenarioDropdown && (
+                <div className="mt-1.5 space-y-1">
+                  <p className="text-xs text-green-400 flex items-center gap-1">
+                    <Check className="h-3 w-3" />
+                    {selectedScenario.displayName ?? selectedScenario.id}
+                    {selectedScenario.ports && Object.keys(selectedScenario.ports).length > 0 && (
+                      <span className="text-slate-500 ml-1">
+                        · {Object.keys(selectedScenario.ports).length} port(s) defined
+                      </span>
+                    )}
+                  </p>
+                  {/* Dependencies info */}
+                  {isFetchingDependencies && (
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <div className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                      Fetching dependencies...
+                    </p>
+                  )}
+                  {!isFetchingDependencies && fetchedResources.length > 0 && (
+                    <p className="text-xs text-blue-400 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Resources: {fetchedResources.join(", ")}
+                      <span className="text-slate-500 ml-1">
+                        (from {dependencySource === "analyzer" ? "dependency analyzer" : "service.json"})
+                      </span>
+                    </p>
+                  )}
+                  {!isFetchingDependencies && fetchedResources.length === 0 && dependencySource && (
+                    <p className="text-xs text-slate-500">
+                      No resource dependencies detected
+                    </p>
+                  )}
+                </div>
+              )}
+              {scenarioIdError && (
+                <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {scenarioIdError}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Target Section */}
+          <div className="space-y-4 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                Target Server
+                <HelpTooltip content="The VPS where your scenario will be deployed. Must have SSH access." />
+              </h3>
+              <a
+                href="#docs/guides/vps-setup"
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+              >
+                Need help setting up a VPS?
+              </a>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Host IP or Hostname"
+                placeholder="203.0.113.10"
+                value={formValues.host}
+                onChange={(e) => updateFormField("host", e.target.value)}
+                hint={hostHint}
+                warning={hostWarning}
+                isLoading={isCheckingHost}
+              />
+              <Input
+                label="Domain"
+                placeholder="example.com"
+                value={formValues.domain}
+                onChange={(e) => updateFormField("domain", e.target.value)}
+                hint={domainHint}
+                warning={domainWarning}
+                isLoading={isCheckingDomain}
+              />
+            </div>
+          </div>
+
+          {/* SSH Configuration Section - shown when host is entered */}
+          {formValues.host && formValues.host !== "203.0.113.10" && (
+            <div className="md:col-span-2">
+              <SSHKeySetup
+                host={formValues.host}
+                port={parsedManifest.ok ? parsedManifest.value.target?.vps?.port ?? 22 : 22}
+                user={parsedManifest.ok ? parsedManifest.value.target?.vps?.user ?? "root" : "root"}
+                selectedKeyPath={deployment.sshKeyPath}
+                onKeyPathChange={(keyPath) => {
+                  deployment.setSSHKeyPath(keyPath);
+                  // Also update the manifest's key_path field
+                  if (keyPath && parsedManifest.ok) {
+                    const manifest = { ...parsedManifest.value };
+                    manifest.target = {
+                      ...manifest.target,
+                      vps: { ...manifest.target.vps, key_path: keyPath }
+                    };
+                    deployment.setManifestJson(JSON.stringify(manifest, null, 2));
+                  }
+                }}
+                onConnectionStatusChange={deployment.setSSHConnectionStatus}
+              />
+            </div>
+          )}
+
+          {/* Ports Section */}
+          <div className="space-y-4 md:col-span-2">
+            <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              Ports
+              <HelpTooltip content="Ports for the deployed services, loaded from the scenario's service.json." />
+              {selectedScenario?.ports && Object.keys(selectedScenario.ports).length > 0 && (
+                <span className="text-xs text-slate-500 font-normal">
+                  (from {selectedScenario.id})
+                </span>
+              )}
+            </h3>
+            {selectedScenario?.ports && Object.keys(selectedScenario.ports).length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {Object.entries(selectedScenario.ports).map(([key, config]) => {
+                  // Normalize websocket -> ws to match manifest
+                  const portKey = key === "websocket" ? "ws" : key;
+                  const currentValue = formValues.ports[portKey] ?? getPortFromConfig(config) ?? 0;
+                  return (
+                    <Input
+                      key={key}
+                      label={portKeyToLabel(key)}
+                      type="number"
+                      value={currentValue}
+                      onChange={(e) => updateFormField(`port:${portKey}`, parseInt(e.target.value, 10) || 0)}
+                      hint={config.description}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 italic">
+                {formValues.scenarioId
+                  ? "No ports defined in this scenario's service.json"
+                  : "Select a scenario to configure ports"}
+              </div>
+            )}
+          </div>
+
+          {/* Options Section */}
+          <div className="space-y-4 md:col-span-2">
+            <h3 className="text-sm font-medium text-slate-300">Bundle Options</h3>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formValues.includePackages}
+                  onChange={(e) => updateFormField("includePackages", e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Include packages</span>
+                <HelpTooltip content="Include the packages/ directory in the bundle" />
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formValues.includeAutoheal}
+                  onChange={(e) => updateFormField("includeAutoheal", e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Include autoheal</span>
+                <HelpTooltip content="Include vrooli-autoheal for automatic recovery" />
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formValues.caddyEnabled}
+                  onChange={(e) => updateFormField("caddyEnabled", e.target.checked)}
+                  className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Enable Caddy</span>
+                <HelpTooltip content="Use Caddy for automatic HTTPS with Let's Encrypt" />
+              </label>
+            </div>
+
+            {/* Caddy Email - shown when Caddy is enabled */}
+            {formValues.caddyEnabled && (
+              <div className="mt-4">
+                <Input
+                  label="Let's Encrypt Email"
+                  placeholder="admin@example.com"
+                  value={formValues.caddyEmail}
+                  onChange={(e) => updateFormField("caddyEmail", e.target.value)}
+                  hint="Required for HTTPS certificate notifications from Let's Encrypt"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Form mode with parse error */}
+      {mode === "form" && !formValues && (
+        <Alert variant="warning" title="Cannot edit in form mode">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Fix the JSON syntax errors to use form editing, or switch to JSON mode.
+          </div>
+        </Alert>
+      )}
+
+      {/* JSON Mode */}
+      {mode === "json" && (
+        <div className="space-y-4">
+          {/* API validation error (e.g., unknown field, schema error) */}
+          {validationError && (
+            <Alert variant="error" title="Validation Error">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>{validationError}</span>
+              </div>
+            </Alert>
+          )}
+
+          {/* Single editable code block with syntax highlighting and annotations */}
+          <AnnotatedCodeBlock
+            code={manifestJson}
+            language="json"
+            annotations={lineAnnotations}
+            maxHeight="400px"
+            showHeader={true}
+            editable={true}
+            onChange={setManifestJson}
+            placeholder="Enter your deployment manifest JSON..."
+            error={!parsedManifest.ok ? parsedManifest.error : undefined}
+            testId={selectors.manifest.input}
+          />
+
+          {/* Validation issues list */}
+          {validationIssues && validationIssues.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-slate-700 p-3 bg-slate-900/50">
+              <div className="text-sm font-medium text-slate-300 mb-2">Validation Issues</div>
+              {validationIssues.map((issue, index) => (
+                <div
+                  key={`${issue.severity}-${issue.path}-${index}`}
+                  className="flex items-start gap-2 text-sm p-2 rounded bg-slate-800/50"
+                >
+                  {issue.severity === "error" ? (
+                    <AlertCircle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <code className="text-xs text-slate-500 font-mono">{issue.path}</code>
+                    <p className="text-slate-300">{issue.message}</p>
+                    {issue.hint && (
+                      <p className="text-xs text-slate-500 mt-0.5">{issue.hint}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Auto-fix panel */}
+          <AutoFixPanel
+            issues={validationIssues}
+            normalizedManifest={normalizedManifest}
+            currentManifest={parsedManifest.ok ? parsedManifest.value : null}
+            onApplyAll={applyAllFixes}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

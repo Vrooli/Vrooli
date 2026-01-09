@@ -8,7 +8,10 @@ import type {
   BridgeLogLevel,
   BridgeScreenshotMode,
   BridgeScreenshotOptions,
+  BridgeInspectHoverPayload,
+  BridgeInspectResultPayload,
 } from '@vrooli/iframe-bridge';
+import { logger } from '@/services/logger';
 
 type BridgeHelloMessage = {
   v: 1;
@@ -100,6 +103,45 @@ type BridgeNetworkStateMessage = {
   state: BridgeNetworkStreamState;
 };
 
+type BridgeInspectHoverMessage = {
+  v: 1;
+  t: 'INSPECT_HOVER';
+  payload: BridgeInspectHoverPayload;
+};
+
+type BridgeInspectResultMessage = {
+  v: 1;
+  t: 'INSPECT_RESULT';
+  payload: BridgeInspectResultPayload;
+};
+
+type BridgeInspectStateMessage = {
+  v: 1;
+  t: 'INSPECT_STATE';
+  active: boolean;
+  reason?: InspectLifecycleReason | 'start';
+};
+
+type BridgeInspectCancelMessage = {
+  v: 1;
+  t: 'INSPECT_CANCEL';
+};
+
+type BridgeInspectErrorMessage = {
+  v: 1;
+  t: 'INSPECT_ERROR';
+  error: string;
+};
+
+type BridgeDiagResultMessage = {
+  v: 1;
+  t: 'DIAG_RESULT';
+  kind: 'SPA_HOOKS';
+  id: string;
+  ok: boolean;
+  error?: string;
+};
+
 type BridgeChildToParentMessage =
   | BridgeHelloMessage
   | BridgeReadyMessage
@@ -112,7 +154,13 @@ type BridgeChildToParentMessage =
   | BridgeLogStateMessage
   | BridgeNetworkEventMessage
   | BridgeNetworkBatchMessage
-  | BridgeNetworkStateMessage;
+  | BridgeNetworkStateMessage
+  | BridgeInspectHoverMessage
+  | BridgeInspectResultMessage
+  | BridgeInspectStateMessage
+  | BridgeInspectCancelMessage
+  | BridgeInspectErrorMessage
+  | BridgeDiagResultMessage;
 
 type BridgeSnapshotRequestOptions = {
   since?: number;
@@ -120,16 +168,41 @@ type BridgeSnapshotRequestOptions = {
   limit?: number;
 };
 
+export type InspectLifecycleReason = 'start' | 'stop' | 'cancel' | 'complete';
+
+export interface BridgeInspectState {
+  supported: boolean;
+  active: boolean;
+  lastReason: InspectLifecycleReason | null;
+  hover: BridgeInspectHoverPayload | null;
+  result: BridgeInspectResultPayload | null;
+  error: string | null;
+}
+
+const initialInspectState: BridgeInspectState = {
+  supported: false,
+  active: false,
+  lastReason: null,
+  hover: null,
+  result: null,
+  error: null,
+};
+
 type BridgeParentToChildMessage =
   | { v: 1; t: 'NAV'; cmd: 'GO'; to?: string }
   | { v: 1; t: 'NAV'; cmd: 'BACK' }
   | { v: 1; t: 'NAV'; cmd: 'FWD' }
   | { v: 1; t: 'PING'; ts: number }
+  | { v: 1; t: 'DIAG'; kind: 'SPA_HOOKS'; id: string; token?: string }
   | { v: 1; t: 'CAPTURE'; cmd: 'SCREENSHOT'; id: string; options?: BridgeScreenshotOptions }
   | { v: 1; t: 'LOGS'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
   | { v: 1; t: 'LOGS'; cmd: 'SET'; enable?: boolean; streaming?: boolean; levels?: BridgeLogLevel[]; bufferSize?: number }
   | { v: 1; t: 'NETWORK'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
-  | { v: 1; t: 'NETWORK'; cmd: 'SET'; enable?: boolean; streaming?: boolean; bufferSize?: number };
+  | { v: 1; t: 'NETWORK'; cmd: 'SET'; enable?: boolean; streaming?: boolean; bufferSize?: number }
+  | { v: 1; t: 'INSPECT'; cmd: 'START' }
+  | { v: 1; t: 'INSPECT'; cmd: 'STOP' }
+  | { v: 1; t: 'INSPECT'; cmd: 'SET_TARGET'; index: number }
+  | { v: 1; t: 'INSPECT'; cmd: 'SHIFT_TARGET'; delta: number };
 
 export interface BridgeComplianceResult {
   ok: boolean;
@@ -196,6 +269,11 @@ export interface UseIframeBridgeReturn {
   getRecentNetworkEvents: () => BridgeNetworkEvent[];
   requestNetworkBatch: (options?: BridgeSnapshotRequestOptions) => Promise<BridgeNetworkEvent[]>;
   configureNetwork: (config: { enable?: boolean; streaming?: boolean; bufferSize?: number }) => boolean;
+  inspectState: BridgeInspectState;
+  startInspect: () => boolean;
+  stopInspect: () => boolean;
+  setInspectTargetIndex: (index: number) => boolean;
+  shiftInspectTarget: (delta: number) => boolean;
 }
 
 const deriveOrigin = (url: string | null): string | null => {
@@ -207,7 +285,7 @@ const deriveOrigin = (url: string | null): string | null => {
     const resolved = new URL(url, window.location.href);
     return resolved.origin;
   } catch (error) {
-    console.warn('[Bridge] Failed to derive origin from URL', url, error);
+    logger.warn('[Bridge] Failed to derive origin from URL', { url, error });
     return null;
   }
 };
@@ -216,6 +294,7 @@ const LOG_BUFFER_LIMIT = 500;
 const NETWORK_BUFFER_LIMIT = 300;
 const LOG_REQUEST_TIMEOUT_MS = 5_000;
 const NETWORK_REQUEST_TIMEOUT_MS = 5_000;
+const DIAG_REQUEST_TIMEOUT_MS = 1_500;
 
 const generateRequestId = (prefix: string): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -228,6 +307,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
   const [state, setState] = useState<BridgeState>(initialBridgeState);
   const [logState, setLogState] = useState<BridgeLogStreamState | null>(null);
   const [networkState, setNetworkState] = useState<BridgeNetworkStreamState | null>(null);
+  const [inspectState, setInspectState] = useState<BridgeInspectState>(initialInspectState);
   const childOrigin = useMemo(() => deriveOrigin(previewUrl), [previewUrl]);
   const lastHrefRef = useRef<string>('');
   const helloReceivedRef = useRef(false);
@@ -291,6 +371,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     setLogState(null);
     setNetworkState(null);
     setState(initialBridgeState);
+    setInspectState(initialInspectState);
   }, []);
 
   useEffect(() => {
@@ -309,7 +390,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
 
       if (childOrigin && event.origin !== childOrigin) {
-        console.warn('[Bridge] Message origin differs from expected', { expected: childOrigin, received: event.origin });
+        logger.warn('[Bridge] Message origin differs from expected', { expected: childOrigin, received: event.origin });
       }
 
       const message = event.data as BridgeChildToParentMessage | null | undefined;
@@ -328,6 +409,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           capsRef.current = nextCaps;
           supportsLogsRef.current = nextCaps.includes('logs');
           supportsNetworkRef.current = nextCaps.includes('network');
+          const supportsInspect = nextCaps.includes('inspect');
           if (supportsLogsRef.current) {
             setLogState(message.logs ?? { enabled: false, streaming: false });
           } else {
@@ -338,6 +420,10 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           } else {
             setNetworkState(null);
           }
+          setInspectState({
+            ...initialInspectState,
+            supported: supportsInspect,
+          });
           setState(prev => ({
             ...prev,
             isSupported: true,
@@ -422,7 +508,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
             try {
               listener(message.event);
             } catch (error) {
-              console.warn('[Bridge] Log listener failed', error);
+              logger.warn('[Bridge] Log listener failed', error);
             }
           });
           break;
@@ -456,7 +542,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
             try {
               listener(message.event);
             } catch (error) {
-              console.warn('[Bridge] Network listener failed', error);
+              logger.warn('[Bridge] Network listener failed', error);
             }
           });
           break;
@@ -475,6 +561,70 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
 
         case 'NETWORK_STATE': {
           setNetworkState(message.state);
+          break;
+        }
+
+        case 'INSPECT_STATE': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: message.active,
+            lastReason: message.reason && message.reason !== 'start'
+              ? message.reason as InspectLifecycleReason
+              : (message.active ? 'start' : prev.lastReason),
+            error: message.active ? null : prev.error,
+            hover: message.active ? null : prev.hover,
+            result: message.active ? null : prev.result,
+          }));
+          break;
+        }
+
+        case 'INSPECT_HOVER': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            hover: message.payload,
+          }));
+          break;
+        }
+
+        case 'INSPECT_RESULT': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: false,
+            hover: message.payload,
+            result: message.payload,
+            lastReason: 'complete',
+            error: null,
+          }));
+          break;
+        }
+
+        case 'INSPECT_CANCEL': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            active: false,
+            lastReason: 'cancel',
+            hover: null,
+          }));
+          break;
+        }
+
+        case 'INSPECT_ERROR': {
+          setInspectState(prev => ({
+            ...prev,
+            supported: prev.supported || capsRef.current.includes('inspect'),
+            error: message.error,
+            active: false,
+            hover: null,
+          }));
+          break;
+        }
+
+        case 'DIAG_RESULT': {
+          // Diagnostic acknowledgements are handled via waitForMessage callers.
           break;
         }
 
@@ -498,14 +648,14 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
       const targetOrigin = effectiveOriginRef.current ?? childOrigin;
       if (!targetOrigin) {
-        console.warn('[Bridge] Unable to determine target origin for message', payload.t);
+        logger.warn('[Bridge] Unable to determine target origin for message', { type: payload.t });
         return false;
       }
       try {
         iframeWindow.postMessage(payload, targetOrigin);
         return true;
       } catch (error) {
-        console.warn('[Bridge] postMessage failed', error);
+        logger.warn('[Bridge] postMessage failed', error);
         return false;
       }
     },
@@ -527,6 +677,42 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
 
   const sendPing = useCallback(() => {
     return postMessage({ v: 1, t: 'PING', ts: Date.now() });
+  }, [postMessage]);
+
+  const startInspect = useCallback(() => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'START' });
+  }, [postMessage]);
+
+  const stopInspect = useCallback(() => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'STOP' });
+  }, [postMessage]);
+
+  const setInspectTargetIndex = useCallback((index: number) => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    if (!Number.isFinite(index)) {
+      return false;
+    }
+    const normalized = Math.max(0, Math.floor(index));
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'SET_TARGET', index: normalized });
+  }, [postMessage]);
+
+  const shiftInspectTarget = useCallback((delta: number) => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    if (!Number.isFinite(delta) || delta === 0) {
+      return false;
+    }
+    const normalized = delta > 0 ? Math.ceil(delta) : Math.floor(delta);
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'SHIFT_TARGET', delta: normalized });
   }, [postMessage]);
 
   const requestScreenshot = useCallback(
@@ -715,14 +901,35 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     [childOrigin, iframeRef],
   );
 
+  const runSpaHooksDiagnostic = useCallback(async () => {
+    const diagId = generateRequestId('diag');
+    let diagOk = false;
+    let diagError: string | undefined;
+    const sent = postMessage({ v: 1, t: 'DIAG', kind: 'SPA_HOOKS', id: diagId, token: diagId });
+    if (!sent) {
+      throw new Error('diag-request-failed');
+    }
+
+    await waitForMessage(message => {
+      if (message.t === 'DIAG_RESULT' && message.id === diagId) {
+        diagOk = !!message.ok;
+        diagError = message.error;
+        return true;
+      }
+      return false;
+    }, DIAG_REQUEST_TIMEOUT_MS);
+
+    if (!diagOk) {
+      throw new Error(diagError || 'diag-failed');
+    }
+  }, [postMessage, waitForMessage]);
+
   const runComplianceCheck = useCallback(async (): Promise<BridgeComplianceResult> => {
     const failures: string[] = [];
 
     if (!childOrigin || !iframeRef.current) {
       return { ok: false, failures: ['NO_IFRAME'], checkedAt: Date.now() };
     }
-
-    const originalHref = lastHrefRef.current;
 
     const recordFailure = (label: string) => {
       if (!failures.includes(label)) {
@@ -746,38 +953,22 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
     }
 
-    const randomHash = `#bridge-test-${Math.random().toString(16).slice(2)}`;
-    const navIssued = sendNav('GO', randomHash);
-    if (navIssued) {
-      try {
-        await waitForMessage(
-          message => message.t === 'LOCATION' && typeof message.href === 'string' && message.href.includes(randomHash),
-          700,
-        );
-      } catch (error) {
-        recordFailure('SPA hooks');
-      }
-    } else {
+    try {
+      await runSpaHooksDiagnostic();
+    } catch (error) {
       recordFailure('SPA hooks');
     }
 
-    const backIssued = sendNav('BACK');
-    if (backIssued) {
-      try {
-        await waitForMessage(message => message.t === 'LOCATION', 700);
-      } catch (error) {
-        recordFailure('BACK/FWD');
-      }
-    } else {
-      recordFailure('BACK/FWD');
+    if (helloReceivedRef.current && !supportsLogsRef.current) {
+      recordFailure('CAP_LOGS');
     }
 
-    if (originalHref) {
-      sendNav('GO', originalHref);
+    if (helloReceivedRef.current && !supportsNetworkRef.current) {
+      recordFailure('CAP_NETWORK');
     }
 
     return { ok: failures.length === 0, failures, checkedAt: Date.now() };
-  }, [childOrigin, iframeRef, sendNav, waitForMessage]);
+  }, [childOrigin, iframeRef, runSpaHooksDiagnostic, waitForMessage]);
 
   return {
     state: {
@@ -803,6 +994,11 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     getRecentNetworkEvents,
     requestNetworkBatch,
     configureNetwork,
+    inspectState,
+    startInspect,
+    stopInspect,
+    setInspectTargetIndex,
+    shiftInspectTarget,
   };
 };
 

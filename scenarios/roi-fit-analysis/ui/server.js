@@ -8,15 +8,15 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 app.get('/health', (req, res) => {
     res.json({ status: 'healthy', service: 'roi-fit-analysis-ui' });
+});
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Start server

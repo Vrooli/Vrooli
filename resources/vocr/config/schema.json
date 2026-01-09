@@ -19,7 +19,10 @@
     "ocr_engine": {
       "type": "string",
       "description": "OCR engine to use",
-      "enum": ["tesseract", "easyocr"],
+      "enum": [
+        "tesseract",
+        "easyocr"
+      ],
       "default": "tesseract"
     },
     "ocr_languages": {
@@ -41,7 +44,13 @@
     "capture_method": {
       "type": "string",
       "description": "Screen capture method",
-      "enum": ["auto", "scrot", "imagemagick", "screencapture", "pillow"],
+      "enum": [
+        "auto",
+        "scrot",
+        "imagemagick",
+        "screencapture",
+        "pillow"
+      ],
       "default": "auto"
     },
     "screenshots_dir": {
@@ -83,10 +92,20 @@
     "log_level": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
       "default": "INFO"
     }
   },
-  "required": ["host", "port", "ocr_engine"],
-  "additionalProperties": false
+  "required": [
+    "host",
+    "port",
+    "ocr_engine"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/vocr/schema.json"
 }

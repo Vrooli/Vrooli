@@ -31,7 +31,10 @@
           "description": "Admin email address"
         }
       },
-      "required": ["username", "password"]
+      "required": [
+        "username",
+        "password"
+      ]
     },
     "database": {
       "type": "object",
@@ -61,7 +64,12 @@
           "description": "Database password"
         }
       },
-      "required": ["host", "name", "user", "password"]
+      "required": [
+        "host",
+        "name",
+        "user",
+        "password"
+      ]
     },
     "features": {
       "type": "object",
@@ -128,5 +136,10 @@
       }
     }
   },
-  "required": ["port", "admin", "database"]
+  "required": [
+    "port",
+    "admin",
+    "database"
+  ],
+  "$id": "https://vrooli.com/resources/farmos/schema.json"
 }

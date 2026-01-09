@@ -6,6 +6,7 @@
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.cjs'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.cjs'",
+    "build": "rm -rf dist && mkdir -p dist && cp index.html dist/index.html && cp app.js dist/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

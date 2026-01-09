@@ -1,0 +1,19 @@
+{
+  "module_id": "go-workspace-independence",
+  "title": "Go workspace independence",
+  "priority": "P0",
+  "description": "Enforce that Go-based scenario CLIs build with GOWORK=off (no dependency on a repo-level go.work).",
+  "requirements": [
+    {
+      "id": "SSG-P0-004",
+      "category": "go",
+      "prd_ref": "OT-P0-004",
+      "title": "Go scenario CLIs build without workspace mode",
+      "description": "The rule fails if any Go-based scenario CLI fails `GOWORK=off go build ./...` or is missing required non-transitive replace directives.",
+      "status": "in_progress",
+      "tags": ["go", "cli", "workspace"],
+      "validation": []
+    }
+  ]
+}
+

@@ -171,12 +171,12 @@ export default function ScenarioDetail() {
                 <div>
                   <p className="text-sm font-medium text-dark-700 mb-2">Health Checks</p>
                   <div className="space-y-2">
-                    {Object.entries(health.checks).map(([check, status]) => (
+                    {Object.entries(health.checks).map(([check, checkResult]) => (
                       <div key={check} className="flex items-center justify-between p-2 bg-dark-50 rounded-lg">
                         <span className="text-sm text-dark-700 capitalize">
                           {check.replace(/_/g, ' ')}
                         </span>
-                        {status === 'passing' ? (
+                        {checkResult.status === 'passing' ? (
                           <CheckCircle className="h-4 w-4 text-success-500" />
                         ) : (
                           <AlertCircle className="h-4 w-4 text-danger-500" />

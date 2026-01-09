@@ -106,15 +106,7 @@ func (m *sessionManager) onSessionClosed(s *session, _ closeReason) {
 
 	// Detach session from any tabs in workspace
 	if m.workspace != nil {
-		m.workspace.mu.RLock()
-		for _, tab := range m.workspace.Tabs {
-			if tab.SessionID != nil && *tab.SessionID == s.id {
-				m.workspace.mu.RUnlock()
-				_ = m.workspace.detachSession(tab.ID)
-				return
-			}
-		}
-		m.workspace.mu.RUnlock()
+		_ = m.workspace.detachSessionBySessionID(s.id)
 	}
 }
 
@@ -180,8 +172,6 @@ func (m *sessionManager) monitorGlobalIdle() {
 			continue
 		}
 		if count := m.deleteAllSessions(reasonIdleTimeout); count > 0 {
-			m.recordActivity()
-		} else {
 			m.recordActivity()
 		}
 	}

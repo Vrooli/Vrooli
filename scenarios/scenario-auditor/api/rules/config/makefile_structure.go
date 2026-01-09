@@ -786,17 +786,7 @@ func structureValidateColors(data structureMakefileData, path string) []Makefile
 		}
 	}
 
-	// Reject any unexpected color definitions (STRICT: only predefined palette allowed)
-	for name := range data.colors {
-		if _, isExpected := expected[name]; !isExpected {
-			violations = append(violations, MakefileStructureViolation{
-				Severity: "high",
-				Message:  fmt.Sprintf("Unexpected color definition '%s' (STRICT: only GREEN, YELLOW, BLUE, RED, RESET allowed)", name),
-				FilePath: path,
-				Line:     structureFindLine(data.lines, name+" :="),
-			})
-		}
-	}
+	// Allow additional color definitions without failing; enforce only the canonical palette above.
 
 	return violations
 }

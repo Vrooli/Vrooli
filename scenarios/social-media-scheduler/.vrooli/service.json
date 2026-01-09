@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "social-media-scheduler",
@@ -22,65 +22,39 @@
       "browserless-fallback",
       "oauth-integration",
       "real-time-analytics"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/social-media-scheduler"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Social media scheduler API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Social media scheduler UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "User accounts, scheduled posts, social media credentials, analytics data",
-      "initialization": [
-        {
-          "file": "initialization/storage/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/seed.sql",
-          "type": "seed"
-        }
-      ]
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Social media scheduler API port",
+      "range": "15000-19999"
     },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Job queue for scheduled posts, rate limiting, session management, real-time updates"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Media storage for images, videos, and generated assets with CDN-style serving"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered content optimization and platform-specific adaptation",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Fallback posting mechanism when APIs fail, screenshot verification"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Social media scheduler UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -125,18 +99,24 @@
       "description": "Initialize Social Media Scheduler with all dependencies",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "social-media-scheduler-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "social-media-scheduler"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/social-media-scheduler-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "social-media-scheduler",
+            "targets": [
+              "social-media-scheduler"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -155,9 +135,17 @@
           "description": "Build Go API with platform integrations"
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install React UI dependencies"
+          "description": "Install React UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production React UI bundles"
         },
         {
           "name": "setup-database-schema",
@@ -181,7 +169,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Social Media Scheduler initialized\\n  📅 Web UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📊 Analytics: http://localhost:${UI_PORT}/analytics\\n  🛠️  CLI: social-media-scheduler --help'",
+          "run": "echo '\ud83d\ude80 Social Media Scheduler initialized\\n  \ud83d\udcc5 Web UI: http://localhost:${UI_PORT}\\n  \ud83d\udd17 API: http://localhost:${API_PORT}\\n  \ud83d\udcca Analytics: http://localhost:${UI_PORT}/analytics\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -198,84 +186,38 @@
             "file_exists": "api/social-media-scheduler-api"
           }
         },
-         {
-           "name": "start-api",
-           "run": "cd api && ./social-media-scheduler-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/social-media-scheduler-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm start",
-          "description": "Start React development server",
+          "name": "start-api",
+          "run": "cd api && ./social-media-scheduler-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/social-media-scheduler-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
-           "description": "Display all running service URLs and status"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Social Media Scheduler running:\\n  \ud83d\udcc5 Calendar UI: http://localhost:$UI_PORT\\n  \ud83d\udd17 API: http://localhost:$API_PORT\\n  \ud83d\udcca Analytics: http://localhost:$UI_PORT/analytics\\n  \u2699\ufe0f  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
+          "description": "Display all running service URLs and status"
+        }
       ]
     },
     "test": {
-      "description": "Test social media scheduler API, UI, and integrations",
+      "description": "Comprehensive phased testing for social-media-scheduler",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation and dependencies",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-queue-health",
-          "run": "curl -sf http://localhost:$API_PORT/health/queue",
-          "description": "Test job queue health"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/health",
-          "description": "Test React UI health endpoint"
-        },
-        {
-          "name": "test-oauth-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/auth/platforms",
-          "description": "Test OAuth platform configuration endpoint"
-        },
-        {
-          "name": "test-scheduling-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/posts/schedule -X POST -H 'Content-Type: application/json' -d '{\"title\":\"test\",\"content\":\"test\",\"platforms\":[\"twitter\"],\"scheduled_at\":\"2024-12-01T12:00:00Z\"}'",
-          "description": "Test post scheduling endpoint (should return auth error)"
-        },
-        {
-          "name": "test-database-connection",
-          "run": "psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d vrooli_social_media_scheduler -c 'SELECT COUNT(*) FROM users;'",
-          "description": "Test PostgreSQL connection and schema"
-        },
-        {
-          "name": "test-redis-connection",
-          "run": "redis-cli -h localhost -p ${RESOURCE_PORTS[redis]} ping",
-          "description": "Test Redis job queue connection"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats social-media-scheduler.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/social-media-scheduler.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute social-media-scheduler --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -298,6 +240,55 @@
           "description": "Stop background job processor"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "User accounts, scheduled posts, social media credentials, analytics data",
+        "initialization": [
+          {
+            "file": "initialization/storage/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Job queue for scheduled posts, rate limiting, session management, real-time updates"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Media storage for images, videos, and generated assets with CDN-style serving"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered content optimization and platform-specific adaptation",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Fallback posting mechanism when APIs fail, screenshot verification"
+      }
     }
   }
 }

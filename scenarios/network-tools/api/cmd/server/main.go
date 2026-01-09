@@ -24,6 +24,8 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 )
 
 // Config holds application configuration
@@ -191,20 +193,20 @@ type ConnectivityStatistics struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	// Build database URL from components or use provided URL
+	// Priority: DATABASE_URL > POSTGRES_URL > component-based construction
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		// Try POSTGRES_URL first (from environment)
 		dbURL = os.Getenv("POSTGRES_URL")
 	}
 	if dbURL == "" {
-		// Fall back to building from components
+		// Build from individual components with Vrooli resource defaults
 		dbHost := getEnv("POSTGRES_HOST", getEnv("DB_HOST", "localhost"))
 		dbPort := getEnv("POSTGRES_PORT", getEnv("DB_PORT", "5433"))
 		dbUser := getEnv("POSTGRES_USER", getEnv("DB_USER", "vrooli"))
 		dbPass := getEnv("POSTGRES_PASSWORD", getEnv("DB_PASSWORD", ""))
 		dbName := getEnv("POSTGRES_DB", getEnv("DB_NAME", "vrooli"))
 		dbSSL := getEnv("POSTGRES_SSLMODE", getEnv("DB_SSL_MODE", "disable"))
-		
+
 		if dbPass == "" {
 			return nil, fmt.Errorf("database password not configured - set POSTGRES_PASSWORD or DB_PASSWORD environment variable")
 		}
@@ -218,17 +220,15 @@ func NewServer() (*Server, error) {
 		DatabaseURL: dbURL,
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-	
 	// Initialize database schema
 	if err := InitializeDatabase(db); err != nil {
 		log.Printf("Warning: Failed to initialize database schema: %v", err)
@@ -311,8 +311,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(authMiddleware)
 
 	// Health check (no auth required due to authMiddleware logic)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Uses api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -329,6 +334,14 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/network/targets", s.handleListTargets).Methods("GET")
 	api.HandleFunc("/network/targets", s.handleCreateTarget).Methods("POST")
 	api.HandleFunc("/network/alerts", s.handleListAlerts).Methods("GET")
+
+	// API Management endpoints
+	api.HandleFunc("/api/definitions", s.handleListAPIDefinitions).Methods("GET", "OPTIONS")
+	api.HandleFunc("/api/definitions", s.handleCreateAPIDefinition).Methods("POST", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleGetAPIDefinition).Methods("GET", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleUpdateAPIDefinition).Methods("PUT", "OPTIONS")
+	api.HandleFunc("/api/definitions/{id}", s.handleDeleteAPIDefinition).Methods("DELETE", "OPTIONS")
+	api.HandleFunc("/api/discover", s.handleDiscoverAPIEndpoints).Methods("POST", "OPTIONS")
 }
 
 // Middleware functions
@@ -385,10 +398,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 		if originAllowed && origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		} else if origin == "" && os.Getenv("VROOLI_ENV") == "development" {
-			// Only allow no-origin requests in development (CLI/direct API calls)
-			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
+		// Note: Requests without Origin header (e.g., CLI, curl) will not get CORS headers
+		// This is correct behavior - CORS is only needed for browser-based requests
 		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
@@ -439,8 +451,8 @@ func authMiddleware(next http.Handler) http.Handler {
 			// Production mode: require valid API key
 			expectedKey := os.Getenv("NETWORK_TOOLS_API_KEY")
 			if expectedKey == "" {
-				// Generate a secure API key on startup
-				log.Printf("Error: No API key configured in production mode. Set NETWORK_TOOLS_API_KEY environment variable.")
+				// API key required but not configured
+				log.Printf("Error: No API key configured in production mode. Configure authentication via environment variables.")
 				sendError(w, "Service misconfigured - API key not set", http.StatusInternalServerError)
 				return
 			}
@@ -479,29 +491,6 @@ func authMiddleware(next http.Handler) http.Handler {
 }
 
 // Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbStatus := "healthy"
-	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			dbStatus = "unhealthy"
-		}
-	} else {
-		dbStatus = "not_configured"
-	}
-
-	health := map[string]interface{}{
-		"status":   "healthy",
-		"database": dbStatus,
-		"version":  "1.0.0",
-		"service":  "network-tools",
-		"timestamp": time.Now().UTC(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
-}
-
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	var req HTTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -731,6 +720,20 @@ func (s *Server) handleConnectivityTest(w http.ResponseWriter, r *http.Request) 
 	}
 	if req.TestType == "" {
 		req.TestType = "ping"
+	}
+
+	// Validate test_type is valid
+	validTestTypes := map[string]bool{
+		"ping":       true,
+		"traceroute": true,
+		"mtr":        true,
+		"bandwidth":  true,
+		"latency":    true,
+		"tcp":        true,
+	}
+	if !validTestTypes[req.TestType] {
+		sendError(w, fmt.Sprintf("Invalid test_type '%s'. Valid types: ping, traceroute, mtr, bandwidth, latency, tcp", req.TestType), http.StatusBadRequest)
+		return
 	}
 
 	// Simple connectivity test (TCP connection)
@@ -1392,7 +1395,11 @@ func (s *Server) Run() error {
 func main() {
 	// Check if running under lifecycle management
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		log.Println("Warning: Not running under Vrooli lifecycle management")
+		log.Println("ERROR: Network Tools must be started via Vrooli lifecycle system")
+		log.Println("Please use: vrooli scenario start network-tools")
+		log.Println("Or from scenario directory: make start")
+		log.Println("Direct execution bypasses critical infrastructure (process management, port allocation, health monitoring)")
+		os.Exit(1)
 	}
 
 	server, err := NewServer()

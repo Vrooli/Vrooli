@@ -1,0 +1,77 @@
+{
+  "$schema": "./_schema.json",
+  "id": "social-proof",
+  "name": "Social Proof Section",
+  "description": "Customer logos, testimonial snippets, or download/subscriber counts to build trust",
+  "category": "social-proof",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "Trusted by leading teams",
+      "max_length": 80,
+      "required": false
+    },
+    "logos": {
+      "type": "array",
+      "label": "Customer Logos",
+      "max_items": 8,
+      "item_schema": {
+        "company": {
+          "type": "string",
+          "label": "Company Name"
+        },
+        "logo_url": {
+          "type": "string",
+          "label": "Logo URL"
+        }
+      }
+    },
+    "testimonials": {
+      "type": "array",
+      "label": "Short Testimonials",
+      "max_items": 3,
+      "item_schema": {
+        "quote": {
+          "type": "string",
+          "label": "Testimonial Quote",
+          "max_length": 200
+        },
+        "author": {
+          "type": "string",
+          "label": "Author Name",
+          "max_length": 60
+        },
+        "role": {
+          "type": "string",
+          "label": "Author Role/Company",
+          "max_length": 80
+        },
+        "avatar_url": {
+          "type": "string",
+          "label": "Avatar URL"
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "label": "Social Stats",
+      "properties": {
+        "download_count": {
+          "type": "number",
+          "label": "Downloads/Subscribers Count"
+        },
+        "customer_count": {
+          "type": "number",
+          "label": "Customer Count"
+        },
+        "rating": {
+          "type": "number",
+          "label": "Average Rating"
+        }
+      }
+    }
+  },
+  "ui_component": "SocialProofSection",
+  "default_order": 6
+}

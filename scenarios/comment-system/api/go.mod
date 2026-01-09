@@ -9,6 +9,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/russross/blackfriday/v2 v2.1.0
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -42,3 +43,5 @@ require (
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

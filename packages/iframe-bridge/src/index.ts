@@ -1,5 +1,6 @@
 export {
   initIframeBridgeChild,
+  shimStorage,
   type BridgeChildController,
   type BridgeChildOptions,
   type BridgeCapability,
@@ -10,6 +11,12 @@ export {
   type BridgeLogLevel,
   type BridgeScreenshotMode,
   type BridgeScreenshotOptions,
+  type BridgeInspectRect,
+  type BridgeInspectElementMeta,
+  type BridgeInspectAncestorMeta,
+  type BridgeInspectHoverPayload,
+  type BridgeInspectResultPayload,
   type LogCaptureOptions,
   type NetworkCaptureOptions,
-} from './iframeBridgeChild';
+  type StorageShimEntry,
+} from './iframeBridgeChild.js';

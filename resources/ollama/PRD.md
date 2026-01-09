@@ -481,7 +481,7 @@ integration_tests:
     - Content management operations (add/list/get/remove/execute)
   
 system_tests:
-  location: __test/resources/single/ai/
+  location: resources/ollama/test/integration-test.sh
   coverage: Full Ollama lifecycle, performance, failure scenarios
   automation: Integrated with Vrooli test framework
   

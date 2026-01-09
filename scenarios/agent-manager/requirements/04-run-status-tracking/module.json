@@ -1,0 +1,50 @@
+{
+  "description": "Track and update run status with timestamps",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Track and update run status through defined lifecycle states with timestamps",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-004",
+      "status": "implemented",
+      "title": "Run Status Lifecycle",
+      "validation": [
+        {
+          "notes": "Test run status transitions",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestRunStatus_CanTransitionTo",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test run stoppability based on status",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test run outcome classification",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestClassifyRunOutcome",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify run listing reflects status",
+          "phase": "integration",
+          "ref": "api/internal/handlers/handlers_test.go::TestListRuns",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Run Status Tracking"
+}

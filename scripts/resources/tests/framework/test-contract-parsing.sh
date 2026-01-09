@@ -147,7 +147,7 @@ test_contract_parsing::test_real_resources() {
     # Find some real manage.sh scripts
     local sample_resources=(
         "${var_SCRIPTS_RESOURCES_DIR}/ai/ollama"
-        "${var_SCRIPTS_RESOURCES_DIR}/automation/n8n"
+        "${var_SCRIPTS_RESOURCES_DIR}/automation/node-red"
         "${var_SCRIPTS_RESOURCES_DIR}/agents/agent-s2"
         "${var_SCRIPTS_RESOURCES_DIR}/storage/postgres"
     )

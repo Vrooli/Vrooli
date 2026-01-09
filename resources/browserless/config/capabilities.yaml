@@ -66,7 +66,7 @@ scenario_compatibility:
   secondary_scenarios:
     - e_commerce_monitor:
         description: "Track competitor prices and inventory"
-        combines_with: ["n8n", "postgres", "redis"]
+        combines_with: ["postgres", "redis"]
     
     - content_aggregator:
         description: "Collect and process web content"
@@ -74,7 +74,7 @@ scenario_compatibility:
     
     - compliance_checker:
         description: "Monitor website compliance and changes"
-        combines_with: ["n8n", "vault", "postgres"]
+        combines_with: ["vault", "postgres"]
 
 api_interfaces:
   endpoints:
@@ -184,7 +184,6 @@ technical_specifications:
 
 integration_targets:
   high_value:
-    - n8n: "Workflow automation with browser actions"
     - postgres: "Store scraped data and screenshots"
     - redis: "Cache browser sessions and results"
     - milvus: "Index visual content for similarity search"
@@ -223,21 +222,14 @@ ai_generation_hints:
 
 testing_configuration:
   test_files:
-    - "test/integration-test.sh"
-    - "examples/screenshot-test.js"
-    - "examples/pdf-test.js"
-    - "examples/scrape-test.js"
+    - "test/run-tests.sh"
   
   coverage_areas:
     - api_endpoints: 95%
     - error_handling: 90%
     - performance: 85%
     - security: 80%
-  
-  fixture_data:
-    - "examples/fixtures/test-sites.json"
-    - "examples/fixtures/selectors.json"
-    - "examples/fixtures/javascript-snippets.js"
+  fixture_data: []
 
 operational_metrics:
   sla_targets:

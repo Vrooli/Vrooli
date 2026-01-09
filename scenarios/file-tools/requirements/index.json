@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "entity": "file-tools",
+    "generated_at": "2025-12-16T18:01:20-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-file-compressionwith-integrity-verificat/module.json",
+    "02-file-operations/module.json",
+    "03-file-splitting-and-merging-with-automati/module.json",
+    "04-mime-type-detection-with-basic-support/module.json",
+    "05-metadata-extraction/module.json",
+    "06-checksum-verification/module.json",
+    "07-restful-api-with-comprehensive-file-oper/module.json",
+    "08-cli-interface-with-full-feature-parity/module.json",
+    "09-duplicate-detection-across-directories-w/module.json",
+    "10-smart-organization-based-on-file-type-an/module.json",
+    "11-content-based-search-with-filename-match/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-file-compressionwith-integrity-verificat",
+      "priority": "P0",
+      "title": "File compression (ZIP, TAR, GZIP) with integrity verification *(2025-09-24: Implemented ZIP, TAR, GZIP)*"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-file-operations",
+      "priority": "P0",
+      "title": "File operations (copy, move, rename, delete) *(2025-09-24: Implemented core operations)*"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-file-splitting-and-merging-with-automati",
+      "priority": "P0",
+      "title": "File splitting and merging with automatic reconstruction *(2025-09-24: Fully functional)*"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-mime-type-detection-with-basic-support",
+      "priority": "P0",
+      "title": "MIME type detection with basic support *(2025-09-24: Implemented using Go mime package)*"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-metadata-extraction",
+      "priority": "P0",
+      "title": "Metadata extraction (file properties, timestamps) *(2025-09-24: Basic metadata working)*"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-checksum-verification",
+      "priority": "P0",
+      "title": "Checksum verification (MD5, SHA-1, SHA-256) *(2025-09-24: Three algorithms implemented)*"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-restful-api-with-comprehensive-file-oper",
+      "priority": "P0",
+      "title": "RESTful API with comprehensive file operation endpoints *(2025-09-24: All P0 endpoints working)*"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-cli-interface-with-full-feature-parity",
+      "priority": "P0",
+      "title": "CLI interface with full feature parity *(2025-09-24: Complete CLI with all operations)*"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-duplicate-detection-across-directories-w",
+      "priority": "P1",
+      "title": "Duplicate detection across directories with hash-based similarity *(2025-09-24: Implemented MD5 hash detection)*"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-smart-organization-based-on-file-type-an",
+      "priority": "P1",
+      "title": "Smart organization based on file type and date patterns *(2025-09-24: File type and date organization)*"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-content-based-search-with-filename-match",
+      "priority": "P1",
+      "title": "Content-based search with filename matching *(2025-09-24: Filename search implemented)*"
+    }
+  ]
+}

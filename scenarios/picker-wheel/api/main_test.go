@@ -39,6 +39,12 @@ func TestHealthHandler(t *testing.T) {
 		if response.Version != "1.0.0" {
 			t.Errorf("Expected version '1.0.0', got '%s'", response.Version)
 		}
+		if response.Readiness != true {
+			t.Errorf("Expected readiness 'true', got '%v'", response.Readiness)
+		}
+		if response.Timestamp.IsZero() {
+			t.Error("Expected timestamp to be set, got zero value")
+		}
 	})
 }
 

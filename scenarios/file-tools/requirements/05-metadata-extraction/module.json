@@ -1,0 +1,54 @@
+{
+  "description": "Extract core file metadata",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must extract core file metadata including size, dates, and permissions",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Basic Metadata Extraction",
+      "validation": [
+        {
+          "notes": "Extract creation date",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract file permissions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Batch metadata extraction",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract metadata within 50ms per file",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All basic attributes accurately extracted",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Metadata extraction (file properties, timestamps) *(2025-09-24: Basic metadata working)*"
+}

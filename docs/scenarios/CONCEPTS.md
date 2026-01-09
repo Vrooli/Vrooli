@@ -51,21 +51,27 @@ Every scenario contains the complete genetic code for a deployable application:
     "displayName": "AI Research Assistant",
     "description": "Automated research collection and synthesis"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "required": true},
+      "searxng": {"type": "search", "required": true},
+      "qdrant": {"type": "vectordb", "required": true},
+      "postgres": {"type": "database", "required": true},
+      "minio": {"type": "storage", "required": false},
+    },
+    "scenarios": {
+      "scenario-authenticator": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0"
+      }
+    }
+  },
   "spec": {
     "business": {
       "valueProposition": "Automated research and data synthesis",
       "revenueRange": { "min": 15000, "max": 30000 },
       "targetMarkets": ["consulting", "research", "legal"]
-    },
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "searxng", "type": "search", "optional": false},
-        {"name": "qdrant", "type": "vectordb", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "minio", "type": "storage", "optional": true},
-        {"name": "windmill", "type": "automation", "optional": false}
-      ]
     }
   }
 }
@@ -100,7 +106,7 @@ Every scenario contains the complete genetic code for a deployable application:
 initialization/
 ├── database/schema.sql     # Complete data model
 ├── workflows/n8n/         # Business logic workflows
-├── ui/windmill-app.json    # User interface definition
+├── ui/dashboard.json      # User interface definition
 ├── configuration/          # Runtime settings
 └── storage/               # File and vector storage setup
 ```
@@ -155,7 +161,7 @@ vrooli scenario run customer-call-assistant
 # Application is running and accessible
 # Visit provided URLs for:
 # ✅ n8n workflows (localhost:5678)
-# ✅ Windmill UI (localhost:8000)
+# ✅ Node-RED dashboards (localhost:1880)
 # ✅ Application interface (localhost:3000)
 # ✅ Monitoring and health checks
 # ✅ $15k-30k revenue for this scenario type
@@ -169,17 +175,14 @@ Scenarios don't contain business logic—they **orchestrate external resources**
 ```json
 // Each resource is like an instrument in an orchestra
 {
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "whisper", "type": "ai"},        // The "ears" - audio input processing
-        {"name": "ollama", "type": "ai"},         // The "brain" - intelligent reasoning
-        {"name": "comfyui", "type": "ai"},        // The "hands" - visual creation
-        {"name": "agent-s2", "type": "agent"},    // The "fingers" - precise interaction
-        {"name": "windmill", "type": "automation"},// The "stage" - user presentation
-        {"name": "n8n", "type": "automation"}     // The "conductor" - workflow orchestration
-      ]
-    }
+  "dependencies": {
+    "resources": [
+      {"name": "whisper", "type": "ai"},        // The "ears" - audio input processing
+      {"name": "ollama", "type": "ai"},         // The "brain" - intelligent reasoning
+      {"name": "comfyui", "type": "ai"},        // The "hands" - visual creation
+      {"name": "agent-s2", "type": "agent"},    // The "fingers" - precise interaction
+      {"name": "n8n", "type": "automation"}     // The "conductor" - workflow orchestration
+    ]
   }
 }
 ```
@@ -191,7 +194,6 @@ When resources are orchestrated correctly, complex capabilities emerge:
 - **Ollama + Qdrant** = Intelligent search and memory
 - **ComfyUI + Agent-S2** = Automated visual content creation
 - **n8n + Multiple Resources** = Complex business workflows
-- **Windmill + Any AI** = Professional AI applications
 
 ## 🔬 The Science Behind Success
 

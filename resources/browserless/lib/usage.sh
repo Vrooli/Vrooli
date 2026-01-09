@@ -287,14 +287,28 @@ EOF
 # Screenshot helper function
 #######################################
 browserless::screenshot() {
-    local url="${1:-http://httpbin.org/html}"
-    local output="${2:-/tmp/screenshot.png}"
-    
-    curl -s -X POST \
-        "http://localhost:$BROWSERLESS_PORT/chrome/screenshot" \
-        -H "Content-Type: application/json" \
-        -d "{\"url\":\"$url\"}" \
-        -o "$output"
+    actions::screenshot "$@"
+}
+
+#######################################
+# Console helper function
+#######################################
+browserless::console() {
+    actions::console "$@"
+}
+
+#######################################
+# Network helper function
+#######################################
+browserless::network() {
+    actions::network "$@"
+}
+
+#######################################
+# Performance helper function
+#######################################
+browserless::performance() {
+    actions::performance "$@"
 }
 
 #######################################

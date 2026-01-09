@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +18,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // =============================================================================
@@ -139,13 +142,6 @@ type SearchRequest struct {
 	Limit   *int                   `json:"limit"`
 }
 
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Database  string `json:"database"`
-	Version   string `json:"version"`
-}
-
 // =============================================================================
 // DATABASE
 // =============================================================================
@@ -157,39 +153,13 @@ func initDB() {
 	// Load environment variables
 	godotenv.Load()
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	// Replace database name in URL if needed (keep the same user/password)
-	if postgresURL != "" && strings.Contains(postgresURL, "/vrooli?") {
-		postgresURL = strings.Replace(postgresURL, "/vrooli?", "/contact_book?", 1)
-	} else if postgresURL != "" && strings.HasSuffix(postgresURL, "/vrooli") {
-		postgresURL = strings.Replace(postgresURL, "/vrooli", "/contact_book", 1)
-	}
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		// Override database name for contact_book scenario
-		if dbName == "vrooli" || dbName == "" {
-			dbName = "contact_book"
-		}
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
+	// Connect to database using api-core with automatic retry
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to open database connection: %v", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	// Set connection pool settings
@@ -197,71 +167,7 @@ func initDB() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(time.Now().UnixNano() % int64(jitterRange))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
 	log.Println("🎉 Database connection pool established successfully!")
-}
-
-// =============================================================================
-// HANDLERS
-// =============================================================================
-
-func healthCheck(c *gin.Context) {
-	// Test database connection
-	dbStatus := "healthy"
-	if err := db.Ping(); err != nil {
-		dbStatus = "unhealthy"
-	}
-
-	c.JSON(http.StatusOK, HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Format(time.RFC3339),
-		Database:  dbStatus,
-		Version:   "1.0.0",
-	})
 }
 
 // =============================================================================
@@ -1036,16 +942,11 @@ func arrayToPostgresArray(arr []string) string {
 // =============================================================================
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start contact-book
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "contact-book",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize database
@@ -1080,7 +981,8 @@ func main() {
 	}))
 
 	// Health check
-	r.GET("/health", healthCheck)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	r.GET("/health", gin.WrapF(healthHandler))
 
 	// API routes
 	api := r.Group("/api/v1")

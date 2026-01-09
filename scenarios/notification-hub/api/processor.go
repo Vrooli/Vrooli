@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/smtp"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // NotificationProcessor handles sending notifications through various channels
@@ -109,19 +109,42 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 	for rows.Next() {
 		var job NotificationJob
 		var channelsRequested []string
-		var contactPreferences map[string]interface{}
+		var contactPreferences []byte
+		var contentBytes, variablesBytes []byte
 		var firstName, lastName *string
 
 		err := rows.Scan(
 			&job.NotificationID, &job.ProfileID, &job.ContactID,
-			&job.Subject, &job.Content, &job.Variables,
-			&channelsRequested, &job.Priority,
+			&job.Subject, &contentBytes, &variablesBytes,
+			pq.Array(&channelsRequested), &job.Priority,
 			&job.Contact.Identifier, &firstName, &lastName,
 			&contactPreferences,
 		)
 		if err != nil {
-			log.Printf("Failed to scan notification: %v", err)
+			logger.Error("Failed to scan notification", "error", err)
 			continue
+		}
+
+		// Unmarshal JSONB fields
+		if len(contentBytes) > 0 {
+			if err := json.Unmarshal(contentBytes, &job.Content); err != nil {
+				logger.Error("Failed to unmarshal content", "error", err, "notification_id", job.NotificationID)
+				continue
+			}
+		}
+		if len(variablesBytes) > 0 {
+			if err := json.Unmarshal(variablesBytes, &job.Variables); err != nil {
+				logger.Error("Failed to unmarshal variables", "error", err, "notification_id", job.NotificationID)
+				continue
+			}
+		}
+		if len(contactPreferences) > 0 {
+			var prefs map[string]interface{}
+			if err := json.Unmarshal(contactPreferences, &prefs); err != nil {
+				logger.Error("Failed to unmarshal contact preferences", "error", err, "contact_id", job.ContactID)
+			} else {
+				job.Contact.Preferences = prefs
+			}
 		}
 
 		if firstName != nil {
@@ -130,7 +153,6 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 		if lastName != nil {
 			job.Contact.LastName = lastName
 		}
-		job.Contact.Preferences = contactPreferences
 
 		// Update status to processing
 		np.updateNotificationStatus(job.NotificationID, "processing")
@@ -143,7 +165,7 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 			select {
 			case np.jobs <- channelJob:
 			case <-time.After(5 * time.Second):
-				log.Printf("Failed to queue job for notification %s", job.NotificationID)
+				logger.Error("Failed to queue job for notification", "notification_id", job.NotificationID)
 			}
 		}
 	}
@@ -200,7 +222,10 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 		DeliveredAt:    time.Now(),
 	}
 
-	// Get SMTP configuration
+	// SMTP configuration is optional - used for actual email delivery
+	// If not configured, the system gracefully falls back to simulation mode
+	// This allows the scenario to run and demonstrate functionality without requiring
+	// real email provider credentials during development and testing
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")
 	smtpUser := os.Getenv("SMTP_USER")
@@ -208,8 +233,8 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 	fromEmail := os.Getenv("SMTP_FROM_EMAIL")
 
 	if smtpHost == "" {
-		// For demo purposes, simulate email sending
-		log.Printf("Simulating email to %s: %s", job.Contact.Identifier, job.Subject)
+		// Graceful fallback: simulate email sending when SMTP is not configured
+		logger.Info("Simulating email send", "to", job.Contact.Identifier, "subject", job.Subject)
 		result.Success = true
 		result.Metadata = map[string]interface{}{
 			"simulated": true,
@@ -287,7 +312,7 @@ func (np *NotificationProcessor) sendSMS(job NotificationJob) DeliveryResult {
 
 	if smsProvider == "" {
 		// Simulate SMS sending for demo
-		log.Printf("Simulating SMS to %s: %s", job.Contact.Identifier, job.Content["text"])
+		logger.Info("Simulating SMS send", "to", job.Contact.Identifier, "text", job.Content["text"])
 		result.Success = true
 		result.Metadata = map[string]interface{}{
 			"simulated": true,
@@ -321,7 +346,7 @@ func (np *NotificationProcessor) sendPushNotification(job NotificationJob) Deliv
 
 	if pushService == "" {
 		// Simulate push notification for demo
-		log.Printf("Simulating push notification to device: %s", job.Contact.Identifier)
+		logger.Info("Simulating push notification", "device", job.Contact.Identifier, "title", job.Subject)
 		result.Success = true
 		result.Metadata = map[string]interface{}{
 			"simulated": true,
@@ -472,7 +497,7 @@ func (np *NotificationProcessor) markChannelDelivered(notificationID uuid.UUID, 
 
 func (np *NotificationProcessor) markChannelFailed(notificationID uuid.UUID, channel string, error string) {
 	// Log failure and update status
-	log.Printf("Delivery failed for notification %s on channel %s: %s", notificationID, channel, error)
+	logger.Error("Delivery failed", "notification_id", notificationID, "channel", channel, "error", error)
 
 	query := `
 		UPDATE notifications 

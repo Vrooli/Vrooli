@@ -25,7 +25,7 @@ Core Debugger prevents infrastructure issues from cascading and blocking develop
 ### Zero Dependencies On
 - No database resources (postgres, redis, etc.)
 - No other scenarios
-- No workflow engines (n8n, windmill, etc.)
+- No workflow engines (n8n, node-red, etc.)
 - Works even when core systems are partially broken
 
 ## Integration Points

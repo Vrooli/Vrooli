@@ -34,15 +34,11 @@ The Stream of Consciousness Analyzer helps users capture fleeting thoughts and u
 - **API Server** (`api/`): Go-based backend for data management
 - **UI Server** (`ui/`): Express.js server with interactive frontend
 - **CLI Tool** (`cli/`): Command-line interface for batch processing
-- **N8n Workflows** (`initialization/n8n/`):
-  - `process-stream.json`: Main processing pipeline
-  - `organize-thoughts.json`: Structure extraction
-  - `extract-insights.json`: Pattern and insight detection
-  - `campaign-context-builder.json`: Campaign management
+- **Processing Pipeline**: Implemented in API handlers for stream capture, organization, and insight extraction (no external workflow engine required)
 
 ### Data Flow
 1. User inputs stream of consciousness text/voice
-2. N8n workflow processes with Ollama for structure extraction
+2. API handlers process and summarize content
 3. Data stored in PostgreSQL with metadata
 4. Embeddings generated and stored in Qdrant
 5. UI displays organized notes with insights
@@ -60,16 +56,16 @@ Access the mindful UI at `http://localhost:8091` to:
 ### CLI Usage
 ```bash
 # Process a stream of text
-soc-analyzer process "Just had a great idea about..."
+stream-of-consciousness-analyzer process "Just had a great idea about..."
 
 # Process with specific campaign
-soc-analyzer process --campaign work "Meeting notes: discussed roadmap..."
+stream-of-consciousness-analyzer process --campaign work "Meeting notes: discussed roadmap..."
 
 # Search notes
-soc-analyzer search "onboarding improvements"
+stream-of-consciousness-analyzer search "onboarding improvements"
 
 # Extract insights from recent entries
-soc-analyzer insights --days 7
+stream-of-consciousness-analyzer insights --days 7
 ```
 
 ### API Endpoints

@@ -10,6 +10,7 @@
     "serve": "node server.js"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@tanstack/react-virtual": "^3.0.0",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "react": "^18.2.0",

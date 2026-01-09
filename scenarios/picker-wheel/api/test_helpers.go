@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,8 +25,16 @@ func setupTestLogger() func() {
 	// Redirect logs to discard during tests unless verbose mode is needed
 	originalOutput := log.Writer()
 	log.SetOutput(ioutil.Discard)
+
+	// Initialize slog logger for tests (redirected to discard)
+	originalLogger := logger
+	logger = slog.New(slog.NewJSONHandler(ioutil.Discard, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
 	return func() {
 		log.SetOutput(originalOutput)
+		logger = originalLogger
 	}
 }
 

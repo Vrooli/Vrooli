@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "Lighthouse testing configuration for system-monitor - server monitoring dashboard with AI-driven anomaly investigation",
+    "last_updated": "2025-11-14T02:01:49Z",
+    "owner": "system-monitor team"
+  },
+  "enabled": true,
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "/",
+      "label": "Monitoring Dashboard",
+      "viewport": "desktop",
+      "waitForMs": 1500,
+      "thresholds": {
+        "performance": { "error": 0.70, "warn": 0.80 },
+        "accessibility": { "error": 0.85, "warn": 0.90 },
+        "best-practices": { "error": 0.80, "warn": 0.90 },
+        "seo": { "error": 0.75, "warn": 0.85 }
+      },
+      "requirements": [],
+      "notes": "Main monitoring dashboard with metrics, alerts, and AI investigation"
+    }
+  ],
+  "global_options": {
+    "lighthouse": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
+      }
+    },
+    "chrome_flags": ["--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+    "timeout_ms": 60000,
+    "retries": 2
+  },
+  "reporting": {
+    "output_dir": "test/artifacts/lighthouse",
+    "formats": ["json", "html"],
+    "keep_reports": 10,
+    "fail_on_error": true,
+    "fail_on_warn": false
+  }
+}

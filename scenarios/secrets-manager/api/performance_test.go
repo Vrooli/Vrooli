@@ -10,70 +10,75 @@ import (
 	"testing"
 )
 
+func benchmarkServer() *APIServer {
+	if logger == nil {
+		logger = NewLogger("test")
+	}
+	return newAPIServer(nil, logger)
+}
+
 // BenchmarkHealthHandler benchmarks the health check endpoint
 func BenchmarkHealthHandler(b *testing.B) {
+	router := benchmarkServer().routes()
 	req, _ := http.NewRequest("GET", "/health", nil)
-	handler := http.HandlerFunc(healthHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 	}
 }
 
 // BenchmarkVaultSecretsStatusHandler benchmarks the vault status endpoint
 func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
+	router := benchmarkServer().routes()
 	req, _ := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
-	handler := http.HandlerFunc(vaultSecretsStatusHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 	}
 }
 
 // BenchmarkValidateHandler benchmarks the validation endpoint
 func BenchmarkValidateHandler(b *testing.B) {
+	router := benchmarkServer().routes()
 	req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
-	handler := http.HandlerFunc(validateHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 	}
 }
 
 // BenchmarkSecurityScanHandler benchmarks the security scan endpoint
 func BenchmarkSecurityScanHandler(b *testing.B) {
+	router := benchmarkServer().routes()
 	req, _ := http.NewRequest("GET", "/api/v1/security/scan", nil)
-	handler := http.HandlerFunc(securityScanHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 	}
 }
 
 // BenchmarkProvisionHandler benchmarks the provision endpoint
 func BenchmarkProvisionHandler(b *testing.B) {
+	router := benchmarkServer().routes()
 	provReq := ProvisionRequest{
-		SecretKey:     "TEST_KEY",
-		SecretValue:   "test-value",
-		StorageMethod: "vault",
+		Secrets: map[string]string{"TEST_KEY": "test-value"},
 	}
 	body, _ := json.Marshal(provReq)
-	handler := http.HandlerFunc(provisionHandler)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req, _ := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
+		router.ServeHTTP(rr, req)
 	}
 }
 
@@ -93,7 +98,7 @@ func BenchmarkIsLikelySecret(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = isLikelySecret(varName)
+			_ = IsLikelySecret(varName)
 		}
 	}
 }
@@ -113,7 +118,7 @@ func BenchmarkClassifySecretType(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = classifySecretType(varName)
+			_ = ClassifySecretType(varName)
 		}
 	}
 }
@@ -132,7 +137,7 @@ func BenchmarkIsLikelyRequired(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = isLikelyRequired(varName)
+			_ = IsLikelyRequired(varName)
 		}
 	}
 }
@@ -295,26 +300,26 @@ func BenchmarkJSONEncoding(b *testing.B) {
 
 // BenchmarkConcurrentHealthChecks benchmarks concurrent health check requests
 func BenchmarkConcurrentHealthChecks(b *testing.B) {
-	handler := http.HandlerFunc(healthHandler)
+	router := benchmarkServer().routes()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			req, _ := http.NewRequest("GET", "/health", nil)
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			router.ServeHTTP(rr, req)
 		}
 	})
 }
 
 // BenchmarkConcurrentValidation benchmarks concurrent validation requests
 func BenchmarkConcurrentValidation(b *testing.B) {
-	handler := http.HandlerFunc(validateHandler)
+	router := benchmarkServer().routes()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			router.ServeHTTP(rr, req)
 		}
 	})
 }
@@ -353,22 +358,23 @@ func TestPerformanceMetrics(t *testing.T) {
 
 	cleanup := setupTestLogger()
 	defer cleanup()
+	server := benchmarkServer()
+	router := server.routes()
 
 	t.Run("HealthCheckResponseTime", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/health", nil)
-		handler := http.HandlerFunc(healthHandler)
 
 		// Warmup
 		for i := 0; i < 10; i++ {
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			router.ServeHTTP(rr, req)
 		}
 
 		// Measure
 		iterations := 1000
 		for i := 0; i < iterations; i++ {
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			router.ServeHTTP(rr, req)
 
 			if rr.Code != http.StatusOK {
 				t.Errorf("Expected status 200, got %d", rr.Code)
@@ -392,9 +398,9 @@ func TestPerformanceMetrics(t *testing.T) {
 		iterations := 10000
 		for i := 0; i < iterations; i++ {
 			for _, varName := range testVars {
-				_ = isLikelySecret(varName)
-				_ = classifySecretType(varName)
-				_ = isLikelyRequired(varName)
+				_ = IsLikelySecret(varName)
+				_ = ClassifySecretType(varName)
+				_ = IsLikelyRequired(varName)
 			}
 		}
 

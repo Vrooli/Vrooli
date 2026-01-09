@@ -104,13 +104,27 @@ func TestRegionsHandler(t *testing.T) {
 		var response Response
 		json.Unmarshal(rr.Body.Bytes(), &response)
 
-		regions, ok := response.Data.([]interface{})
+		payload, ok := response.Data.(map[string]interface{})
 		if !ok {
-			t.Fatal("Expected data to be an array")
+			t.Fatalf("Expected payload map, got %T", response.Data)
+		}
+
+		regions, ok := payload["regions"].([]interface{})
+		if !ok {
+			t.Fatal("Expected regions collection in response")
 		}
 
 		if len(regions) == 0 {
 			t.Error("Expected at least one region")
+		}
+
+		meta, ok := payload["meta"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected meta information in regions response")
+		}
+
+		if fallback, _ := meta["using_fallback"].(bool); fallback {
+			t.Error("Did not expect fallback dataset when database is connected")
 		}
 	})
 
@@ -131,8 +145,22 @@ func TestRegionsHandler(t *testing.T) {
 		var response Response
 		json.Unmarshal(rr.Body.Bytes(), &response)
 
-		if response.Status != "error" {
-			t.Errorf("Expected error status when DB unavailable")
+		if response.Status != "success" {
+			t.Errorf("Expected success status with fallback dataset, got %s", response.Status)
+		}
+
+		payload, ok := response.Data.(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected payload map, got %T", response.Data)
+		}
+
+		meta, ok := payload["meta"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected meta information for fallback dataset")
+		}
+
+		if fallback, _ := meta["using_fallback"].(bool); !fallback {
+			t.Error("Expected fallback metadata when database unavailable")
 		}
 	})
 }

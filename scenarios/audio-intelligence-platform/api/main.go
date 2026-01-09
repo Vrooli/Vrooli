@@ -2,13 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math"
-	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -20,6 +19,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -114,7 +117,6 @@ type AIAnalysis struct {
 type AudioService struct {
 	db            *sql.DB
 	n8nBaseURL    string
-	windmillURL   string
 	whisperURL    string
 	ollamaURL     string
 	minioEndpoint string
@@ -124,11 +126,10 @@ type AudioService struct {
 }
 
 // NewAudioService creates a new audio service
-func NewAudioService(db *sql.DB, n8nURL, windmillURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL string) *AudioService {
+func NewAudioService(db *sql.DB, n8nURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL string) *AudioService {
 	return &AudioService{
 		db:            db,
 		n8nBaseURL:    n8nURL,
-		windmillURL:   windmillURL,
 		whisperURL:    whisperURL,
 		ollamaURL:     ollamaURL,
 		minioEndpoint: minioEndpoint,
@@ -499,16 +500,6 @@ func (a *AudioService) GetAnalyses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(analyses)
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
-}
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
@@ -521,7 +512,6 @@ func getResourcePort(resourceName string) string {
 		// Fallback to defaults
 		defaults := map[string]string{
 			"n8n":      "5678",
-			"windmill": "5681",
 			"postgres": "5433",
 			"whisper":  "8090",
 			"ollama":   "11434",
@@ -537,31 +527,15 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start audio-intelligence-platform
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
-	}
-
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "audio-intelligence-platform",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	whisperPort := getResourcePort("whisper")
 	ollamaPort := getResourcePort("ollama")
 	minioPort := getResourcePort("minio")
@@ -571,11 +545,6 @@ func main() {
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
-	}
-
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 
 	whisperURL := os.Getenv("WHISPER_BASE_URL")
@@ -598,95 +567,25 @@ func main() {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
+	})
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to connect to database", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("🎵 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if pingErr != nil {
-		logger := NewLogger()
-		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
-		os.Exit(1)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("Database connection pool established successfully!")
 
 	// Initialize audio service
-	audioService := NewAudioService(db, n8nURL, windmillURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL)
+	audioService := NewAudioService(db, n8nURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL)
 
 	// Setup routes
 	r := mux.NewRouter()
-
-	// API endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/transcriptions", audioService.ListTranscriptions).Methods("GET")
 	r.HandleFunc("/api/transcriptions/{id}", audioService.GetTranscription).Methods("GET")
 	r.HandleFunc("/api/transcriptions/{id}/analyses", audioService.GetAnalyses).Methods("GET")
@@ -694,21 +593,11 @@ func main() {
 	r.HandleFunc("/api/upload", audioService.UploadAudio).Methods("POST")
 	r.HandleFunc("/api/search", audioService.SearchTranscriptions).Methods("POST")
 
-	// Start server
-	log.Printf("Starting Audio Intelligence Platform API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
-	log.Printf("  Whisper URL: %s", whisperURL)
-	log.Printf("  Ollama URL: %s", ollamaURL)
-	log.Printf("  MinIO Endpoint: %s", minioEndpoint)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  Database: %s", dbURL)
-
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

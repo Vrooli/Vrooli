@@ -1,0 +1,51 @@
+{
+  "scenario": "visited-tracker",
+  "report_version": 1,
+  "generated_at": "2025-11-23T20:01:35.916382949Z",
+  "dependencies": [],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "visited-tracker",
+    "generated_at": "2025-11-23T20:01:35.916382949Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/visited-tracker-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/visited-tracker",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": []
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "recommendations": []
+  }
+}

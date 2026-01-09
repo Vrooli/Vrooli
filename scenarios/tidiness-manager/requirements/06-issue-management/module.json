@@ -1,0 +1,136 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Issue Management & UI Controls",
+    "description": "Human-friendly issue triage, resolution tracking, and scan triggers"
+  },
+  "requirements": [
+    {
+      "id": "TM-IM-001",
+      "title": "Mark issue as resolved",
+      "prd_ref": "OT-P1-004",
+      "description": "Allow marking issues as resolved with optional resolution notes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/issue_manager_resolved_test.go"
+        }
+      ],
+      "notes": "PATCH /api/v1/agent/issues/:id endpoint implemented with status validation. UI includes 'Mark Resolved' button (ui/src/pages/IssuesView.tsx) that calls updateIssueStatus mutation. Resolved issues hidden from default view but queryable via status filter. TestIssueManager_MarkAsResolved validates API behavior.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-IM-002",
+      "title": "Mark issue as ignored",
+      "prd_ref": "OT-P1-004",
+      "description": "Allow marking issues as ignored with reason (e.g., false positive, intentional design)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/issue_manager_ignored_test.go"
+        }
+      ],
+      "notes": "PATCH endpoint supports 'ignored' status with resolution_notes field. UI (ui/src/pages/IssuesView.tsx) includes 'Ignore' button with mutation hook. Ignored issues show badge and are filterable. TestIssueManager_MarkAsIgnored validates API behavior with resolution_notes persistence.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-IM-003",
+      "title": "Issue status filtering",
+      "prd_ref": "OT-P1-004",
+      "description": "Filter issues by status: open, resolved, ignored, all",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/issue_manager_filter_test.go"
+        }
+      ],
+      "notes": "GET /api/v1/agent/issues supports status query parameter. UI (ui/src/pages/IssuesView.tsx) includes status filter dropdown (all/open/resolved/ignored). Default view shows open issues only. Real API integration via fetchAllIssues() replaces mock data. TestIssueManager_FilterByStatus validates endpoint filtering.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-IM-004",
+      "title": "Issue detail view",
+      "prd_ref": "OT-P1-004",
+      "description": "Display full agent notes, suggested remediation steps, and file context for selected issue",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "api/issue_manager_pending_test.go"
+        }
+      ],
+      "notes": "Split-pane layout similar to scenario-auditor",
+      "status": "pending"
+    },
+    {
+      "id": "TM-IM-005",
+      "title": "Issue de-duplication grouping",
+      "prd_ref": "OT-P1-005",
+      "description": "Group or link same logical issue from multiple sources (lint + type + AI)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "api/issue_manager_pending_test.go"
+        }
+      ],
+      "notes": "Match by file + line number + fuzzy message similarity",
+      "status": "pending"
+    },
+    {
+      "id": "TM-IM-006",
+      "title": "Trigger one-off light scan",
+      "prd_ref": "OT-P1-006",
+      "description": "UI button to trigger immediate light scan for a scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "api/issue_manager_pending_test.go"
+        }
+      ],
+      "notes": "Show scan progress and refresh results on completion",
+      "status": "pending"
+    },
+    {
+      "id": "TM-IM-007",
+      "title": "Trigger one-off smart scan",
+      "prd_ref": "OT-P1-006",
+      "description": "UI button to trigger immediate smart scan for a scenario or file subset",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "api/issue_manager_pending_test.go"
+        }
+      ],
+      "notes": "Warn about AI cost; show batch progress",
+      "status": "pending"
+    },
+    {
+      "id": "TM-IM-008",
+      "title": "Enable/disable campaign from UI",
+      "prd_ref": "OT-P1-006",
+      "description": "Toggle to enable or disable auto-tidiness campaign for a scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "api/issue_manager_pending_test.go"
+        }
+      ],
+      "notes": "Show current campaign status and next scheduled session",
+      "status": "pending"
+    }
+  ]
+}

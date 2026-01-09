@@ -142,7 +142,7 @@ func setupTestApp(t *testing.T) *App {
 	}
 	// Initialize with test dependencies
 	if app.DB != nil {
-		app.DeviceController = NewDeviceController(app.DB)
+		app.DeviceController = NewDeviceController(app.DB, nil)
 		app.SafetyValidator = NewSafetyValidator(app.DB)
 		app.CalendarScheduler = NewCalendarScheduler(app.DB)
 		if app.CalendarScheduler != nil && app.DeviceController != nil {

@@ -5,23 +5,50 @@
 
 class ResearchAssistantApp {
     constructor() {
-        this.apiBaseUrl = '/api';
+        this.apiBaseUrl = this.resolveApiBaseUrl();
         this.currentTab = 'dashboard';
         this.currentSettingsPanel = 'general';
         this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+        this.handleResize = this.handleResize.bind(this);
         
         this.init();
     }
 
+    resolveApiBaseUrl() {
+        if (typeof window !== 'undefined') {
+            // Allow explicit configuration via global so other scenarios can embed this UI
+            if (window.APP_API_URL) {
+                return window.APP_API_URL.replace(/\/$/, '');
+            }
+
+            try {
+                const url = new URL('api/', window.location.href);
+                return url.href.replace(/\/$/, '');
+            } catch (error) {
+                console.warn('Failed to resolve API base URL from location, falling back to /api', error);
+            }
+        }
+
+        return '/api';
+    }
+
     async init() {
+        this.cacheDomElements();
         this.setupEventListeners();
         this.loadDashboardData();
         this.initializeTheme();
         
         // Initialize WebSocket connection for real-time updates
         this.initWebSocket();
+        this.handleResize();
         
         console.log('🚀 AI Research Assistant Dashboard initialized');
+    }
+
+    cacheDomElements() {
+        this.sidebarElement = document.querySelector('.sidebar');
+        this.sidebarOverlay = document.getElementById('sidebarOverlay');
+        this.mobileMenuToggle = document.getElementById('mobileMenuToggle');
     }
 
     setupEventListeners() {
@@ -31,6 +58,7 @@ class ResearchAssistantApp {
                 e.preventDefault();
                 const tab = item.getAttribute('data-tab');
                 this.switchTab(tab);
+                this.closeSidebarOnMobile();
             });
         });
 
@@ -77,6 +105,16 @@ class ResearchAssistantApp {
                 this.closeModal(e.target.id);
             }
         });
+
+        this.mobileMenuToggle?.addEventListener('click', () => {
+            this.toggleSidebar();
+        });
+
+        this.sidebarOverlay?.addEventListener('click', () => {
+            this.closeSidebar();
+        });
+
+        window.addEventListener('resize', this.handleResize);
     }
 
     // Navigation
@@ -85,15 +123,16 @@ class ResearchAssistantApp {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
 
         // Update content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
-        document.getElementById(tab).classList.add('active');
+        document.getElementById(tab)?.classList.add('active');
 
         this.currentTab = tab;
+        this.closeSidebarOnMobile();
 
         // Load tab-specific data
         this.loadTabData(tab);
@@ -342,7 +381,7 @@ class ResearchAssistantApp {
 
     async downloadReport(reportId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/reports/${reportId}/download`);
+            const response = await fetch(this.buildApiUrl(`/reports/${reportId}/download`));
             
             if (!response.ok) throw new Error('Download failed');
             
@@ -604,6 +643,14 @@ class ResearchAssistantApp {
     }
 
     // API Helper
+    buildApiUrl(endpoint) {
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+        if (this.apiBaseUrl.endsWith('/')) {
+            return `${this.apiBaseUrl}${normalizedEndpoint}`;
+        }
+        return `${this.apiBaseUrl}/${normalizedEndpoint}`;
+    }
+
     async apiRequest(endpoint, method = 'GET', data = null) {
         try {
             const config = {
@@ -617,7 +664,7 @@ class ResearchAssistantApp {
                 config.body = JSON.stringify(data);
             }
 
-            const response = await fetch(`${this.apiBaseUrl}${endpoint}`, config);
+            const response = await fetch(this.buildApiUrl(endpoint), config);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -680,6 +727,42 @@ class ResearchAssistantApp {
                 this.loadDashboardData();
             }
         }, 30000); // Refresh every 30 seconds
+    }
+
+    toggleSidebar() {
+        if (!this.sidebarElement) return;
+        const shouldOpen = !this.sidebarElement.classList.contains('open');
+        this.setSidebarState(shouldOpen);
+    }
+
+    closeSidebar() {
+        if (!this.sidebarElement) return;
+        this.setSidebarState(false);
+    }
+
+    closeSidebarOnMobile() {
+        if (this.isMobileView()) {
+            this.closeSidebar();
+        }
+    }
+
+    setSidebarState(isOpen) {
+        if (!this.sidebarElement) return;
+        this.sidebarElement.classList.toggle('open', isOpen);
+        this.mobileMenuToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        this.sidebarOverlay?.classList.toggle('active', isOpen);
+        this.sidebarOverlay?.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        document.body.classList.toggle('sidebar-open', isOpen);
+    }
+
+    isMobileView() {
+        return window.innerWidth <= 768;
+    }
+
+    handleResize() {
+        if (!this.isMobileView()) {
+            this.setSidebarState(false);
+        }
     }
 
     // Global methods for onclick handlers

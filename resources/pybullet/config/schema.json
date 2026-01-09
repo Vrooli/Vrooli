@@ -20,7 +20,11 @@
           },
           "minItems": 3,
           "maxItems": 3,
-          "default": [0, 0, -9.81],
+          "default": [
+            0,
+            0,
+            -9.81
+          ],
           "description": "Gravity vector [x, y, z]"
         },
         "solver_iterations": {
@@ -115,5 +119,9 @@
       }
     }
   },
-  "required": ["physics", "api"]
+  "required": [
+    "physics",
+    "api"
+  ],
+  "$id": "https://vrooli.com/resources/pybullet/schema.json"
 }

@@ -26,6 +26,13 @@ scenario::health::collect_all_diagnostic_data() {
     if [[ "$status" == "stopped" ]]; then
         health_data=$(scenario::health::collect_failure_diagnostics "$scenario_name" "$health_data")
     fi
+
+    local ui_smoke_data
+    ui_smoke_data=$(scenario::health::read_ui_smoke_summary "$scenario_name")
+    if [[ -n "$ui_smoke_data" ]]; then
+        # Avoid passing large JSON via --argjson (can exceed argv limits).
+        health_data=$(jq -s '.[0] + {ui_smoke: .[1]}' <(printf '%s' "$health_data") <(printf '%s' "$ui_smoke_data"))
+    fi
     
     echo "$health_data"
 }
@@ -175,6 +182,18 @@ scenario::health::check_ui_health() {
     echo "$health_issues_found"
 }
 
+scenario::health::read_ui_smoke_summary() {
+    local scenario_name="$1"
+    local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
+    local summary_file="$scenario_dir/coverage/ui-smoke/latest.json"
+
+    if [[ -f "$summary_file" ]]; then
+        cat "$summary_file"
+    else
+        printf ''
+    fi
+}
+
 # Check API health with schema validation
 scenario::health::check_api_health() {
     local scenario_name="$1"
@@ -287,7 +306,6 @@ scenario::health::diagnose_failure() {
         echo "💡 Troubleshooting tips:"
         echo "   • Check detailed logs: vrooli scenario logs $scenario_name"
         echo "   • Verify dependencies: make sure required resources are running"
-        echo "   • Clean restart: vrooli scenario stop $scenario_name && vrooli scenario start $scenario_name"
     fi
 }
 
@@ -468,17 +486,29 @@ scenario::health::collect_api_health_data() {
         
         # Validate against schema
         if validate_health_response "$api_health" "api" >/dev/null 2>&1; then
-            local api_status db_connected
+            local api_status db_connected db_value
             api_status=$(echo "$api_health" | jq -r '.status // "unknown"' 2>/dev/null)
+
+            # Handle both object format {"database": {"connected": true}} and
+            # string format {"database": "connected"} for backward compatibility
             db_connected=$(echo "$api_health" | jq -r '.dependencies.database.connected // null' 2>/dev/null)
-            
+            if [[ -z "$db_connected" || "$db_connected" == "null" ]]; then
+                # Try string format - check if value is "connected"
+                db_value=$(echo "$api_health" | jq -r '.dependencies.database // null' 2>/dev/null)
+                if [[ "$db_value" == "connected" ]]; then
+                    db_connected="true"
+                elif [[ "$db_value" != "null" && -n "$db_value" ]]; then
+                    db_connected="false"
+                fi
+            fi
+
             result=$(echo "$result" | jq \
                 --arg status "$api_status" \
                 --arg db_connected "$db_connected" \
-                '.schema_valid = true | 
+                '.schema_valid = true |
                  .status = $status |
                  .dependencies.database = {
-                     "connected": (if $db_connected == "null" then null else ($db_connected == "true") end)
+                     "connected": (if $db_connected == "null" or $db_connected == "" then null else ($db_connected == "true") end)
                  }')
         fi
     fi
@@ -493,13 +523,36 @@ scenario::health::collect_log_analysis_data() {
     local result='{
         "recent_warnings": [],
         "resource_issues": [],
-        "performance_warnings": []
+        "performance_warnings": [],
+        "recent_events": {"api": null, "ui": null}
     }'
     
     # Check API logs for warnings
     local recent_api_logs
     recent_api_logs=$(vrooli scenario logs "$scenario_name" --step start-api 2>/dev/null | tail -20)
     if [[ -n "$recent_api_logs" ]]; then
+        local api_tail
+        api_tail=$(echo "$recent_api_logs" | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        if [[ -n "$api_tail" ]]; then
+            local api_summary="$api_tail"
+            if [[ ${#api_summary} -gt 160 ]]; then
+                api_summary="${api_summary:0:157}..."
+            fi
+
+            local api_type="info"
+            if echo "$api_tail" | grep -qiE '(error|fail|panic|fatal|exception)'; then
+                api_type="error"
+            elif echo "$api_tail" | grep -qiE '(warn|timeout)'; then
+                api_type="warning"
+            fi
+
+            result=$(echo "$result" | jq \
+                --arg type "$api_type" \
+                --arg message "$api_summary" \
+                '.recent_events.api = {type: $type, message: $message, step: "start-api"}')
+        fi
+
         # Look for warnings
         if echo "$recent_api_logs" | grep -qE "(WARNING|WARN|Error:|error:|timeout|failed|exception)"; then
             local warning=$(echo "$recent_api_logs" | grep -E "(WARNING|WARN|Error:|error:)" | tail -1 | cut -c1-100)
@@ -544,6 +597,28 @@ scenario::health::collect_log_analysis_data() {
     local recent_ui_logs
     recent_ui_logs=$(vrooli scenario logs "$scenario_name" --step start-ui 2>/dev/null | tail -20)
     if [[ -n "$recent_ui_logs" ]]; then
+        local ui_tail
+        ui_tail=$(echo "$recent_ui_logs" | tail -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        if [[ -n "$ui_tail" ]]; then
+            local ui_summary="$ui_tail"
+            if [[ ${#ui_summary} -gt 160 ]]; then
+                ui_summary="${ui_summary:0:157}..."
+            fi
+
+            local ui_type="info"
+            if echo "$ui_tail" | grep -qiE '(error|fail|panic|fatal|exception)'; then
+                ui_type="error"
+            elif echo "$ui_tail" | grep -qiE '(warn|timeout)'; then
+                ui_type="warning"
+            fi
+
+            result=$(echo "$result" | jq \
+                --arg type "$ui_type" \
+                --arg message "$ui_summary" \
+                '.recent_events.ui = {type: $type, message: $message, step: "start-ui"}')
+        fi
+
         if echo "$recent_ui_logs" | grep -qE "(WARNING|WARN|Error:|error:|failed|crash)"; then
             local warning=$(echo "$recent_ui_logs" | grep -E "(WARNING|WARN|Error:|error:)" | tail -1 | cut -c1-100)
             result=$(echo "$result" | jq \
@@ -646,12 +721,11 @@ scenario::health::collect_failure_diagnostics() {
     fi
     
     # Add general recommendations if no specific failures found
-    local has_failures=$(echo "$failure_data" | jq '.api_failures | length > 0 or .ui_failures | length > 0')
+    local has_failures=$(echo "$failure_data" | jq '((.api_failures | length) > 0) or ((.ui_failures | length) > 0)')
     if [[ "$has_failures" == "false" ]]; then
         failure_data=$(echo "$failure_data" | jq '.general_recommendations += [
             "Check detailed logs: vrooli scenario logs '"$scenario_name"'",
-            "Verify dependencies: make sure required resources are running",
-            "Clean restart: vrooli scenario stop '"$scenario_name"' && vrooli scenario start '"$scenario_name"'"
+            "Verify dependencies: make sure required resources are running"
         ]')
     fi
     

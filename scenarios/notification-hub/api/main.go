@@ -1,13 +1,17 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"log"
-	"math"
+	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -15,9 +19,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// Global structured logger
+var logger *slog.Logger
 
 // =============================================================================
 // DATA STRUCTURES
@@ -112,37 +119,40 @@ type Server struct {
 }
 
 // =============================================================================
-// SERVER INITIALIZATION  
+// SERVER INITIALIZATION
 // =============================================================================
 
 var startTime time.Time
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "notification-hub",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
 
-🚀 Instead, use:
-   vrooli scenario start notification-hub
+	// Initialize structured logger
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
 	startTime = time.Now()
 	server, err := NewServer()
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
+		logger.Error("Failed to create server", "error", err)
+		os.Exit(1)
 	}
 
-	log.Printf("🔔 Notification Hub API starting on port %s", server.port)
-	log.Printf("📨 Notification processor initialized with %d workers", 5)
+	logger.Info("Notification Hub API starting", "port", server.port)
+	logger.Info("Notification processor initialized", "workers", 5)
 
 	// Start background notification processing
 	go server.startBackgroundProcessing()
 
 	if err := server.router.Run(":" + server.port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logger.Error("Failed to start server", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -150,88 +160,21 @@ func NewServer() (*Server, error) {
 	// Environment variables - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+		return nil, fmt.Errorf("API_PORT environment variable is required")
 	}
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		log.Fatal("❌ REDIS_URL environment variable is required")
+		return nil, fmt.Errorf("REDIS_URL environment variable is required")
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	// Initialize database
-	db, err := sql.Open("postgres", postgresURL)
+	// Initialize database with exponential backoff
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database connection: %v", err)
+		return nil, fmt.Errorf("database connection failed: %v", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	logger.Info("Database connection pool established successfully")
 
 	// Initialize Redis
 	redisOpts, err := redis.ParseURL(redisURL)
@@ -262,21 +205,67 @@ func (s *Server) setupRoutes() {
 	gin.SetMode(gin.ReleaseMode)
 	s.router = gin.Default()
 
-	// Add CORS middleware
+	// Add CORS middleware with explicit origin control
 	s.router.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+		origin := c.Request.Header.Get("Origin")
+
+		// Build allowed origins from environment
+		// UI_PORT is required since UI is a core component
+		uiPort := os.Getenv("UI_PORT")
+		if uiPort == "" {
+			logger.Error("UI_PORT environment variable is required for CORS configuration")
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Server configuration error"})
+			return
+		}
+
+		// N8N_URL is optional - only add if n8n resource is enabled
+		// Default origins include localhost and 127.0.0.1 for local development
+		allowedOrigins := []string{
+			"http://localhost:" + uiPort,
+			"http://127.0.0.1:" + uiPort, // Required for health checks and local testing
+		}
+
+		// N8N_URL is optional: only used when n8n workflow integration is enabled
+		// Gracefully handles absence by only adding to CORS if present
+		n8nURL := os.Getenv("N8N_URL")
+		if n8nURL != "" {
+			allowedOrigins = append(allowedOrigins, n8nURL)
+		}
+
+		// Check if origin is in allowed list
+		allowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				allowed = true
+				c.Header("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		// If no origin header (e.g., CLI/Postman), allow but don't set CORS header
+		if origin == "" {
+			allowed = true
+		}
+
+		if allowed {
+			c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			if allowed {
+				c.AbortWithStatus(204)
+			} else {
+				c.AbortWithStatus(403)
+			}
 			return
 		}
 		c.Next()
 	})
 
 	// Health check
-	s.router.GET("/health", s.healthCheck)
+	s.router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()))
 	s.router.GET("/docs", s.apiDocs)
 
 	// Public endpoints
@@ -335,30 +324,55 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 		}
 
 		if apiKey == "" {
-			c.JSON(401, gin.H{"error": "API key required"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "API key required"})
 			c.Abort()
 			return
 		}
 
 		// Verify API key and profile
 		var profile Profile
+		var apiKeyHash string
+		var settingsJSON []byte
 		query := `
-			SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
-			FROM profiles 
-			WHERE id = $1 AND api_key_hash = crypt($2, api_key_hash) AND status = 'active'
+			SELECT id, name, slug, api_key_prefix, api_key_hash, settings, plan, status, created_at, updated_at
+			FROM profiles
+			WHERE id = $1 AND status = 'active'
 		`
 
-		err := s.db.QueryRow(query, profileID, apiKey).Scan(
+		logger.Info("Authenticating API request", "profile_id", profileID, "api_key_prefix", apiKey[:min(len(apiKey), 6)])
+
+		err := s.db.QueryRow(query, profileID).Scan(
 			&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
-			&profile.Settings, &profile.Plan, &profile.Status,
+			&apiKeyHash, &settingsJSON, &profile.Plan, &profile.Status,
 			&profile.CreatedAt, &profile.UpdatedAt,
 		)
 
 		if err != nil {
-			c.JSON(401, gin.H{"error": "Invalid API key or profile"})
+			logger.Error("Profile lookup failed", "error", err, "profile_id", profileID)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key or profile"})
 			c.Abort()
 			return
 		}
+
+		// Parse settings JSON
+		if len(settingsJSON) > 0 {
+			if err := json.Unmarshal(settingsJSON, &profile.Settings); err != nil {
+				logger.Error("Failed to parse settings", "error", err)
+				profile.Settings = make(map[string]interface{})
+			}
+		} else {
+			profile.Settings = make(map[string]interface{})
+		}
+
+		// Compare API key with bcrypt hash
+		if err := bcrypt.CompareHashAndPassword([]byte(apiKeyHash), []byte(apiKey)); err != nil {
+			logger.Error("API key verification failed", "error", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key or profile"})
+			c.Abort()
+			return
+		}
+
+		logger.Info("Authentication successful", "profile_id", profileID, "profile_name", profile.Name)
 
 		c.Set("profile", profile)
 		c.Next()
@@ -369,352 +383,13 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 // API ENDPOINTS
 // =============================================================================
 
-func (s *Server) healthCheck(c *gin.Context) {
-	overallStatus := "healthy"
-	var errors []map[string]interface{}
-	readiness := true
-
-	// Schema-compliant health response
-	healthResponse := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   "notification-hub-api",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true,
-		"dependencies": map[string]interface{}{},
-	}
-
-	// Check database connectivity and operations
-	dbHealth := s.checkDatabaseHealth()
-	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
-	if dbHealth["status"] != "healthy" {
-		overallStatus = "degraded"
-		if dbHealth["status"] == "unhealthy" {
-			readiness = false
-		}
-		if dbHealth["error"] != nil {
-			errors = append(errors, dbHealth["error"].(map[string]interface{}))
-		}
-	}
-
-	// Check Redis connectivity and cache operations
-	redisHealth := s.checkRedisHealth()
-	healthResponse["dependencies"].(map[string]interface{})["redis"] = redisHealth
-	if redisHealth["status"] != "healthy" {
-		overallStatus = "degraded"
-		if redisHealth["status"] == "unhealthy" {
-			readiness = false
-		}
-		if redisHealth["error"] != nil {
-			errors = append(errors, redisHealth["error"].(map[string]interface{}))
-		}
-	}
-
-	// Check notification processor system
-	processorHealth := s.checkNotificationProcessor()
-	healthResponse["dependencies"].(map[string]interface{})["notification_processor"] = processorHealth
-	if processorHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if processorHealth["error"] != nil {
-			errors = append(errors, processorHealth["error"].(map[string]interface{}))
-		}
-	}
-
-	// Check profile system functionality
-	profileHealth := s.checkProfileSystem()
-	healthResponse["dependencies"].(map[string]interface{})["profile_system"] = profileHealth
-	if profileHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded" 
-		}
-		if profileHealth["error"] != nil {
-			errors = append(errors, profileHealth["error"].(map[string]interface{}))
-		}
-	}
-
-	// Check template management system
-	templateHealth := s.checkTemplateSystem()
-	healthResponse["dependencies"].(map[string]interface{})["template_system"] = templateHealth
-	if templateHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if templateHealth["error"] != nil {
-			errors = append(errors, templateHealth["error"].(map[string]interface{}))
-		}
-	}
-
-	// Update final status
-	healthResponse["status"] = overallStatus
-	healthResponse["readiness"] = readiness
-
-	// Add errors if any
-	if len(errors) > 0 {
-		healthResponse["errors"] = errors
-	}
-
-	// Add metrics
-	healthResponse["metrics"] = map[string]interface{}{
-		"total_dependencies": 5,
-		"healthy_dependencies": s.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
-		"uptime_seconds": time.Now().Unix() - startTime.Unix(),
-	}
-
-	// Return appropriate HTTP status
-	statusCode := 200
-	if overallStatus == "unhealthy" {
-		statusCode = 503
-	} else if overallStatus == "degraded" {
-		statusCode = 200 // Still operational but with warnings
-	}
-
-	c.JSON(statusCode, healthResponse)
-}
-
-// Health check helper methods
-func (s *Server) checkDatabaseHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	// Test database connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := s.db.PingContext(ctx); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code": "DATABASE_CONNECTION_FAILED",
-			"message": "Database connection failed: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-		return health
-	}
-	health["checks"].(map[string]interface{})["ping"] = "ok"
-
-	// Test profiles table query
-	var profileCount int
-	query := "SELECT COUNT(*) FROM profiles WHERE status = 'active'"
-	if err := s.db.QueryRowContext(ctx, query).Scan(&profileCount); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "DATABASE_QUERY_FAILED",
-			"message": "Failed to query profiles table: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-	} else {
-		health["checks"].(map[string]interface{})["profiles_query"] = "ok"
-		health["checks"].(map[string]interface{})["active_profiles"] = profileCount
-	}
-
-	// Test notifications table query
-	var notificationCount int
-	recentQuery := "SELECT COUNT(*) FROM notifications WHERE created_at > NOW() - INTERVAL '1 hour'"
-	if err := s.db.QueryRowContext(ctx, recentQuery).Scan(&notificationCount); err != nil {
-		if health["status"] == "healthy" {
-			health["status"] = "degraded"
-		}
-		if health["error"] == nil {
-			health["error"] = map[string]interface{}{
-				"code": "DATABASE_QUERY_FAILED", 
-				"message": "Failed to query notifications table: " + err.Error(),
-				"category": "resource",
-				"retryable": true,
-			}
-		}
-	} else {
-		health["checks"].(map[string]interface{})["notifications_query"] = "ok"
-		health["checks"].(map[string]interface{})["recent_notifications"] = notificationCount
-	}
-
-	return health
-}
-
-func (s *Server) checkRedisHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	// Test Redis connection
-	if err := s.redis.Ping(ctx).Err(); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code": "REDIS_CONNECTION_FAILED",
-			"message": "Redis connection failed: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-		return health
-	}
-	health["checks"].(map[string]interface{})["ping"] = "ok"
-
-	// Test cache operations
-	testKey := "health_check:" + fmt.Sprintf("%d", time.Now().UnixNano())
-	testValue := "test_value"
-	
-	if err := s.redis.Set(ctx, testKey, testValue, time.Minute).Err(); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "REDIS_WRITE_FAILED",
-			"message": "Redis write operation failed: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-	} else {
-		health["checks"].(map[string]interface{})["write"] = "ok"
-		
-		// Test read operation
-		if val, err := s.redis.Get(ctx, testKey).Result(); err != nil || val != testValue {
-			health["status"] = "degraded"
-			if health["error"] == nil {
-				health["error"] = map[string]interface{}{
-					"code": "REDIS_READ_FAILED",
-					"message": "Redis read operation failed",
-					"category": "resource",
-					"retryable": true,
-				}
-			}
-		} else {
-			health["checks"].(map[string]interface{})["read"] = "ok"
-		}
-		
-		// Clean up test key
-		s.redis.Del(ctx, testKey)
-	}
-
-	return health
-}
-
-func (s *Server) checkNotificationProcessor() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	if s.processor == nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code": "PROCESSOR_NOT_INITIALIZED",
-			"message": "Notification processor not initialized",
-			"category": "internal",
-			"retryable": false,
-		}
-		return health
-	}
-
-	health["checks"].(map[string]interface{})["initialized"] = "ok"
-
-	// Check for pending notifications (this gives insight into processor workload)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	
-	var pendingCount int
-	query := "SELECT COUNT(*) FROM notifications WHERE status = 'pending'"
-	if err := s.db.QueryRowContext(ctx, query).Scan(&pendingCount); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "PROCESSOR_STATUS_CHECK_FAILED",
-			"message": "Failed to check processor queue: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-	} else {
-		health["checks"].(map[string]interface{})["queue_check"] = "ok"
-		health["checks"].(map[string]interface{})["pending_notifications"] = pendingCount
-		
-		// Warning if too many pending notifications
-		if pendingCount > 100 {
-			health["status"] = "degraded"
-			health["error"] = map[string]interface{}{
-				"code": "HIGH_QUEUE_BACKLOG",
-				"message": fmt.Sprintf("High number of pending notifications: %d", pendingCount),
-				"category": "resource", 
-				"retryable": true,
-			}
-		}
-	}
-
-	return health
-}
-
-func (s *Server) checkProfileSystem() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	// Check profiles table structure and basic operations
-	var totalProfiles, activeProfiles int
-	
-	// Count total profiles
-	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM profiles").Scan(&totalProfiles); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code": "PROFILE_TABLE_ACCESS_FAILED",
-			"message": "Cannot access profiles table: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-		return health
-	}
-
-	// Count active profiles
-	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM profiles WHERE status = 'active'").Scan(&activeProfiles); err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code": "PROFILE_QUERY_FAILED", 
-			"message": "Failed to query active profiles: " + err.Error(),
-			"category": "resource",
-			"retryable": true,
-		}
-	} else {
-		health["checks"].(map[string]interface{})["table_access"] = "ok"
-		health["checks"].(map[string]interface{})["total_profiles"] = totalProfiles
-		health["checks"].(map[string]interface{})["active_profiles"] = activeProfiles
-	}
-
-	return health
-}
-
-func (s *Server) checkTemplateSystem() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy", 
-		"checks": map[string]interface{}{},
-	}
-
-	// For now, this is a basic check since templates aren't fully implemented
-	// In a full implementation, this would check template storage, validation, etc.
-	health["checks"].(map[string]interface{})["placeholder"] = "ok"
-	health["checks"].(map[string]interface{})["note"] = "Template system checks not fully implemented"
-
-	return health
-}
-
-func (s *Server) countHealthyDependencies(deps map[string]interface{}) int {
-	count := 0
-	for _, dep := range deps {
-		if depMap, ok := dep.(map[string]interface{}); ok {
-			if status, exists := depMap["status"]; exists && status == "healthy" {
-				count++
-			}
-		}
-	}
-	return count
-}
-
 func (s *Server) apiDocs(c *gin.Context) {
-	docs := `
+	// Get the actual API port from environment (required by lifecycle system)
+	apiPort := os.Getenv("API_PORT")
+	// API_PORT is always set by the Vrooli lifecycle system, so no fallback needed
+	baseURL := fmt.Sprintf("http://localhost:%s", apiPort)
+
+	docs := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -729,35 +404,35 @@ func (s *Server) apiDocs(c *gin.Context) {
 <body>
     <h1>🔔 Notification Hub API</h1>
     <p>Multi-tenant notification management system for email, SMS, and push notifications.</p>
-    
+
     <h2>Authentication</h2>
     <p>Use profile-scoped API keys in the <code>X-API-Key</code> header or <code>Authorization: Bearer</code> header.</p>
-    
+
     <h2>Core Endpoints</h2>
-    
+
     <div class="endpoint">
         <span class="method">POST</span> <span class="url">/api/v1/profiles/{profile_id}/notifications/send</span>
         <p>Send notifications via multiple channels. Supports templates, variables, and channel preferences.</p>
     </div>
-    
+
     <div class="endpoint">
         <span class="method">GET</span> <span class="url">/api/v1/profiles/{profile_id}/notifications</span>
         <p>List notifications with filtering and pagination.</p>
     </div>
-    
+
     <div class="endpoint">
         <span class="method">POST</span> <span class="url">/api/v1/profiles/{profile_id}/contacts</span>
         <p>Create notification recipients with channel preferences.</p>
     </div>
-    
+
     <div class="endpoint">
         <span class="method">GET</span> <span class="url">/api/v1/profiles/{profile_id}/analytics/delivery-stats</span>
         <p>Get delivery statistics and performance metrics.</p>
     </div>
-    
+
     <h2>Example Request</h2>
     <pre>
-curl -X POST http://localhost:28100/api/v1/profiles/your-profile-id/notifications/send \
+curl -X POST %s/api/v1/profiles/your-profile-id/notifications/send \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -770,13 +445,13 @@ curl -X POST http://localhost:28100/api/v1/profiles/your-profile-id/notification
     "priority": "normal"
   }'
     </pre>
-    
+
     <p>For detailed API documentation, see the <a href="/health">health endpoint</a> for service status.</p>
 </body>
 </html>
-	`
+	`, baseURL)
 	c.Header("Content-Type", "text/html")
-	c.String(200, docs)
+	c.String(http.StatusOK, docs)
 }
 
 // Profile Management
@@ -789,7 +464,7 @@ func (s *Server) createProfile(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
 
@@ -801,8 +476,18 @@ func (s *Server) createProfile(c *gin.Context) {
 	// Generate API key
 	apiKey, apiKeyHash, apiKeyPrefix, err := s.generateAPIKey(req.Slug)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to generate API key"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate API key"})
 		return
+	}
+
+	// Convert settings to JSON for JSONB column
+	settingsJSON := []byte("{}")
+	if req.Settings != nil {
+		settingsJSON, err = json.Marshal(req.Settings)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid settings format"})
+			return
+		}
 	}
 
 	// Create profile
@@ -815,14 +500,14 @@ func (s *Server) createProfile(c *gin.Context) {
 
 	var createdAt, updatedAt time.Time
 	err = s.db.QueryRow(query, profileID, req.Name, req.Slug, apiKeyHash, apiKeyPrefix,
-		req.Settings, req.Plan).Scan(&createdAt, &updatedAt)
+		settingsJSON, req.Plan).Scan(&createdAt, &updatedAt)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create profile: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create profile: " + err.Error()})
 		return
 	}
 
-	c.JSON(201, gin.H{
+	c.JSON(http.StatusCreated, gin.H{
 		"id":             profileID,
 		"name":           req.Name,
 		"slug":           req.Slug,
@@ -844,7 +529,7 @@ func (s *Server) listProfiles(c *gin.Context) {
 
 	rows, err := s.db.Query(query)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch profiles"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profiles"})
 		return
 	}
 	defer rows.Close()
@@ -852,21 +537,35 @@ func (s *Server) listProfiles(c *gin.Context) {
 	var profiles []Profile
 	for rows.Next() {
 		var p Profile
+		var settingsJSON []byte
 		err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.APIKeyPrefix,
-			&p.Settings, &p.Plan, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+			&settingsJSON, &p.Plan, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 		if err != nil {
+			logger.Error("Failed to scan profile row", "error", err)
 			continue
 		}
+
+		// Unmarshal settings JSON
+		if len(settingsJSON) > 0 {
+			if err := json.Unmarshal(settingsJSON, &p.Settings); err != nil {
+				logger.Error("Failed to unmarshal settings", "error", err, "profile_id", p.ID)
+				p.Settings = make(map[string]interface{})
+			}
+		} else {
+			p.Settings = make(map[string]interface{})
+		}
+
 		profiles = append(profiles, p)
 	}
 
-	c.JSON(200, gin.H{"profiles": profiles})
+	c.JSON(http.StatusOK, gin.H{"profiles": profiles})
 }
 
 func (s *Server) getProfile(c *gin.Context) {
 	profileID := c.Param("id")
 
 	var profile Profile
+	var settingsJSON []byte
 	query := `
 		SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
 		FROM profiles
@@ -875,16 +574,26 @@ func (s *Server) getProfile(c *gin.Context) {
 
 	err := s.db.QueryRow(query, profileID).Scan(
 		&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
-		&profile.Settings, &profile.Plan, &profile.Status,
+		&settingsJSON, &profile.Plan, &profile.Status,
 		&profile.CreatedAt, &profile.UpdatedAt,
 	)
 
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Profile not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 		return
 	}
 
-	c.JSON(200, profile)
+	// Unmarshal settings JSON
+	if len(settingsJSON) > 0 {
+		if err := json.Unmarshal(settingsJSON, &profile.Settings); err != nil {
+			logger.Error("Failed to unmarshal settings", "error", err, "profile_id", profile.ID)
+			profile.Settings = make(map[string]interface{})
+		}
+	} else {
+		profile.Settings = make(map[string]interface{})
+	}
+
+	c.JSON(http.StatusOK, profile)
 }
 
 func (s *Server) updateProfile(c *gin.Context) {
@@ -898,7 +607,7 @@ func (s *Server) updateProfile(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
 
@@ -932,7 +641,7 @@ func (s *Server) updateProfile(c *gin.Context) {
 
 	_, err := s.db.Exec(query, args...)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to update profile"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
 		return
 	}
 
@@ -946,7 +655,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 
 	var req NotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
 
@@ -990,7 +699,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 
 		contactUUID, err := uuid.Parse(recipient.ContactID)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Invalid contact_id: " + recipient.ContactID})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact_id: " + recipient.ContactID})
 			return
 		}
 
@@ -1003,13 +712,29 @@ func (s *Server) sendNotification(c *gin.Context) {
 			mergedVariables[k] = v
 		}
 
+		// Convert maps to JSON for JSONB columns
+		contentJSON := []byte("{}")
+		if req.Content != nil {
+			contentJSON, err = json.Marshal(req.Content)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid content format"})
+				return
+			}
+		}
+
+		variablesJSON, err := json.Marshal(mergedVariables)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variables format"})
+			return
+		}
+
 		_, err = s.db.Exec(query, notificationID, profile.ID, contactUUID, templateUUID,
-			req.Subject, req.Content, mergedVariables, req.Channels, req.Priority,
+			req.Subject, contentJSON, variablesJSON, pq.Array(req.Channels), req.Priority,
 			scheduledAt, req.ExternalID)
 
 		if err != nil {
-			log.Printf("Failed to create notification: %v", err)
-			c.JSON(500, gin.H{"error": "Failed to create notification"})
+			logger.Error("Failed to create notification", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create notification"})
 			return
 		}
 
@@ -1021,7 +746,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 		go s.processor.ProcessPendingNotifications()
 	}
 
-	c.JSON(201, gin.H{
+	c.JSON(http.StatusCreated, gin.H{
 		"notifications": notifications,
 		"message":       fmt.Sprintf("Created %d notifications", len(notifications)),
 	})
@@ -1036,7 +761,7 @@ func (s *Server) startBackgroundProcessing() {
 		select {
 		case <-ticker.C:
 			if err := s.processor.ProcessPendingNotifications(); err != nil {
-				log.Printf("Error processing notifications: %v", err)
+				logger.Error("Error processing notifications", "error", err)
 			}
 		}
 	}
@@ -1075,61 +800,129 @@ func min(a, b int) int {
 
 // Additional endpoint stubs (implement as needed)
 func (s *Server) listNotifications(c *gin.Context) {
-	c.JSON(200, gin.H{"notifications": []Notification{}})
+	c.JSON(http.StatusOK, gin.H{"notifications": []Notification{}})
 }
 
 func (s *Server) getNotification(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) getNotificationStatus(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) createContact(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	profile := c.MustGet("profile").(Profile)
+
+	var req struct {
+		ExternalID  *string                `json:"external_id"`
+		Identifier  string                 `json:"identifier" binding:"required"`
+		FirstName   *string                `json:"first_name"`
+		LastName    *string                `json:"last_name"`
+		Timezone    string                 `json:"timezone"`
+		Locale      string                 `json:"locale"`
+		Preferences map[string]interface{} `json:"preferences"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	// Set defaults
+	if req.Timezone == "" {
+		req.Timezone = "UTC"
+	}
+	if req.Locale == "" {
+		req.Locale = "en-US"
+	}
+
+	// Convert preferences to JSON
+	preferencesJSON := []byte("{}")
+	if req.Preferences != nil {
+		var err error
+		preferencesJSON, err = json.Marshal(req.Preferences)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid preferences format"})
+			return
+		}
+	}
+
+	// Create contact
+	contactID := uuid.New()
+	query := `
+		INSERT INTO contacts (
+			id, profile_id, external_id, identifier, first_name, last_name,
+			timezone, locale, preferences, status
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
+		RETURNING created_at, updated_at
+	`
+
+	var createdAt, updatedAt time.Time
+	err := s.db.QueryRow(query, contactID, profile.ID, req.ExternalID, req.Identifier,
+		req.FirstName, req.LastName, req.Timezone, req.Locale, preferencesJSON).
+		Scan(&createdAt, &updatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create contact: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":          contactID,
+		"profile_id":  profile.ID,
+		"external_id": req.ExternalID,
+		"identifier":  req.Identifier,
+		"first_name":  req.FirstName,
+		"last_name":   req.LastName,
+		"timezone":    req.Timezone,
+		"locale":      req.Locale,
+		"status":      "active",
+		"created_at":  createdAt,
+		"updated_at":  updatedAt,
+	})
 }
 
 func (s *Server) listContacts(c *gin.Context) {
-	c.JSON(200, gin.H{"contacts": []Contact{}})
+	c.JSON(http.StatusOK, gin.H{"contacts": []Contact{}})
 }
 
 func (s *Server) getContact(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) updateContact(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) updateContactPreferences(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) createTemplate(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) listTemplates(c *gin.Context) {
-	c.JSON(200, gin.H{"templates": []Template{}})
+	c.JSON(http.StatusOK, gin.H{"templates": []Template{}})
 }
 
 func (s *Server) getTemplate(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) updateTemplate(c *gin.Context) {
-	c.JSON(404, gin.H{"error": "Not implemented"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
 }
 
 func (s *Server) getDeliveryStats(c *gin.Context) {
-	c.JSON(200, gin.H{"stats": map[string]interface{}{}})
+	c.JSON(http.StatusOK, gin.H{"stats": map[string]interface{}{}})
 }
 
 func (s *Server) getDailyStats(c *gin.Context) {
-	c.JSON(200, gin.H{"daily_stats": []interface{}{}})
+	c.JSON(http.StatusOK, gin.H{"daily_stats": []interface{}{}})
 }
 
 func (s *Server) handleUnsubscribe(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "Unsubscribe processed"})
+	c.JSON(http.StatusOK, gin.H{"message": "Unsubscribe processed"})
 }

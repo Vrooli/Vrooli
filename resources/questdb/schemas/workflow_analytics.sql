@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS workflow_metrics (
     workflow_id SYMBOL,                    -- Unique workflow identifier
     workflow_name SYMBOL,                  -- Human-readable workflow name
     workflow_version STRING,               -- Workflow version
-    platform SYMBOL,                       -- Platform (n8n, node-red, windmill, huginn)
+    platform SYMBOL,                       -- Platform (n8n, node-red, huginn)
     trigger_type SYMBOL,                   -- How workflow was triggered
     execution_id SYMBOL,                   -- Unique execution identifier
     execution_time_ms DOUBLE,              -- Total execution time

@@ -1,9 +1,40 @@
 #!/bin/bash
 
-# Get the API port from environment, matching the service.json configuration
-# The port should be in the range 8200-8299 as defined in service.json
-API_PORT="${API_PORT:-8200}"
-API_URL="${MAKE_IT_VEGAN_API_URL:-http://localhost:${API_PORT}}"
+# NOTE: Environment variable detection strategy with graceful degradation
+# - MAKE_IT_VEGAN_API_URL: Optional override for API endpoint
+# - API_PORT: Optional, provided by lifecycle system when scenario running
+# - Auto-detection: Falls back to querying scenario status
+# - Fail-fast: Clear error message when scenario is not running
+#
+# This approach ensures the CLI works in all contexts:
+# 1. When called from lifecycle system (API_PORT set)
+# 2. When called standalone (auto-detects from scenario status)
+# 3. When called with explicit URL override (MAKE_IT_VEGAN_API_URL)
+
+# Get the API port from environment
+# API_PORT should be provided by the lifecycle system when the scenario is running
+if [ -z "$API_PORT" ]; then
+    # Try to detect from running scenario status
+    API_PORT=$(vrooli scenario status make-it-vegan --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // empty' 2>/dev/null)
+
+    if [ -z "$API_PORT" ]; then
+        echo "Error: API_PORT environment variable not set and scenario not running"
+        echo "Please start the scenario first: vrooli scenario start make-it-vegan"
+        exit 1
+    fi
+fi
+
+# NOTE: MAKE_IT_VEGAN_API_URL is optional - allows manual override of API endpoint
+# When not set, defaults to localhost with detected API_PORT
+# Validate API_URL or construct from API_PORT
+if [ -n "$MAKE_IT_VEGAN_API_URL" ]; then
+    API_URL="$MAKE_IT_VEGAN_API_URL"
+elif [ -n "$API_PORT" ]; then
+    API_URL="http://localhost:${API_PORT}"
+else
+    echo "Error: Unable to determine API URL"
+    exit 1
+fi
 
 show_help() {
     cat << EOF

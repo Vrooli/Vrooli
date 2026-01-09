@@ -9,7 +9,7 @@ INSERT INTO campaign_content_studio.app_metadata (
     '1.0.0',
     '{
         "features": ["campaigns", "documents", "ai_generation", "semantic_search"],
-        "resources": ["postgresql", "qdrant", "minio", "ollama", "comfyui", "unstructured-io", "n8n", "windmill"],
+        "resources": ["postgresql", "qdrant", "minio", "ollama", "comfyui", "unstructured-io", "n8n"],
         "business_model": {
             "type": "content_management_saas",
             "target_market": "content_creators_and_agencies",

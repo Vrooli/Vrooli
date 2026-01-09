@@ -1,15 +1,39 @@
 {
   "name": "qr-generator-ui",
-  "version": "1.0.0",
-  "description": "Retro-style QR Code Generator UI",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Retro-inspired QR Code Generator UI built with React, Vite, and shadcn",
   "main": "server.js",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh PORT=3100 node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite dev --host --port ${UI_PORT:-5173}'",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "lint": "echo 'No lint step configured'",
     "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.0.1",
+    "@radix-ui/react-select": "^2.0.0",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "express": "^4.18.2"
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "express": "^4.18.2",
+    "lucide-react": "^0.363.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.28",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.3",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.8"
   }
 }

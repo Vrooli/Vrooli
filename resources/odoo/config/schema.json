@@ -8,7 +8,11 @@
       "type": "string",
       "description": "Odoo version to use",
       "default": "17.0",
-      "enum": ["15.0", "16.0", "17.0"]
+      "enum": [
+        "15.0",
+        "16.0",
+        "17.0"
+      ]
     },
     "port": {
       "type": "integer",
@@ -47,7 +51,12 @@
           "default": "odoo"
         }
       },
-      "required": ["host", "name", "user", "password"]
+      "required": [
+        "host",
+        "name",
+        "user",
+        "password"
+      ]
     },
     "admin": {
       "type": "object",
@@ -65,7 +74,10 @@
           "default": "admin"
         }
       },
-      "required": ["email", "password"]
+      "required": [
+        "email",
+        "password"
+      ]
     },
     "modules": {
       "type": "array",
@@ -73,7 +85,10 @@
       "items": {
         "type": "string"
       },
-      "default": ["base", "web"]
+      "default": [
+        "base",
+        "web"
+      ]
     },
     "workers": {
       "type": "integer",
@@ -107,7 +122,13 @@
     "log_level": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["debug", "info", "warning", "error", "critical"],
+      "enum": [
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical"
+      ],
       "default": "info"
     },
     "without_demo": {
@@ -116,6 +137,11 @@
       "default": true
     }
   },
-  "required": ["version", "database", "admin"],
-  "additionalProperties": false
+  "required": [
+    "version",
+    "database",
+    "admin"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/odoo/schema.json"
 }

@@ -76,11 +76,11 @@ required:
     integration_pattern: Direct SQL via Go driver
     access_method: SQL queries through db connection
     
-  - resource_name: n8n
-    purpose: Download orchestration and workflow automation
-    integration_pattern: Webhook triggers and workflow execution
-    access_method: HTTP API and webhook endpoints
-    
+  - resource_name: download-orchestrator
+    purpose: Internal orchestration for downloads, format conversion, and metadata enrichment
+    integration_pattern: Go-based automation routines that coordinate yt-dlp, FFmpeg, and database updates
+    access_method: HTTP/CLI commands handled directly by the scenario API
+
   - resource_name: whisper
     purpose: Audio-to-text transcription processing
     integration_pattern: HTTP API for transcription jobs
@@ -107,10 +107,10 @@ optional:
 ```yaml
 # Priority order for resource access (MUST follow this hierarchy):
 integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: NOT APPLICABLE - Video processing is scenario-specific
-      location: N/A
-      purpose: N/A
+  1_shared_workflows:     # FIRST: Use existing automation helpers
+    - workflow: Video processing automation lives inside the scenario API (no shared workflow engine)
+      location: Internal module
+      purpose: Download orchestration
   
   2_resource_cli:        # SECOND: Use resource CLI commands
     - command: resource-whisper transcribe [audio_file]
@@ -121,8 +121,8 @@ integration_priorities:
   3_direct_api:          # THIRD: Direct API when CLI insufficient
     - justification: Whisper HTTP API provides better error handling and progress tracking than CLI
       endpoint: http://localhost:8090/transcribe
-    - justification: N8N webhook integration requires direct HTTP calls
-      endpoint: Various n8n webhook URLs
+    - justification: Internal download orchestrator exposes HTTP endpoints for yt-dlp/FFmpeg jobs
+      endpoint: /api/download/processing
 
 # Shared workflow guidelines:
 shared_workflow_criteria:
@@ -541,12 +541,12 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with complete metadata and resource dependencies
-    - All required initialization files (postgres schema, n8n workflows)
+    - All required initialization files (postgres schema, automation configuration)
     - Deployment scripts with health checks for Whisper and FFmpeg
     - API health check endpoints including resource connectivity
     
   deployment_targets:
-    - local: Docker Compose with Whisper, FFmpeg, PostgreSQL, N8N
+    - local: Docker Compose with Whisper, FFmpeg, PostgreSQL
     - kubernetes: Helm chart with persistent storage for media files
     - cloud: AWS/GCP template with S3/Cloud Storage for media files
     
@@ -575,7 +575,7 @@ discovery:
   metadata:
     description: "Download, process and transcribe video/audio content from any platform"
     keywords: [video, audio, transcription, download, youtube, whisper, media-processing]
-    dependencies: [postgres, whisper, ffmpeg, n8n]
+    dependencies: [postgres, whisper, ffmpeg]
     enhances: [research-assistant, meeting-intelligence, content-analysis, accessibility-tools]
 ```
 
@@ -617,130 +617,11 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# REQUIRED: scenario-test.yaml in scenario root
-version: 2.0
-scenario: video-downloader
-
-# Structure validation - files and directories that MUST exist:
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/video-downloader
-    - cli/install.sh
-    - initialization/postgres/schema.sql
-    - initialization/n8n/video-processor.json
-    - initialization/n8n/transcript-processor.json  # NEW
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/n8n
-    - initialization/postgres
-
-# Resource validation:
-resources:
-  required: [postgres, n8n, whisper, ffmpeg]
-  optional: [redis, qdrant]
-  health_timeout: 120  # Longer timeout for Whisper startup
-
-# Declarative tests:
-tests:
-  # Resource health checks:
-  - name: "Whisper API is accessible"
-    type: http
-    service: whisper
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "FFmpeg is available via CLI"
-    type: exec
-    command: resource-ffmpeg --version
-    expect:
-      exit_code: 0
-      output_contains: ["ffmpeg version"]
-      
-  # Core functionality tests:
-  - name: "Video download API endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/download
-    method: POST
-    body:
-      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-      format: "mp4"
-      quality: "480p"
-      generate_transcript: false
-    expect:
-      status: 201
-      body:
-        download_id: !!int
-        status: "queued"
-        
-  # Transcript functionality tests:
-  - name: "Transcript generation API endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/download
-    method: POST
-    body:
-      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-      format: "audio"
-      audio_format: "mp3"
-      generate_transcript: true
-      whisper_model: "tiny"
-    expect:
-      status: 201
-      body:
-        download_id: !!int
-        status: "queued"
-        
-  # CLI command tests:
-  - name: "CLI download command executes"
-    type: exec
-    command: ./cli/video-downloader download "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --format audio --audio-format mp3 --json
-    expect:
-      exit_code: 0
-      output_contains: ["download_id"]
-      
-  - name: "CLI transcript command executes"  
-    type: exec
-    command: ./cli/video-downloader transcript 1 --format json
-    expect:
-      exit_code: 0
-      output_contains: ["transcript_id", "language"]
-      
-  # Database tests:
-  - name: "Enhanced database schema is initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.columns WHERE table_name IN ('downloads', 'transcripts', 'transcript_segments')"
-    expect:
-      rows: 
-        - count: !!int ">= 30"  # At least 30 columns across transcript tables
-        
-  # N8N workflow tests:
-  - name: "Video processor workflow is active"
-    type: n8n
-    workflow: video-processor
-    expect:
-      active: true
-      node_count: !!int ">= 8"
-      
-  - name: "Transcript processor workflow is active"
-    type: n8n
-    workflow: transcript-processor
-    expect:
-      active: true
-      node_count: !!int ">= 6"
-```
+- **Phased testing**: `test/run-tests.sh` orchestrates the six standard phases via `scripts/scenarios/testing/shell/runner.sh`, covering structure, dependencies, unit, integration, business, and performance gates.
+- **Phase scripts**: reside under `test/phases/` and source the shared `phase-helpers` library; structure, dependencies, and unit run concrete checks today, while integration, business, and performance emit TODO warnings until the full end-to-end workflow suite lands.
+- **Unit coverage**: `test/phases/test-unit.sh` delegates to `testing::unit::run_all_tests` so Go API (`api`) and React UI (`ui`) tests run with coverage enforcement, emitting artifacts to `coverage/video-downloader/…`.
+- **Lifecycle integration**: `.vrooli/service.json` wires the phased suite into the lifecycle `test` step, so `vrooli scenario test video-downloader` and `make test` execute the same runner.
+- **Artifacts & reporting**: Each phase writes JSON summaries to `coverage/phase-results/` for requirements reporting, and coverage outputs remain compatible with meta scenarios like test-genie.
 
 ### Performance Validation
 - [ ] Video download speeds achieve 80% of available bandwidth

@@ -28,7 +28,7 @@ Run with:
 
 ## Integration with Other Resources
 
-OpenRouter can be injected into other Vrooli resources like n8n, Node-RED, and Windmill to provide AI capabilities in workflows. Use the inject command:
+OpenRouter can be injected into other Vrooli resources like n8n and Node-RED to provide AI capabilities in workflows. Use the inject command:
 
 ```bash
 vrooli resource openrouter inject n8n

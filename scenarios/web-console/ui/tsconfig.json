@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "types": ["vitest/globals"]
+  },
+  "include": [
+    "src/modules/composer.js",
+    "src/modules/utils.js",
+    "src/modules/debug.js",
+    "src/modules/diagnostics.js",
+    "src/modules/workspace/idle-timeout.js",
+    "src/modules/workspace/init.js",
+    "src/modules/workspace/callbacks.js",
+    "src/modules/app/bootstrap.js",
+    "src/modules/app/event-handlers.js",
+    "src/modules/app/tab-controller.js",
+    "src/modules/__tests__/input-buffer.test.js",
+    "src/modules/workspace/__tests__/tabs.test.js",
+    "src/modules/types.d.ts"
+  ]
+}

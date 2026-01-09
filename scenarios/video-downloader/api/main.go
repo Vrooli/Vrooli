@@ -1,19 +1,22 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
@@ -131,85 +134,13 @@ type QueueItem struct {
 var db *sql.DB
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	connStr := os.Getenv("POSTGRES_URL")
-	if connStr == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		
-		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-	}
-	
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Database connection failed:", err)
 	}
-	
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📹 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v", actualDelay)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-	
-	log.Println("🎉 Database connection pool established successfully!")
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func createDownloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -624,32 +555,26 @@ func exportTranscript(transcript Transcript, format string, includeTimestamps, i
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start video-downloader
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "video-downloader",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	initDB()
-	defer db.Close()
 
 	router := mux.NewRouter()
-	
+
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/download", createDownloadHandler).Methods("POST")
 	router.HandleFunc("/api/queue", getQueueHandler).Methods("GET")
 	router.HandleFunc("/api/queue/process", processQueueHandler).Methods("POST")
 	router.HandleFunc("/api/history", getHistoryHandler).Methods("GET")
 	router.HandleFunc("/api/download/{id}", deleteDownloadHandler).Methods("DELETE")
 	router.HandleFunc("/api/analyze", analyzeURLHandler).Methods("POST")
-	
+
 	// Enhanced transcript API routes
 	router.HandleFunc("/api/transcript/{download_id}", getTranscriptHandler).Methods("GET")
 	router.HandleFunc("/api/transcript/{download_id}/search", searchTranscriptHandler).Methods("POST")
@@ -664,16 +589,16 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("Video Downloader API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
-
-// getEnv function removed - no hardcoded defaults for configuration

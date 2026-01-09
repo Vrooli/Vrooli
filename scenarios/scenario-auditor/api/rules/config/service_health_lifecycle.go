@@ -235,7 +235,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 		return []Violation{newHealthViolation(filePath, line, "service.json is empty; expected lifecycle.health configuration")}
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		msg := fmt.Sprintf("service.json must be valid JSON to validate lifecycle health: %v", err)
 		return []Violation{newHealthViolation(filePath, 1, msg)}
@@ -247,7 +247,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 		return []Violation{newHealthViolation(filePath, line, "service.json must define lifecycle.health configuration")}
 	}
 
-	lifecycleMap, ok := lifecycleRaw.(map[string]interface{})
+	lifecycleMap, ok := lifecycleRaw.(map[string]any)
 	if !ok {
 		line := findHealthJSONLine(source, "\"lifecycle\"")
 		return []Violation{newHealthViolation(filePath, line, "service.json lifecycle must be an object")}
@@ -259,7 +259,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 		return []Violation{newHealthViolation(filePath, line, "service.json must define lifecycle.health configuration")}
 	}
 
-	healthMap, ok := healthRaw.(map[string]interface{})
+	healthMap, ok := healthRaw.(map[string]any)
 	if !ok {
 		line := findHealthJSONLine(source, "\"health\"")
 		return []Violation{newHealthViolation(filePath, line, "lifecycle.health must be an object")}
@@ -271,7 +271,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 
 	// Validate endpoints
 	endpointLine := findHealthJSONLine(source, "\"endpoints\"")
-	endpointsRaw, endpointsOk := healthMap["endpoints"].(map[string]interface{})
+	endpointsRaw, endpointsOk := healthMap["endpoints"].(map[string]any)
 	if !endpointsOk {
 		violations = append(violations, newHealthViolation(filePath, endpointLine, "lifecycle.health must define endpoints"))
 	} else {
@@ -298,7 +298,7 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 	// the checks array enables richer monitoring (postgres health, redis health, etc.) and serves
 	// as documentation for health check requirements.
 	checksLine := findHealthJSONLine(source, "\"checks\"")
-	checksRaw, checksOk := healthMap["checks"].([]interface{})
+	checksRaw, checksOk := healthMap["checks"].([]any)
 	if !checksOk {
 		violations = append(violations, newHealthViolation(filePath, checksLine, "lifecycle.health must define checks array for structured health monitoring"))
 		return dedupeHealthViolations(violations)
@@ -323,9 +323,9 @@ func CheckServiceHealthLifecycle(content []byte, filePath string) []Violation {
 	return dedupeHealthViolations(violations)
 }
 
-func findHealthCheck(checks []interface{}, name string) map[string]interface{} {
+func findHealthCheck(checks []any, name string) map[string]any {
 	for _, entry := range checks {
-		checkMap, ok := entry.(map[string]interface{})
+		checkMap, ok := entry.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -336,7 +336,7 @@ func findHealthCheck(checks []interface{}, name string) map[string]interface{} {
 	return nil
 }
 
-func validateCheck(check map[string]interface{}, filePath, source, name, portVar string) []Violation {
+func validateCheck(check map[string]any, filePath, source, name, portVar string) []Violation {
 	var violations []Violation
 
 	checkLine := findHealthJSONLine(source, fmt.Sprintf("\"name\": \"%s\"", name))
@@ -376,7 +376,7 @@ func validateCheck(check map[string]interface{}, filePath, source, name, portVar
 	return violations
 }
 
-func hasPositiveNumber(obj map[string]interface{}, key string) bool {
+func hasPositiveNumber(obj map[string]any, key string) bool {
 	value, ok := obj[key]
 	if !ok {
 		return false
@@ -397,8 +397,8 @@ func hasPositiveNumber(obj map[string]interface{}, key string) bool {
 	}
 }
 
-func scenarioHasUIPort(payload map[string]interface{}) bool {
-	portsRaw, ok := payload["ports"].(map[string]interface{})
+func scenarioHasUIPort(payload map[string]any) bool {
+	portsRaw, ok := payload["ports"].(map[string]any)
 	if !ok {
 		return false
 	}
@@ -406,7 +406,7 @@ func scenarioHasUIPort(payload map[string]interface{}) bool {
 	if !ok {
 		return false
 	}
-	uiMap, ok := uiRaw.(map[string]interface{})
+	uiMap, ok := uiRaw.(map[string]any)
 	if !ok {
 		return true
 	}

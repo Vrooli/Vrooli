@@ -30,7 +30,7 @@ source "${BROWSERLESS_RESOURCE_DIR}/lib/api.sh"
 #   BROWSERLESS_ADAPTER_MODE - Set to true when running in adapter mode
 #   BROWSERLESS_TARGET_RESOURCE - The resource being adapted
 # Arguments:
-#   $1 - Target resource name (e.g., "n8n", "vault")
+#   $1 - Target resource name (e.g., "vault")
 # Returns:
 #   0 on success, 1 on failure
 #######################################

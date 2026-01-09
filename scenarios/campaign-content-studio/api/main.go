@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,24 +16,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
 	// API version
-	apiVersion = "2.0.0"
+	apiVersion  = "2.0.0"
 	serviceName = "campaign-content-studio"
-	
+
 	// Defaults
 	defaultPort = "8090"
-	
+
 	// Timeouts
-	httpTimeout = 30 * time.Second
+	httpTimeout    = 30 * time.Second
 	discoveryDelay = 5 * time.Second
-	
+
 	// Database limits
-	maxDBConnections = 25
+	maxDBConnections   = 25
 	maxIdleConnections = 5
-	connMaxLifetime = 5 * time.Minute
+	connMaxLifetime    = 5 * time.Minute
 )
 
 // Logger provides structured logging
@@ -64,16 +68,16 @@ func (l *Logger) Info(msg string) {
 func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
 	logger := NewLogger()
 	logger.Error(fmt.Sprintf("HTTP %d: %s", statusCode, message), err)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResp := map[string]interface{}{
 		"error":     message,
 		"status":    statusCode,
 		"timestamp": time.Now().UTC(),
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResp)
 }
 
@@ -89,32 +93,31 @@ type Campaign struct {
 
 // Document represents a campaign document
 type Document struct {
-	ID           uuid.UUID `json:"id"`
-	CampaignID   uuid.UUID `json:"campaign_id"`
-	Filename     string    `json:"filename"`
-	FilePath     string    `json:"file_path"`
-	ContentType  string    `json:"content_type"`
-	ProcessedText string   `json:"processed_text,omitempty"`
-	EmbeddingID  string    `json:"embedding_id,omitempty"`
-	UploadDate   time.Time `json:"upload_date"`
+	ID            uuid.UUID `json:"id"`
+	CampaignID    uuid.UUID `json:"campaign_id"`
+	Filename      string    `json:"filename"`
+	FilePath      string    `json:"file_path"`
+	ContentType   string    `json:"content_type"`
+	ProcessedText string    `json:"processed_text,omitempty"`
+	EmbeddingID   string    `json:"embedding_id,omitempty"`
+	UploadDate    time.Time `json:"upload_date"`
 }
 
 // GeneratedContent represents generated content
 type GeneratedContent struct {
-	ID              uuid.UUID              `json:"id"`
-	CampaignID      uuid.UUID              `json:"campaign_id"`
-	ContentType     string                 `json:"content_type"`
-	Prompt          string                 `json:"prompt"`
-	GeneratedText   string                 `json:"generated_content"`
-	UsedDocuments   []string               `json:"used_documents"`
-	CreatedAt       time.Time              `json:"created_at"`
+	ID            uuid.UUID `json:"id"`
+	CampaignID    uuid.UUID `json:"campaign_id"`
+	ContentType   string    `json:"content_type"`
+	Prompt        string    `json:"prompt"`
+	GeneratedText string    `json:"generated_content"`
+	UsedDocuments []string  `json:"used_documents"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // CampaignService handles campaign content operations
 type CampaignService struct {
 	db          *sql.DB
 	n8nBaseURL  string
-	windmillURL string
 	postgresURL string
 	qdrantURL   string
 	minioURL    string
@@ -123,18 +126,17 @@ type CampaignService struct {
 }
 
 // NewCampaignService creates a new campaign service
-func NewCampaignService(db *sql.DB, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL string) *CampaignService {
+func NewCampaignService(db *sql.DB, n8nURL, postgresURL, qdrantURL, minioURL string) *CampaignService {
 	return &CampaignService{
 		db:          db,
 		n8nBaseURL:  n8nURL,
-		windmillURL: windmillURL,
 		postgresURL: postgresURL,
 		qdrantURL:   qdrantURL,
 		minioURL:    minioURL,
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
-		logger:      NewLogger(),
+		logger: NewLogger(),
 	}
 }
 
@@ -149,27 +151,27 @@ func (c *CampaignService) ListCampaigns(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	defer rows.Close()
-	
+
 	var campaigns []Campaign
 	for rows.Next() {
 		var campaign Campaign
 		var settingsJSON []byte
-		
-		err := rows.Scan(&campaign.ID, &campaign.Name, &campaign.Description, 
+
+		err := rows.Scan(&campaign.ID, &campaign.Name, &campaign.Description,
 			&settingsJSON, &campaign.CreatedAt, &campaign.UpdatedAt)
 		if err != nil {
 			c.logger.Error("Failed to scan campaign row", err)
 			continue
 		}
-		
+
 		// Parse settings JSON
 		if len(settingsJSON) > 0 {
 			json.Unmarshal(settingsJSON, &campaign.Settings)
 		}
-		
+
 		campaigns = append(campaigns, campaign)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(campaigns)
 }
@@ -181,38 +183,38 @@ func (c *CampaignService) CreateCampaign(w http.ResponseWriter, r *http.Request)
 		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if campaign.Name == "" {
 		HTTPError(w, "Campaign name is required", http.StatusBadRequest, nil)
 		return
 	}
-	
+
 	campaign.ID = uuid.New()
 	campaign.CreatedAt = time.Now().UTC()
 	campaign.UpdatedAt = campaign.CreatedAt
-	
+
 	settingsJSON, _ := json.Marshal(campaign.Settings)
-	
+
 	_, err := c.db.Exec(`
 		INSERT INTO campaigns (id, name, description, settings, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		campaign.ID, campaign.Name, campaign.Description, settingsJSON,
 		campaign.CreatedAt, campaign.UpdatedAt)
-	
+
 	if err != nil {
 		HTTPError(w, "Failed to create campaign", http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	// Trigger campaign management workflow
 	go c.triggerWorkflow("campaign-management", map[string]interface{}{
-		"operation": "create",
+		"operation":   "create",
 		"campaign_id": campaign.ID.String(),
-		"name": campaign.Name,
+		"name":        campaign.Name,
 		"description": campaign.Description,
-		"settings": campaign.Settings,
+		"settings":    campaign.Settings,
 	})
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(campaign)
@@ -222,12 +224,12 @@ func (c *CampaignService) CreateCampaign(w http.ResponseWriter, r *http.Request)
 func (c *CampaignService) ListDocuments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID := vars["campaignId"]
-	
+
 	if campaignID == "" {
 		HTTPError(w, "Campaign ID is required", http.StatusBadRequest, nil)
 		return
 	}
-	
+
 	rows, err := c.db.Query(`
 		SELECT id, campaign_id, filename, file_path, content_type, upload_date
 		FROM campaign_documents
@@ -238,11 +240,11 @@ func (c *CampaignService) ListDocuments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	defer rows.Close()
-	
+
 	var documents []Document
 	for rows.Next() {
 		var doc Document
-		err := rows.Scan(&doc.ID, &doc.CampaignID, &doc.Filename, 
+		err := rows.Scan(&doc.ID, &doc.CampaignID, &doc.Filename,
 			&doc.FilePath, &doc.ContentType, &doc.UploadDate)
 		if err != nil {
 			c.logger.Error("Failed to scan document row", err)
@@ -250,7 +252,7 @@ func (c *CampaignService) ListDocuments(w http.ResponseWriter, r *http.Request) 
 		}
 		documents = append(documents, doc)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(documents)
 }
@@ -263,32 +265,32 @@ func (c *CampaignService) GenerateContent(w http.ResponseWriter, r *http.Request
 		Prompt        string `json:"prompt"`
 		IncludeImages bool   `json:"include_images"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if req.CampaignID == "" || req.ContentType == "" || req.Prompt == "" {
 		HTTPError(w, "Campaign ID, content type, and prompt are required", http.StatusBadRequest, nil)
 		return
 	}
-	
+
 	// Trigger content generation workflow
 	workflowReq := map[string]interface{}{
-		"operation": "generate",
-		"campaign_id": req.CampaignID,
-		"content_type": req.ContentType,
-		"prompt": req.Prompt,
+		"operation":      "generate",
+		"campaign_id":    req.CampaignID,
+		"content_type":   req.ContentType,
+		"prompt":         req.Prompt,
 		"include_images": req.IncludeImages,
 	}
-	
+
 	result, err := c.triggerWorkflowSync("content-generation", workflowReq)
 	if err != nil {
 		HTTPError(w, "Content generation failed", http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	// Store generated content in database
 	contentID := uuid.New()
 	generatedText, _ := result["generated_content"].(string)
@@ -299,17 +301,17 @@ func (c *CampaignService) GenerateContent(w http.ResponseWriter, r *http.Request
 			usedDocs = append(usedDocs, docStr)
 		}
 	}
-	
+
 	_, err = c.db.Exec(`
 		INSERT INTO generated_content (id, campaign_id, content_type, prompt, generated_content, used_documents, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		contentID, req.CampaignID, req.ContentType, req.Prompt, generatedText, 
+		contentID, req.CampaignID, req.ContentType, req.Prompt, generatedText,
 		strings.Join(usedDocs, ","), time.Now().UTC())
-	
+
 	if err != nil {
 		c.logger.Error("Failed to store generated content", err)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -318,39 +320,39 @@ func (c *CampaignService) GenerateContent(w http.ResponseWriter, r *http.Request
 func (c *CampaignService) SearchDocuments(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID := vars["campaignId"]
-	
+
 	var searchReq struct {
 		Query string `json:"query"`
 		Limit int    `json:"limit,omitempty"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
 		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if campaignID == "" || searchReq.Query == "" {
 		HTTPError(w, "Campaign ID and search query are required", http.StatusBadRequest, nil)
 		return
 	}
-	
+
 	if searchReq.Limit == 0 {
 		searchReq.Limit = 10
 	}
-	
+
 	// Trigger search retrieval workflow
 	result, err := c.triggerWorkflowSync("search-retrieval", map[string]interface{}{
-		"operation": "search",
+		"operation":   "search",
 		"campaign_id": campaignID,
-		"query": searchReq.Query,
-		"limit": searchReq.Limit,
+		"query":       searchReq.Query,
+		"limit":       searchReq.Limit,
 	})
-	
+
 	if err != nil {
 		HTTPError(w, "Document search failed", http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -359,16 +361,16 @@ func (c *CampaignService) SearchDocuments(w http.ResponseWriter, r *http.Request
 func (c *CampaignService) triggerWorkflow(workflowName string, payload map[string]interface{}) {
 	reqBody, _ := json.Marshal(payload)
 	url := fmt.Sprintf("%s/webhook/%s", c.n8nBaseURL, workflowName)
-	
+
 	resp, err := c.httpClient.Post(url, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		c.logger.Error(fmt.Sprintf("Failed to trigger workflow %s", workflowName), err)
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
-		c.logger.Error(fmt.Sprintf("Workflow %s returned error status", workflowName), 
+		c.logger.Error(fmt.Sprintf("Workflow %s returned error status", workflowName),
 			fmt.Errorf("status: %d", resp.StatusCode))
 	}
 }
@@ -377,38 +379,28 @@ func (c *CampaignService) triggerWorkflow(workflowName string, payload map[strin
 func (c *CampaignService) triggerWorkflowSync(workflowName string, payload map[string]interface{}) (map[string]interface{}, error) {
 	reqBody, _ := json.Marshal(payload)
 	url := fmt.Sprintf("%s/webhook/%s", c.n8nBaseURL, workflowName)
-	
+
 	resp, err := c.httpClient.Post(url, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("workflow returned status %d", resp.StatusCode)
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-	
-	return result, nil
-}
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
+	return result, nil
 }
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(
+		cmd := exec.Command("bash", "-c", fmt.Sprintf(
 		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh && ports::get_resource_port %s",
 		resourceName,
 	))
@@ -417,11 +409,10 @@ func getResourcePort(resourceName string) string {
 		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
 		// Fallback to defaults
 		defaults := map[string]string{
-			"n8n": "5678",
-			"windmill": "5681",
+			"n8n":      "5678",
 			"postgres": "5433",
-			"qdrant": "6333",
-			"minio": "9000",
+			"qdrant":   "6333",
+			"minio":    "9000",
 		}
 		if port, ok := defaults[resourceName]; ok {
 			return port
@@ -432,162 +423,77 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start campaign-content-studio
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "campaign-content-studio",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	logger := NewLogger()
-	
-	// Load configuration - REQUIRED environment variables, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	
+
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgresPort unused, will use POSTGRES_URL instead
 	qdrantPort := getResourcePort("qdrant")
 	minioPort := getResourcePort("minio")
-	
+
 	// Optional service URLs (can be configured if needed)
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" && n8nPort != "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
-	
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" && windmillPort != "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
-	}
-	
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			logger.Error("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB", nil)
-			os.Exit(1)
-		}
-		
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
+
 	// Optional service URLs
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" && qdrantPort != "" {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
-	
+
 	minioURL := os.Getenv("MINIO_URL")
 	if minioURL == "" && minioPort != "" {
 		minioURL = fmt.Sprintf("http://localhost:%s", minioPort)
 	}
-	
-	// Connect to database
-	db, err := sql.Open("postgres", postgresURL)
+
+	// Connect to database using api-core with automatic retry
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Error("Failed to open database connection", err)
+		logger.Error("Database connection failed", err)
 		os.Exit(1)
 	}
-	defer db.Close()
-	
+
 	// Configure connection pool
 	db.SetMaxOpenConns(maxDBConnections)
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	logger.Info("🔄 Attempting database connection with exponential backoff...")
-	logger.Info("📊 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-		
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed", attempt + 1, maxRetries), pingErr)
-		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			logger.Info("📈 Retry progress:")
-			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
-			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
-			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
-		os.Exit(1)
-	}
-	
+
 	logger.Info("🎉 Database connection pool established successfully!")
-	
+
+	// Get postgres URL for service (used for logging/reference)
+	postgresURL := os.Getenv("POSTGRES_URL")
+
 	// Initialize campaign service
-	service := NewCampaignService(db, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL)
-	
+	service := NewCampaignService(db, n8nURL, postgresURL, qdrantURL, minioURL)
+
 	// Setup routes
 	r := mux.NewRouter()
-	
+
 	// API endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/campaigns", service.ListCampaigns).Methods("GET")
 	r.HandleFunc("/campaigns", service.CreateCampaign).Methods("POST")
 	r.HandleFunc("/campaigns/{campaignId}/documents", service.ListDocuments).Methods("GET")
 	r.HandleFunc("/campaigns/{campaignId}/search", service.SearchDocuments).Methods("POST")
 	r.HandleFunc("/generate", service.GenerateContent).Methods("POST")
-	
-	// Start server
-	log.Printf("Starting Campaign Content Studio API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
-	log.Printf("  Postgres URL: %s", postgresURL)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  MinIO URL: %s", minioURL)
 
-	// Use existing logger instance from earlier in main()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
 		logger.Error("Server failed", err)
 		os.Exit(1)
 	}

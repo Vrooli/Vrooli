@@ -1,0 +1,50 @@
+{
+  "$schema": "./_schema.json",
+  "id": "preview",
+  "name": "Resource Preview Section",
+  "description": "Preview of the resource content - table of contents, sample pages, or chapter list",
+  "category": "engagement",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "Preview the Contents",
+      "max_length": 80,
+      "required": false
+    },
+    "preview_items": {
+      "type": "array",
+      "label": "Preview Items",
+      "description": "Chapters, sections, or key topics covered",
+      "item_schema": {
+        "title": {
+          "type": "string",
+          "label": "Item Title",
+          "max_length": 100
+        },
+        "description": {
+          "type": "string",
+          "label": "Brief Description",
+          "max_length": 200
+        }
+      }
+    },
+    "sample_images": {
+      "type": "array",
+      "label": "Sample Images",
+      "description": "Preview screenshots or sample pages",
+      "item_schema": {
+        "url": {
+          "type": "string",
+          "label": "Image URL"
+        },
+        "alt": {
+          "type": "string",
+          "label": "Alt Text"
+        }
+      }
+    }
+  },
+  "ui_component": "PreviewSection",
+  "default_order": 4
+}

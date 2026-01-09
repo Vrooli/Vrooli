@@ -119,9 +119,14 @@
           "default": false
         }
       },
-      "required": ["port"],
+      "required": [
+        "port"
+      ],
       "additionalProperties": false
     }
   },
-  "required": ["huginn"]
+  "required": [
+    "huginn"
+  ],
+  "$id": "https://vrooli.com/resources/huginn/schema.json"
 }

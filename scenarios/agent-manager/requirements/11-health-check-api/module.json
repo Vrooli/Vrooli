@@ -1,0 +1,40 @@
+{
+  "description": "Provide health monitoring endpoint",
+  "module_id": "MOD-P0-011",
+  "prd_ref": "OT-P0-011",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement health check API endpoint reporting system status",
+      "id": "REQ-P0-013",
+      "prd_ref": "OT-P0-011",
+      "status": "implemented",
+      "title": "Health Check Endpoint",
+      "validation": [
+        {
+          "notes": "Test health endpoint returns proper schema",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealth_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify /api/v1/health path works",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealth_ApiV1Path",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test orchestrator health status",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_GetHealth",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Health Check API"
+}

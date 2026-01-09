@@ -1,0 +1,14 @@
+{
+  "proxy_url": "http://127.0.0.1/",
+  "server_url": "http://127.0.0.1/",
+  "api_url": "http://127.0.0.1/api",
+  "app_display_name": "Vrooli Ascension",
+  "app_description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+  "icon": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/ui/dist/manifest-icon-512.maskable.png",
+  "deployment_mode": "bundled",
+  "auto_manage_vrooli": false,
+  "vrooli_binary_path": "vrooli",
+  "server_type": "external",
+  "bundle_manifest_path": "/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/platforms/electron/bundle/bundle.json",
+  "updated_at": "2026-01-08T01:31:45.567349503Z"
+}

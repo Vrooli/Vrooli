@@ -63,15 +63,11 @@ All scenarios have been migrated to the new framework:
 
 ### For Validation Testing
 ```bash
-# Run integration tests for a specific scenario
-cd scripts/research-assistant
-./test.sh
+# Run structure checks for a scenario
+test-genie execute my-scenario --phases structure --fail-fast
 
-# Run all scenario tests  
-for dir in scripts/*/; do
-    echo "Testing $(basename $dir)..."
-    (cd "$dir" && ./test.sh)
-done
+# Run full suite (quick preset)
+test-genie execute my-scenario --preset quick --fail-fast
 ```
 
 ### For App Generation
@@ -94,9 +90,9 @@ vrooli scenario test secure-document-processing
 # 1. Explore existing scenarios
 ls -la scripts/                             # See all available scenarios
 
-# 2. Create a new scenario using the unified template
-cp -r templates/full/ scripts/my-new-scenario/
-cd scripts/my-new-scenario/
+# 2. Create a new scenario using the unified React + Vite template
+vrooli scenario generate react-vite --id my-new-scenario --display-name "My New Scenario" --description "One sentence summary"
+cd scenarios/my-new-scenario/
 # Edit service.json and initialization files
 # Template supports both manual editing AND AI generation patterns
 
@@ -113,9 +109,9 @@ vrooli scenario run my-new-scenario
 **✅ All scenarios now use the unified template structure:**
 
 - **Before**: Conflicting templates scattered across different locations
-- **After**: Clean organization in `templates/` directory
-- **Migration**: All 13 scenarios automatically upgraded to full structure  
-- **Current**: `templates/full/` (comprehensive) + `templates/basic/` (simple testing)
+- **After**: Clean organization in `scripts/scenarios/templates/`
+- **Migration**: All scenarios automatically upgraded to the React + Vite archetype  
+- **Current**: `templates/react-vite/` (React UI + Go API) — the only supported scenario template
 
 **Benefits**:
 - 🎯 **Single source of truth** for all scenario creation
@@ -132,11 +128,9 @@ scenarios/
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
 │   └── ... (8 more scenarios)
-├── templates/                # Templates for creating new scenarios
-│   ├── full/                # Complete application template (use this)
-│   └── basic/               # Simple testing template
-├── tools/                    # Management and validation tools
-│   └── validate-scenario.sh  # Validate scenario structure
+├── scripts/scenarios/templates/   # Scenario templates (copy from here!)
+│   └── react-vite/                # React + Vite + Go API archetype
+├── tools/                    # Management tools (legacy bash retired; use test-genie)
 ├── injection/               # Resource injection system
 │   ├── engine.sh           # Injection orchestrator
 │   ├── schema-validator.sh # Configuration validation
@@ -189,7 +183,7 @@ scenarios/
 
 ### **Scenario Statistics**
 - **Total Scenarios**: 9 validated business applications
-- **UI-Enabled**: 6 scenarios with professional Windmill interfaces
+- **UI-Enabled**: 6 scenarios with professional UI interfaces
 - **Resource Coverage**: 15+ integrated resources (AI, automation, storage, agents)
 - **Business Value**: $10K-$25K average project potential
 
@@ -205,7 +199,7 @@ scenarios/
 | Category | Resources | Scenarios Using |
 |----------|-----------|-----------------|
 | **🧠 AI** | Ollama, Whisper, ComfyUI, Unstructured-IO | 9/11 |
-| **⚙️ Automation** | n8n, Windmill, Node-RED, Huginn | 8/11 |
+| **⚙️ Automation** | Node-RED, Huginn | 8/11 |
 | **🤖 Agents** | Agent-S2, Browserless, Claude-Code | 5/11 |
 | **💾 Storage** | PostgreSQL, MinIO, Qdrant, Redis, Vault | 7/11 |
 | **🔍 Search** | SearXNG | 2/11 |
@@ -222,9 +216,9 @@ scenario-name/
 ├── service.json               # Complete configuration (metadata, resources, deployment)
 ├── initialization/            # App startup data
 │   ├── database/              # Schema and seed data
-│   ├── workflows/             # n8n, Windmill, triggers
+│   ├── workflows/             # automation triggers
 │   ├── configuration/         # Runtime settings
-│   ├── ui/                    # Windmill applications
+│   ├── ui/                    # Scenario UI applications
 │   └── storage/               # MinIO, Qdrant setup
 ├── deployment/                # Orchestration scripts
 │   ├── startup.sh             # App initialization  
@@ -237,7 +231,7 @@ scenario-name/
 Scenarios don't contain business logic—they orchestrate external resources to create emergent capabilities:
 
 - **AI Resources**: Local models (Ollama), speech processing (Whisper), document analysis (Unstructured-IO)
-- **Automation Platforms**: Visual workflows (n8n), real-time processing (Node-RED), code execution (Windmill)
+- **Automation Platforms**: Visual workflow orchestration and real-time processing (Node-RED, Huginn)
 - **Agent Services**: Screen automation (Agent-S2), web automation (Browserless)
 - **Storage Solutions**: Databases (PostgreSQL), object storage (MinIO), vector search (Qdrant)
 
@@ -269,14 +263,11 @@ Scenarios run directly from their source location using the Vrooli framework:
 Scenario Running State:
 ├── Required Resources (started via manage.sh)
 │   ├── postgres (localhost:5432)
-│   ├── n8n (http://localhost:5678)
-│   ├── windmill (http://localhost:8000)
 │   ├── ollama (http://localhost:11434)
 │   └── ... (other resources as needed)
 ├── Data Injection (via lib/inject.sh)
 │   ├── Database schemas and seeds
-│   ├── n8n workflows
-│   ├── Windmill applications
+│   ├── Automation workflow definitions
 │   └── Configuration files
 └── Application Services
     ├── Custom startup scripts
@@ -303,7 +294,6 @@ Scenarios are designed for reliable AI generation:
     "dependencies": {
       "resources": [
         {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
         {"name": "postgres", "type": "database", "optional": false}
       ]
     },
@@ -332,10 +322,9 @@ Scenarios are designed for reliable AI generation:
 
 | Template | Use Case | Complexity | Features | AI-Generation Ready |
 |----------|----------|------------|----------|-------------------|
-| [**full/**](templates/full/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
-| [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | Basic structure only | ✅ Yes |
+| [**react-vite/**](templates/react-vite/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
 
-**🎯 Recommended**: Use `templates/full/` for all new scenarios - it includes the complete deployment orchestration layer for direct execution with service.json.
+**🎯 Recommended**: Always use `templates/react-vite/` for new scenarios. This is the only supported archetype and includes the complete deployment orchestration layer for direct execution with service.json.
 
 📋 **Detailed Template Guide**: [docs/template-guide.md](docs/template-guide.md)
 
@@ -367,7 +356,7 @@ Scenarios are designed for reliable AI generation:
 | 🤖 "How do I make scenarios AI-friendly?" | → [AI Generation Guide](docs/ai-generation-guide.md) |
 | 🔌 "Resource integration isn't working" | → [Resource Integration Guide](docs/resource-integration.md) |
 | 🧪 "Tests are failing" | → [Testing Framework](docs/testing-framework.md) |
-| 🚀 "How do I deploy scenarios?" | → [Deployment Guide](docs/deployment-guide.md) |
+| 🚀 "How do I deploy scenarios?" | → [Deployment Hub](../docs/deployment/README.md) |
 
 ### **Advanced Support**
 - 📚 **Complete Documentation**: [docs/](docs/) directory

@@ -118,7 +118,7 @@ spectra = requests.get(f"http://localhost:8193/simulation/{sim_id}/spectra").jso
 ### Analysis
 - **Pandas-AI**: Automated data analysis
 - **Superset**: Dashboard visualization
-- **Windmill**: Workflow automation
+- **Automation**: Workflow automation
 
 ## Performance
 

@@ -1,0 +1,15 @@
+schema_version: "1.0.0"
+title: "VPS preflight (manual/E2E placeholder)"
+description: "Planned E2E playbook for running scenario-to-cloud preflight against a disposable Ubuntu 24.04 VPS."
+requirements:
+  - STC-P0-003
+  - STC-P0-009
+steps:
+  - id: provision_vps
+    description: "Provision a fresh Ubuntu 24.04 VPS with ports 22/80/443 open."
+  - id: configure_dns
+    description: "Point edge.domain A record to the VPS public IP."
+  - id: run_preflight
+    description: "Run `scenario-to-cloud preflight manifest.json` and confirm all checks pass."
+  - id: validate_failures
+    description: "Intentionally break DNS/ports and confirm failures include actionable hints."

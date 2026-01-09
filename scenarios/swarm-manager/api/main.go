@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,11 +16,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"gopkg.in/yaml.v3"
 )
 
@@ -115,16 +120,11 @@ var (
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start swarm-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "swarm-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize paths
@@ -132,7 +132,6 @@ func main() {
 
 	// Initialize database connection
 	initDB()
-	defer db.Close()
 
 	// Start agent system
 	startAgentSystem()
@@ -152,95 +151,34 @@ func main() {
 	// Routes
 	setupRoutes(app)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	// Start server with graceful shutdown
+	log.Println("Swarm Manager API starting")
+	if err := server.Run(server.Config{
+		StartServer:    func(addr string) error { return app.Listen(addr) },
+		ShutdownServer: func(ctx context.Context) error { return app.ShutdownWithContext(ctx) },
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	// Start server
-	log.Printf("Swarm Manager API starting on port %s", port)
-	log.Fatal(app.Listen(":" + port))
 }
 
 func initDB() {
-	// ALL database configuration MUST come from environment - no defaults
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatal("Database connection failed:", err)
 	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
 }
 
 func setupRoutes(app *fiber.App) {
-	// Health check
-	app.Get("/health", healthCheck)
+	// Health check using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("2.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	app.Get("/health", adaptor.HTTPHandlerFunc(healthHandler))
 
 	// Task endpoints
 	app.Get("/api/tasks", getTasks)
@@ -273,71 +211,6 @@ func setupRoutes(app *fiber.App) {
 	app.Post("/api/calculate-priority", calculatePriority)
 }
 
-func healthCheck(c *fiber.Ctx) error {
-	// Perform health checks
-	checks := make(map[string]interface{})
-	overallStatus := "healthy"
-
-	// Check database connection
-	if db != nil {
-		err := db.Ping()
-		if err != nil {
-			checks["database"] = fiber.Map{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			overallStatus = "unhealthy"
-		} else {
-			// Try a simple query to ensure database is actually responding
-			var result int
-			err := db.QueryRow("SELECT 1").Scan(&result)
-			if err != nil {
-				checks["database"] = fiber.Map{
-					"status": "degraded",
-					"error":  "Cannot execute queries",
-				}
-				overallStatus = "degraded"
-			} else {
-				checks["database"] = fiber.Map{
-					"status":  "healthy",
-					"message": "Connected and responsive",
-				}
-			}
-		}
-	} else {
-		checks["database"] = fiber.Map{
-			"status": "unhealthy",
-			"error":  "Database connection not initialized",
-		}
-		overallStatus = "unhealthy"
-	}
-
-	// Check task directory access
-	if _, err := os.Stat(tasksDir); os.IsNotExist(err) {
-		checks["filesystem"] = fiber.Map{
-			"status": "unhealthy",
-			"error":  "Tasks directory not accessible",
-		}
-		overallStatus = "unhealthy"
-	} else {
-		checks["filesystem"] = fiber.Map{
-			"status":  "healthy",
-			"message": "Tasks directory accessible",
-		}
-	}
-
-	// Calculate uptime
-	uptime := time.Since(startTime).Seconds()
-
-	return c.JSON(fiber.Map{
-		"status":    overallStatus,
-		"service":   "swarm-manager",
-		"timestamp": time.Now().Unix(),
-		"uptime":    uptime,
-		"checks":    checks,
-		"version":   "2.0.0",
-	})
-}
 
 func getTasks(c *fiber.Ctx) error {
 	status := c.Query("status", "all")

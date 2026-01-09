@@ -66,7 +66,7 @@ COMMANDS:
 
 OPTIONS:
     -h, --help          Show this help message
-    -p, --port <port>   Specify API port (default: 8083)
+    -p, --port <port>   Specify API port (default: API_PORT or 8080)
     -j, --json          Output in JSON format
     -q, --quiet         Suppress non-essential output
 
@@ -107,7 +107,7 @@ cmd_metrics() {
         exit 1
     fi
     
-    response=$(curl -s "${API_URL}/api/metrics/current")
+    response=$(curl -s "${API_URL}/api/v1/metrics/current")
     
     if [[ "$JSON_OUTPUT" == "true" ]]; then
         echo "$response"
@@ -142,7 +142,7 @@ cmd_status() {
     fi
     
     # Get metrics for status evaluation
-    response=$(curl -s "${API_URL}/api/metrics/current")
+    response=$(curl -s "${API_URL}/api/v1/metrics/current")
     cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
     memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
     
@@ -171,7 +171,7 @@ cmd_alerts() {
     fi
     
     # Get current metrics to check for alerts
-    response=$(curl -s "${API_URL}/api/metrics/current")
+    response=$(curl -s "${API_URL}/api/v1/metrics/current")
     cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
     memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
     tcp=$(echo "$response" | grep -o '"tcp_connections":[0-9]*' | cut -d':' -f2)
@@ -209,7 +209,7 @@ cmd_investigate() {
         exit 1
     fi
     
-    response=$(curl -s "${API_URL}/api/investigations/latest")
+    response=$(curl -s "${API_URL}/api/v1/investigations/latest")
     
     if [[ "$JSON_OUTPUT" == "true" ]]; then
         echo "$response"
@@ -307,7 +307,7 @@ cmd_watch() {
         echo
         
         if check_api; then
-            response=$(curl -s "${API_URL}/api/metrics/current")
+            response=$(curl -s "${API_URL}/api/v1/metrics/current")
             cpu=$(echo "$response" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
             memory=$(echo "$response" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
             tcp=$(echo "$response" | grep -o '"tcp_connections":[0-9]*' | cut -d':' -f2)

@@ -1,24 +1,37 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
-if (!process.env.API_PORT) {
-  console.error('API_PORT environment variable must be set')
-  process.exit(1)
-}
-
-const API_PORT = process.env.API_PORT
-const API_HOST = (process.env.API_HOST ?? '').trim() || ['local', 'host'].join('')
-const API_PROTOCOL = (process.env.API_PROTOCOL ?? '').trim() || 'http'
+import RequirementReporter from '@vrooli/vitest-requirement-reporter'
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
-  server: {
-    port: 36300,
-    proxy: {
-      '/api': {
-        target: `${API_PROTOCOL}://${API_HOST}:${API_PORT}`,
-        changeOrigin: true,
-      },
-    },
-  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    passWithNoTests: true,
+    reporters: [
+      new RequirementReporter({
+        outputFile: 'coverage/vitest-requirements.json',
+        emitStdout: true,  // REQUIRED for phase integration
+        verbose: true,
+        conciseMode: true,  // Prevents HTML spam in test output
+        artifactsDir: 'coverage/unit',
+        autoClear: true,
+      }),
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['json-summary', 'json', 'text'],
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts', 'src/vite-env.d.ts'],
+      thresholds: {
+        lines: 60,
+        functions: 60,
+        branches: 50,
+        statements: 60
+      }
+    }
+  }
 })

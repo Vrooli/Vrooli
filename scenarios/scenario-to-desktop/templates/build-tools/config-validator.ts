@@ -270,7 +270,7 @@ export class DesktopConfigValidator {
             }
         };
         
-        return defaults[templateType] || defaults.basic;
+        return defaults[templateType as keyof typeof defaults] || defaults.basic;
     }
     
     private validateWindowConfig(config: any, errors: ValidationError[], sanitized: any): void {
@@ -333,7 +333,7 @@ export class DesktopConfigValidator {
                 severity: 'warning'
             });
         } else {
-            const invalidPlatforms = config.platforms.filter(p => !validPlatforms.includes(p));
+            const invalidPlatforms = config.platforms.filter((p: string) => !validPlatforms.includes(p));
             if (invalidPlatforms.length > 0) {
                 errors.push({
                     field: 'platforms',
@@ -342,7 +342,7 @@ export class DesktopConfigValidator {
                 });
             }
             
-            sanitized.platforms = config.platforms.filter(p => validPlatforms.includes(p));
+            sanitized.platforms = config.platforms.filter((p: string) => validPlatforms.includes(p));
         }
     }
     

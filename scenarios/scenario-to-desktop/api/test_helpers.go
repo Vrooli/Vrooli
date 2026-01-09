@@ -261,26 +261,30 @@ func setupTestDesktopConfig(t *testing.T, appName string) *TestDesktopConfig {
 	}
 
 	config := &DesktopConfig{
-		AppName:        appName,
-		AppDisplayName: appName + " Display",
-		AppDescription: "Test desktop application",
-		Version:        "1.0.0",
-		Author:         "Test Author",
-		License:        "MIT",
-		AppID:          "com.test." + strings.ToLower(strings.ReplaceAll(appName, " ", "")),
-		AppURL:         "https://example.com",
-		ServerType:     "node",
-		ServerPort:     3000,
-		ServerPath:     "./server",
-		APIEndpoint:    "http://localhost:3000",
-		ScenarioPath:   "./dist",
-		Framework:      "electron",
-		TemplateType:   "basic",
-		Features:       map[string]interface{}{},
-		Window:         map[string]interface{}{},
-		Platforms:      []string{"win", "mac", "linux"},
-		OutputPath:     tempDir,
-		Styling:        map[string]interface{}{},
+		AppName:          appName,
+		AppDisplayName:   appName + " Display",
+		AppDescription:   "Test desktop application",
+		Version:          "1.0.0",
+		Author:           "Test Author",
+		License:          "MIT",
+		AppID:            "com.test." + strings.ToLower(strings.ReplaceAll(appName, " ", "")),
+		AppURL:           "https://example.com",
+		ServerType:       "node",
+		ServerPort:       3000,
+		ServerPath:       "./server",
+		APIEndpoint:      "http://localhost:3000",
+		ScenarioPath:     "./dist",
+		ScenarioName:     appName,
+		AutoManageVrooli: false,
+		VrooliBinaryPath: "vrooli",
+		DeploymentMode:   "external-server",
+		Framework:        "electron",
+		TemplateType:     "basic",
+		Features:         map[string]interface{}{},
+		Window:           map[string]interface{}{},
+		Platforms:        []string{"win", "mac", "linux"},
+		OutputPath:       tempDir,
+		Styling:          map[string]interface{}{},
 	}
 
 	return &TestDesktopConfig{
@@ -313,7 +317,7 @@ func createTestBuildStatus(buildID, status string) *BuildStatus {
 func waitForBuildStatus(server *Server, buildID string, expectedStatus string, timeout time.Duration) (*BuildStatus, error) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if status, exists := server.buildStatuses[buildID]; exists {
+		if status, exists := server.builds.Get(buildID); exists {
 			if status.Status == expectedStatus {
 				return status, nil
 			}
@@ -327,7 +331,7 @@ func waitForBuildStatus(server *Server, buildID string, expectedStatus string, t
 func assertBuildStatusExists(t *testing.T, server *Server, buildID string) *BuildStatus {
 	t.Helper()
 
-	status, exists := server.buildStatuses[buildID]
+	status, exists := server.builds.Get(buildID)
 	if !exists {
 		t.Fatalf("Expected build status for ID %s to exist", buildID)
 	}

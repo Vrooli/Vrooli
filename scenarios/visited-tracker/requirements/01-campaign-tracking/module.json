@@ -1,0 +1,159 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Campaign-Based File Tracking",
+    "description": "Core P0 functionality for campaign-based file visit tracking with staleness scoring"
+  },
+  "requirements": [
+    {
+      "id": "VT-REQ-001",
+      "category": "campaign-tracking.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Campaign Creation and Management",
+      "description": "Create and manage campaigns with file glob patterns (*.go, *.js, etc.) to track files across different analysis projects",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/campaign_handlers_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate campaign CRUD operations: TestCreateCampaignHandler, TestGetCampaignHandler, TestUpdateCampaignHandler, TestDeleteCampaignHandler, TestListCampaignsHandler, TestFindOrCreateCampaignHandler [REQ:VT-REQ-001]"
+        },
+        {
+          "type": "test",
+          "ref": "api/campaign_storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate campaign storage and persistence: TestCampaignStorage, TestSaveCampaign, TestLoadCampaign, TestLoadAllCampaigns, TestDeleteCampaignFile [REQ:VT-REQ-001]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates complete campaign lifecycle: create, verify, visit files, query, and delete [REQ:VT-REQ-001]"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-002",
+      "category": "campaign-tracking.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Visit Count Tracking",
+      "description": "Track and increment visit count for each file in a campaign when agents analyze or review files",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/visit_tracking_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate visit tracking: TestVisitHandler, TestAdjustVisitHandler, TestVisitHandlerErrorPaths, TestAdjustVisitHandlerErrorPaths [REQ:VT-REQ-002]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates visit recording and tracking through complete campaign lifecycle [REQ:VT-REQ-002]"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-003",
+      "category": "campaign-tracking.core",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Staleness Scoring Algorithm",
+      "description": "Calculate staleness score based on visit frequency, last visit time, and file modification time to prioritize files needing attention",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/staleness_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate staleness algorithm and prioritization: TestCalculateStalenessScore, TestUpdateStalenessScores, TestLeastVisitedHandler, TestMostStaleHandler [REQ:VT-REQ-003]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates staleness queries (least-visited and most-stale prioritization) [REQ:VT-REQ-003]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/staleness-scoring.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates staleness score calculation and prioritization logic [REQ:VT-REQ-003]"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-004",
+      "category": "campaign-tracking.interface",
+      "operational_target_id": "OT-P0-006",
+      "prd_ref": "OT-P0-006",
+      "title": "File Synchronization",
+      "description": "Sync campaign files with filesystem using glob pattern matching to discover new files and remove deleted ones",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/file_sync_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate file sync: TestStructureSyncHandler, TestSyncCampaignFilesErrorPaths [REQ:VT-REQ-004]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/staleness-scoring.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow validates file sync through structure/sync endpoint [REQ:VT-REQ-004]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/cli/campaign-management.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E CLI workflow validates campaign file tracking and management [REQ:VT-REQ-004]"
+        }
+      ]
+    },
+    {
+      "id": "VT-REQ-005",
+      "category": "campaign-tracking.storage",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "JSON File Persistence",
+      "description": "Store campaign data and visit tracking in JSON files for portability and transparency",
+      "priority": "P0",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/campaign_storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tests validate JSON persistence: TestInitFileStorage, TestSaveCampaign, TestLoadCampaign, TestLoadAllCampaigns [REQ:VT-REQ-005]"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E workflow implicitly validates JSON persistence across operations"
+        }
+      ]
+    }
+  ]
+}

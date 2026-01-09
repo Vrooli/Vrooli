@@ -31,6 +31,79 @@ export interface ReportAppLogStream {
   command?: string;
 }
 
+export interface ReportHealthCheckEntry {
+  id: string;
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  endpoint: string | null;
+  latencyMs: number | null;
+  message: string | null;
+  code: string | null;
+  response: string | null;
+}
+
+export interface ReportAppStatusSnapshot {
+  appId: string;
+  scenario: string;
+  statusLabel: string;
+  severity: 'ok' | 'warn' | 'error';
+  runtime: string | null;
+  processCount: number | null;
+  details: string[];
+  capturedAt: string | null;
+}
+
+export type ReportCaptureType = 'page' | 'element';
+
+export interface ReportCaptureMetadata {
+  selector?: string | null;
+  tagName?: string | null;
+  elementId?: string | null;
+  classes?: string[];
+  label?: string | null;
+  ariaDescription?: string | null;
+  title?: string | null;
+  role?: string | null;
+  text?: string | null;
+  ancestorIndex?: number | null;
+  ancestorCount?: number | null;
+  ancestorTrail?: Array<string | null>;
+  boundingBox?: { x: number; y: number; width: number; height: number } | null;
+}
+
+interface ReportCaptureBase {
+  id: string;
+  type: ReportCaptureType;
+  width: number;
+  height: number;
+  data: string;
+  createdAt: number;
+  filename?: string | null;
+  clip?: { x: number; y: number; width: number; height: number } | null;
+  mode?: string | null;
+}
+
+export interface ReportPageCapture extends ReportCaptureBase {
+  type: 'page';
+}
+
+export interface ReportElementCapture extends ReportCaptureBase {
+  type: 'element';
+  note: string;
+  metadata: ReportCaptureMetadata;
+}
+
+export type ReportCapture = ReportPageCapture | ReportElementCapture;
+
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
+
+export type FetchStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * Checks if a collection has been truncated based on total count vs. items length
+ */
+export const isTruncated = (total: number | null | undefined, itemsLength: number): boolean => {
+  return typeof total === 'number' && total > itemsLength;
+};
 
 export type { ConsoleSeverity };

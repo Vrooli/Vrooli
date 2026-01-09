@@ -45,46 +45,6 @@ resource_cost: "moderate"
 <!-- EMBED:ACTIVEPROBLEM:END -->
 
 <!-- EMBED:ACTIVEPROBLEM:START -->
-### Database Connection Pool Exhaustion
-**Status:** [active]
-**Severity:** [high]
-**Frequency:** [occasional]
-**Impact:** [degraded_performance]
-**Discovered:** 2025-08-25
-**Discovered By:** [app-debugger]
-**Last Occurrence:** 2025-08-29 15:45
-
-#### Description
-Client applications exhausting available database connections during high-load periods. PostgreSQL instances hitting max_connections limit (default 100), causing new connection attempts to fail with "too many clients" error.
-
-#### Reproduction Steps
-1. Create client instance with default configuration
-2. Run client application with high concurrent database access (>100 connections)
-3. Observe connection failures and "FATAL: too many clients already" errors
-4. Application performance degrades significantly
-
-#### Impact Assessment
-- **Users Affected:** Clients with high-traffic applications (20% of deployments)
-- **Business Impact:** Client application failures, poor user experience
-- **Technical Impact:** Database unavailable during connection exhaustion, cascade failures
-- **Urgency Factors:** Affects production client applications, reputation risk
-
-#### Investigation Status
-- **Root Cause:** Default PostgreSQL configuration not optimized for production workloads
-- **Workarounds:** Application-level connection pooling, periodic connection recycling
-- **Related Issues:** Memory allocation for connections, application architecture
-- **Attempted Solutions:** Increased max_connections to 300, tuning shared_buffers
-
-#### Priority Estimates
-```yaml
-impact: 9           
-urgency: "high"
-success_prob: 0.8   
-resource_cost: "moderate"
-```
-<!-- EMBED:ACTIVEPROBLEM:END -->
-
-<!-- EMBED:ACTIVEPROBLEM:START -->
 ### Instance Data Corruption During Backup
 **Status:** [active]
 **Severity:** [critical]

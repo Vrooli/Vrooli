@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  playwright-driver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-driver
+    ports:
+      - "39400:39400"
+    environment:
+      # Server configuration
+      PLAYWRIGHT_DRIVER_PORT: 39400
+      PLAYWRIGHT_DRIVER_HOST: 0.0.0.0
+      HEADLESS: "true"
+
+      # Session configuration
+      MAX_SESSIONS: "10"
+      SESSION_IDLE_TIMEOUT_MS: "300000"  # 5 minutes
+      SESSION_POOL_SIZE: "5"
+      CLEANUP_INTERVAL_MS: "60000"       # 1 minute
+
+      # Telemetry configuration
+      SCREENSHOT_ENABLED: "true"
+      SCREENSHOT_FULL_PAGE: "true"
+      SCREENSHOT_QUALITY: "80"
+      SCREENSHOT_MAX_SIZE: "512000"      # 500 KB
+
+      DOM_ENABLED: "true"
+      DOM_MAX_SIZE: "524288"             # 512 KB
+
+      CONSOLE_ENABLED: "true"
+      CONSOLE_MAX_ENTRIES: "100"
+
+      NETWORK_ENABLED: "true"
+      NETWORK_MAX_EVENTS: "200"
+
+      # Logging configuration
+      LOG_LEVEL: "info"
+      LOG_FORMAT: "json"
+
+      # Metrics configuration
+      METRICS_ENABLED: "true"
+      METRICS_PORT: "9090"
+
+    volumes:
+      # Temporary storage for screenshots, traces, videos
+      - playwright-tmp:/tmp/playwright
+
+    restart: unless-stopped
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:39400/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (except temp dirs)
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.npm
+
+volumes:
+  playwright-tmp:
+    driver: local
+
+networks:
+  default:
+    name: playwright-driver-network

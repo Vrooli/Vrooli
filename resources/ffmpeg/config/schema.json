@@ -24,7 +24,12 @@
         "default_quality": {
           "type": "string",
           "description": "Default output quality preset",
-          "enum": ["low", "medium", "high", "lossless"],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "lossless"
+          ],
           "default": "high"
         },
         "enable_gpu": {
@@ -48,12 +53,22 @@
           "properties": {
             "preferred": {
               "type": "string",
-              "enum": ["h264", "h265", "vp9", "av1"],
+              "enum": [
+                "h264",
+                "h265",
+                "vp9",
+                "av1"
+              ],
               "default": "h264"
             },
             "fallback": {
               "type": "string",
-              "enum": ["h264", "h265", "vp9", "mpeg4"],
+              "enum": [
+                "h264",
+                "h265",
+                "vp9",
+                "mpeg4"
+              ],
               "default": "mpeg4"
             }
           }
@@ -63,12 +78,21 @@
           "properties": {
             "preferred": {
               "type": "string",
-              "enum": ["aac", "mp3", "opus", "flac"],
+              "enum": [
+                "aac",
+                "mp3",
+                "opus",
+                "flac"
+              ],
               "default": "aac"
             },
             "fallback": {
               "type": "string",
-              "enum": ["mp3", "aac", "vorbis"],
+              "enum": [
+                "mp3",
+                "aac",
+                "vorbis"
+              ],
               "default": "mp3"
             }
           }
@@ -83,29 +107,62 @@
           "type": "object",
           "description": "Web-optimized video settings",
           "properties": {
-            "format": {"type": "string", "default": "mp4"},
-            "video_codec": {"type": "string", "default": "libx264"},
-            "audio_codec": {"type": "string", "default": "aac"},
-            "bitrate": {"type": "string", "default": "2M"}
+            "format": {
+              "type": "string",
+              "default": "mp4"
+            },
+            "video_codec": {
+              "type": "string",
+              "default": "libx264"
+            },
+            "audio_codec": {
+              "type": "string",
+              "default": "aac"
+            },
+            "bitrate": {
+              "type": "string",
+              "default": "2M"
+            }
           }
         },
         "podcast_audio": {
           "type": "object",
           "description": "Podcast audio settings",
           "properties": {
-            "format": {"type": "string", "default": "mp3"},
-            "audio_codec": {"type": "string", "default": "libmp3lame"},
-            "bitrate": {"type": "string", "default": "128k"},
-            "sample_rate": {"type": "integer", "default": 44100}
+            "format": {
+              "type": "string",
+              "default": "mp3"
+            },
+            "audio_codec": {
+              "type": "string",
+              "default": "libmp3lame"
+            },
+            "bitrate": {
+              "type": "string",
+              "default": "128k"
+            },
+            "sample_rate": {
+              "type": "integer",
+              "default": 44100
+            }
           }
         },
         "thumbnail": {
           "type": "object",
           "description": "Video thumbnail extraction",
           "properties": {
-            "format": {"type": "string", "default": "jpg"},
-            "size": {"type": "string", "default": "320x240"},
-            "quality": {"type": "integer", "default": 2}
+            "format": {
+              "type": "string",
+              "default": "jpg"
+            },
+            "size": {
+              "type": "string",
+              "default": "320x240"
+            },
+            "quality": {
+              "type": "integer",
+              "default": 2
+            }
           }
         }
       }
@@ -143,7 +200,14 @@
       "properties": {
         "log_level": {
           "type": "string",
-          "enum": ["quiet", "error", "warning", "info", "verbose", "debug"],
+          "enum": [
+            "quiet",
+            "error",
+            "warning",
+            "info",
+            "verbose",
+            "debug"
+          ],
           "default": "info"
         },
         "enable_progress": {
@@ -160,5 +224,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/ffmpeg/schema.json"
 }

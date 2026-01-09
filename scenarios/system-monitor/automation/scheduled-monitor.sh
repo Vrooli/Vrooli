@@ -3,7 +3,9 @@
 # This script demonstrates automated monitoring and reporting integration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_BASE_URL="${API_BASE_URL:-http://localhost:8080}"
+API_HOST="${API_HOST:-127.0.0.1}"
+API_PORT="${API_PORT:-8080}"
+API_BASE_URL="${API_BASE_URL:-http://${API_HOST}:${API_PORT}}"
 LOG_FILE="/tmp/system-monitor-automation.log"
 
 # Logging function
@@ -27,7 +29,7 @@ check_health() {
 # Get current metrics
 get_metrics() {
     log "Fetching current metrics..."
-    METRICS=$(curl -s "$API_BASE_URL/api/metrics/current")
+    METRICS=$(curl -s "$API_BASE_URL/api/v1/metrics/current")
     if [ $? -eq 0 ]; then
         CPU=$(echo "$METRICS" | grep -o '"cpu_usage":[0-9.]*' | cut -d':' -f2)
         MEMORY=$(echo "$METRICS" | grep -o '"memory_usage":[0-9.]*' | cut -d':' -f2)
@@ -58,7 +60,7 @@ trigger_investigation() {
     local reason="$1"
     log "🔍 Triggering investigation: $reason"
     
-    RESULT=$(curl -s -X POST "$API_BASE_URL/api/investigations/trigger" -H "Content-Type: application/json")
+    RESULT=$(curl -s -X POST "$API_BASE_URL/api/v1/investigations/trigger" -H "Content-Type: application/json")
     INVESTIGATION_ID=$(echo "$RESULT" | grep -o '"investigation_id":"[^"]*"' | cut -d'"' -f4)
     
     if [ -n "$INVESTIGATION_ID" ]; then
@@ -76,7 +78,7 @@ monitor_investigation() {
     
     for i in {1..30}; do
         sleep 2
-        STATUS=$(curl -s "$API_BASE_URL/api/investigations/latest" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+        STATUS=$(curl -s "$API_BASE_URL/api/v1/investigations/latest" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
         
         case "$STATUS" in
             "completed")
@@ -100,7 +102,7 @@ monitor_investigation() {
 # Generate daily report
 generate_report() {
     log "📄 Generating daily report..."
-    RESULT=$(curl -s -X POST "$API_BASE_URL/api/reports/generate" -H "Content-Type: application/json" -d '{"type":"daily"}')
+    RESULT=$(curl -s -X POST "$API_BASE_URL/api/v1/reports/generate" -H "Content-Type: application/json" -d '{"type":"daily"}')
     REPORT_ID=$(echo "$RESULT" | grep -o '"report_id":"[^"]*"' | cut -d'"' -f4)
     
     if [ -n "$REPORT_ID" ]; then

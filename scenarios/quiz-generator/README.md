@@ -33,7 +33,7 @@ quiz-generator/
 ├── cli/              # Command-line interface
 ├── ui/               # React/Vite/TypeScript web interface
 ├── initialization/   # Resource setup and workflows
-│   ├── automation/   # n8n workflows
+│   ├── automation/   # Internal automation modules
 │   └── storage/      # Database schemas
 ├── docs/             # Documentation
 └── tests/            # Test suites
@@ -43,7 +43,7 @@ quiz-generator/
 
 ### Prerequisites
 - Vrooli CLI installed
-- PostgreSQL, n8n, and Ollama resources available
+- PostgreSQL and Ollama resources available (automation handled by the scenario API)
 - Node.js 18+ and Go 1.21+
 
 ### Installation
@@ -244,8 +244,8 @@ This scenario is designed to be extended. Key areas for contribution:
 ```bash
 # Check Ollama is running
 resource-ollama status
-# Check n8n workflow is active
-resource-n8n list-workflows
+# Check automation endpoint
+curl http://localhost:3250/api/v1/quiz/health
 ```
 
 **Database connection errors**

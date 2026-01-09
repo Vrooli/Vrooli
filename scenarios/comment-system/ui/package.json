@@ -4,10 +4,10 @@
   "description": "Admin dashboard and SDK for Vrooli Comment System",
   "main": "index.js",
   "scripts": {
-    "dev": "http-server . -p ${UI_PORT:-3100} --cors",
+    "dev": "npm run build && http-server dist -p ${UI_PORT:-3100} --cors",
     "build": "npm run build-sdk && npm run build-dashboard",
-    "build-sdk": "rollup -c rollup.config.js",
-    "build-dashboard": "echo 'Dashboard build complete'",
+    "build-sdk": "node -e \"console.log('SDK already prebuilt; skipping rollup bundle')\"",
+    "build-dashboard": "bash -c 'rm -rf dist && mkdir -p dist/vendor && cp -R src/* dist/ && cp -R sdk dist/ && cp node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js dist/vendor/iframeBridgeChild.js'",
     "test": "jest",
     "lint": "eslint .",
     "start": "npm run dev"

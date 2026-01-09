@@ -40,27 +40,83 @@ browserless::export_config() {
         readonly BROWSERLESS_DATA_DIR
         export BROWSERLESS_DATA_DIR
     fi
+    # Pin to stable v1 line to avoid known Chrome process leaks in v2.x
+    # Context: browserless v2.38.x leaves orphan Chrome processes (similar to upstream issue #1479: https://github.com/browserless/browserless/issues/1479).
+    # Until v2 publishes a leak fix, prefer the 1.61.1 “chrome-stable” tag.
     if [[ -z "${BROWSERLESS_IMAGE:-}" ]]; then
-        BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:latest"
+        BROWSERLESS_IMAGE="browserless/chrome:1.61.1-chrome-stable"
         readonly BROWSERLESS_IMAGE
         export BROWSERLESS_IMAGE
     fi
 
     # Browser configuration (only set if not already defined)
     if [[ -z "${BROWSERLESS_MAX_BROWSERS:-}" ]]; then
-        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-5}"
+        # Keep default concurrency low for CI/local to reduce Chrome launch pressure
+        BROWSERLESS_MAX_BROWSERS="${MAX_BROWSERS:-1}"
         readonly BROWSERLESS_MAX_BROWSERS
         export BROWSERLESS_MAX_BROWSERS
     fi
+    if [[ -z "${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-}" ]]; then
+        BROWSERLESS_MAX_CONCURRENT_SESSIONS="${BROWSERLESS_MAX_BROWSERS}"
+        readonly BROWSERLESS_MAX_CONCURRENT_SESSIONS
+        export BROWSERLESS_MAX_CONCURRENT_SESSIONS
+    fi
+    if [[ -z "${BROWSERLESS_MAX_QUEUE_LENGTH:-}" ]]; then
+        BROWSERLESS_MAX_QUEUE_LENGTH="${MAX_QUEUE_LENGTH:-10}"
+        readonly BROWSERLESS_MAX_QUEUE_LENGTH
+        export BROWSERLESS_MAX_QUEUE_LENGTH
+    fi
+    if [[ -z "${BROWSERLESS_CONNECTION_TIMEOUT:-}" ]]; then
+        BROWSERLESS_CONNECTION_TIMEOUT=20000
+        readonly BROWSERLESS_CONNECTION_TIMEOUT
+        export BROWSERLESS_CONNECTION_TIMEOUT
+    fi
     if [[ -z "${BROWSERLESS_TIMEOUT:-}" ]]; then
-        BROWSERLESS_TIMEOUT="${TIMEOUT:-30000}"
+        BROWSERLESS_TIMEOUT="${TIMEOUT:-60000}"
         readonly BROWSERLESS_TIMEOUT
         export BROWSERLESS_TIMEOUT
+    fi
+    if [[ -z "${BROWSERLESS_WORKER_TIMEOUT:-}" ]]; then
+        BROWSERLESS_WORKER_TIMEOUT=120000
+        readonly BROWSERLESS_WORKER_TIMEOUT
+        export BROWSERLESS_WORKER_TIMEOUT
+    fi
+    if [[ -z "${BROWSERLESS_SOCKET_CLOSE_TIMEOUT:-}" ]]; then
+        BROWSERLESS_SOCKET_CLOSE_TIMEOUT=5000
+        readonly BROWSERLESS_SOCKET_CLOSE_TIMEOUT
+        export BROWSERLESS_SOCKET_CLOSE_TIMEOUT
+    fi
+    if [[ -z "${BROWSERLESS_ENABLE_PREWARM:-}" ]]; then
+        # Disable prewarm to lower idle resource usage; enable explicitly if needed
+        BROWSERLESS_ENABLE_PREWARM="false"
+        readonly BROWSERLESS_ENABLE_PREWARM
+        export BROWSERLESS_ENABLE_PREWARM
+    fi
+    if [[ -z "${BROWSERLESS_PREWARM_COUNT:-}" ]]; then
+        BROWSERLESS_PREWARM_COUNT="0"
+        readonly BROWSERLESS_PREWARM_COUNT
+        export BROWSERLESS_PREWARM_COUNT
+    fi
+    if [[ -z "${BROWSERLESS_DEFAULT_LAUNCH_ARGS:-}" ]]; then
+        # Harden Chrome startup in headless Docker (DBus-less, lower resource churn)
+        BROWSERLESS_DEFAULT_LAUNCH_ARGS="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-dev-tools --disable-features=TranslateUI --disable-extensions --disable-background-networking --no-first-run --mute-audio"
+        readonly BROWSERLESS_DEFAULT_LAUNCH_ARGS
+        export BROWSERLESS_DEFAULT_LAUNCH_ARGS
     fi
     if [[ -z "${BROWSERLESS_HEADLESS:-}" ]]; then
         BROWSERLESS_HEADLESS="${HEADLESS:-yes}"
         readonly BROWSERLESS_HEADLESS
         export BROWSERLESS_HEADLESS
+    fi
+    if [[ -z "${BROWSERLESS_BENCHMARK_ITERATIONS:-}" ]]; then
+        BROWSERLESS_BENCHMARK_ITERATIONS=3
+        readonly BROWSERLESS_BENCHMARK_ITERATIONS
+        export BROWSERLESS_BENCHMARK_ITERATIONS
+    fi
+    if [[ -z "${BROWSERLESS_BENCHMARK_TIMEOUT:-}" ]]; then
+        BROWSERLESS_BENCHMARK_TIMEOUT=45
+        readonly BROWSERLESS_BENCHMARK_TIMEOUT
+        export BROWSERLESS_BENCHMARK_TIMEOUT
     fi
 
     # Network configuration (only set if not already defined)
@@ -114,6 +170,23 @@ browserless::export_config() {
         BROWSERLESS_DOCKER_SHM_SIZE="2gb"
         readonly BROWSERLESS_DOCKER_SHM_SIZE
         export BROWSERLESS_DOCKER_SHM_SIZE
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_MEMORY:-}" ]]; then
+        # Increased from 4g to 6g to handle concurrent test execution
+        # With 8 max browsers at ~500MB each, 6g provides headroom for Chrome overhead
+        BROWSERLESS_DOCKER_MEMORY="6g"
+        readonly BROWSERLESS_DOCKER_MEMORY
+        export BROWSERLESS_DOCKER_MEMORY
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_CPUS:-}" ]]; then
+        BROWSERLESS_DOCKER_CPUS="4"
+        readonly BROWSERLESS_DOCKER_CPUS
+        export BROWSERLESS_DOCKER_CPUS
+    fi
+    if [[ -z "${BROWSERLESS_DOCKER_PIDS_LIMIT:-}" ]]; then
+        BROWSERLESS_DOCKER_PIDS_LIMIT="8192"
+        readonly BROWSERLESS_DOCKER_PIDS_LIMIT
+        export BROWSERLESS_DOCKER_PIDS_LIMIT
     fi
     if [[ -z "${BROWSERLESS_DOCKER_CAPS:-}" ]]; then
         BROWSERLESS_DOCKER_CAPS="SYS_ADMIN"

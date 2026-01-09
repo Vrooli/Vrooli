@@ -1,0 +1,61 @@
+{
+  "description": "Active sandbox count, total disk usage, per-sandbox size distribution, create latency, cleanup success rates",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "performance",
+      "description": "Collect and expose metrics for sandbox count, disk usage, size distribution, operation latencies, and success rates. Support standard monitoring integrations.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "complete",
+      "title": "Sandbox Metrics Collection",
+      "validation": [
+        {
+          "notes": "Test metric collection for counters (created, stopped, approved, rejected, deleted, errors, gc runs)",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Counters",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Test gauge metrics (active sandboxes, disk usage, process count)",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Gauges",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Test latency tracking for create and diff operations",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Latencies",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Verify Prometheus format export with correct metric types and help text",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_ExportPrometheus",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Test latency ring buffer handles overflow correctly",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_LatencyRingBuffer",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Default collector singleton is available and functional",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestDefault",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Metrics/Observability"
+}

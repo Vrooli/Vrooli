@@ -560,27 +560,29 @@ discovery:
 
 ### Declarative Test Specification
 ```yaml
-version: 1.0
-scenario: email-outreach-manager
+test_runner:
+  command: ./test/run-tests.sh
+  phases:
+    - structure
+    - dependencies
+    - unit
+    - integration
+    - business (placeholder)
+    - performance (placeholder)
 
 structure:
   required_files:
     - .vrooli/service.json
+    - README.md
     - PRD.md
     - api/main.go
     - api/go.mod
-    - cli/email-outreach-manager
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
-    - ui/index.html
-    
+    - test/run-tests.sh
+    - test/phases/test-unit.sh
   required_dirs:
     - api
-    - cli
-    - initialization
-    - initialization/storage
-    - ui
+    - test
+    - test/phases
 
 resources:
   required: [postgres, ollama, mail-in-a-box]
@@ -609,19 +611,12 @@ tests:
       body:
         template_id: "*"
 
-  - name: "CLI status command works"
-    type: exec
-    command: ./cli/email-outreach-manager status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy"]
-
   - name: "Database schema is initialized"
     type: sql
     service: postgres
     query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('campaigns', 'templates', 'email_recipients')"
     expect:
-      rows: 
+      rows:
         - count: 3
 ```
 

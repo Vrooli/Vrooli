@@ -1,7 +1,6 @@
 package summarizer
 
 import (
-	"bufio"
 	"context"
 	_ "embed"
 	"errors"
@@ -142,6 +141,8 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 		return Result{}, fmt.Errorf("failed to ensure OpenRouter prompt directory: %w", err)
 	}
 
+	// Note: RecyclerPromptPrefix is defined in queue package but we don't import it
+	// to avoid circular dependency. Using direct constant here.
 	promptID := fmt.Sprintf("ecosystem-recycler-%d", time.Now().UnixNano())
 	promptFile := filepath.Join(promptDir, promptID+".txt")
 	if err := os.WriteFile(promptFile, []byte(prompt), 0o600); err != nil {
@@ -165,101 +166,77 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 }
 
 func parseResult(raw string) (Result, error) {
-	scanner := bufio.NewScanner(strings.NewReader(raw))
-	scanner.Split(bufio.ScanLines)
-
-	var firstLine string
-	for scanner.Scan() {
-		candidate := strings.TrimSpace(scanner.Text())
-		if candidate == "" {
-			continue
-		}
-		firstLine = candidate
-		break
-	}
-
-	if firstLine == "" {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
 		return Result{}, errors.New("summarizer returned empty output")
 	}
-	if !strings.HasPrefix(strings.ToLower(firstLine), "classification:") {
-		return Result{}, fmt.Errorf("unexpected summarizer format: %s", firstLine)
+
+	lower := strings.ToLower(trimmed)
+	if !strings.HasPrefix(lower, "classification:") {
+		return Result{}, errors.New("missing classification prefix")
 	}
 
-	classification := strings.TrimSpace(firstLine[len("classification:"):])
-	classification = strings.ToLower(classification)
-	switch classification {
-	case classificationFull, classificationSignificant, classificationSome, classificationUncertain:
-	case "partial_progress":
-		classification = classificationSome
-	default:
-		classification = classificationUncertain
+	lines := strings.SplitN(trimmed, "\n", 2)
+	parts := strings.SplitN(lines[0], ":", 2)
+	if len(parts) != 2 {
+		return Result{}, errors.New("invalid classification line")
 	}
 
-	noteStarted := false
-	var builder strings.Builder
+	classification := normalizeClassification(strings.TrimSpace(strings.ToLower(parts[1])))
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if !noteStarted {
-			if trimmed == "" {
-				continue
-			}
-			if strings.EqualFold(trimmed, "note:") {
-				noteStarted = true
-				continue
-			}
-
-			// No explicit note header; treat this line as the start of the note content.
-			noteStarted = true
-			builder.WriteString(line)
-			builder.WriteRune('\n')
-			continue
-		}
-
-		builder.WriteString(line)
-		builder.WriteRune('\n')
+	remainder := ""
+	if len(lines) > 1 {
+		remainder = lines[1]
 	}
-
-	if !noteStarted {
-		return Result{}, errors.New("summarizer note content missing")
-	}
-
-	note := strings.TrimSpace(builder.String())
+	note := strings.TrimSpace(stripNotePrefix(remainder))
 	if note == "" {
-		note = "Not sure current status"
-		classification = classificationUncertain
+		return Result{
+			Note:           "Not sure current status",
+			Classification: classificationUncertain,
+		}, nil
 	}
 
-	return Result{Note: decorateNote(classification, note), Classification: classification}, nil
+	return Result{
+		Note:           decorateNote(classification, note),
+		Classification: classification,
+	}, nil
+}
+
+func normalizeClassification(raw string) string {
+	switch raw {
+	case classificationFull:
+		return classificationFull
+	case classificationSignificant:
+		return classificationSignificant
+	case classificationSome, "partial_progress":
+		return classificationSome
+	case classificationUncertain, "":
+		return classificationUncertain
+	default:
+		return classificationUncertain
+	}
+}
+
+func stripNotePrefix(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "note:") {
+		return strings.TrimSpace(trimmed[len("note:"):])
+	}
+	return trimmed
 }
 
 func decorateNote(classification, note string) string {
-	trimmed := strings.TrimSpace(note)
-	var lead string
 	switch classification {
 	case classificationFull:
-		lead = "Likely complete, but may benefit from additional validation/tidying. Notes from last time:"
+		return "Likely complete, but may benefit from additional validation/tidying. Notes from last time:\n\n" + note
 	case classificationSignificant:
-		lead = "Already pretty good, but could use some additional validation/tidying. Notes from last time:"
+		return "Already pretty good, but could use some additional validation/tidying. Notes from last time:\n\n" + note
 	case classificationSome:
-		lead = "Notes from last time:"
-	case classificationUncertain:
-		lead = "Not sure current status"
+		return "Notes from last time:\n\n" + note
 	default:
-		lead = "Notes from last time:"
+		return note
 	}
-
-	if trimmed == "" {
-		return lead
-	}
-
-	if strings.HasPrefix(trimmed, lead) {
-		return trimmed
-	}
-
-	return lead + "\n\n" + trimmed
 }
 
 func resolveVrooliRoot() string {
@@ -287,7 +264,7 @@ func resolveVrooliRoot() string {
 // DefaultResult returns a safe fallback result when summarization cannot be performed.
 func DefaultResult() Result {
 	return Result{
-		Note:           "Not sure current status",
+		Note:           "Unable to generate summary - no execution output was captured",
 		Classification: classificationUncertain,
 	}
 }

@@ -79,6 +79,15 @@ knowledge-observatory status
 # Semantic search
 knowledge-observatory search "How do scenarios work?"
 
+# Ingest knowledge (canonical write path)
+knowledge-observatory ingest --namespace ecosystem-manager --content "Scenarios are reusable capabilities composed from resources."
+
+# Enqueue a full document ingest job (async, chunked)
+knowledge-observatory ingest-job --namespace ecosystem-manager --content "$(cat README.md)" --chunk-size 1200 --chunk-overlap 150
+
+# Check async ingest job status
+knowledge-observatory job-status <job_id>
+
 # View knowledge graph
 knowledge-observatory graph --center "ecosystem-manager"
 
@@ -88,6 +97,12 @@ knowledge-observatory metrics --collection vrooli_knowledge
 # Watch health in real-time
 knowledge-observatory health --watch
 ```
+
+Notes:
+- `search` and `ingest` are implemented and call the Knowledge Observatory API.
+- `ingest-job` and `job-status` are implemented for async chunked ingestion.
+- `graph`, `metrics`, and `health` are implemented and call the Knowledge Observatory API.
+- `health --watch` is supported for live polling output.
 
 ### API Endpoints
 The API is accessible on a dynamically allocated port. Check with `vrooli scenario status knowledge-observatory`.

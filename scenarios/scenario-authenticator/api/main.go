@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,22 +15,17 @@ import (
 	apimiddleware "scenario-authenticator/middleware"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrooli/api-core/health"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
 func main() {
-	// Enforce lifecycle management - prevent direct execution
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start scenario-authenticator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "scenario-authenticator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Change to project root directory for consistent file operations
@@ -85,7 +81,7 @@ func main() {
 	}))
 
 	// Health check
-	router.Get("/health", handlers.HealthHandler)
+	router.Get("/health", health.Handler())
 
 	// Authentication endpoints
 	router.Post("/api/v1/auth/register", handlers.RegisterHandler)
@@ -229,3 +225,4 @@ func verifyRepoRoot(candidate string) string {
 
 	return ""
 }
+// Test change

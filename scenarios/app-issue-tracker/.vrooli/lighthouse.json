@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Lighthouse testing configuration for app-issue-tracker - issue tracking and management UI",
+    "last_updated": "2025-11-06T04:32:00Z",
+    "owner": "app-issue-tracker team"
+  },
+  "enabled": true,
+  "pages": [
+    {
+      "id": "issues-list",
+      "path": "/",
+      "label": "Issues List",
+      "viewport": "desktop",
+      "waitForSelector": "[data-testid='issues-table']",
+      "waitForMs": 1000,
+      "thresholds": {
+        "performance": {
+          "error": 0.75,
+          "warn": 0.85
+        },
+        "accessibility": {
+          "error": 0.9,
+          "warn": 0.95
+        },
+        "best-practices": {
+          "error": 0.85,
+          "warn": 0.9
+        }
+      },
+      "requirements": ["APPISSUE-PERF-LIST-LOAD", "APPISSUE-A11Y-LIST"]
+    },
+    {
+      "id": "mobile-issues",
+      "path": "/",
+      "label": "Issues List (Mobile)",
+      "viewport": "mobile",
+      "waitForSelector": "[data-testid='issues-table']",
+      "waitForMs": 1000,
+      "thresholds": {
+        "performance": {
+          "error": 0.70,
+          "warn": 0.80
+        },
+        "accessibility": {
+          "error": 0.9,
+          "warn": 0.95
+        }
+      },
+      "requirements": ["APPISSUE-PERF-MOBILE"],
+      "notes": "Mobile viewport with adjusted threshold for responsive table"
+    }
+  ],
+  "global_options": {
+    "lighthouse": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
+      }
+    },
+    "chrome_flags": [
+      "--headless",
+      "--no-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage"
+    ],
+    "timeout_ms": 60000,
+    "retries": 2
+  },
+  "reporting": {
+    "output_dir": "test/artifacts/lighthouse",
+    "formats": ["json", "html"],
+    "keep_reports": 10,
+    "fail_on_error": true,
+    "fail_on_warn": false
+  }
+}

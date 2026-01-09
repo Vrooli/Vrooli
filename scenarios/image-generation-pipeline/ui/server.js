@@ -30,7 +30,15 @@ class ImageGenerationUIServer {
     constructor() {
         this.port = process.env.UI_PORT || 31350;
         this.apiPort = process.env.API_PORT || 24000;
-        this.staticDir = __dirname;
+        const distDir = path.join(__dirname, 'dist');
+        const srcDir = path.join(__dirname, 'src');
+        if (fs.existsSync(distDir)) {
+            this.staticDir = distDir;
+        } else if (fs.existsSync(srcDir)) {
+            this.staticDir = srcDir;
+        } else {
+            this.staticDir = __dirname;
+        }
         this.mimeTypes = {
             '.html': 'text/html',
             '.css': 'text/css',

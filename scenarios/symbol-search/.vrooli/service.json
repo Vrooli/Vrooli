@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "symbol-search",
@@ -17,7 +17,28 @@
       "performance-optimized",
       "cross-scenario-utility",
       "character-database"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/symbol-search"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -25,28 +46,10 @@
       "description": "Symbol search API server port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Symbol search UI server port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Unicode character database with efficient indexing for search performance",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql", 
-          "type": "seed"
-        }
-      ]
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Symbol search UI server port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -54,7 +57,8 @@
     "health": {
       "description": "Symbol search service health monitoring",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -64,6 +68,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -74,16 +86,24 @@
       "description": "Initialize Symbol Search scenario",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "symbol-search-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["symbol-search"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/symbol-search-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "symbol-search",
+            "targets": [
+              "symbol-search"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -98,22 +118,36 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o symbol-search-api .",
-          "description": "Build Go API server binary"
+          "description": "Build Go API server binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Symbol Search initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: symbol-search --help\\n\\nSearch endpoints:\\n  GET /api/search?q=heart&category=symbols\\n  GET /api/categories\\n  GET /api/character/{codepoint}'",
+          "run": "echo '\ud83d\udd0d Symbol Search initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: symbol-search --help\\n\\nSearch endpoints:\\n  GET /api/search?q=heart&category=symbols\\n  GET /api/categories\\n  GET /api/character/{codepoint}'",
           "description": "Display service access URLs and usage"
         }
       ]
@@ -121,69 +155,38 @@
     "develop": {
       "description": "Start symbol search with API and UI servers",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./symbol-search-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/symbol-search-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "name": "start-api",
+          "run": "cd api && ./symbol-search-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/symbol-search-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🔍 Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
-           "description": "Display running service URLs"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\udd0d Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
+          "description": "Display running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test symbol search API, CLI, and performance",
+      "description": "Comprehensive phased testing for symbol-search",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "curl -sf \"http://localhost:$API_PORT/api/search?q=heart\"",
-          "description": "Test search functionality"
-        },
-        {
-          "name": "test-categories-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/categories",
-          "description": "Test categories endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats symbol-search.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/symbol-search.bats"
-          }
-        },
-        {
-          "name": "test-performance",
-          "run": "bash test/performance-test.sh",
-          "description": "Run performance tests for large datasets"
+          "name": "run-phased-tests",
+          "run": "test-genie execute symbol-search --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -201,6 +204,26 @@
           "description": "Stop UI development server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Unicode character database with efficient indexing for search performance",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      }
     }
   }
 }

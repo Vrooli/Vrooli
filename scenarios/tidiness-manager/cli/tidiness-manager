@@ -1,0 +1,1114 @@
+#!/bin/bash
+# tidiness-manager - Command-line interface for Tidiness Manager
+
+set -euo pipefail
+
+readonly CLI_NAME="tidiness-manager"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly SCENARIO_ID="tidiness-manager"
+readonly DEFAULT_TOKEN=""
+CONFIG_API_BASE=""
+API_BASE=""
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<JSON
+{
+  "api_base": "",
+  "api_token": "$DEFAULT_TOKEN",
+  "output_format": "json",
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+JSON
+        echo -e "${GREEN}✓${NC} Configuration created at $CONFIG_FILE"
+    fi
+}
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+    else
+        CONFIG_API_BASE=""
+        API_TOKEN=""
+    fi
+}
+
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
+    fi
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
+    fi
+
+    # Use scenario-specific env var to avoid conflicts with other scenarios
+    local scenario_api_port="${TIDINESS_MANAGER_API_PORT:-}"
+    if [[ -n "$scenario_api_port" ]]; then
+        echo "http://${API_HOST:-localhost}:${scenario_api_port}/api/v1"
+        return 0
+    fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
+}
+
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local url="${API_BASE}${endpoint}"
+
+    if [[ -z "$API_BASE" ]]; then
+        echo -e "${RED}✗${NC} API base URL is not configured. Start the scenario via 'vrooli scenario run tidiness-manager' or run '$CLI_NAME configure api_base <url>'." >&2
+        return 1
+    fi
+
+    local headers=(-H 'Content-Type: application/json')
+    if [[ -n "${API_TOKEN:-}" ]]; then
+        headers+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+
+    curl -s -X "$method" "${headers[@]}" "$url"
+}
+
+cmd_status() {
+    echo -e "${BLUE}Checking system health...${NC}"
+    response=$(api_request GET "/health" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API is not reachable"
+        return 1
+    fi
+
+    status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+    if [[ "$status" == "healthy" ]]; then
+        echo -e "${GREEN}✓${NC} Service is healthy"
+    else
+        echo -e "${YELLOW}⚠${NC} Service status: $status"
+    fi
+
+    echo "$response" | jq -r '
+        "  Service: \(.service // "unknown")",
+        "  Version: \(.version // "unknown")",
+        "  Database: \(.dependencies.database // "unknown")"
+    ' 2>/dev/null || true
+}
+
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [[ -z "$key" ]]; then
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
+    fi
+
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API base set to: $value"
+            CONFIG_API_BASE="$value"
+            ;;
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API token updated"
+            API_TOKEN="$value"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown configuration key: $key"
+            echo "Valid keys: api_base, api_token"
+            return 1
+            ;;
+    esac
+}
+
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    if [[ -n "$API_BASE" ]]; then
+        echo "API endpoint: $API_BASE"
+    else
+        echo "API endpoint: (auto-detect when scenario is running)"
+    fi
+}
+
+cmd_scan() {
+    local scenario_path="."
+    local timeout_sec="120"
+
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario-path)
+                scenario_path="$2"
+                shift 2
+                ;;
+            --timeout)
+                timeout_sec="$2"
+                shift 2
+                ;;
+            *)
+                # Support positional arguments for backwards compatibility
+                if [[ "$scenario_path" == "." ]]; then
+                    scenario_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    local abs_path=""
+    # First, try treating the argument as a direct path
+    if [[ -d "$scenario_path" ]]; then
+        abs_path=$(cd "$scenario_path" && pwd 2>/dev/null) || abs_path=""
+    fi
+
+    # If not a valid path, try resolving as a scenario name
+    if [[ -z "$abs_path" ]]; then
+        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        local scenario_dir="$vrooli_root/scenarios/$scenario_path"
+        if [[ -d "$scenario_dir" ]]; then
+            abs_path=$(cd "$scenario_dir" && pwd 2>/dev/null)
+            echo -e "${BLUE}Resolved scenario '$scenario_path' to $abs_path${NC}"
+        fi
+    fi
+
+    if [[ -z "$abs_path" ]]; then
+        echo -e "${RED}✗${NC} Invalid scenario path or name: $scenario_path"
+        echo "Provide either:"
+        echo "  • A valid directory path (e.g., /home/user/Vrooli/scenarios/my-scenario)"
+        echo "  • A scenario name (e.g., my-scenario) - resolves to \$VROOLI_ROOT/scenarios/<name>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Running light scan on $abs_path...${NC}"
+
+    local request_body
+    request_body=$(jq -n --arg path "$abs_path" --argjson timeout "$timeout_sec" \
+        '{scenario_path: $path, timeout_sec: $timeout}')
+
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${API_TOKEN:-}" \
+        -d "$request_body" \
+        "${API_BASE}/scan/light" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed"
+        return 1
+    fi
+
+    # Check for error
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Scan failed: $error"
+        return 1
+    fi
+
+    # Display results
+    echo -e "${GREEN}✓${NC} Scan complete"
+    echo "$response" | jq -r '
+        "  Scenario: \(.scenario // "unknown")",
+        "  Duration: \(.duration_ms // 0)ms",
+        "",
+        "📊 Results:",
+        "  Lint issues: \(.lint_issues // 0)",
+        "  Type issues: \(.type_issues // 0)",
+        "  Long files: \(.long_files_count // (.long_files | length) // 0)",
+        "  Total files scanned: \(.total_files // 0)"
+    ' 2>/dev/null || echo "$response"
+}
+
+cmd_issues() {
+    local scenario="tidiness-manager"
+    local category="all"
+    local severity="all"
+    local limit="50"
+
+    # Support --scenario flag for better CLI UX
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --severity)
+                severity="$2"
+                shift 2
+                ;;
+            --*)
+                echo -e "${YELLOW}⚠${NC} Unknown option: $1" >&2
+                shift
+                ;;
+            *)
+                # First positional arg is scenario
+                if [[ "$scenario" == "tidiness-manager" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${BLUE}Fetching tidiness issues for $scenario...${NC}"
+
+    # Build query parameters
+    local query="?scenario=$scenario&limit=$limit"
+    if [[ "$category" != "all" ]]; then
+        query="${query}&category=$category"
+    fi
+    if [[ "$severity" != "all" ]]; then
+        query="${query}&severity=$severity"
+    fi
+
+    response=$(api_request GET "/agent/issues${query}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed"
+        return 1
+    fi
+
+    # Check for error
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch issues: $error"
+        return 1
+    fi
+
+    # Check if response is an empty array (no issues)
+    local issue_count
+    issue_count=$(echo "$response" | jq 'if type == "array" then length else .count // 0 end' 2>/dev/null || echo "0")
+
+    if [[ "$issue_count" == "0" ]]; then
+        echo -e "${GREEN}✓${NC} Issues retrieved"
+
+        # Check if the scenario exists/has been scanned
+        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        local scenario_dir="$vrooli_root/scenarios/$scenario"
+
+        if [[ ! -d "$scenario_dir" ]]; then
+            echo -e "${YELLOW}⚠${NC} No issues found for '$scenario'"
+            echo "  Note: Scenario directory not found at $scenario_dir"
+            echo "  This scenario may not exist or may use a different name."
+        else
+            echo -e "${YELLOW}⚠${NC} No issues found for '$scenario'"
+            echo "  Possible reasons:"
+            echo "    • No scans have been run yet - try: tidiness-manager scan $scenario"
+            echo "    • All issues have been resolved"
+            echo "    • Category filter excludes all issues"
+        fi
+        return 0
+    fi
+
+    # Display results
+    echo -e "${GREEN}✓${NC} Issues retrieved"
+    echo "$response" | jq -r '
+        if type == "array" then
+            .
+        elif .issues then
+            "Total issues: \(.count)",
+            "",
+            (if .count > 0 then .issues[] | "  • [\(.severity)] \(.file_path):\(.line_number // "?"): \(.title)" else "  No issues found" end)
+        else
+            .
+        end
+    ' 2>/dev/null || echo "$response"
+
+    # Check for staleness (issues might be outdated)
+    local staleness_response
+    staleness_response=$(api_request GET "/agent/staleness?scenario=$scenario" 2>/dev/null || true)
+    if [[ -n "$staleness_response" ]]; then
+        local is_stale
+        is_stale=$(echo "$staleness_response" | jq -r '.is_stale // false' 2>/dev/null || echo "false")
+        if [[ "$is_stale" == "true" ]]; then
+            local stale_reason rescan_cmd modified_files
+            stale_reason=$(echo "$staleness_response" | jq -r '.stale_reason // "unknown"' 2>/dev/null)
+            rescan_cmd=$(echo "$staleness_response" | jq -r '.rescan_command // ""' 2>/dev/null)
+            modified_files=$(echo "$staleness_response" | jq -r '.modified_files // 0' 2>/dev/null)
+
+            echo ""
+            echo -e "${YELLOW}⚠ Stale data warning:${NC} $stale_reason"
+            if [[ -n "$rescan_cmd" ]]; then
+                echo -e "  Run ${CYAN}$rescan_cmd${NC} to refresh issue data"
+            fi
+        fi
+    fi
+}
+
+cmd_campaigns() {
+    local subcommand="${1:-list}"
+    shift || true
+
+    local scenario=""
+    local max_sessions="10"
+    local max_files_per_session="5"
+    local campaign_id=""
+
+    # Parse remaining arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --max-sessions)
+                max_sessions="$2"
+                shift 2
+                ;;
+            --max-files|--max-files-per-session)
+                max_files_per_session="$2"
+                shift 2
+                ;;
+            --id)
+                campaign_id="$2"
+                shift 2
+                ;;
+            *)
+                # First positional arg is scenario name
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${BLUE}Managing campaigns...${NC}"
+
+    case "$subcommand" in
+        list)
+            response=$(api_request GET "/campaigns" || true)
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaigns retrieved"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        start)
+            if [[ -z "$scenario" ]]; then
+                echo -e "${RED}✗${NC} Scenario name required for start"
+                echo "Usage: tidiness-manager campaigns start <scenario> [--max-sessions N] [--max-files N]"
+                return 1
+            fi
+
+            # POST /campaigns with scenario, max_sessions, max_files_per_session
+            local request_body
+            request_body=$(jq -cn \
+                --arg scenario "$scenario" \
+                --argjson max_sessions "$max_sessions" \
+                --argjson max_files_per_session "$max_files_per_session" \
+                '{scenario: $scenario, max_sessions: $max_sessions, max_files_per_session: $max_files_per_session}')
+
+            response=$(curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${API_TOKEN:-}" \
+                -d "$request_body" \
+                "${API_BASE}/campaigns" || true)
+
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+            if [[ -n "$error" ]]; then
+                echo -e "${RED}✗${NC} Failed to start campaign: $error"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaign started successfully"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        pause|stop|resume)
+            # For pause/stop/resume, we need a campaign ID
+            # Try to find campaign by scenario if no ID provided
+            if [[ -z "$campaign_id" && -n "$scenario" ]]; then
+                # Check if the argument looks like a numeric ID
+                if [[ "$scenario" =~ ^[0-9]+$ ]]; then
+                    # User provided what looks like a campaign ID as positional arg
+                    campaign_id="$scenario"
+                    scenario=""
+                else
+                    # Look up campaign ID by scenario name using temp file (avoids pipe buffering issues)
+                    local tmpfile
+                    tmpfile=$(mktemp)
+                    curl -s "${API_BASE}/campaigns" > "$tmpfile" 2>/dev/null
+
+                    # Find campaign for this scenario (paused for resume, active for others)
+                    local status_filter="active"
+                    if [[ "$subcommand" == "resume" ]]; then
+                        status_filter="paused"
+                    fi
+
+                    campaign_id=$(jq -r --arg scenario "$scenario" --arg status "$status_filter" \
+                        '[.campaigns[]? | select(.scenario == $scenario and .status == $status)] | first | .id // empty' "$tmpfile" 2>/dev/null)
+
+                    if [[ -z "$campaign_id" ]]; then
+                        # Provide helpful error with available campaigns for this scenario
+                        local available
+                        available=$(jq -r --arg scenario "$scenario" \
+                            '[.campaigns[]? | select(.scenario == $scenario)] | map("\(.id) (\(.status))") | join(", ")' "$tmpfile" 2>/dev/null)
+                        rm -f "$tmpfile"
+
+                        echo -e "${RED}✗${NC} No ${status_filter} campaign found for scenario: $scenario"
+                        if [[ -n "$available" && "$available" != "" ]]; then
+                            echo "  Available campaigns for '$scenario': $available"
+                            echo "  Use --id to specify a specific campaign"
+                        else
+                            echo "  No campaigns exist for this scenario."
+                            echo "  Start a new campaign: tidiness-manager campaigns start $scenario"
+                        fi
+                        return 1
+                    fi
+                    rm -f "$tmpfile"
+                fi
+            fi
+
+            if [[ -z "$campaign_id" ]]; then
+                echo -e "${RED}✗${NC} Scenario name or campaign ID required for $subcommand"
+                echo "Usage:"
+                echo "  tidiness-manager campaigns $subcommand <scenario-name>"
+                echo "  tidiness-manager campaigns $subcommand --id <campaign-id>"
+                return 1
+            fi
+
+            # Map 'stop' to 'terminate' for API compatibility
+            local action="$subcommand"
+            if [[ "$subcommand" == "stop" ]]; then
+                action="terminate"
+            fi
+
+            # POST /campaigns/{id}/action with action
+            local request_body
+            request_body=$(jq -cn --arg action "$action" '{action: $action}')
+
+            response=$(curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${API_TOKEN:-}" \
+                -d "$request_body" \
+                "${API_BASE}/campaigns/${campaign_id}/action" || true)
+
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+            if [[ -n "$error" ]]; then
+                echo -e "${RED}✗${NC} Failed to $subcommand campaign: $error"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaign $subcommand successful"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown campaign subcommand: $subcommand"
+            echo "Valid subcommands: list, start, pause, resume, stop"
+            return 1
+            ;;
+    esac
+}
+
+cmd_recommend_refactors() {
+    local scenario=""
+    local limit="5"
+    local sort_by="priority"
+    local min_lines="0"
+    local max_visits="0"
+    local format="detailed"
+    local auto_scan="true"  # Auto-scan by default for seamless operation
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --sort-by)
+                sort_by="$2"
+                shift 2
+                ;;
+            --min-lines)
+                min_lines="$2"
+                shift 2
+                ;;
+            --max-visits)
+                max_visits="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --auto-scan)
+                auto_scan="true"
+                shift
+                ;;
+            --no-auto-scan)
+                auto_scan="false"
+                shift
+                ;;
+            *)
+                # First positional arg is scenario
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required" >&2
+        echo "Usage: tidiness-manager recommend-refactors <scenario> [options]" >&2
+        return 1
+    fi
+
+    if [[ "$auto_scan" != "true" ]]; then
+        echo -e "${BLUE}Getting refactor recommendations for $scenario...${NC}" >&2
+    fi
+
+    local query_params="scenario=$scenario&limit=$limit&sort_by=$sort_by"
+    if [[ "$min_lines" != "0" ]]; then
+        query_params="$query_params&min_lines=$min_lines"
+    fi
+    if [[ "$max_visits" != "0" ]]; then
+        query_params="$query_params&max_visits=$max_visits"
+    fi
+    if [[ "$auto_scan" == "true" ]]; then
+        query_params="$query_params&auto_scan=true"
+    fi
+
+    response=$(api_request GET "/agent/refactor-recommendations?$query_params" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed" >&2
+        return 1
+    fi
+
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Failed to get recommendations: $error" >&2
+        return 1
+    fi
+
+    # Handle different output formats
+    case "$format" in
+        paths)
+            # Output just file paths, one per line (for easy parsing)
+            echo "$response" | jq -r '.recommendations[]?.file_path // empty' 2>/dev/null
+            ;;
+        json)
+            # Output raw JSON
+            echo "$response"
+            ;;
+        detailed|*)
+            # Default: Human-readable detailed output
+            local count
+            count=$(echo "$response" | jq -r '.count // 0' 2>/dev/null)
+
+            if [[ "$count" == "0" ]]; then
+                # Check if API returned a specific warning
+                local warning
+                warning=$(echo "$response" | jq -r '.warning // empty' 2>/dev/null)
+
+                echo -e "${YELLOW}⚠${NC} No recommendations found for scenario '$scenario'" >&2
+                if [[ -n "$warning" ]]; then
+                    echo "  $warning" >&2
+                else
+                    echo "  This could mean:" >&2
+                    echo "    • All files have been recently visited (use --max-visits to include them)" >&2
+                fi
+                return 0
+            fi
+
+            echo -e "${GREEN}✓${NC} Recommendations retrieved (sorted by: $sort_by)" >&2
+            echo "$response" | jq -r '
+                if .recommendations then
+                    "Found \(.count) files for refactoring:",
+                    "",
+                    (.recommendations[] | "  📝 \(.file_path)",
+                     "     Language: \(.language) | Lines: \(.line_count) | Visit count: \(.visit_count)",
+                     "     Priority: \(.refactor_priority | floor) | Staleness: \(.staleness_score | floor)",
+                     (if .complexity_max then "     Max complexity: \(.complexity_max)" else "" end),
+                     (if .todo_count > 0 then "     Tech debt: \(.todo_count) TODOs, \(.fixme_count) FIXMEs, \(.hack_count) HACKs" else "" end),
+                     (if .has_test_file == false then "     ⚠️  No test file found" else "" end),
+                     "")
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$response"
+            ;;
+    esac
+}
+
+cmd_visit() {
+    # Wrapper for visited-tracker visit command with refactor tag
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local file_path=""
+    local note=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --note)
+                note="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file_path" ]]; then
+                    file_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$file_path" ]]; then
+        echo -e "${RED}✗${NC} File path required" >&2
+        echo "Usage: tidiness-manager visit <file-path> --scenario <name> --note <note>" >&2
+        return 1
+    fi
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    # Build visited-tracker command with absolute location path
+    local vt_cmd="visited-tracker visit \"$file_path\" --location \"$location\" --tag refactor"
+    if [[ -n "$note" ]]; then
+        vt_cmd="$vt_cmd --note \"$note\""
+    fi
+
+    echo -e "${BLUE}Recording visit to $file_path...${NC}" >&2
+    eval "$vt_cmd"
+}
+
+cmd_exclude() {
+    # Wrapper for visited-tracker exclude command with refactor tag
+    # Auto-tracks file first if not already tracked (better UX)
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local file_path=""
+    local reason=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --reason)
+                reason="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$file_path" ]]; then
+                    file_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$file_path" ]]; then
+        echo -e "${RED}✗${NC} File path required" >&2
+        echo "Usage: tidiness-manager exclude <file-path> --scenario <name> --reason <reason>" >&2
+        return 1
+    fi
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    echo -e "${BLUE}Excluding $file_path from future recommendations...${NC}" >&2
+
+    # First, visit the file to ensure it's tracked (exclude only works on tracked files)
+    # Use the reason as the note for the visit
+    local visit_note="Excluded: ${reason:-No reason provided}"
+    local visit_cmd="visited-tracker visit \"$file_path\" --location \"$location\" --tag refactor --note \"$visit_note\""
+    eval "$visit_cmd" >/dev/null 2>&1
+
+    # Now exclude the file
+    local exclude_cmd="visited-tracker exclude \"$file_path\" --location \"$location\" --tag refactor"
+    if [[ -n "$reason" ]]; then
+        exclude_cmd="$exclude_cmd --reason \"$reason\""
+    fi
+
+    eval "$exclude_cmd"
+}
+
+cmd_campaign_note() {
+    # Wrapper for visited-tracker campaigns note command
+    if ! command -v visited-tracker >/dev/null 2>&1; then
+        echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
+        echo "Install visited-tracker scenario first" >&2
+        return 1
+    fi
+
+    local note=""
+    local scenario=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --note)
+                note="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}✗${NC} Scenario name required (use --scenario)" >&2
+        echo "Usage: tidiness-manager campaign-note --scenario <name> --note <note>" >&2
+        return 1
+    fi
+
+    if [[ -z "$note" ]]; then
+        echo -e "${RED}✗${NC} Note content required (use --note)" >&2
+        return 1
+    fi
+
+    # Resolve absolute path to scenario location using VROOLI_ROOT
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local location="$vrooli_root/scenarios/$scenario"
+
+    if [[ ! -d "$location" ]]; then
+        echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
+    fi
+
+    # Build visited-tracker command with absolute location path
+    local campaign_name="$scenario - Code Refactoring"
+    local vt_cmd="visited-tracker campaigns note --location \"$location\" --tag refactor --name \"$campaign_name\" --note \"$note\""
+
+    echo -e "${BLUE}Adding campaign note for $scenario...${NC}" >&2
+    eval "$vt_cmd"
+}
+
+cmd_help() {
+    cat <<'EOF'
+tidiness-manager - Code cleanliness orchestrator for scenarios
+
+DESCRIPTION
+    Systematic code tidiness through progressive scanning:
+    • Light scans: Fast lint/type checks (< 2 minutes)
+    • Smart scans: AI-powered deep analysis via campaigns
+    • visited-tracker integration for comprehensive coverage
+
+USAGE
+    tidiness-manager <command> [options]
+
+COMMANDS
+    status
+        Check API health and dependency status
+
+    scan [SCENARIO_PATH_OR_NAME] [--timeout SEC]
+        Run light scan (lint + type checks) on scenario
+        Accepts either a full path or a scenario name (resolves to \$VROOLI_ROOT/scenarios/<name>)
+        Default: current directory, 120s timeout
+        Examples:
+          tidiness-manager scan tidiness-manager
+          tidiness-manager scan ~/Vrooli/scenarios/browser-automation-studio
+          tidiness-manager scan . --timeout 300
+
+    recommend-refactors SCENARIO [OPTIONS]
+        Get refactor recommendations combining visited-tracker data with code metrics
+
+        NOTE: Automatically scans if metrics don't exist (like visited-tracker auto-creating campaigns)
+
+        Options:
+          --limit N           Number of files to return (default: 5)
+          --sort-by CRITERIA  Sort by: priority (default), staleness, complexity, length, duplication
+          --min-lines N       Filter files with minimum line count
+          --max-visits N      Exclude files visited more than N times
+          --format FORMAT     Output format: detailed (default), paths, json
+          --no-auto-scan      Disable automatic scanning (fail if metrics missing)
+
+        Examples:
+          # Get top 5 files by composite priority (just works, auto-scans if needed)
+          tidiness-manager recommend-refactors tidiness-manager --limit 5
+
+          # Get longest files
+          tidiness-manager recommend-refactors tidiness-manager --sort-by length
+
+          # Get paths only for scripting (easy parsing)
+          tidiness-manager recommend-refactors tidiness-manager --format paths --limit 10
+
+    visit FILE_PATH --scenario SCENARIO [--note NOTE]
+        Mark a file as visited during refactoring (wraps visited-tracker)
+        Use after completing refactoring work on a file
+        Example:
+          tidiness-manager visit api/handlers.go --scenario my-scenario --note "Extracted helpers, reduced complexity"
+
+    exclude FILE_PATH --scenario SCENARIO [--reason REASON]
+        Exclude a file from future refactor recommendations
+        Use for config files, generated code, or fully-refactored files
+        Example:
+          tidiness-manager exclude package.json --scenario my-scenario --reason "Config file, not a refactor target"
+          tidiness-manager exclude api/main.go --scenario my-scenario --reason "Fully refactored - clean structure"
+
+    campaign-note --scenario SCENARIO --note NOTE
+        Add a strategic note to the refactor campaign for handoff context
+        Use before ending your session to guide the next iteration
+        Example:
+          tidiness-manager campaign-note --scenario my-scenario --note "Completed 14/38 files. Focus: API error handling patterns"
+
+    issues [SCENARIO] [--category CAT] [--severity SEV] [--limit N]
+        List tidiness issues for agent consumption (JSON output)
+        Categories: all, lint, type, ai
+        Severities: all, error, warning
+        Example:
+          tidiness-manager issues browser-automation-studio --category lint --limit 20
+          tidiness-manager issues --category ai --severity error
+
+    campaigns [list|start|pause|resume|stop] [SCENARIO] [OPTIONS]
+        Manage auto-tidiness campaigns for systematic scanning
+        • list: Show all campaigns with status
+        • start: Begin AI-powered campaign for scenario
+        • pause: Temporarily halt campaign
+        • resume: Resume a paused campaign
+        • stop: Terminate campaign
+
+        Start Options:
+          --max-sessions N     Maximum sessions to run (default: 10)
+          --max-files N        Files per session (default: 5)
+
+        Pause/Resume/Stop Options:
+          --id ID              Campaign ID (auto-detected from scenario if not provided)
+
+        Example:
+          tidiness-manager campaigns list
+          tidiness-manager campaigns start my-scenario --max-sessions 10 --max-files 5
+          tidiness-manager campaigns pause my-scenario
+          tidiness-manager campaigns stop my-scenario
+
+    configure [KEY] [VALUE]
+        View or update CLI configuration
+        Keys: api_base, api_token
+        Example:
+          tidiness-manager configure api_base http://localhost:16821/api/v1
+
+    version
+        Show CLI version and API endpoint
+
+    help
+        Show this help message
+
+AGENT WORKFLOW (Recommended)
+    1. Run light scan to identify quick wins:
+         tidiness-manager scan <scenario> --type light
+
+    2. Query prioritized issues for refactoring:
+         tidiness-manager issues <scenario> --category lint --limit 10
+
+    3. (Optional) Start systematic campaign:
+         tidiness-manager campaigns start <scenario> --max-sessions 10
+
+    All commands return structured JSON for easy parsing.
+    UI dashboard reflects all CLI actions automatically.
+
+ENVIRONMENT VARIABLES
+    TIDINESS_MANAGER_API_BASE    Override API base URL
+    TIDINESS_MANAGER_API_TOKEN   Set authentication token
+
+CONFIGURATION
+    Config stored in: ~/.tidiness-manager/config.json
+    Auto-created on first run with sane defaults
+    Port auto-detection via 'vrooli scenario port tidiness-manager API_PORT'
+
+EXIT CODES
+    0    Success
+    1    Error (check stderr for details)
+
+EXAMPLES
+    # Check if service is running
+    tidiness-manager status
+
+    # Scan current scenario
+    tidiness-manager scan .
+
+    # Get top 5 AI-detected issues
+    tidiness-manager issues my-scenario --category ai --limit 5
+
+    # Start systematic cleanup campaign
+    tidiness-manager campaigns start my-scenario
+
+    # Export issues for processing
+    tidiness-manager issues my-scenario --limit 100 > issues.json
+
+For more information, visit the dashboard or check the API documentation.
+EOF
+}
+
+main() {
+    init_config
+    load_config
+
+    local command="${1:-help}"
+    shift || true
+
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
+    fi
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    if [[ "$command" == "status" || "$command" == "scan" || "$command" == "issues" || "$command" == "campaigns" || "$command" == "recommend-refactors" ]]; then
+        if [[ -z "$API_BASE" ]]; then
+            if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+                echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
+                exit 1
+            fi
+        fi
+    fi
+
+    case "$command" in
+        status)
+            cmd_status
+            ;;
+        scan)
+            cmd_scan "$@"
+            ;;
+        recommend-refactors)
+            cmd_recommend_refactors "$@"
+            ;;
+        visit)
+            cmd_visit "$@"
+            ;;
+        exclude)
+            cmd_exclude "$@"
+            ;;
+        campaign-note)
+            cmd_campaign_note "$@"
+            ;;
+        issues)
+            cmd_issues "$@"
+            ;;
+        campaigns)
+            cmd_campaigns "$@"
+            ;;
+        configure|config)
+            cmd_configure "$@"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

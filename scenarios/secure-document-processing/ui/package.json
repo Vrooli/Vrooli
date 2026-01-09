@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'"
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh nodemon server.js'",
+    "build": "echo 'No build step required for static HTML UI'"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

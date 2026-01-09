@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "brand-manager",
@@ -23,7 +23,28 @@
       "postgres-storage",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/brand-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -37,114 +58,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/brand-pipeline.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/claude-spawner.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/integration-monitor.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "codellama"
-      ]
-    },
-    "comfyui": {
-      "type": "comfyui",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered logo and visual asset generation",
-      "initialization": [
-        {
-          "file": "initialization/configuration/comfyui-workflows/logo-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/configuration/comfyui-workflows/icon-creator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/configuration/comfyui-workflows/favicon-generator.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "purpose": "Automated app integration agent for brand deployment"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Brand data, campaigns, exports, and integration tracking",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Asset storage for logos, icons, exports, and backups",
-      "buckets": [
-        "brand-logos",
-        "brand-icons",
-        "brand-exports",
-        "brand-templates",
-        "app-backups"
-      ]
-    },
-    "vault": {
-      "type": "vault",
-      "enabled": true,
-      "required": false,
-      "purpose": "Secure storage for API keys and integration tokens",
-      "initialization": [
-        {
-          "file": "initialization/storage/vault/api-keys.json",
-          "type": "secrets"
-        },
-        {
-          "file": "initialization/storage/vault/integration-tokens.json",
-          "type": "secrets"
-        }
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Brand Manager health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -152,6 +72,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -164,18 +92,24 @@
       "description": "Initialize Brand Manager platform",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "brand-manager-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "brand-manager"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/brand-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "brand-manager",
+            "targets": [
+              "brand-manager"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -217,8 +151,13 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '\ud83d\ude80 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -226,77 +165,38 @@
     "develop": {
       "description": "Start Brand Manager with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./brand-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/brand-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./brand-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/brand-manager-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test Brand Manager API and workflows",
+      "description": "Comprehensive phased testing for brand-manager",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-brands-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/brands",
-          "description": "Test API brands endpoint"
-        },
-        {
-          "name": "test-integration-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/integrations",
-          "description": "Test API integrations endpoint"
-        },
-        {
-          "name": "test-brand-generation",
-          "run": "bash test/test-brand-generation.sh",
-          "description": "Test brand generation workflow"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT",
-          "description": "Test UI health endpoint",
-          "condition": {
-            "file_exists": "ui/server.js"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats brand-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/brand-manager.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute brand-manager --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -315,5 +215,118 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/brand-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/claude-spawner.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/integration-monitor.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama"
+        ]
+      },
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered logo and visual asset generation",
+        "initialization": [
+          {
+            "file": "initialization/configuration/comfyui-workflows/logo-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/configuration/comfyui-workflows/icon-creator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/configuration/comfyui-workflows/favicon-generator.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "Automated app integration agent for brand deployment"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Brand data, campaigns, exports, and integration tracking",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Asset storage for logos, icons, exports, and backups",
+        "buckets": {
+          "default_buckets": [
+            "brand-logos",
+            "brand-icons",
+            "brand-exports",
+            "brand-templates",
+            "app-backups"
+          ]
+        }
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": false,
+        "purpose": "Secure storage for API keys and integration tokens",
+        "initialization": [
+          {
+            "file": "initialization/storage/vault/api-keys.json",
+            "type": "config"
+          },
+          {
+            "file": "initialization/storage/vault/integration-tokens.json",
+            "type": "config"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

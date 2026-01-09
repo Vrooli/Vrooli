@@ -1,0 +1,49 @@
+{
+  "$schema": "./_schema.json",
+  "id": "features",
+  "name": "Features Section",
+  "description": "Key product features and benefits displayed in a grid layout with icons",
+  "category": "value-proposition",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "Everything you need",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Section Subtitle",
+      "placeholder": "Powerful features to help you succeed",
+      "max_length": 150,
+      "required": false
+    },
+    "features": {
+      "type": "array",
+      "label": "Features",
+      "min_items": 3,
+      "max_items": 6,
+      "item_schema": {
+        "title": {
+          "type": "string",
+          "label": "Feature Title",
+          "max_length": 60
+        },
+        "description": {
+          "type": "string",
+          "label": "Feature Description",
+          "max_length": 200
+        },
+        "icon": {
+          "type": "string",
+          "label": "Icon Name (Lucide)",
+          "placeholder": "zap",
+          "description": "Lucide icon name (e.g., zap, shield, sparkles)"
+        }
+      }
+    }
+  },
+  "ui_component": "FeaturesSection",
+  "default_order": 2
+}

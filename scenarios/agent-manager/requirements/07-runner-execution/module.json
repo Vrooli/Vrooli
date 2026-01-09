@@ -1,0 +1,51 @@
+{
+  "description": "Execute agents via adapters with profile configurations",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007",
+        "REQ-P0-008"
+      ],
+      "description": "Execute agent tasks via runner adapters using profile configurations",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "Runner Execution Flow",
+      "validation": [
+        {
+          "notes": "Test default execution flow",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Default",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test custom execution behavior",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Custom",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test runner stop functionality",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Stop",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test orchestrator run operations end-to-end",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_RunOperations",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Runner Execution"
+}

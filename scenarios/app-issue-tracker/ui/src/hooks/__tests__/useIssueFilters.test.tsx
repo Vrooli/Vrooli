@@ -44,29 +44,30 @@ describe('useIssueFilters', () => {
     const { result } = renderHook(() => useIssueFilters({ issues: sampleIssues }));
 
     const params = new URLSearchParams();
-    params.set('app_id', sampleIssues[1].app);
+    const targetId = sampleIssues[1].targets[0]?.id || 'test-app';
+    params.set('app_id', targetId);
 
     act(() => {
       result.current.syncAppFilterFromParams(params);
     });
 
-    expect(result.current.appFilter).toBe(sampleIssues[1].app);
+    expect(result.current.appFilter).toBe(targetId);
     expect(result.current.activeFilterCount).toBeGreaterThanOrEqual(1);
   });
 
   it('retains selected app filter when no issues currently match', () => {
     const { result, rerender } = renderHook(() => useIssueFilters({ issues: sampleIssues }));
 
-    const targetApp = sampleIssues[0].app;
+    const targetApp = sampleIssues[0].targets[0]?.id || 'test-app';
 
     act(() => {
       result.current.handleAppFilterChange(targetApp);
     });
 
     expect(result.current.appFilter).toBe(targetApp);
-    expect(result.current.filteredIssues.every((issue) => issue.app === targetApp)).toBe(true);
+    expect(result.current.filteredIssues.every((issue) => issue.targets.some(t => t.id === targetApp))).toBe(true);
 
-    const issuesWithoutTarget = sampleIssues.filter((issue) => issue.app !== targetApp);
+    const issuesWithoutTarget = sampleIssues.filter((issue) => !issue.targets.some(t => t.id === targetApp));
 
     rerender(() => useIssueFilters({ issues: issuesWithoutTarget }));
 

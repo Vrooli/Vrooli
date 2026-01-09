@@ -25,7 +25,7 @@ func TestNewCacheClient(t *testing.T) {
 		// The client should gracefully handle this
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		if client.enable {
@@ -39,7 +39,7 @@ func TestCacheIngredientCheck(t *testing.T) {
 	t.Run("CacheDisabled", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		// Should not panic when caching with disabled cache
@@ -55,7 +55,7 @@ func TestCacheIngredientCheck(t *testing.T) {
 	t.Run("CacheEmptyIngredients", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		client.CacheIngredientCheck("", true, []string{}, []string{})
@@ -79,7 +79,7 @@ func TestCacheIngredientCheck(t *testing.T) {
 		// Test that cache key normalization works
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		// Different formats should normalize to same key
@@ -98,7 +98,7 @@ func TestGetCachedIngredientCheck(t *testing.T) {
 	t.Run("CacheMissWhenDisabled", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		isVegan, nonVegan, reasons, cached := client.GetCachedIngredientCheck("milk")
@@ -120,7 +120,7 @@ func TestGetCachedIngredientCheck(t *testing.T) {
 	t.Run("CacheMissForUnknownKey", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		_, _, _, cached := client.GetCachedIngredientCheck("unknown-ingredient-12345")
@@ -132,7 +132,7 @@ func TestGetCachedIngredientCheck(t *testing.T) {
 	t.Run("EmptyIngredientLookup", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		_, _, _, cached := client.GetCachedIngredientCheck("")
@@ -147,7 +147,7 @@ func TestGetCacheStats(t *testing.T) {
 	t.Run("CacheStatsWhenDisabled", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		stats := client.GetCacheStats()
@@ -179,7 +179,7 @@ func TestGetCacheStats(t *testing.T) {
 	t.Run("CacheStatsStructure", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		stats := client.GetCacheStats()
@@ -241,7 +241,7 @@ func TestCacheBehaviorWithVariousInputs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &CacheClient{
 				redis:  nil,
-				enable: false,
+				Enable: false,
 			}
 
 			// Cache the data
@@ -296,7 +296,7 @@ func TestCacheKeyNormalization(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &CacheClient{
 				redis:  nil,
-				enable: false,
+				Enable: false,
 			}
 
 			// This test documents the expected normalization behavior
@@ -318,7 +318,7 @@ func TestCacheGracefulDegradation(t *testing.T) {
 	t.Run("NilRedisClient", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		// Should not panic
@@ -330,7 +330,7 @@ func TestCacheGracefulDegradation(t *testing.T) {
 	t.Run("DisabledCache", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		// All operations should work without panicking
@@ -367,15 +367,15 @@ func TestCacheClientInterface(t *testing.T) {
 	t.Run("MethodsReturnExpectedTypes", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
 
 		// GetCachedIngredientCheck returns (bool, []string, []string, bool)
 		isVegan, items, reasons, cached := client.GetCachedIngredientCheck("test")
-		_ = isVegan  // bool
-		_ = items    // []string
-		_ = reasons  // []string
-		_ = cached   // bool
+		_ = isVegan // bool
+		_ = items   // []string
+		_ = reasons // []string
+		_ = cached  // bool
 
 		// GetCacheStats returns map[string]interface{}
 		stats := client.GetCacheStats()
@@ -392,9 +392,9 @@ func TestCacheIngredientCheckEnabled(t *testing.T) {
 		// This test documents what should happen when cache is enabled
 		// Even though we can't test with actual Redis in all environments,
 		// we document the expected behavior
-		
+
 		client := NewCacheClient()
-		
+
 		// Test caching non-vegan ingredients
 		client.CacheIngredientCheck(
 			"milk, eggs",
@@ -402,7 +402,7 @@ func TestCacheIngredientCheckEnabled(t *testing.T) {
 			[]string{"milk", "eggs"},
 			[]string{"Dairy product", "Animal product"},
 		)
-		
+
 		// Test caching vegan ingredients
 		client.CacheIngredientCheck(
 			"flour, sugar",
@@ -410,7 +410,7 @@ func TestCacheIngredientCheckEnabled(t *testing.T) {
 			[]string{},
 			[]string{},
 		)
-		
+
 		// Test caching with special characters
 		client.CacheIngredientCheck(
 			"soy-milk, cashew-cheese",
@@ -426,27 +426,27 @@ func TestGetCachedIngredientCheckDetailed(t *testing.T) {
 	t.Run("CacheKeyLowercaseNormalization", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
-		
+
 		// Cache with uppercase
 		client.CacheIngredientCheck("MILK, EGGS", false, []string{"milk", "eggs"}, []string{"Dairy", "Animal"})
-		
+
 		// Try to retrieve with lowercase (should normalize to same key)
 		// When cache is disabled, should always return cache miss
 		_, _, _, cached := client.GetCachedIngredientCheck("milk, eggs")
-		
+
 		if cached {
 			t.Error("Expected cache miss when cache is disabled")
 		}
 	})
-	
+
 	t.Run("CacheWithComplexData", func(t *testing.T) {
 		client := &CacheClient{
 			redis:  nil,
-			enable: false,
+			Enable: false,
 		}
-		
+
 		// Cache complex ingredient list
 		complexIngredients := "flour, milk, eggs, butter, cheese, cream, yogurt, honey"
 		nonVeganItems := []string{"milk", "eggs", "butter", "cheese", "cream", "yogurt", "honey"}
@@ -454,9 +454,9 @@ func TestGetCachedIngredientCheckDetailed(t *testing.T) {
 		for i := range reasons {
 			reasons[i] = "Non-vegan ingredient"
 		}
-		
+
 		client.CacheIngredientCheck(complexIngredients, false, nonVeganItems, reasons)
-		
+
 		// Verify no panic occurs
 		_, _, _, _ = client.GetCachedIngredientCheck(complexIngredients)
 	})
@@ -466,25 +466,25 @@ func TestGetCachedIngredientCheckDetailed(t *testing.T) {
 func TestCacheStatsDetailed(t *testing.T) {
 	t.Run("CacheStatsFieldValidation", func(t *testing.T) {
 		client := NewCacheClient()
-		
+
 		stats := client.GetCacheStats()
-		
+
 		// Verify stats map is never nil
 		if stats == nil {
 			t.Fatal("Stats should never be nil")
 		}
-		
+
 		// Verify 'enabled' field exists and is boolean
 		enabled, exists := stats["enabled"]
 		if !exists {
 			t.Error("Stats must always have 'enabled' field")
 		}
-		
+
 		_, isBool := enabled.(bool)
 		if !isBool {
 			t.Error("'enabled' field should be boolean")
 		}
-		
+
 		// When disabled, should have message
 		if enabledBool, ok := enabled.(bool); ok && !enabledBool {
 			if _, exists := stats["message"]; !exists {

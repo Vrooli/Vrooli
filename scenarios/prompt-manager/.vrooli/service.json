@@ -1,163 +1,138 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Personal Prompt Manager",
     "description": "Campaign-based prompt storage and management tool with API access, CLI, and web interface for organizing AI prompts",
     "version": "1.0.0",
+    "type": "business-application",
+    "category": "productivity",
     "tags": [
-      "productivity-application",
-      "personal-tools",
+      "react-ui",
+      "go-api",
       "prompt-management",
       "ai-tools",
-      "productivity",
-      "personal-assistant",
-      "campaign-organization",
-      "cli-tool",
-      "nodejs-ui",
-      "go-api",
-      "postgres-storage",
-      "qdrant-vectors",
-      "ollama-ai"
-    ]
+      "productivity"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/prompt-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Main API port for prompt manager",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Web UI server port",
+      "description": "React UI",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema_with_prefix.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional: Vector database for semantic search of prompts (falls back to PostgreSQL full-text search)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional: Local LLM for prompt testing and enhancement suggestions",
-      "models": [
-        "nomic-embed-text",
-        "llama3.2"
-      ]
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Prompt Manager health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
+      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Prompt Manager",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "prompt-manager-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "prompt-manager"
-             ]
-           },
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
           {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
+            "type": "binaries",
+            "targets": ["api/prompt-manager-api"]
           },
           {
-            "type": "resources",
-            "populated": true
+            "type": "cli",
+            "command": "prompt-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           }
         ]
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "install-cli",
-          "run": "chmod +x cli/prompt-manager && ln -sf $(pwd)/cli/prompt-manager ~/.local/bin/prompt-manager 2>/dev/null || true",
-          "description": "Install CLI command globally"
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o prompt-manager-api .",
-          "description": "Build Go API binary"
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o prompt-manager-api .",
+          "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Prompt Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
-          "description": "Display service access URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Prompt Manager with API and UI servers",
+      "description": "Launch API and UI server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./prompt-manager-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server in background",
           "condition": {
             "file_exists": "api/prompt-manager-api"
           }
@@ -165,58 +140,79 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
-          "background": true
-        },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
-           "description": "Display all running service URLs"
-         }
-      ]
-    },
-    "test": {
-      "description": "Test Prompt Manager API and CLI",
-      "steps": [
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
+          "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
-            "file_exists": "api/main.go"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
         {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/campaigns",
-          "description": "Test API v1 campaigns endpoint"
-        },
-        {
-          "name": "test-cli-status",
-          "run": "prompt-manager status",
-          "description": "Test CLI status command"
+          "name": "run-tests",
+          "run": "test-genie execute prompt-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"prompt-manager-api\" || true; sleep 1; pkill -9 -f \"prompt-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'prompt-manager-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/prompt-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/prompt-manager.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema_with_prefix.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "description": "Optional: Vector database for semantic search"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "description": "Optional: Local LLM for prompt testing",
+        "models": [
+          "nomic-embed-text",
+          "llama3.2"
+        ]
+      }
     }
   }
 }

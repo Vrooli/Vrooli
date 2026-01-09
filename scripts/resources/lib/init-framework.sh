@@ -242,7 +242,6 @@ init::create_container() {
     fi
     
     # Add host.docker.internal mapping for Linux (allows containers to reach host services)
-    # This enables n8n to connect to services like Ollama running on the host
     # Skip this for host network mode as it's not needed
     if [[ "$use_host_network" != "true" ]]; then
         docker_cmd+=" --add-host host.docker.internal:host-gateway"

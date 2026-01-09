@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -33,10 +31,8 @@ type SearchResult struct {
 
 // NewQdrantClient creates a new Qdrant client
 func NewQdrantClient() *QdrantClient {
-	baseURL := os.Getenv("QDRANT_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:6333"
-	}
+	// Get Qdrant URL from validated configuration
+	baseURL := appConfig.QdrantURL
 
 	return &QdrantClient{
 		baseURL: baseURL,
@@ -157,10 +153,8 @@ func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, li
 
 // GenerateEmbedding generates embeddings using Ollama
 func GenerateEmbedding(text string) ([]float32, error) {
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
-	}
+	// Get Ollama URL from validated configuration
+	ollamaURL := appConfig.OllamaURL
 
 	payload := map[string]interface{}{
 		"model":  "nomic-embed-text",
@@ -209,7 +203,11 @@ func InitializeVectorSearch() error {
 	// Create collection if it doesn't exist
 	err := client.CreateCollection("injection_techniques", 768) // nomic-embed-text produces 768-dim vectors
 	if err != nil {
-		log.Printf("Collection might already exist or error creating: %v", err)
+		logger.Warn("Collection creation issue", map[string]interface{}{
+			"collection": "injection_techniques",
+			"error":      err.Error(),
+			"note":       "Collection might already exist",
+		})
 	}
 
 	// Load existing techniques and generate embeddings
@@ -224,7 +222,9 @@ func InitializeVectorSearch() error {
 	for rows.Next() {
 		var id, name, category, description, examplePrompt string
 		if err := rows.Scan(&id, &name, &category, &description, &examplePrompt); err != nil {
-			log.Printf("Error scanning row: %v", err)
+			logger.Error("Error scanning database row", map[string]interface{}{
+				"error": err.Error(),
+			})
 			continue
 		}
 
@@ -232,7 +232,11 @@ func InitializeVectorSearch() error {
 		textToEmbed := fmt.Sprintf("%s %s %s %s", name, category, description, examplePrompt)
 		embedding, err := GenerateEmbedding(textToEmbed)
 		if err != nil {
-			log.Printf("Error generating embedding for %s: %v", name, err)
+			logger.Error("Error generating embedding", map[string]interface{}{
+				"technique_name": name,
+				"technique_id":   id,
+				"error":          err.Error(),
+			})
 			continue
 		}
 
@@ -254,7 +258,10 @@ func InitializeVectorSearch() error {
 		if err := client.UpsertPoints("injection_techniques", points); err != nil {
 			return fmt.Errorf("failed to upsert points: %v", err)
 		}
-		log.Printf("Successfully indexed %d injection techniques", len(points))
+		logger.Info("Successfully indexed injection techniques", map[string]interface{}{
+			"count":      len(points),
+			"collection": "injection_techniques",
+		})
 	}
 
 	return nil

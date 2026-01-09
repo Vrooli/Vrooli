@@ -1,19 +1,17 @@
-# Full Scenario Template Makefile
-# 
+# Math Tools Scenario Makefile
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show help
-#   make run       - Start this scenario
-#   make stop      - Stop this scenario  
-#   make dev       - Start in development mode with hot reload
-#   make test      - Run all tests
-#   make logs      - Show scenario logs
-#   make clean     - Clean build artifacts
-#   make db-reset  - Reset database (if applicable)
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-.PHONY: help run stop dev test test-api test-ui logs status clean build db-reset db-migrate validate fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop dev test test-api test-ui logs status clean build db-reset db-migrate validate fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -26,31 +24,32 @@ GREEN := \033[1;32m
 YELLOW := \033[1;33m
 BLUE := \033[1;34m
 RED := \033[1;31m
-CYAN := \033[1;36m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Template Commands$(RESET)"
+	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
 	@echo "  make <command>"
 	@echo ""
-	@echo "$(YELLOW)Essential Commands:$(RESET)"
-	@grep -E '^(run|stop|dev|test|logs|help):.*?## .*$$' $(MAKEFILE_LIST) | \
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^(start|run|stop|dev|test|logs|clean|help):.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Additional Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		grep -v -E '^(run|stop|dev|test|logs|help):' | \
+		grep -v -E '^(start|run|stop|dev|test|logs|clean|help):' | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) This is a TEMPLATE - copy to scenarios/your-name first!"
-	@echo "    Always use 'make run' or 'vrooli scenario run <name>' for actual scenarios"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
+	@echo "    Never run ./api/ binaries directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@echo "$(CYAN)Note: This is a comprehensive template for business applications$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: start ## Alias for start (deprecated, use 'make start')
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"

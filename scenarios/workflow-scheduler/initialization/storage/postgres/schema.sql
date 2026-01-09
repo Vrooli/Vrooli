@@ -25,7 +25,7 @@ CREATE TABLE schedules (
     timezone VARCHAR(50) DEFAULT 'UTC',
     
     -- Target configuration
-    target_type VARCHAR(50) NOT NULL DEFAULT 'webhook', -- webhook, workflow_id, windmill_job
+    target_type VARCHAR(50) NOT NULL DEFAULT 'webhook', -- webhook, workflow_id, job
     target_url TEXT,
     target_workflow_id VARCHAR(255),
     target_method VARCHAR(10) DEFAULT 'POST',

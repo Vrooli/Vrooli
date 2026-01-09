@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.10.1
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -35,3 +36,5 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

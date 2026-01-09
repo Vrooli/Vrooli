@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "name": "campaign-dashboard",
+    "description": "Test campaign dashboard UI workflow",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"VT-REQ-007\"]",
+      "priority": "P1"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "visited-tracker",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Visited Tracker home"
+        }
+      }
+    },
+    {
+      "id": "wait-campaigns-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='campaigns-list']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for campaigns list to load"
+        }
+      }
+    },
+    {
+      "id": "assert-campaigns-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='campaigns-list']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Campaigns list should be visible"
+        },
+        "metadata": {
+          "label": "Verify campaigns list is visible"
+        }
+      }
+    },
+    {
+      "id": "assert-title",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "h1",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": "Visited Tracker",
+          "timeout_ms": 5000,
+          "failure_message": "Page title should contain 'Visited Tracker'"
+        },
+        "metadata": {
+          "label": "Verify page title"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-campaigns-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-campaigns-list",
+      "target": "assert-campaigns-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-campaigns-list",
+      "target": "assert-title",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

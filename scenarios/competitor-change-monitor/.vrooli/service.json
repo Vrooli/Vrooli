@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "competitor-change-monitor",
@@ -22,7 +22,28 @@
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/competitor-change-monitor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -36,71 +57,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "web-scraper",
-        "change-detector",
-        "notification-dispatcher"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/website-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/github-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/change-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/alert-manager.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/scheduled-scanner.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store competitors, monitoring targets, change history, and alerts",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache scraped content and real-time monitoring state"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Analyze changes for relevance and generate insights"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Competitor Change Monitor health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -108,6 +71,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -120,16 +91,24 @@
       "description": "Initialize Competitor Change Monitor",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "competitor-change-monitor-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["competitor-change-monitor"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/competitor-change-monitor-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "competitor-change-monitor",
+            "targets": [
+              "competitor-change-monitor"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -155,22 +134,30 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x competitor-monitor && ln -sf $(pwd)/competitor-monitor ~/.local/bin/competitor-monitor 2>/dev/null || true",
-          "description": "Install CLI command"
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o competitor-monitor-api .",
+          "run": "cd api && go mod download && go build -o competitor-change-monitor-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build dashboard assets"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\udd0d Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -178,40 +165,38 @@
     "develop": {
       "description": "Start Competitor Monitor services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./competitor-change-monitor-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/competitor-change-monitor-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./competitor-change-monitor-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/competitor-change-monitor-api"
+          }
+        },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true
+          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
+          "description": "Serve production dashboard bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
-      "description": "Test Competitor Monitor services",
+      "description": "Comprehensive phased testing for competitor-change-monitor",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-competitors",
-          "run": "curl -sf http://localhost:$API_PORT/api/competitors",
-          "description": "Test competitors endpoint"
+          "name": "run-phased-tests",
+          "run": "test-genie execute competitor-change-monitor --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -230,5 +215,73 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "web-scraper",
+          "change-detector",
+          "notification-dispatcher"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/website-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/github-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/change-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/alert-manager.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/scheduled-scanner.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store competitors, monitoring targets, change history, and alerts",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache scraped content and real-time monitoring state"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Analyze changes for relevance and generate insights"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

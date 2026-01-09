@@ -8,7 +8,47 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
+
+// Simple structured logger
+type Logger struct{}
+
+func (l *Logger) Info(msg string, fields ...interface{}) {
+	logEntry := map[string]interface{}{
+		"level":     "INFO",
+		"message":   msg,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	for i := 0; i < len(fields); i += 2 {
+		if i+1 < len(fields) {
+			logEntry[fmt.Sprint(fields[i])] = fields[i+1]
+		}
+	}
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Println(string(jsonBytes))
+}
+
+func (l *Logger) Error(msg string, err error, fields ...interface{}) {
+	logEntry := map[string]interface{}{
+		"level":     "ERROR",
+		"message":   msg,
+		"error":     err.Error(),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	for i := 0; i < len(fields); i += 2 {
+		if i+1 < len(fields) {
+			logEntry[fmt.Sprint(fields[i])] = fields[i+1]
+		}
+	}
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Fprintln(os.Stderr, string(jsonBytes))
+}
+
+var logger = &Logger{}
 
 type GenerateRequest struct {
 	BusinessName   string   `json:"business_name"`
@@ -32,9 +72,12 @@ type GenerateResponse struct {
 }
 
 type HealthResponse struct {
-	Status     string `json:"status"`
-	Timestamp  string `json:"timestamp"`
-	Components map[string]string `json:"components"`
+	Status     string                 `json:"status"`
+	Service    string                 `json:"service"`
+	Timestamp  string                 `json:"timestamp"`
+	Readiness  bool                   `json:"readiness"`
+	Version    string                 `json:"version,omitempty"`
+	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
 }
 
 type TemplateFreshnessResponse struct {
@@ -74,34 +117,6 @@ type SearchResult struct {
 	Score        float64 `json:"score,omitempty"`
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	components := make(map[string]string)
-	
-	// Check PostgreSQL
-	cmd := exec.Command("resource-postgres", "status", "--json")
-	if err := cmd.Run(); err == nil {
-		components["postgres"] = "healthy"
-	} else {
-		components["postgres"] = "unhealthy"
-	}
-	
-	// Check Ollama
-	cmd = exec.Command("resource-ollama", "status", "--json")
-	if err := cmd.Run(); err == nil {
-		components["ollama"] = "healthy"
-	} else {
-		components["ollama"] = "unhealthy"
-	}
-	
-	response := HealthResponse{
-		Status:     "healthy",
-		Timestamp:  time.Now().Format(time.RFC3339),
-		Components: components,
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -158,7 +173,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Document generation failed: %v", err)
+		logger.Error("Document generation failed", err, "type", req.DocumentType, "business", req.BusinessName)
 		http.Error(w, "Document generation failed", http.StatusInternalServerError)
 		return
 	}
@@ -200,7 +215,7 @@ func documentHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		"history", docID, "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Failed to get document history: %v", err)
+		logger.Error("Failed to get document history", err, "document_id", docID)
 		http.Error(w, "Failed to retrieve document history", http.StatusInternalServerError)
 		return
 	}
@@ -241,7 +256,7 @@ func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("/home/matthalloran8/Vrooli/scenarios/privacy-terms-generator/cli/privacy-terms-generator", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Search failed: %v", err)
+		logger.Error("Search failed", err, "query", req.Query, "type", req.ClauseType)
 		http.Error(w, "Search failed", http.StatusInternalServerError)
 		return
 	}
@@ -252,36 +267,61 @@ func searchClausesHandler(w http.ResponseWriter, r *http.Request) {
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origins from environment
+		allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+		if allowedOrigin == "" {
+			// Use UI_PORT from environment (validated at startup)
+			uiPort := os.Getenv("UI_PORT")
+			allowedOrigin = fmt.Sprintf("http://localhost:%s", uiPort)
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next(w, r)
 	}
 }
 
 func main() {
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "15000"
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "privacy-terms-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	// Health check at root level (required by orchestration)
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		fmt.Fprintf(os.Stderr, "❌ API_PORT environment variable is required\n")
+		os.Exit(1)
+	}
+
+	uiPort := os.Getenv("UI_PORT")
+	if uiPort == "" {
+		fmt.Fprintf(os.Stderr, "❌ UI_PORT environment variable is required\n")
+		os.Exit(1)
+	}
+
+	// Health check using api-core/health for standardized response format
+	// No database - this scenario uses external CLI tools
+	http.HandleFunc("/health", corsMiddleware(health.Handler()))
 
 	// API endpoints
 	http.HandleFunc("/api/v1/legal/generate", corsMiddleware(generateHandler))
 	http.HandleFunc("/api/v1/legal/templates/freshness", corsMiddleware(templateFreshnessHandler))
 	http.HandleFunc("/api/v1/legal/documents/history", corsMiddleware(documentHistoryHandler))
 	http.HandleFunc("/api/v1/legal/clauses/search", corsMiddleware(searchClausesHandler))
-	
-	log.Printf("Privacy & Terms Generator API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+
+	logger.Info("Privacy & Terms Generator API starting", "port", port)
+	if err := server.Run(server.Config{
+		Handler: http.DefaultServeMux,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

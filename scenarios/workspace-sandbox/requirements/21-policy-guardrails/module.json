@@ -1,0 +1,61 @@
+{
+  "description": "Configurable max lifetime/TTL, max size, require explicit human approval, allow sandbox reuse",
+  "module_id": "MOD-P2-021",
+  "prd_ref": "OT-P2-006",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "policy",
+      "description": "Enforce configurable guardrails including DefaultTTL, IdleTimeout, MaxSandboxSizeMB, RequireHumanApproval, AutoCleanupTerminal, and AutoApproveThresholdFiles/Lines. All policies are configurable via environment variables.",
+      "id": "REQ-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "implemented",
+      "title": "Configurable Policy Guardrails",
+      "validation": [
+        {
+          "notes": "Test approval policy auto-approve logic",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultApprovalPolicy_CanAutoApprove",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test require human approval policy",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestRequireHumanApprovalPolicy_CanAutoApprove",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test config TTL validation",
+          "phase": "unit",
+          "ref": "api/internal/config/config_test.go::TestConfigValidation",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test validation policy hooks",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_ValidateBeforeApply",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Policies enforced during sandbox operations",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can customize system behavior",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Policy Guardrails"
+}

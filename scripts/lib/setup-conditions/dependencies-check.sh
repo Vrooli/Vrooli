@@ -12,7 +12,9 @@
 set -euo pipefail
 
 # Get check configuration from argument
-CHECK_CONFIG="${1:-{}}"
+# Note: Cannot use ${1:-{}} as bash has a parsing bug when arg ends with }
+CHECK_CONFIG="${1:-}"
+[[ -z "$CHECK_CONFIG" ]] && CHECK_CONFIG='{}'
 APP_ROOT="${APP_ROOT:-$(pwd)}"
 
 # Extract paths to check

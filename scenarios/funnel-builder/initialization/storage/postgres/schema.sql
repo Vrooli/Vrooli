@@ -7,10 +7,19 @@ CREATE SCHEMA IF NOT EXISTS funnel_builder;
 -- Set search path
 SET search_path TO funnel_builder;
 
--- Enum types
 CREATE TYPE funnel_status AS ENUM ('draft', 'active', 'archived');
 CREATE TYPE step_type AS ENUM ('quiz', 'form', 'content', 'cta');
 CREATE TYPE field_type AS ENUM ('text', 'email', 'tel', 'number', 'textarea', 'select', 'checkbox');
+
+-- Projects table (groups funnels for organization)
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Funnels table
 CREATE TABLE IF NOT EXISTS funnels (
@@ -19,6 +28,7 @@ CREATE TABLE IF NOT EXISTS funnels (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL,
     description TEXT,
+    project_id UUID,
     settings JSONB DEFAULT '{}'::jsonb,
     status funnel_status DEFAULT 'draft',
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -26,6 +36,16 @@ CREATE TABLE IF NOT EXISTS funnels (
     created_by UUID,
     UNIQUE(tenant_id, slug)
 );
+
+-- Ensure project_id column has proper foreign key when upgrading existing deployments
+ALTER TABLE funnels
+    ADD COLUMN IF NOT EXISTS project_id UUID;
+
+ALTER TABLE funnels
+    ADD CONSTRAINT IF NOT EXISTS funnels_project_id_fkey
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE;
 
 -- Funnel steps table
 CREATE TABLE IF NOT EXISTS funnel_steps (
@@ -111,9 +131,12 @@ CREATE TABLE IF NOT EXISTS ab_test_variants (
 );
 
 -- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_projects_tenant_id ON projects(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at);
 CREATE INDEX idx_funnels_tenant_id ON funnels(tenant_id);
 CREATE INDEX idx_funnels_status ON funnels(status);
 CREATE INDEX idx_funnels_slug ON funnels(slug);
+CREATE INDEX IF NOT EXISTS idx_funnels_project_id ON funnels(project_id);
 CREATE INDEX idx_funnel_steps_funnel_id ON funnel_steps(funnel_id);
 CREATE INDEX idx_funnel_steps_position ON funnel_steps(funnel_id, position);
 CREATE INDEX idx_leads_funnel_id ON leads(funnel_id);
@@ -140,6 +163,11 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_funnels_updated_at
     BEFORE UPDATE ON funnels
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 

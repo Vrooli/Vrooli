@@ -1,247 +1,132 @@
-# Campaign Content Studio - Product Requirements Document
+# Product Requirements Document (PRD)
 
-## Product Overview
+> **Scenario**: campaign-content-studio
+> **Template Version**: 2.0.0
+> **Status**: Canonical
+
+## 🎯 Overview
 
 Campaign Content Studio is an AI-powered marketing content creation platform that combines campaign management, document context processing, and intelligent content generation into a unified creative workspace.
 
-## UI Design Philosophy
+**Purpose**: Provide marketing teams and content creators with an integrated environment for managing campaigns, uploading brand context documents, and generating high-quality marketing content across multiple channels using AI assistance.
 
-### Design Principles
-- **Creative Marketing Aesthetic**: Modern gradient backgrounds, clean cards, and professional typography
-- **Workflow-Centric**: Optimized for content creators and marketing professionals
-- **Intelligence-First**: AI capabilities are prominently featured throughout the interface
-- **Context-Aware**: Document context and campaign information guide content generation
+**Primary Users**:
+- Marketing professionals and content creators
+- Brand managers and campaign coordinators
+- Small business owners managing their own marketing
 
-### Visual Design System
+**Deployment Surfaces**:
+- Web UI (primary interface)
+- REST API for programmatic access
+- CLI for automation and batch operations
 
-#### Color Palette
-- **Primary Gradient**: Linear gradient from `#667eea` to `#764ba2` (Blue to Purple)
-- **Background**: Dynamic gradient background for energy and creativity
-- **Cards**: Semi-transparent white (`rgba(255, 255, 255, 0.95)`) with backdrop blur
-- **Text**: Dark grays (`#333`, `#666`) for readability
-- **Accents**: Primary gradient for CTAs and important elements
+## 🎯 Operational Targets
 
-#### Typography
-- **Font Family**: Inter (modern, professional, highly readable)
-- **Hierarchy**: Clear distinction between headings (2.5rem), subheadings (1.5rem), body text (0.9rem)
-- **Weight Distribution**: 300-700 range for proper emphasis
+### 🔴 P0 – Must ship for viability
 
-#### Layout System
-- **Header**: Sticky navigation with logo, search, and primary actions
-- **Sidebar**: Navigation menu with campaign list and tool access
-- **Main Content**: Card-based layout with generous spacing
-- **Responsive**: Mobile-first design with breakpoints at 768px and 1200px
+- [ ] OT-P0-001 | Campaign management | Create, organize, and manage multiple marketing campaigns with metadata
+- [ ] OT-P0-002 | Document upload and processing | Upload brand guidelines, product docs, and context materials in PDF/DOCX/TXT/XLSX formats
+- [ ] OT-P0-003 | AI content generation | Generate marketing content for blog posts, social media, emails, and advertisements using AI
+- [ ] OT-P0-004 | Content type selection | Support distinct content types with appropriate generation parameters and formatting
+- [ ] OT-P0-005 | Document context integration | Use uploaded documents as context for AI-powered content generation
+- [ ] OT-P0-006 | Generated content review | Display, edit, and refine AI-generated content before saving
+- [ ] OT-P0-007 | Content persistence | Save and retrieve generated content associated with campaigns
+- [ ] OT-P0-008 | Responsive UI | Functional interface across mobile, tablet, and desktop viewports
 
-## Core Features & UI Specifications
+### 🟠 P1 – Should have post-launch
 
-### 1. Campaign Management Interface
+- [ ] OT-P1-001 | Content calendar | Schedule and visualize content across campaigns in monthly calendar view
+- [ ] OT-P1-002 | Template gallery | Browse and apply pre-built content templates by category and content type
+- [ ] OT-P1-003 | Document search | Search uploaded documents by name, content, and campaign association
+- [ ] OT-P1-004 | Campaign filtering | Filter documents and content by campaign context
+- [ ] OT-P1-005 | Usage analytics dashboard | Track content generation volume, time saved, and campaign activity
+- [ ] OT-P1-006 | Image inclusion toggle | Optionally request image generation or recommendations with content
+- [ ] OT-P1-007 | Content regeneration | Regenerate content variations with adjusted prompts
+- [ ] OT-P1-008 | Batch document upload | Process multiple files in single upload operation
 
-#### Campaign Dashboard
-- **Stats Grid**: 4-column grid showing active campaigns, content generated, documents uploaded, time saved
-- **Recent Activity Feed**: Timeline of user actions with icons and timestamps
-- **Quick Actions**: Prominent "New Campaign" button in header
+### 🟢 P2 – Future / expansion
 
-#### Campaign Creation Modal
-- **Form Fields**: 
-  - Campaign Name (required)
-  - Description (optional)
-  - Brand Guidelines (optional)
-- **Modal Design**: Centered overlay with backdrop blur
-- **Validation**: Real-time form validation with error states
+- [ ] OT-P2-001 | Real-time collaboration | Multi-user editing and campaign collaboration features
+- [ ] OT-P2-002 | Advanced analytics | Detailed performance insights and engagement metrics for generated content
+- [ ] OT-P2-003 | A/B testing | Content variation testing and performance comparison
+- [ ] OT-P2-004 | External integrations | Connect with marketing platforms for direct publishing
+- [ ] OT-P2-005 | AI chat interface | Conversational content generation and refinement
+- [ ] OT-P2-006 | Brand voice learning | AI adaptation to brand guidelines and style preferences over time
+- [ ] OT-P2-007 | Automated publishing | Direct publishing to social media and marketing channels
 
-#### Campaign Sidebar Navigation
-- **Dynamic List**: Shows all campaigns with status indicators
-- **Active States**: Visual feedback for selected campaign
-- **Campaign Info**: Name and brief description visible
+## 🧱 Tech Direction Snapshot
 
-### 2. Content Calendar
+**Frontend Stack**:
+- Vanilla JavaScript with ES6+ features for simplicity and minimal dependencies
+- CSS Grid and Flexbox for responsive layouts
+- Progressive enhancement approach with graceful degradation
 
-#### Calendar Interface
-- **Monthly View**: 7x6 grid layout with proper month navigation
-- **Content Indicators**: Small dots on dates with scheduled content
-- **Navigation**: Previous/next month buttons with current month display
-- **Interactive**: Click dates to view/add content (future enhancement)
+**Backend & Storage**:
+- REST API for campaign and content management
+- PostgreSQL for structured data (campaigns, content metadata)
+- Object storage or filesystem for uploaded documents
+- Integration with Ollama or external AI services for content generation
 
-#### Calendar Controls
-- **Month Navigation**: Arrow buttons with month/year display
-- **View Options**: Monthly view (daily/weekly views for future releases)
+**AI Integration Strategy**:
+- Leverage local Ollama resources when available for privacy and cost efficiency
+- Support external AI API fallback for enhanced capabilities
+- Document embeddings for context-aware generation
 
-### 3. AI Content Generator
+**Non-Goals**:
+- Framework-heavy frontend (React/Vue) - keeping vanilla JS for performance and simplicity
+- Real-time collaboration in P0/P1 phases
+- Direct social media publishing in initial releases
 
-#### Content Type Selection
-- **Grid Layout**: 2x2 grid of content type buttons
-- **Visual Icons**: FontAwesome icons for each content type
-- **Active States**: Highlighted selected type
-- **Types Supported**:
-  - Blog Posts (`fas fa-blog`)
-  - Social Media (`fas fa-share-alt`)
-  - Email Campaigns (`fas fa-envelope`)
-  - Advertisements (`fas fa-ad`)
+## 🤝 Dependencies & Launch Plan
 
-#### Generation Interface
-- **Two-Column Layout**: 
-  - Left: Content type selection and generation form
-  - Right: Document context and preview
-- **Form Elements**:
-  - Campaign selector dropdown
-  - Content prompt textarea
-  - Include images toggle switch
-  - Generate button with loading states
+**Required Local Resources**:
+- PostgreSQL database for campaign and content storage
+- Ollama or AI service endpoint for content generation
+- Object storage or file system for document uploads
 
-#### Document Context Panel
-- **Search Interface**: Input field with search button
-- **Document List**: Scrollable list of relevant documents
-- **Context Preview**: Excerpts from documents for generation context
+**Scenario Dependencies**:
+- None required, but can integrate with document-manager or secrets-manager if available
 
-#### Generated Content Display
-- **Preview Card**: Shows generated content with formatting
-- **Action Buttons**: Regenerate, Save, Edit options
-- **Content Formatting**: Proper markdown rendering and styling
+**Risks**:
+- AI generation quality depends on model selection and prompt engineering
+- Document parsing complexity varies by file format
+- Large document processing may require chunking strategies
 
-### 4. Document Management
+**Launch Sequencing**:
+1. Deploy API and database schema
+2. Launch UI with P0 campaign and generation features
+3. Add P1 calendar and template features post-validation
+4. Iterate on analytics and advanced features in P2
 
-#### Upload Interface
-- **Drag & Drop Area**: Large, prominent upload zone
-- **Visual Feedback**: Hover states and upload progress
-- **File Type Support**: PDF, DOCX, TXT, XLSX with appropriate icons
-- **Multiple File Upload**: Batch processing capabilities
+## 🎨 UX & Branding
 
-#### Document Grid
-- **Card Layout**: Grid of document cards with consistent spacing
-- **Document Information**:
-  - File type icon
-  - Filename and size
-  - Associated campaign
-  - Upload date
-- **Filtering**: Campaign and file type filters
+**Visual Aesthetic**:
+- Modern creative marketing aesthetic with gradient backgrounds (blue `#667eea` to purple `#764ba2`)
+- Clean card-based layouts with semi-transparent white cards (`rgba(255, 255, 255, 0.95)`) and backdrop blur
+- Professional typography using Inter font family
+- Workflow-centric design optimized for content creators
 
-### 5. Template Gallery
+**Accessibility Commitments**:
+- WCAG 2.1 Level AA compliance
+- 4.5:1 color contrast ratio for all text elements
+- Full keyboard navigation support
+- Proper ARIA labels and semantic HTML for screen reader compatibility
+- Minimum 16px body text, 44px touch targets for mobile
 
-#### Template Modal
-- **Large Modal**: Expanded view for template browsing
-- **Category Tabs**: Filter templates by content type
-- **Template Cards**: Preview with name, description, and tags
-- **Search & Filter**: Find templates by category or keywords
+**Voice & Personality**:
+- Professional yet creative tone
+- Intelligence-first messaging emphasizing AI capabilities
+- Context-aware UI that guides users through content creation workflows
+- Clear, descriptive error messages and loading states
 
-#### Template Categories
-- **All Templates**: Complete library view
-- **Blog Posts**: Article and post templates
-- **Social Media**: Platform-specific content templates
-- **Email Campaigns**: Newsletter and marketing email templates
-- **Advertisements**: Ad copy and campaign templates
+**Performance Targets**:
+- Largest Contentful Paint (LCP) < 2.5 seconds
+- First Input Delay (FID) < 100 milliseconds
+- Cumulative Layout Shift (CLS) < 0.1
+- Sub-3 second page load times
 
-### 6. Analytics Dashboard
+## 📎 Appendix
 
-#### Performance Metrics
-- **Chart Placeholders**: Prepared spaces for future analytics integration
-- **Content Performance**: Engagement and effectiveness metrics
-- **Campaign ROI**: Return on investment tracking
-- **Usage Statistics**: Platform utilization insights
+**Browser Support**: Chrome, Firefox, Safari, Edge (latest 2 versions). Progressive enhancement ensures core functionality without JavaScript.
 
-## Technical UI Implementation
-
-### Frontend Architecture
-- **Vanilla JavaScript**: No framework dependencies for simplicity
-- **ES6+ Features**: Modern JavaScript with classes and async/await
-- **CSS Grid & Flexbox**: Modern layout techniques
-- **Progressive Enhancement**: Graceful degradation for older browsers
-
-### State Management
-- **CampaignStudio Class**: Central state management
-- **Local Storage**: Persistence for user preferences
-- **Real-time Updates**: Dynamic UI updates without page refresh
-
-### API Integration Points
-- **Campaign CRUD**: Create, read, update, delete campaigns
-- **Document Upload**: File processing and storage
-- **Content Generation**: AI-powered content creation
-- **Search**: Document and content search capabilities
-
-### Responsive Breakpoints
-- **Mobile**: < 768px (single column, stacked navigation)
-- **Tablet**: 768px - 1200px (adjusted grid layouts)
-- **Desktop**: > 1200px (full multi-column layouts)
-
-## User Experience Flow
-
-### Primary User Journey
-1. **Landing**: User sees dashboard with campaign overview
-2. **Campaign Selection**: Choose or create a campaign
-3. **Document Upload**: Add relevant context documents
-4. **Content Generation**: Select type, enter prompt, generate content
-5. **Review & Edit**: Refine generated content
-6. **Save & Schedule**: Store content and plan publication
-
-### Secondary Workflows
-- **Template Usage**: Browse and apply content templates
-- **Calendar Planning**: Schedule content across campaigns
-- **Document Management**: Organize and search uploaded files
-- **Analytics Review**: Track campaign performance
-
-## Accessibility Considerations
-
-### WCAG 2.1 Compliance
-- **Color Contrast**: 4.5:1 ratio for all text elements
-- **Keyboard Navigation**: Full keyboard accessibility
-- **Screen Reader Support**: Proper ARIA labels and semantic HTML
-- **Focus Indicators**: Visible focus states for all interactive elements
-
-### Inclusive Design
-- **Font Size**: Minimum 16px for body text
-- **Touch Targets**: Minimum 44px for mobile interactions
-- **Error Handling**: Clear, descriptive error messages
-- **Loading States**: Visual feedback for all async operations
-
-## Performance Requirements
-
-### Core Web Vitals
-- **Largest Contentful Paint (LCP)**: < 2.5 seconds
-- **First Input Delay (FID)**: < 100 milliseconds
-- **Cumulative Layout Shift (CLS)**: < 0.1
-
-### Optimization Strategies
-- **Asset Minification**: Compressed CSS and JavaScript
-- **Image Optimization**: Responsive images with proper formats
-- **Caching**: Appropriate cache headers for static assets
-- **Lazy Loading**: Deferred loading for non-critical content
-
-## Browser Support
-
-### Target Browsers
-- **Chrome**: Latest 2 versions
-- **Firefox**: Latest 2 versions
-- **Safari**: Latest 2 versions
-- **Edge**: Latest 2 versions
-
-### Progressive Enhancement
-- **Core Functionality**: Works without JavaScript
-- **Enhanced Experience**: Full features with modern browser support
-- **Fallback Options**: Graceful degradation for unsupported features
-
-## Future Enhancements
-
-### Phase 2 Features
-- **Real-time Collaboration**: Multi-user campaign editing
-- **Advanced Analytics**: Detailed performance insights
-- **A/B Testing**: Content variation testing
-- **Integration Hub**: Connect with external marketing platforms
-
-### Phase 3 Features
-- **AI Chat Interface**: Conversational content generation
-- **Brand Voice Learning**: AI adapts to brand guidelines
-- **Automated Publishing**: Direct publishing to social platforms
-- **Advanced Templates**: Dynamic template system
-
-## Success Metrics
-
-### User Engagement
-- **Time on Platform**: Average session duration
-- **Feature Usage**: Adoption rates for key features
-- **Content Creation**: Volume of generated content
-- **User Retention**: Monthly active users
-
-### Technical Performance
-- **Page Load Times**: Sub-3 second load times
-- **Error Rates**: < 1% client-side errors
-- **API Response Times**: < 500ms average response
-- **Uptime**: 99.9% availability target
+**Reference Materials**: Original detailed UI specification preserved in `IMPLEMENTATION_PLAN.md`. Content type specifications include Blog Posts, Social Media, Email Campaigns, and Advertisements.

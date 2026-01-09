@@ -78,8 +78,8 @@ required:
     
   - resource_name: ollama
     purpose: Natural language to SQL translation and query explanation
-    integration_pattern: Shared n8n workflow
-    access_method: initialization/n8n/ollama.json workflow
+    integration_pattern: Direct Ollama API
+    access_method: HTTP API calls to Ollama
     
 optional:
   - resource_name: redis
@@ -96,15 +96,7 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Natural language to SQL translation
-    - workflow: embedding-generator.json
-      location: initialization/n8n/
-      purpose: Generate embeddings for query similarity
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres list-databases
       purpose: Discover available databases
     - command: resource-postgres execute-query
@@ -342,7 +334,7 @@ custom_commands:
 - **postgres resource**: Required for database connectivity and schema introspection
 - **ollama resource**: Powers natural language understanding for query generation
 - **qdrant resource**: Enables semantic search over query history
-- **n8n workflows**: Provides reliable resource orchestration
+- **Automation modules**: In-API orchestration for schema analysis and notifications (no external workflow engine required)
 
 ### Downstream Enablement
 - **automated-migration-manager**: Uses schema diff capabilities for migration generation
@@ -446,7 +438,7 @@ direct_execution:
   structure_compliance:
     - service.json with resource configuration
     - Schema initialization scripts
-    - n8n workflow definitions
+    - Automation module references (schema inspector, notifier)
     - Health check endpoints
     
   deployment_targets:
@@ -516,20 +508,20 @@ structure:
     - cli/db-schema-explorer
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/schema-inspector.json
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api
     - cli
     - ui
-    - initialization/automation/n8n
     - initialization/storage/postgres
+    - test/phases
 
 resources:
-  required: [postgres, qdrant, ollama, n8n]
+  required: [postgres, qdrant, ollama]
   optional: [redis, browserless]
   health_timeout: 60
+  # Automation modules for schema inspection run inside the API, so no external workflow engine is required
 
 tests:
   - name: "Postgres connection works"

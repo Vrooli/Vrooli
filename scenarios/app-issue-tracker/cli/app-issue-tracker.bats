@@ -4,7 +4,7 @@
 load 'test_helper/bats-support/load'
 load 'test_helper/bats-assert/load'
 
-CLI_SCRIPT="${BATS_TEST_DIRNAME}/app-issue-tracker.sh"
+CLI_SCRIPT="${BATS_TEST_DIRNAME}/app-issue-tracker"
 API_URL="http://localhost:8090/api"
 
 setup() {

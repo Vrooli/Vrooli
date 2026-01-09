@@ -182,11 +182,11 @@ func TestGetTemplateHandler(t *testing.T) {
 	t.Run("Success_Basic", func(t *testing.T) {
 		req, _ := makeHTTPRequest(HTTPTestRequest{
 			Method:  "GET",
-			Path:    "/api/v1/templates/basic",
+			Path:    "/api/v1/templates/react-vite",
 			URLVars: map[string]string{"type": "basic"},
 		})
 
-		httpReq := httptest.NewRequest("GET", "/api/v1/templates/basic", nil)
+		httpReq := httptest.NewRequest("GET", "/api/v1/templates/react-vite", nil)
 		env.Server.getTemplateHandler(req, httpReq)
 
 		response := assertJSONResponse(t, req, http.StatusOK)

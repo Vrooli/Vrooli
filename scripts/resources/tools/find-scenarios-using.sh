@@ -9,7 +9,7 @@
 #
 # Usage:
 #   ./find-scenarios-using.sh --resource ollama
-#   ./find-scenarios-using.sh --resource "ollama,n8n"
+#   ./find-scenarios-using.sh --resource "ollama,node-red"
 #   ./find-scenarios-using.sh --all
 #
 # ====================================================================
@@ -46,7 +46,7 @@ USAGE:
     $0 --all [OPTIONS]
 
 OPTIONS:
-    --resource RESOURCE     Resource name (e.g., ollama, n8n) or comma-separated list
+    --resource RESOURCE     Resource name (e.g., ollama, node-red) or comma-separated list
     --all                   Show usage for all resources
     --format FORMAT         Output format: text, json, yaml (default: text)
     --business-value        Include business value information
@@ -57,7 +57,7 @@ EXAMPLES:
     $0 --resource ollama
 
     # Find scenarios using multiple resources
-    $0 --resource "ollama,n8n,minio"
+    $0 --resource "ollama,node-red,minio"
 
     # Show all resource usage with business value
     $0 --all --business-value
@@ -127,8 +127,8 @@ extract_scenario_metadata() {
     if [[ -f "$metadata_file" ]]; then
         # Parse YAML for resources (basic parsing)
         if command -v yq >/dev/null 2>&1; then
-            required_resources=($(yq eval '.scenario.resources.required[]? // empty' "$metadata_file" 2>/dev/null || true))
-            optional_resources=($(yq eval '.scenario.resources.optional[]? // empty' "$metadata_file" 2>/dev/null || true))
+            required_resources=($(yq eval '.scenario.dependencies.resources.required[]? // empty' "$metadata_file" 2>/dev/null || true))
+            optional_resources=($(yq eval '.scenario.dependencies.resources.optional[]? // empty' "$metadata_file" 2>/dev/null || true))
             business_value=$(yq eval '.scenario.business.value_proposition // ""' "$metadata_file" 2>/dev/null || true)
             revenue_range=$(yq eval '.scenario.business.revenue_range // ""' "$metadata_file" 2>/dev/null || true)
             description=$(yq eval '.scenario.description // ""' "$metadata_file" 2>/dev/null || true)

@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type {
   ChangeEvent,
   DragEvent,
@@ -17,16 +13,18 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react';
-import type { IssueStatus, Priority } from '../data/sampleData';
+import type { Issue, IssueStatus, Priority, Target } from '../types/issue';
 import { Modal } from './Modal';
-import { VALID_STATUSES } from '../utils/issues';
+import { getFallbackStatuses } from '../utils/issues';
 import { toTitleCase } from '../utils/string';
 import { formatFileSize } from '../utils/files';
 import type {
   CreateIssueInitialFields,
   LockedAttachmentDraft,
   CreateIssueInput,
+  UpdateIssueInput,
 } from '../types/issueCreation';
+import { ComponentSelectorDialog } from './ComponentSelectorDialog';
 
 interface AttachmentDraft {
   id: string;
@@ -40,27 +38,69 @@ interface AttachmentDraft {
   errorMessage?: string;
 }
 
-export interface CreateIssueModalProps {
+type SharedModalProps = {
   onClose: () => void;
-  onSubmit: (input: CreateIssueInput) => Promise<void>;
   initialData?: CreateIssueInitialFields | null;
   lockedAttachments?: LockedAttachmentDraft[] | null;
   followUpInfo?: { id: string; title: string } | null;
+  validStatuses?: IssueStatus[] | null;
+};
+
+type CreateModeProps = SharedModalProps & {
+  mode?: 'create';
+  onSubmit: (input: CreateIssueInput) => Promise<void>;
+};
+
+type EditModeProps = SharedModalProps & {
+  mode: 'edit';
+  onSubmit: (input: UpdateIssueInput) => Promise<void>;
+  existingIssue: Issue;
+};
+
+export type CreateIssueModalProps = CreateModeProps | EditModeProps;
+
+function buildInitialFieldsFromIssue(issue: Issue): CreateIssueInitialFields {
+  return {
+    title: issue.rawTitle ?? issue.title,
+    description: issue.description ?? '',
+    priority: issue.priority,
+    status: issue.status,
+    targets: issue.targets,
+    tags: issue.tags,
+    reporterName: issue.reporterName,
+    reporterEmail: issue.reporterEmail,
+  };
 }
 
-export function CreateIssueModal({
-  onClose,
-  onSubmit,
-  initialData,
-  lockedAttachments: lockedAttachmentsProp,
-  followUpInfo,
-}: CreateIssueModalProps) {
+function normalizeTagsInput(value: string): string[] {
+  return value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+export function CreateIssueModal(props: CreateIssueModalProps) {
+  const {
+    onClose,
+    lockedAttachments: lockedAttachmentsProp,
+    followUpInfo,
+    validStatuses,
+  } = props;
+
+  const isEditMode = props.mode === 'edit';
+  const initialData =
+    props.initialData ?? (isEditMode ? buildInitialFieldsFromIssue(props.existingIssue) : null);
+
   const lockedAttachments = lockedAttachmentsProp ?? [];
+  const statusOptions = (validStatuses && validStatuses.length > 0
+    ? validStatuses
+    : getFallbackStatuses()) as IssueStatus[];
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [description, setDescription] = useState(initialData?.description ?? '');
   const [priority, setPriority] = useState<Priority>(initialData?.priority ?? 'Medium');
   const [status, setStatus] = useState<IssueStatus>(initialData?.status ?? 'open');
-  const [appId, setAppId] = useState(initialData?.appId ?? 'web-ui');
+  const [targets, setTargets] = useState<Target[]>(initialData?.targets ?? []);
+  const [showComponentSelector, setShowComponentSelector] = useState(false);
   const [tags, setTags] = useState(initialData?.tags?.join(', ') ?? '');
   const [reporterName, setReporterName] = useState(initialData?.reporterName ?? '');
   const [reporterEmail, setReporterEmail] = useState(initialData?.reporterEmail ?? '');
@@ -69,6 +109,14 @@ export function CreateIssueModal({
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleRemoveTarget = useCallback((targetToRemove: Target) => {
+    setTargets((prev) =>
+      prev.filter(
+        (t) => !(t.type === targetToRemove.type && t.id === targetToRemove.id),
+      ),
+    );
+  }, []);
 
   const handleFileSelection = useCallback(
     (fileSource: FileList | File[]) => {
@@ -220,24 +268,91 @@ export function CreateIssueModal({
     setErrorMessage(null);
 
     try {
-      await onSubmit({
-        title,
-        description,
-        priority,
-        status,
-        appId,
-        tags: tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        reporterName: reporterName.trim() || undefined,
-        reporterEmail: reporterEmail.trim() || undefined,
-        attachments: preparedAttachments,
-      });
+      if (props.mode === 'edit') {
+        const issue = props.existingIssue;
+        const baseline = buildInitialFieldsFromIssue(issue);
+        const trimmedTitle = title.trim();
+        const trimmedDescription = description.trim();
+        const trimmedReporterName = reporterName.trim();
+        const trimmedReporterEmail = reporterEmail.trim();
+        const normalizedTags = normalizeTagsInput(tags);
+        const baselineTags = baseline.tags ?? [];
+        const baselineTagsSorted = [...baselineTags].sort();
+        const nextTagsSorted = [...normalizedTags].sort();
+        const tagsChanged =
+          baselineTagsSorted.length !== nextTagsSorted.length ||
+          baselineTagsSorted.some((value, index) => value !== nextTagsSorted[index]);
+
+        const updatePayload: UpdateIssueInput = {
+          issueId: issue.id,
+        };
+
+        if (trimmedTitle !== (baseline.title ?? '')) {
+          updatePayload.title = trimmedTitle;
+        }
+        if (trimmedDescription !== (baseline.description ?? '')) {
+          updatePayload.description = trimmedDescription;
+        }
+        if (priority !== baseline.priority) {
+          updatePayload.priority = priority;
+        }
+        if (status !== baseline.status) {
+          updatePayload.status = status;
+        }
+        // Check if targets changed
+        const targetsChanged =
+          targets.length !== (baseline.targets ?? []).length ||
+          targets.some((t) =>
+            !(baseline.targets ?? []).some((bt) => bt.type === t.type && bt.id === t.id),
+          );
+        if (targetsChanged) {
+          updatePayload.targets = targets;
+        }
+        if (tagsChanged) {
+          updatePayload.tags = normalizedTags;
+        }
+        if (trimmedReporterName !== (baseline.reporterName ?? '')) {
+          updatePayload.reporterName = trimmedReporterName;
+        }
+        if (trimmedReporterEmail !== (baseline.reporterEmail ?? '')) {
+          updatePayload.reporterEmail = trimmedReporterEmail;
+        }
+        if (preparedAttachments.length > 0) {
+          updatePayload.attachments = preparedAttachments;
+        }
+
+        const payloadKeys = Object.keys(updatePayload).filter((key) => key !== 'issueId');
+        const hasChanges = payloadKeys.length > 0;
+
+        if (!hasChanges) {
+          setErrorMessage('No changes detected. Update a field or add an attachment.');
+          return;
+        }
+
+        await props.onSubmit(updatePayload);
+      } else {
+        // Create mode validation
+        if (targets.length === 0) {
+          setErrorMessage('Please select at least one target (scenario or resource).');
+          return;
+        }
+
+        await props.onSubmit({
+          title,
+          description,
+          priority,
+          status,
+          targets,
+          tags: normalizeTagsInput(tags),
+          reporterName: reporterName.trim() || undefined,
+          reporterEmail: reporterEmail.trim() || undefined,
+          attachments: preparedAttachments,
+        });
+      }
       onClose();
     } catch (error) {
-      console.error('Failed to create issue', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to create issue.');
+      const fallbackMessage = props.mode === 'edit' ? 'Failed to update issue.' : 'Failed to create issue.';
+      setErrorMessage(error instanceof Error ? error.message : fallbackMessage);
     } finally {
       setSubmitting(false);
     }
@@ -246,8 +361,17 @@ export function CreateIssueModal({
   const totalAttachmentCount = lockedAttachments.length + attachments.length;
   const attachmentCountLabel = totalAttachmentCount === 1 ? 'file' : 'files';
   const hasErroredAttachments = attachments.some((attachment) => attachment.status === 'error');
-  const modalEyebrow = followUpInfo ? 'Follow-up' : 'New Issue';
-  const modalTitle = followUpInfo ? 'Create Follow-up Issue' : 'Create Issue';
+  const modalEyebrow = isEditMode
+    ? `Issue ${props.existingIssue.id}`
+    : followUpInfo
+      ? 'Follow-up'
+      : 'New Issue';
+  const modalTitle = isEditMode
+    ? 'Update Issue'
+    : followUpInfo
+      ? 'Create Follow-up Issue'
+      : 'Create Issue';
+  const submitLabel = isEditMode ? (submitting ? 'Updating…' : 'Update Issue') : submitting ? 'Creating…' : 'Create Issue';
 
   return (
     <Modal onClose={onClose} labelledBy="create-issue-title">
@@ -285,15 +409,42 @@ export function CreateIssueModal({
                 required
               />
             </label>
-            <label className="form-field">
-              <span>Application</span>
-              <input
-                type="text"
-                value={appId}
-                onChange={(event) => setAppId(event.target.value)}
-                placeholder="e.g. web-ui"
-              />
-            </label>
+            <div className="form-field">
+              <span>Targets</span>
+              <button
+                type="button"
+                className="target-selector-trigger"
+                onClick={() => setShowComponentSelector(true)}
+              >
+                <KanbanSquare size={16} />
+                <span>
+                  {targets.length === 0
+                    ? 'Select targets'
+                    : `${targets.length} target${targets.length !== 1 ? 's' : ''} selected`}
+                </span>
+              </button>
+              {targets.length > 0 && (
+                <div className="target-chips">
+                  {targets.map((target) => (
+                    <span
+                      key={`${target.type}:${target.id}`}
+                      className="target-chip"
+                    >
+                      <span className="target-chip-type">{target.type}</span>
+                      <span className="target-chip-id">{target.id}</span>
+                      <button
+                        type="button"
+                        className="target-chip-remove"
+                        onClick={() => handleRemoveTarget(target)}
+                        aria-label={`Remove ${target.type}:${target.id}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <label className="form-field">
               <span>Priority</span>
               <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)}>
@@ -307,7 +458,7 @@ export function CreateIssueModal({
             <label className="form-field">
               <span>Status</span>
               <select value={status} onChange={(event) => setStatus(event.target.value as IssueStatus)}>
-                {VALID_STATUSES.map((option) => (
+                {statusOptions.map((option) => (
                   <option key={option} value={option}>
                     {toTitleCase(option.replace(/-/g, ' '))}
                   </option>
@@ -354,13 +505,13 @@ export function CreateIssueModal({
 
           <div className="form-section attachments-section">
             <div className="form-section-header">
-              <span className="form-section-title">Attachments</span>
-              {totalAttachmentCount > 0 && (
-                <span className="form-section-meta">
-                  {totalAttachmentCount} {attachmentCountLabel}
-                </span>
-              )}
-            </div>
+            <span className="form-section-title">Attachments</span>
+            {totalAttachmentCount > 0 && (
+              <span className="form-section-meta">
+                {totalAttachmentCount} {attachmentCountLabel}
+              </span>
+            )}
+          </div>
             {lockedAttachments.length > 0 && (
               <div className="locked-attachments-info">
                 <p>
@@ -481,11 +632,22 @@ export function CreateIssueModal({
               Cancel
             </button>
             <button className="primary-button" type="submit" disabled={submitting}>
-              {submitting ? 'Creating…' : 'Create Issue'}
+              {submitLabel}
             </button>
           </div>
         </div>
       </form>
+
+      {showComponentSelector && (
+        <ComponentSelectorDialog
+          selectedTargets={targets}
+          onSelectTargets={(newTargets) => {
+            setTargets(newTargets);
+            setShowComponentSelector(false);
+          }}
+          onClose={() => setShowComponentSelector(false)}
+        />
+      )}
     </Modal>
   );
 }

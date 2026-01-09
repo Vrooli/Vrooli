@@ -5,19 +5,9 @@ const Store = require('electron-store');
 const axios = require('axios');
 const fs = require('fs').promises;
 const os = require('os');
-const { initIframeBridgeChild } = require('@vrooli/iframe-bridge/child');
 
-if (typeof window !== 'undefined' && window.parent !== window) {
-  let parentOrigin;
-  try {
-    if (typeof document !== 'undefined' && document.referrer) {
-      parentOrigin = new URL(document.referrer).origin;
-    }
-  } catch (error) {
-    console.warn('[vrooli-assistant] Unable to determine parent origin for iframe bridge', error);
-  }
-  initIframeBridgeChild({ appId: 'vrooli-assistant', parentOrigin });
-}
+// Note: Iframe bridge removed - Electron main process doesn't run in iframes
+// The vrooli-assistant overlay is a standalone Electron app, not an embedded iframe
 
 // Initialize persistent store
 const store = new Store();
@@ -26,7 +16,13 @@ const store = new Store();
 let mainWindow = null;
 let tray = null;
 let isCapturing = false;
-const API_BASE_URL = process.env.API_PORT ? `http://localhost:${process.env.API_PORT}` : 'http://localhost:3250';
+
+// API_PORT must be provided - no defaults for critical configuration
+if (!process.env.API_PORT) {
+  console.error('❌ API_PORT environment variable is required');
+  app.quit();
+}
+const API_BASE_URL = `http://localhost:${process.env.API_PORT}`;
 
 // Platform-specific hotkey
 const HOTKEY = process.platform === 'darwin' ? 'Cmd+Shift+Space' : 'Ctrl+Shift+Space';

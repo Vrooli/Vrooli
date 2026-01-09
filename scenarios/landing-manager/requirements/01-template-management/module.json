@@ -1,0 +1,383 @@
+{
+  "module_id": "template-management",
+  "title": "Template Management & Generation",
+  "priority": "P0",
+  "description": "Capabilities for listing, inspecting, and generating landing page scenarios from templates",
+  "requirements": [
+    {
+      "id": "TMPL-AVAILABILITY",
+      "title": "Template availability",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "description": "Expose at least one template (saas-landing-page) via CLI/API for listing, inspection, and generation",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/template_service_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateAvailability.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). CLI integration tests exist in test/cli/template-management.bats for manual verification but not tracked here due to completeness validator schema limitations."
+    },
+    {
+      "id": "TMPL-METADATA",
+      "title": "Template metadata",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "description": "Template metadata includes required sections, optional sections, and metrics hooks",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/template_service_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateMetadata.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-AVAILABILITY"
+      ],
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). CLI integration tests exist in test/cli/template-management.bats for manual verification but not tracked here due to completeness validator schema limitations. Metadata includes sections, metrics hooks, customization schema."
+    },
+    {
+      "id": "TMPL-GENERATION",
+      "title": "Single-command generation",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "description": "Create new landing-page scenario with one CLI command without manual file editing",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_core_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateGeneration.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-AVAILABILITY",
+        "TMPL-METADATA"
+      ],
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). CLI integration tests exist in test/cli/template-management.bats for manual verification but not tracked here due to completeness validator schema limitations. Command: landing-manager generate <template> --name <name> --slug <slug>."
+    },
+    {
+      "id": "TMPL-OUTPUT-VALIDATION",
+      "title": "Generation output validation",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "description": "Generated scenario includes template runtime (api/ui/requirements/.vrooli) and is runnable after move to /scenarios/<slug>",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_output_validation_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/GenerationOutputValidation.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-GENERATION"
+      ],
+      "notes": "Multi-layer validation: API unit tests (Go), focused UI tests, comprehensive UI tests. Generator copies payload, rewrites metadata, and validates output structure."
+    },
+    {
+      "id": "TMPL-PROVENANCE",
+      "title": "Template provenance stamping",
+      "operational_target_id": "OT-P0-002",
+      "prd_ref": "OT-P0-002",
+      "description": "Embed template id/version into generated scenarios for audit and migration planning",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_provenance_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateProvenance.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-GENERATION"
+      ],
+      "notes": "Multi-layer validation: API unit tests (Go), focused UI tests, comprehensive UI tests. Template metadata copied to api/templates/<id>.json with provenance stamping."
+    },
+    {
+      "id": "AGENT-TRIGGER",
+      "title": "Agent trigger",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "description": "Factory triggers agent customization for a generated landing page with structured brief",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/AgentTrigger.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), focused UI tests, comprehensive UI tests. Customize endpoint files issue in app-issue-tracker."
+    },
+    {
+      "id": "TMPL-MULTIPLE",
+      "title": "Multiple templates",
+      "operational_target_id": "OT-P0-001",
+      "prd_ref": "OT-P0-001",
+      "description": "Support more than one landing page template in the registry",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/template_service_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateMultiple.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). Registry now contains saas-landing-page and lead-magnet templates. Template service properly lists and manages multiple templates. TestTemplateService_ListMultipleTemplates passing."
+    },
+    {
+      "id": "TMPL-PREVIEW-LINKS",
+      "title": "Template preview links",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "description": "Provide deep links to run previews against generated scenario paths",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/preview_links_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplatePreviewLinks.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). API endpoint /api/v1/preview/{scenario_id} returns preview links. CLI command: landing-manager preview <scenario-id>. Parses generated scenario service.json to extract UI_PORT and construct deep links to public landing, admin portal, admin login, and health check endpoints. TestTemplateService_GetPreviewLinks passing."
+    },
+    {
+      "id": "TMPL-DRY-RUN",
+      "title": "Generation dry-run",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "description": "Offer a plan-only mode showing files that would be written",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/generation_dry_run_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/dry-run-generation.json"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), E2E automation (BAS playbook). Dry-run functionality verified complete via CLI, API, and UI (returns plan with file paths, status=dry_run, no writes)."
+    },
+    {
+      "id": "TMPL-AGENT-PROFILES",
+      "title": "Agent profiles",
+      "operational_target_id": "OT-P0-003",
+      "prd_ref": "OT-P0-003",
+      "description": "Provide predefined agent prompts/personas for common landing goals (10 personas covering minimal-design, conversion-optimized, brand-storytelling, technical-detailed, playful-creative, trust-authority, fast-action, educational-explainer, premium-luxury, community-social)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/personas_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/AgentProfiles.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go), UI unit tests (React). Persona catalog created with 10 predefined personas. API endpoints /api/v1/personas (list) and /api/v1/personas/{id} (show) implemented. CLI commands: landing-manager personas list/show. Customize endpoint accepts optional persona_id parameter. Unit tests verify catalog loading, persona retrieval, and error handling."
+    },
+    {
+      "id": "TMPL-RUNTIME-ALIGNMENT",
+      "title": "Template runtime spec alignment",
+      "operational_target_id": "OT-P0-004",
+      "prd_ref": "OT-P0-004",
+      "description": "Keep the landing-page template PRD reference visible in README, CLI help, and the factory PRD so runtime expectations stay synchronized before generating new scenarios",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/runtime_alignment_test.go"
+        }
+      ],
+      "status": "complete",
+      "notes": "Covers README, CLI help, and factory PRD references to `scripts/scenarios/templates/landing-page-react-vite/PRD.md` so the runtime spec stays visible in every handoff."
+    },
+    {
+      "id": "TMPL-LIFECYCLE",
+      "title": "UI-based lifecycle management",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "description": "Enable start/stop/restart/logs/access for generated scenarios through the UI without requiring terminal access",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/integration_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "failing",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/lifecycle-management.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "Multi-layer validation: API integration tests (api/integration_test.go::TestIntegration_LifecycleEndpoints), E2E automation (BAS playbook). API provides lifecycle management endpoints: /api/v1/lifecycle/{scenario_id}/{start,stop,restart,status,logs}. UI displays generated scenarios with live status indicators, start/stop/restart buttons, logs viewer, and direct access links to running scenarios (public landing + admin portal). Eliminates need for terminal commands - users can manage entire lifecycle from factory UI. Generated scenarios in generated/ folder serve as staging area."
+    },
+    {
+      "id": "TMPL-PROMOTION",
+      "title": "UI-based scenario promotion",
+      "operational_target_id": "OT-P1-001",
+      "prd_ref": "OT-P1-001",
+      "description": "Enable promoting scenarios from staging (generated/) to production (scenarios/) through the UI without requiring terminal/file operations",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/integration_test.go"
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/playbooks/capabilities/01-template-management/ui/scenario-promotion.json"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "TMPL-LIFECYCLE"
+      ],
+      "notes": "Multi-layer validation: API integration tests (api/integration_test.go::TestIntegration_PromoteWorkflow), E2E automation (BAS playbook). Completes the UI-first workflow: generate → test in staging → promote to production. API endpoint: POST /api/v1/lifecycle/{scenario_id}/promote moves generated/<slug>/ to scenarios/<slug>/, updates references, and handles conflicts. UI provides 'Promote to Production' button on stopped scenarios with confirmation dialog. CLI command: landing-manager promote <scenario-id>."
+    },
+    {
+      "id": "TMPL-MARKETPLACE",
+      "title": "Template marketplace integration",
+      "operational_target_id": "OT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "description": "Allow third-party templates with trust/safety gating",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "n/a",
+          "tracked": true,
+          "last_validated": null,
+          "validator": "Ecosystem Manager",
+          "validation_notes": "P2 requirement - not yet implemented. Requires business decision on trust/safety model. Details in test/.manual-validations.json (TMPL-MARKETPLACE)."
+        }
+      ],
+      "status": "pending",
+      "notes": "Registry is local-only; no marketplace endpoints."
+    },
+    {
+      "id": "TMPL-MIGRATION",
+      "title": "Template migration helper",
+      "operational_target_id": "OT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "description": "Generate upgrade plan when template version changes",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "n/a",
+          "tracked": true,
+          "last_validated": null,
+          "validator": "Ecosystem Manager",
+          "validation_notes": "P2 requirement - not yet implemented. Requires versioning strategy and migration patterns. Details in test/.manual-validations.json (TMPL-MIGRATION)."
+        }
+      ],
+      "status": "pending",
+      "notes": "No migration tooling implemented; provenance stamp needed first."
+    },
+    {
+      "id": "TMPL-GENERATION-ANALYTICS",
+      "title": "Analytics on generation usage",
+      "operational_target_id": "OT-P2-001",
+      "prd_ref": "OT-P2-001",
+      "description": "Track template usage and success metrics at factory level",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/analytics_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/pages/TemplateAnalytics.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "Multi-layer validation: API unit tests (Go) + UI unit tests (React). Factory-level analytics implemented. API endpoints: GET /api/v1/analytics/summary (aggregate stats including total_generations, success_rate, by_template breakdown, average_duration_ms), GET /api/v1/analytics/events (detailed event log). UI component: AnalyticsPanel displays summary metrics, template breakdown, and recent events. Tracks template usage, success/failure rates, dry-run counts, generation duration. Persisted to disk. 8 API tests + 14 UI tests passing."
+    }
+  ],
+  "_metadata": {}
+}

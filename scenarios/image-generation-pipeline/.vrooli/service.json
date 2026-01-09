@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "image-generation-pipeline",
@@ -25,7 +25,28 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/image-generation-pipeline"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -39,95 +60,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/main-workflow.json",
-          "type": "workflow"
-        }
-      ],
-      "sharedWorkflows": [
-        "ollama",
-        "embedding-generator"
-      ]
-    },
-    "comfyui": {
-      "type": "comfyui",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI image generation workflows",
-      "initialization": [
-        {
-          "file": "initialization/workflows/comfyui/brand-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/workflows/comfyui/qc-workflow.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.1:8b",
-        "nomic-embed-text",
-        "llava:13b"
-      ]
-    },
-    "whisper": {
-      "type": "whisper",
-      "enabled": true,
-      "required": true,
-      "purpose": "voice-to-text for image briefings"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "campaign and brand data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "style and brand vector embeddings"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "generated images and brand assets storage"
-    },
-    "vault": {
-      "type": "vault",
-      "enabled": false,
-      "required": false,
-      "purpose": "API keys and secrets management"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Image Generation Pipeline health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -137,6 +76,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -147,18 +94,24 @@
       "description": "Initialize Enterprise Image Generation Pipeline",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "image-generation-pipeline-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "image-generation-pipeline"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/image-generation-pipeline-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "image-generation-pipeline",
+            "targets": [
+              "image-generation-pipeline"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -179,16 +132,35 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o image-generation-pipeline-api .",
-          "description": "Build Go API binary"
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Image Generation Pipeline initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-generation-pipeline --help'",
+          "run": "echo '\ud83d\ude80 Image Generation Pipeline initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:${API_PORT}\\n  CLI: image-generation-pipeline --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -207,50 +179,27 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Node.js UI server in background",
-          "background": true
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Image Generation Pipeline running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$API_PORT\\n  CLI: image-generation-pipeline --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Image Generation Pipeline running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$API_PORT\\n  CLI: image-generation-pipeline --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test image generation pipeline API and CLI",
+      "description": "Comprehensive phased testing for image-generation-pipeline",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/campaigns",
-          "description": "Test API campaigns endpoint"
-        },
-        {
-          "name": "test-generation-endpoint",
-          "run": "bash test/test-generation-endpoint.sh",
-          "description": "Test API image generation endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats image-generation-pipeline.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/image-generation-pipeline.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute image-generation-pipeline --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -268,6 +217,91 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/main-workflow.json",
+            "type": "workflow"
+          }
+        ],
+        "sharedWorkflows": [
+          "ollama",
+          "embedding-generator"
+        ]
+      },
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI image generation workflows",
+        "initialization": [
+          {
+            "file": "initialization/workflows/comfyui/brand-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/workflows/comfyui/qc-workflow.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text",
+          "llava:13b"
+        ]
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": true,
+        "required": true,
+        "purpose": "voice-to-text for image briefings"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "campaign and brand data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "style and brand vector embeddings"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "generated images and brand assets storage"
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": false,
+        "required": false,
+        "purpose": "API keys and secrets management"
+      }
     }
   }
 }

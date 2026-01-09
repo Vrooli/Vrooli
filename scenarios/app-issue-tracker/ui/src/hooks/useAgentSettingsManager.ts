@@ -12,9 +12,28 @@ interface UseAgentSettingsManagerOptions {
   onSaveError?: (message: string) => void;
 }
 
+export interface ProviderOption {
+  value: string;
+  label: string;
+  description: string;
+}
+
+export interface SettingConstraint {
+  min: number;
+  max: number;
+  default: number;
+  description: string;
+}
+
+export interface SettingsConstraints {
+  numeric: Record<string, SettingConstraint>;
+  providers: ProviderOption[];
+}
+
 interface UseAgentSettingsManagerResult {
   agentSettings: AgentSettings;
   updateAgentSettings: (updater: SetStateAction<AgentSettings>) => void;
+  constraints: SettingsConstraints | null;
 }
 
 function parseAgentSettings(
@@ -98,6 +117,7 @@ export function useAgentSettingsManager({
   onSaveError,
 }: UseAgentSettingsManagerOptions): UseAgentSettingsManagerResult {
   const [agentSettings, setAgentSettings] = useState<AgentSettings>(AppSettings.agent);
+  const [constraints, setConstraints] = useState<SettingsConstraints | null>(null);
 
   const lastSnapshotRef = useRef<AgentSettingsSnapshot | null>(null);
   const initializedRef = useRef(false);
@@ -119,13 +139,23 @@ export function useAgentSettingsManager({
           return;
         }
 
+        const payload = settingsData as Record<string, unknown>;
+
+        // Extract constraints if available
+        if (payload.constraints && typeof payload.constraints === 'object') {
+          setConstraints(payload.constraints as SettingsConstraints);
+        }
+
+        // Extract settings
+        const actualSettings = (payload.settings as Record<string, unknown>) || payload;
+
         setAgentSettings((previous) => {
-          const { settings, snapshot } = parseAgentSettings(settingsData as Record<string, unknown>, previous);
+          const { settings, snapshot } = parseAgentSettings(actualSettings, previous);
           lastSnapshotRef.current = snapshot;
           return settings;
         });
       } catch (error) {
-        console.warn('Failed to load agent backend settings', error);
+        // Failed to load settings - will use defaults
       }
     };
 
@@ -168,7 +198,6 @@ export function useAgentSettingsManager({
         await patchAgentSettings(apiBaseUrl, payload);
         lastSnapshotRef.current = snapshot;
       } catch (error) {
-        console.error('Failed to save agent backend settings', error);
         onSaveError?.('Failed to save agent settings');
       }
     };
@@ -192,5 +221,6 @@ export function useAgentSettingsManager({
   return {
     agentSettings,
     updateAgentSettings,
+    constraints,
   };
 }

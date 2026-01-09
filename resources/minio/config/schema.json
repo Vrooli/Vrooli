@@ -144,5 +144,6 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/minio/schema.json"
 }

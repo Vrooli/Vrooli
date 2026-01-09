@@ -41,15 +41,14 @@ Every scenario has **four core components**:
     "version": "1.0.0",
     "complexity": "intermediate"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false}
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true}
-      ]
-    },
     "business": {
       "valueProposition": "90% automated issue resolution",
       "targetMarkets": ["e-commerce", "saas", "service-businesses"],
@@ -93,7 +92,7 @@ test_scenario
 ```
 
 ### 4. **ui/** - The User Interface (Optional)
-- **deploy-ui.sh**: Windmill UI deployment script
+- **deploy-ui.sh**: UI deployment script
 - **config.json**: UI configuration  
 - **scripts/**: TypeScript backend services
 
@@ -103,27 +102,32 @@ test_scenario
 
 ### Choose Your Template
 
-Vrooli provides two starter templates:
-
-| Template | Best For | Complexity |
-|----------|----------|------------|
-| **basic** | Resource integration testing | ⭐ Simple |
-| **full** | Customer applications | ⭐⭐ Moderate |
-
-**For this tutorial, we'll use the full template:**
+Vrooli currently ships a single, production-ready template optimized for React + TypeScript + Vite + shadcn/ui + lucide (UI) with a Go API backend: `scripts/scenarios/templates/react-vite/`. Always start from an existing template rather than inventing a new one. We may add new ones in the future if the need arises.
 
 ```bash
-# 1. Copy the full template
-cp -r templates/full/ scenarios/my-customer-portal/
+# 1. Inspect the available templates
+vrooli scenario template list
+vrooli scenario template show react-vite
+
+# 2. Generate a new scaffold (fills placeholders automatically)
+vrooli scenario generate react-vite \
+  --id my-customer-portal \
+  --display-name "My Customer Portal" \
+  --description "Self-service customer portal with AI chat support"
+
 cd scenarios/my-customer-portal/
 
-# 2. Examine the template structure
+# 3. Install UI dependencies (pnpm ships with the repo)
+pnpm install --dir ui
+
+# 4. Examine the template structure
 ls -la
-# service.json     # Scenario configuration
-# README.md        # Business documentation
-# test.sh          # Integration test script
-# deployment/      # Deployment scripts
-# initialization/  # Startup data and workflows
+# .vrooli/         # Lifecycle + health metadata
+# api/             # Go API skeleton
+# cli/             # CLI installer + tests
+# docs/            # PROGRESS.md starter
+# requirements/    # Requirement registry seed
+# ui/              # React + Vite front-end
 ```
 
 ### Customize Your Scenario
@@ -138,16 +142,15 @@ ls -la
     "version": "1.0.0",
     "complexity": "intermediate"                  // basic, intermediate, or advanced
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},      // ✏️ Add/remove as needed
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false},     // ✏️ Optional resources
+      "browserless": {"type": "agent", "enabled": true, "required": false}
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},      // ✏️ Add/remove as needed
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true},       // ✏️ Optional resources
-        {"name": "browserless", "type": "agent", "optional": true}
-      ]
-    },
     "business": {
       "valueProposition": "50% reduction in support tickets through self-service",  // ✏️ Change this
       "targetMarkets": ["b2b-saas", "e-commerce", "service-businesses"],          // ✏️ Change this
@@ -185,9 +188,6 @@ test_customer_portal() {
     
     # Test database operations
     test_postgres_connection || return 1
-    
-    # Test n8n workflow
-    test_n8n_workflow_execution || return 1
     
     log_success "Customer portal integration validated"
 }
@@ -230,12 +230,6 @@ test_postgres_connection() {
     psql -h localhost -U postgres -d vrooli -c "SELECT 1;" > /dev/null 2>&1
 }
 
-# Test n8n workflow
-test_n8n_workflow_execution() {
-    curl -s -X POST http://localhost:5678/webhook/test \
-        -H "Content-Type: application/json" \
-        -d '{"test": "data"}' | grep -q "success"
-}
 ```
 
 ### Debugging Failed Tests
@@ -290,13 +284,13 @@ Ensure your scenario is optimized for AI consumption:
     "name": "descriptive-kebab-case",           // Clear, descriptive naming
     "description": "Specific, actionable description"  // No ambiguity
   },
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false}    // Exact resource specifications
-      ],
-      "conflicts": ["browserless"]              // Prevent resource conflicts
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true}    // Exact resource specifications
     },
+    "conflicts": ["browserless"]              // Prevent resource conflicts
+  },
+  "spec": {
     "business": {
       "valueProposition": "Quantified benefit with metrics",  // Measurable outcomes
       "targetMarkets": ["specific-industries"]               // Targeted markets

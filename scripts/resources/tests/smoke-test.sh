@@ -69,7 +69,6 @@ detect_running_services() {
         ["ollama"]="11434"
         ["whisper"]="9090"
         ["unstructured-io"]="8000"
-        ["n8n"]="5678"
         ["node-red"]="1880"
         ["minio"]="9000"
         ["vault"]="8200"
@@ -232,34 +231,6 @@ smoke_test_unstructured_io() {
     return 0
 }
 
-smoke_test_n8n() {
-    local test_name="n8n smoke test"
-    local base_url="http://localhost:5678"
-    
-    log_info "Testing n8n at $base_url"
-    
-    # Test 1: Check if service responds
-    if ! curl -sf --max-time 5 "$base_url" >/dev/null; then
-        log_error "$test_name: Service not responding"
-        return 1
-    fi
-    
-    # Test 2: Check API health if available
-    if curl -sf --max-time 5 "$base_url/healthz" >/dev/null 2>&1; then
-        log_info "$test_name: Health endpoint responding"
-    fi
-    
-    # Test 3: List workflows if API is accessible
-    if curl -sf --max-time 10 "$base_url/api/v1/workflows" >/dev/null 2>&1; then
-        log_info "$test_name: API accessible"
-    else
-        log_info "$test_name: API may require authentication (this is normal)"
-    fi
-    
-    log_success "$test_name: Passed"
-    return 0
-}
-
 smoke_test_minio() {
     local test_name="MinIO smoke test"
     local base_url="http://localhost:9000"
@@ -299,9 +270,6 @@ run_smoke_test_for_resource() {
             ;;
         "unstructured-io")
             smoke_test_unstructured_io
-            ;;
-        "n8n")
-            smoke_test_n8n
             ;;
         "minio")
             smoke_test_minio

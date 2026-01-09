@@ -1,32 +1,93 @@
 import clsx from 'clsx';
-import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
 
+import type {
+  ReportAppLogStream,
+  ReportConsoleEntry,
+  ReportNetworkEntry,
+  ReportHealthCheckEntry,
+} from './reportTypes';
 import type {
   ReportConsoleLogsState,
   ReportLogsState,
   ReportNetworkState,
+  ReportHealthChecksState,
+  ReportAppStatusState,
+  ReportCompletenessState,
 } from './useReportIssueState';
 
 interface ReportLogsSectionProps {
   logs: ReportLogsState;
   consoleLogs: ReportConsoleLogsState;
   network: ReportNetworkState;
+  health: ReportHealthChecksState;
+  status: ReportAppStatusState;
+  completeness: ReportCompletenessState;
   bridgeCaps: string[];
   appLogsPanelId: string;
   consoleLogsPanelId: string;
   networkPanelId: string;
+  healthPanelId: string;
+  statusPanelId: string;
+  completenessPanelId: string;
 }
 
 const ReportLogsSection = ({
   logs,
   consoleLogs,
   network,
+  health,
+  status,
+  completeness,
   bridgeCaps,
   appLogsPanelId,
   consoleLogsPanelId,
   networkPanelId,
-}: ReportLogsSectionProps) => (
-  <div className="report-dialog__logs">
+  healthPanelId,
+  statusPanelId,
+  completenessPanelId,
+}: ReportLogsSectionProps) => {
+  const hasLogsCapability = bridgeCaps.includes('logs') || consoleLogs.fromFallback;
+  const hasNetworkCapability = bridgeCaps.includes('network') || network.fromFallback;
+
+  const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
+    switch (status) {
+      case 'pass':
+        return <CheckCircle2 aria-hidden size={16} />;
+      case 'warn':
+        return <AlertTriangle aria-hidden size={16} />;
+      case 'fail':
+      default:
+        return <XCircle aria-hidden size={16} />;
+    }
+  };
+
+  const formatHealthResponse = (value: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return trimmed;
+    }
+  };
+
+  return (
+    <div className="report-dialog__logs">
     <section className="report-dialog__logs-section">
       <div className="report-dialog__logs-header">
         <label
@@ -60,7 +121,7 @@ const ReportLogsSection = ({
       </div>
       {logs.streams.length > 0 && (
         <div className="report-dialog__logs-streams">
-          {logs.streams.map(stream => (
+          {logs.streams.map((stream: ReportAppLogStream) => (
             <label key={stream.key} className="report-dialog__logs-stream">
               <input
                 type="checkbox"
@@ -103,7 +164,7 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={logs.fetch}
+            onClick={() => logs.fetch()}
             disabled={logs.loading}
           >
             {logs.loading ? (
@@ -125,7 +186,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={logs.fetch}
+              onClick={() => logs.fetch()}
               disabled={logs.loading}
             >
               Retry
@@ -145,7 +206,7 @@ const ReportLogsSection = ({
           className={clsx(
             'report-dialog__logs-include',
             !consoleLogs.includeConsoleLogs && 'report-dialog__logs-include--off',
-            !bridgeCaps.includes('logs') && 'report-dialog__logs-include--disabled',
+            !hasLogsCapability && 'report-dialog__logs-include--disabled',
           )}
         >
           <input
@@ -153,7 +214,7 @@ const ReportLogsSection = ({
             checked={consoleLogs.includeConsoleLogs}
             onChange={(event) => consoleLogs.setIncludeConsoleLogs(event.target.checked)}
             aria-label="Include console logs in report"
-            disabled={!bridgeCaps.includes('logs')}
+            disabled={!hasLogsCapability}
           />
           <span className="report-dialog__logs-title">Console logs</span>
         </label>
@@ -163,7 +224,7 @@ const ReportLogsSection = ({
           onClick={consoleLogs.toggleExpanded}
           aria-expanded={consoleLogs.expanded}
           aria-controls={consoleLogsPanelId}
-          disabled={!bridgeCaps.includes('logs')}
+          disabled={!hasLogsCapability}
           aria-label={consoleLogs.expanded ? 'Hide console logs' : 'Show console logs'}
         >
           {consoleLogs.expanded ? (
@@ -173,6 +234,28 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
+      {!hasLogsCapability && !consoleLogs.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Console capture unavailable</p>
+            <p>
+              Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise log support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
+      {consoleLogs.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
+            <p>
+              The iframe bridge didn&apos;t respond, so these logs were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
+            </p>
+          </div>
+        </div>
+      )}
       <div
         id={consoleLogsPanelId}
         className="report-dialog__logs-panel"
@@ -192,8 +275,8 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={consoleLogs.fetch}
-            disabled={consoleLogs.loading || !bridgeCaps.includes('logs')}
+            onClick={() => consoleLogs.fetch()}
+            disabled={consoleLogs.loading || !hasLogsCapability}
           >
             {consoleLogs.loading ? (
               <Loader2 aria-hidden size={14} className="spinning" />
@@ -214,7 +297,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={consoleLogs.fetch}
+              onClick={() => consoleLogs.fetch()}
               disabled={consoleLogs.loading}
             >
               Retry
@@ -224,7 +307,7 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No console output captured yet.</p>
         ) : (
           <div className="report-dialog__logs-content report-dialog__logs-content--console">
-            {consoleLogs.entries.map((entry, index) => (
+            {consoleLogs.entries.map((entry: ReportConsoleEntry, index: number) => (
               <div
                 key={`${entry.payload.ts}-${index}`}
                 className={clsx(
@@ -251,7 +334,7 @@ const ReportLogsSection = ({
           className={clsx(
             'report-dialog__logs-include',
             !network.includeNetworkRequests && 'report-dialog__logs-include--off',
-            !bridgeCaps.includes('network') && 'report-dialog__logs-include--disabled',
+            !hasNetworkCapability && 'report-dialog__logs-include--disabled',
           )}
         >
           <input
@@ -259,7 +342,7 @@ const ReportLogsSection = ({
             checked={network.includeNetworkRequests}
             onChange={(event) => network.setIncludeNetworkRequests(event.target.checked)}
             aria-label="Include network activity in report"
-            disabled={!bridgeCaps.includes('network')}
+            disabled={!hasNetworkCapability}
           />
           <span className="report-dialog__logs-title">Network requests</span>
         </label>
@@ -269,7 +352,7 @@ const ReportLogsSection = ({
           onClick={network.toggleExpanded}
           aria-expanded={network.expanded}
           aria-controls={networkPanelId}
-          disabled={!bridgeCaps.includes('network')}
+          disabled={!hasNetworkCapability}
           aria-label={network.expanded ? 'Hide network requests' : 'Show network requests'}
         >
           {network.expanded ? (
@@ -279,6 +362,28 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
+      {!hasNetworkCapability && !network.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Network capture unavailable</p>
+            <p>
+              Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise network request support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
+      {network.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
+            <p>
+              The iframe bridge didn&apos;t respond, so these network requests were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
+            </p>
+          </div>
+        </div>
+      )}
       <div
         id={networkPanelId}
         className="report-dialog__logs-panel"
@@ -298,8 +403,8 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={network.fetch}
-            disabled={network.loading || !bridgeCaps.includes('network')}
+            onClick={() => network.fetch()}
+            disabled={network.loading || !hasNetworkCapability}
           >
             {network.loading ? (
               <Loader2 aria-hidden size={14} className="spinning" />
@@ -320,7 +425,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={network.fetch}
+              onClick={() => network.fetch()}
               disabled={network.loading}
             >
               Retry
@@ -330,7 +435,7 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No network requests captured.</p>
         ) : (
           <div className="report-dialog__logs-content report-dialog__logs-content--network">
-            {network.events.map((entry, index) => {
+            {network.events.map((entry: ReportNetworkEntry, index: number) => {
               const statusClass = entry.payload.status && entry.payload.status >= 400
                 ? 'report-dialog__network-status--error'
                 : entry.payload.ok === false
@@ -357,10 +462,321 @@ const ReportLogsSection = ({
               );
             })}
           </div>
+    )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !health.includeHealthChecks && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={health.includeHealthChecks}
+            onChange={(event) => health.setIncludeHealthChecks(event.target.checked)}
+            aria-label="Include health checks in report"
+          />
+          <span className="report-dialog__logs-title">Health checks</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={health.toggleExpanded}
+          aria-expanded={health.expanded}
+          aria-controls={healthPanelId}
+          aria-label={health.expanded ? 'Hide health checks' : 'Show health checks'}
+        >
+          {health.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={healthPanelId}
+        className="report-dialog__logs-panel"
+        style={health.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!health.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {health.loading
+              ? 'Running health checks…'
+              : health.entries.length > 0
+                ? `Captured ${health.entries.length}${typeof health.total === 'number' && health.total > health.entries.length ? ` of ${health.total}` : ''} checks${health.formattedCapturedAt ? ` (captured ${health.formattedCapturedAt})` : ''}.`
+                : health.error
+                  ? 'Health checks unavailable.'
+                  : 'No health checks recorded.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={() => health.fetch()}
+            disabled={health.loading}
+          >
+            {health.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{health.loading ? 'Running' : 'Refresh'}</span>
+          </button>
+        </div>
+        {health.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Collecting health data…</span>
+          </div>
+        ) : health.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{health.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={() => health.fetch()}
+              disabled={health.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : health.entries.length === 0 ? (
+          <p className="report-dialog__logs-empty">No health checks available.</p>
+        ) : (
+          <div className="report-dialog__health-list">
+            {health.entries.map((entry: ReportHealthCheckEntry) => {
+              const formattedResponse = formatHealthResponse(entry.response);
+
+              return (
+                <div
+                  key={entry.id}
+                  className={clsx(
+                    'report-dialog__health-item',
+                    `report-dialog__health-item--${entry.status}`,
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'report-dialog__health-status',
+                      `report-dialog__health-status--${entry.status}`,
+                    )}
+                    aria-label={`Health check ${entry.status}`}
+                  >
+                    {renderHealthStatusIcon(entry.status)}
+                  </span>
+                  <div className="report-dialog__health-body">
+                    <div className="report-dialog__health-row">
+                      <span className="report-dialog__health-name">{entry.name}</span>
+                      {entry.latencyMs !== null && (
+                        <span className="report-dialog__health-latency">{`${entry.latencyMs} ms`}</span>
+                      )}
+                    </div>
+                    {entry.endpoint && (
+                      <div className="report-dialog__health-endpoint" title={entry.endpoint}>{entry.endpoint}</div>
+                    )}
+                    {entry.message && (
+                      <p className="report-dialog__health-message">{entry.message}</p>
+                    )}
+                    {entry.code && (
+                      <p className="report-dialog__health-code">{entry.code}</p>
+                    )}
+                    {formattedResponse && (
+                      <div className="report-dialog__health-response">
+                        <span className="report-dialog__health-response-label">Response</span>
+                        <pre>{formattedResponse}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !status.includeAppStatus && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={status.includeAppStatus}
+            onChange={(event) => status.setIncludeAppStatus(event.target.checked)}
+            aria-label="Include app status in report"
+          />
+          <span className="report-dialog__logs-title">App status</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={status.toggleExpanded}
+          aria-expanded={status.expanded}
+          aria-controls={statusPanelId}
+          aria-label={status.expanded ? 'Hide app status' : 'Show app status'}
+        >
+          {status.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={statusPanelId}
+        className="report-dialog__logs-panel"
+        style={status.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!status.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {status.loading
+              ? 'Fetching app status…'
+              : status.snapshot
+                ? `${status.snapshot.statusLabel}${status.formattedCapturedAt ? ` (captured ${status.formattedCapturedAt})` : ''}.`
+                : status.error
+                  ? 'App status unavailable.'
+                  : 'No app status captured.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={() => status.fetch()}
+            disabled={status.loading}
+          >
+            {status.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{status.loading ? 'Loading' : 'Refresh'}</span>
+          </button>
+        </div>
+        {status.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Gathering scenario status…</span>
+          </div>
+        ) : status.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{status.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={() => status.fetch()}
+              disabled={status.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : !status.snapshot ? (
+          <p className="report-dialog__logs-empty">No status snapshot available.</p>
+        ) : status.snapshot.details.length === 0 ? (
+          <p className="report-dialog__logs-empty">Status snapshot did not include detailed output.</p>
+        ) : (
+          <pre className="report-dialog__logs-content">{status.snapshot.details.join('\n')}</pre>
+        )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !completeness.includeCompleteness && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={completeness.includeCompleteness}
+            onChange={(event) => completeness.setIncludeCompleteness(event.target.checked)}
+            aria-label="Include completeness score in report"
+          />
+          <span className="report-dialog__logs-title">Completeness score</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={completeness.toggleExpanded}
+          aria-expanded={completeness.expanded}
+          aria-controls={completenessPanelId}
+          aria-label={completeness.expanded ? 'Hide completeness score' : 'Show completeness score'}
+        >
+          {completeness.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={completenessPanelId}
+        className="report-dialog__logs-panel"
+        style={completeness.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!completeness.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {completeness.loading
+              ? 'Fetching completeness score…'
+              : completeness.data
+                ? `Completeness analysis${completeness.formattedCapturedAt ? ` (captured ${completeness.formattedCapturedAt})` : ''}.`
+                : completeness.error
+                  ? 'Completeness score unavailable.'
+                  : 'No completeness score captured.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={() => completeness.fetch()}
+            disabled={completeness.loading}
+          >
+            {completeness.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{completeness.loading ? 'Loading' : 'Refresh'}</span>
+          </button>
+        </div>
+        {completeness.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Calculating completeness score…</span>
+          </div>
+        ) : completeness.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{completeness.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={() => completeness.fetch()}
+              disabled={completeness.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : !completeness.data ? (
+          <p className="report-dialog__logs-empty">No completeness data available.</p>
+        ) : completeness.data.details.length === 0 ? (
+          <p className="report-dialog__logs-empty">Completeness analysis did not include detailed output.</p>
+        ) : (
+          <pre className="report-dialog__logs-content">{completeness.data.details.join('\n')}</pre>
         )}
       </div>
     </section>
   </div>
-);
+  );
+};
 
 export default ReportLogsSection;
+export type { ReportLogsSectionProps };

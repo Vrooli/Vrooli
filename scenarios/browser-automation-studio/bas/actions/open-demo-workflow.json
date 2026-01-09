@@ -1,0 +1,144 @@
+{
+  "metadata": {
+    "name": "open-demo-workflow",
+    "description": "Loads the demo project and opens the seeded workflow for builder interactions",
+    "labels": {
+      "fixture_id": "open-demo-workflow",
+      "seed_required": "true",
+      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
+      "reset": "none",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier containing the workflow\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project containing the workflow\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Folder path for the seeded project\"},{\"name\":\"workflowId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowId\",\"description\":\"Seed workflow identifier\"},{\"name\":\"workflowName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowName\",\"description\":\"Seed workflow to open\"}]"
+    }
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "fixture-call-open-project",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-demo-project.json",
+          "args": {
+            "projectId": { "string_value": "${@params/projectId}" },
+            "projectName": { "string_value": "${@params/projectName}" },
+            "projectFolder": { "string_value": "${@params/projectFolder}" }
+          }
+        },
+        "metadata": { "label": "Open Demo project" }
+      }
+    },
+    {
+      "id": "fixture-wait-for-workflows",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.card",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for workflows to load" }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      }
+    },
+    {
+      "id": "fixture-assert-seed-workflow",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workflows.cardById(id=\"${@params/workflowId}\")",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Seed workflow with ID ${@params/workflowId} should exist. Ensure seed script ran successfully."
+        },
+        "metadata": { "label": "Verify seed workflow exists" }
+      }
+    },
+    {
+      "id": "fixture-click-demo-workflow",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workflows.cardById(id=\"${@params/workflowId}\")" },
+        "metadata": { "label": "Open seeded workflow" }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
+      }
+    },
+    {
+      "id": "fixture-wait-for-builder",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "duration_ms": 2000 },
+        "metadata": { "label": "Wait for builder to initialize" }
+      }
+    },
+    {
+      "id": "fixture-assert-builder-loaded",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workflowBuilder.reactFlowReady",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
+        },
+        "metadata": { "label": "Workflow builder fully initialized and interactive" }
+      }
+    },
+    {
+      "id": "fixture-assert-nodes",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": ".react-flow__node",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Seeded workflow should render nodes"
+        },
+        "metadata": { "label": "Seeded nodes are visible" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "fixture-open-project",
+      "source": "fixture-call-open-project",
+      "target": "fixture-wait-for-workflows",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-1",
+      "source": "fixture-wait-for-workflows",
+      "target": "fixture-assert-seed-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-2",
+      "source": "fixture-assert-seed-workflow",
+      "target": "fixture-click-demo-workflow",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-3",
+      "source": "fixture-click-demo-workflow",
+      "target": "fixture-wait-for-builder",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-4",
+      "source": "fixture-wait-for-builder",
+      "target": "fixture-assert-builder-loaded",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-builder-ready",
+      "source": "fixture-assert-builder-loaded",
+      "target": "fixture-assert-nodes",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

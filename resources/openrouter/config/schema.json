@@ -40,19 +40,27 @@
       "items": {
         "type": "string"
       },
-      "default": ["mistralai/mistral-7b", "openai/gpt-3.5-turbo"]
+      "default": [
+        "mistralai/mistral-7b",
+        "openai/gpt-3.5-turbo"
+      ]
     },
     "cost_limit": {
       "type": "number",
       "description": "Maximum cost per request in USD",
-      "default": 0.10,
+      "default": 0.1,
       "minimum": 0,
       "maximum": 100
     },
     "routing_strategy": {
       "type": "string",
       "description": "Model selection strategy",
-      "enum": ["auto", "cheapest", "fastest", "quality"],
+      "enum": [
+        "auto",
+        "cheapest",
+        "fastest",
+        "quality"
+      ],
       "default": "auto"
     },
     "enable_cache": {
@@ -63,10 +71,18 @@
     "log_level": {
       "type": "string",
       "description": "Logging verbosity level",
-      "enum": ["debug", "info", "warn", "error"],
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
       "default": "info"
     }
   },
-  "required": ["api_key"],
-  "additionalProperties": false
+  "required": [
+    "api_key"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/openrouter/schema.json"
 }

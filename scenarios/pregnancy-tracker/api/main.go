@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -10,12 +11,16 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
-	mathrand "math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	_ "github.com/lib/pq"
 )
@@ -106,16 +111,11 @@ type SearchResult struct {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start pregnancy-tracker
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "pregnancy-tracker",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Load configuration - REQUIRED, no defaults
@@ -154,11 +154,11 @@ func main() {
 
 	// Initialize database
 	initDB()
-	defer db.Close()
 
 	// Load content if requested
 	if mode == "load-content" {
 		log.Println("Content already loaded via seed.sql")
+		db.Close()
 		return
 	}
 
@@ -166,87 +166,33 @@ func main() {
 	setupRoutes()
 
 	// Start server
-	log.Printf("🤰 Pregnancy Tracker API starting on port %s", apiPort)
+	log.Printf("🤰 Pregnancy Tracker API starting")
 	log.Printf("   Privacy Mode: %s | Multi-Tenant: %s", privacyMode, multiTenant)
-	log.Fatal(http.ListenAndServe(":"+apiPort, nil))
+	if err := server.Run(server.Config{
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+
+	// Initialize database connection with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to open database connection: %v", err)
+		log.Fatalf("❌ Database connection failed: %v", err)
 	}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * mathrand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("🎉 Database connection established successfully!")
 
 	// Set search path
 	_, err = db.Exec("SET search_path TO pregnancy_tracker, public")
@@ -257,7 +203,7 @@ func initDB() {
 
 func setupRoutes() {
 	// Health endpoints
-	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler())
 	http.HandleFunc("/api/v1/status", handleStatus)
 	http.HandleFunc("/api/v1/health/encryption", handleEncryptionStatus)
 	http.HandleFunc("/api/v1/auth/status", handleAuthStatus)
@@ -363,17 +309,6 @@ func verifyEncryption() {
 	fmt.Printf("   Multi-Tenant: %s\n", multiTenant)
 }
 
-// Health handlers
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	enableCORS(w)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "pregnancy-tracker",
-		"privacy": privacyMode,
-	})
-}
-
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 
@@ -406,10 +341,10 @@ func handleEncryptionStatus(w http.ResponseWriter, r *http.Request) {
 func handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 
-	// Check if scenario-authenticator is available - REQUIRED, no defaults
-	authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
-	if authPort == "" {
-		log.Printf("Warning: SCENARIO_AUTHENTICATOR_API_PORT not set")
+	// Check if scenario-authenticator is available via discovery
+	authURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err != nil {
+		log.Printf("Warning: scenario-authenticator not available: %v", err)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "unavailable",
@@ -417,7 +352,8 @@ func handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/health", authPort))
+
+	resp, err := http.Get(authURL + "/health")
 
 	status := "unavailable"
 	if err == nil && resp.StatusCode == 200 {
@@ -449,7 +385,6 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		ORDER BY ts_rank(search_vector, plainto_tsquery('english', $1)) DESC
 		LIMIT 10
 	`, query)
-
 	if err != nil {
 		log.Printf("Search error: %v", err)
 		http.Error(w, "Search failed", http.StatusInternalServerError)
@@ -542,7 +477,6 @@ func handlePregnancyStart(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`, pregnancy.UserID, pregnancy.LMPDate, pregnancy.DueDate, pregnancy.CurrentWeek, pregnancy.CurrentDay).Scan(&id)
-
 	if err != nil {
 		log.Printf("Error creating pregnancy: %v", err)
 		http.Error(w, "Failed to create pregnancy", http.StatusInternalServerError)
@@ -666,7 +600,6 @@ func handleDailyLog(w http.ResponseWriter, r *http.Request) {
 			WHERE user_id = $1 AND outcome = 'ongoing'
 			ORDER BY created_at DESC LIMIT 1
 		`, userID).Scan(&pregnancyID)
-
 		if err != nil {
 			http.Error(w, "No active pregnancy found", http.StatusNotFound)
 			return
@@ -695,7 +628,6 @@ func handleDailyLog(w http.ResponseWriter, r *http.Request) {
 		`, pregnancyID, time.Now(), dailyLog.Weight,
 			extractSystolic(dailyLog.BloodPressure), extractDiastolic(dailyLog.BloodPressure),
 			symptomsJSON, dailyLog.Mood, dailyLog.Energy, encryptedNotes, photosJSON).Scan(&id)
-
 		if err != nil {
 			log.Printf("Error saving daily log: %v", err)
 			http.Error(w, "Failed to save daily log", http.StatusInternalServerError)
@@ -737,7 +669,6 @@ func handleLogsRange(w http.ResponseWriter, r *http.Request) {
 		WHERE p.user_id = $1 AND dl.log_date BETWEEN $2 AND $3
 		ORDER BY dl.log_date DESC
 	`, userID, startDate, endDate)
-
 	if err != nil {
 		log.Printf("Error fetching logs: %v", err)
 		http.Error(w, "Failed to fetch logs", http.StatusInternalServerError)
@@ -791,7 +722,6 @@ func handleKickCount(w http.ResponseWriter, r *http.Request) {
 		WHERE user_id = $1 AND outcome = 'ongoing'
 		ORDER BY created_at DESC LIMIT 1
 	`, userID).Scan(&pregnancyID)
-
 	if err != nil {
 		http.Error(w, "No active pregnancy found", http.StatusNotFound)
 		return
@@ -805,7 +735,6 @@ func handleKickCount(w http.ResponseWriter, r *http.Request) {
 		RETURNING id
 	`, pregnancyID, kickCount.SessionStart, kickCount.SessionEnd,
 		kickCount.Count, kickCount.Duration, kickCount.Notes).Scan(&id)
-
 	if err != nil {
 		log.Printf("Error saving kick count: %v", err)
 		http.Error(w, "Failed to save kick count", http.StatusInternalServerError)
@@ -836,7 +765,6 @@ func handleKickPatterns(w http.ResponseWriter, r *http.Request) {
 		GROUP BY DATE(session_start)
 		ORDER BY date DESC
 	`, userID)
-
 	if err != nil {
 		log.Printf("Error fetching kick patterns: %v", err)
 		http.Error(w, "Failed to fetch patterns", http.StatusInternalServerError)
@@ -923,7 +851,6 @@ func handleAppointments(w http.ResponseWriter, r *http.Request) {
 			WHERE user_id = $1 AND outcome = 'ongoing'
 			ORDER BY created_at DESC LIMIT 1
 		`, userID).Scan(&pregnancyID)
-
 		if err != nil {
 			http.Error(w, "No active pregnancy found", http.StatusNotFound)
 			return
@@ -940,7 +867,6 @@ func handleAppointments(w http.ResponseWriter, r *http.Request) {
 			RETURNING id
 		`, pregnancyID, appointment.Date, appointment.Type,
 			appointment.Provider, appointment.Location, appointment.Notes, resultsJSON).Scan(&id)
-
 		if err != nil {
 			log.Printf("Error saving appointment: %v", err)
 			http.Error(w, "Failed to save appointment", http.StatusInternalServerError)
@@ -973,7 +899,6 @@ func handleUpcomingAppointments(w http.ResponseWriter, r *http.Request) {
 		ORDER BY a.appointment_date ASC
 		LIMIT 10
 	`, userID)
-
 	if err != nil {
 		log.Printf("Error fetching appointments: %v", err)
 		http.Error(w, "Failed to fetch appointments", http.StatusInternalServerError)

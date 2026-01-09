@@ -1,5 +1,11 @@
 # Product Requirements Document (PRD) - Test Genie
 
+## 🎯 Current Development Focus
+
+- **OT-P0-001 – Internal Test Orchestrator**: ✅ Complete - Go-native orchestration for all 6 phases
+- **OT-P0-002 – AI Suite Generation**: 🔄 In Progress - Delegation to App Issue Tracker for AI-powered test generation
+- **OT-P1-003 – Vault & Coverage UX**: 🔄 Planned - Dashboard experience with coverage heatmaps and execution monitoring
+
 ## 🎯 Capability Definition
 
 ### Core Capability
@@ -29,13 +35,14 @@ This capability fundamentally improves the quality and reliability of all Vrooli
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [x] Generate comprehensive test suites for any scenario within 60 seconds (2025-09-28: Achieved 30s with concurrent generation)
-  - [x] Support multiple test types: unit, integration, performance, vault, regression (2025-09-28: All types working)
-  - [x] AI-powered test case generation using scenario analysis and code inspection (2025-11-03: App Issue Tracker delegation working)
-  - [x] Automated test execution with detailed reporting and failure analysis (2025-09-28: Execution and reporting functional)
-  - [x] Test vault creation with phase-based testing for complex scenarios (2025-09-28: Vault creation working via CLI)
-  - [x] Integration with existing Vrooli testing infrastructure (2025-09-30: Integrated via vrooli scenario test command, fixed port discovery)
-  
+  - [x] Generate comprehensive test suites for any scenario within 60 seconds
+  - [x] Support multiple test types: unit, integration, performance, vault, regression
+  - [ ] AI-powered test case generation using scenario analysis and code inspection _(In progress - delegation to App Issue Tracker)_
+  - [x] Automated test execution with detailed reporting and failure analysis
+  - [x] Test vault creation with phase-based testing for complex scenarios
+  - [x] Integration with existing Vrooli testing infrastructure
+  - [x] Scenario-local Go orchestrator (no external bash dependencies)
+ 
 - **Should Have (P1)**
   - [ ] Visual test coverage analysis with gap identification
   - [ ] Performance regression detection with historical trend analysis
@@ -666,7 +673,7 @@ structure:
     - ui/index.html
     - ui/server.js
     - prompts/test-generation-prompt.md
-    - scenario-test.yaml
+    - coverage/run-tests.sh
     
   required_dirs:
     - api
@@ -826,4 +833,4 @@ See [PROBLEMS.md](PROBLEMS.md) for detailed tracking of:
 2. Implement P1 visual coverage analysis
 3. Add performance regression detection
 4. Create cross-scenario integration tests
-5. Migrate from legacy scenario-test.yaml to phased architecture
+5. Expand phased testing coverage thresholds and CI reporting

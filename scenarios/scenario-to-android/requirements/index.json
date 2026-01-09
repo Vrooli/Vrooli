@@ -1,0 +1,197 @@
+{
+  "version": "1.0",
+  "scenario": "scenario-to-android",
+  "requirements": [
+    {
+      "id": "STA-P0-001",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "API Health Check",
+      "description": "Health endpoint operational at /health and /api/v1/health, schema-compliant with readiness field",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-002",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "UI Server",
+      "description": "UI server running with schema-compliant health checks including API connectivity monitoring",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-003",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "CLI Tool",
+      "description": "scenario-to-android CLI installed and functional with help/status commands",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Android Templates",
+      "description": "Base Android project templates in initialization/templates/",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Build API Endpoint",
+      "description": "/api/v1/android/build endpoint for APK generation",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Build Status Endpoint",
+      "description": "/api/v1/android/status/{build_id} for tracking builds",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-007",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "JavaScript Bridge",
+      "description": "Full VrooliJSInterface with device info, permissions, storage, vibration",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-008",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Offline Mode",
+      "description": "WebView with local asset serving and service worker support",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-009",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "title": "Convert Scenario UI to Android",
+      "description": "Templates and CLI convert any scenario to Android project",
+      "status": "completed",
+      "validation": ["test"],
+      "priority": "P0"
+    },
+    {
+      "id": "STA-P0-010",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "Generate Signed APK",
+      "description": "Generate signed APK ready for installation",
+      "status": "partial",
+      "validation": ["manual"],
+      "priority": "P0",
+      "notes": "Requires Android SDK on host"
+    },
+    {
+      "id": "STA-P0-011",
+      "prd_ref": "Operational Targets > P0 > OT-P0-011",
+      "title": "Multi-architecture Build Configuration",
+      "description": "Include build configuration for multiple architectures",
+      "status": "partial",
+      "validation": ["manual"],
+      "priority": "P0",
+      "notes": "Gradle configs exist, needs SDK"
+    },
+    {
+      "id": "STA-P1-001",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Push Notification Support",
+      "description": "Enable push notifications in generated Android apps",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P1"
+    },
+    {
+      "id": "STA-P1-002",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Camera and Photo Gallery Access",
+      "description": "Provide camera and photo gallery integration",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P1"
+    },
+    {
+      "id": "STA-P1-003",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "GPS/Location Services",
+      "description": "Integrate GPS and location services",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P1"
+    },
+    {
+      "id": "STA-P1-004",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Local Storage and Database",
+      "description": "Provide local storage and database persistence",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P1"
+    },
+    {
+      "id": "STA-P1-005",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Play Store Preparation Scripts",
+      "description": "Scripts for preparing apps for Google Play Store submission",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P1"
+    },
+    {
+      "id": "STA-P2-001",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Widget Support",
+      "description": "Support for home screen widgets",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P2"
+    },
+    {
+      "id": "STA-P2-002",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Share Intent Handling",
+      "description": "Handle share intents to receive data from other apps",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P2"
+    },
+    {
+      "id": "STA-P2-003",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Background Service Capabilities",
+      "description": "Enable background services for apps",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P2"
+    },
+    {
+      "id": "STA-P2-004",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Biometric Authentication",
+      "description": "Integrate biometric authentication support",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P2"
+    },
+    {
+      "id": "STA-P2-005",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "In-app Purchases Integration",
+      "description": "Support for in-app purchases",
+      "status": "pending",
+      "validation": ["manual"],
+      "priority": "P2"
+    }
+  ]
+}

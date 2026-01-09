@@ -2,56 +2,74 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
-// Repository defines the interface for database operations
+// Repository defines the interface for database operations.
+// The database serves as an INDEX for queryable data.
+// Actual workflow definitions and execution details live on disk as JSON files.
 type Repository interface {
 	// Project operations
-	CreateProject(ctx context.Context, project *Project) error
-	GetProject(ctx context.Context, id uuid.UUID) (*Project, error)
-	GetProjectByName(ctx context.Context, name string) (*Project, error)
-	GetProjectByFolderPath(ctx context.Context, folderPath string) (*Project, error)
-	UpdateProject(ctx context.Context, project *Project) error
+	CreateProject(ctx context.Context, project *ProjectIndex) error
+	GetProject(ctx context.Context, id uuid.UUID) (*ProjectIndex, error)
+	GetProjectByName(ctx context.Context, name string) (*ProjectIndex, error)
+	GetProjectByFolderPath(ctx context.Context, folderPath string) (*ProjectIndex, error)
+	UpdateProject(ctx context.Context, project *ProjectIndex) error
 	DeleteProject(ctx context.Context, id uuid.UUID) error
-	ListProjects(ctx context.Context, limit, offset int) ([]*Project, error)
-	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error)
+	ListProjects(ctx context.Context, limit, offset int) ([]*ProjectIndex, error)
+	GetProjectStats(ctx context.Context, projectID uuid.UUID) (*ProjectStats, error)
+	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*ProjectStats, error)
 
-	// Workflow operations
-	CreateWorkflow(ctx context.Context, workflow *Workflow) error
-	GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, error)
-	GetWorkflowByName(ctx context.Context, name, folderPath string) (*Workflow, error)
-	UpdateWorkflow(ctx context.Context, workflow *Workflow) error
+	// Workflow index operations (actual data is on disk)
+	CreateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIndex, error)
+	GetWorkflowByName(ctx context.Context, name, folderPath string) (*WorkflowIndex, error)
+	UpdateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
-	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*Workflow, error)
-	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*Workflow, error)
+	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*WorkflowIndex, error)
+	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*WorkflowIndex, error)
 
-	// Execution operations
-	CreateExecution(ctx context.Context, execution *Execution) error
-	GetExecution(ctx context.Context, id uuid.UUID) (*Execution, error)
-	UpdateExecution(ctx context.Context, execution *Execution) error
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*Execution, error)
+	// Execution index operations (detailed results are on disk)
+	CreateExecution(ctx context.Context, execution *ExecutionIndex) error
+	GetExecution(ctx context.Context, id uuid.UUID) (*ExecutionIndex, error)
+	// UpdateExecution updates the full execution row; prefer targeted updates for lifecycle/result path changes.
+	UpdateExecution(ctx context.Context, execution *ExecutionIndex) error
+	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
+	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
+	DeleteExecution(ctx context.Context, id uuid.UUID) error
+	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error)
+	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error)
 
-	// Screenshot operations
-	CreateScreenshot(ctx context.Context, screenshot *Screenshot) error
-	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*Screenshot, error)
+	// Schedule operations (must be in DB for cron queries)
+	CreateSchedule(ctx context.Context, schedule *ScheduleIndex) error
+	GetSchedule(ctx context.Context, id uuid.UUID) (*ScheduleIndex, error)
+	UpdateSchedule(ctx context.Context, schedule *ScheduleIndex) error
+	DeleteSchedule(ctx context.Context, id uuid.UUID) error
+	ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*ScheduleIndex, error)
+	GetActiveSchedulesDue(ctx context.Context, before time.Time) ([]*ScheduleIndex, error)
+	UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error
+	UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error
 
-	// Log operations
-	CreateExecutionLog(ctx context.Context, log *ExecutionLog) error
-	GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*ExecutionLog, error)
+	// Settings operations (key-value store)
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+	DeleteSetting(ctx context.Context, key string) error
 
-	// Extracted data operations
-	CreateExtractedData(ctx context.Context, data *ExtractedData) error
-	GetExecutionExtractedData(ctx context.Context, executionID uuid.UUID) ([]*ExtractedData, error)
-
-	// Folder operations
-	CreateFolder(ctx context.Context, folder *WorkflowFolder) error
-	GetFolder(ctx context.Context, path string) (*WorkflowFolder, error)
-	ListFolders(ctx context.Context) ([]*WorkflowFolder, error)
+	// Export operations (exported artifacts metadata)
+	CreateExport(ctx context.Context, export *ExportIndex) error
+	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
+	UpdateExport(ctx context.Context, export *ExportIndex) error
+	DeleteExport(ctx context.Context, id uuid.UUID) error
+	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
+	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error)
+	ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*ExportIndex, error)
 }
 
 // repository implements the Repository interface
@@ -68,503 +86,695 @@ func NewRepository(db *DB, log *logrus.Logger) Repository {
 	}
 }
 
-// Project operations
+// Compile-time interface enforcement
+var _ Repository = (*repository)(nil)
 
-func (r *repository) CreateProject(ctx context.Context, project *Project) error {
-	query := `
-		INSERT INTO projects (id, name, description, folder_path, created_at, updated_at)
-		VALUES (:id, :name, :description, :folder_path, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+const (
+	projectSelectColumns   = "id, name, folder_path, created_at, updated_at"
+	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
+	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, resumed_from_id, created_at, updated_at"
+	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
+)
 
-	// Generate ID if not set
+func appendLimitOffset(query string, limit, offset int) (string, []any) {
+	var args []any
+	if limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += " OFFSET ?"
+		args = append(args, offset)
+	}
+	return query, args
+}
+
+// ============================================================================
+// Project Operations
+// ============================================================================
+
+func (r *repository) CreateProject(ctx context.Context, project *ProjectIndex) error {
 	if project.ID == uuid.Nil {
 		project.ID = uuid.New()
 	}
 
+	query := `INSERT INTO projects (id, name, folder_path) VALUES (:id, :name, :folder_path)`
 	_, err := r.db.NamedExecContext(ctx, query, project)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create project")
 		return fmt.Errorf("failed to create project: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*Project, error) {
-	query := `SELECT * FROM projects WHERE id = $1`
-	
-	var project Project
-	err := r.db.GetContext(ctx, &project, query, id)
-	if err != nil {
-		r.log.WithError(err).WithField("id", id).Error("Failed to get project")
+func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*ProjectIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE id = ?", projectSelectColumns))
+	var project ProjectIndex
+	if err := r.db.GetContext(ctx, &project, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
-
 	return &project, nil
 }
 
-func (r *repository) GetProjectByName(ctx context.Context, name string) (*Project, error) {
-	query := `SELECT * FROM projects WHERE name = $1`
-	
-	var project Project
-	err := r.db.GetContext(ctx, &project, query, name)
-	if err != nil {
-		r.log.WithError(err).WithField("name", name).Error("Failed to get project by name")
+func (r *repository) GetProjectByName(ctx context.Context, name string) (*ProjectIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE name = ?", projectSelectColumns))
+	var project ProjectIndex
+	if err := r.db.GetContext(ctx, &project, query, name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get project by name: %w", err)
 	}
-
 	return &project, nil
 }
 
-func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath string) (*Project, error) {
-	query := `SELECT * FROM projects WHERE folder_path = $1`
-	
-	var project Project
-	err := r.db.GetContext(ctx, &project, query, folderPath)
-	if err != nil {
-		r.log.WithError(err).WithField("folder_path", folderPath).Error("Failed to get project by folder path")
+func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath string) (*ProjectIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE folder_path = ?", projectSelectColumns))
+	var project ProjectIndex
+	if err := r.db.GetContext(ctx, &project, query, folderPath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get project by folder path: %w", err)
 	}
-
 	return &project, nil
 }
 
-func (r *repository) UpdateProject(ctx context.Context, project *Project) error {
-	query := `
-		UPDATE projects 
-		SET name = :name, description = :description, folder_path = :folder_path, updated_at = CURRENT_TIMESTAMP
-		WHERE id = :id`
-
+func (r *repository) UpdateProject(ctx context.Context, project *ProjectIndex) error {
+	query := `UPDATE projects SET name = :name, folder_path = :folder_path WHERE id = :id`
 	_, err := r.db.NamedExecContext(ctx, query, project)
 	if err != nil {
-		r.log.WithError(err).WithField("id", project.ID).Error("Failed to update project")
 		return fmt.Errorf("failed to update project: %w", err)
 	}
-
 	return nil
 }
 
 func (r *repository) DeleteProject(ctx context.Context, id uuid.UUID) error {
-	// Start a transaction to ensure consistency
-	tx, err := r.db.BeginTxx(ctx, nil)
+	query := r.db.Rebind(`DELETE FROM projects WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Delete all workflows in the project first
-	_, err = tx.ExecContext(ctx, `DELETE FROM workflows WHERE project_id = $1`, id)
-	if err != nil {
-		r.log.WithError(err).WithField("project_id", id).Error("Failed to delete project workflows")
-		return fmt.Errorf("failed to delete project workflows: %w", err)
-	}
-
-	// Delete the project
-	_, err = tx.ExecContext(ctx, `DELETE FROM projects WHERE id = $1`, id)
-	if err != nil {
-		r.log.WithError(err).WithField("id", id).Error("Failed to delete project")
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
-
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		r.log.WithError(err).Error("Failed to commit project deletion")
-		return fmt.Errorf("failed to commit project deletion: %w", err)
-	}
-
 	return nil
 }
 
-func (r *repository) ListProjects(ctx context.Context, limit, offset int) ([]*Project, error) {
-	query := `SELECT * FROM projects ORDER BY updated_at DESC LIMIT $1 OFFSET $2`
-	
-	var projects []*Project
-	err := r.db.SelectContext(ctx, &projects, query, limit, offset)
-	if err != nil {
-		r.log.WithError(err).Error("Failed to list projects")
+func (r *repository) ListProjects(ctx context.Context, limit, offset int) ([]*ProjectIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM projects ORDER BY updated_at DESC", projectSelectColumns)
+	queryWithPaging, args := appendLimitOffset(base, limit, offset)
+	query := r.db.Rebind(queryWithPaging)
+	var projects []*ProjectIndex
+	if err := r.db.SelectContext(ctx, &projects, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
-
 	return projects, nil
 }
 
-func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
-
-	// Get workflow count
-	var workflowCount int
-	err := r.db.GetContext(ctx, &workflowCount, `SELECT COUNT(*) FROM workflows WHERE project_id = $1`, projectID)
+func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (*ProjectStats, error) {
+	statsByID, err := r.GetProjectsStats(ctx, []uuid.UUID{projectID})
 	if err != nil {
-		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get workflow count")
-		return nil, fmt.Errorf("failed to get workflow count: %w", err)
+		return nil, err
 	}
-	stats["workflow_count"] = workflowCount
-
-	// Get execution count
-	var executionCount int
-	err = r.db.GetContext(ctx, &executionCount, `
-		SELECT COUNT(e.*) FROM executions e 
-		JOIN workflows w ON e.workflow_id = w.id 
-		WHERE w.project_id = $1`, projectID)
-	if err != nil {
-		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get execution count")
-		return nil, fmt.Errorf("failed to get execution count: %w", err)
+	if stats, ok := statsByID[projectID]; ok {
+		return stats, nil
 	}
-	stats["execution_count"] = executionCount
-
-	// Get last execution date
-	var lastExecution *time.Time
-	err = r.db.GetContext(ctx, &lastExecution, `
-		SELECT MAX(e.started_at) FROM executions e 
-		JOIN workflows w ON e.workflow_id = w.id 
-		WHERE w.project_id = $1`, projectID)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get last execution date")
-		return nil, fmt.Errorf("failed to get last execution date: %w", err)
-	}
-	stats["last_execution"] = lastExecution
-
-	return stats, nil
+	return &ProjectStats{ProjectID: projectID}, nil
 }
 
-func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-	
-	var workflows []*Workflow
-	err := r.db.SelectContext(ctx, &workflows, query, projectID, limit, offset)
-	if err != nil {
-		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to list workflows by project")
-		return nil, fmt.Errorf("failed to list workflows by project: %w", err)
+func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*ProjectStats, error) {
+	result := make(map[uuid.UUID]*ProjectStats, len(projectIDs))
+	if len(projectIDs) == 0 {
+		return result, nil
 	}
 
-	return workflows, nil
+	query, args, err := sqlx.In(`
+		SELECT
+			p.id AS project_id,
+			COUNT(DISTINCT w.id) AS workflow_count,
+			COUNT(DISTINCT e.id) AS execution_count,
+			MAX(e.started_at) AS last_execution
+		FROM projects p
+		LEFT JOIN workflows w ON w.project_id = p.id
+		LEFT JOIN executions e ON e.workflow_id = w.id
+		WHERE p.id IN (?)
+		GROUP BY p.id
+	`, projectIDs)
+	if err != nil {
+		return nil, fmt.Errorf("prepare project stats query: %w", err)
+	}
+
+	query = r.db.Rebind(query)
+	var stats []*ProjectStats
+	if err := r.db.SelectContext(ctx, &stats, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to get project stats: %w", err)
+	}
+
+	for _, row := range stats {
+		if row == nil {
+			continue
+		}
+		result[row.ProjectID] = row
+	}
+	for _, id := range projectIDs {
+		if _, ok := result[id]; !ok {
+			result[id] = &ProjectStats{ProjectID: id}
+		}
+	}
+	return result, nil
 }
 
-// Workflow operations
+// ============================================================================
+// Workflow Index Operations
+// ============================================================================
 
-func (r *repository) CreateWorkflow(ctx context.Context, workflow *Workflow) error {
-	query := `
-		INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, tags, version, is_template, created_by)
-		VALUES (:id, :project_id, :name, :folder_path, :flow_definition, :description, :tags, :version, :is_template, :created_by)`
-
-	// Generate ID if not set
+func (r *repository) CreateWorkflow(ctx context.Context, workflow *WorkflowIndex) error {
 	if workflow.ID == uuid.Nil {
 		workflow.ID = uuid.New()
 	}
-
-	// Set defaults
 	if workflow.Version == 0 {
 		workflow.Version = 1
 	}
-	
+
+	query := `INSERT INTO workflows (id, project_id, name, folder_path, file_path, version)
+	          VALUES (:id, :project_id, :name, :folder_path, :file_path, :version)`
 	_, err := r.db.NamedExecContext(ctx, query, workflow)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create workflow")
 		return fmt.Errorf("failed to create workflow: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE id = $1`
-	
-	var workflow Workflow
-	err := r.db.GetContext(ctx, &workflow, query, id)
-	if err != nil {
-		r.log.WithError(err).WithField("id", id).Error("Failed to get workflow")
+func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE id = ?", workflowSelectColumns))
+	var workflow WorkflowIndex
+	if err := r.db.GetContext(ctx, &workflow, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get workflow: %w", err)
 	}
-
 	return &workflow, nil
 }
 
-func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE name = $1 AND folder_path = $2`
-	
-	var workflow Workflow
-	err := r.db.GetContext(ctx, &workflow, query, name, folderPath)
-	if err != nil {
-		r.log.WithError(err).WithFields(logrus.Fields{
-			"name": name,
-			"folderPath": folderPath,
-		}).Error("Failed to get workflow by name")
+func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*WorkflowIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE name = ? AND folder_path = ?", workflowSelectColumns))
+	var workflow WorkflowIndex
+	if err := r.db.GetContext(ctx, &workflow, query, name, folderPath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get workflow by name: %w", err)
 	}
-
 	return &workflow, nil
 }
 
-func (r *repository) UpdateWorkflow(ctx context.Context, workflow *Workflow) error {
-	query := `
-		UPDATE workflows 
-		SET project_id = :project_id, name = :name, folder_path = :folder_path, flow_definition = :flow_definition, 
-		    description = :description, tags = :tags, version = :version, updated_at = CURRENT_TIMESTAMP
-		WHERE id = :id`
-
+func (r *repository) UpdateWorkflow(ctx context.Context, workflow *WorkflowIndex) error {
+	query := `UPDATE workflows SET project_id = :project_id, name = :name, folder_path = :folder_path,
+	          file_path = :file_path, version = :version WHERE id = :id`
 	_, err := r.db.NamedExecContext(ctx, query, workflow)
 	if err != nil {
-		r.log.WithError(err).WithField("id", workflow.ID).Error("Failed to update workflow")
 		return fmt.Errorf("failed to update workflow: %w", err)
 	}
-
 	return nil
 }
 
 func (r *repository) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM workflows WHERE id = $1`
-	
+	query := r.db.Rebind(`DELETE FROM workflows WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		r.log.WithError(err).WithField("id", id).Error("Failed to delete workflow")
 		return fmt.Errorf("failed to delete workflow: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*Workflow, error) {
-	var query string
-	var args []interface{}
-
+func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*WorkflowIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM workflows", workflowSelectColumns)
+	var args []any
 	if folderPath != "" {
-		query = `SELECT * FROM workflows WHERE folder_path = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-		args = []interface{}{folderPath, limit, offset}
-	} else {
-		query = `SELECT * FROM workflows ORDER BY created_at DESC LIMIT $1 OFFSET $2`
-		args = []interface{}{limit, offset}
+		base += " WHERE folder_path = ?"
+		args = append(args, folderPath)
 	}
+	base += " ORDER BY updated_at DESC"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 
-	var workflows []*Workflow
-	err := r.db.SelectContext(ctx, &workflows, query, args...)
-	if err != nil {
-		r.log.WithError(err).Error("Failed to list workflows")
+	var workflows []*WorkflowIndex
+	if err := r.db.SelectContext(ctx, &workflows, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list workflows: %w", err)
 	}
-
 	return workflows, nil
 }
 
-// Execution operations
+func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*WorkflowIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM workflows WHERE project_id = ? ORDER BY updated_at DESC", workflowSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{projectID}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var workflows []*WorkflowIndex
+	if err := r.db.SelectContext(ctx, &workflows, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list workflows by project: %w", err)
+	}
+	return workflows, nil
+}
 
-func (r *repository) CreateExecution(ctx context.Context, execution *Execution) error {
-	query := `
-		INSERT INTO executions (id, workflow_id, workflow_version, status, trigger_type, 
-		                       trigger_metadata, parameters, progress, current_step)
-		VALUES (:id, :workflow_id, :workflow_version, :status, :trigger_type, 
-		        :trigger_metadata, :parameters, :progress, :current_step)`
+// ============================================================================
+// Execution Index Operations
+// ============================================================================
 
-	// Generate ID if not set
+func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIndex) error {
 	if execution.ID == uuid.Nil {
 		execution.ID = uuid.New()
 	}
 
+	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path, resumed_from_id)
+	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path, :resumed_from_id)`
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create execution")
 		return fmt.Errorf("failed to create execution: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*Execution, error) {
-	query := `SELECT * FROM executions WHERE id = $1`
-	
-	var execution Execution
-	err := r.db.GetContext(ctx, &execution, query, id)
-	if err != nil {
-		r.log.WithError(err).WithField("id", id).Error("Failed to get execution")
+func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*ExecutionIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM executions WHERE id = ?", executionSelectColumns))
+	var execution ExecutionIndex
+	if err := r.db.GetContext(ctx, &execution, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get execution: %w", err)
 	}
-
 	return &execution, nil
 }
 
-func (r *repository) UpdateExecution(ctx context.Context, execution *Execution) error {
-	query := `
-		UPDATE executions 
-		SET status = :status, completed_at = :completed_at, error = :error, 
-		    result = :result, progress = :progress, current_step = :current_step
-		WHERE id = :id`
-
+func (r *repository) UpdateExecution(ctx context.Context, execution *ExecutionIndex) error {
+	query := `UPDATE executions SET status = :status, completed_at = :completed_at,
+	          error_message = :error_message, result_path = :result_path WHERE id = :id`
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
-		r.log.WithError(err).WithField("id", execution.ID).Error("Failed to update execution")
 		return fmt.Errorf("failed to update execution: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*Execution, error) {
-	var query string
-	var args []interface{}
+func (r *repository) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	// First, fetch the current status to validate the transition
+	current, err := r.GetExecution(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Validate the status transition
+	if err := ValidateStatusTransition(current.Status, status); err != nil {
+		if r.log != nil {
+			r.log.WithFields(logrus.Fields{
+				"execution_id":   id,
+				"current_status": current.Status,
+				"new_status":     status,
+			}).Warn("Invalid execution status transition attempted")
+		}
+		return err
+	}
+
+	query := r.db.Rebind("UPDATE executions SET status = ?, error_message = ?, completed_at = ?, updated_at = ? WHERE id = ?")
+	errValue := ""
+	if errorMessage != nil {
+		errValue = *errorMessage
+	}
+	completeValue := sql.NullTime{}
+	if completedAt != nil {
+		completeValue = sql.NullTime{Time: *completedAt, Valid: true}
+	}
+	res, err := r.db.ExecContext(ctx, query, status, errValue, completeValue, updatedAt, id)
+	if err != nil {
+		return fmt.Errorf("failed to update execution status: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
+	query := r.db.Rebind("UPDATE executions SET result_path = ?, updated_at = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, resultPath, updatedAt, id)
+	if err != nil {
+		return fmt.Errorf("failed to update execution result path: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM executions WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete execution: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error) {
+	var base string
+	var args []any
+	var conditions []string
+
+	if projectID != nil {
+		// Join with workflows to filter by project_id
+		base = fmt.Sprintf("SELECT e.%s FROM executions e JOIN workflows w ON e.workflow_id = w.id",
+			"id, e.workflow_id, e.status, e.started_at, e.completed_at, COALESCE(e.error_message, '') as error_message, COALESCE(e.result_path, '') as result_path, e.resumed_from_id, e.created_at, e.updated_at")
+		conditions = append(conditions, "w.project_id = ?")
+		args = append(args, *projectID)
+	} else {
+		base = fmt.Sprintf("SELECT %s FROM executions", executionSelectColumns)
+	}
 
 	if workflowID != nil {
-		query = `SELECT * FROM executions WHERE workflow_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`
-		args = []interface{}{*workflowID, limit, offset}
-	} else {
-		query = `SELECT * FROM executions ORDER BY started_at DESC LIMIT $1 OFFSET $2`
-		args = []interface{}{limit, offset}
+		if projectID != nil {
+			conditions = append(conditions, "e.workflow_id = ?")
+		} else {
+			conditions = append(conditions, "workflow_id = ?")
+		}
+		args = append(args, *workflowID)
 	}
 
-	var executions []*Execution
-	err := r.db.SelectContext(ctx, &executions, query, args...)
-	if err != nil {
-		r.log.WithError(err).Error("Failed to list executions")
+	if len(conditions) > 0 {
+		base += " WHERE " + conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			base += " AND " + conditions[i]
+		}
+	}
+
+	base += " ORDER BY started_at DESC"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+
+	var executions []*ExecutionIndex
+	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list executions: %w", err)
 	}
-
 	return executions, nil
 }
 
-// Screenshot operations
+func (r *repository) ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at DESC", executionSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{status}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var executions []*ExecutionIndex
+	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list executions by status: %w", err)
+	}
+	return executions, nil
+}
 
-func (r *repository) CreateScreenshot(ctx context.Context, screenshot *Screenshot) error {
-	query := `
-		INSERT INTO screenshots (id, execution_id, step_name, storage_url, thumbnail_url, 
-		                        width, height, size_bytes, metadata)
-		VALUES (:id, :execution_id, :step_name, :storage_url, :thumbnail_url, 
-		        :width, :height, :size_bytes, :metadata)`
+// ============================================================================
+// Schedule Operations
+// ============================================================================
 
-	// Generate ID if not set
-	if screenshot.ID == uuid.Nil {
-		screenshot.ID = uuid.New()
+func (r *repository) CreateSchedule(ctx context.Context, schedule *ScheduleIndex) error {
+	if schedule.ID == uuid.Nil {
+		schedule.ID = uuid.New()
+	}
+	if schedule.Timezone == "" {
+		schedule.Timezone = "UTC"
 	}
 
-	_, err := r.db.NamedExecContext(ctx, query, screenshot)
+	query := `INSERT INTO schedules (id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at)
+	          VALUES (:id, :workflow_id, :name, :cron_expression, :timezone, :is_active, :parameters_json, :next_run_at, :last_run_at)`
+	_, err := r.db.NamedExecContext(ctx, query, schedule)
 	if err != nil {
-		r.log.WithError(err).Error("Failed to create screenshot")
-		return fmt.Errorf("failed to create screenshot: %w", err)
+		r.log.WithError(err).Error("Failed to create schedule")
+		return fmt.Errorf("failed to create schedule: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*Screenshot, error) {
-	query := `SELECT * FROM screenshots WHERE execution_id = $1 ORDER BY timestamp ASC`
-	
-	var screenshots []*Screenshot
-	err := r.db.SelectContext(ctx, &screenshots, query, executionID)
-	if err != nil {
-		r.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get screenshots")
-		return nil, fmt.Errorf("failed to get screenshots: %w", err)
+func (r *repository) GetSchedule(ctx context.Context, id uuid.UUID) (*ScheduleIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM schedules WHERE id = ?", scheduleSelectColumns))
+	var schedule ScheduleIndex
+	if err := r.db.GetContext(ctx, &schedule, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get schedule: %w", err)
 	}
-
-	return screenshots, nil
+	return &schedule, nil
 }
 
-// Log operations
-
-func (r *repository) CreateExecutionLog(ctx context.Context, log *ExecutionLog) error {
-	query := `
-		INSERT INTO execution_logs (id, execution_id, level, step_name, message, metadata)
-		VALUES (:id, :execution_id, :level, :step_name, :message, :metadata)`
-
-	// Generate ID if not set
-	if log.ID == uuid.Nil {
-		log.ID = uuid.New()
-	}
-
-	_, err := r.db.NamedExecContext(ctx, query, log)
+func (r *repository) UpdateSchedule(ctx context.Context, schedule *ScheduleIndex) error {
+	query := `UPDATE schedules SET workflow_id = :workflow_id, name = :name, cron_expression = :cron_expression,
+	          timezone = :timezone, is_active = :is_active, parameters_json = :parameters_json,
+	          next_run_at = :next_run_at, last_run_at = :last_run_at WHERE id = :id`
+	_, err := r.db.NamedExecContext(ctx, query, schedule)
 	if err != nil {
-		r.log.WithError(err).Error("Failed to create execution log")
-		return fmt.Errorf("failed to create execution log: %w", err)
+		return fmt.Errorf("failed to update schedule: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*ExecutionLog, error) {
-	query := `SELECT * FROM execution_logs WHERE execution_id = $1 ORDER BY timestamp ASC`
-	
-	var logs []*ExecutionLog
-	err := r.db.SelectContext(ctx, &logs, query, executionID)
+func (r *repository) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM schedules WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		r.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get execution logs")
-		return nil, fmt.Errorf("failed to get execution logs: %w", err)
+		return fmt.Errorf("failed to delete schedule: %w", err)
 	}
-
-	return logs, nil
-}
-
-// Extracted data operations
-
-func (r *repository) CreateExtractedData(ctx context.Context, data *ExtractedData) error {
-	query := `
-		INSERT INTO extracted_data (id, execution_id, step_name, data_key, data_value, data_type, metadata)
-		VALUES (:id, :execution_id, :step_name, :data_key, :data_value, :data_type, :metadata)`
-
-	// Generate ID if not set
-	if data.ID == uuid.Nil {
-		data.ID = uuid.New()
-	}
-
-	_, err := r.db.NamedExecContext(ctx, query, data)
-	if err != nil {
-		r.log.WithError(err).Error("Failed to create extracted data")
-		return fmt.Errorf("failed to create extracted data: %w", err)
-	}
-
 	return nil
 }
 
-func (r *repository) GetExecutionExtractedData(ctx context.Context, executionID uuid.UUID) ([]*ExtractedData, error) {
-	query := `SELECT * FROM extracted_data WHERE execution_id = $1 ORDER BY timestamp ASC`
-	
-	var data []*ExtractedData
-	err := r.db.SelectContext(ctx, &data, query, executionID)
-	if err != nil {
-		r.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get extracted data")
-		return nil, fmt.Errorf("failed to get extracted data: %w", err)
+func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*ScheduleIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM schedules", scheduleSelectColumns)
+	var args []any
+
+	if workflowID != nil {
+		base += " WHERE workflow_id = ?"
+		args = append(args, *workflowID)
+		if activeOnly {
+			base += " AND is_active = true"
+		}
+	} else if activeOnly {
+		base += " WHERE is_active = true"
 	}
 
-	return data, nil
+	base += " ORDER BY next_run_at ASC NULLS LAST"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+
+	var schedules []*ScheduleIndex
+	if err := r.db.SelectContext(ctx, &schedules, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list schedules: %w", err)
+	}
+	return schedules, nil
 }
 
-// Folder operations
-
-func (r *repository) CreateFolder(ctx context.Context, folder *WorkflowFolder) error {
-	query := `
-		INSERT INTO workflow_folders (id, path, parent_id, name, description)
-		VALUES (:id, :path, :parent_id, :name, :description)`
-
-	// Generate ID if not set
-	if folder.ID == uuid.Nil {
-		folder.ID = uuid.New()
+func (r *repository) GetActiveSchedulesDue(ctx context.Context, before time.Time) ([]*ScheduleIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM schedules WHERE is_active = true AND next_run_at <= ? ORDER BY next_run_at ASC", scheduleSelectColumns))
+	var schedules []*ScheduleIndex
+	if err := r.db.SelectContext(ctx, &schedules, query, before); err != nil {
+		return nil, fmt.Errorf("failed to get active schedules due: %w", err)
 	}
+	return schedules, nil
+}
 
-	_, err := r.db.NamedExecContext(ctx, query, folder)
+func (r *repository) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
+	query := r.db.Rebind(`UPDATE schedules SET next_run_at = ? WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, nextRun, id)
 	if err != nil {
-		r.log.WithError(err).Error("Failed to create folder")
-		return fmt.Errorf("failed to create folder: %w", err)
+		return fmt.Errorf("failed to update schedule next run: %w", err)
 	}
-
 	return nil
 }
 
-func (r *repository) GetFolder(ctx context.Context, path string) (*WorkflowFolder, error) {
-	query := `SELECT * FROM workflow_folders WHERE path = $1`
-	
-	var folder WorkflowFolder
-	err := r.db.GetContext(ctx, &folder, query, path)
+func (r *repository) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
+	query := r.db.Rebind(`UPDATE schedules SET last_run_at = ? WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, lastRun, id)
 	if err != nil {
-		r.log.WithError(err).WithField("path", path).Error("Failed to get folder")
-		return nil, fmt.Errorf("failed to get folder: %w", err)
+		return fmt.Errorf("failed to update schedule last run: %w", err)
 	}
-
-	return &folder, nil
+	return nil
 }
 
-func (r *repository) ListFolders(ctx context.Context) ([]*WorkflowFolder, error) {
-	query := `SELECT * FROM workflow_folders ORDER BY path ASC`
-	
-	var folders []*WorkflowFolder
-	err := r.db.SelectContext(ctx, &folders, query)
-	if err != nil {
-		r.log.WithError(err).Error("Failed to list folders")
-		return nil, fmt.Errorf("failed to list folders: %w", err)
+// ============================================================================
+// Export Operations
+// ============================================================================
+
+func (r *repository) CreateExport(ctx context.Context, export *ExportIndex) error {
+	if export == nil {
+		return fmt.Errorf("export is nil")
+	}
+	if export.ID == uuid.Nil {
+		export.ID = uuid.New()
+	}
+	if export.Status == "" {
+		export.Status = "pending"
 	}
 
-	return folders, nil
+	query := `INSERT INTO exports (
+		id, execution_id, workflow_id, name, format, settings, storage_url, thumbnail_url,
+		file_size_bytes, duration_ms, frame_count, ai_caption, ai_caption_generated_at, status, error
+	) VALUES (
+		:id, :execution_id, :workflow_id, :name, :format, :settings, :storage_url, :thumbnail_url,
+		:file_size_bytes, :duration_ms, :frame_count, :ai_caption, :ai_caption_generated_at, :status, :error
+	)`
+	_, err := r.db.NamedExecContext(ctx, query, export)
+	if err != nil {
+		return fmt.Errorf("failed to create export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error) {
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.id = ?
+	`)
+	var export ExportIndex
+	if err := r.db.GetContext(ctx, &export, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get export: %w", err)
+	}
+	return &export, nil
+}
+
+func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) error {
+	if export == nil {
+		return fmt.Errorf("export is nil")
+	}
+	query := `UPDATE exports SET
+		execution_id = :execution_id,
+		workflow_id = :workflow_id,
+		name = :name,
+		format = :format,
+		settings = :settings,
+		storage_url = :storage_url,
+		thumbnail_url = :thumbnail_url,
+		file_size_bytes = :file_size_bytes,
+		duration_ms = :duration_ms,
+		frame_count = :frame_count,
+		ai_caption = :ai_caption,
+		ai_caption_generated_at = :ai_caption_generated_at,
+		status = :status,
+		error = :error
+		WHERE id = :id`
+	_, err := r.db.NamedExecContext(ctx, query, export)
+	if err != nil {
+		return fmt.Errorf("failed to update export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM exports WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		ORDER BY e.created_at DESC
+		LIMIT ? OFFSET ?
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, limit, offset); err != nil {
+		return nil, fmt.Errorf("failed to list exports: %w", err)
+	}
+	return exports, nil
+}
+
+func (r *repository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error) {
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.execution_id = ?
+		ORDER BY e.created_at DESC
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, executionID); err != nil {
+		return nil, fmt.Errorf("failed to list exports by execution: %w", err)
+	}
+	return exports, nil
+}
+
+func (r *repository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*ExportIndex, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.workflow_id = ?
+		ORDER BY e.created_at DESC
+		LIMIT ? OFFSET ?
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, workflowID, limit, offset); err != nil {
+		return nil, fmt.Errorf("failed to list exports by workflow: %w", err)
+	}
+	return exports, nil
+}
+
+// ============================================================================
+// Settings Operations
+// ============================================================================
+
+func (r *repository) GetSetting(ctx context.Context, key string) (string, error) {
+	query := r.db.Rebind(`SELECT value FROM settings WHERE key = ?`)
+	var value string
+	if err := r.db.GetContext(ctx, &value, query, key); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("failed to get setting: %w", err)
+	}
+	return value, nil
+}
+
+func (r *repository) SetSetting(ctx context.Context, key, value string) error {
+	// Use UPSERT pattern
+	query := r.db.Rebind(`
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+	`)
+	_, err := r.db.ExecContext(ctx, query, key, value)
+	if err != nil {
+		return fmt.Errorf("failed to set setting: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteSetting(ctx context.Context, key string) error {
+	query := r.db.Rebind(`DELETE FROM settings WHERE key = ?`)
+	_, err := r.db.ExecContext(ctx, query, key)
+	if err != nil {
+		return fmt.Errorf("failed to delete setting: %w", err)
+	}
+	return nil
 }

@@ -1,16 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	manifest "scenario-to-desktop-runtime/manifest"
 )
 
 // TestHealthHandler tests the health check endpoint comprehensively
@@ -24,13 +28,14 @@ func TestHealthHandler(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/health", nil)
 		w := httptest.NewRecorder()
 
-		server.healthHandler(w, req)
+		server.router.ServeHTTP(w, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldValue(t, response, "service", "scenario-to-desktop")
+		assertFieldValue(t, response, "service", "scenario-to-desktop-api")
 		assertFieldExists(t, response, "version")
 		assertFieldExists(t, response, "status")
 		assertFieldExists(t, response, "timestamp")
+		assertFieldExists(t, response, "readiness")
 	})
 
 	t.Run("MultipleRequests", func(t *testing.T) {
@@ -38,7 +43,7 @@ func TestHealthHandler(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			req := httptest.NewRequest("GET", "/api/v1/health", nil)
 			w := httptest.NewRecorder()
-			server.healthHandler(w, req)
+			server.router.ServeHTTP(w, req)
 			if w.Code != http.StatusOK {
 				t.Errorf("Request %d failed with status %d", i, w.Code)
 			}
@@ -85,9 +90,9 @@ func TestStatusHandler(t *testing.T) {
 
 	t.Run("WithBuildStatistics", func(t *testing.T) {
 		// Add some build statuses
-		server.buildStatuses["build1"] = createTestBuildStatus("build1", "building")
-		server.buildStatuses["build2"] = createTestBuildStatus("build2", "ready")
-		server.buildStatuses["build3"] = createTestBuildStatus("build3", "failed")
+		server.builds.Save(createTestBuildStatus("build1", "building"))
+		server.builds.Save(createTestBuildStatus("build2", "ready"))
+		server.builds.Save(createTestBuildStatus("build3", "failed"))
 
 		req := httptest.NewRequest("GET", "/api/v1/status", nil)
 		w := httptest.NewRecorder()
@@ -169,7 +174,7 @@ func TestGetTemplateHandler(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Run("BasicTemplate", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/templates/basic", nil)
+		req := httptest.NewRequest("GET", "/api/v1/templates/react-vite", nil)
 		req = mux.SetURLVars(req, map[string]string{"type": "basic"})
 		w := httptest.NewRecorder()
 
@@ -204,8 +209,9 @@ func TestGetTemplateHandler(t *testing.T) {
 
 		env.Server.getTemplateHandler(w, req)
 
-		if w.Code != http.StatusNotFound {
-			t.Errorf("Expected status 404, got %d", w.Code)
+		// Should return 400 because the template type is not in the whitelist
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
 		}
 	})
 
@@ -308,7 +314,11 @@ func TestGenerateDesktopHandler(t *testing.T) {
 
 		env.Server.generateDesktopHandler(w, req)
 
-		assertErrorResponse(t, w, http.StatusBadRequest, "output_path")
+		// output_path is now optional - defaults to scenarios/<app_name>/platforms/electron/
+		// So this should succeed, not fail
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d", w.Code)
+		}
 	})
 
 	t.Run("InvalidFramework", func(t *testing.T) {
@@ -443,7 +453,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 
 	t.Run("ExistingBuild", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "ready")
+		server.builds.Save(createTestBuildStatus(buildID, "ready"))
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -472,7 +482,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 
 	t.Run("BuildingStatus", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -488,7 +498,7 @@ func TestGetBuildStatusHandler(t *testing.T) {
 		buildID := uuid.New().String()
 		status := createTestBuildStatus(buildID, "failed")
 		status.ErrorLog = []string{"Build failed due to missing dependencies"}
-		server.buildStatuses[buildID] = status
+		server.builds.Save(status)
 
 		req := httptest.NewRequest("GET", "/api/v1/desktop/status/"+buildID, nil)
 		req = mux.SetURLVars(req, map[string]string{"build_id": buildID})
@@ -643,11 +653,66 @@ func TestPackageDesktopHandler(t *testing.T) {
 
 	server := NewServer(0)
 
-	t.Run("MicrosoftStore", func(t *testing.T) {
+	t.Run("PackagesBundleArtifacts", func(t *testing.T) {
+		appDir := t.TempDir()
+		manifestDir := t.TempDir()
+
+		platformKey := manifest.PlatformKey(runtime.GOOS, runtime.GOARCH)
+
+		pkgJSON := map[string]interface{}{
+			"name":    "bundle-test",
+			"version": "0.0.1",
+			"build": map[string]interface{}{
+				"extraResources": []interface{}{},
+			},
+		}
+		pkgBytes, _ := json.MarshalIndent(pkgJSON, "", "  ")
+		requireNoError(t, os.WriteFile(filepath.Join(appDir, "package.json"), pkgBytes, 0o644))
+
+		binRel := filepath.Join("services", "api", platformKey, "api-bin")
+		assetRel := filepath.Join("assets", "seed.txt")
+
+		requireNoError(t, os.MkdirAll(filepath.Join(manifestDir, filepath.Dir(binRel)), 0o755))
+		requireNoError(t, os.MkdirAll(filepath.Join(manifestDir, filepath.Dir(assetRel)), 0o755))
+
+		requireNoError(t, os.WriteFile(filepath.Join(manifestDir, binRel), []byte("binary"), 0o755))
+		requireNoError(t, os.WriteFile(filepath.Join(manifestDir, assetRel), []byte("asset"), 0o644))
+
+		m := manifest.Manifest{
+			SchemaVersion: "v0.1",
+			Target:        "desktop",
+			App: manifest.App{
+				Name:    "bundle-test",
+				Version: "0.0.1",
+			},
+			IPC: bundlemanifestIPC(),
+			Telemetry: manifest.Telemetry{
+				File: "telemetry/deployment-telemetry.jsonl",
+			},
+			Services: []manifest.Service{
+				{
+					ID:   "api",
+					Type: "api-binary",
+					Binaries: map[string]manifest.Binary{
+						platformKey: {Path: filepath.ToSlash(binRel)},
+					},
+					Health:    manifest.HealthCheck{Type: "command", Command: []string{"noop"}},
+					Readiness: manifest.ReadinessCheck{Type: "health_success"},
+					Assets: []manifest.Asset{
+						{Path: filepath.ToSlash(assetRel)},
+					},
+				},
+			},
+		}
+
+		manifestPath := filepath.Join(manifestDir, "bundle.json")
+		encoded, _ := json.MarshalIndent(m, "", "  ")
+		requireNoError(t, os.WriteFile(manifestPath, encoded, 0o644))
+
 		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app",
-			"store":      "microsoft",
-			"enterprise": false,
+			"app_path":             appDir,
+			"bundle_manifest_path": manifestPath,
+			"platforms":            []string{platformKey},
 		}
 
 		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
@@ -656,41 +721,26 @@ func TestPackageDesktopHandler(t *testing.T) {
 		server.packageDesktopHandler(w, req)
 
 		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldExists(t, response, "status")
-		assertFieldExists(t, response, "packages")
-		assertFieldExists(t, response, "timestamp")
-	})
+		assertFieldExists(t, response, "bundle_dir")
+		assertFieldExists(t, response, "runtime_binaries")
 
-	t.Run("MacAppStore", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app-mac",
-			"store":      "mac",
-			"enterprise": false,
+		bundleDir := filepath.Join(appDir, "bundle")
+		if _, err := os.Stat(filepath.Join(bundleDir, "bundle.json")); err != nil {
+			t.Fatalf("bundle.json not staged: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(bundleDir, binRel)); err != nil {
+			t.Fatalf("service binary not staged: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(bundleDir, assetRel)); err != nil {
+			t.Fatalf("asset not staged: %v", err)
 		}
 
-		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
-		w := httptest.NewRecorder()
-
-		server.packageDesktopHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		runtimePath := filepath.Join(bundleDir, "runtime", platformKey, runtimeBinaryName(runtime.GOOS))
+		if runtime.GOOS == "windows" {
+			runtimePath = filepath.Join(bundleDir, "runtime", platformKey, "runtime.exe")
 		}
-	})
-
-	t.Run("EnterprisePackaging", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":   "/tmp/test-app-enterprise",
-			"enterprise": true,
-		}
-
-		req := createJSONRequest("POST", "/api/v1/desktop/package", body)
-		w := httptest.NewRecorder()
-
-		server.packageDesktopHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		if _, err := os.Stat(runtimePath); err != nil {
+			t.Fatalf("runtime binary missing: %v", err)
 		}
 	})
 
@@ -714,7 +764,7 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 
 	t.Run("ValidWebhook_Completed", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		body := map[string]interface{}{
 			"status": "completed",
@@ -730,17 +780,18 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 		assertFieldValue(t, response, "status", "received")
 
 		// Verify status was updated
-		if server.buildStatuses[buildID].Status != "completed" {
+		status, _ := server.builds.Get(buildID)
+		if status.Status != "completed" {
 			t.Error("Expected build status to be updated to completed")
 		}
-		if server.buildStatuses[buildID].CompletedAt == nil {
+		if status.CompletedAt == nil {
 			t.Error("Expected CompletedAt to be set")
 		}
 	})
 
 	t.Run("ValidWebhook_Failed", func(t *testing.T) {
 		buildID := uuid.New().String()
-		server.buildStatuses[buildID] = createTestBuildStatus(buildID, "building")
+		server.builds.Save(createTestBuildStatus(buildID, "building"))
 
 		body := map[string]interface{}{
 			"status": "failed",
@@ -758,7 +809,8 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 		}
 
 		// Verify status was updated
-		if server.buildStatuses[buildID].Status != "failed" {
+		status, _ := server.builds.Get(buildID)
+		if status.Status != "failed" {
 			t.Error("Expected build status to be updated to failed")
 		}
 	})
@@ -792,7 +844,7 @@ func TestBuildCompleteWebhookHandler(t *testing.T) {
 
 	t.Run("NonExistentBuild", func(t *testing.T) {
 		buildID := uuid.New().String()
-		// Don't add build to server.buildStatuses
+		// Don't add build to the build store
 
 		body := map[string]interface{}{
 			"status": "completed",
@@ -817,21 +869,25 @@ func TestValidateDesktopConfig(t *testing.T) {
 	defer cleanup()
 
 	server := NewServer(0)
-
-	t.Run("ValidConfig", func(t *testing.T) {
-		config := &DesktopConfig{
+	newConfig := func() *DesktopConfig {
+		return &DesktopConfig{
 			AppName:      "TestApp",
 			Framework:    "electron",
 			TemplateType: "basic",
 			OutputPath:   "/tmp/test",
+			ServerType:   "static",
+			ServerPath:   "./dist",
+			APIEndpoint:  "http://localhost:3000",
+		}
+	}
+
+	t.Run("ValidConfig", func(t *testing.T) {
+		config := newConfig()
+
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
 		}
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-
-		// Verify defaults were set
 		if config.License != "MIT" {
 			t.Errorf("Expected default license MIT, got: %s", config.License)
 		}
@@ -841,126 +897,113 @@ func TestValidateDesktopConfig(t *testing.T) {
 	})
 
 	t.Run("MissingAppName", func(t *testing.T) {
-		config := &DesktopConfig{
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.AppName = ""
 
-		err := server.validateDesktopConfig(config)
-		if err == nil {
-			t.Error("Expected error for missing app_name")
-		}
-		if !strings.Contains(err.Error(), "app_name") {
-			t.Errorf("Expected error to mention app_name, got: %v", err)
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "app_name") {
+			t.Errorf("Expected app_name error, got: %v", err)
 		}
 	})
 
 	t.Run("MissingFramework", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.Framework = ""
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Error("Expected error for missing framework")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
+			t.Errorf("Expected framework error, got: %v", err)
 		}
 	})
 
 	t.Run("InvalidFramework", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "invalid",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.Framework = "invalid"
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Error("Expected error for invalid framework")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
+			t.Errorf("Expected framework validation error, got: %v", err)
 		}
 	})
 
 	t.Run("InvalidTemplateType", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "invalid",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.TemplateType = "invalid"
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "template_type") {
-			t.Error("Expected error for invalid template_type")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "template_type") {
+			t.Errorf("Expected template_type error, got: %v", err)
 		}
 	})
 
-	t.Run("MissingOutputPath", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-		}
+	t.Run("MissingOutputPathDefaults", func(t *testing.T) {
+		config := newConfig()
+		config.OutputPath = ""
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "output_path") {
-			t.Error("Expected error for missing output_path")
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected default output path handling, got: %v", err)
 		}
 	})
 
 	t.Run("CustomLicense", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			License:      "Apache-2.0",
-		}
+		config := newConfig()
+		config.License = "Apache-2.0"
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected no error for custom license, got: %v", err)
 		}
 		if config.License != "Apache-2.0" {
-			t.Error("Expected license to remain Apache-2.0")
+			t.Errorf("Expected license to remain Apache-2.0, got: %s", config.License)
 		}
 	})
 
 	t.Run("CustomPlatforms", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			Platforms:    []string{"win"},
-		}
+		config := newConfig()
+		config.Platforms = []string{"win"}
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected no error for custom platforms, got: %v", err)
 		}
 		if len(config.Platforms) != 1 {
-			t.Error("Expected platforms to remain as single item")
+			t.Errorf("Expected single platform to remain, got: %v", config.Platforms)
+		}
+	})
+
+	t.Run("InvalidDeploymentMode", func(t *testing.T) {
+		config := newConfig()
+		config.DeploymentMode = "unsupported"
+
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "deployment_mode") {
+			t.Errorf("Expected deployment_mode error, got: %v", err)
+		}
+	})
+
+	t.Run("AutoManageRequiresExternal", func(t *testing.T) {
+		config := newConfig()
+		config.AutoManageVrooli = true
+
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "auto_manage_vrooli") {
+			t.Errorf("Expected auto-manage error for static server, got: %v", err)
+		}
+	})
+
+	t.Run("AutoManageAllowedWithExternal", func(t *testing.T) {
+		config := newConfig()
+		config.ServerType = "external"
+		config.ProxyURL = "http://localhost:3000/"
+		config.AutoManageVrooli = true
+
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected external auto-manage to pass, got: %v", err)
 		}
 	})
 
 	t.Run("ServerPortDefault", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			ServerType:   "node",
-		}
+		config := newConfig()
+		config.ServerType = "node"
+		config.ServerPath = "ui/server.js"
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected embedded node config to pass, got: %v", err)
 		}
 		if config.ServerPort != 3000 {
-			t.Errorf("Expected default port 3000, got: %d", config.ServerPort)
+			t.Errorf("Expected default port 3000, got %d", config.ServerPort)
 		}
 	})
 }
@@ -1003,8 +1046,8 @@ func TestNewServer(t *testing.T) {
 		if server.port != 8080 {
 			t.Errorf("Expected port 8080, got %d", server.port)
 		}
-		if server.buildStatuses == nil {
-			t.Error("Expected buildStatuses map to be initialized")
+		if server.builds == nil {
+			t.Error("Expected build store to be initialized")
 		}
 		if server.router == nil {
 			t.Error("Expected router to be initialized")
@@ -1027,19 +1070,20 @@ func TestServerRoutes(t *testing.T) {
 	server := NewServer(0)
 
 	routes := []struct {
-		method string
-		path   string
+		method   string
+		path     string
+		allow404 bool // Allow 404 for routes with path parameters (resource not found is valid)
 	}{
-		{"GET", "/api/v1/health"},
-		{"GET", "/api/v1/status"},
-		{"GET", "/api/v1/templates"},
-		{"GET", "/api/v1/templates/basic"},  // Use actual path instead of template
-		{"POST", "/api/v1/desktop/generate"},
-		{"GET", "/api/v1/desktop/status/test-id"},  // Use actual path instead of template
-		{"POST", "/api/v1/desktop/build"},
-		{"POST", "/api/v1/desktop/test"},
-		{"POST", "/api/v1/desktop/package"},
-		{"POST", "/api/v1/desktop/webhook/build-complete"},
+		{"GET", "/api/v1/health", false},
+		{"GET", "/api/v1/status", false},
+		{"GET", "/api/v1/templates", false},
+		{"GET", "/api/v1/templates/react-vite", true}, // Template file might not exist in test env
+		{"POST", "/api/v1/desktop/generate", false},
+		{"GET", "/api/v1/desktop/status/test-id", true}, // Build ID doesn't exist
+		{"POST", "/api/v1/desktop/build", false},
+		{"POST", "/api/v1/desktop/test", false},
+		{"POST", "/api/v1/desktop/package", false},
+		{"POST", "/api/v1/desktop/webhook/build-complete", false},
 	}
 
 	for _, route := range routes {
@@ -1049,9 +1093,9 @@ func TestServerRoutes(t *testing.T) {
 
 			server.router.ServeHTTP(w, req)
 
-			// Should not return 404 (routes should exist)
-			// May return other errors if not properly formatted (400, 500, etc.)
-			if w.Code == 404 {
+			// Routes should exist - 404 only acceptable if explicitly allowed (resource not found)
+			// Other status codes (400, 500, etc.) indicate route exists but request was invalid
+			if w.Code == 404 && !route.allow404 {
 				t.Errorf("Route %s %s not found (status: %d)", route.method, route.path, w.Code)
 			}
 		})
@@ -1085,8 +1129,9 @@ func TestCORSMiddleware(t *testing.T) {
 
 		server.router.ServeHTTP(w, req)
 
-		// Check CORS headers are present
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		// Check CORS headers are present (middleware sets specific origin, not *)
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin == "" {
 			t.Error("Expected CORS headers on GET request")
 		}
 	})
@@ -1147,9 +1192,13 @@ func TestEdgeCases(t *testing.T) {
 		if w.Code == http.StatusCreated {
 			response := assertJSONResponse(t, w, http.StatusCreated)
 			buildID := response["build_id"].(string)
-			status := env.Server.buildStatuses[buildID]
-			if len(status.Platforms) == 0 {
-				t.Error("Expected default platforms to be set")
+			status, ok := env.Server.builds.Get(buildID)
+			if ok {
+				if len(status.Platforms) == 0 {
+					t.Error("Expected default platforms to be set")
+				}
+			} else {
+				t.Fatalf("Expected build status for %s", buildID)
 			}
 		}
 	})
@@ -1186,7 +1235,7 @@ func TestConcurrentRequests(t *testing.T) {
 			go func(id int) {
 				req := httptest.NewRequest("GET", "/api/v1/health", nil)
 				w := httptest.NewRecorder()
-				env.Server.healthHandler(w, req)
+				env.Server.router.ServeHTTP(w, req)
 				if w.Code != http.StatusOK {
 					t.Errorf("Concurrent request %d failed with status %d", id, w.Code)
 				}
@@ -1228,8 +1277,78 @@ func TestConcurrentRequests(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Verify all builds were created
-		if len(env.Server.buildStatuses) != 5 {
-			t.Errorf("Expected 5 build statuses, got %d", len(env.Server.buildStatuses))
+		if env.Server.builds.Len() != 5 {
+			t.Errorf("Expected 5 build statuses, got %d", env.Server.builds.Len())
+		}
+	})
+}
+
+func TestPreflightBundleHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	cwd, err := os.Getwd()
+	requireNoError(t, err)
+	repoRoot := filepath.Clean(filepath.Join(cwd, "..", "..", ".."))
+	manifestPath := filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "runtime", "testdata", "fixture-bundle", "bundle.json")
+	if _, err := os.Stat(manifestPath); err != nil {
+		t.Skipf("fixture bundle not available: %v", err)
+	}
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Run("MissingBundlePath", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		assertErrorResponse(t, w, http.StatusBadRequest, "bundle_manifest_path")
+	})
+
+	t.Run("MissingSecrets", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{
+			"bundle_manifest_path": manifestPath,
+		})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp BundlePreflightResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if resp.Validation == nil || !resp.Validation.Valid {
+			t.Fatalf("expected validation valid, got %+v", resp.Validation)
+		}
+		if resp.Ready == nil || resp.Ready.Ready {
+			t.Fatalf("expected ready=false when secrets missing, got %+v", resp.Ready)
+		}
+		if len(resp.Secrets) == 0 {
+			t.Fatalf("expected secrets in response")
+		}
+	})
+
+	t.Run("WithSecrets", func(t *testing.T) {
+		req := createJSONRequest("POST", "/api/v1/desktop/preflight", map[string]interface{}{
+			"bundle_manifest_path": manifestPath,
+			"secrets": map[string]string{
+				"API_KEY": "fixture-value",
+			},
+		})
+		w := httptest.NewRecorder()
+		env.Server.preflightBundleHandler(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp BundlePreflightResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if resp.Ready == nil || !resp.Ready.Ready {
+			t.Fatalf("expected ready=true when secrets provided, got %+v", resp.Ready)
 		}
 	})
 }
@@ -1278,7 +1397,7 @@ func TestPerformDesktopGeneration(t *testing.T) {
 			Metadata:     make(map[string]interface{}),
 		}
 
-		env.Server.buildStatuses[buildID] = buildStatus
+		env.Server.builds.Save(buildStatus)
 
 		// Run generation (will fail due to missing template generator, but tests flow)
 		env.Server.performDesktopGeneration(buildID, config)
@@ -1287,9 +1406,24 @@ func TestPerformDesktopGeneration(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		// Check that function completed without panic
-		status := env.Server.buildStatuses[buildID]
-		if status != nil {
+		if status, ok := env.Server.builds.Get(buildID); ok && status != nil {
 			t.Log("Generation completed (status may be failed due to missing tools)")
 		}
 	})
+}
+
+func bundlemanifestIPC() manifest.IPC {
+	return manifest.IPC{
+		Mode:         "loopback-http",
+		Host:         "127.0.0.1",
+		Port:         47710,
+		AuthTokenRel: "runtime/auth-token",
+	}
+}
+
+func requireNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }

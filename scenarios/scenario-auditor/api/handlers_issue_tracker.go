@@ -10,13 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -36,15 +36,14 @@ type createRuleRequest struct {
 }
 
 type issueTrackerResponse struct {
-	Success bool                   `json:"success"`
-	Message string                 `json:"message"`
-	Error   string                 `json:"error"`
-	Data    map[string]interface{} `json:"data"`
+	Success bool           `json:"success"`
+	Message string         `json:"message"`
+	Error   string         `json:"error"`
+	Data    map[string]any `json:"data"`
 }
 
 // reportIssueHandler creates an issue in app-issue-tracker for rule fixes/tests
 func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	var req reportIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -132,11 +131,11 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 			u.RawQuery = query.Encode()
 			issueURL = u.String()
 		} else {
-			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]interface{}{"error": err.Error()})
+			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]any{"error": err.Error()})
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"issueId":  result.IssueID,
 		"issueUrl": issueURL,
 		"message":  result.Message,
@@ -148,10 +147,10 @@ func reportIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (map[string]interface{}, error) {
+func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (map[string]any, error) {
 	var title, description, issueType, priority string
 	var tags []string
-	var artifacts []map[string]interface{}
+	var artifacts []map[string]any
 
 	metadata := map[string]string{
 		"reported_by": "scenario-auditor",
@@ -193,7 +192,7 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 
 		// Create artifact with violation details
 		artifactContent := buildViolationArtifact(rule, req.SelectedScenarios, ruleInfo)
-		artifacts = append(artifacts, map[string]interface{}{
+		artifacts = append(artifacts, map[string]any{
 			"name":         fmt.Sprintf("%s-violations.md", sanitizeForFilename(rule.ID)),
 			"category":     "rule_violations",
 			"content":      artifactContent,
@@ -202,18 +201,33 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 		})
 	}
 
-	payload := map[string]interface{}{
+	var targets []map[string]string
+	if req.ReportType == "fix_violations" {
+		// Skip adding scenario-auditor as a target so tracker dedupe logic doesn't block
+		// multiple violation issues that work on different scenarios.
+		targets = buildScenarioTargets("", req.SelectedScenarios)
+	} else {
+		targets = buildScenarioTargets("scenario-auditor", nil)
+	}
+	if len(targets) == 0 {
+		return nil, errors.New("no valid targets available for issue payload")
+	}
+
+	metadata["target_primary"] = targets[0]["id"]
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
+	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           issueType,
 		"priority":       priority,
-		"app_id":         "scenario-auditor",
 		"status":         "open",
 		"tags":           tags,
 		"metadata_extra": metadata,
 		"environment":    environment,
 		"reporter_name":  "Scenario Auditor",
 		"reporter_email": "auditor@vrooli.local",
+		"targets":        targets,
 	}
 
 	if len(artifacts) > 0 {
@@ -520,8 +534,9 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 
 	b.WriteString("3. **Run Scenario Tests**: Execute scenario's test suite:\n")
 	b.WriteString("   ```bash\n")
-	b.WriteString("   cd scenarios/{scenario-name} && make test\n")
-	b.WriteString("   ```\n\n")
+	b.WriteString("   cd $VROOLI_ROOT/scenarios/{scenario-name} && make test\n")
+	b.WriteString("   ```\n")
+	b.WriteString("   Replace `{scenario-name}` with the specific scenario you're fixing.\n\n")
 
 	b.WriteString("4. **Check Service Health**: Start scenario and verify it works:\n")
 	b.WriteString("   ```bash\n")
@@ -557,8 +572,8 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 
 		case "test":
 			b.WriteString("**Testing Fixes**:\n")
-			b.WriteString("- Test structure: Organize tests in test/phases/\n")
-			b.WriteString("- Exit codes: Ensure test scripts return non-zero on failure\n")
+			b.WriteString("- Test orchestration: Use test-genie via .vrooli/service.json lifecycle.test\n")
+			b.WriteString("- Test artifacts: Store playbooks, fixtures, logs in test/ directory\n")
 			b.WriteString("- Coverage: Add test coverage reporting and thresholds\n")
 			b.WriteString("- Integration: Use centralized testing helpers\n\n")
 
@@ -828,7 +843,7 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 	b.WriteString("2. **Understand**: Review the code context and violation description\n")
 	b.WriteString("3. **Apply Fix**: Use the recommended fix pattern or follow the passing examples\n")
 	b.WriteString("4. **Verify**: Run `scenario-auditor scan " + scenarios[0] + " --rule " + rule.ID + "` to confirm fix\n")
-	b.WriteString("5. **Test**: Run scenario tests: `cd scenarios/{scenario} && make test`\n")
+	b.WriteString("5. **Test**: Run scenario tests: `cd $VROOLI_ROOT/scenarios/{scenario} && make test`\n")
 	b.WriteString("6. **Validate**: Verify service still starts and functions correctly\n\n")
 
 	b.WriteString("**Repeat for all scenarios listed above.**\n")
@@ -838,7 +853,6 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 
 // scanScenarioForRule runs a specific rule against a scenario and returns violations
 func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rulespkg.Violation {
-	logger := NewLogger()
 
 	if !ruleInfo.Implementation.Valid {
 		logger.Warn(fmt.Sprintf("Rule %s implementation not valid, skipping scan", ruleID), nil)
@@ -855,7 +869,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 
 	statInfo, statErr := os.Stat(scenarioPath)
 	if statErr != nil {
-		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), map[string]interface{}{"error": statErr.Error()})
+		logger.Warn(fmt.Sprintf("Scenario path does not exist: %s", scenarioPath), map[string]any{"error": statErr.Error()})
 		return nil
 	}
 
@@ -944,7 +958,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 }
 
 // convertRuleViolationToOurType converts from rules package Violation to our Violation type
-func convertRuleViolationToOurType(rv interface{}) rulespkg.Violation {
+func convertRuleViolationToOurType(rv any) rulespkg.Violation {
 	v := rulespkg.Violation{}
 
 	// The Check method returns []rulespkg.Violation, which has the same structure
@@ -1106,7 +1120,7 @@ type issueTrackerResult struct {
 	Message string
 }
 
-func submitIssueToTracker(ctx context.Context, port int, payload map[string]interface{}) (*issueTrackerResult, error) {
+func submitIssueToTracker(ctx context.Context, port int, payload map[string]any) (*issueTrackerResult, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
@@ -1154,7 +1168,7 @@ func submitIssueToTracker(ctx context.Context, port int, payload map[string]inte
 		} else if value, ok := trackerResp.Data["issueId"].(string); ok {
 			issueID = value
 		} else if rawIssue, ok := trackerResp.Data["issue"]; ok {
-			if issueMap, ok := rawIssue.(map[string]interface{}); ok {
+			if issueMap, ok := rawIssue.(map[string]any); ok {
 				if id, ok := issueMap["id"].(string); ok {
 					issueID = id
 				}
@@ -1174,50 +1188,15 @@ func submitIssueToTracker(ctx context.Context, port int, payload map[string]inte
 }
 
 func resolveIssueTrackerPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT")
+	return discovery.ResolveScenarioPort(ctx, "app-issue-tracker", "API_PORT")
 }
 
 func resolveIssueTrackerUIPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT")
-}
-
-func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
-	if strings.TrimSpace(scenarioName) == "" || strings.TrimSpace(portLabel) == "" {
-		return 0, errors.New("scenario and port labels are required")
-	}
-
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName, portLabel)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return 0, fmt.Errorf("vrooli scenario port %s %s failed: %s", scenarioName, portLabel, strings.TrimSpace(string(output)))
-	}
-
-	return parsePortValue(strings.TrimSpace(string(output)))
-}
-
-func parsePortValue(value string) (int, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return 0, errors.New("empty port value")
-	}
-
-	port, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port value %q", value)
-	}
-
-	if port <= 0 || port > 65535 {
-		return 0, fmt.Errorf("port value out of range: %d", port)
-	}
-
-	return port, nil
+	return discovery.ResolveScenarioPort(ctx, "app-issue-tracker", "UI_PORT")
 }
 
 // buildCreateRuleIssuePayload builds the payload for creating a rule creation issue
-func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{}, error) {
+func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) {
 
 	title := fmt.Sprintf("[scenario-auditor] Create new rule: %s", req.Name)
 	description := buildCreateRuleDescription(req)
@@ -1243,7 +1222,7 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{},
 		return nil, fmt.Errorf("failed to read rule creation prompt: %w", err)
 	}
 
-	artifacts := []map[string]interface{}{
+	artifacts := []map[string]any{
 		{
 			"name":         "rule-creation-guidelines.txt",
 			"category":     "rule_creation",
@@ -1253,12 +1232,15 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{},
 		},
 	}
 
-	payload := map[string]interface{}{
+	targets := buildScenarioTargets("scenario-auditor", nil)
+	metadata["target_primary"] = targets[0]["id"]
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
+	payload := map[string]any{
 		"title":          title,
 		"description":    description,
 		"type":           "task",
 		"priority":       "medium",
-		"app_id":         "scenario-auditor",
 		"status":         "open",
 		"tags":           []string{"scenario-auditor", "rule-creation", "ai-task"},
 		"metadata_extra": metadata,
@@ -1266,9 +1248,39 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]interface{},
 		"artifacts":      artifacts,
 		"reporter_name":  "Scenario Auditor",
 		"reporter_email": "auditor@vrooli.local",
+		"targets":        targets,
 	}
 
 	return payload, nil
+}
+
+func buildScenarioTargets(primary string, additional []string) []map[string]string {
+	seen := make(map[string]struct{})
+	var targets []map[string]string
+
+	add := func(id string) {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			return
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		targets = append(targets, map[string]string{
+			"type": "scenario",
+			"id":   trimmed,
+			"name": trimmed,
+		})
+	}
+
+	add(primary)
+	for _, candidate := range additional {
+		add(candidate)
+	}
+
+	return targets
 }
 
 // buildCreateRuleDescription builds the detailed description for rule creation issue

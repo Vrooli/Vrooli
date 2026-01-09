@@ -8,7 +8,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon server.js",
     "client": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const buildDir=path.join(cwd,'build');const distDir=path.join(cwd,'dist');if(!fs.existsSync(buildDir)){console.error('[ERROR] Missing build output at', buildDir);process.exit(1);}fs.rmSync(distDir,{recursive:true,force:true});fs.cpSync(buildDir,distDir,{recursive:true});\"",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

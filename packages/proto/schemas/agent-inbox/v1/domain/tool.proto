@@ -1,0 +1,414 @@
+syntax = "proto3";
+
+package agent_inbox.v1;
+
+import "common/v1/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain;domain";
+
+// =============================================================================
+// TOOL DISCOVERY PROTOCOL - TOOL DEFINITIONS
+// =============================================================================
+//
+// @layer 1
+// @domain agent-inbox
+// @imports common
+// @stability beta
+//
+// Defines the canonical schema for tool definitions used in the Tool Discovery
+// Protocol v1.0. Tools are capabilities exposed by scenarios that can be invoked
+// by AI agents or orchestrated by agent-inbox.
+//
+// USAGE CONTEXTS:
+//   - Tool Discovery: GET /api/v1/tools endpoint responses
+//   - AI Function Calling: OpenAI-compatible function definitions
+//   - Agent Orchestration: Async tool execution and status polling
+//   - UI Generation: Tool configuration and approval workflows
+//
+// =============================================================================
+
+// =============================================================================
+// TOOL DEFINITION
+// =============================================================================
+
+// ToolDefinition describes a single tool that can be invoked.
+//
+// The structure is compatible with OpenAI's function-calling format while
+// adding Vrooli-specific metadata for orchestration, cost tracking, and
+// async behavior.
+//
+// @usage ToolManifest.tools, AI completion requests
+message ToolDefinition {
+  // Unique identifier for this tool within the scenario.
+  // @constraint 1-100 characters, pattern: ^[a-z][a-z0-9_]*$
+  string name = 1;
+
+  // Human-readable description of what the tool does.
+  // This is shown to the LLM to help it decide when to use the tool.
+  // @constraint 1-1000 characters
+  string description = 2;
+
+  // Optional category for grouping related tools.
+  // References ToolCategory.id from the manifest.
+  string category = 3;
+
+  // Input parameter schema in JSON Schema format.
+  // Compatible with OpenAI function calling.
+  ToolParameters parameters = 4;
+
+  // Metadata for orchestration, UI, and policy enforcement.
+  ToolMetadata metadata = 5;
+}
+
+// =============================================================================
+// TOOL PARAMETERS (JSON Schema Compatible)
+// =============================================================================
+
+// ToolParameters defines the input schema for a tool.
+// This follows JSON Schema format for OpenAI compatibility.
+//
+// @usage ToolDefinition.parameters
+message ToolParameters {
+  // Always "object" for function parameters.
+  // @default "object"
+  string type = 1;
+
+  // Parameter definitions.
+  // Key: parameter name, Value: parameter schema.
+  map<string, ParameterSchema> properties = 2;
+
+  // List of required parameter names.
+  repeated string required = 3;
+
+  // Whether additional properties beyond those defined are allowed.
+  // @default false
+  bool additional_properties = 4;
+}
+
+// ParameterSchema defines a single parameter's schema.
+// Follows JSON Schema Draft-07 for compatibility.
+//
+// @usage ToolParameters.properties values
+message ParameterSchema {
+  // JSON Schema type: string, number, integer, boolean, array, object.
+  string type = 1;
+
+  // Human-readable description of the parameter.
+  string description = 2;
+
+  // Restricts values to a specific set (for string/integer types).
+  repeated string enum = 3;
+
+  // Default value for the parameter.
+  common.v1.JsonValue default = 4;
+
+  // Array element schema (when type is "array").
+  ParameterSchema items = 5;
+
+  // Nested object properties (when type is "object").
+  map<string, ParameterSchema> properties = 6;
+
+  // Required properties for nested objects.
+  repeated string required = 7;
+
+  // Semantic format hint (e.g., "uuid", "uri", "email", "date-time").
+  // @format semantic-format
+  string format = 8;
+
+  // Minimum value for numeric types.
+  optional double minimum = 9;
+
+  // Maximum value for numeric types.
+  optional double maximum = 10;
+
+  // Minimum length for string types.
+  optional int32 min_length = 11;
+
+  // Maximum length for string types.
+  optional int32 max_length = 12;
+
+  // Regex pattern for string validation.
+  string pattern = 13;
+}
+
+// =============================================================================
+// TOOL METADATA
+// =============================================================================
+
+// ToolMetadata provides additional information for orchestration and UI.
+//
+// This includes operational hints (timeout, rate limits), policy flags
+// (approval required), cost estimates, and async behavior specification.
+//
+// @usage ToolDefinition.metadata
+message ToolMetadata {
+  // Whether this tool should be enabled by default when discovered.
+  // @default true
+  bool enabled_by_default = 1;
+
+  // Whether human approval is required before execution.
+  // Can be overridden per-chat or globally by users.
+  // @default false
+  bool requires_approval = 2;
+
+  // Default timeout for tool execution in seconds.
+  // If not specified, scenarios should use a reasonable default (e.g., 30s).
+  // @unit seconds
+  int32 timeout_seconds = 3;
+
+  // Maximum calls per minute to prevent abuse.
+  // 0 means no limit.
+  // @constraint >= 0
+  int32 rate_limit_per_minute = 4;
+
+  // Relative cost estimate for billing/budgeting purposes.
+  // Valid values: "low", "medium", "high", "variable"
+  string cost_estimate = 5;
+
+  // Whether this tool may take a long time to complete.
+  // Long-running tools should specify async_behavior for status polling.
+  bool long_running = 6;
+
+  // Whether the tool is safe to retry (produces same result).
+  bool idempotent = 7;
+
+  // Additional labels for filtering and categorization.
+  repeated string tags = 8;
+
+  // Usage examples for documentation and LLM guidance.
+  repeated ToolExample examples = 9;
+
+  // Async behavior specification for long-running tools.
+  // When present, enables automatic status polling and progress tracking.
+  AsyncBehavior async_behavior = 10;
+
+  // Whether this tool can modify state (filesystem, database, etc.).
+  // Used for approval workflow decisions.
+  bool modifies_state = 11;
+
+  // Whether the tool output may contain sensitive data.
+  // Used for logging and display decisions.
+  bool sensitive_output = 12;
+}
+
+// ToolExample provides a usage example for documentation.
+//
+// Examples help LLMs understand when and how to use tools.
+//
+// @usage ToolMetadata.examples
+message ToolExample {
+  // Description of what this example demonstrates.
+  string description = 1;
+
+  // Example input parameter values.
+  // Keys match ToolParameters.properties keys.
+  common.v1.JsonObject input = 2;
+
+  // Optional expected output for testing/documentation.
+  common.v1.JsonObject expected_output = 3;
+}
+
+// =============================================================================
+// ASYNC BEHAVIOR SPECIFICATION
+// =============================================================================
+
+// AsyncBehavior defines how to handle long-running tool execution.
+//
+// When a tool is marked as long_running, the initial invocation returns
+// immediately with an operation ID. The async_behavior specification tells
+// the orchestrator how to poll for status and detect completion.
+//
+// PATTERN:
+// 1. Client calls tool (e.g., spawn_coding_agent)
+// 2. Tool returns immediately with operation_id in response
+// 3. Client polls status_tool using operation_id
+// 4. Client checks completion_conditions to detect terminal states
+// 5. Optionally tracks progress via progress_tracking fields
+//
+// @usage ToolMetadata.async_behavior
+message AsyncBehavior {
+  // How to poll for operation status.
+  StatusPolling status_polling = 1;
+
+  // Conditions that indicate operation completion.
+  CompletionConditions completion_conditions = 2;
+
+  // Optional progress tracking configuration.
+  ProgressTracking progress_tracking = 3;
+
+  // Optional cancellation configuration.
+  CancellationBehavior cancellation = 4;
+}
+
+// StatusPolling defines how to check the status of a long-running operation.
+//
+// @usage AsyncBehavior.status_polling
+message StatusPolling {
+  // Name of the tool to call for status checks.
+  // Must be a tool in the same scenario's manifest.
+  // @constraint Must reference an existing tool
+  // @example "check_agent_status"
+  string status_tool = 1;
+
+  // Field path in the original tool's response containing the operation ID.
+  // Uses dot notation for nested fields.
+  // @example "run_id" or "result.operation_id"
+  string operation_id_field = 2;
+
+  // Parameter name to pass the operation ID to the status tool.
+  // @example "run_id"
+  string status_tool_id_param = 3;
+
+  // Recommended polling interval in seconds.
+  // Clients should respect this to avoid overwhelming the service.
+  // @default 5
+  // @unit seconds
+  int32 poll_interval_seconds = 4;
+
+  // Maximum duration to poll before timing out in seconds.
+  // Should be >= the tool's expected max execution time.
+  // @default 3600 (1 hour)
+  // @unit seconds
+  int32 max_poll_duration_seconds = 5;
+
+  // Exponential backoff configuration for polling.
+  PollingBackoff backoff = 6;
+}
+
+// PollingBackoff configures exponential backoff for status polling.
+//
+// Helps reduce load on the service during long-running operations.
+//
+// @usage StatusPolling.backoff
+message PollingBackoff {
+  // Initial polling interval in seconds.
+  // @default 5
+  // @unit seconds
+  int32 initial_interval_seconds = 1;
+
+  // Maximum polling interval after backoff in seconds.
+  // @default 30
+  // @unit seconds
+  int32 max_interval_seconds = 2;
+
+  // Multiplier applied to interval after each poll.
+  // @default 1.5
+  // @constraint >= 1.0
+  float multiplier = 3;
+}
+
+// CompletionConditions defines how to detect when an operation is complete.
+//
+// The orchestrator evaluates these conditions against the status tool response
+// to determine if the operation has reached a terminal state.
+//
+// @usage AsyncBehavior.completion_conditions
+message CompletionConditions {
+  // Field path in status response containing the status value.
+  // @example "status" or "run.status"
+  string status_field = 1;
+
+  // Status values indicating successful completion.
+  // @example ["completed", "success", "done"]
+  repeated string success_values = 2;
+
+  // Status values indicating failure.
+  // @example ["failed", "error", "cancelled"]
+  repeated string failure_values = 3;
+
+  // Status values indicating the operation is still running.
+  // Used to confirm the operation hasn't entered an unknown state.
+  // @example ["pending", "running", "in_progress"]
+  repeated string pending_values = 4;
+
+  // Field path for error message when status is in failure_values.
+  // @example "error" or "result.error_message"
+  string error_field = 5;
+
+  // Field path for detailed error information.
+  // @example "error_details" or "result.details"
+  string error_details_field = 6;
+
+  // Field path for the final result when status is in success_values.
+  // @example "result" or "output"
+  string result_field = 7;
+}
+
+// ProgressTracking defines how to track progress of a long-running operation.
+//
+// Optional but recommended for user experience during long operations.
+//
+// @usage AsyncBehavior.progress_tracking
+message ProgressTracking {
+  // Field path for progress percentage (0-100).
+  // @example "progress.percent" or "percent_complete"
+  string progress_field = 1;
+
+  // Field path for human-readable progress message.
+  // @example "progress.message" or "current_action"
+  string message_field = 2;
+
+  // Field path for current phase/stage name.
+  // @example "phase" or "stage"
+  string phase_field = 3;
+
+  // Field path for current step number.
+  // @example "progress.step" or "current_step"
+  string current_step_field = 4;
+
+  // Field path for total steps.
+  // @example "progress.total_steps" or "total_steps"
+  string total_steps_field = 5;
+
+  // Field path for estimated time remaining in seconds.
+  // @example "estimated_remaining_seconds" or "eta"
+  string estimated_remaining_field = 6;
+}
+
+// CancellationBehavior defines how to cancel a long-running operation.
+//
+// @usage AsyncBehavior.cancellation
+message CancellationBehavior {
+  // Name of the tool to call for cancellation.
+  // @example "stop_agent"
+  string cancel_tool = 1;
+
+  // Parameter name to pass the operation ID to the cancel tool.
+  // @example "run_id"
+  string cancel_tool_id_param = 2;
+
+  // Whether cancellation is graceful (allows cleanup) or immediate.
+  bool graceful = 3;
+
+  // Expected time for cancellation to complete in seconds.
+  // @unit seconds
+  int32 cancel_timeout_seconds = 4;
+}
+
+// =============================================================================
+// TOOL CATEGORY
+// =============================================================================
+
+// ToolCategory provides metadata for grouping related tools.
+//
+// Categories help organize tools in UI and enable bulk operations.
+//
+// @usage ToolManifest.categories
+message ToolCategory {
+  // Category identifier, referenced by ToolDefinition.category.
+  // @constraint 1-50 characters, alphanumeric with underscores
+  string id = 1;
+
+  // Human-readable category name for display.
+  string name = 2;
+
+  // Description of what tools in this category do.
+  string description = 3;
+
+  // Icon identifier for UI rendering (e.g., "play", "info", "file-diff").
+  // Uses a predefined icon set or supports custom icons.
+  string icon = 4;
+
+  // Display order for sorting categories (lower = earlier).
+  int32 display_order = 5;
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>No Spoilers Book Talk</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="hero">
+        <h1>No Spoilers Book Talk</h1>
+        <p class="tagline">
+          Discuss your favorite books with an AI guide that never spoils what you
+          have not read yet.
+        </p>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </header>
+
+    <main>
+      <section class="card" aria-labelledby="user-settings-title">
+        <h2 id="user-settings-title">Reader Profile</h2>
+        <form id="user-form" autocomplete="off">
+          <label for="user-id">Reader ID</label>
+          <div class="inline">
+            <input
+              type="text"
+              id="user-id"
+              name="user-id"
+              placeholder="e.g. demo-reader"
+              required
+            />
+            <button type="submit">Use profile</button>
+          </div>
+          <p class="helper">We use the reader ID to keep your progress and chat history in sync.</p>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="upload-title">
+        <h2 id="upload-title">Upload a Book</h2>
+        <form id="upload-form" enctype="multipart/form-data">
+          <div class="grid">
+            <label>
+              <span>Title</span>
+              <input type="text" name="title" placeholder="Pride and Prejudice" />
+            </label>
+            <label>
+              <span>Author</span>
+              <input type="text" name="author" placeholder="Jane Austen" />
+            </label>
+          </div>
+          <label>
+            <span>Book file (TXT, EPUB, PDF)</span>
+            <input type="file" name="file" accept=".txt,.epub,.pdf" required />
+          </label>
+          <button type="submit">Upload book</button>
+        </form>
+        <p class="helper">Processing happens asynchronously. Completed books become available for spoiler-free chats.</p>
+      </section>
+
+      <section class="card" aria-labelledby="library-title">
+        <div class="section-header">
+          <h2 id="library-title">Your Library</h2>
+          <button id="refresh-books" type="button">Refresh</button>
+        </div>
+        <div id="books-empty" class="empty">Upload a book to get started.</div>
+        <ul id="books-list" class="book-list" aria-live="polite"></ul>
+      </section>
+
+      <section id="progress-card" class="card hidden" aria-labelledby="progress-title">
+        <h2 id="progress-title">Update Reading Progress</h2>
+        <form id="progress-form">
+          <div class="grid">
+            <label>
+              <span>Current chunk</span>
+              <input type="number" id="progress-current" min="0" required />
+            </label>
+            <label>
+              <span>Position notes</span>
+              <input type="text" id="progress-notes" placeholder="Finished chapter three" />
+            </label>
+          </div>
+          <label>
+            <span>Minutes read this session</span>
+            <input type="number" id="progress-minutes" min="0" value="15" />
+          </label>
+          <button type="submit">Save progress</button>
+        </form>
+        <p class="helper" id="progress-summary"></p>
+      </section>
+
+      <section id="chat-card" class="card hidden" aria-labelledby="chat-title">
+        <h2 id="chat-title">Spoiler-Free Chat</h2>
+        <form id="chat-form">
+          <label>
+            <span>Ask a question about what you've read</span>
+            <textarea id="chat-message" rows="4" required></textarea>
+          </label>
+          <div class="grid">
+            <label>
+              <span>Current chunk</span>
+              <input type="number" id="chat-position" min="0" required />
+            </label>
+            <label>
+              <span>Temperature</span>
+              <input type="number" id="chat-temperature" min="0" max="2" step="0.1" value="0.7" />
+            </label>
+          </div>
+          <button type="submit">Send message</button>
+        </form>
+        <div id="chat-history" class="chat-history" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Built with ❤️ for readers who like to savor every chapter.</small>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

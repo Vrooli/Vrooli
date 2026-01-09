@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "description": "AI-assisted content generation and rewriting requirements",
+    "domain": "ai",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-AI-GENERATE",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI generates PRD sections from prompts",
+      "description": "Verifies POST /api/v1/drafts/{id}/ai/generate-section calls resource-openrouter with context and returns generated markdown.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestGenerateAIContent validates HTTP and CLI integration paths"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Draft API handlers validate AI generation endpoint integration"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of AI section generation availability"
+        }
+      ]
+    },
+    {
+      "id": "PCT-AI-CONTEXT",
+      "category": "ai.prompts",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI prompts include existing PRD, violations, and template context",
+      "description": "Ensures buildPrompt includes draft content, structure violations, and missing sections in context.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestBuildPrompt validates context assembly"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "E2E validation of AI context integration"
+        }
+      ]
+    },
+    {
+      "id": "PCT-AI-REWRITE",
+      "category": "ai.ui",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI assistant rewrites selections for template compliance",
+      "description": "Confirms AIAssistantDialog accepts section selection, generates revision, and allows insert/replace operations.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AI rewrite functionality validated via AI service tests"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "AI assistant API endpoints validate rewrite workflow"
+        }
+      ]
+    }
+  ]
+}

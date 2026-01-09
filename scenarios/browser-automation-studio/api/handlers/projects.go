@@ -1,0 +1,499 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
+	"google.golang.org/protobuf/proto"
+)
+
+// CreateProjectRequest represents the request to create a project
+type CreateProjectRequest struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	FolderPath  string   `json:"folder_path"`
+	Preset      string   `json:"preset,omitempty"`
+	PresetPaths []string `json:"preset_paths,omitempty"`
+}
+
+// UpdateProjectRequest represents the request to update a project
+type UpdateProjectRequest struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	FolderPath  string `json:"folder_path,omitempty"`
+}
+
+// BulkDeleteProjectWorkflowsRequest represents the request payload for deleting multiple workflows
+type BulkDeleteProjectWorkflowsRequest struct {
+	WorkflowIDs []string `json:"workflow_ids"`
+}
+
+// CreateProject handles POST /api/v1/projects
+func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
+	var req CreateProjectRequest
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		h.log.WithError(err).Error("Failed to decode create project request")
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.Name == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "name"}))
+		return
+	}
+
+	if req.FolderPath == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "folder_path"}))
+		return
+	}
+
+	// Validate field lengths
+	if err := validateName(req.Name); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+		return
+	}
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+		return
+	}
+
+	// Validate and prepare folder path
+	absPath, err := validateAndPrepareFolderPath(req.FolderPath, h.log)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	// Check if project with this name or folder path already exists
+	existingProject, err := h.catalogService.GetProjectByName(ctx, req.Name)
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		// Only treat as error if it's not a "not found" result
+		h.log.WithError(err).WithField("name", req.Name).Error("Database error checking project name uniqueness")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_name"}))
+		return
+	}
+	if existingProject != nil {
+		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this name already exists"))
+		return
+	}
+
+	existingByPath, err := h.catalogService.GetProjectByFolderPath(ctx, absPath)
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		// Only treat as error if it's not a "not found" result
+		h.log.WithError(err).WithField("folder_path", absPath).Error("Database error checking project folder uniqueness")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_folder"}))
+		return
+	}
+	if existingByPath != nil {
+		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this folder path already exists"))
+		return
+	}
+
+	project := &database.ProjectIndex{
+		Name:       req.Name,
+		FolderPath: absPath,
+	}
+
+	if err := h.catalogService.CreateProject(ctx, project, req.Description); err != nil {
+		h.log.WithError(err).Error("Failed to create project")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
+		return
+	}
+
+	if strings.TrimSpace(req.Preset) != "" {
+		if err := h.applyProjectPreset(ctx, project, req.Preset, req.PresetPaths); err != nil {
+			h.log.WithError(err).WithFields(logrus.Fields{
+				"project_id": project.ID.String(),
+				"preset":     req.Preset,
+			}).Error("Failed to apply project preset")
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"field": "preset",
+				"error": err.Error(),
+			}))
+			return
+		}
+	}
+
+	pb, err := h.catalogService.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	h.respondProto(w, http.StatusCreated, pb)
+}
+
+func (h *Handler) applyProjectPreset(ctx context.Context, project *database.ProjectIndex, preset string, presetPaths []string) error {
+	if h == nil || project == nil {
+		return errors.New("invalid handler or project")
+	}
+	if project.ID == uuid.Nil {
+		return errors.New("project id missing")
+	}
+	if strings.TrimSpace(project.FolderPath) == "" {
+		return errors.New("project folder path missing")
+	}
+
+	preset = strings.ToLower(strings.TrimSpace(preset))
+	var folders []string
+	switch preset {
+	case "empty":
+		folders = nil
+	case "recommended":
+		folders = []string{"actions", "flows", "cases", "assets"}
+	case "custom":
+		folders = presetPaths
+	default:
+		return fmt.Errorf("unknown preset %q", preset)
+	}
+
+	for _, folder := range folders {
+		rel, ok := normalizeProjectRelPath(folder)
+		if !ok {
+			return fmt.Errorf("invalid preset path %q", folder)
+		}
+
+		abs := filepath.Join(project.FolderPath, filepath.FromSlash(rel))
+		if err := os.MkdirAll(abs, 0o755); err != nil {
+			return fmt.Errorf("failed to create folder %q: %w", rel, err)
+		}
+	}
+
+	return nil
+}
+
+// ListProjects handles GET /api/v1/projects
+func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	limit, offset := parsePaginationParams(r, 0, 0)
+
+	projects, err := h.catalogService.ListProjects(ctx, limit, offset)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to list projects")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_projects"}))
+		return
+	}
+
+	projectIDs := make([]uuid.UUID, 0, len(projects))
+	for _, project := range projects {
+		projectIDs = append(projectIDs, project.ID)
+	}
+
+	statsByProject, err := h.catalogService.GetProjectsStats(ctx, projectIDs)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to get project stats in bulk")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_stats"}))
+		return
+	}
+
+	items := make([]proto.Message, 0, len(projects))
+	for _, project := range projects {
+		projectProto, err := h.catalogService.HydrateProject(ctx, project)
+		if err != nil {
+			continue
+		}
+		stats := statsByProject[project.ID]
+		statsProto := &basprojects.ProjectStats{
+			ProjectId:      project.ID.String(),
+			WorkflowCount:  int32(stats.WorkflowCount),
+			ExecutionCount: int32(stats.ExecutionCount),
+		}
+		statsProto.LastExecution = autocontracts.TimePtrToTimestamp(stats.LastExecution)
+		items = append(items, &basprojects.ProjectWithStats{
+			Project: projectProto,
+			Stats:   statsProto,
+		})
+	}
+
+	h.respondProtoList(w, http.StatusOK, "projects", items)
+}
+
+// GetProject handles GET /api/v1/projects/{id}
+func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	project, err := h.catalogService.GetProject(ctx, id)
+	if err != nil {
+		h.log.WithError(err).WithField("id", id).Error("Failed to get project")
+		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
+		return
+	}
+
+	// Get project stats
+	stats, err := h.catalogService.GetProjectStats(ctx, id)
+	if err != nil {
+		h.log.WithError(err).WithField("project_id", id).Warn("Failed to get project stats")
+		stats = &database.ProjectStats{ProjectID: id}
+	}
+
+	projectProto, err := h.catalogService.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	statsProto := &basprojects.ProjectStats{
+		ProjectId:      id.String(),
+		WorkflowCount:  int32(stats.WorkflowCount),
+		ExecutionCount: int32(stats.ExecutionCount),
+	}
+	statsProto.LastExecution = autocontracts.TimePtrToTimestamp(stats.LastExecution)
+	h.respondProto(w, http.StatusOK, &basprojects.ProjectWithStats{
+		Project: projectProto,
+		Stats:   statsProto,
+	})
+}
+
+// UpdateProject handles PUT /api/v1/projects/{id}
+func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	var req UpdateProjectRequest
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		h.log.WithError(err).Error("Failed to decode update project request")
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	// Get existing project
+	project, err := h.catalogService.GetProject(ctx, id)
+	if err != nil {
+		h.log.WithError(err).WithField("id", id).Error("Failed to get project for update")
+		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
+		return
+	}
+
+	projectProto, err := h.catalogService.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+
+	// Validate field lengths if provided
+	if req.Name != "" {
+		if err := validateName(req.Name); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+			return
+		}
+	}
+	if req.FolderPath != "" {
+		if err := validateFolderPath(req.FolderPath); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+			return
+		}
+	}
+
+	// Update fields if provided
+	if req.Name != "" {
+		project.Name = req.Name
+	}
+	description := projectProto.Description
+	if req.Description != "" {
+		description = req.Description
+	}
+	if req.FolderPath != "" {
+		// Validate and update folder path
+		absPath, err := validateAndPrepareFolderPath(req.FolderPath, h.log)
+		if err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+			return
+		}
+		project.FolderPath = absPath
+	}
+
+	if err := h.catalogService.UpdateProject(ctx, project, description); err != nil {
+		h.log.WithError(err).WithField("id", id).Error("Failed to update project")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_project"}))
+		return
+	}
+
+	updatedProto, err := h.catalogService.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	h.respondProto(w, http.StatusOK, updatedProto)
+}
+
+// DeleteProject handles DELETE /api/v1/projects/{id}
+func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if err := h.catalogService.DeleteProject(ctx, id); err != nil {
+		h.log.WithError(err).WithField("id", id).Error("Failed to delete project")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"status": "deleted",
+	})
+}
+
+// GetProjectWorkflows handles GET /api/v1/projects/{id}/workflows
+func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	reqProto := &basapi.ListWorkflowsRequest{
+		ProjectId: proto.String(projectID.String()),
+		Limit:     proto.Int32(100),
+		Offset:    proto.Int32(0),
+	}
+	respProto, err := h.catalogService.ListWorkflows(ctx, reqProto)
+	if err != nil {
+		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to list project workflows")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, respProto)
+}
+
+// BulkDeleteProjectWorkflows handles POST /api/v1/projects/{id}/workflows/bulk-delete
+func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	var req BulkDeleteProjectWorkflowsRequest
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to decode bulk delete request")
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	if len(req.WorkflowIDs) == 0 {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "workflow_ids"}))
+		return
+	}
+
+	// Validate bulk operation size
+	if err := validateBulkOperationSize("workflow_ids", len(req.WorkflowIDs)); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "workflow_ids", "error": err.Error()}))
+		return
+	}
+
+	workflowIDs := make([]uuid.UUID, 0, len(req.WorkflowIDs))
+	for _, workflowIDStr := range req.WorkflowIDs {
+		workflowID, err := uuid.Parse(workflowIDStr)
+		if err != nil {
+			h.respondError(w, ErrInvalidWorkflowID.WithDetails(map[string]string{"workflow_id": workflowIDStr}))
+			return
+		}
+		workflowIDs = append(workflowIDs, workflowID)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancel()
+
+	if err := h.catalogService.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
+		h.log.WithError(err).WithFields(logrus.Fields{
+			"project_id": projectID,
+			"count":      len(workflowIDs),
+		}).Error("Failed to bulk delete project workflows")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "bulk_delete_workflows"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"status":        "deleted",
+		"deleted_count": len(workflowIDs),
+		"deleted_ids":   req.WorkflowIDs,
+	})
+}
+
+// ExecuteAllProjectWorkflows handles POST /api/v1/projects/{id}/execute-all
+func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancel()
+
+	// Get all workflows for this project
+	workflows, err := h.catalogService.ListWorkflowsByProject(ctx, projectID, 1000, 0)
+	if err != nil {
+		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to get project workflows")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
+		return
+	}
+
+	if len(workflows) == 0 {
+		h.respondSuccess(w, http.StatusOK, map[string]any{
+			"message":    "No workflows found in project",
+			"executions": []any{},
+		})
+		return
+	}
+
+	// Start execution for each workflow
+	executions := make([]map[string]any, 0, len(workflows))
+	for _, workflow := range workflows {
+		execution, err := h.executionService.ExecuteWorkflow(ctx, workflow.ID, map[string]any{})
+		if err != nil {
+			h.log.WithError(err).WithField("workflow_id", workflow.ID).Warn("Failed to execute workflow in bulk operation")
+			executions = append(executions, map[string]any{
+				"workflow_id":   workflow.ID.String(),
+				"workflow_name": workflow.Name,
+				"status":        "failed",
+				"error":         err.Error(),
+			})
+			continue
+		}
+
+		executions = append(executions, map[string]any{
+			"workflow_id":   workflow.ID.String(),
+			"workflow_name": workflow.Name,
+			"execution_id":  execution.ID.String(),
+			"status":        execution.Status,
+		})
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"message":    fmt.Sprintf("Started execution for %d workflows", len(executions)),
+		"executions": executions,
+	})
+}

@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/ecosystem-manager/api/pkg/settings"
 )
 
 func TestReserveExecutionCreatesEntry(t *testing.T) {
@@ -72,5 +74,35 @@ func TestUnregisterExecutionRemovesEntry(t *testing.T) {
 
 	if ok {
 		t.Fatalf("expected execution to be removed")
+	}
+}
+
+func TestComputeSlotSnapshot(t *testing.T) {
+	qp := &Processor{}
+	internal := map[string]struct{}{
+		"a": {}, "b": {},
+	}
+	external := map[string]struct{}{
+		"b": {}, // overlap with internal
+		"c": {},
+	}
+
+	t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
+	// default settings slots fallback is 1; ensure higher by setting env via settings helper
+	prev := settings.GetSettings()
+	updated := prev
+	updated.Slots = 3
+	settings.UpdateSettings(updated)
+	t.Cleanup(func() { settings.UpdateSettings(prev) })
+
+	snap := qp.computeSlotSnapshot(internal, external)
+	if snap.Running != 3 { // a,b,c (b counted once)
+		t.Fatalf("expected running=3, got %d", snap.Running)
+	}
+	if snap.Slots != 3 {
+		t.Fatalf("expected slots=3, got %d", snap.Slots)
+	}
+	if snap.Available != 0 {
+		t.Fatalf("expected available=0, got %d", snap.Available)
 	}
 }

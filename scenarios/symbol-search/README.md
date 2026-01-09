@@ -159,12 +159,11 @@ vrooli scenario test symbol-search
 ### Performance Testing
 
 ```bash
-# Run performance test suite
-bash test/performance-test.sh all
+# Run the full phased suite
+vrooli scenario test symbol-search
 
-# Test specific areas
-bash test/performance-test.sh search-latency
-bash test/performance-test.sh memory-load
+# Focus on a single phase
+test-genie execute symbol-search --phases performance
 ```
 
 ### Database Management

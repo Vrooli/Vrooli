@@ -1,0 +1,47 @@
+{
+  "description": "Upload and check existing images against brand guidelines",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "The system shall provide an API endpoint and UI interface for uploading existing images and checking them against stored brand guidelines. Compliance checks must include color palette matching, typography recognition, logo placement verification, and aspect ratio validation.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Brand Compliance Image Checker",
+      "validation": [
+        {
+          "notes": "Test individual compliance check functions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify complete compliance check workflow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Process compliance check within 5 seconds per image",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accurately identifies brand guideline violations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Brand compliance checking"
+}

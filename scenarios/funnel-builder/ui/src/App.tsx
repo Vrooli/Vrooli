@@ -10,11 +10,12 @@ function App() {
   return (
     <Routes>
       <Route path="/health" element={<div>OK</div>} />
+      <Route path="/preview/:id" element={<FunnelPreview />} />
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="builder/:id?" element={<FunnelBuilder />} />
-        <Route path="preview/:id" element={<FunnelPreview />} />
+        <Route path="analytics" element={<Analytics />} />
         <Route path="analytics/:id" element={<Analytics />} />
         <Route path="templates" element={<Templates />} />
       </Route>

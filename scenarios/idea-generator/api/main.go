@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -53,7 +57,6 @@ type HealthResponse struct {
 type ApiServer struct {
 	db              *sql.DB
 	ideaProcessor   *IdeaProcessor
-	windmillURL     string
 	postgresURL     string
 	qdrantURL       string
 	minioURL        string
@@ -72,26 +75,8 @@ func getEnvOrDefault(key, defaultValue string) string {
 }
 
 func NewApiServer() (*ApiServer, error) {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	// Connect to database with exponential backoff
-	db, err := initDB(postgresURL)
+	// Connect to database using api-core with automatic retry
+	db, err := initDB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -101,7 +86,6 @@ func NewApiServer() (*ApiServer, error) {
 
 	// Service URLs with defaults for local development
 	// These are validated and will fall back to sensible defaults if not set
-	windmillURL := getEnvOrDefault("WINDMILL_BASE_URL", "")
 	qdrantURL := getEnvOrDefault("QDRANT_URL", "http://localhost:6333")
 	minioURL := getEnvOrDefault("MINIO_URL", "")
 	redisURL := getEnvOrDefault("REDIS_URL", "")
@@ -111,8 +95,7 @@ func NewApiServer() (*ApiServer, error) {
 	return &ApiServer{
 		db:              db,
 		ideaProcessor:   ideaProcessor,
-		windmillURL:     windmillURL,
-		postgresURL:     postgresURL,
+		postgresURL:     os.Getenv("POSTGRES_URL"),
 		qdrantURL:       qdrantURL,
 		minioURL:        minioURL,
 		redisURL:        redisURL,
@@ -121,60 +104,18 @@ func NewApiServer() (*ApiServer, error) {
 	}, nil
 }
 
-func initDB(postgresURL string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", postgresURL)
+func initDB() (*sql.DB, error) {
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
@@ -186,46 +127,35 @@ func initDB(postgresURL string) (*sql.DB, error) {
 // - handlers_idea.go: Idea generation, refinement, search, and document processing handlers
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start idea-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "idea-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable must be set")
-	}
-
-	server, err := NewApiServer()
+	apiServer, err := NewApiServer()
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
-	defer server.db.Close()
 
 	r := mux.NewRouter()
 
 	// API routes - all under /api prefix for consistency
 	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/ideas/generate", server.generateIdeasHandler).Methods("POST")
-	api.HandleFunc("/ideas", server.ideasHandler).Methods("GET", "POST")
-	api.HandleFunc("/ideas/refine", server.refineIdeaHandler).Methods("POST")
-	api.HandleFunc("/campaigns", server.campaignsHandler).Methods("GET", "POST")
-	api.HandleFunc("/campaigns/{id}", server.campaignByIDHandler).Methods("GET", "DELETE")
-	api.HandleFunc("/search", server.searchHandler).Methods("POST")
-	api.HandleFunc("/documents/process", server.processDocumentHandler).Methods("POST")
-	api.HandleFunc("/workflows", server.workflowsHandler).Methods("GET")
+	api.HandleFunc("/ideas/generate", apiServer.generateIdeasHandler).Methods("POST")
+	api.HandleFunc("/ideas", apiServer.ideasHandler).Methods("GET", "POST")
+	api.HandleFunc("/ideas/refine", apiServer.refineIdeaHandler).Methods("POST")
+	api.HandleFunc("/campaigns", apiServer.campaignsHandler).Methods("GET", "POST")
+	api.HandleFunc("/campaigns/{id}", apiServer.campaignByIDHandler).Methods("GET", "DELETE")
+	api.HandleFunc("/search", apiServer.searchHandler).Methods("POST")
+	api.HandleFunc("/documents/process", apiServer.processDocumentHandler).Methods("POST")
+	api.HandleFunc("/workflows", apiServer.workflowsHandler).Methods("GET")
 
 	// Health and status endpoints at root for standard compliance
-	r.HandleFunc("/health", server.healthHandler).Methods("GET")
-	r.HandleFunc("/status", server.statusHandler).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/status", apiServer.statusHandler).Methods("GET")
 
 	// Enable CORS
 	corsHandler := handlers.CORS(
@@ -234,14 +164,23 @@ func main() {
 		handlers.AllowedHeaders([]string{"*"}),
 	)(r)
 
-	log.Printf("Idea Generator API server starting on port %s", port)
+	log.Printf("Idea Generator API server starting")
 	log.Printf("Services:")
 	log.Printf("  Database: Connected")
-	log.Printf("  Windmill: %s", server.windmillURL)
-	log.Printf("  Qdrant: %s", server.qdrantURL)
-	log.Printf("  MinIO: %s", server.minioURL)
-	log.Printf("  Ollama: %s", server.ollamaURL)
-	log.Printf("  Unstructured: %s", server.unstructuredURL)
+	log.Printf("  Qdrant: %s", apiServer.qdrantURL)
+	log.Printf("  MinIO: %s", apiServer.minioURL)
+	log.Printf("  Ollama: %s", apiServer.ollamaURL)
+	log.Printf("  Unstructured: %s", apiServer.unstructuredURL)
 
-	log.Fatal(http.ListenAndServe(":"+port, corsHandler))
+	if err := server.Run(server.Config{
+		Handler: corsHandler,
+		Cleanup: func(ctx context.Context) error {
+			if apiServer.db != nil {
+				return apiServer.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

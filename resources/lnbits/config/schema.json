@@ -109,7 +109,10 @@
           "items": {
             "type": "string"
           },
-          "default": ["lnurlp", "withdraw"],
+          "default": [
+            "lnurlp",
+            "withdraw"
+          ],
           "description": "Extensions enabled by default"
         }
       }
@@ -135,6 +138,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/lnbits/schema.json"
 }

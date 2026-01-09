@@ -1,0 +1,51 @@
+{
+  "scenario": "kids-dashboard",
+  "report_version": 1,
+  "generated_at": "2025-11-23T19:34:23.884423195Z",
+  "dependencies": [],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "kids-dashboard",
+    "generated_at": "2025-11-23T19:34:23.884423195Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/kids-dashboard-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/kids-dashboard",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": []
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "recommendations": []
+  }
+}

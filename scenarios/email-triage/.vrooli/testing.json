@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for email-triage scenario",
+    "last_updated": "2025-11-08T17:17:00Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {
+        "coverage": {
+          "warn_threshold": 50,
+          "error_threshold": 25
+        }
+      },
+      "node": {}
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  }
+}

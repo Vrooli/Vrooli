@@ -1,0 +1,309 @@
+package queue
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/ecosystem-manager/api/pkg/systemlog"
+)
+
+// ExecutionHistory tracks metadata about a single task execution
+type ExecutionHistory struct {
+	TaskID              string    `json:"task_id"`
+	TaskTitle           string    `json:"task_title"`                      // Human-readable task title
+	TaskType            string    `json:"task_type"`                       // resource or scenario
+	TaskOperation       string    `json:"task_operation"`                  // generator or improver
+	ExecutionID         string    `json:"execution_id"`                    // Timestamp-based ID
+	AgentTag            string    `json:"agent_tag"`                       // Claude Code agent identifier
+	ProcessID           int       `json:"process_id"`                      // OS process ID
+	StartTime           time.Time `json:"start_time"`                      // When execution began
+	EndTime             time.Time `json:"end_time"`                        // When execution completed
+	Duration            string    `json:"duration"`                        // Human-readable duration
+	Success             bool      `json:"success"`                         // Whether task succeeded
+	ExitReason          string    `json:"exit_reason"`                     // completed/failed/timeout/rate_limited
+	PromptSize          int       `json:"prompt_size"`                     // Size of assembled prompt in bytes
+	PromptPath          string    `json:"prompt_path"`                     // Relative path to prompt file
+	OutputPath          string    `json:"output_path"`                     // Relative path to output log
+	CleanOutputPath     string    `json:"clean_output_path,omitempty"`     // Relative path to clean agent output (no timestamps)
+	LastMessagePath     string    `json:"last_message_path,omitempty"`     // Relative path to last-agent-message text
+	TranscriptPath      string    `json:"transcript_path,omitempty"`       // Relative path to transcript JSONL (if available)
+	AutoSteerProfileID  string    `json:"auto_steer_profile_id,omitempty"` // Active Auto Steer profile at execution time
+	AutoSteerIteration  int       `json:"auto_steer_iteration,omitempty"`  // Global iteration counter for Auto Steer
+	SteerMode           string    `json:"steer_mode,omitempty"`            // Active steering mode (phase)
+	SteerPhaseIndex     int       `json:"steer_phase_index,omitempty"`     // 1-based phase index (0 when unknown)
+	SteerPhaseIteration int       `json:"steer_phase_iteration,omitempty"` // 1-based iteration within the active phase
+	SteeringSource      string    `json:"steering_source,omitempty"`       // auto_steer | manual_mode | default_progress | none
+	TimeoutAllowed      string    `json:"timeout_allowed"`                 // Configured timeout
+	RateLimited         bool      `json:"rate_limited"`                    // Whether rate limit was hit
+	RetryAfter          int       `json:"retry_after"`                     // Rate limit retry seconds
+}
+
+// getExecutionHistoryDir returns the directory for a task's execution history
+func (qp *Processor) getExecutionHistoryDir(taskID string) string {
+	return filepath.Join(qp.taskLogsDir, taskID, "executions")
+}
+
+// getExecutionDir returns the directory for a specific execution
+func (qp *Processor) getExecutionDir(taskID, executionID string) string {
+	return filepath.Join(qp.getExecutionHistoryDir(taskID), executionID)
+}
+
+// GetExecutionFilePath returns the full path to a file within an execution directory
+// This is exported for use by handlers to serve execution files (prompt.txt, output.log, etc.)
+func (qp *Processor) GetExecutionFilePath(taskID, executionID, filename string) string {
+	return filepath.Join(qp.getExecutionDir(taskID, executionID), filename)
+}
+
+// createExecutionID generates a unique execution identifier from timestamp
+func createExecutionID() string {
+	return time.Now().Format("2006-01-02_150405")
+}
+
+// savePromptToHistory stores the assembled prompt in execution history
+func (qp *Processor) savePromptToHistory(taskID, executionID, prompt string) (string, error) {
+	execDir := qp.getExecutionDir(taskID, executionID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		return "", fmt.Errorf("create execution directory: %w", err)
+	}
+
+	promptPath := filepath.Join(execDir, "prompt.txt")
+	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
+		return "", fmt.Errorf("write prompt file: %w", err)
+	}
+
+	// Return relative path from task-runs root
+	relPath := filepath.Join(taskID, "executions", executionID, "prompt.txt")
+	return relPath, nil
+}
+
+// saveExecutionMetadata persists execution metadata to disk
+func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
+	execDir := qp.getExecutionDir(history.TaskID, history.ExecutionID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		return fmt.Errorf("create execution directory: %w", err)
+	}
+
+	metadataPath := filepath.Join(execDir, "metadata.json")
+	data, err := json.MarshalIndent(history, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	if err := os.WriteFile(metadataPath, data, 0o644); err != nil {
+		return fmt.Errorf("write metadata file: %w", err)
+	}
+
+	// Invalidate execution history cache since we just added a new execution
+	qp.executionHistoryCacheMu.Lock()
+	qp.executionHistoryCache = nil
+	qp.executionHistoryCacheTime = time.Time{}
+	qp.executionHistoryCacheMu.Unlock()
+
+	return nil
+}
+
+// saveOutputToHistory moves the execution log to the history directory
+func (qp *Processor) saveOutputToHistory(taskID, executionID string) (string, error) {
+	execDir := qp.getExecutionDir(taskID, executionID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		return "", fmt.Errorf("create execution directory: %w", err)
+	}
+
+	// The output log is generated by finalizeTaskLogs in processor_logs.go
+	// We need to move it from the flat structure to the execution-specific directory
+	oldLogPath := filepath.Join(qp.taskLogsDir, fmt.Sprintf("%s.log", taskID))
+	newLogPath := filepath.Join(execDir, "output.log")
+
+	// If old log exists, move it
+	if _, err := os.Stat(oldLogPath); err == nil {
+		// Read and rewrite to new location (can't rename across directories safely)
+		data, readErr := os.ReadFile(oldLogPath)
+		if readErr == nil {
+			if writeErr := os.WriteFile(newLogPath, data, 0o644); writeErr != nil {
+				return "", fmt.Errorf("write output to history: %w", writeErr)
+			}
+			// Remove old log after successful copy
+			os.Remove(oldLogPath)
+		}
+	}
+
+	// Return relative path from task-runs root
+	relPath := filepath.Join(taskID, "executions", executionID, "output.log")
+	return relPath, nil
+}
+
+// LoadExecutionHistory loads all execution history for a task
+func (qp *Processor) LoadExecutionHistory(taskID string) ([]ExecutionHistory, error) {
+	historyDir := qp.getExecutionHistoryDir(taskID)
+	entries, err := os.ReadDir(historyDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ExecutionHistory{}, nil // No history yet
+		}
+		return nil, fmt.Errorf("read history directory: %w", err)
+	}
+
+	var history []ExecutionHistory
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		metadataPath := filepath.Join(historyDir, entry.Name(), "metadata.json")
+		data, err := os.ReadFile(metadataPath)
+		if err != nil {
+			log.Printf("Warning: could not read execution metadata %s: %v", metadataPath, err)
+			continue
+		}
+
+		var exec ExecutionHistory
+		if err := json.Unmarshal(data, &exec); err != nil {
+			log.Printf("Warning: could not parse execution metadata %s: %v", metadataPath, err)
+			continue
+		}
+
+		history = append(history, exec)
+	}
+
+	// Ensure newest executions are returned first for consistent consumers
+	sort.Slice(history, func(i, j int) bool {
+		a := history[i]
+		b := history[j]
+
+		// Prefer non-zero StartTime when available
+		if !a.StartTime.IsZero() && !b.StartTime.IsZero() {
+			if a.StartTime.Equal(b.StartTime) {
+				return a.ExecutionID > b.ExecutionID
+			}
+			return a.StartTime.After(b.StartTime)
+		}
+		if a.StartTime.IsZero() && !b.StartTime.IsZero() {
+			return false
+		}
+		if !a.StartTime.IsZero() && b.StartTime.IsZero() {
+			return true
+		}
+
+		// Fallback to execution IDs (timestamp-based) when times are missing
+		return a.ExecutionID > b.ExecutionID
+	})
+
+	return history, nil
+}
+
+// LoadAllExecutionHistory loads execution history for all tasks
+// Uses a simple time-based cache (10 seconds) to avoid expensive filesystem operations
+// on repeated calls (e.g., when user refreshes the execution history tab)
+func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
+	// Check cache first
+	qp.executionHistoryCacheMu.RLock()
+	if time.Since(qp.executionHistoryCacheTime) < ExecutionHistoryCacheTTL && qp.executionHistoryCache != nil {
+		cached := qp.executionHistoryCache
+		qp.executionHistoryCacheMu.RUnlock()
+		log.Printf("Returning cached execution history (%d entries, age: %v)", len(cached), time.Since(qp.executionHistoryCacheTime))
+		return cached, nil
+	}
+	qp.executionHistoryCacheMu.RUnlock()
+
+	// Cache miss - load from disk
+	taskDirs, err := os.ReadDir(qp.taskLogsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ExecutionHistory{}, nil
+		}
+		return nil, fmt.Errorf("read task logs directory: %w", err)
+	}
+
+	var allHistory []ExecutionHistory
+	for _, taskDir := range taskDirs {
+		if !taskDir.IsDir() {
+			continue
+		}
+
+		taskID := taskDir.Name()
+		history, err := qp.LoadExecutionHistory(taskID)
+		if err != nil {
+			log.Printf("Warning: could not load execution history for task %s: %v", taskID, err)
+			continue
+		}
+
+		allHistory = append(allHistory, history...)
+	}
+
+	// Sort by start time (most recent first)
+	sort.Slice(allHistory, func(i, j int) bool {
+		return allHistory[i].StartTime.After(allHistory[j].StartTime)
+	})
+
+	// Update cache
+	qp.executionHistoryCacheMu.Lock()
+	qp.executionHistoryCache = allHistory
+	qp.executionHistoryCacheTime = time.Now()
+	qp.executionHistoryCacheMu.Unlock()
+
+	log.Printf("Loaded execution history from disk (%d entries)", len(allHistory))
+	return allHistory, nil
+}
+
+// LatestExecutionOutputPath returns the absolute path to the most recent execution output
+// Prefers clean_output.txt when available, otherwise output.log. Returns empty string if none found.
+func (qp *Processor) LatestExecutionOutputPath(taskID string) string {
+	history, err := qp.LoadExecutionHistory(taskID)
+	if err != nil || len(history) == 0 {
+		return ""
+	}
+
+	latest := history[0]
+	base := qp.taskLogsDir
+
+	resolve := func(rel string) string {
+		if strings.TrimSpace(rel) == "" {
+			return ""
+		}
+		return filepath.Join(base, rel)
+	}
+
+	if path := resolve(latest.CleanOutputPath); path != "" {
+		return path
+	}
+
+	return resolve(latest.OutputPath)
+}
+
+// CleanupOldExecutions removes execution history older than the specified retention period
+func (qp *Processor) CleanupOldExecutions(taskID string, retentionDays int) error {
+	if retentionDays <= 0 {
+		return nil // Retention disabled
+	}
+
+	history, err := qp.LoadExecutionHistory(taskID)
+	if err != nil {
+		return err
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	removedCount := 0
+
+	for _, exec := range history {
+		if exec.StartTime.Before(cutoff) {
+			execDir := qp.getExecutionDir(taskID, exec.ExecutionID)
+			if err := os.RemoveAll(execDir); err != nil {
+				log.Printf("Warning: failed to remove old execution %s: %v", execDir, err)
+			} else {
+				removedCount++
+			}
+		}
+	}
+
+	if removedCount > 0 {
+		systemlog.Infof("Cleaned up %d old executions for task %s (retention: %d days)", removedCount, taskID, retentionDays)
+	}
+
+	return nil
+}

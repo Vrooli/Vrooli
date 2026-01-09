@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Data Structurer</title>
+  <desc id="desc">Stylized node icon</desc>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#020617" />
+  <g fill="none" stroke="url(#grad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 32a12 12 0 0 1 24 0 12 12 0 0 1-24 0z" />
+    <path d="M20 18L32 12 44 18" />
+    <path d="M20 46l12 6 12-6" />
+  </g>
+</svg>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>File Tools Operations Hub</title>
+    <link rel="stylesheet" href="./styles/styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js",
+          "@vrooli/api-base": "/node_modules/@vrooli/api-base/dist/index.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Scenario Control Center</p>
+          <h1>File Tools Operations Hub</h1>
+          <p class="subtitle">
+            Real-time visibility into compression, organization, and integrity services that power the platform.
+          </p>
+        </div>
+        <div class="header-metrics">
+          <dl>
+            <div>
+              <dt>Active Services</dt>
+              <dd id="metric-services">–</dd>
+            </div>
+            <div>
+              <dt>Optimizations (24h)</dt>
+              <dd id="metric-optimizations">–</dd>
+            </div>
+            <div>
+              <dt>Storage Savings</dt>
+              <dd id="metric-savings">–</dd>
+            </div>
+          </dl>
+        </div>
+      </header>
+
+      <section class="panel" aria-labelledby="health-heading">
+        <div class="panel-header">
+          <h2 id="health-heading">Platform Health</h2>
+          <button type="button" class="ghost" data-action="refresh-health">Refresh</button>
+        </div>
+        <div class="health-grid">
+          <article class="health-card">
+            <h3>API Status</h3>
+            <p id="api-status" class="status status-neutral">Loading…</p>
+            <pre id="api-details" class="code-block" aria-live="polite"></pre>
+          </article>
+          <article class="health-card">
+            <h3>Integrity Signals</h3>
+            <ul id="integrity-list" class="status-list"></ul>
+          </article>
+          <article class="health-card">
+            <h3>Operational Focus</h3>
+            <ul class="status-list">
+              <li>Compression SLAs &amp; on-demand archiving</li>
+              <li>Metadata enrichment for downstream agents</li>
+              <li>Integrity verification with predictive alerts</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="insights-heading">
+        <div class="panel-header">
+          <h2 id="insights-heading">AI-Assisted Insights</h2>
+          <div class="actions">
+            <button type="button" class="primary" data-action="analyze-duplicates">Analyze Duplicate Risk</button>
+            <button type="button" class="secondary" data-action="plan-organization">Plan Smart Organization</button>
+          </div>
+        </div>
+        <div class="insights-layout">
+          <article>
+            <h3>Duplicate Detection</h3>
+            <p class="panel-description">
+              Scan sample repositories for redundant content and quantify recovery potential.
+            </p>
+            <pre id="duplicate-output" class="code-block" aria-live="polite"></pre>
+          </article>
+          <article>
+            <h3>Organization Blueprint</h3>
+            <p class="panel-description">
+              Generate a dry-run plan that groups assets by type and aging without touching production files.
+            </p>
+            <pre id="organization-output" class="code-block" aria-live="polite"></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="roadmap-heading">
+        <div class="panel-header">
+          <h2 id="roadmap-heading">Automation Roadmap</h2>
+        </div>
+        <div class="roadmap-grid" id="roadmap-grid"></div>
+      </section>
+    </div>
+
+    <script id="file-tools-bootstrap" type="application/json">__FILE_TOOLS_BOOTSTRAP__</script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

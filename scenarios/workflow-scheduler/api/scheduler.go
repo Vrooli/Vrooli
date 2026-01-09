@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -95,17 +94,17 @@ func (s *Scheduler) Start() error {
 // Stop gracefully shuts down the scheduler
 func (s *Scheduler) Stop() {
 	log.Println("Stopping workflow scheduler...")
-	
+
 	// Stop accepting new jobs
 	s.cancel()
-	
+
 	// Stop cron scheduler
 	ctx := s.cron.Stop()
 	<-ctx.Done()
-	
+
 	// Wait for pending executions to complete
 	close(s.executions)
-	
+
 	log.Println("Scheduler stopped")
 }
 
@@ -240,7 +239,7 @@ func (s *Scheduler) AddSchedule(schedule *Schedule) error {
 func (s *Scheduler) RemoveSchedule(scheduleID string) {
 	s.jobsMutex.Lock()
 	defer s.jobsMutex.Unlock()
-	
+
 	if entryID, exists := s.jobs[scheduleID]; exists {
 		s.cron.Remove(entryID)
 		delete(s.jobs, scheduleID)
@@ -329,35 +328,33 @@ func (s *Scheduler) executionWorker() {
 // processExecution executes a scheduled workflow
 func (s *Scheduler) processExecution(exec *ScheduleExecution) {
 	log.Printf("Executing schedule: %s (ID: %s)", exec.Schedule.Name, exec.ExecutionID)
-	
+
 	// Record execution start
 	startTime := time.Now()
 	s.recordExecutionStart(exec.ExecutionID, exec.Schedule.ID, exec.ScheduledTime, exec.IsManual, exec.IsCatchUp, exec.TriggeredBy)
-	
+
 	// Execute based on target type
 	var err error
 	var responseCode int
 	var responseBody string
-	
+
 	switch exec.Schedule.TargetType {
 	case "http", "webhook":
 		responseCode, responseBody, err = s.executeHTTPTarget(exec.Schedule)
-	case "n8n_workflow":
-		responseCode, responseBody, err = s.executeN8nWorkflow(exec.Schedule)
 	case "scenario":
 		responseCode, responseBody, err = s.executeScenario(exec.Schedule)
 	default:
 		err = fmt.Errorf("unsupported target type: %s", exec.Schedule.TargetType)
 	}
-	
+
 	// Record execution result
 	endTime := time.Now()
 	duration := int(endTime.Sub(startTime).Milliseconds())
-	
+
 	if err != nil {
 		// Handle failure
 		s.recordExecutionFailure(exec.ExecutionID, duration, err.Error())
-		
+
 		// Check if retry is needed
 		if exec.RetryCount < exec.Schedule.MaxRetries {
 			s.scheduleRetry(exec)
@@ -370,7 +367,7 @@ func (s *Scheduler) processExecution(exec *ScheduleExecution) {
 		s.recordExecutionSuccess(exec.ExecutionID, duration, responseCode, responseBody)
 		s.updateScheduleMetrics(exec.Schedule.ID, true)
 	}
-	
+
 	// Update next execution time
 	s.updateNextExecutionTime(exec.Schedule.ID)
 }
@@ -382,76 +379,57 @@ func (s *Scheduler) executeHTTPTarget(schedule *Schedule) (int, string, error) {
 	if schedule.TargetPayload != nil {
 		body, _ = json.Marshal(schedule.TargetPayload)
 	}
-	
+
 	req, err := http.NewRequestWithContext(s.ctx, schedule.TargetMethod, schedule.TargetURL, bytes.NewBuffer(body))
 	if err != nil {
 		return 0, "", err
 	}
-	
+
 	// Add headers
 	req.Header.Set("Content-Type", "application/json")
 	for key, value := range schedule.TargetHeaders {
 		req.Header.Set(key, fmt.Sprintf("%v", value))
 	}
-	
+
 	// Set timeout
 	timeout := time.Duration(schedule.TimeoutSeconds) * time.Second
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	
+
 	client := &http.Client{Timeout: timeout}
-	
+
 	// Execute request
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, "", err
 	}
 	defer resp.Body.Close()
-	
+
 	// Read response
 	respBody := make([]byte, 0)
 	if resp.ContentLength > 0 && resp.ContentLength < 1024*1024 { // Limit to 1MB
 		respBody, _ = io.ReadAll(resp.Body)
 	}
-	
+
 	// Check status code
 	if resp.StatusCode >= 400 {
 		return resp.StatusCode, string(respBody), fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
-	
-	return resp.StatusCode, string(respBody), nil
-}
 
-// executeN8nWorkflow executes an n8n workflow (legacy support)
-func (s *Scheduler) executeN8nWorkflow(schedule *Schedule) (int, string, error) {
-	// For backwards compatibility, convert to HTTP webhook call
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		return 0, "", fmt.Errorf("N8N_BASE_URL not configured")
-	}
-	
-	webhookURL := fmt.Sprintf("%s/webhook/%s", n8nURL, schedule.TargetWorkflowID)
-	
-	// Create a copy of the schedule with updated URL
-	httpSchedule := *schedule
-	httpSchedule.TargetType = "http"
-	httpSchedule.TargetURL = webhookURL
-	httpSchedule.TargetMethod = "POST"
-	
-	return s.executeHTTPTarget(&httpSchedule)
+	return resp.StatusCode, string(respBody), nil
 }
 
 // executeScenario executes another Vrooli scenario
 func (s *Scheduler) executeScenario(schedule *Schedule) (int, string, error) {
 	// Call scenario API endpoint
 	scenarioURL := fmt.Sprintf("http://localhost:%s/api/execute", schedule.TargetWorkflowID)
-	
+
 	httpSchedule := *schedule
 	httpSchedule.TargetType = "http"
 	httpSchedule.TargetURL = scenarioURL
 	httpSchedule.TargetMethod = "POST"
-	
+
 	return s.executeHTTPTarget(&httpSchedule)
 }
 
@@ -459,7 +437,7 @@ func (s *Scheduler) executeScenario(schedule *Schedule) (int, string, error) {
 func (s *Scheduler) monitorRoutine() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -480,26 +458,26 @@ func (s *Scheduler) checkScheduleHealth() {
 		  AND sm.consecutive_failures >= 3
 		  AND sm.last_failure_at > NOW() - INTERVAL '1 hour'
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		log.Printf("Failed to check schedule health: %v", err)
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var scheduleID, name string
 		var failures int
 		var lastFailure time.Time
-		
+
 		if err := rows.Scan(&scheduleID, &name, &failures, &lastFailure); err != nil {
 			continue
 		}
-		
-		log.Printf("ALERT: Schedule '%s' has %d consecutive failures (last: %v)", 
+
+		log.Printf("ALERT: Schedule '%s' has %d consecutive failures (last: %v)",
 			name, failures, lastFailure)
-		
+
 		// Send alert notification
 		s.sendHealthAlert(scheduleID, name, failures)
 	}
@@ -509,7 +487,7 @@ func (s *Scheduler) checkScheduleHealth() {
 func (s *Scheduler) missedScheduleHandler() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -530,23 +508,23 @@ func (s *Scheduler) catchUpMissedSchedules() {
 		  AND s.next_execution_at < NOW() - INTERVAL '2 minutes'
 		  AND (s.last_executed_at IS NULL OR s.last_executed_at < s.next_execution_at)
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var scheduleID, name string
 		var lastExecuted, nextExecution *time.Time
-		
+
 		if err := rows.Scan(&scheduleID, &name, &lastExecuted, &nextExecution); err != nil {
 			continue
 		}
-		
+
 		log.Printf("Catching up missed execution for schedule: %s", name)
-		
+
 		// Queue catch-up execution
 		schedule, _ := s.getScheduleByID(scheduleID)
 		if schedule != nil {
@@ -558,7 +536,7 @@ func (s *Scheduler) catchUpMissedSchedules() {
 				IsCatchUp:     true,
 				TriggeredBy:   "catch_up_handler",
 			}
-			
+
 			select {
 			case s.executions <- execution:
 			default:
@@ -571,7 +549,7 @@ func (s *Scheduler) catchUpMissedSchedules() {
 func (s *Scheduler) retryHandler() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -599,24 +577,24 @@ func (s *Scheduler) processRetries() {
 		ORDER BY e.end_time ASC
 		LIMIT 10
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var executionID, scheduleID, retryStrategy string
 		var attemptCount, maxRetries int
-		
+
 		if err := rows.Scan(&executionID, &scheduleID, &attemptCount, &maxRetries, &retryStrategy); err != nil {
 			continue
 		}
-		
+
 		// Calculate retry delay
 		delay := s.calculateRetryDelay(attemptCount, retryStrategy)
-		
+
 		// Schedule retry
 		time.AfterFunc(delay, func() {
 			schedule, _ := s.getScheduleByID(scheduleID)
@@ -630,7 +608,7 @@ func (s *Scheduler) processRetries() {
 					TriggeredBy:   "retry_handler",
 					RetryCount:    attemptCount + 1,
 				}
-				
+
 				select {
 				case s.executions <- execution:
 				default:
@@ -643,7 +621,7 @@ func (s *Scheduler) processRetries() {
 // scheduleRetry schedules a retry for a failed execution
 func (s *Scheduler) scheduleRetry(exec *ScheduleExecution) {
 	delay := s.calculateRetryDelay(exec.RetryCount, exec.Schedule.RetryStrategy)
-	
+
 	time.AfterFunc(delay, func() {
 		exec.RetryCount++
 		select {
@@ -799,16 +777,16 @@ func (s *Scheduler) updateNextExecutionTime(scheduleID string) {
 
 func (s *Scheduler) sendFailureNotification(schedule *Schedule, err error) {
 	// Send notification via notification-hub or log
-	log.Printf("ALERT: Schedule '%s' failed after %d retries: %v", 
+	log.Printf("ALERT: Schedule '%s' failed after %d retries: %v",
 		schedule.Name, schedule.MaxRetries, err)
-	
+
 	// TODO: Integrate with notification-hub scenario
 }
 
 func (s *Scheduler) sendHealthAlert(scheduleID, name string, failures int) {
 	// Send health alert notification
-	log.Printf("HEALTH ALERT: Schedule '%s' (ID: %s) has %d consecutive failures", 
+	log.Printf("HEALTH ALERT: Schedule '%s' (ID: %s) has %d consecutive failures",
 		name, scheduleID, failures)
-	
+
 	// TODO: Integrate with notification-hub scenario
 }

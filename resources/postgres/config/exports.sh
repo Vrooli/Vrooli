@@ -25,6 +25,17 @@ export POSTGRES_RESOURCE_NAME="postgres"
 export POSTGRES_RESOURCE_DIR="${POSTGRES_RESOURCE_DIR:-${var_SCRIPTS_RESOURCES_DIR}/storage/postgres}"
 export POSTGRES_RESOURCE_DIR="${POSTGRES_RESOURCE_DIR:-${APP_ROOT}/resources/postgres}"
 
+# Playbooks isolation override: honor injected URLs and skip recomputing defaults.
+if [[ "${TEST_GENIE_PLAYBOOKS:-0}" == "1" ]]; then
+    override_url="${PLAYBOOKS_DATABASE_URL:-${DATABASE_URL:-}}"
+    if [[ -n "$override_url" ]]; then
+        export DATABASE_URL="$override_url"
+        export POSTGRES_URL="${POSTGRES_URL:-$override_url}"
+        _postgres_debug "Playbooks isolation detected; using injected DATABASE_URL and skipping defaults"
+        return 0 2>/dev/null || exit 0
+    fi
+fi
+
 # Get port from registry (if function is available)
 if declare -f secrets::source_port_registry &>/dev/null; then
     secrets::source_port_registry

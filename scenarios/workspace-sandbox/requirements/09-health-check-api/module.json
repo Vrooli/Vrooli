@@ -1,0 +1,68 @@
+{
+  "description": "Basic health endpoint for lifecycle monitoring",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement a /health endpoint that returns 200 OK when service is operational and 503 when degraded/unavailable. Response must include uptime, active sandbox count, and disk usage metrics.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-009",
+      "status": "complete",
+      "title": "Health Check API Endpoint",
+      "validation": [
+        {
+          "notes": "Verify endpoint returns correct status codes for healthy/unhealthy scenarios",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthHandler",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Validate JSON response schema includes required fields",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthResponseSchema",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Verify Content-Type header is application/json",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthContentType",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "integration: Health endpoint returns 200 OK",
+          "phase": "api",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health endpoint returns 200 OK",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "integration: Health response includes required fields",
+          "phase": "api",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health response includes service field",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "integration: Health endpoint responds within 500ms",
+          "phase": "api",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health endpoint responds within 500ms",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Health indicator UI displays connection status",
+          "phase": "e2e",
+          "ref": "bas/cases/health-check/ui/health_indicator.json",
+          "status": "implemented",
+          "type": "workflow"
+        }
+      ]
+    }
+  ],
+  "title": "Health Check API"
+}

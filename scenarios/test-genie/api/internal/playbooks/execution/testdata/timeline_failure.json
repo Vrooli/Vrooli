@@ -1,0 +1,54 @@
+{
+  "execution_id": "exec-fail",
+  "workflow_id": "wf-999",
+  "status": "EXECUTION_STATUS_FAILED",
+  "progress": 100,
+  "started_at": "2024-01-01T00:00:00Z",
+  "completed_at": "2024-01-01T00:00:03Z",
+  "entries": [
+    {
+      "step_index": 0,
+      "node_id": "navigate-1",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "context": {
+        "success": true
+      },
+      "aggregates": {
+        "status": "STEP_STATUS_COMPLETED",
+        "progress": 50
+      }
+    },
+    {
+      "step_index": 1,
+      "node_id": "assert-1",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "context": {
+        "success": false,
+        "error": "assertion failed",
+        "assertion": {
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "selector": "[data-testid='title']",
+          "success": false,
+          "message": "title missing"
+        }
+      },
+      "aggregates": {
+        "status": "STEP_STATUS_FAILED",
+        "progress": 100
+      }
+    }
+  ],
+  "logs": [
+    {
+      "id": "log-1",
+      "level": "LOG_LEVEL_ERROR",
+      "message": "assert failed",
+      "step_name": "assert-1",
+      "timestamp": "2024-01-01T00:00:02Z"
+    }
+  ]
+}

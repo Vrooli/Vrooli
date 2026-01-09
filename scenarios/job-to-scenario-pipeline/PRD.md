@@ -428,7 +428,7 @@ structure:
     - PRD.md
     - api/main.go
     - api/go.mod
-    - cli/job-to-scenario
+    - cli/job-to-scenario-pipeline
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - initialization/automation/huginn/upwork-scraper.json
@@ -476,7 +476,7 @@ tests:
         
   - name: "CLI lists pending jobs"
     type: exec
-    command: ./cli/job-to-scenario list --state pending --json
+    command: ./cli/job-to-scenario-pipeline list --state pending --json
     expect:
       exit_code: 0
       output_contains: ["jobs", "total"]

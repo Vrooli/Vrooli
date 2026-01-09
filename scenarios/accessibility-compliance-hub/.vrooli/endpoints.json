@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health status",
+      "description": "Reports API uptime plus dependency health for axe-core, WAVE, pa11y, and Postgres.",
+      "category": "system"
+    },
+    {
+      "id": "list-scans",
+      "path": "/api/scans",
+      "method": "GET",
+      "summary": "List recorded scans",
+      "description": "Returns accessibility scans with target URL, status, created timestamp, and violation count.",
+      "category": "compliance"
+    },
+    {
+      "id": "list-violations",
+      "path": "/api/violations",
+      "method": "GET",
+      "summary": "List recent violations",
+      "description": "Returns sample violations detected across audits including type, severity, and affected element.",
+      "category": "compliance"
+    },
+    {
+      "id": "list-reports",
+      "path": "/api/reports",
+      "method": "GET",
+      "summary": "List audit reports",
+      "description": "Returns generated accessibility reports with score, linked scan, and included issues.",
+      "category": "compliance"
+    }
+  ]
+}

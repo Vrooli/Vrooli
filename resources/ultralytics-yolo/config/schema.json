@@ -21,13 +21,25 @@
         "variant": {
           "type": "string",
           "description": "Model variant",
-          "enum": ["yolov8n", "yolov8s", "yolov8m", "yolov8l", "yolov8x"],
+          "enum": [
+            "yolov8n",
+            "yolov8s",
+            "yolov8m",
+            "yolov8l",
+            "yolov8x"
+          ],
           "default": "yolov8m"
         },
         "task": {
           "type": "string",
           "description": "YOLO task type",
-          "enum": ["detect", "segment", "classify", "pose", "obb"],
+          "enum": [
+            "detect",
+            "segment",
+            "classify",
+            "pose",
+            "obb"
+          ],
           "default": "detect"
         },
         "path": {
@@ -43,7 +55,12 @@
         "type": {
           "type": "string",
           "description": "Device type for inference",
-          "enum": ["auto", "cpu", "cuda", "mps"],
+          "enum": [
+            "auto",
+            "cpu",
+            "cuda",
+            "mps"
+          ],
           "default": "auto"
         },
         "cuda_device": {
@@ -111,7 +128,11 @@
         "format": {
           "type": "string",
           "description": "Output format",
-          "enum": ["json", "csv", "txt"],
+          "enum": [
+            "json",
+            "csv",
+            "txt"
+          ],
           "default": "json"
         },
         "save_images": {
@@ -262,5 +283,11 @@
       }
     }
   },
-  "required": ["port", "model", "device", "inference"]
+  "required": [
+    "port",
+    "model",
+    "device",
+    "inference"
+  ],
+  "$id": "https://vrooli.com/resources/ultralytics-yolo/schema.json"
 }

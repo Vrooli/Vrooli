@@ -63,7 +63,12 @@
           "minLength": 8
         }
       },
-      "required": ["host", "name", "user", "password"]
+      "required": [
+        "host",
+        "name",
+        "user",
+        "password"
+      ]
     },
     "admin": {
       "type": "object",
@@ -82,7 +87,10 @@
           "default": "admin@clinic.local"
         }
       },
-      "required": ["username", "password"]
+      "required": [
+        "username",
+        "password"
+      ]
     },
     "features": {
       "type": "object",
@@ -155,7 +163,11 @@
         },
         "passwordComplexity": {
           "type": "string",
-          "enum": ["weak", "medium", "strong"],
+          "enum": [
+            "weak",
+            "medium",
+            "strong"
+          ],
           "default": "strong"
         }
       }
@@ -201,5 +213,9 @@
       }
     }
   },
-  "required": ["database", "admin"]
+  "required": [
+    "database",
+    "admin"
+  ],
+  "$id": "https://vrooli.com/resources/openemr/schema.json"
 }

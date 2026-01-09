@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-008",
+  "prd_ref": "local-info-scout-should-have-smart-filtering-filter-by-rating-price-distance-accessibility-2025-10-03-category-aware-thresholds-24-hour-detection-relevance-scoring",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Implement smart filtering system for ratings, price, distance and accessibility",
+      "id": "REQ-P1-001",
+      "prd_ref": "local-info-scout-should-have-smart-filtering-filter-by-rating-price-distance-accessibility-2025-10-03-category-aware-thresholds-24-hour-detection-relevance-scoring",
+      "status": "draft",
+      "title": "Advanced Search Filters",
+      "validation": [
+        {
+          "notes": "All filter types functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Category-aware thresholds working",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Filters apply correctly to search results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Filter application \u003c 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Results match user expectations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-10-03: Category-aware thresholds, 24-hour detection, relevance scoring)"
+}

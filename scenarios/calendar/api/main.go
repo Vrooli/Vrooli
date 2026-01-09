@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -19,6 +19,11 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -129,6 +134,114 @@ type User struct {
 	Timezone    string `json:"timezone"`
 }
 
+type contextKey string
+
+const authUserContextKey contextKey = "calendar_auth_user"
+
+func attachUserToContext(r *http.Request, user *User) *http.Request {
+	if r == nil || user == nil {
+		return r
+	}
+
+	ctx := context.WithValue(r.Context(), authUserContextKey, user)
+	return r.WithContext(ctx)
+}
+
+func getAuthenticatedUser(r *http.Request) (*User, bool) {
+	if r == nil {
+		return nil, false
+	}
+
+	user, ok := r.Context().Value(authUserContextKey).(*User)
+	if !ok || user == nil {
+		return nil, false
+	}
+
+	return user, true
+}
+
+type authLoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type authLoginResponse struct {
+	Success      bool            `json:"success"`
+	Token        string          `json:"token"`
+	RefreshToken string          `json:"refresh_token"`
+	User         json.RawMessage `json:"user"`
+	Message      string          `json:"message"`
+}
+
+func authLoginProxyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var req authLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorHandler.HandleError(w, r, BadRequestError("Invalid login payload", map[string]string{"parse_error": err.Error()}))
+		return
+	}
+
+	validations := ValidationErrors{}
+	if strings.TrimSpace(req.Email) == "" {
+		validations = append(validations, NewValidationError("email", "", "Email is required"))
+	}
+	if strings.TrimSpace(req.Password) == "" {
+		validations = append(validations, NewValidationError("password", "", "Password is required"))
+	}
+	if len(validations) > 0 {
+		errorHandler.HandleError(w, r, validations)
+		return
+	}
+
+	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
+	if authServiceURL == "" {
+		errorHandler.HandleError(w, r, ServiceUnavailableError("authentication"))
+		return
+	}
+
+	loginURL := strings.TrimRight(authServiceURL, "/") + "/api/v1/auth/login"
+	payload, err := json.Marshal(req)
+	if err != nil {
+		errorHandler.HandleError(w, r, InternalServerError("Failed to encode login payload", map[string]string{"error": err.Error()}))
+		return
+	}
+
+	forwardReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, loginURL, bytes.NewReader(payload))
+	if err != nil {
+		errorHandler.HandleError(w, r, InternalServerError("Failed to contact authentication service", map[string]string{"error": err.Error()}))
+		return
+	}
+	forwardReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(forwardReq)
+	if err != nil {
+		errorHandler.HandleError(w, r, ExternalServiceError("authentication", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, values := range resp.Header {
+		if strings.EqualFold(k, "Content-Length") {
+			continue
+		}
+		for _, v := range values {
+			w.Header().Add(k, v)
+		}
+	}
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Failed to stream auth service response: %v", err)
+	}
+}
+
 // Initialize configuration
 func initConfig() *Config {
 	// Load .env file if it exists
@@ -207,61 +320,12 @@ func initConfig() *Config {
 // Initialize database connection
 func initDatabase(config *Config) error {
 	var err error
-	db, err = sql.Open("postgres", config.PostgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %v", err)
+		return fmt.Errorf("database connection failed: %v", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Run database migrations
@@ -670,23 +734,43 @@ func authMiddleware(next http.Handler) http.Handler {
 		// Check if auth service is configured
 		authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 		if authServiceURL == "" {
-			// Single-user mode - use default user
-			r.Header.Set("X-User-ID", "default-user")
-			r.Header.Set("X-Auth-User-ID", "default-user")
-			r.Header.Set("X-User-Email", "user@localhost")
-			next.ServeHTTP(w, r)
+			defaultUser := &User{
+				ID:          "default-user",
+				AuthUserID:  "default-user",
+				Email:       "user@localhost",
+				DisplayName: "Default User",
+				Timezone:    "UTC",
+			}
+
+			r.Header.Set("X-User-ID", defaultUser.ID)
+			r.Header.Set("X-Auth-User-ID", defaultUser.AuthUserID)
+			r.Header.Set("X-User-Email", defaultUser.Email)
+			r.Header.Set("X-User-Display-Name", defaultUser.DisplayName)
+			r.Header.Set("X-User-Timezone", defaultUser.Timezone)
+
+			next.ServeHTTP(w, attachUserToContext(r, defaultUser))
 			return
 		}
 
 		authHeader := r.Header.Get("Authorization")
 		// Development/test mode bypass - only in development environment
-		if os.Getenv("ENVIRONMENT") == "development" || os.Getenv("ENVIRONMENT") == "test" {
+		if env := os.Getenv("ENVIRONMENT"); env == "development" || env == "test" {
 			if authHeader == "Bearer test-token" || authHeader == "Bearer test" || authHeader == "Bearer mock-token-for-testing" {
-				// Use test user for development
-				r.Header.Set("X-User-ID", "test-user")
-				r.Header.Set("X-Auth-User-ID", "test-user")
-				r.Header.Set("X-User-Email", "test@localhost")
-				next.ServeHTTP(w, r)
+				testUser := &User{
+					ID:          "test-user",
+					AuthUserID:  "test-user",
+					Email:       "test@localhost",
+					DisplayName: "Test User",
+					Timezone:    "UTC",
+				}
+
+				r.Header.Set("X-User-ID", testUser.ID)
+				r.Header.Set("X-Auth-User-ID", testUser.AuthUserID)
+				r.Header.Set("X-User-Email", testUser.Email)
+				r.Header.Set("X-User-Display-Name", testUser.DisplayName)
+				r.Header.Set("X-User-Timezone", testUser.Timezone)
+
+				next.ServeHTTP(w, attachUserToContext(r, testUser))
 				return
 			}
 		}
@@ -719,28 +803,49 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Add user to request context
+		if user.AuthUserID == "" {
+			user.AuthUserID = user.ID
+		}
+		if user.DisplayName == "" {
+			if user.Email != "" {
+				user.DisplayName = user.Email
+			} else {
+				user.DisplayName = user.ID
+			}
+		}
+		if user.Timezone == "" {
+			user.Timezone = "UTC"
+		}
+
 		r.Header.Set("X-User-ID", user.ID)
 		r.Header.Set("X-Auth-User-ID", user.AuthUserID)
 		r.Header.Set("X-User-Email", user.Email)
+		r.Header.Set("X-User-Display-Name", user.DisplayName)
+		r.Header.Set("X-User-Timezone", user.Timezone)
 
-		next.ServeHTTP(w, r)
+		// Add user to request context
+		next.ServeHTTP(w, attachUserToContext(r, user))
 	})
 }
 
 // Validate token with scenario-authenticator service
 func validateToken(token string) (*User, error) {
-	// Get auth service URL from environment
+	// Get auth service URL from environment or discovery
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		// Return default user in single-user mode
-		return &User{
-			ID:          "default-user",
-			AuthUserID:  "default-user",
-			Email:       "user@localhost",
-			DisplayName: "Default User",
-			Timezone:    "UTC",
-		}, nil
+		// Try discovery
+		discoveredURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+		if err != nil {
+			// Return default user in single-user mode
+			return &User{
+				ID:          "default-user",
+				AuthUserID:  "default-user",
+				Email:       "user@localhost",
+				DisplayName: "Default User",
+				Timezone:    "UTC",
+			}, nil
+		}
+		authServiceURL = discoveredURL
 	}
 
 	// Create validation request
@@ -783,500 +888,64 @@ func validateToken(token string) (*User, error) {
 	}, nil
 }
 
-// Health check endpoint
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	overallStatus := "healthy"
-	var errors []map[string]interface{}
-	readiness := true
-
-	// Schema-compliant health response structure
-	healthResponse := map[string]interface{}{
-		"status":       overallStatus,
-		"service":      "calendar-api",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"readiness":    true,
-		"version":      "1.0.0",
-		"dependencies": map[string]interface{}{},
+func authValidateHandler(w http.ResponseWriter, r *http.Request) {
+	user, ok := getAuthenticatedUser(r)
+	if !ok {
+		errorHandler.HandleError(w, r, UnauthorizedError("User authentication required"))
+		return
 	}
 
-	// Check database connectivity
-	dbHealth := checkDatabaseHealth()
-	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
-	if dbHealth["status"] != "healthy" {
-		overallStatus = "degraded"
-		if dbHealth["status"] == "unhealthy" {
-			readiness = false
-			overallStatus = "unhealthy"
-		}
-		if dbHealth["error"] != nil {
-			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+	authUserID := user.AuthUserID
+	if authUserID == "" {
+		authUserID = user.ID
+	}
+
+	displayName := user.DisplayName
+	if displayName == "" {
+		if user.Email != "" {
+			displayName = user.Email
+		} else {
+			displayName = user.ID
 		}
 	}
 
-	// Check Qdrant vector database
-	qdrantHealth := checkQdrantHealth()
-	healthResponse["dependencies"].(map[string]interface{})["qdrant"] = qdrantHealth
-	if qdrantHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if qdrantHealth["error"] != nil {
-			errors = append(errors, qdrantHealth["error"].(map[string]interface{}))
-		}
+	timezone := user.Timezone
+	if timezone == "" {
+		timezone = "UTC"
 	}
 
-	// Check Auth service (optional)
-	authHealth := checkAuthServiceHealth()
-	healthResponse["dependencies"].(map[string]interface{})["auth_service"] = authHealth
-	if authHealth["status"] != "healthy" && authHealth["status"] != "not_configured" {
-		if overallStatus == "healthy" {
-			overallStatus = "degraded"
-		}
-		if authHealth["error"] != nil {
-			errors = append(errors, authHealth["error"].(map[string]interface{}))
-		}
+	email := user.Email
+	if email == "" {
+		email = r.Header.Get("X-User-Email")
 	}
 
-	// Check Notification service (optional)
-	notificationHealth := checkNotificationServiceHealth()
-	healthResponse["dependencies"].(map[string]interface{})["notification_service"] = notificationHealth
-	if notificationHealth["status"] != "healthy" && notificationHealth["status"] != "not_configured" {
-		if overallStatus == "healthy" {
-			overallStatus = "degraded"
-		}
-		if notificationHealth["error"] != nil {
-			errors = append(errors, notificationHealth["error"].(map[string]interface{}))
-		}
+	response := struct {
+		ID          string `json:"id"`
+		AuthUserID  string `json:"authUserId"`
+		Email       string `json:"email"`
+		DisplayName string `json:"displayName"`
+		Timezone    string `json:"timezone"`
+		CreatedAt   string `json:"createdAt"`
+		UpdatedAt   string `json:"updatedAt"`
+	}{
+		ID:          user.ID,
+		AuthUserID:  authUserID,
+		Email:       email,
+		DisplayName: displayName,
+		Timezone:    timezone,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	// Check NLP processor (optional)
-	nlpHealth := checkNLPProcessorHealth()
-	healthResponse["dependencies"].(map[string]interface{})["nlp_processor"] = nlpHealth
-	if nlpHealth["status"] != "healthy" && nlpHealth["status"] != "not_configured" {
-		if overallStatus == "healthy" {
-			overallStatus = "degraded"
-		}
+	if createdAt := r.Header.Get("X-User-Created-At"); createdAt != "" {
+		response.CreatedAt = createdAt
 	}
-
-	// Update final status
-	healthResponse["status"] = overallStatus
-	healthResponse["readiness"] = readiness
-
-	// Add errors if any
-	if len(errors) > 0 {
-		healthResponse["errors"] = errors
-	}
-
-	// Add metrics
-	healthResponse["metrics"] = map[string]interface{}{
-		"total_dependencies":   5,
-		"healthy_dependencies": countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
-		"response_time_ms":     time.Since(start).Milliseconds(),
-	}
-
-	// Add calendar-specific stats
-	calendarStats := getCalendarStats()
-	healthResponse["calendar_stats"] = calendarStats
-
-	// Return appropriate HTTP status
-	statusCode := http.StatusOK
-	if overallStatus == "unhealthy" {
-		statusCode = http.StatusServiceUnavailable
+	if updatedAt := r.Header.Get("X-User-Updated-At"); updatedAt != "" {
+		response.UpdatedAt = updatedAt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(healthResponse)
-}
-
-// Health check helper methods
-func checkDatabaseHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	if db == nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code":      "DATABASE_NOT_INITIALIZED",
-			"message":   "Database connection not initialized",
-			"category":  "configuration",
-			"retryable": false,
-		}
-		return health
-	}
-
-	// Test database connection with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code":      "DATABASE_CONNECTION_FAILED",
-			"message":   "Failed to ping database: " + err.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-		return health
-	}
-	health["checks"].(map[string]interface{})["ping"] = "ok"
-
-	// Check calendar tables
-	requiredTables := []string{"events", "event_reminders", "recurring_patterns", "event_embeddings"}
-	var missingTables []string
-
-	for _, tableName := range requiredTables {
-		var exists bool
-		query := fmt.Sprintf(`SELECT EXISTS(
-			SELECT 1 FROM information_schema.tables 
-			WHERE table_schema = 'public' AND table_name = '%s'
-		)`, tableName)
-
-		if err := db.QueryRowContext(ctx, query).Scan(&exists); err != nil || !exists {
-			missingTables = append(missingTables, tableName)
-		}
-	}
-
-	if len(missingTables) > 0 {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "DATABASE_SCHEMA_INCOMPLETE",
-			"message":   fmt.Sprintf("Missing tables: %v", missingTables),
-			"category":  "configuration",
-			"retryable": false,
-		}
-		health["checks"].(map[string]interface{})["missing_tables"] = missingTables
-	} else {
-		health["checks"].(map[string]interface{})["schema"] = "complete"
-	}
-
-	// Check active events count
-	var eventCount int
-	eventQuery := `SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW() - INTERVAL '30 days'`
-	if err := db.QueryRowContext(ctx, eventQuery).Scan(&eventCount); err == nil {
-		health["checks"].(map[string]interface{})["recent_events"] = eventCount
-	}
-
-	// Check connection pool
-	stats := db.Stats()
-	health["checks"].(map[string]interface{})["open_connections"] = stats.OpenConnections
-	health["checks"].(map[string]interface{})["max_connections"] = stats.MaxOpenConnections
-
-	if stats.OpenConnections > stats.MaxOpenConnections*9/10 {
-		if health["status"] == "healthy" {
-			health["status"] = "degraded"
-		}
-		if health["error"] == nil {
-			health["error"] = map[string]interface{}{
-				"code":      "DATABASE_CONNECTION_POOL_HIGH",
-				"message":   fmt.Sprintf("Connection pool usage high: %d/%d", stats.OpenConnections, stats.MaxOpenConnections),
-				"category":  "resource",
-				"retryable": false,
-			}
-		}
-	}
-
-	return health
-}
-
-func checkQdrantHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	config := initConfig()
-	if config.QdrantURL == "" {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code":      "QDRANT_NOT_CONFIGURED",
-			"message":   "Qdrant URL not configured",
-			"category":  "configuration",
-			"retryable": false,
-		}
-		return health
-	}
-
-	// Test Qdrant connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/", nil)
-	if err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code":      "QDRANT_REQUEST_FAILED",
-			"message":   "Failed to create request to Qdrant: " + err.Error(),
-			"category":  "internal",
-			"retryable": false,
-		}
-		return health
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "unhealthy"
-		health["error"] = map[string]interface{}{
-			"code":      "QDRANT_CONNECTION_FAILED",
-			"message":   "Failed to connect to Qdrant: " + err.Error(),
-			"category":  "network",
-			"retryable": true,
-		}
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "QDRANT_UNHEALTHY",
-			"message":   fmt.Sprintf("Qdrant returned status %d", resp.StatusCode),
-			"category":  "resource",
-			"retryable": true,
-		}
-	} else {
-		health["checks"].(map[string]interface{})["connectivity"] = "ok"
-
-		// Check calendar_events collection
-		collectionReq, _ := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/collections/calendar_events", nil)
-		if collResp, err := client.Do(collectionReq); err == nil {
-			defer collResp.Body.Close()
-			if collResp.StatusCode == http.StatusOK {
-				health["checks"].(map[string]interface{})["calendar_events_collection"] = "exists"
-			} else {
-				health["checks"].(map[string]interface{})["calendar_events_collection"] = "missing"
-			}
-		}
-	}
-
-	return health
-}
-
-func checkAuthServiceHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	config := initConfig()
-	if config.AuthServiceURL == "" {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]interface{})["mode"] = "single_user"
-		return health
-	}
-
-	// Test auth service connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", config.AuthServiceURL+"/health", nil)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "AUTH_SERVICE_REQUEST_FAILED",
-			"message":   "Failed to create request to auth service: " + err.Error(),
-			"category":  "internal",
-			"retryable": false,
-		}
-		return health
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "AUTH_SERVICE_CONNECTION_FAILED",
-			"message":   "Failed to connect to auth service: " + err.Error(),
-			"category":  "network",
-			"retryable": true,
-		}
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["checks"].(map[string]interface{})["connectivity"] = "ok"
-		health["checks"].(map[string]interface{})["mode"] = "multi_user"
-	} else {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "AUTH_SERVICE_UNHEALTHY",
-			"message":   fmt.Sprintf("Auth service returned status %d", resp.StatusCode),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	return health
-}
-
-func checkNotificationServiceHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	config := initConfig()
-	if config.NotificationServiceURL == "" {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]interface{})["reminders"] = "disabled"
-		return health
-	}
-
-	// Test notification service connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", config.NotificationServiceURL+"/health", nil)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "NOTIFICATION_SERVICE_REQUEST_FAILED",
-			"message":   "Failed to create request to notification service: " + err.Error(),
-			"category":  "internal",
-			"retryable": false,
-		}
-		return health
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "NOTIFICATION_SERVICE_CONNECTION_FAILED",
-			"message":   "Failed to connect to notification service: " + err.Error(),
-			"category":  "network",
-			"retryable": true,
-		}
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["checks"].(map[string]interface{})["connectivity"] = "ok"
-		health["checks"].(map[string]interface{})["reminders"] = "enabled"
-	} else {
-		health["status"] = "degraded"
-		health["error"] = map[string]interface{}{
-			"code":      "NOTIFICATION_SERVICE_UNHEALTHY",
-			"message":   fmt.Sprintf("Notification service returned status %d", resp.StatusCode),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	return health
-}
-
-func checkNLPProcessorHealth() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]interface{}{},
-	}
-
-	if nlpProcessor == nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
-		return health
-	}
-
-	// Check if Ollama is configured
-	config := initConfig()
-	if config.OllamaURL == "" {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
-		return health
-	}
-
-	// Test Ollama connectivity
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", config.OllamaURL+"/api/tags", nil)
-	if err != nil {
-		health["status"] = "degraded"
-		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
-		return health
-	}
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "degraded"
-		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["checks"].(map[string]interface{})["ollama_connectivity"] = "ok"
-		health["checks"].(map[string]interface{})["mode"] = "ai_powered"
-	} else {
-		health["status"] = "degraded"
-		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
-	}
-
-	return health
-}
-
-func countHealthyDependencies(deps map[string]interface{}) int {
-	count := 0
-	for _, dep := range deps {
-		if depMap, ok := dep.(map[string]interface{}); ok {
-			if status, exists := depMap["status"]; exists && (status == "healthy" || status == "not_configured") {
-				count++
-			}
-		}
-	}
-	return count
-}
-
-func getCalendarStats() map[string]interface{} {
-	stats := map[string]interface{}{
-		"total_events":       0,
-		"upcoming_events":    0,
-		"active_reminders":   0,
-		"recurring_patterns": 0,
-	}
-
-	if db == nil {
-		return stats
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	// Get total events
-	var totalEvents int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active'").Scan(&totalEvents); err == nil {
-		stats["total_events"] = totalEvents
-	}
-
-	// Get upcoming events
-	var upcomingEvents int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW()").Scan(&upcomingEvents); err == nil {
-		stats["upcoming_events"] = upcomingEvents
-	}
-
-	// Get active reminders
-	var activeReminders int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM event_reminders WHERE is_active = true").Scan(&activeReminders); err == nil {
-		stats["active_reminders"] = activeReminders
-	}
-
-	// Get recurring patterns
-	var recurringPatterns int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_patterns WHERE is_active = true").Scan(&recurringPatterns); err == nil {
-		stats["recurring_patterns"] = recurringPatterns
-	}
-
-	return stats
+	json.NewEncoder(w).Encode(response)
 }
 
 // Event handlers
@@ -3634,17 +3303,11 @@ func trackAttendanceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start calendar
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "calendar",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	log.Println("Starting Calendar API...")
@@ -3689,11 +3352,18 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check (no auth required)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// API routes (with auth middleware)
+	// Public API routes (no auth required)
+	publicAPI := router.PathPrefix("/api/v1").Subrouter()
+	publicAPI.HandleFunc("/auth/login", authLoginProxyHandler).Methods("POST", "OPTIONS")
+
+	// Authenticated API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.Use(authMiddleware)
+
+	api.HandleFunc("/auth/validate", authValidateHandler).Methods("GET")
 
 	// Event management
 	api.HandleFunc("/events", createEventHandler).Methods("POST")
@@ -3782,13 +3452,13 @@ func main() {
 	recoveryMiddleware := RecoveryMiddleware(errorHandler)
 	middlewareChain := recoveryMiddleware(rateLimiter.Middleware(handlers.LoggingHandler(os.Stdout, corsHandler.Handler(router))))
 
-	// Start server
-	address := ":" + config.Port
-	log.Printf("Calendar API server starting on port %s", config.Port)
-	log.Printf("Health check: http://localhost:%s/health", config.Port)
-
-	if err := http.ListenAndServe(address, middlewareChain); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Port:    config.Port,
+		Handler: middlewareChain,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
@@ -3877,3 +3547,5 @@ func generateRecurringEvents(parentID string, recurrence *RecurrenceRequest, sta
 	log.Printf("Generated %d recurring events for parent %s", occurrences, parentID)
 	return nil
 }
+
+// Test change for calendar

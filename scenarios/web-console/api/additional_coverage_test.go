@@ -140,11 +140,7 @@ func TestSessionCoverage(t *testing.T) {
 		}
 
 		// Verify output buffer
-		s.outputBufferMu.RLock()
-		bufferLen := len(s.outputBuffer)
-		s.outputBufferMu.RUnlock()
-
-		if bufferLen == 0 {
+		if s.replayBuffer == nil || s.replayBuffer.len() == 0 {
 			t.Error("Expected output in buffer")
 		}
 	})

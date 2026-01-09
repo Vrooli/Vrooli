@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +9,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Violation represents a code smell violation
@@ -89,13 +91,15 @@ func NewServer() *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
+	// Health check at root level
+	healthHandler := health.Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
-	// Health checks
-	api.HandleFunc("/health", s.handleHealth).Methods("GET")
-	api.HandleFunc("/health/live", s.handleHealthLive).Methods("GET")
-	api.HandleFunc("/health/ready", s.handleHealthReady).Methods("GET")
+	// Health checks (also expose under /api/v1 for backward compatibility)
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Code smell endpoints
 	api.HandleFunc("/code-smell/analyze", s.handleAnalyze).Methods("POST")
@@ -107,33 +111,6 @@ func (s *Server) setupRoutes() {
 
 	// Documentation
 	api.HandleFunc("/docs", s.handleDocs).Methods("GET")
-}
-
-// handleHealth returns the health status
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "code-smell",
-		"version":   "1.0.0",
-	}
-	sendJSON(w, http.StatusOK, response)
-}
-
-// handleHealthLive returns liveness status
-func (s *Server) handleHealthLive(w http.ResponseWriter, r *http.Request) {
-	sendJSON(w, http.StatusOK, map[string]string{"status": "alive"})
-}
-
-// handleHealthReady returns readiness status
-func (s *Server) handleHealthReady(w http.ResponseWriter, r *http.Request) {
-	// Check if rules are loaded and engine is ready
-	ready := checkEngineReady()
-	if ready {
-		sendJSON(w, http.StatusOK, map[string]string{"status": "ready"})
-	} else {
-		sendJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
-	}
 }
 
 // handleAnalyze analyzes files for code smells
@@ -421,7 +398,7 @@ func getStatistics(period string) map[string]interface{} {
 }
 
 // Start starts the server
-func (s *Server) Start() {
+func (s *Server) Start() error {
 	// Setup CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:*"},
@@ -430,26 +407,23 @@ func (s *Server) Start() {
 	})
 
 	handler := c.Handler(s.router)
-	
-	log.Printf("Code Smell API server starting on port %s", s.port)
-	if err := http.ListenAndServe(":"+s.port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
+
+	log.Println("Code Smell API server starting...")
+	return server.Run(server.Config{
+		Handler: handler,
+	})
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start code-smell
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "code-smell",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	server := NewServer()
-	server.Start()
+	srv := NewServer()
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

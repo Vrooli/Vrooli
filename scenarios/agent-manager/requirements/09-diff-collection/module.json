@@ -1,0 +1,50 @@
+{
+  "description": "Generate and store diffs from sandbox changes",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "Generate and store diffs from sandbox file system changes",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-009",
+      "status": "implemented",
+      "title": "Diff Generation",
+      "validation": [
+        {
+          "notes": "Test diff retrieval from sandbox",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_GetDiff",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test full approval with diff application",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Approve",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test partial approval with selected files",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_PartialApprove",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test rejection of changes",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Reject",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Diff Collection"
+}

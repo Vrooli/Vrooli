@@ -20,6 +20,8 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 )
 
 type Server struct {
@@ -123,91 +125,24 @@ func NewServer() (*Server, error) {
 	os.MkdirAll(config.WorkDir, 0755)
 	os.MkdirAll(config.DataDir, 0755)
 
-	// Connect to database (optional - will work without it)
-	var db *sql.DB
-	dbURL := config.DatabaseURL
-
-	// Use resource postgres port if available - check multiple env vars
-	pgPort := ""
-	if port := os.Getenv("RESOURCE_PORTS_POSTGRES"); port != "" {
-		pgPort = port
-	} else if port := os.Getenv("POSTGRES_PORT"); port != "" {
-		pgPort = port
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Continue without database if not available.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		log.Printf("Warning: Could not connect to database: %v", err)
+		db = nil
 	} else {
-		// Try to get from POSTGRES_URL if available
-		if pgURL := os.Getenv("POSTGRES_URL"); pgURL != "" {
-			// Extract port from URL (format: postgres://user:pass@host:port/db)
-			if strings.Contains(pgURL, ":5433/") {
-				pgPort = "5433"
-			}
-		}
-	}
+		// Set connection pool settings
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
 
-	if pgPort != "" {
-		// Use vrooli user and database from environment if available
-		pgUser := os.Getenv("POSTGRES_USER")
-		if pgUser == "" {
-			pgUser = "vrooli"
-		}
-		pgPassword := os.Getenv("POSTGRES_PASSWORD")
-		if pgPassword == "" {
-			pgPassword = "postgres"
-		}
-		pgDatabase := "audio_tools" // Use audio_tools database
-
-		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable",
-			pgUser, pgPassword, pgPort, pgDatabase)
-		dbURL = config.DatabaseURL
-	}
-
-	if dbURL != "" {
-		var err error
-		db, err = sql.Open("postgres", dbURL)
-		if err != nil {
-			log.Printf("Warning: Could not connect to database: %v", err)
-			// Continue without database
-		} else {
-			// Set connection pool settings
-			db.SetMaxOpenConns(25)
-			db.SetMaxIdleConns(5)
-			db.SetConnMaxLifetime(5 * time.Minute)
-
-			// Try to ping with exponential backoff and jitter
-			maxRetries := 5
-			baseDelay := 200 * time.Millisecond
-			maxDelay := 5 * time.Second
-
-			var pingErr error
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				pingErr = db.Ping()
-				if pingErr == nil {
-					log.Printf("Successfully connected to database at %s (attempt %d)", dbURL, attempt+1)
-					// Initialize database schema if needed
-					if err := initializeDatabase(db); err != nil {
-						log.Printf("Warning: Could not initialize database schema: %v", err)
-					}
-					break
-				}
-
-				if attempt == maxRetries-1 {
-					db = nil
-					log.Printf("Database connection disabled after %d retries: %v", maxRetries, pingErr)
-					break
-				}
-
-				// Calculate exponential backoff with random jitter
-				delay := time.Duration(math.Min(
-					float64(baseDelay)*math.Pow(2, float64(attempt)),
-					float64(maxDelay),
-				))
-				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(jitterRange * rand.Float64())
-				actualDelay := delay + jitter
-
-				log.Printf("Warning: Database ping failed (attempt %d/%d), retrying in %v: %v",
-					attempt+1, maxRetries, actualDelay, pingErr)
-				time.Sleep(actualDelay)
-			}
+		// Initialize database schema if needed
+		if err := initializeDatabase(db); err != nil {
+			log.Printf("Warning: Could not initialize database schema: %v", err)
 		}
 	}
 
@@ -247,9 +182,14 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
 
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Health check - use api-core/health for standardized response
+	// DB is optional for this scenario (can run without database)
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Optional).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -271,42 +211,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/docs", s.handleDocs).Methods("GET")
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "audio-tools",
-		"timestamp": time.Now().Unix(),
-		"version":   "1.0.0",
-	}
-
-	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			health["database"] = "disconnected"
-		} else {
-			health["database"] = "connected"
-		}
-	} else {
-		health["database"] = "not configured"
-	}
-
-	// Check if ffmpeg is available
-	if _, err := os.Stat("/usr/bin/ffmpeg"); err == nil {
-		health["ffmpeg"] = "available"
-	} else {
-		health["ffmpeg"] = "not found"
-	}
-
-	// Check MinIO status
-	if s.storage != nil {
-		health["storage"] = "minio"
-	} else {
-		health["storage"] = "filesystem"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(health)
-}
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{

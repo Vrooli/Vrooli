@@ -158,6 +158,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/meep/schema.json"
 }

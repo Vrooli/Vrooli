@@ -99,57 +99,6 @@ func (api *API) getPluginsFromDB(db *sql.DB) error {
 	return nil
 }
 
-// HealthCheck handles health check endpoint
-func (api *API) HealthCheck(c *gin.Context) {
-	db := getDB(c)
-
-	// Check database connection
-	if err := db.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, HealthResponse{
-			Status:  "unhealthy",
-			Error:   "Database connection failed",
-			Details: err.Error(),
-		})
-		return
-	}
-
-	// Ensure plugin registry is loaded so restart checks reflect real state
-	if len(api.plugins) == 0 {
-		if err := api.getPluginsFromDB(db); err != nil {
-			c.JSON(http.StatusServiceUnavailable, HealthResponse{
-				Status:    "degraded",
-				Version:   "1.0.0",
-				Timestamp: time.Now().Unix(),
-				Error:     "Failed to load plugins",
-				Details:   err.Error(),
-			})
-			return
-		}
-	}
-
-	// Count plugins
-	pluginCount := len(api.plugins)
-	enabledCount := 0
-	for _, p := range api.plugins {
-		if p.Enabled {
-			enabledCount++
-		}
-	}
-
-	status := "healthy"
-	if pluginCount == 0 || enabledCount == 0 {
-		status = "degraded"
-	}
-
-	c.JSON(http.StatusOK, HealthResponse{
-		Status:        status,
-		Version:       "1.0.0",
-		PluginsLoaded: pluginCount,
-		PluginsActive: enabledCount,
-		Timestamp:     time.Now().Unix(),
-	})
-}
-
 // GetStats returns dashboard statistics
 func (api *API) GetStats(c *gin.Context) {
 	db := getDB(c)

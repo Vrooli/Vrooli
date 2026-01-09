@@ -8,28 +8,20 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Server struct {
 	router *mux.Router
-	port   string
 	db     *Database
-}
-
-type HealthResponse struct {
-	Status       string                 `json:"status"`
-	Timestamp    time.Time              `json:"timestamp"`
-	Service      string                 `json:"service"`
-	Version      string                 `json:"version"`
-	Readiness    bool                   `json:"readiness"`
-	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
 }
 
 type ShoppingResearchRequest struct {
@@ -188,15 +180,18 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Extract token (remove "Bearer " prefix)
 		token := strings.Replace(authHeader, "Bearer ", "", 1)
 
-		// Get scenario-authenticator port from environment
-		authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
-		if authPort == "" {
-			// Try default port range for scenarios
-			authPort = "15797"
+		// Resolve scenario-authenticator URL via discovery
+		authBaseURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "scenario-authenticator")
+		if err != nil {
+			log.Printf("Error resolving scenario-authenticator: %v", err)
+			// Allow request to proceed as anonymous
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
 		}
 
 		// Validate token with scenario-authenticator
-		authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", authPort)
+		authURL := authBaseURL + "/api/v1/auth/validate"
 		req, err := http.NewRequest("GET", authURL, nil)
 		if err != nil {
 			log.Printf("Error creating auth request: %v", err)
@@ -248,11 +243,6 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func NewServer() *Server {
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "3300"
-	}
-
 	// Initialize database
 	db, err := NewDatabase()
 	if err != nil {
@@ -261,7 +251,6 @@ func NewServer() *Server {
 
 	s := &Server{
 		router: mux.NewRouter(),
-		port:   port,
 		db:     db,
 	}
 
@@ -270,8 +259,8 @@ func NewServer() *Server {
 }
 
 func (s *Server) setupRoutes() {
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health check - using api-core/health for standardized responses
+	s.router.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Shopping research endpoints - protected with auth middleware
 	s.router.HandleFunc("/api/v1/shopping/research", s.authMiddleware(s.handleShoppingResearch)).Methods("POST")
@@ -288,84 +277,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/alerts", s.handleGetAlerts).Methods("GET")
 	s.router.HandleFunc("/api/v1/alerts", s.handleCreateAlert).Methods("POST")
 	s.router.HandleFunc("/api/v1/alerts/{id}", s.handleDeleteAlert).Methods("DELETE")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError map[string]interface{}
-
-	if s.db.postgres != nil {
-		start := time.Now()
-		err := s.db.postgres.Ping()
-		latency := float64(time.Since(start).Milliseconds())
-		if err == nil {
-			dbConnected = true
-			dbLatency = &latency
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_REFUSED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Check Redis connectivity
-	redisConnected := false
-	var redisLatency *float64
-	var redisError map[string]interface{}
-
-	if s.db.redis != nil {
-		start := time.Now()
-		_, err := s.db.redis.Ping(context.Background()).Result()
-		latency := float64(time.Since(start).Milliseconds())
-		if err == nil {
-			redisConnected = true
-			redisLatency = &latency
-		} else {
-			redisError = map[string]interface{}{
-				"code":      "CONNECTION_REFUSED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Determine overall status
-	status := "healthy"
-	readiness := true
-	if !dbConnected && !redisConnected {
-		status = "degraded"
-	}
-
-	dependencies := map[string]interface{}{
-		"database": map[string]interface{}{
-			"connected":  dbConnected,
-			"latency_ms": dbLatency,
-			"error":      dbError,
-		},
-		"redis": map[string]interface{}{
-			"connected":  redisConnected,
-			"latency_ms": redisLatency,
-			"error":      redisError,
-		},
-	}
-
-	response := HealthResponse{
-		Status:       status,
-		Timestamp:    time.Now(),
-		Service:      "smart-shopping-assistant",
-		Version:      "1.0.0",
-		Readiness:    readiness,
-		Dependencies: dependencies,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) {
@@ -567,62 +478,44 @@ func (s *Server) handleDeleteAlert(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
 }
 
-func (s *Server) Start() {
-	handler := cors.New(cors.Options{
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	}).Handler(s.router)
+}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.port),
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Start server in goroutine
-	go func() {
-		log.Printf("Smart Shopping Assistant API starting on port %s", s.port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
+	if s.db != nil {
+		if s.db.postgres != nil {
+			s.db.postgres.Close()
 		}
-	}()
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Shutting down server...")
-
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		if s.db.redis != nil {
+			s.db.redis.Close()
+		}
 	}
-
-	log.Println("Server shutdown complete")
+	return nil
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start smart-shopping-assistant
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "smart-shopping-assistant",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	server := NewServer()
-	server.Start()
+	srv := NewServer()
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

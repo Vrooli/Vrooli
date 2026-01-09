@@ -17,6 +17,10 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 var (
@@ -124,47 +128,24 @@ type SuccessResponse struct {
 
 func init() {
 	godotenv.Load()
-	
+
 	port = os.Getenv("PORT_TOKEN_ECONOMY_API")
 	if port == "" {
 		port = "11080"
 	}
-	
-	// Initialize PostgreSQL
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "token_economy"
-	}
-	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(ctx, database.Config{
+		Driver:       "postgres",
+		MaxOpenConns: 25,
+		MaxIdleConns: 5,
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Initialize Redis
 	redisHost := os.Getenv("REDIS_HOST")
 	if redisHost == "" {
@@ -174,44 +155,34 @@ func init() {
 	if redisPort == "" {
 		redisPort = "6379"
 	}
-	
+
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	
-	// Test connections
-	if err := db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
-	}
-	
+
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("Warning: Redis not available: %v", err)
 		rdb = nil
 	}
-	
+
 	log.Println("Token Economy API initialized successfully")
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start token-economy
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "token-economy",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	router := mux.NewRouter()
 	
 	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
+	router.HandleFunc("/api/v1/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	
 	// Token endpoints
 	router.HandleFunc("/api/v1/tokens/create", createTokenHandler).Methods("POST")
@@ -247,24 +218,30 @@ func main() {
 	
 	handler := c.Handler(router)
 	
-	log.Printf("Token Economy API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	status := map[string]interface{}{
-		"status": "healthy",
-		"timestamp": time.Now().Unix(),
-		"services": map[string]bool{
-			"database": db.Ping() == nil,
-			"redis": rdb != nil && rdb.Ping(ctx).Err() == nil,
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Port:    port,
+		Cleanup: func(ctx context.Context) error {
+			var errs []error
+			if db != nil {
+				if err := db.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if rdb != nil {
+				if err := rdb.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if len(errs) > 0 {
+				return errs[0]
+			}
+			return nil
 		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
 }
 
 func createTokenHandler(w http.ResponseWriter, r *http.Request) {

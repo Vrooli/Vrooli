@@ -1,0 +1,81 @@
+{
+  "description": "Implement CRUD operations for tasks with status tracking",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement REST API endpoint for creating tasks with required metadata and validation",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "implemented",
+      "title": "Task Creation API",
+      "validation": [
+        {
+          "notes": "Test task creation with valid payload",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify validation errors for invalid data",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_ValidationError",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test task retrieval by ID",
+          "phase": "integration",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetTask_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test listing tasks",
+          "phase": "integration",
+          "ref": "api/internal/handlers/handlers_test.go::TestListTasks",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "System must track and persist task status changes with timestamps",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "status": "implemented",
+      "title": "Task Status Updates",
+      "validation": [
+        {
+          "notes": "Test task cancellation (status transition)",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCancelTask_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test orchestrator-level task CRUD and status",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_TaskCRUD",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify repository-level task operations",
+          "phase": "integration",
+          "ref": "api/internal/repository/memory_test.go::TestMemoryTaskRepository_CRUD",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Task Management"
+}

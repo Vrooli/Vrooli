@@ -447,7 +447,7 @@ ollama::status::display_text() {
     # Check configuration
     if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && command -v jq >/dev/null 2>&1; then
         local config_exists
-        config_exists=$(jq -r '.resources.ollama // empty' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+        config_exists=$(jq -r '.dependencies.resources.ollama // empty' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
         
         if [[ -n "$config_exists" ]] && [[ "$config_exists" != "null" ]]; then
             log::success "✅ Resource configuration found"

@@ -40,8 +40,10 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		response := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
-			"status":   "healthy",
-			"scenario": "scenario-to-extension",
+			"status":    "healthy",
+			"service":   "scenario-to-extension-api",
+			"scenario":  "scenario-to-extension",
+			"readiness": true,
 		})
 
 		if response == nil {
@@ -134,7 +136,7 @@ func TestGenerateExtensionHandler(t *testing.T) {
 		}
 
 		// Verify build was created
-		if _, exists := builds[buildID]; !exists {
+		if _, exists := buildManager.Get(buildID); !exists {
 			t.Error("Expected build to be created in builds map")
 		}
 	})
@@ -163,7 +165,7 @@ func TestGenerateExtensionHandler(t *testing.T) {
 		}
 
 		buildID := response["build_id"].(string)
-		build := builds[buildID]
+		build, _ := buildManager.Get(buildID)
 
 		// Verify defaults were applied
 		if build.Config.Version != "1.0.0" {
@@ -269,7 +271,7 @@ func TestGetExtensionStatusHandler(t *testing.T) {
 		// Create a test build
 		buildID := "test_build_123"
 		now := time.Now()
-		builds[buildID] = &ExtensionBuild{
+		buildManager.Add(&ExtensionBuild{
 			BuildID:      buildID,
 			ScenarioName: "test-scenario",
 			TemplateType: "full",
@@ -277,7 +279,7 @@ func TestGetExtensionStatusHandler(t *testing.T) {
 			CreatedAt:    now,
 			BuildLog:     []string{"Starting build"},
 			ErrorLog:     []string{},
-		}
+		})
 
 		w, err := executeRequest(getExtensionStatusHandler, HTTPTestRequest{
 			Method:  "GET",
@@ -309,7 +311,7 @@ func TestGetExtensionStatusHandler(t *testing.T) {
 		buildID := "test_build_completed"
 		now := time.Now()
 		completedAt := now.Add(5 * time.Second)
-		builds[buildID] = &ExtensionBuild{
+		buildManager.Add(&ExtensionBuild{
 			BuildID:      buildID,
 			ScenarioName: "test-scenario",
 			TemplateType: "full",
@@ -318,7 +320,7 @@ func TestGetExtensionStatusHandler(t *testing.T) {
 			CompletedAt:  &completedAt,
 			BuildLog:     []string{"Build completed"},
 			ErrorLog:     []string{},
-		}
+		})
 
 		w, err := executeRequest(getExtensionStatusHandler, HTTPTestRequest{
 			Method:  "GET",
@@ -579,19 +581,19 @@ func TestListBuildsHandler(t *testing.T) {
 		buildID1 := "test_build_1"
 		buildID2 := "test_build_2"
 
-		builds[buildID1] = &ExtensionBuild{
+		buildManager.Add(&ExtensionBuild{
 			BuildID:      buildID1,
 			ScenarioName: "test-scenario-1",
 			Status:       "ready",
 			CreatedAt:    time.Now(),
-		}
+		})
 
-		builds[buildID2] = &ExtensionBuild{
+		buildManager.Add(&ExtensionBuild{
 			BuildID:      buildID2,
 			ScenarioName: "test-scenario-2",
 			Status:       "building",
 			CreatedAt:    time.Now(),
-		}
+		})
 
 		w, err := executeRequest(listBuildsHandler, HTTPTestRequest{
 			Method: "GET",
@@ -653,30 +655,30 @@ func TestHelperFunctions(t *testing.T) {
 
 	t.Run("CountBuildsByStatus", func(t *testing.T) {
 		// Clear builds
-		builds = make(map[string]*ExtensionBuild)
+		buildManager = NewBuildManager()
 
 		// Add test builds
-		builds["build1"] = &ExtensionBuild{Status: "building"}
-		builds["build2"] = &ExtensionBuild{Status: "building"}
-		builds["build3"] = &ExtensionBuild{Status: "ready"}
-		builds["build4"] = &ExtensionBuild{Status: "failed"}
+		buildManager.Add(&ExtensionBuild{BuildID: "build1", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build2", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build3", Status: "ready"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build4", Status: "failed"})
 
-		buildingCount := countBuildsByStatus("building")
+		buildingCount := buildManager.CountByStatus("building")
 		if buildingCount != 2 {
 			t.Errorf("Expected 2 building builds, got %d", buildingCount)
 		}
 
-		readyCount := countBuildsByStatus("ready")
+		readyCount := buildManager.CountByStatus("ready")
 		if readyCount != 1 {
 			t.Errorf("Expected 1 ready build, got %d", readyCount)
 		}
 
-		failedCount := countBuildsByStatus("failed")
+		failedCount := buildManager.CountByStatus("failed")
 		if failedCount != 1 {
 			t.Errorf("Expected 1 failed build, got %d", failedCount)
 		}
 
-		nonexistentCount := countBuildsByStatus("nonexistent")
+		nonexistentCount := buildManager.CountByStatus("nonexistent")
 		if nonexistentCount != 0 {
 			t.Errorf("Expected 0 nonexistent builds, got %d", nonexistentCount)
 		}
@@ -711,9 +713,17 @@ func TestConfigLoading(t *testing.T) {
 	defer loggerCleanup()
 
 	t.Run("DefaultConfig", func(t *testing.T) {
-		// Clear environment variables
+		// Clear environment variables including API_PORT from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
 		os.Unsetenv("PORT")
 		os.Unsetenv("API_ENDPOINT")
+
+		defer func() {
+			if oldAPIPort != "" {
+				os.Setenv("API_PORT", oldAPIPort)
+			}
+		}()
 
 		cfg := loadConfig()
 
@@ -725,12 +735,16 @@ func TestConfigLoading(t *testing.T) {
 			t.Errorf("Expected default API endpoint, got %s", cfg.APIEndpoint)
 		}
 
-		if cfg.TemplatesPath != "./templates" {
-			t.Errorf("Expected default templates path, got %s", cfg.TemplatesPath)
+		if cfg.TemplatesPath != "../templates" {
+			t.Errorf("Expected default templates path '../templates', got %s", cfg.TemplatesPath)
 		}
 	})
 
 	t.Run("EnvironmentOverrides", func(t *testing.T) {
+		// Clear API_PORT to avoid interference from lifecycle system
+		oldAPIPort := os.Getenv("API_PORT")
+		os.Unsetenv("API_PORT")
+
 		os.Setenv("PORT", "8080")
 		os.Setenv("API_ENDPOINT", "http://custom:8080")
 		os.Setenv("TEMPLATES_PATH", "/custom/templates")
@@ -753,6 +767,9 @@ func TestConfigLoading(t *testing.T) {
 		os.Unsetenv("PORT")
 		os.Unsetenv("API_ENDPOINT")
 		os.Unsetenv("TEMPLATES_PATH")
+		if oldAPIPort != "" {
+			os.Setenv("API_PORT", oldAPIPort)
+		}
 	})
 }
 

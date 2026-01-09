@@ -381,7 +381,7 @@ structure:
     - PRD.md
     - api/main.go
     - api/go.mod
-    - cli/feature-voting
+    - cli/feature-request-voting
     - cli/install.sh
     - initialization/postgres/schema.sql
     - ui/index.html
@@ -421,7 +421,7 @@ tests:
       
   - name: "CLI lists feature requests"
     type: exec
-    command: ./cli/feature-voting list --scenario test-scenario --json
+    command: ./cli/feature-request-voting list --scenario test-scenario --json
     expect:
       exit_code: 0
 ```

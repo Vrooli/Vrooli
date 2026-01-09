@@ -1,22 +1,17 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
-)
+	"os"
+	"strings"
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"status":    "healthy",
-		"service":   "kids-mode-dashboard",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+)
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	html := `&lt;!DOCTYPE html&gt;
@@ -29,9 +24,43 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Health check at root level (required by orchestration)
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/", dashboardHandler)
-	log.Println("Starting kids-mode-dashboard server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "kids-mode-dashboard",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", health.Handler())
+	mux.HandleFunc("/", dashboardHandler)
+
+	apiPort := strings.TrimSpace(os.Getenv("API_PORT"))
+	if apiPort == "" {
+		apiPort = "8080"
+	}
+
+	uiPort := strings.TrimSpace(os.Getenv("UI_PORT"))
+	if uiPort == "" {
+		uiPort = apiPort
+	}
+
+	if uiPort != apiPort {
+		go func() {
+			log.Printf("Starting kids-mode-dashboard UI server on :%s", uiPort)
+			if err := http.ListenAndServe(":"+uiPort, mux); err != nil {
+				log.Printf("Kids-mode-dashboard UI server stopped: %v", err)
+			}
+		}()
+	}
+
+	log.Printf("Starting kids-mode-dashboard API server")
+	if err := server.Run(server.Config{
+		Handler: mux,
+		Cleanup: func(ctx context.Context) error {
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

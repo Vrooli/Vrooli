@@ -28,13 +28,11 @@ source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
-# Source zombie detector for consistent zombie/orphan detection
-# shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || true
-
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 API_BASE="http://localhost:${VROOLI_API_PORT:-8092}"
+JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JQ_RESOURCES_EXPR" ]] && JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Show help for status command
 show_status_help() {
@@ -171,17 +169,13 @@ collect_resource_data() {
     # Get configured resources
     local config_resources=()
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        local jq_query='
-            .resources | to_entries[] | 
-            "\(.key)/\(.value.enabled)"
-        '
         while IFS= read -r line; do
             if [[ -n "$line" ]]; then
                 local name="${line%%/*}"
                 local enabled="${line#*/}"
                 config_resources+=("$name:$enabled")
             fi
-        done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+        done < <(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | \"\(.key)/\(.value.enabled)\"" "$RESOURCES_CONFIG" 2>/dev/null || true)
     fi
     
     # Build combined list of all resources (registered and unregistered)
@@ -482,15 +476,7 @@ collect_scenario_data() {
                     fi
                 done
             fi
-            
-            # Fallback: Check for old pm2.pid files (backward compatibility)
-            if [[ "$is_running" == "false" && -f "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" ]]; then
-                local pid=$(cat "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" 2>/dev/null)
-                if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                    is_running=true
-                fi
-            fi
-            
+
             if [[ "$is_running" == "true" ]]; then
                 running_scenarios=$((running_scenarios + 1))
                 scenario_statuses["$name"]="running"  # Can't determine health without API
@@ -499,82 +485,6 @@ collect_scenario_data() {
             fi
         done
     fi
-    
-    # Output summary
-    echo "total:${total_scenarios}"
-    echo "running:${running_scenarios}"
-    
-    # Output details if verbose (sorted alphabetically)
-    if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
-        # Sort scenario names alphabetically
-        for name in $(printf '%s\n' "${!scenario_statuses[@]}" | sort); do
-            echo "scenario:${name}:${scenario_statuses[$name]}"
-        done
-    fi
-}
-
-# Legacy collect_scenario_data for fallback
-collect_scenario_data_legacy() {
-    local verbose="${1:-false}"
-    
-    # Get scenario list from orchestrator if available
-    local response
-    response=$(curl -s --connect-timeout 2 --max-time 5 "http://localhost:${ORCHESTRATOR_PORT:-9500}/apps" 2>/dev/null || echo '{"success": false}')
-    
-    if ! echo "$response" | jq -e '.apps' >/dev/null 2>&1; then
-        echo "error:Failed to get scenario list from orchestrator"
-        return
-    fi
-    
-    # Check if orchestrator is available for app status
-    local orchestrator_available=false
-    if curl -s --connect-timeout 3 "http://localhost:${ORCHESTRATOR_PORT:-9500}/health" >/dev/null 2>&1; then
-        orchestrator_available=true
-    fi
-    
-    local total_scenarios=0
-    local running_scenarios=0
-    local -A scenario_statuses  # For detailed output
-    
-    # Process each app and check runtime status via process manager
-    while IFS= read -r app_json; do
-        # Skip empty lines
-        [[ -z "$app_json" ]] && continue
-        
-        # Extract app data
-        local name
-        name=$(echo "$app_json" | jq -r '.name' 2>/dev/null)
-        [[ -z "$name" || "$name" == "null" ]] && continue
-        
-        total_scenarios=$((total_scenarios + 1))
-        
-        # Check if app is running via orchestrator API
-        local is_running=false
-        
-        if [[ "$orchestrator_available" == "true" ]]; then
-            # Get app status from orchestrator
-            local orchestrator_response
-            orchestrator_response=$(curl -s --connect-timeout 2 "http://localhost:${ORCHESTRATOR_PORT:-9500}/apps" 2>/dev/null)
-            
-            if echo "$orchestrator_response" | jq -e '.apps' >/dev/null 2>&1; then
-                # Check if this specific scenario is running in orchestrator
-                local scenario_status
-                scenario_status=$(echo "$orchestrator_response" | jq -r --arg name "$name" '.apps[] | select(.name == $name) | .status' 2>/dev/null)
-                if [[ "$scenario_status" == "running" ]]; then
-                    is_running=true
-                fi
-            fi
-        fi
-        
-        # Update counts and store status
-        if [[ "$is_running" == "true" ]]; then
-            running_scenarios=$((running_scenarios + 1))
-            scenario_statuses["$name"]="running"
-        else
-            scenario_statuses["$name"]="stopped"
-        fi
-        
-    done < <(echo "$response" | jq -c '.data[]' 2>/dev/null)
     
     # Output summary
     echo "total:${total_scenarios}"
@@ -648,18 +558,18 @@ collect_system_data() {
         docker_status="unavailable"
     fi
     
-    # Use zombie detector utility for consistent detection
+    # Use vrooli-autoheal for zombie/orphan detection
     local zombie_count=0
     local orphan_count=0
-    
-    # Check if zombie detector is available
-    if command -v zombie::count_zombies >/dev/null 2>&1; then
-        zombie_count=$(zombie::count_zombies)
-        orphan_count=$(zombie::count_orphans)
-    else
-        # Fallback to basic detection if zombie detector not available
-        zombie_count=$(ps aux | grep '<defunct>' | grep -v grep | wc -l 2>/dev/null || echo "0")
-        orphan_count=0  # Skip complex orphan detection in fallback
+
+    if command -v vrooli-autoheal >/dev/null 2>&1; then
+        local status_json
+        status_json=$(vrooli-autoheal status --json 2>/dev/null || echo "{}")
+        zombie_count=$(echo "$status_json" | jq -r '.checks[]? | select(.id == "system-zombies") | .details.zombie_count // 0' 2>/dev/null || echo "0")
+        orphan_count=$(echo "$status_json" | jq -r '.checks[]? | select(.id == "vrooli-orphans") | .details.orphanCount // 0' 2>/dev/null || echo "0")
+        # Ensure we got valid numbers
+        [[ "$zombie_count" =~ ^[0-9]+$ ]] || zombie_count=0
+        [[ "$orphan_count" =~ ^[0-9]+$ ]] || orphan_count=0
     fi
     
     # Output raw data

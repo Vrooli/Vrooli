@@ -1,0 +1,46 @@
+{
+  "configuration": {
+    "auto_fix": {
+      "enabled": true,
+      "risk_levels": [
+        "safe"
+      ],
+      "batch_size": 10,
+      "dry_run_default": false
+    },
+    "analysis": {
+      "parallel_workers": 4,
+      "file_extensions": [
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".go",
+        ".py",
+        ".sh",
+        ".yaml",
+        ".json"
+      ],
+      "ignore_patterns": [
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        ".next",
+        "__pycache__"
+      ],
+      "max_file_size_mb": 10
+    },
+    "learning": {
+      "enabled": true,
+      "confidence_threshold": 0.8,
+      "min_examples": 5,
+      "retention_days": 90
+    },
+    "performance": {
+      "cache_ttl_seconds": 900,
+      "max_memory_mb": 2048,
+      "request_timeout_seconds": 30
+    }
+  }
+}

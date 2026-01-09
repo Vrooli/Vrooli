@@ -1,0 +1,201 @@
+{
+  "_metadata": {
+    "description": "PRD Control Tower requirement registry - Parent-level requirements reference child modules declared under imports",
+    "last_validated_at": "2025-11-14T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-14T18:30:00.000Z"
+  },
+  "meta": {
+    "scenario": "prd-control-tower",
+    "version": "1.0.0",
+    "generated": "2025-11-14",
+    "owners": [
+      {
+        "platform": "prd-control-tower",
+        "contact": "docs-team@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "catalog/core.json",
+    "drafts/lifecycle.json",
+    "backlog/intake.json",
+    "requirements/integration.json",
+    "ai/generation.json"
+  ],
+  "requirements": [
+    {
+      "id": "PCT-FUNC-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Catalog view with comprehensive PRD status indicators",
+      "description": "Tracks the complete experience for browsing all scenarios/resources with accurate status badges (Has PRD, Draft pending, Violations, Missing). Child implementation requirements cover enumeration, filtering, and status display.",
+      "status": "complete",
+      "children": [
+        "PCT-CATALOG-ENUMERATE",
+        "PCT-CATALOG-VIEW-PRD",
+        "PCT-CATALOG-STATUS",
+        "PCT-CATALOG-FILTER"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for catalog enumeration, description extraction, and draft status detection"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-catalog/e2e/catalog-view-and-navigate.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of catalog view and navigation workflow"
+        }
+      ]
+    },
+    {
+      "id": "PCT-FUNC-002",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Complete draft lifecycle management",
+      "description": "Tracks draft CRUD operations with atomic file persistence, database synchronization, and publishing workflow. Child implementation requirements cover API endpoints and UI components.",
+      "status": "complete",
+      "children": [
+        "PCT-DRAFT-CREATE",
+        "PCT-DRAFT-SAVE",
+        "PCT-DRAFT-DELETE",
+        "PCT-DRAFT-PUBLISH",
+        "PCT-DRAFT-EDIT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/drafts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for draft path generation, validation, and filesystem-database synchronization"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of complete draft lifecycle"
+        }
+      ]
+    },
+    {
+      "id": "PCT-FUNC-003",
+      "category": "backlog",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Idea backlog with freeform text intake and conversion",
+      "description": "Captures backlog intake workflows where users paste freeform notes and convert them to drafts or save to backlog for later triage.",
+      "status": "complete",
+      "children": [
+        "PCT-BACKLOG-INTAKE",
+        "PCT-BACKLOG-PREVIEW",
+        "PCT-BACKLOG-CONVERT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backlog_filesystem_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for backlog path generation, file loading, and filesystem-database sync"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of backlog intake and conversion workflow"
+        }
+      ]
+    },
+    {
+      "id": "PCT-FUNC-004",
+      "category": "requirements",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Requirements registry parsing and operational target linkage",
+      "description": "Validates that modular requirements/ folders are ingested correctly, operational targets are extracted from PRD checklists, and linkage is surfaced in the draft workspace.",
+      "status": "complete",
+      "children": [
+        "PCT-REQ-PARSE",
+        "PCT-REQ-TARGETS",
+        "PCT-REQ-LINKAGE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_targets_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for operational target extraction and requirement-target linking"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/04-requirements/e2e/requirements-view-and-linkage.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of requirements registry and target linkage"
+        }
+      ]
+    },
+    {
+      "id": "PCT-FUNC-005",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI-powered PRD content generation",
+      "description": "Enables AI-assisted section generation and rewriting via resource-openrouter integration with context-aware prompts.",
+      "status": "complete",
+      "children": [
+        "PCT-AI-GENERATE",
+        "PCT-AI-CONTEXT",
+        "PCT-AI-REWRITE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_prompts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for AI action prompt building and context generation"
+        },
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests for AI prompt context building with PRD, violations, and templates"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "End-to-end validation of AI section generation feature"
+        }
+      ]
+    },
+    {
+      "id": "PCT-FUNC-006",
+      "category": "validation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "PRD structure validation via scenario-auditor",
+      "description": "Integrates with scenario-auditor to validate PRD structure compliance and surface violations with actionable feedback.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRunScenarioAuditor, TestCallAuditorAPI, TestHandleValidatePRD validate auditor integration"
+        }
+      ]
+    }
+  ]
+}

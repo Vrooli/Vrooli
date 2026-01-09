@@ -1,0 +1,73 @@
+{
+  "scenario": "scenario-authenticator",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.531282593Z",
+  "dependencies": [
+    {
+      "name": "mailpit",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "scenario-authenticator",
+    "generated_at": "2025-11-16T19:40:57.531282593Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scenario-authenticator-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/scenario-authenticator",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "mailpit",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      }
+    ]
+  }
+}

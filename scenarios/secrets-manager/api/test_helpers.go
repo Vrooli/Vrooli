@@ -20,6 +20,10 @@ import (
 
 // setupTestLogger initializes the logger for testing
 func setupTestLogger() func() {
+	// Initialize the package-level logger if not already initialized
+	if logger == nil {
+		logger = NewLogger("test")
+	}
 	// Save original logger output and redirect to discard during tests
 	originalOutput := log.Writer()
 	log.SetOutput(ioutil.Discard)
@@ -175,12 +179,12 @@ func createTestResourceSecret(resourceName, secretKey string) ResourceSecret {
 // createTestSecretValidation creates a test secret validation
 func createTestSecretValidation(resourceSecretID string, status string) SecretValidation {
 	return SecretValidation{
-		ID:                  uuid.New().String(),
-		ResourceSecretID:    resourceSecretID,
-		ValidationStatus:    status,
-		ValidationMethod:    "pattern_match",
-		ErrorMessage:        nil,
-		ValidationDetails:   nil,
+		ID:                uuid.New().String(),
+		ResourceSecretID:  resourceSecretID,
+		ValidationStatus:  status,
+		ValidationMethod:  "pattern_match",
+		ErrorMessage:      nil,
+		ValidationDetails: nil,
 	}
 }
 
@@ -282,11 +286,11 @@ func validateSecretType(secretType string) bool {
 // validateValidationStatus checks if a validation status is valid
 func validateValidationStatus(status string) bool {
 	validStatuses := map[string]bool{
-		"valid":     true,
-		"invalid":   true,
-		"missing":   true,
-		"pending":   true,
-		"error":     true,
+		"valid":   true,
+		"invalid": true,
+		"missing": true,
+		"pending": true,
+		"error":   true,
 	}
 	return validStatuses[status]
 }

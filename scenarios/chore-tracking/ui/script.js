@@ -65,7 +65,6 @@ class ChoreQuest {
         this.loadAchievements();
         this.loadLeaderboard();
         this.updateUserStats();
-        this.startAnimations();
         
         // Generate daily challenge if needed
         if (!this.userData.dailyChallenge || this.userData.dailyChallenge.date !== new Date().toDateString()) {
@@ -762,25 +761,6 @@ class ChoreQuest {
         // This would open a modal to add a new quest
         // For now, just show a notification
         this.showNotification('Quest editor coming soon!', '🚧');
-    }
-
-    startAnimations() {
-        // Add floating animation to background elements
-        const animateElement = (element, duration) => {
-            element.style.animationDuration = `${duration}s`;
-        };
-
-        document.querySelectorAll('.bubble').forEach((bubble, index) => {
-            animateElement(bubble, 15 + index * 5);
-        });
-
-        document.querySelectorAll('.sparkle').forEach((sparkle, index) => {
-            animateElement(sparkle, 3 + index * 2);
-        });
-
-        document.querySelectorAll('.floating-emoji').forEach((emoji, index) => {
-            animateElement(emoji, 20 + index * 3);
-        });
     }
 }
 

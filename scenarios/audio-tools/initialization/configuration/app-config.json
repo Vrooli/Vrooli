@@ -22,14 +22,14 @@
     "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
     "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
     "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
-    "workflow_automation": {{ "true" if "windmill" in resources.required else "false" }},
+    "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
     "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},
     "web_automation": {{ "true" if "browserless" in resources.required else "false" }},
     "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
     "file_storage": {{ "true" if "minio" in resources.required else "false" }},
     "analytics": {{ "true" if "questdb" in resources.required else "false" }},
     "search": {{ "true" if "searxng" in resources.required else "false" }},
-    "professional_ui": {{ "true" if "windmill" in resources.required else "false" }},
+    "professional_ui": false,
     "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}
   },
   

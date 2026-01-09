@@ -3,24 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏠 Home Automation Intelligence</title>
+    <title>Home Automation Intelligence</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
-    <script type="module">
-        import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
-
-        if (typeof window !== 'undefined' && window.parent !== window && !window.__homeAutomationBridgeInitialized) {
-            let parentOrigin;
-            try {
-                if (document.referrer) {
-                    parentOrigin = new URL(document.referrer).origin;
-                }
-            } catch (error) {
-                console.warn('[HomeAutomation] Unable to parse parent origin for iframe bridge', error);
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%230f172a%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27m3%209%209-7%209%207v11a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2z%27/%3E%3Cpolyline%20points%3D%279%2022%209%2012%2015%2012%2015%2022%27/%3E%3C/svg%3E">
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@vrooli/iframe-bridge/child": "/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
             }
-
-            initIframeBridgeChild({ parentOrigin, appId: 'home-automation' });
-            window.__homeAutomationBridgeInitialized = true;
         }
     </script>
 </head>
@@ -30,7 +21,10 @@
         <header class="header">
             <div class="header-content">
                 <div class="logo">
-                    <h1>🏠 Home Intelligence</h1>
+                    <h1>
+                        <span class="icon icon-lg" data-lucide="home"></span>
+                        <span class="logo-title">Home Intelligence</span>
+                    </h1>
                     <span class="tagline">Self-Evolving Automation</span>
                 </div>
                 
@@ -41,7 +35,9 @@
                     </div>
                     
                     <div class="user-profile" id="userProfile">
-                        <div class="profile-avatar">👤</div>
+                        <div class="profile-avatar">
+                            <span class="icon" data-lucide="user"></span>
+                        </div>
                         <span class="profile-name">Guest</span>
                     </div>
                 </div>
@@ -50,11 +46,26 @@
 
         <!-- Navigation -->
         <nav class="nav-tabs">
-            <button class="tab-button active" data-tab="devices">🔌 Devices</button>
-            <button class="tab-button" data-tab="scenes">🎬 Scenes</button>
-            <button class="tab-button" data-tab="automations">🤖 Automations</button>
-            <button class="tab-button" data-tab="energy">⚡ Energy</button>
-            <button class="tab-button" data-tab="settings">⚙️ Settings</button>
+            <button class="tab-button active" data-tab="devices">
+                <span class="icon" data-lucide="plug"></span>
+                <span>Devices</span>
+            </button>
+            <button class="tab-button" data-tab="scenes">
+                <span class="icon" data-lucide="clapperboard"></span>
+                <span>Scenes</span>
+            </button>
+            <button class="tab-button" data-tab="automations">
+                <span class="icon" data-lucide="bot"></span>
+                <span>Automations</span>
+            </button>
+            <button class="tab-button" data-tab="energy">
+                <span class="icon" data-lucide="bolt"></span>
+                <span>Energy</span>
+            </button>
+            <button class="tab-button" data-tab="settings">
+                <span class="icon" data-lucide="settings"></span>
+                <span>Settings</span>
+            </button>
         </nav>
 
         <!-- Main Content -->
@@ -62,10 +73,18 @@
             <!-- Devices Tab -->
             <div class="tab-content active" id="devices-tab">
                 <div class="section-header">
-                    <h2>🔌 Connected Devices</h2>
+                    <h2>
+                        <span class="icon" data-lucide="plug"></span>
+                        <span>Connected Devices</span>
+                    </h2>
                     <div class="section-actions">
-                        <button class="btn btn-secondary" id="refreshDevices">🔄 Refresh</button>
+                        <button class="btn btn-secondary" id="refreshDevices">
+                            <span class="icon" data-lucide="refresh-cw"></span>
+                            <span>Refresh</span>
+                        </button>
                         <select class="device-filter" id="deviceFilter">
+                            <option value="visible" selected>Visible Devices</option>
+                            <option value="hidden">Hidden Devices</option>
                             <option value="all">All Devices</option>
                             <option value="lights">Lights</option>
                             <option value="sensors">Sensors</option>
@@ -75,10 +94,12 @@
                     </div>
                 </div>
                 
+                <div class="data-source-banner" id="devicesDataSourceBanner" role="status" aria-live="polite"></div>
+
                 <div class="devices-grid" id="devicesGrid">
                     <!-- Device tiles will be dynamically populated -->
                     <div class="device-placeholder">
-                        <div class="placeholder-icon">🔍</div>
+                        <div class="placeholder-icon"><span class="icon" data-lucide="search"></span></div>
                         <p>Discovering devices...</p>
                         <small>Make sure Home Assistant is connected</small>
                     </div>
@@ -88,13 +109,19 @@
             <!-- Scenes Tab -->
             <div class="tab-content" id="scenes-tab">
                 <div class="section-header">
-                    <h2>🎬 Smart Scenes</h2>
-                    <button class="btn btn-primary" id="createScene">➕ Create Scene</button>
+                    <h2>
+                        <span class="icon" data-lucide="clapperboard"></span>
+                        <span>Smart Scenes</span>
+                    </h2>
+                    <button class="btn btn-primary" id="createScene">
+                        <span class="icon" data-lucide="plus"></span>
+                        <span>Create Scene</span>
+                    </button>
                 </div>
                 
                 <div class="scenes-grid" id="scenesGrid">
                     <div class="scene-placeholder">
-                        <div class="placeholder-icon">🎭</div>
+                        <div class="placeholder-icon"><span class="icon" data-lucide="sparkles"></span></div>
                         <p>No scenes configured</p>
                         <small>Create your first automated scene</small>
                     </div>
@@ -104,14 +131,22 @@
             <!-- Automations Tab -->
             <div class="tab-content" id="automations-tab">
                 <div class="section-header">
-                    <h2>🤖 AI Automations</h2>
-                    <button class="btn btn-primary" id="createAutomation">✨ Create with AI</button>
+                    <h2>
+                        <span class="icon" data-lucide="bot"></span>
+                        <span>AI Automations</span>
+                    </h2>
+                    <button class="btn btn-primary" id="createAutomation">
+                        <span class="icon" data-lucide="sparkles"></span>
+                        <span>Create with AI</span>
+                    </button>
                 </div>
                 
                 <div class="automation-creator" id="automationCreator" style="display: none;">
                     <div class="creator-header">
                         <h3>Describe Your Automation</h3>
-                        <button class="btn-close" id="closeCreator">✕</button>
+                        <button class="btn-close" id="closeCreator" aria-label="Close">
+                            <span class="icon" data-lucide="x"></span>
+                        </button>
                     </div>
                     
                     <div class="creator-content">
@@ -123,14 +158,17 @@
                         
                         <div class="creator-actions">
                             <button class="btn btn-secondary" id="cancelCreation">Cancel</button>
-                            <button class="btn btn-primary" id="generateAutomation">🧠 Generate Automation</button>
+                            <button class="btn btn-primary" id="generateAutomation">
+                                <span class="icon" data-lucide="cpu"></span>
+                                <span>Generate Automation</span>
+                            </button>
                         </div>
                     </div>
                 </div>
                 
                 <div class="automations-list" id="automationsList">
                     <div class="automation-placeholder">
-                        <div class="placeholder-icon">🤖</div>
+                        <div class="placeholder-icon"><span class="icon" data-lucide="bot"></span></div>
                         <p>No automations yet</p>
                         <small>Let AI create your first intelligent automation</small>
                     </div>
@@ -140,7 +178,10 @@
             <!-- Energy Tab -->
             <div class="tab-content" id="energy-tab">
                 <div class="section-header">
-                    <h2>⚡ Energy Management</h2>
+                    <h2>
+                        <span class="icon" data-lucide="bolt"></span>
+                        <span>Energy Management</span>
+                    </h2>
                     <div class="energy-summary">
                         <div class="energy-stat">
                             <span class="stat-value" id="currentUsage">-- kW</span>
@@ -159,7 +200,7 @@
                 
                 <div class="energy-content">
                     <div class="energy-placeholder">
-                        <div class="placeholder-icon">📊</div>
+                        <div class="placeholder-icon"><span class="icon" data-lucide="bar-chart-3"></span></div>
                         <p>Energy monitoring coming soon</p>
                         <small>Connect energy meters for detailed analytics</small>
                     </div>
@@ -169,32 +210,90 @@
             <!-- Settings Tab -->
             <div class="tab-content" id="settings-tab">
                 <div class="section-header">
-                    <h2>⚙️ System Settings</h2>
+                    <h2>
+                        <span class="icon" data-lucide="settings"></span>
+                        <span>System Settings</span>
+                    </h2>
                 </div>
                 
                 <div class="settings-grid">
                     <div class="settings-card">
-                        <h3>👥 User Profiles</h3>
+                        <h3>
+                            <span class="icon" data-lucide="users"></span>
+                            <span>User Profiles</span>
+                        </h3>
                         <p>Manage user access and permissions</p>
                         <button class="btn btn-secondary" id="manageProfiles">Manage</button>
                     </div>
                     
                     <div class="settings-card">
-                        <h3>🔐 Security</h3>
+                        <h3>
+                            <span class="icon" data-lucide="shield"></span>
+                            <span>Security</span>
+                        </h3>
                         <p>Authentication and access control</p>
                         <button class="btn btn-secondary" id="securitySettings">Configure</button>
                     </div>
                     
                     <div class="settings-card">
-                        <h3>📅 Calendar Integration</h3>
+                        <h3>
+                            <span class="icon" data-lucide="calendar"></span>
+                            <span>Calendar Integration</span>
+                        </h3>
                         <p>Schedule-aware automation</p>
                         <button class="btn btn-secondary" id="calendarSettings">Setup</button>
                     </div>
                     
-                    <div class="settings-card">
-                        <h3>🏠 Home Assistant</h3>
+                    <div class="settings-card" id="homeAssistantCard">
+                        <h3>
+                            <span class="icon" data-lucide="house"></span>
+                            <span>Home Assistant</span>
+                        </h3>
                         <p>Device discovery and control</p>
                         <div class="status-badge" id="haStatus">Unknown</div>
+                        <p class="status-detail" id="haStatusDetail" aria-live="polite"></p>
+                        <form class="integration-form" id="homeAssistantConfigForm">
+                            <div class="ha-action-bar" role="group" aria-label="Home Assistant helpers">
+                                <button type="button" class="btn btn-secondary" id="haOpenDashboard">Open Home Assistant</button>
+                                <button type="button" class="btn btn-secondary" id="haShowGuide">Setup guide</button>
+                                <button type="button" class="btn btn-primary" id="haAutoProvision">Auto-connect</button>
+                            </div>
+
+                            <label class="form-label" for="haBaseUrl">Home Assistant URL</label>
+                            <input type="url" id="haBaseUrl" name="base_url" placeholder="http://localhost:8123" autocomplete="url" required>
+
+                            <label class="form-label" for="haToken">Long-lived access token</label>
+                            <input type="password" id="haToken" name="token" placeholder="Enter token to update" autocomplete="off">
+
+                            <div class="form-checkboxes">
+                                <label class="checkbox-inline">
+                                    <input type="checkbox" id="haClearToken">
+                                    <span>Clear stored token</span>
+                                </label>
+                                <label class="checkbox-inline">
+                                    <input type="checkbox" id="haMockMode">
+                                    <span>Enable mock mode fallback</span>
+                                </label>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="haTestConnection">Test connection</button>
+                                <button type="submit" class="btn btn-primary" id="haSaveConfig">Save configuration</button>
+                            </div>
+
+                            <p class="form-feedback" id="haConfigFeedback" role="status" aria-live="polite"></p>
+                        </form>
+
+                        <details class="ha-setup-details" id="haSetupDetails">
+                            <summary>Need help connecting?</summary>
+                            <ol>
+                                <li>Open the Home Assistant dashboard and sign in as an administrator.</li>
+                                <li>Go to <strong>Profile → Security → Long-Lived Access Tokens</strong>.</li>
+                                <li>Create a token named <em>Home Automation Intelligence</em> and paste it above.</li>
+                                <li>Alternatively, use <em>Auto-connect</em> to let this scenario generate a service token automatically.</li>
+                            </ol>
+                            <p class="ha-setup-hint">The automatic flow safely provisions a dedicated token via the running Home Assistant resource.</p>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -210,8 +309,28 @@
 
         <!-- Toast Notifications -->
         <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Device Details Modal -->
+        <div class="modal" id="deviceDetailModal" aria-hidden="true">
+            <div class="modal__overlay" data-modal-dismiss></div>
+            <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="deviceModalTitle" tabindex="-1">
+                <header class="modal__header">
+                    <div class="modal__icon">
+                        <span class="icon" data-lucide="info"></span>
+                    </div>
+                    <div class="modal__titles">
+                        <h3 class="modal__title" id="deviceModalTitle">Device details</h3>
+                        <p class="modal__subtitle" id="deviceModalSubtitle"></p>
+                    </div>
+                    <button class="modal__close" type="button" aria-label="Close device details" data-modal-dismiss>
+                        <span class="icon" data-lucide="x"></span>
+                    </button>
+                </header>
+                <div class="modal__content" id="deviceModalContent" role="document"></div>
+            </div>
+        </div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

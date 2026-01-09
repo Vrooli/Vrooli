@@ -1,0 +1,61 @@
+{
+  "description": "Implement append-only event stream for run activities",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement append-only event stream for capturing all run activities",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-008",
+      "status": "implemented",
+      "title": "Event Stream Implementation",
+      "validation": [
+        {
+          "notes": "Test event append and persistence",
+          "phase": "unit",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test multiple event append with ordering",
+          "phase": "unit",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append_MultipleEvents",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test event filtering by type",
+          "phase": "unit",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_WithFilters",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test event ordering with AfterSequence",
+          "phase": "integration",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_AfterSequence",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test event streaming",
+          "phase": "integration",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Stream",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test run isolation for events",
+          "phase": "integration",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_IsolatesByRunID",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Event Streaming"
+}

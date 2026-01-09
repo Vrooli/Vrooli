@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "email-triage-must-have-smart-email-prioritization-with-ml-scoring-2025-09-27-prioritizationservice-implemented-and-verified",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement machine learning based email scoring and prioritization system",
+      "id": "REQ-P0-007",
+      "prd_ref": "email-triage-must-have-smart-email-prioritization-with-ml-scoring-2025-09-27-prioritizationservice-implemented-and-verified",
+      "status": "draft",
+      "title": "ML Email Prioritization",
+      "validation": [
+        {
+          "notes": "Test scoring algorithm",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify prioritization logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end priority sorting",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Scoring \u003c 500ms per email",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "85% priority accuracy",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Smart email prioritization with ML scoring (2025-09-27: PrioritizationService implemented and verified)"
+}

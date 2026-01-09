@@ -6,20 +6,8 @@ type: unified
 target: ecosystem
 description: Unified system for generating and improving resources and scenarios
 
-# Base sections used by all operations
-base_sections:
-  # Core knowledge (all operations need these)
-  # Note: validation-gates are now operation-specific (see each operation below)
-  - shared/core/prd-protocol
-  - shared/core/security-requirements
-  
-  # Methodologies (shared across all operations)
-  - shared/methodologies/implementation-methodology
-  
-  # Operational procedures (shared across all operations)
-  - shared/operational/failure-recovery
-  - shared/operational/collision-avoidance
-  - shared/operational/task-completion-protocol
+# Base sections are unused when dedicated templates are provided
+base_sections: []
 
 # Operation-specific section configurations
 operations:
@@ -28,25 +16,8 @@ operations:
     type: generator
     target: resources
     description: Creates new resources with v2.0 contract compliance and proper scaffolding
-    
-    additional_sections:
-      # Resource-specific validation gates
-      - shared/core/resource-validation-gates
-      
-      # Testing reference for resources
-      - shared/testing/resource-testing-reference
-      
-      # Research methodology (comprehensive research approach)
-      - shared/methodologies/research-methodology
-      
-      # Generator-specific sections
-      - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/scaffolding-phase
-      - shared/generator-specific/seeding-guidelines
-      
-      # Resource-specific knowledge
-      - shared/resource-specific/v2-contract
-      - shared/resource-specific/port-allocation
+    template: templates/resource-generator
+    additional_sections: []
     
     variables:
       scenario_type: "resource"
@@ -76,21 +47,8 @@ operations:
     type: improver
     target: resources
     description: Iteratively improves existing resources for v2.0 compliance and reliability
-    
-    additional_sections:
-      # Resource-specific validation gates
-      - shared/core/resource-validation-gates
-      
-      # Testing reference for resources
-      - shared/testing/resource-testing-reference
-      
-      # Improver-specific sections
-      - shared/improver-specific/progress-verification
-      - shared/improver-specific/prioritization-phase
-      
-      # Resource-specific knowledge
-      - shared/resource-specific/v2-contract
-      - shared/resource-specific/port-allocation
+    template: templates/resource-improver
+    additional_sections: []
     
     variables:
       scenario_type: "resource"
@@ -121,24 +79,8 @@ operations:
     type: generator
     target: scenarios
     description: Creates new scenarios from scratch with comprehensive PRDs
-    
-    additional_sections:
-      # Scenario-specific validation gates
-      - shared/core/scenario-validation-gates
-      
-      # Testing reference for scenarios
-      - shared/testing/scenario-testing-reference
-      
-      # Research methodology (comprehensive research approach)
-      - shared/methodologies/research-methodology
-      
-      # Generator-specific sections
-      - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/scaffolding-phase
-      - shared/generator-specific/seeding-guidelines
-      
-      # Scenario-specific knowledge
-      - shared/scenario-specific/cross-impact
+    template: templates/scenario-generator
+    additional_sections: []
     
     variables:
       scenario_type: "scenario"
@@ -148,65 +90,78 @@ operations:
     # Time allocation: See global_config.time_allocations.generators
     
     success_criteria:
-      - "Unique scenario verified: `grep -r 'scenario_name' scenarios/` returns no existing matches"
-      - "Complete PRD: PRD.md has Executive Summary, P0/P1/P2 sections, Technical Specs, Success Metrics"
-      - "Health checks respond: `timeout 5 curl -sf http://localhost:${PORT}/api/health` returns 200 OK"
-      - "Structure matches templates: Directory has api/, ui/, cli/, initialization/, PRD.md, README.md"
-      - "One P0 implemented and testable: Specific P0 requirement works with documented test command"
-      - "Memory updated: `vrooli resource qdrant search 'scenario_name'` returns new scenario info"
+      - "Official template scaffold created via `vrooli scenario generate react-vite ...` with api/, ui/, cli/, initialization/, docs/, requirements/, and `.vrooli/` directories intact"
+      - "Lifecycle metadata validated: `vrooli scenario status <name>` runs without schema errors and results are summarized in the handoff"
+      - "Operational Targets PRD authored with Overview + P0/P1/P2 sections and each target mapped to requirement IDs"
+      - "Requirements registry (requirements/index.json + README) seeded with valid IDs, `prd_ref`, `criticality`, and instructions for tagging `[REQ:ID]` in future tests"
+      - "Baseline documentation set (README, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md) populated with uniqueness research, table entries, and next-agent guidance"
+      - "Scenario-auditor executed via `scenario-auditor audit <name> --timeout 240`; output path or key failures captured for improvers"
+      - "Final handoff includes the Quick Validation commands, deliverables list, and open risks per generator template"
     
     principles:
-      - "Research prevents duplication"
-      - "PRD is the primary deliverable"
-      - "Quality over completeness"
-      - "Enable future improvements"
-      - "Focus on solving real problems"
+      - "Stay within the scenario directory and stop at initialization—no P0 implementation"
+      - "Research-first: prove uniqueness before scaffolding"
+      - "Lifecycle commands (`scenario status`, `scenario-auditor`) are the source of truth"
+      - "Documentation quality and PRD clarity outweigh adding placeholder code"
+      - "Every artifact must brief the next agent on what to do next"
 
   scenario-improver:
     name: scenario-improver
     type: improver
     target: scenarios
     description: Iteratively improves existing scenarios to advance PRD completion
-    
-    additional_sections:
-      # Scenario-specific validation gates
-      - shared/core/scenario-validation-gates
-      
-      # Testing reference for scenarios
-      - shared/testing/scenario-testing-reference
-      
-      # Improver-specific sections
-      - shared/improver-specific/progress-verification
-      - shared/improver-specific/prioritization-phase
-      
-      # Scenario-specific knowledge
-      - shared/scenario-specific/cross-impact
-      - shared/scenario-specific/shared-workflows
-      # Note: Value generation guidance integrated into principles
-    
+    template: templates/scenario-improver
+    additional_sections: []
+
     variables:
       scenario_type: "scenario"
       focus: "iterative improvement of existing scenarios"
       primary_output: "PRD progression and working features"
-    
+
     # Time allocation: See global_config.time_allocations.improvers
-    
+
     success_criteria:
-      - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
-      - "Progress measurable: At least one P0/P1 requirement moves from ☐ to ✅ with completion date"
-      - "No regressions verified: All previously working features tested and still functional"
-      - "Security & standards baseline captured: `scenario-auditor audit NAME --timeout 240` recorded before changes"
-      - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
-      - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
-      - "Memory updated: `vrooli resource qdrant search 'scenario improvements'` includes recent work"
-    
+      - "Quick Validation Loop completed: `vrooli scenario status <name>`, `scenario-auditor audit <name> --timeout 240`, and the scenario test command all run after changes with results captured"
+      - "At least one operational target (P0/P1) advanced end-to-end with linked requirements updated and `[REQ:ID]` tests proving the outcome"
+      - "Scenario test suite (or targeted phase script) passes after changes; any inherited failures are documented with evidence"
+      - "docs/PROGRESS.md gains a new dated row, docs/PROBLEMS.md lists unresolved issues, and README/test instructions reflect the current state"
+      - "Requirements registry/README updated when new requirements or modules are added so coverage tracking stays accurate"
+      - "No regressions: previously passing tests remain green or are explicitly documented with cause and next steps"
+      - "Final handoff enumerates validation commands, touched files, and remaining risks per improver template"
+
     principles:
-      - "Trust but verify everything"
-      - "Incremental progress is permanent"
-      - "PRD accuracy is sacred"
-      - "Expose existing security debt before implementing fixes"
-      - "Small focused changes win"
-      - "Learn from past attempts"
+      - "Fix lifecycle/security failures before chasing new features"
+      - "Advance one operational target at a time and prove it with requirements-linked tests"
+      - "Respect the generator scaffold and treat PRD checkboxes as read-only evidence markers"
+      - "Document every change in the scenario docs so the next agent has context"
+      - "Use repo-wide consumers and dependency searches before changing APIs/CLI outputs"
+      - "Leave clear next steps whenever work cannot be finished"
+
+  insight-generator:
+    name: insight-generator
+    type: analyzer
+    target: execution-history
+    description: Analyzes execution history to identify patterns and suggest improvements
+    template: templates/insight-generator
+    additional_sections: []
+
+    variables:
+      focus: "pattern detection and actionable improvement suggestions"
+      primary_output: "InsightReport with patterns and suggestions"
+
+    success_criteria:
+      - "JSON response validates against InsightReport schema"
+      - "At least one pattern identified (or explicit statement that none found)"
+      - "Each suggestion has specific file paths and changes"
+      - "Impact estimates are data-driven and realistic"
+      - "Evidence includes actual log excerpts from executions"
+
+    principles:
+      - "Be specific: exact file paths, exact changes, exact evidence"
+      - "Be data-driven: base all conclusions on execution logs"
+      - "Be actionable: every suggestion must be implementable immediately"
+      - "Be honest: if no clear patterns, say so"
+      - "Prioritize by impact: focus on changes that affect most executions"
 
 # Global configuration
 global_config:

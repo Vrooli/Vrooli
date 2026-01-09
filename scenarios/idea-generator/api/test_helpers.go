@@ -74,7 +74,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	server := &ApiServer{
 		db:              db,
 		ideaProcessor:   processor,
-		windmillURL:     "http://localhost:5681",
 		postgresURL:     os.Getenv("TEST_POSTGRES_URL"),
 		qdrantURL:       "http://localhost:6333",
 		minioURL:        "http://localhost:9000",

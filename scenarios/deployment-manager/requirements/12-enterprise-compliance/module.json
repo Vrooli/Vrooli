@@ -1,0 +1,8 @@
+{
+  "module_id": "enterprise-compliance",
+  "title": "Enterprise & Compliance Features",
+  "priority": "P2",
+  "description": "License validation, audit trails, and compliance reporting",
+  "requirements": [],
+  "_metadata": {}
+}

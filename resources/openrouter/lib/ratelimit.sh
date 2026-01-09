@@ -109,8 +109,9 @@ openrouter::ratelimit::process_queue() {
     fi
     
     # Process high priority first, then normal, then low
+    shopt -s nullglob
     for priority in high normal low; do
-        for queue_file in "$queue_dir"/${priority}-*.json 2>/dev/null; do
+        for queue_file in "$queue_dir"/${priority}-*.json; do
             [[ -f "$queue_file" ]] || continue
             
             # Check if we can make a request

@@ -2,13 +2,13 @@
 
 # Browserless Usage Guide
 
-This guide covers common workflows and best practices for using Browserless in the Vrooli ecosystem.
+This guide covers common tasks and best practices for using Browserless in the Vrooli ecosystem.
 
 ## Table of Contents
 
 - [Management Commands](#management-commands)
 - [Usage Examples](#usage-examples)
-- [Common Workflows](#common-workflows)
+- [Common Tasks](#common-tasks)
 - [Integration Patterns](#integration-patterns)
 - [Use Cases](#use-cases)
 - [Tips and Tricks](#tips-and-tricks)
@@ -123,9 +123,9 @@ This displays an interactive menu with all available examples.
 ./cli.sh usage --usage-type all --url https://example.com
 ```
 
-## Common Workflows
+## Common Tasks
 
-### 1. Automated Testing Workflow
+### 1. Automated Testing Task
 
 ```bash
 # Capture before/after screenshots for visual regression
@@ -148,7 +148,7 @@ AFTER_URL="http://localhost:3000/new-version"
 compare before.png after.png diff.png
 ```
 
-### 2. Report Generation Workflow
+### 2. Report Generation Task
 
 ```bash
 # Generate weekly reports from dashboard
@@ -190,28 +190,6 @@ echo "Current status: $STATUS"
 ```
 
 ## Integration Patterns
-
-### With n8n Automation
-
-Create n8n workflows that use Browserless:
-
-```javascript
-// n8n HTTP Request node configuration
-{
-  "method": "POST",
-  "url": "http://browserless:4110/chrome/screenshot",
-  "headers": {
-    "Content-Type": "application/json"
-  },
-  "body": {
-    "url": "{{ $json.targetUrl }}",
-    "options": {
-      "fullPage": true
-    }
-  },
-  "responseType": "file"
-}
-```
 
 ### With Node-RED
 

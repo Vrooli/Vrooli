@@ -48,12 +48,51 @@ app.use('/api', async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
+app.get('/health', async (req, res) => {
+    const timestamp = new Date().toISOString();
+    let apiConnectivity = {
+        connected: false,
+        api_url: API_URL,
+        last_check: timestamp,
+        error: null,
+        latency_ms: null
+    };
+
+    try {
+        const fetch = (await import('node-fetch')).default;
+        const startTime = Date.now();
+        const response = await fetch(`${API_URL}/health`, {
+            method: 'GET',
+            timeout: 5000
+        });
+        const latency = Date.now() - startTime;
+
+        if (response.ok) {
+            apiConnectivity.connected = true;
+            apiConnectivity.latency_ms = latency;
+        } else {
+            apiConnectivity.error = {
+                code: `HTTP_${response.status}`,
+                message: `API health check returned status ${response.status}`,
+                category: 'network',
+                retryable: true
+            };
+        }
+    } catch (error) {
+        apiConnectivity.error = {
+            code: error.code || 'UNKNOWN_ERROR',
+            message: error.message,
+            category: 'network',
+            retryable: true
+        };
+    }
+
+    res.json({
+        status: apiConnectivity.connected ? 'healthy' : 'degraded',
         service: 'research-assistant-ui',
-        port: PORT,
-        timestamp: new Date().toISOString()
+        timestamp: timestamp,
+        readiness: true,
+        api_connectivity: apiConnectivity
     });
 });
 

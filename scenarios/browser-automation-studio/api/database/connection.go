@@ -2,75 +2,70 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"math"
+	"io"
 	"math/rand"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/constants"
+	_ "modernc.org/sqlite"
 )
 
+// DB wraps sqlx.DB with additional functionality
 type DB struct {
 	*sqlx.DB
-	log *logrus.Logger
+	log     *logrus.Logger
+	dialect Dialect
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
 }
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	// Check for individual PostgreSQL environment variables (preferred)
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-	
-	// Override database name for this scenario if not specifically set
-	if dbName == "vrooli" || dbName == "" {
-		dbName = "browser_automation_studio"
-	}
-	
-	var databaseURL string
-	
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
-		// Construct URL from individual components
-		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-		log.WithFields(logrus.Fields{
-			"host": dbHost,
-			"port": dbPort,
-			"user": dbUser,
-			"database": dbName,
-		}).Info("Using individual PostgreSQL environment variables")
-	} else {
-		// Fallback to DATABASE_URL if individual vars not available
-		databaseURL = os.Getenv("DATABASE_URL")
-		if databaseURL == "" {
-			return nil, fmt.Errorf("PostgreSQL configuration not found. Please set either DATABASE_URL or individual variables: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		log.Info("Using DATABASE_URL environment variable")
-	}
+	dialect := parseDialect(os.Getenv("BAS_DB_BACKEND"))
 
 	var db *sqlx.DB
 	var err error
 
+	// Load configuration from control surface
+	cfg := config.Load()
+
 	// Exponential backoff configuration
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
+	maxRetries := cfg.Database.MaxRetries
+	baseDelay := cfg.Database.BaseRetryDelay
+	maxDelay := cfg.Database.MaxRetryDelay
+	jitterFactor := cfg.Database.RetryJitterFactor
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		db, err = sqlx.Connect("postgres", databaseURL)
+		switch dialect {
+		case DialectPostgres:
+			db, err = connectPostgres(log)
+		case DialectSQLite:
+			db, err = connectSQLite(log)
+		default:
+			return nil, fmt.Errorf("unsupported BAS_DB_BACKEND: %s (expected postgres|sqlite)", dialect)
+		}
+
 		if err == nil {
 			// Test the connection
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseQueryTimeout)
 			err = db.PingContext(ctx)
 			cancel()
-			
+
 			if err == nil {
-				log.Info("Successfully connected to database")
+				log.WithField("dialect", dialect).Info("Successfully connected to database")
 				break
 			}
 		}
@@ -80,17 +75,14 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		if delay > maxDelay {
 			delay = maxDelay
 		}
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
+		jitter := time.Duration(float64(delay) * jitterFactor * rand.Float64())
 		actualDelay := delay + jitter
 
 		log.WithFields(logrus.Fields{
-			"attempt": attempt + 1,
+			"attempt":    attempt + 1,
 			"maxRetries": maxRetries,
-			"delay": actualDelay,
-			"error": err.Error(),
+			"delay":      actualDelay,
+			"error":      err.Error(),
 		}).Warn("Failed to connect to database, retrying...")
 
 		time.Sleep(actualDelay)
@@ -101,13 +93,17 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+	if dialect == DialectSQLite {
+		db.SetMaxOpenConns(1) // SQLite only supports a single connection
+	}
 
 	dbWrapper := &DB{
-		DB:  db,
-		log: log,
+		DB:      db,
+		log:     log,
+		dialect: dialect,
 	}
 
 	// Initialize database schema
@@ -119,6 +115,121 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	return dbWrapper, nil
 }
 
+func connectPostgres(log *logrus.Logger) (*sqlx.DB, error) {
+	// Check for individual PostgreSQL environment variables (preferred)
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
+
+	// Override database name for this scenario if not specifically set
+	if dbName == "vrooli" || dbName == "" {
+		dbName = "browser_automation_studio"
+	}
+
+	var databaseURL string
+	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+		log.WithFields(logrus.Fields{
+			"host":     dbHost,
+			"port":     dbPort,
+			"user":     dbUser,
+			"database": dbName,
+		}).Info("Using individual PostgreSQL environment variables")
+	} else {
+		databaseURL = os.Getenv("DATABASE_URL")
+		if databaseURL == "" {
+			return nil, fmt.Errorf("PostgreSQL configuration not found. Set DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB")
+		}
+		log.Info("Using DATABASE_URL environment variable")
+	}
+
+	return sqlx.Connect("postgres", databaseURL)
+}
+
+func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
+	dsn, err := sqliteDSN(log)
+	if err != nil {
+		return nil, err
+	}
+
+	// Best-effort invoke sqlite resource install
+	if err := ensureSQLiteResource(log); err != nil {
+		log.WithError(err).Debug("SQLite resource install check failed; continuing")
+	}
+
+	return sqlx.Connect("sqlite", dsn)
+}
+
+func sqliteDSN(log *logrus.Logger) (string, error) {
+	root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH"))
+	if root == "" {
+		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
+			return custom, nil
+		}
+		dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
+		if dataRoot == "" {
+			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+		}
+		if dataRoot == "" {
+			home, _ := os.UserHomeDir()
+			if home == "" {
+				home = "."
+			}
+			dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
+		}
+		root = filepath.Join(dataRoot, "browser-automation-studio.db")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+
+	if log != nil {
+		log.WithField("path", root).Info("Using SQLite database")
+	}
+
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
+		root,
+	), nil
+}
+
+func ensureSQLiteResource(log *logrus.Logger) error {
+	cli := strings.TrimSpace(os.Getenv("SQLITE_CLI_PATH"))
+	if cli == "" {
+		cli = filepath.Join("resources", "sqlite", "cli.sh")
+		if _, err := os.Stat(cli); err != nil {
+			cli = "resource-sqlite"
+		}
+	}
+	cmd := exec.Command(cli, "manage", "install")
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		if log != nil {
+			log.WithError(err).Debug("resource-sqlite manage install failed or missing")
+		}
+		return err
+	}
+	return nil
+}
+
+// Dialect returns the active dialect for this DB
+func (db *DB) Dialect() Dialect {
+	if db == nil {
+		return DialectPostgres
+	}
+	return db.dialect
+}
+
+// RawDB returns the underlying *sql.DB for direct database access
+func (db *DB) RawDB() *sql.DB {
+	return db.DB.DB
+}
+
 // Close closes the database connection
 func (db *DB) Close() error {
 	return db.DB.Close()
@@ -126,9 +237,8 @@ func (db *DB) Close() error {
 
 // HealthCheck performs a health check on the database
 func (db *DB) HealthCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabasePingTimeout)
 	defer cancel()
-	
 	return db.PingContext(ctx)
 }
 
@@ -142,7 +252,10 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			// Log the panic but don't re-panic - let the error propagate gracefully
+			if db.log != nil {
+				db.log.WithField("panic", r).Error("Panic recovered during database transaction")
+			}
 		}
 	}()
 
@@ -156,201 +269,228 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 
 // initSchema initializes the database schema
 func (db *DB) initSchema() error {
-	schema := `
--- Create projects table
-CREATE TABLE IF NOT EXISTS projects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL UNIQUE,
-    description TEXT,
-    folder_path VARCHAR(500) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+	filename := "schema.sql"
+	if db.dialect == DialectSQLite {
+		filename = "schema_sqlite.sql"
+	}
+	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), filename)
 
--- Create workflow folders table
-CREATE TABLE IF NOT EXISTS workflow_folders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    path VARCHAR(500) NOT NULL UNIQUE,
-    parent_id UUID REFERENCES workflow_folders(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+	schemaBytes, err := os.ReadFile(schemaPath)
+	if err != nil {
+		db.log.WithError(err).WithField("path", schemaPath).Error("Failed to read schema file")
+		return fmt.Errorf("failed to read schema file at %s: %w", schemaPath, err)
+	}
 
--- Create workflows table  
-CREATE TABLE IF NOT EXISTS workflows (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    folder_path VARCHAR(500) NOT NULL,
-    flow_definition JSONB DEFAULT '{}',
-    description TEXT,
-    tags TEXT[] DEFAULT '{}',
-    version INTEGER DEFAULT 1,
-    is_template BOOLEAN DEFAULT FALSE,
-    created_by VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(name, folder_path)
-);
-
--- Create workflow versions table
-CREATE TABLE IF NOT EXISTS workflow_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL,
-    flow_definition JSONB NOT NULL,
-    change_description TEXT,
-    created_by VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(workflow_id, version)
-);
-
--- Create executions table
-CREATE TABLE IF NOT EXISTS executions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-    workflow_version INTEGER,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    trigger_type VARCHAR(50) NOT NULL DEFAULT 'manual',
-    trigger_metadata JSONB DEFAULT '{}',
-    parameters JSONB DEFAULT '{}',
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    error TEXT,
-    result JSONB,
-    progress INTEGER DEFAULT 0,
-    current_step VARCHAR(255)
-);
-
--- Create execution logs table
-CREATE TABLE IF NOT EXISTS execution_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    level VARCHAR(20) NOT NULL DEFAULT 'info',
-    step_name VARCHAR(255),
-    message TEXT NOT NULL,
-    metadata JSONB DEFAULT '{}'
-);
-
--- Create screenshots table
-CREATE TABLE IF NOT EXISTS screenshots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_name VARCHAR(255) NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    storage_url VARCHAR(1000) NOT NULL,
-    thumbnail_url VARCHAR(1000),
-    width INTEGER,
-    height INTEGER,
-    size_bytes BIGINT,
-    metadata JSONB DEFAULT '{}'
-);
-
--- Create extracted data table
-CREATE TABLE IF NOT EXISTS extracted_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_name VARCHAR(255) NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    data_key VARCHAR(255) NOT NULL,
-    data_value JSONB NOT NULL,
-    data_type VARCHAR(50),
-    metadata JSONB DEFAULT '{}'
-);
-
--- Create workflow schedules table
-CREATE TABLE IF NOT EXISTS workflow_schedules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    cron_expression VARCHAR(100) NOT NULL,
-    timezone VARCHAR(50) DEFAULT 'UTC',
-    is_active BOOLEAN DEFAULT TRUE,
-    parameters JSONB DEFAULT '{}',
-    next_run_at TIMESTAMP,
-    last_run_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create workflow templates table
-CREATE TABLE IF NOT EXISTS workflow_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL UNIQUE,
-    category VARCHAR(100) NOT NULL,
-    description TEXT,
-    flow_definition JSONB NOT NULL,
-    icon VARCHAR(100),
-    example_parameters JSONB DEFAULT '{}',
-    tags TEXT[] DEFAULT '{}',
-    usage_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create AI generations table
-CREATE TABLE IF NOT EXISTS ai_generations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
-    prompt TEXT NOT NULL,
-    generated_flow JSONB NOT NULL,
-    model VARCHAR(100),
-    generation_time_ms INTEGER,
-    success BOOLEAN DEFAULT FALSE,
-    error TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
-CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
-CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
-CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
-CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
-CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
-CREATE INDEX IF NOT EXISTS idx_workflow_schedules_active ON workflow_schedules(is_active);
-CREATE INDEX IF NOT EXISTS idx_ai_generations_workflow_id ON ai_generations(workflow_id);
-
--- Create updated_at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create triggers for updated_at
-DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
-CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_workflow_folders_updated_at ON workflow_folders;
-CREATE TRIGGER update_workflow_folders_updated_at BEFORE UPDATE ON workflow_folders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_workflows_updated_at ON workflows;
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_workflow_schedules_updated_at ON workflow_schedules;
-CREATE TRIGGER update_workflow_schedules_updated_at BEFORE UPDATE ON workflow_schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_workflow_templates_updated_at ON workflow_templates;
-CREATE TRIGGER update_workflow_templates_updated_at BEFORE UPDATE ON workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-	`
-	
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseMigrationTimeout)
 	defer cancel()
-	
-	_, err := db.ExecContext(ctx, schema)
+
+	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
 		return err
 	}
-	
+
+	if err := db.applyIndexSchemaMigrations(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to apply index schema migrations")
+		return err
+	}
+
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
+	// Legacy database instances may already have tables created without newer index columns.
+	// Avoid SELECT * scan breakages by ensuring expected columns exist.
+
+	// First, migrate the unique constraint on workflows table.
+	// Old constraint: UNIQUE(name, folder_path) - global uniqueness
+	// New constraint: UNIQUE(project_id, name, folder_path) - per-project uniqueness
+	if err := db.migrateWorkflowUniqueConstraint(ctx); err != nil {
+		return fmt.Errorf("migrate workflow unique constraint: %w", err)
+	}
+
+	if db.dialect != DialectPostgres {
+		return nil
+	}
+
+	statements := []string{
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS project_id UUID`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS file_path VARCHAR(1000)`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS status VARCHAR(50)`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS error_message TEXT`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS result_path VARCHAR(1000)`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS name VARCHAR(255)`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS cron_expression VARCHAR(100)`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC'`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS parameters_json TEXT DEFAULT '{}'`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+	}
+
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("schema migration failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func getCurrentFilePath() string {
+	_, filename, _, _ := runtime.Caller(0)
+	return filename
+}
+
+// migrateWorkflowUniqueConstraint migrates the workflows table unique constraint
+// from (name, folder_path) to (project_id, name, folder_path).
+// This allows different projects to have workflows with the same name.
+func (db *DB) migrateWorkflowUniqueConstraint(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		return db.migrateWorkflowUniqueConstraintPostgres(ctx)
+	case DialectSQLite:
+		return db.migrateWorkflowUniqueConstraintSQLite(ctx)
+	default:
+		return nil
+	}
+}
+
+func (db *DB) migrateWorkflowUniqueConstraintPostgres(ctx context.Context) error {
+	// Check if the old constraint exists and drop it
+	// PostgreSQL constraint names from different schema files:
+	// - "unique_workflow_name_in_folder" (initialization schema)
+	// - "workflows_name_folder_path_key" (auto-generated from UNIQUE(name, folder_path))
+	dropStatements := []string{
+		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS unique_workflow_name_in_folder`,
+		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS workflows_name_folder_path_key`,
+	}
+
+	for _, stmt := range dropStatements {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			// Log but don't fail - constraint might not exist
+			if db.log != nil {
+				db.log.WithError(err).Debug("Constraint drop statement (may not exist)")
+			}
+		}
+	}
+
+	// Add the new constraint if it doesn't exist
+	// Note: PostgreSQL doesn't have "ADD CONSTRAINT IF NOT EXISTS", so we check first
+	checkConstraint := `
+		SELECT 1 FROM pg_constraint
+		WHERE conname = 'unique_workflow_name_in_project_folder'
+		AND conrelid = 'workflows'::regclass
+	`
+	var exists int
+	if err := db.GetContext(ctx, &exists, checkConstraint); err != nil {
+		// Constraint doesn't exist, add it
+		addConstraint := `
+			ALTER TABLE workflows
+			ADD CONSTRAINT unique_workflow_name_in_project_folder
+			UNIQUE (project_id, name, folder_path)
+		`
+		if _, err := db.ExecContext(ctx, addConstraint); err != nil {
+			return fmt.Errorf("add new unique constraint: %w", err)
+		}
+		if db.log != nil {
+			db.log.Info("Migrated workflow unique constraint to include project_id")
+		}
+	}
+
+	return nil
+}
+
+func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
+	// SQLite doesn't support ALTER TABLE to modify constraints directly.
+	// We need to check if the constraint is already correct by examining the schema.
+
+	// Get the current table schema
+	var tableSQL string
+	err := db.GetContext(ctx, &tableSQL, "SELECT sql FROM sqlite_master WHERE type='table' AND name='workflows'")
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			// Table doesn't exist yet, will be created with correct schema
+			return nil
+		}
+		return fmt.Errorf("get workflows table schema: %w", err)
+	}
+
+	// Check if the constraint already includes project_id
+	if strings.Contains(tableSQL, "UNIQUE(project_id, name, folder_path)") {
+		// Already migrated
+		return nil
+	}
+
+	// Check if this is the old constraint that needs migration
+	if !strings.Contains(tableSQL, "UNIQUE(name, folder_path)") {
+		// Neither old nor new constraint - might be a different schema
+		return nil
+	}
+
+	// SQLite requires recreating the table to change constraints
+	// This is a destructive operation, so we use a transaction
+	tx, err := db.Beginx()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	migrationStatements := []string{
+		// Rename old table
+		`ALTER TABLE workflows RENAME TO workflows_old`,
+		// Create new table with correct constraint
+		`CREATE TABLE workflows (
+			id TEXT PRIMARY KEY,
+			project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+			name TEXT NOT NULL,
+			folder_path TEXT NOT NULL,
+			file_path TEXT,
+			version INTEGER DEFAULT 1,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(project_id, name, folder_path)
+		)`,
+		// Copy data
+		`INSERT INTO workflows SELECT * FROM workflows_old`,
+		// Drop old table
+		`DROP TABLE workflows_old`,
+		// Recreate indexes
+		`CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path)`,
+		`CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name)`,
+	}
+
+	for _, stmt := range migrationStatements {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate workflow table: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration: %w", err)
+	}
+
+	if db.log != nil {
+		db.log.Info("Migrated SQLite workflow unique constraint to include project_id")
+	}
+
 	return nil
 }

@@ -13,7 +13,12 @@
     "model_size": {
       "type": "string",
       "description": "Model variant to use",
-      "enum": ["small", "medium", "large", "melody"],
+      "enum": [
+        "small",
+        "medium",
+        "large",
+        "melody"
+      ],
       "default": "medium"
     },
     "use_gpu": {
@@ -50,10 +55,18 @@
     "log_level": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
       "default": "INFO"
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/audiocraft/schema.json"
 }

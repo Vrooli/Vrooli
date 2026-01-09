@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "tech-tree-designer",
@@ -20,7 +20,28 @@
       "postgres-storage",
       "ollama-analysis",
       "strategic-consciousness"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/tech-tree-designer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -28,39 +49,10 @@
       "description": "Tech tree analysis and strategic planning API",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Interactive tech tree visualization interface",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql", 
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Interactive tech tree visualization interface",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -105,16 +97,24 @@
       "description": "Initialize Tech Tree Designer with complete civilization roadmap",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "tech-tree-designer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["tech-tree-designer"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/tech-tree-designer-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "tech-tree-designer",
+            "targets": [
+              "tech-tree-designer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -138,93 +138,65 @@
           "description": "Build Go API for strategic analysis and data management"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install --ignore-workspace --no-frozen-lockfile",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build interactive tech tree visualization interface"
         },
         {
-          "name": "seed-civilization-tree",
-          "run": "./cli/tech-tree-designer initialize --civilization-complete",
-          "description": "Populate database with complete civilization technology roadmap"
+          "name": "verify-civilization-data",
+          "run": "./scripts/verify-postgres-data.sh",
+          "description": "Validate civilization progress data directly in Postgres"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Tech Tree Designer initialized\\n  Strategic Dashboard: http://localhost:${UI_PORT}\\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  CLI: tech-tree-designer --help\\n\\n🎯 Civilization Progress: Ready for strategic intelligence acceleration'",
+          "run": "cat <<EOF\n\ud83d\ude80 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n\ud83c\udfaf Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
           "description": "Display tech tree access URLs and strategic overview"
         }
       ]
     },
     "develop": {
-      "description": "Start tech tree designer with API server and visualization interface",
+      "description": "Start tech tree designer with API server and production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./tech-tree-designer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/tech-tree-designer-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start interactive tech tree visualization server",
+          "name": "start-api",
+          "run": "cd api && ./tech-tree-designer-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/tech-tree-designer-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Strategic Intelligence System Online:\\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\\n  🧠 Analysis API: http://localhost:${API_PORT}\\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\\n  🎯 Strategic CLI: tech-tree-designer --help\\n\\n🌟 Ready to guide Vrooli\\'s evolution toward superintelligence'",
-           "description": "Display all running strategic planning services"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built visualization app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "cat <<EOF\n\ud83d\ude80 Strategic Intelligence System Online:\n  \ud83d\udcca Tech Tree Dashboard: http://localhost:${UI_PORT}\n  \ud83e\udde0 Analysis API: http://localhost:${API_PORT}\n  \ud83d\udcc8 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  \ud83c\udfaf Strategic CLI: tech-tree-designer --help\n\n\ud83c\udf1f Ready to guide Vrooli's evolution toward superintelligence\nEOF",
+          "description": "Display all running strategic planning services"
+        }
       ]
     },
     "test": {
-      "description": "Test tech tree visualization, analysis, and strategic planning capabilities",
+      "description": "Comprehensive phased testing for tech-tree-designer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go API compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/health", 
-          "description": "Test UI health endpoint"
-        },
-        {
-          "name": "test-tree-endpoints",
-          "run": "bash test/test-tech-tree-api.sh",
-          "description": "Test tech tree data and analysis endpoints"
-        },
-        {
-          "name": "test-progress-tracking",
-          "run": "bash test/test-progress-tracking.sh",
-          "description": "Test scenario progress mapping and updates"
-        },
-        {
-          "name": "test-strategic-analysis",
-          "run": "bash test/test-ai-analysis.sh",
-          "description": "Test AI-powered strategic recommendations"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats tech-tree-designer.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/tech-tree-designer.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute tech-tree-designer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -238,10 +210,51 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"ui.*dev\" || true; sleep 1; pkill -9 -f \"ui.*dev\" 2>/dev/null || true",
+          "run": "pkill -f \"tech-tree-designer/ui/server\" || true; sleep 1; pkill -9 -f \"tech-tree-designer/ui/server\" 2>/dev/null || true",
           "description": "Stop UI development server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          },
+          {
+            "directory": "initialization/postgres/migrations",
+            "type": "migration"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "purpose": "Advanced AI models for stage idea generation, tree expansion recommendations, and strategic planning"
+      }
     }
   }
 }

@@ -1,0 +1,239 @@
+// Package main provides the entry point for the Scenario Completeness Scoring API.
+// This file is intentionally minimal - it handles only server bootstrapping and
+// route configuration. All business logic is delegated to domain-organized
+// handler packages (handlers/scores.go, handlers/config.go, etc.)
+//
+// Architecture: "Screaming Architecture"
+// - The top-level structure reflects the domain (scores, config, health, analysis)
+// - HTTP handling is infrastructure that serves the domain
+// - Each handler file groups endpoints by the domain concept they serve
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	"scenario-completeness-scoring/pkg/analysis"
+	"scenario-completeness-scoring/pkg/circuitbreaker"
+	"scenario-completeness-scoring/pkg/collectors"
+	"scenario-completeness-scoring/pkg/config"
+	"scenario-completeness-scoring/pkg/handlers"
+	pkghealth "scenario-completeness-scoring/pkg/health"
+	"scenario-completeness-scoring/pkg/history"
+
+	gorillahndlrs "github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+)
+
+// ServerConfig holds runtime configuration for the server
+type ServerConfig struct {
+	Port       string
+	VrooliRoot string
+}
+
+// Server orchestrates the HTTP server and its dependencies
+type Server struct {
+	config    *ServerConfig
+	router    *mux.Router
+	handlers  *handlers.Context
+	historyDB *history.DB
+}
+
+// NewServer initializes the server with all required dependencies
+// [REQ:SCS-CB-001] Initialize circuit breaker with default config
+// [REQ:SCS-HEALTH-001] Initialize health tracker
+// [REQ:SCS-CFG-004] Initialize config loader
+// [REQ:SCS-HIST-001] Initialize history database and repository
+// [REQ:SCS-ANALYSIS-001] Initialize what-if analyzer
+// [REQ:SCS-ANALYSIS-003] Initialize bulk refresher
+func NewServer() (*Server, error) {
+	cfg := &ServerConfig{
+		VrooliRoot: getEnvWithDefault("VROOLI_ROOT", os.Getenv("HOME")+"/Vrooli"),
+	}
+
+	// Initialize circuit breaker registry with default config
+	cbRegistry := circuitbreaker.NewRegistry(circuitbreaker.DefaultConfig())
+
+	// Initialize history database
+	// [REQ:SCS-HIST-002] SQLite database for history storage
+	dataDir := filepath.Join(cfg.VrooliRoot, "scenarios", "scenario-completeness-scoring", "data")
+	historyDB, err := history.NewDB(dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize history database: %w", err)
+	}
+	historyRepo := history.NewRepository(historyDB)
+	trendAnalyzer := history.NewTrendAnalyzer(historyRepo, 5) // Stall after 5 unchanged
+
+	// Initialize metrics collector with circuit breaker integration
+	// [REQ:SCS-CORE-003] Graceful degradation via circuit breaker
+	collector := collectors.NewMetricsCollectorWithCircuitBreaker(cfg.VrooliRoot, cbRegistry)
+	configLoader := config.NewLoader(cfg.VrooliRoot)
+
+	// Create handler context with all dependencies
+	handlerCtx := handlers.NewContext(
+		cfg.VrooliRoot,
+		collector,
+		cbRegistry,
+		pkghealth.NewTracker(cbRegistry),
+		configLoader,
+		historyDB,
+		historyRepo,
+		trendAnalyzer,
+		analysis.NewWhatIfAnalyzer(collector),
+		analysis.NewBulkRefresher(cfg.VrooliRoot, collector, historyRepo),
+	)
+
+	srv := &Server{
+		config:    cfg,
+		router:    mux.NewRouter(),
+		handlers:  handlerCtx,
+		historyDB: historyDB,
+	}
+
+	srv.setupRoutes()
+	return srv, nil
+}
+
+// setupRoutes configures all API routes, organized by domain concept
+func (s *Server) setupRoutes() {
+	s.router.Use(loggingMiddleware)
+	s.router.Use(corsMiddleware)
+
+	h := s.handlers
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Health & Infrastructure (basic service health)
+	// ─────────────────────────────────────────────────────────────────────
+	// Use api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET", "OPTIONS")
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Scores Domain (core business: calculating & retrieving scores)
+	// [REQ:SCS-CORE-002]
+	// ─────────────────────────────────────────────────────────────────────
+	s.router.HandleFunc("/api/v1/scores", h.HandleListScores).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/{scenario}", h.HandleGetScore).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/{scenario}/calculate", h.HandleCalculateScore).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/{scenario}/validation-analysis", h.HandleValidationAnalysis).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/recommendations/{scenario}", h.HandleGetRecommendations).Methods("GET", "OPTIONS")
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Configuration Domain (global scoring settings)
+	// [REQ:SCS-CFG-001] [REQ:SCS-CFG-004]
+	// ─────────────────────────────────────────────────────────────────────
+	s.router.HandleFunc("/api/v1/config", h.HandleGetConfig).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config", h.HandleUpdateConfig).Methods("PUT", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/schema", h.HandleGetConfigSchema).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/reset", h.HandleResetConfig).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/thresholds", h.HandleGetThresholds).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/thresholds/{category}", h.HandleGetCategoryThresholds).Methods("GET", "OPTIONS")
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Health Monitoring Domain (collector health & circuit breakers)
+	// [REQ:SCS-HEALTH-001] [REQ:SCS-CB-004]
+	// ─────────────────────────────────────────────────────────────────────
+	s.router.HandleFunc("/api/v1/health/collectors", h.HandleGetCollectorHealth).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health/collectors/{name}/test", h.HandleTestCollector).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health/circuit-breaker", h.HandleGetCircuitBreakers).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health/circuit-breaker/reset", h.HandleResetAllCircuitBreakers).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health/circuit-breaker/{collector}/reset", h.HandleResetCircuitBreaker).Methods("POST", "OPTIONS")
+
+	// ─────────────────────────────────────────────────────────────────────
+	// Analysis Domain (history, trends, what-if, comparisons)
+	// [REQ:SCS-HIST-001] [REQ:SCS-HIST-003] [REQ:SCS-ANALYSIS-001] [REQ:SCS-ANALYSIS-003] [REQ:SCS-ANALYSIS-004]
+	// ─────────────────────────────────────────────────────────────────────
+	s.router.HandleFunc("/api/v1/scores/{scenario}/history", h.HandleGetHistory).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/{scenario}/trends", h.HandleGetTrends).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/trends", h.HandleGetAllTrends).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/{scenario}/what-if", h.HandleWhatIf).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scores/refresh-all", h.HandleBulkRefresh).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/compare", h.HandleCompare).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/analysis/components", h.HandleListAnalysisComponents).Methods("GET", "OPTIONS")
+}
+
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return gorillahndlrs.RecoveryHandler()(s.router)
+}
+
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
+	// Close history database
+	if s.historyDB != nil {
+		if err := s.historyDB.Close(); err != nil {
+			log.Printf("failed to close history database: %v", err)
+		}
+	}
+	log.Println("server stopped")
+	return nil
+}
+
+// corsMiddleware adds CORS headers for cross-origin requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// loggingMiddleware prints request logs with timing
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	})
+}
+
+// getEnvWithDefault retrieves an environment variable with a fallback default
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "scenario-completeness-scoring",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
+	srv, err := NewServer()
+	if err != nil {
+		log.Fatalf("failed to initialize server: %v", err)
+	}
+
+	log.Printf("starting server | service=scenario-completeness-scoring-api vrooli_root=%s", srv.config.VrooliRoot)
+
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
+}

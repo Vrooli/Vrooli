@@ -1,9 +1,9 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "browser-automation-studio",
-    "displayName": "Browser Automation Studio",
+    "displayName": "Vrooli Ascension",
     "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
     "version": "1.0.0",
     "tags": [
@@ -18,65 +18,58 @@
       "go-api",
       "react-ui",
       "postgres-storage"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/browser-automation-studio"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Browser Automation Studio API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Visual workflow builder UI port",
-       "range": "35000-39999"
-     },
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Vrooli Ascension API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Visual workflow builder UI port",
+      "range": "35000-39999"
+    },
     "websocket": {
       "env_var": "WS_PORT",
       "description": "WebSocket port for real-time updates",
       "range": "25000-29999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Workflow definitions and execution history storage",
-      "schema": "browser_automation_studio"
     },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "description": "Core browser automation engine for workflow execution"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "description": "Screenshot and artifact storage with S3-compatible API"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "description": "WebSocket pub/sub and execution caching"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "description": "AI workflow generation and debugging assistance"
+    "playwright_driver": {
+      "env_var": "PLAYWRIGHT_DRIVER_PORT",
+      "description": "Playwright driver HTTP server port",
+      "range": "39400-39499"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Browser Automation Studio health check configuration",
+      "description": "Vrooli Ascension health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/"
+        "ui": "/health"
       },
       "checks": [
         {
@@ -89,8 +82,8 @@
         },
         {
           "name": "ui_endpoint",
-          "type": "http", 
-          "target": "http://localhost:${UI_PORT}/",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -101,21 +94,27 @@
       "startup_grace_period": 15000
     },
     "setup": {
-      "description": "Initialize Browser Automation Studio",
+      "description": "Initialize Vrooli Ascension",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "browser-automation-studio-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "browser-automation-studio"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/browser-automation-studio-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "browser-automation-studio",
+            "targets": [
+              "browser-automation-studio"
+            ]
+          },
           {
             "type": "directory",
             "path": "initialization/storage/postgres"
@@ -140,8 +139,23 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install React UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build React UI for production"
+        },
+        {
+          "name": "install-playwright-driver-deps",
+          "run": "cd playwright-driver && pnpm install --ignore-workspace",
+          "description": "Install Playwright driver dependencies"
+        },
+        {
+          "name": "build-playwright-driver",
+          "run": "cd playwright-driver && pnpm run build",
+          "description": "Build Playwright driver for production"
         },
         {
           "name": "setup-database",
@@ -150,89 +164,23 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "run": "printf '\ud83d\ude80 Vrooli Ascension initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start browser automation studio with API and UI servers",
-      "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./browser-automation-studio-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/browser-automation-studio-api"
-           }
-         },
-        {
-          "name": "start-ui", 
-          "run": "cd ui && npm run dev",
-          "description": "Start React UI development server with hot reload",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
-           "description": "Display all running service URLs"
-         }
-      ]
-    },
-    "test": {
-      "description": "Test browser automation studio API and CLI",
+      "description": "Start browser automation studio with production UI bundle",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 2; done'",
-          "description": "Test API health endpoint with retry"
-        },
-        {
-          "name": "test-workflow-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/workflows",
-          "description": "Test workflow listing endpoint"
-        },
-        {
-          "name": "test-project-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/projects",
-          "description": "Test project listing endpoint"
-        },
-        {
-          "name": "test-ui-accessibility",
-          "run": "curl -sf http://localhost:$UI_PORT/",
-          "description": "Test UI accessibility"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "browser-automation-studio status && browser-automation-studio help",
-          "description": "Test basic CLI functionality"
-        }
-      ]
-    },
-    "production": {
-      "description": "Start browser automation studio in production mode",
-      "steps": [
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production"
+          "name": "start-playwright-driver",
+          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
+          "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
         },
         {
           "name": "start-api",
-          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./browser-automation-studio-api",
-          "description": "Start Go API server with workflow engine",
+          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/browser-automation-studio-api"
@@ -241,22 +189,37 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start React UI production server",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
-          "name": "show-running-services",
-          "run": "echo '🚀 Services running (PRODUCTION):\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "name": "show-urls",
+          "run": "printf '\ud83d\ude80 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for browser-automation-studio",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute browser-automation-studio --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
     "stop": {
       "description": "Stop all browser automation studio services",
       "steps": [
+        {
+          "name": "stop-playwright-driver",
+          "run": "pkill -f 'playwright-driver.*server' || true; pkill -f 'node.*playwright-driver/dist/server.js' || true",
+          "description": "Stop scenario-managed Playwright driver if running"
+        },
         {
           "name": "stop-api",
           "run": "pkill -f \"browser-automation-studio-api\" || true; sleep 1; pkill -9 -f \"browser-automation-studio-api\" 2>/dev/null || true",
@@ -268,6 +231,443 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Workflow definitions and execution history storage",
+        "schema": "browser_automation_studio"
+      },
+      "playwright": {
+        "type": "playwright",
+        "enabled": true,
+        "required": true,
+        "description": "Core browser automation engine for workflow execution (scenario-managed driver)"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "description": "Screenshot and artifact storage with S3-compatible API"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "description": "WebSocket pub/sub and execution caching"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "AI workflow generation and debugging assistance"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
+      }
+    },
+    "scenarios": {}
+  },
+  "deployment": {
+    "metadata_version": 1,
+    "last_analyzed_at": "2024-03-28T01:30:00Z",
+    "analyzer": {
+      "name": "manual-draft",
+      "version": "0.1"
+    },
+    "aggregate_requirements": {
+      "ram_mb": 8192,
+      "disk_mb": 12288,
+      "cpu_cores": 4,
+      "gpu": false,
+      "network": "required",
+      "storage_mb_per_user": 200,
+      "startup_time_ms": 45000,
+      "bucket": "large",
+      "source": "estimated",
+      "confidence": "medium"
+    },
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "fitness_score": 0.85,
+        "constraints": [
+          "Requires full Vrooli stack with browserless Chromium workers and app-monitor proxy",
+          "Needs outbound network for OpenRouter fallback when Ollama disabled"
+        ],
+        "requirements": {
+          "ram_mb": 8192,
+          "disk_mb": 12288,
+          "cpu_cores": 4,
+          "network": "required",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "medium"
+        },
+        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
+        "secrets": [
+          {
+            "secret_id": "browser-automation-studio/postgres-url",
+            "classification": "service",
+            "notes": "Regenerate per deployment"
+          },
+          {
+            "secret_id": "browserless/api-key",
+            "classification": "infrastructure",
+            "notes": "Never ships with desktop bundles"
+          },
+          {
+            "secret_id": "openrouter/api-key",
+            "classification": "user",
+            "notes": "Prompt desktop users for their own API key when using remote LLMs"
+          }
+        ],
+        "artifacts": [
+          {
+            "type": "cloudflare-proxy",
+            "producer": "app-monitor",
+            "status": "available",
+            "notes": "Standard Tier 1 exposure via Cloudflare Zero Trust"
+          }
+        ]
+      },
+      "tier-2-desktop": {
+        "status": "limited",
+        "fitness_score": 0.35,
+        "constraints": [
+          "Browserless + Postgres footprint too heavy for bundled runtimes",
+          "MinIO requires background server and credentials",
+          "Secrets must be provisioned at install time"
+        ],
+        "requirements": {
+          "ram_mb": 6144,
+          "disk_mb": 8192,
+          "cpu_cores": 4,
+          "network": "optional",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "low"
+        },
+        "adaptations": [
+          {
+            "dependency": "postgres",
+            "swap": "sqlite",
+            "impact": "Would enable single-process storage but removes advanced query features",
+            "effort_days": 4,
+            "notes": "Needs schema + migration tooling"
+          },
+          {
+            "dependency": "browserless",
+            "swap": "playwright-packaged",
+            "impact": "Compile Playwright into the Electron app to avoid remote dependency",
+            "effort_days": 5,
+            "notes": "Requires custom runner and sandbox hardening"
+          },
+          {
+            "dependency": "minio",
+            "swap": "filesystem-store",
+            "impact": "Store artifacts in user data folder",
+            "effort_days": 2
+          }
+        ],
+        "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+        "artifacts": [
+          {
+            "type": "electron-app",
+            "producer": "scenario-to-desktop",
+            "status": "thin-client",
+            "notes": "UI bundle works but depends on remote API"
+          }
+        ]
+      },
+      "tier-3-mobile": {
+        "status": "blocked",
+        "fitness_score": 0.1,
+        "constraints": [
+          "Browser automation requires Chromium which is unavailable on mobile",
+          "Resource footprint exceeds mobile limits"
+        ],
+        "notes": "Needs entirely different orchestration model"
+      },
+      "tier-4-saas": {
+        "status": "limited",
+        "fitness_score": 0.6,
+        "constraints": [
+          "Requires deployment-manager driven packaging of dependent resources",
+          "Needs secrets templating + Terraform/K8s automation"
+        ],
+        "requirements": {
+          "ram_mb": 10240,
+          "disk_mb": 16384,
+          "cpu_cores": 6,
+          "network": "required",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "low"
+        },
+        "notes": "Viable once deployment-manager can provision Browserless pools and managed storage"
+      },
+      "tier-5-enterprise": {
+        "status": "limited",
+        "fitness_score": 0.55,
+        "constraints": [
+          "Secrets segregation + air-gapped resource support not implemented",
+          "Requires on-prem Browserless fleet management"
+        ],
+        "notes": "Follows SaaS path but with hardened secrets + monitoring"
+      }
+    },
+    "dependencies": {
+      "resources": {
+        "postgres": {
+          "resource_type": "database",
+          "footprint": {
+            "ram_mb": 768,
+            "disk_mb": 4096,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.9,
+              "notes": "Uses shared postgres resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Desktop install would need embedded database service",
+              "alternatives": [
+                "sqlite"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Needs managed PaaS provisioning"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "sqlite",
+              "relationship": "migration",
+              "notes": "Only viable for single-user bundles"
+            }
+          ],
+          "packaging_hints": [
+            "Requires initialization/storage/postgres/schema.sql"
+          ]
+        },
+        "browserless": {
+          "resource_type": "browser-automation",
+          "footprint": {
+            "ram_mb": 2048,
+            "disk_mb": 512,
+            "cpu_cores": 2,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.85,
+              "notes": "Managed via shared Browserless resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.1,
+              "reason": "Electron cannot embed headless Chromium + Node cluster today",
+              "alternatives": [
+                "playwright-packaged"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Needs auto-scaling pool"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "playwright-packaged",
+              "relationship": "future",
+              "notes": "Potential compiled runner for desktop/mobile"
+            }
+          ],
+          "packaging_hints": [
+            "Requires Puppeteer-compatible fonts + sandbox syscalls"
+          ]
+        },
+        "playwright-driver": {
+          "resource_type": "browser-automation",
+          "footprint": {
+            "ram_mb": 768,
+            "disk_mb": 512,
+            "cpu_cores": 1,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.75,
+              "notes": "Non-Docker Node driver on localhost"
+            },
+            "tier-2-desktop": {
+              "supported": true,
+              "fitness_score": 0.9,
+              "notes": "Packaged driver spawned by Electron; reuse bundled Chromium via PLAYWRIGHT_CHROMIUM_PATH when possible"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "browserless",
+              "relationship": "fallback",
+              "notes": "Use when remote pool is available"
+            }
+          ],
+          "packaging_hints": [
+            "Bundle driver/server.js with desktop app",
+            "If not reusing Electron Chromium, include @playwright/browser-chromium per platform"
+          ]
+        },
+        "minio": {
+          "resource_type": "object-storage",
+          "footprint": {
+            "ram_mb": 512,
+            "disk_mb": 2048,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared MinIO resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Requires bundled object storage process",
+              "alternatives": [
+                "filesystem-store"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Map to S3/Spaces bucket"
+            }
+          },
+          "packaging_hints": [
+            "Provide lifecycle policy for screenshots"
+          ]
+        },
+        "redis": {
+          "resource_type": "cache",
+          "footprint": {
+            "ram_mb": 256,
+            "disk_mb": 128,
+            "cpu_cores": 0.5,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared redis"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Need embedded cache or switch to in-process broadcast",
+              "alternatives": [
+                "event-emitter"
+              ]
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "in-memory-pubsub",
+              "relationship": "fallback",
+              "notes": "Only for single-instance desktop"
+            }
+          ]
+        },
+        "ollama": {
+          "resource_type": "llm-server",
+          "footprint": {
+            "ram_mb": 4096,
+            "disk_mb": 8192,
+            "cpu_cores": 4,
+            "gpu": false,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Optional but heavy"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Model download sizes exceed desktop bundle budget",
+              "alternatives": [
+                "openrouter"
+              ]
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "openrouter",
+              "relationship": "cloud-llm",
+              "notes": "Prompt user for API key"
+            }
+          ]
+        },
+        "openrouter": {
+          "resource_type": "llm-api",
+          "footprint": {
+            "network": "required",
+            "source": "manual",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Used when Ollama disabled"
+            },
+            "tier-2-desktop": {
+              "supported": true,
+              "fitness_score": 0.5,
+              "reason": "Requires user-provided API key and network"
+            }
+          },
+          "packaging_hints": [
+            "Prompt users for key on first launch"
+          ]
+        }
+      },
+      "scenarios": {}
     }
   }
 }

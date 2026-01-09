@@ -6,6 +6,7 @@ import {
   MonitorCog,
   SlidersHorizontal,
   Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import {
   AgentSettings,
@@ -14,6 +15,7 @@ import {
   PromptTesterCase,
   promptTesterCases,
 } from "../data/sampleData";
+import type { SettingsConstraints } from "../hooks/useAgentSettingsManager";
 
 interface SettingsPageProps {
   apiBaseUrl: string;
@@ -25,6 +27,7 @@ interface SettingsPageProps {
   onDisplayChange: (settings: DisplaySettings) => void;
   issuesProcessed?: number;
   issuesRemaining?: number | string;
+  constraints?: SettingsConstraints | null;
 }
 
 type TabKey = "processor" | "agent" | "display" | "prompt";
@@ -44,7 +47,7 @@ interface PromptPreviewResponse {
 const tabConfig: {
   key: TabKey;
   label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
 }[] = [
   { key: "processor", label: "Processor", icon: ActivitySquare },
   { key: "agent", label: "Agent", icon: Bot },
@@ -62,6 +65,7 @@ export function SettingsPage({
   onDisplayChange,
   issuesProcessed = 0,
   issuesRemaining = 'unlimited',
+  constraints = null,
 }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("processor");
   const [selectedTestCaseId, setSelectedTestCaseId] = useState<string>(
@@ -371,9 +375,24 @@ export function SettingsPage({
                       })
                     }
                   >
-                    <option value="codex">Codex (Primary)</option>
-                    <option value="claude-code">Claude Code</option>
+                    {constraints?.providers && constraints.providers.length > 0 ? (
+                      constraints.providers.map((provider) => (
+                        <option key={provider.value} value={provider.value} title={provider.description}>
+                          {provider.label}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="codex">Codex</option>
+                        <option value="claude-code">Claude Code</option>
+                      </>
+                    )}
                   </select>
+                  {constraints?.providers && (
+                    <small style={{ display: "block", marginTop: "4px", color: "var(--text-secondary)" }}>
+                      {constraints.providers.find(p => p.value === (agent.backend?.provider ?? "codex"))?.description}
+                    </small>
+                  )}
                 </label>
                 <label className="checkbox-field">
                   <input

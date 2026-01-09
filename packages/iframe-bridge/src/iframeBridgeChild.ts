@@ -6,15 +6,58 @@ export type BridgeCapability =
   | 'resize'
   | 'screenshot'
   | 'logs'
-  | 'network';
+  | 'network'
+  | 'inspect';
 
 export type BridgeLogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
-export type BridgeScreenshotMode = 'viewport' | 'full-page';
+export type BridgeScreenshotMode = 'viewport' | 'full-page' | 'clip';
 
 export interface BridgeScreenshotOptions {
   scale?: number;
   mode?: BridgeScreenshotMode;
+  clip?: Rect | null;
+  selector?: string | null;
+  backgroundColor?: string | null;
+}
+
+export interface BridgeInspectRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface BridgeInspectElementMeta {
+  tag: string;
+  id?: string;
+  classes?: string[];
+  selector?: string;
+  role?: string;
+  ariaLabel?: string;
+  ariaDescription?: string;
+  title?: string;
+  text?: string;
+  label?: string;
+}
+
+export interface BridgeInspectAncestorMeta extends BridgeInspectElementMeta {
+  rect?: BridgeInspectRect;
+  documentRect?: BridgeInspectRect;
+  depth?: number;
+}
+
+export interface BridgeInspectHoverPayload {
+  rect: BridgeInspectRect;
+  documentRect: BridgeInspectRect;
+  meta: BridgeInspectElementMeta;
+  pointerType?: string;
+  ancestors?: BridgeInspectAncestorMeta[];
+  selectedAncestorIndex?: number;
+}
+
+export interface BridgeInspectResultPayload extends BridgeInspectHoverPayload {
+  method: 'pointer' | 'keyboard';
 }
 
 export interface BridgeLogEvent {
@@ -84,9 +127,22 @@ export interface BridgeChildController {
   dispose: () => void;
 }
 
+/**
+ * Describes the result of attempting to shim a storage type.
+ */
+export interface StorageShimEntry {
+  /** Which storage was checked */
+  prop: 'localStorage' | 'sessionStorage';
+  /** Whether the storage was successfully shimmed */
+  patched: boolean;
+  /** Reason for the outcome */
+  reason: string;
+}
+
 declare global {
   interface Window {
     __vrooliBridgeChildInstalled?: boolean;
+    __VROOLI_UI_SMOKE_STORAGE_PATCH__?: StorageShimEntry[];
     html2canvas?: Html2CanvasFn;
   }
 
@@ -181,6 +237,216 @@ const SERIALIZE_MAX_KEYS = 20;
 const SERIALIZE_MAX_STRING = 10_000;
 const LOG_LEVELS: BridgeLogLevel[] = ['log', 'info', 'warn', 'error', 'debug'];
 
+// ============================================================================
+// Storage Shimming
+// ============================================================================
+
+/**
+ * Creates an in-memory Storage implementation that mimics localStorage/sessionStorage.
+ * Implements the full Storage interface including length, key(), and indexed access.
+ */
+function createMemoryStorage(): Storage {
+  const data = new Map<string, string>();
+
+  // Use a Proxy to handle indexed access (storage['key'] and storage[0])
+  const handler: ProxyHandler<Storage> = {
+    get(target, prop) {
+      if (prop === 'length') {
+        return data.size;
+      }
+      if (prop === 'key') {
+        return (index: number): string | null => {
+          const keys = Array.from(data.keys());
+          return keys[index] ?? null;
+        };
+      }
+      if (prop === 'getItem') {
+        return (key: string): string | null => data.get(key) ?? null;
+      }
+      if (prop === 'setItem') {
+        return (key: string, value: string): void => {
+          data.set(key, String(value));
+        };
+      }
+      if (prop === 'removeItem') {
+        return (key: string): void => {
+          data.delete(key);
+        };
+      }
+      if (prop === 'clear') {
+        return (): void => {
+          data.clear();
+        };
+      }
+      // Handle numeric index access (storage[0])
+      if (typeof prop === 'string' && /^\d+$/.test(prop)) {
+        const keys = Array.from(data.keys());
+        return keys[parseInt(prop, 10)] ?? undefined;
+      }
+      // Handle string key access (storage['myKey'])
+      if (typeof prop === 'string') {
+        return data.get(prop) ?? undefined;
+      }
+      return undefined;
+    },
+    set(target, prop, value) {
+      if (typeof prop === 'string' && !['length', 'key', 'getItem', 'setItem', 'removeItem', 'clear'].includes(prop)) {
+        data.set(prop, String(value));
+        return true;
+      }
+      return false;
+    },
+    deleteProperty(target, prop) {
+      if (typeof prop === 'string') {
+        data.delete(prop);
+        return true;
+      }
+      return false;
+    },
+    has(target, prop) {
+      if (['length', 'key', 'getItem', 'setItem', 'removeItem', 'clear'].includes(String(prop))) {
+        return true;
+      }
+      return data.has(String(prop));
+    },
+    ownKeys() {
+      return Array.from(data.keys());
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      if (data.has(String(prop))) {
+        return {
+          value: data.get(String(prop)),
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        };
+      }
+      return undefined;
+    },
+  };
+
+  // Create base object with required methods (will be intercepted by proxy)
+  const baseStorage: Storage = {
+    length: 0,
+    key: () => null,
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+  };
+
+  return new Proxy(baseStorage, handler);
+}
+
+/**
+ * Tests if a storage type is accessible and functional.
+ */
+function testStorageAccess(type: 'localStorage' | 'sessionStorage'): { accessible: boolean; error?: string } {
+  try {
+    // Even accessing the property can throw in sandboxed contexts
+    const storage = type === 'localStorage' ? window.localStorage : window.sessionStorage;
+    if (!storage) {
+      return { accessible: false, error: 'storage-undefined' };
+    }
+    const testKey = '__vrooli_storage_test__';
+    storage.setItem(testKey, 'test');
+    const retrieved = storage.getItem(testKey);
+    storage.removeItem(testKey);
+    if (retrieved !== 'test') {
+      return { accessible: false, error: 'storage-corrupted' };
+    }
+    return { accessible: true };
+  } catch (e) {
+    return {
+      accessible: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/**
+ * Attempts to shim a specific storage type with an in-memory implementation.
+ */
+function shimStorageType(type: 'localStorage' | 'sessionStorage'): StorageShimEntry {
+  const testResult = testStorageAccess(type);
+
+  if (testResult.accessible) {
+    return { prop: type, patched: false, reason: 'native-storage-accessible' };
+  }
+
+  try {
+    const memoryStorage = createMemoryStorage();
+    Object.defineProperty(window, type, {
+      value: memoryStorage,
+      writable: true,
+      configurable: true,
+    });
+
+    // Verify the shim works
+    const verifyResult = testStorageAccess(type);
+    if (verifyResult.accessible) {
+      return { prop: type, patched: true, reason: 'shimmed-successfully' };
+    } else {
+      return {
+        prop: type,
+        patched: false,
+        reason: `shim-verification-failed: ${verifyResult.error}`,
+      };
+    }
+  } catch (e) {
+    return {
+      prop: type,
+      patched: false,
+      reason: `shim-failed: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
+
+/**
+ * Shims localStorage and sessionStorage with in-memory implementations if they are
+ * blocked (common in sandboxed iframe contexts like Browserless).
+ *
+ * This function should be called as early as possible in your application,
+ * before any code that might access localStorage or sessionStorage.
+ *
+ * Results are stored in window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ for inspection
+ * by UI smoke tests.
+ *
+ * @returns Array of shim results for each storage type
+ *
+ * @example
+ * ```typescript
+ * import { shimStorage } from '@vrooli/iframe-bridge';
+ *
+ * // Call at the very top of your entry point, before other imports if possible
+ * shimStorage();
+ * ```
+ */
+export function shimStorage(): StorageShimEntry[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  // Don't re-shim if already done (idempotent)
+  if (window.__VROOLI_UI_SMOKE_STORAGE_PATCH__) {
+    return window.__VROOLI_UI_SMOKE_STORAGE_PATCH__;
+  }
+
+  const results: StorageShimEntry[] = [
+    shimStorageType('localStorage'),
+    shimStorageType('sessionStorage'),
+  ];
+
+  // Record results for smoke test inspection
+  window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ = results;
+
+  return results;
+}
+
+// ============================================================================
+// HTML2Canvas Loading
+// ============================================================================
+
 const loadHtml2Canvas = (() => {
   let loader: Promise<Html2CanvasFn> | null = null;
   return (): Promise<Html2CanvasFn> => {
@@ -240,12 +506,1067 @@ const clampClipToCanvas = (clip: Rect, canvasWidth: number, canvasHeight: number
   return { x, y, width, height };
 };
 
+const clampNumber = (value: number, min: number, max: number): number => {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+};
+
 const scaleRect = (rect: Rect, factor: number): Rect => {
   return {
     x: rect.x * factor,
     y: rect.y * factor,
     width: rect.width * factor,
     height: rect.height * factor,
+  };
+};
+
+const sanitizeClipRect = (candidate: Rect | null | undefined): Rect | null => {
+  if (!candidate) {
+    return null;
+  }
+  const x = Number(candidate.x);
+  const y = Number(candidate.y);
+  const width = Number(candidate.width);
+  const height = Number(candidate.height);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+  return {
+    x,
+    y,
+    width,
+    height,
+  };
+};
+
+const findElementForSelector = (selector: string | null | undefined): HTMLElement | null => {
+  if (!selector) {
+    return null;
+  }
+  const trimmed = selector.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const node = document.querySelector(trimmed);
+    return node instanceof HTMLElement ? node : null;
+  } catch (error) {
+    console.warn('[BridgeChild] Invalid selector for screenshot capture', error);
+    return null;
+  }
+};
+
+const truncateText = (value: string | null | undefined, limit: number): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, limit - 1))}…`;
+};
+
+const cssEscape = (value: string): string => {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    try {
+      return CSS.escape(value);
+    } catch {
+      // fall through to manual escaping
+    }
+  }
+  return value.replace(/([^_a-zA-Z0-9-])/g, match => `\\${match}`);
+};
+
+const buildCssSelector = (element: Element): string | undefined => {
+  const parts: string[] = [];
+  let current: Element | null = element;
+  let depth = 0;
+  const maxDepth = 6;
+  while (current && depth < maxDepth) {
+    const currentElement = current as Element;
+    const tag = currentElement.tagName?.toLowerCase?.();
+    if (!tag) {
+      break;
+    }
+
+    if (currentElement.id) {
+      parts.unshift(`${tag}#${cssEscape(currentElement.id)}`);
+      break;
+    }
+
+    let part = tag;
+    const classNames = Array.from(currentElement.classList?.values?.() ?? []).filter((name): name is string => Boolean(name)).slice(0, 3);
+    if (classNames.length > 0) {
+      part += classNames.map(name => `.${cssEscape(name)}`).join('');
+    }
+
+    const parent = currentElement.parentElement;
+    if (parent) {
+      const siblings = (Array.from(parent.children) as Element[]).filter(node => node.tagName === currentElement.tagName);
+      if (siblings.length > 1) {
+        const index = siblings.indexOf(currentElement);
+        if (index >= 0) {
+          part += `:nth-of-type(${index + 1})`;
+        }
+      }
+    }
+
+    parts.unshift(part);
+    depth += 1;
+    current = currentElement.parentElement;
+    if (!current || current === document.documentElement) {
+      break;
+    }
+  }
+
+  if (parts.length === 0) {
+    return undefined;
+  }
+
+  return parts.join(' > ');
+};
+
+const collectElementMeta = (element: Element): BridgeInspectElementMeta => {
+  const tag = element.tagName?.toLowerCase?.() ?? 'unknown';
+  const id = element.id?.trim() || undefined;
+  const classList = Array.from(element.classList || []).filter(Boolean);
+  const classes = classList.length > 0 ? classList.slice(0, 5) : undefined;
+  const selector = buildCssSelector(element);
+  const role = element.getAttribute?.('role')?.trim() || undefined;
+  const ariaLabel = element.getAttribute?.('aria-label')?.trim() || undefined;
+  const ariaDescription = element.getAttribute?.('aria-description')?.trim() || undefined;
+  const title = element.getAttribute?.('title')?.trim() || undefined;
+  const text = truncateText(element.textContent, 180);
+
+  const label = (() => {
+    if (ariaLabel) {
+      return ariaLabel;
+    }
+    if (title) {
+      return title;
+    }
+    if (text) {
+      return text;
+    }
+    if (id) {
+      return `#${id}`;
+    }
+    if (classes && classes.length > 0) {
+      return `${tag}.${classes[0]}`;
+    }
+    return tag;
+  })();
+
+  return {
+    tag,
+    id,
+    classes,
+    selector,
+    role,
+    ariaLabel,
+    ariaDescription,
+    title,
+    text,
+    label,
+  };
+};
+
+const MAX_INSPECT_ANCESTOR_DEPTH = 12;
+
+type InspectAncestryEntry = {
+  element: Element;
+  rect: BridgeInspectRect;
+  documentRect: BridgeInspectRect;
+  meta: BridgeInspectAncestorMeta;
+  depth: number;
+};
+
+const collectElementAncestry = (element: Element): InspectAncestryEntry[] => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return [];
+  }
+
+  const entries: InspectAncestryEntry[] = [];
+  const seen = new Set<Element>();
+  let current: Element | null = element;
+  let depth = 0;
+
+  while (current && depth < MAX_INSPECT_ANCESTOR_DEPTH) {
+    if (seen.has(current)) {
+      break;
+    }
+    seen.add(current);
+
+    if (typeof current.getBoundingClientRect !== 'function') {
+      current = current.parentElement;
+      depth += 1;
+      continue;
+    }
+
+    const rect = current.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      current = current.parentElement;
+      depth += 1;
+      continue;
+    }
+
+    const viewportRect: BridgeInspectRect = {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    const documentRect: BridgeInspectRect = {
+      x: rect.x + window.scrollX,
+      y: rect.y + window.scrollY,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    const baseMeta = collectElementMeta(current);
+    const meta: BridgeInspectAncestorMeta = {
+      ...baseMeta,
+      rect: viewportRect,
+      documentRect,
+      depth,
+    };
+
+    entries.push({
+      element: current,
+      rect: viewportRect,
+      documentRect,
+      meta,
+      depth,
+    });
+
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return entries;
+};
+
+const isTransparentColor = (value: string | null | undefined): boolean => {
+  if (!value) {
+    return true;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (normalized === 'transparent' || normalized === 'inherit') {
+    return true;
+  }
+  if (normalized.startsWith('rgba(') || normalized.startsWith('hsla(') || normalized.startsWith('rgb(') || normalized.startsWith('hsl(')) {
+    if (normalized.includes('/')) {
+      return /\/\s*0(?:\)|$)/.test(normalized);
+    }
+    return normalized.endsWith(',0)') || normalized.endsWith(', 0)');
+  }
+  if (normalized.startsWith('#')) {
+    if (normalized.length === 5) {
+      return normalized.endsWith('0');
+    }
+    if (normalized.length === 9) {
+      return normalized.endsWith('00');
+    }
+  }
+  return false;
+};
+
+const resolveBackgroundColorForHierarchy = (element?: Element | null): string | null => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+  const candidates: Element[] = [];
+  const seen = new Set<Element>();
+
+  if (element) {
+    let current: Element | null = element;
+    while (current) {
+      candidates.push(current);
+      current = current.parentElement;
+    }
+  }
+
+  const docCandidates: Array<Element | null | undefined> = [document.body, document.documentElement];
+  for (const docCandidate of docCandidates) {
+    if (docCandidate) {
+      candidates.push(docCandidate);
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    try {
+      const style = window.getComputedStyle(candidate);
+      if (!style) {
+        continue;
+      }
+      const color = style.backgroundColor;
+      if (color && !isTransparentColor(color)) {
+        return color;
+      }
+    } catch (error) {
+      console.warn('[BridgeChild] Failed to resolve background color', error);
+    }
+  }
+  return null;
+};
+
+const normalizeBackgroundColorOption = (value: string | null | undefined): string | null | undefined => {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (isTransparentColor(trimmed)) {
+    return null;
+  }
+  return trimmed;
+};
+
+type InspectStopReason = 'stop' | 'cancel' | 'complete';
+
+interface InspectController {
+  supported: boolean;
+  start: () => boolean;
+  stop: (reason?: InspectStopReason) => void;
+  dispose: () => void;
+  isActive: () => boolean;
+  setTargetIndex: (index: number) => void;
+  shiftTarget: (delta: number) => void;
+}
+
+const createInspectController = (post: PostFn): InspectController => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return {
+      supported: false,
+      start: () => false,
+      stop: () => undefined,
+      dispose: () => undefined,
+      isActive: () => false,
+      setTargetIndex: () => undefined,
+      shiftTarget: () => undefined,
+    };
+  }
+
+  let active = false;
+  let overlay: HTMLDivElement | null = null;
+  let labelNode: HTMLDivElement | null = null;
+  let lastHoverElement: Element | null = null;
+  let lastRect: BridgeInspectRect | null = null;
+  let lastPointerType: string | undefined;
+  let lastHoverStack: InspectAncestryEntry[] = [];
+  let selectedAncestorIndex = 0;
+  let previousCursor: string | null = null;
+  let previousTouchAction: string | null = null;
+  let previousRootOverflow: string | null = null;
+  let previousBodyOverflow: string | null = null;
+  let activePointerId: number | null = null;
+  let activePointerCaptureTarget: Element | null = null;
+  let touchMoveGuardRef: ((event: TouchEvent) => void) | null = null;
+
+  const ensureOverlayNodes = () => {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.setAttribute('data-bridge-inspector-overlay', 'true');
+      overlay.style.position = 'fixed';
+      overlay.style.zIndex = '2147483647';
+      overlay.style.pointerEvents = 'none';
+      overlay.style.border = '2px solid rgba(59, 130, 246, 0.85)';
+      overlay.style.background = 'rgba(59, 130, 246, 0.2)';
+      overlay.style.borderRadius = '4px';
+      overlay.style.boxShadow = '0 0 0 1px rgba(59, 130, 246, 0.6)';
+      overlay.style.transition = 'transform 0.08s ease, width 0.08s ease, height 0.08s ease, left 0.08s ease, top 0.08s ease';
+      overlay.style.display = 'none';
+    }
+
+    if (!labelNode) {
+      labelNode = document.createElement('div');
+      labelNode.setAttribute('data-bridge-inspector-overlay', 'true');
+      labelNode.style.position = 'fixed';
+      labelNode.style.zIndex = '2147483647';
+      labelNode.style.pointerEvents = 'none';
+      labelNode.style.background = 'rgba(17, 24, 39, 0.92)';
+      labelNode.style.color = '#f9fafb';
+      labelNode.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      labelNode.style.fontSize = '12px';
+      labelNode.style.lineHeight = '1.35';
+      labelNode.style.padding = '4px 6px';
+      labelNode.style.borderRadius = '4px';
+      labelNode.style.boxShadow = '0 2px 4px rgba(15, 23, 42, 0.35)';
+      labelNode.style.maxWidth = '280px';
+      labelNode.style.whiteSpace = 'nowrap';
+      labelNode.style.textOverflow = 'ellipsis';
+      labelNode.style.overflow = 'hidden';
+      labelNode.style.display = 'none';
+    }
+  };
+
+  const removeOverlayNodes = () => {
+    if (overlay?.parentElement) {
+      overlay.parentElement.removeChild(overlay);
+    }
+    if (labelNode?.parentElement) {
+      labelNode.parentElement.removeChild(labelNode);
+    }
+    overlay = null;
+    labelNode = null;
+  };
+
+  const hideOverlay = () => {
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
+    if (labelNode) {
+      labelNode.style.display = 'none';
+    }
+  };
+
+  const restoreCursor = () => {
+    const body = document.body;
+    if (!body) {
+      return;
+    }
+    if (previousCursor === null) {
+      body.style.removeProperty('cursor');
+    } else {
+      body.style.cursor = previousCursor;
+    }
+    previousCursor = null;
+  };
+
+  const applyCursor = () => {
+    const body = document.body;
+    if (!body) {
+      return;
+    }
+    if (previousCursor === null) {
+      previousCursor = body.style.cursor || '';
+    }
+    body.style.cursor = 'crosshair';
+  };
+
+  const restoreTouchAction = () => {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    if (previousTouchAction === null) {
+      return;
+    }
+    if (previousTouchAction === '') {
+      root.style.removeProperty('touch-action');
+    } else {
+      root.style.touchAction = previousTouchAction;
+    }
+    previousTouchAction = null;
+  };
+
+  const applyTouchAction = () => {
+    const root = document.documentElement;
+    if (!root) {
+      return;
+    }
+    if (previousTouchAction === null) {
+      previousTouchAction = root.style.touchAction || '';
+    }
+    root.style.touchAction = 'none';
+  };
+
+  const applyScrollLock = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (root && previousRootOverflow === null) {
+      previousRootOverflow = root.style.overflow || '';
+      root.style.overflow = 'hidden';
+    }
+    if (body && previousBodyOverflow === null) {
+      previousBodyOverflow = body.style.overflow || '';
+      body.style.overflow = 'hidden';
+    }
+  };
+
+  const restoreScrollLock = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (root && previousRootOverflow !== null) {
+      if (previousRootOverflow === '') {
+        root.style.removeProperty('overflow');
+      } else {
+        root.style.overflow = previousRootOverflow;
+      }
+      previousRootOverflow = null;
+    }
+    if (body && previousBodyOverflow !== null) {
+      if (previousBodyOverflow === '') {
+        body.style.removeProperty('overflow');
+      } else {
+        body.style.overflow = previousBodyOverflow;
+      }
+      previousBodyOverflow = null;
+    }
+  };
+
+  const installTouchMoveGuard = () => {
+    if (touchMoveGuardRef || typeof window === 'undefined') {
+      return;
+    }
+    const handler = (event: TouchEvent) => {
+      if (!active) {
+        return;
+      }
+      if (event.touches.length === 0) {
+        return;
+      }
+      try {
+        event.preventDefault();
+      } catch (error) {
+        console.debug('[BridgeChild] touch gesture preventDefault failed', error);
+      }
+    };
+    window.addEventListener('touchmove', handler, { passive: false, capture: true });
+    window.addEventListener('touchstart', handler, { passive: false, capture: true });
+    touchMoveGuardRef = handler;
+  };
+
+  const removeTouchMoveGuard = () => {
+    if (!touchMoveGuardRef || typeof window === 'undefined') {
+      return;
+    }
+    window.removeEventListener('touchmove', touchMoveGuardRef, true);
+    window.removeEventListener('touchstart', touchMoveGuardRef, true);
+    touchMoveGuardRef = null;
+  };
+
+  const resetPointerTracking = () => {
+    if (activePointerCaptureTarget && activePointerId !== null && typeof (activePointerCaptureTarget as any).releasePointerCapture === 'function') {
+      try {
+        (activePointerCaptureTarget as any).releasePointerCapture(activePointerId);
+      } catch (error) {
+        console.warn('[BridgeChild] Failed to release pointer capture', error);
+      }
+    }
+    activePointerCaptureTarget = null;
+    activePointerId = null;
+    restoreTouchAction();
+    restoreScrollLock();
+  };
+
+  const isOverlayElement = (node: EventTarget | null | undefined): boolean => {
+    if (!node || !(node instanceof Element)) {
+      return false;
+    }
+    return node.hasAttribute('data-bridge-inspector-overlay');
+  };
+
+  const findInspectableElement = (target: EventTarget | null | undefined): Element | null => {
+    if (!target) {
+      return null;
+    }
+    if (target instanceof Element && !isOverlayElement(target)) {
+      return target;
+    }
+    if (typeof (target as any)?.composedPath === 'function') {
+      const path = (target as any).composedPath() as EventTarget[];
+      for (const entry of path) {
+        if (entry instanceof Element && !isOverlayElement(entry)) {
+          return entry;
+        }
+      }
+    }
+    return null;
+  };
+
+  const resolveElementFromPoint = (clientX: number, clientY: number): Element | null => {
+    if (typeof document.elementFromPoint !== 'function') {
+      return null;
+    }
+    const candidate = document.elementFromPoint(clientX, clientY);
+    if (!candidate || !(candidate instanceof Element)) {
+      return null;
+    }
+    if (!isOverlayElement(candidate)) {
+      return candidate;
+    }
+    let parent: Element | null = candidate.parentElement;
+    while (parent) {
+      if (!isOverlayElement(parent)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  };
+
+  const shouldDisableScrollForInspect = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0) {
+        return true;
+      }
+      if (typeof window.matchMedia === 'function') {
+        const mediaQuery = window.matchMedia('(pointer: coarse)');
+        if (mediaQuery?.matches) {
+          return true;
+        }
+      }
+    } catch (error) {
+      console.debug('[BridgeChild] Unable to evaluate pointer characteristics', error);
+    }
+    return false;
+  };
+
+  const ensureOverlayAttachment = () => {
+    ensureOverlayNodes();
+    if (overlay && !overlay.parentElement) {
+      document.body.appendChild(overlay);
+    }
+    if (labelNode && !labelNode.parentElement) {
+      document.body.appendChild(labelNode);
+    }
+  };
+
+  const clampSelectedAncestorIndex = (index: number): number => {
+    if (lastHoverStack.length === 0) {
+      return 0;
+    }
+    return Math.min(Math.max(index, 0), lastHoverStack.length - 1);
+  };
+
+  const buildHoverPayloadFromSelection = (pointerType?: string): BridgeInspectHoverPayload | null => {
+    if (lastHoverStack.length === 0) {
+      return null;
+    }
+    selectedAncestorIndex = clampSelectedAncestorIndex(selectedAncestorIndex);
+    const target = lastHoverStack[selectedAncestorIndex];
+    const ancestors = lastHoverStack.map(entry => entry.meta);
+    return {
+      rect: target.rect,
+      documentRect: target.documentRect,
+      meta: target.meta,
+      pointerType,
+      ancestors,
+      selectedAncestorIndex,
+    };
+  };
+
+  const positionOverlay = (payload: BridgeInspectHoverPayload) => {
+    if (!overlay || !labelNode) {
+      return;
+    }
+
+    overlay.style.display = 'block';
+    overlay.style.left = `${Math.round(payload.rect.x)}px`;
+    overlay.style.top = `${Math.round(payload.rect.y)}px`;
+    overlay.style.width = `${Math.max(1, Math.round(payload.rect.width))}px`;
+    overlay.style.height = `${Math.max(1, Math.round(payload.rect.height))}px`;
+
+    labelNode.textContent = payload.meta.label ?? payload.meta.selector ?? payload.meta.tag;
+    labelNode.style.display = 'block';
+    const margin = 8;
+    let labelLeft = payload.rect.x;
+    let labelTop = payload.rect.y - (labelNode.offsetHeight || 0) - margin;
+
+    if (labelTop < margin) {
+      labelTop = payload.rect.y + payload.rect.height + margin;
+    }
+    if (labelTop + (labelNode.offsetHeight || 0) > window.innerHeight - margin) {
+      labelTop = Math.max(margin, window.innerHeight - (labelNode.offsetHeight || 0) - margin);
+    }
+
+    if (labelNode.offsetWidth > window.innerWidth) {
+      labelNode.style.maxWidth = `${window.innerWidth - margin * 2}px`;
+    }
+
+    const overflowRight = labelLeft + (labelNode.offsetWidth || 0) - (window.innerWidth - margin);
+    if (overflowRight > 0) {
+      labelLeft = Math.max(margin, labelLeft - overflowRight);
+    }
+
+    if (labelLeft < margin) {
+      labelLeft = margin;
+    }
+
+    labelNode.style.left = `${Math.round(labelLeft)}px`;
+    labelNode.style.top = `${Math.round(labelTop)}px`;
+  };
+
+  const emitHover = (payload: BridgeInspectHoverPayload) => {
+    post({ v: 1, t: 'INSPECT_HOVER', payload });
+  };
+
+  const emitCancel = () => {
+    post({ v: 1, t: 'INSPECT_CANCEL' });
+  };
+
+  const emitState = (next: boolean, reason?: InspectStopReason | 'start') => {
+    post({ v: 1, t: 'INSPECT_STATE', active: next, reason });
+  };
+
+  const emitResult = (payload: BridgeInspectResultPayload) => {
+    post({ v: 1, t: 'INSPECT_RESULT', payload });
+  };
+
+  const emitHoverFromSelection = (pointerType?: string) => {
+    const pointerValue = typeof pointerType !== 'undefined' ? pointerType : lastPointerType;
+    const payload = buildHoverPayloadFromSelection(pointerValue);
+    if (!payload) {
+      hideOverlay();
+      lastHoverElement = null;
+      lastRect = null;
+      return;
+    }
+
+    const rectChanged = !lastRect
+      || Math.abs(payload.rect.x - (lastRect?.x ?? 0)) > 0.5
+      || Math.abs(payload.rect.y - (lastRect?.y ?? 0)) > 0.5
+      || Math.abs(payload.rect.width - (lastRect?.width ?? 0)) > 0.5
+      || Math.abs(payload.rect.height - (lastRect?.height ?? 0)) > 0.5;
+    const nextElement = lastHoverStack[selectedAncestorIndex]?.element ?? null;
+    const elementChanged = nextElement !== lastHoverElement;
+    const pointerChanged = typeof pointerType !== 'undefined' && pointerType !== lastPointerType;
+
+    if (!rectChanged && !elementChanged && !pointerChanged) {
+      return;
+    }
+
+    ensureOverlayAttachment();
+    positionOverlay(payload);
+    emitHover(payload);
+
+    lastHoverElement = nextElement;
+    lastRect = payload.rect;
+    lastPointerType = pointerValue;
+  };
+
+  const setSelectedAncestor = (index: number, pointerType?: string) => {
+    if (lastHoverStack.length === 0) {
+      return;
+    }
+    const clamped = clampSelectedAncestorIndex(index);
+    if (clamped === selectedAncestorIndex && lastHoverElement === lastHoverStack[clamped]?.element) {
+      return;
+    }
+    selectedAncestorIndex = clamped;
+    emitHoverFromSelection(pointerType);
+  };
+
+  const shiftSelectedAncestor = (delta: number, pointerType?: string) => {
+    if (!Number.isFinite(delta) || delta === 0) {
+      return;
+    }
+    setSelectedAncestor(selectedAncestorIndex + delta, pointerType);
+  };
+
+  const updateHover = (element: Element, pointerType?: string) => {
+    const stack = collectElementAncestry(element);
+    if (stack.length === 0) {
+      hideOverlay();
+      lastHoverStack = [];
+      lastHoverElement = null;
+      lastRect = null;
+      lastPointerType = pointerType ?? lastPointerType;
+      return;
+    }
+
+    const previousBase = lastHoverStack.length > 0 ? lastHoverStack[0]?.element ?? null : null;
+    lastHoverStack = stack;
+    if (!previousBase || previousBase !== stack[0]?.element) {
+      selectedAncestorIndex = 0;
+    } else {
+      selectedAncestorIndex = clampSelectedAncestorIndex(selectedAncestorIndex);
+    }
+
+    emitHoverFromSelection(pointerType);
+  };
+
+  const resetHover = () => {
+    hideOverlay();
+    lastHoverElement = null;
+    lastRect = null;
+    lastPointerType = undefined;
+    lastHoverStack = [];
+    selectedAncestorIndex = 0;
+  };
+
+  const finalizeSelection = (method: 'pointer' | 'keyboard') => {
+    const payload = buildHoverPayloadFromSelection(lastPointerType);
+    if (!payload) {
+      return;
+    }
+    emitResult({ ...payload, method });
+    stop('complete');
+  };
+
+  const isCoarsePointer = (pointerType: string | undefined) => {
+    return pointerType === 'touch' || pointerType === 'pen';
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!active) {
+      return;
+    }
+
+    if (isCoarsePointer(event.pointerType)) {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      if (activePointerId === null) {
+        // Ignore passive touch moves until we have an active touch pointer.
+        return;
+      }
+    }
+
+    let element: Element | null = null;
+    if (isCoarsePointer(event.pointerType)) {
+      element = resolveElementFromPoint(event.clientX, event.clientY);
+    }
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+    }
+    if (!element) {
+      resetHover();
+      return;
+    }
+    updateHover(element, event.pointerType);
+  };
+
+  const handlePointerDown = (event: PointerEvent) => {
+    if (!active) {
+      return;
+    }
+    const coarse = isCoarsePointer(event.pointerType);
+    let element: Element | null = null;
+    if (coarse) {
+      element = resolveElementFromPoint(event.clientX, event.clientY);
+    }
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? null);
+    }
+    if (!element) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof (event as any).stopImmediatePropagation === 'function') {
+      (event as any).stopImmediatePropagation();
+    }
+    if (coarse) {
+      if (activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+      updateHover(element, event.pointerType);
+      activePointerId = event.pointerId;
+      applyTouchAction();
+      let captureTarget: Element | null = null;
+      const candidateTargets: Array<Element | null> = [element, event.target instanceof Element ? event.target : null];
+      for (const candidate of candidateTargets) {
+        if (candidate && typeof (candidate as any).setPointerCapture === 'function') {
+          captureTarget = candidate;
+          break;
+        }
+      }
+      if (captureTarget) {
+        try {
+          (captureTarget as any).setPointerCapture(event.pointerId);
+          activePointerCaptureTarget = captureTarget;
+        } catch (error) {
+          console.warn('[BridgeChild] Failed to set pointer capture', error);
+          activePointerCaptureTarget = null;
+        }
+      } else {
+        activePointerCaptureTarget = null;
+      }
+      return;
+    }
+
+    updateHover(element, event.pointerType);
+    finalizeSelection('pointer');
+  };
+
+  const handlePointerUp = (event: PointerEvent) => {
+    if (!active || !isCoarsePointer(event.pointerType)) {
+      return;
+    }
+    if (activePointerId === null || event.pointerId !== activePointerId) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof (event as any).stopImmediatePropagation === 'function') {
+      (event as any).stopImmediatePropagation();
+    }
+
+    let element = resolveElementFromPoint(event.clientX, event.clientY);
+    if (!element) {
+      element = findInspectableElement(event.target ?? event.currentTarget ?? lastHoverElement);
+    }
+    if (element) {
+      updateHover(element, event.pointerType);
+      finalizeSelection('pointer');
+      return;
+    }
+
+    emitCancel();
+    stop('cancel');
+  };
+
+  const handlePointerCancel = (event: PointerEvent) => {
+    if (!active) {
+      return;
+    }
+    if (activePointerId === null || event.pointerId !== activePointerId) {
+      return;
+    }
+    emitCancel();
+    stop('cancel');
+  };
+
+  const handleClick = (event: MouseEvent) => {
+    if (!active) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof (event as any).stopImmediatePropagation === 'function') {
+      (event as any).stopImmediatePropagation();
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (!active) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      emitCancel();
+      stop('cancel');
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      finalizeSelection('keyboard');
+    }
+  };
+
+  const handleScrollOrResize = () => {
+    if (!active || !lastHoverElement) {
+      return;
+    }
+    updateHover(lastHoverElement, lastPointerType);
+  };
+
+  const start = () => {
+    if (active) {
+      return true;
+    }
+    if (!document.body) {
+      return false;
+    }
+    active = true;
+    activePointerId = null;
+    activePointerCaptureTarget = null;
+    if (shouldDisableScrollForInspect()) {
+      applyTouchAction();
+      applyScrollLock();
+      installTouchMoveGuard();
+    }
+    resetHover();
+    ensureOverlayNodes();
+    if (overlay && !overlay.parentElement) {
+      document.body.appendChild(overlay);
+    }
+    if (labelNode && !labelNode.parentElement) {
+      document.body.appendChild(labelNode);
+    }
+    applyCursor();
+    window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('pointerup', handlePointerUp, true);
+    window.addEventListener('pointercancel', handlePointerCancel, true);
+    window.addEventListener('click', handleClick, true);
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize, true);
+    emitState(true, 'start');
+    return true;
+  };
+
+  const stop = (reason: InspectStopReason = 'stop') => {
+    if (!active) {
+      return;
+    }
+    active = false;
+    window.removeEventListener('pointermove', handlePointerMove, true);
+    window.removeEventListener('pointerdown', handlePointerDown, true);
+    window.removeEventListener('pointerup', handlePointerUp, true);
+    window.removeEventListener('pointercancel', handlePointerCancel, true);
+    window.removeEventListener('click', handleClick, true);
+    window.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('scroll', handleScrollOrResize, true);
+    window.removeEventListener('resize', handleScrollOrResize, true);
+    restoreCursor();
+    resetPointerTracking();
+    resetHover();
+    removeOverlayNodes();
+    removeTouchMoveGuard();
+    emitState(false, reason);
+  };
+
+  const dispose = () => {
+    stop('stop');
+    removeOverlayNodes();
+  };
+
+  return {
+    supported: true,
+    start,
+    stop,
+    dispose,
+    isActive: () => active,
+    setTargetIndex: (index: number) => {
+      if (!active) {
+        return;
+      }
+      setSelectedAncestor(index);
+    },
+    shiftTarget: (delta: number) => {
+      if (!active) {
+        return;
+      }
+      shiftSelectedAncestor(delta);
+    },
   };
 };
 
@@ -840,6 +2161,10 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     };
   }
 
+  // Shim localStorage/sessionStorage if blocked (e.g., in sandboxed iframes).
+  // Must run before any app code tries to access storage.
+  shimStorage();
+
   if (window.parent === window) {
     return {
       notify: () => undefined,
@@ -865,6 +2190,11 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     }
   };
 
+  const inspectController = createInspectController(post);
+  if (inspectController.supported) {
+    caps.push('inspect');
+  }
+
   const logCapture = setupLogCapture(post, normalizeLogOptions(options.captureLogs));
   if (logCapture?.supported) {
     caps.push('logs');
@@ -879,6 +2209,37 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     const payload = buildLocationPayload();
     post(payload);
     options.onNav?.(payload.href);
+  };
+
+  const handleSpaHooksDiagnostic = (payload: { id: string; token?: string }) => {
+    const originalHref = window.location.href;
+    const originalState = history.state;
+    const hashSuffix = typeof payload.token === 'string' && payload.token.length > 0
+      ? payload.token
+      : `bridge-diag-${Date.now().toString(16)}`;
+    const diagHash = hashSuffix.startsWith('#') ? hashSuffix : `#${hashSuffix}`;
+
+    try {
+      const diagUrl = new URL(originalHref);
+      diagUrl.hash = diagHash;
+      history.replaceState(originalState ?? {}, '', diagUrl.href);
+      history.replaceState(originalState ?? {}, '', originalHref);
+      post({ v: 1, t: 'DIAG_RESULT', kind: 'SPA_HOOKS', id: payload.id, ok: true });
+    } catch (error) {
+      try {
+        history.replaceState(originalState ?? {}, '', originalHref);
+      } catch (restoreError) {
+        console.warn('[BridgeChild] Failed to restore history during diagnostic', restoreError);
+      }
+      post({
+        v: 1,
+        t: 'DIAG_RESULT',
+        kind: 'SPA_HOOKS',
+        id: payload.id,
+        ok: false,
+        error: (error as Error)?.message ?? String(error),
+      });
+    }
   };
 
   const handleMessage = (event: MessageEvent) => {
@@ -916,8 +2277,31 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
       return;
     }
 
+    if (message.t === 'DIAG') {
+      if (message.kind === 'SPA_HOOKS' && typeof message.id === 'string') {
+        handleSpaHooksDiagnostic({ id: message.id, token: typeof message.token === 'string' ? message.token : undefined });
+      }
+      return;
+    }
+
     if (message.t === 'PING' && typeof message.ts === 'number') {
       post({ v: 1, t: 'PONG', ts: message.ts });
+      return;
+    }
+
+    if (message.t === 'INSPECT' && inspectController.supported) {
+      if (message.cmd === 'START') {
+        const started = inspectController.start();
+        if (!started) {
+          post({ v: 1, t: 'INSPECT_ERROR', error: 'UNAVAILABLE' });
+        }
+      } else if (message.cmd === 'STOP') {
+        inspectController.stop('stop');
+      } else if (message.cmd === 'SET_TARGET' && typeof message.index === 'number') {
+        inspectController.setTargetIndex(message.index);
+      } else if (message.cmd === 'SHIFT_TARGET' && typeof message.delta === 'number') {
+        inspectController.shiftTarget(message.delta);
+      }
       return;
     }
 
@@ -931,25 +2315,140 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
           const scale = typeof requestOptions.scale === 'number' && Number.isFinite(requestOptions.scale) && requestOptions.scale > 0
             ? requestOptions.scale
             : window.devicePixelRatio || 1;
+          const selector = typeof requestOptions.selector === 'string' ? requestOptions.selector.trim() : '';
+          const element = selector ? findElementForSelector(selector) : null;
+          const backgroundColorOption = normalizeBackgroundColorOption(requestOptions.backgroundColor);
+          const inferredBackground = backgroundColorOption !== undefined
+            ? backgroundColorOption
+            : resolveBackgroundColorForHierarchy(element);
+          let requestedClip = sanitizeClipRect(requestOptions.clip ?? null);
+          const canCaptureElement = Boolean(element) && requestOptions.mode !== 'full-page';
+          if (canCaptureElement && element && typeof element.getBoundingClientRect === 'function') {
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              try {
+                const elementCanvas = await html2canvas(element, {
+                  scale,
+                  logging: false,
+                  useCORS: true,
+                  backgroundColor: inferredBackground ?? null,
+                });
+                const elementDataUrl = elementCanvas.toDataURL('image/png');
+                const elementBase64 = elementDataUrl.replace(/^data:image\/png;base64,/, '');
+                const clipRect: Rect = {
+                  x: rect.x + window.scrollX,
+                  y: rect.y + window.scrollY,
+                  width: rect.width,
+                  height: rect.height,
+                };
+                post({
+                  v: 1,
+                  t: 'SCREENSHOT_RESULT',
+                  id: message.id,
+                  ok: true,
+                  data: elementBase64,
+                  width: elementCanvas.width,
+                  height: elementCanvas.height,
+                  note: 'Captured selected element region.',
+                  mode: 'clip',
+                  clip: clipRect,
+                });
+                return;
+              } catch (error) {
+                console.warn('[BridgeChild] Element screenshot capture failed; falling back to clip capture', error);
+              }
+            }
+          }
+          if (!requestedClip && element && typeof element.getBoundingClientRect === 'function') {
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              requestedClip = {
+                x: rect.x + window.scrollX,
+                y: rect.y + window.scrollY,
+                width: rect.width,
+                height: rect.height,
+              };
+            }
+          }
           let captureMode: BridgeScreenshotMode = requestOptions.mode === 'full-page' ? 'full-page' : 'viewport';
           const target = document.documentElement as HTMLElement;
           const captureOptions: Record<string, unknown> = {
             scale,
             logging: false,
             useCORS: true,
+            backgroundColor: inferredBackground ?? null,
           };
 
+          const currentViewport = getViewportRect();
+          const viewportWidth = Math.max(1, Math.round(currentViewport.width));
+          const viewportHeight = Math.max(1, Math.round(currentViewport.height));
+          const docWidth = Math.max(
+            document.documentElement?.scrollWidth ?? 0,
+            document.body?.scrollWidth ?? 0,
+            viewportWidth,
+          );
+          const docHeight = Math.max(
+            document.documentElement?.scrollHeight ?? 0,
+            document.body?.scrollHeight ?? 0,
+            viewportHeight,
+          );
+
           let viewportRect: Rect | null = null;
-          if (captureMode === 'viewport') {
-            viewportRect = getViewportRect();
-            captureOptions.scrollX = viewportRect.x;
-            captureOptions.scrollY = viewportRect.y;
-            captureOptions.windowWidth = viewportRect.width;
-            captureOptions.windowHeight = viewportRect.height;
-            captureOptions.x = viewportRect.x;
-            captureOptions.y = viewportRect.y;
-            captureOptions.width = viewportRect.width;
-            captureOptions.height = viewportRect.height;
+          let cropContext: {
+            offsetX: number;
+            offsetY: number;
+            width: number;
+            height: number;
+            scrollX: number;
+            scrollY: number;
+          } | null = null;
+
+          if (requestedClip) {
+            captureMode = 'clip';
+            const maxScrollX = Math.max(0, docWidth - viewportWidth);
+            const maxScrollY = Math.max(0, docHeight - viewportHeight);
+            const desiredScrollX = requestedClip.x + requestedClip.width - viewportWidth;
+            const desiredScrollY = requestedClip.y + requestedClip.height - viewportHeight;
+            const scrollX = clampNumber(desiredScrollX, 0, maxScrollX);
+            const scrollY = clampNumber(desiredScrollY, 0, maxScrollY);
+            const offsetX = Math.max(0, requestedClip.x - scrollX);
+            const offsetY = Math.max(0, requestedClip.y - scrollY);
+            const visibleWidth = Math.min(
+              Math.max(1, Math.round(requestedClip.width)),
+              Math.max(1, viewportWidth - offsetX),
+            );
+            const visibleHeight = Math.min(
+              Math.max(1, Math.round(requestedClip.height)),
+              Math.max(1, viewportHeight - offsetY),
+            );
+
+            cropContext = {
+              offsetX,
+              offsetY,
+              width: visibleWidth,
+              height: visibleHeight,
+              scrollX,
+              scrollY,
+            };
+
+            captureOptions.scrollX = scrollX;
+            captureOptions.scrollY = scrollY;
+            captureOptions.windowWidth = viewportWidth;
+            captureOptions.windowHeight = viewportHeight;
+            captureOptions.x = 0;
+            captureOptions.y = 0;
+            captureOptions.width = viewportWidth;
+            captureOptions.height = viewportHeight;
+          } else if (captureMode === 'viewport') {
+            viewportRect = currentViewport;
+            captureOptions.scrollX = currentViewport.x;
+            captureOptions.scrollY = currentViewport.y;
+            captureOptions.windowWidth = viewportWidth;
+            captureOptions.windowHeight = viewportHeight;
+            captureOptions.x = 0;
+            captureOptions.y = 0;
+            captureOptions.width = viewportWidth;
+            captureOptions.height = viewportHeight;
           }
 
           const canvas = await html2canvas(target, captureOptions);
@@ -958,10 +2457,40 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
           let note: string | undefined;
           let clipMetadata: Rect | undefined;
 
-          if (captureMode === 'viewport') {
-            const effectiveViewport = viewportRect ?? getViewportRect();
-            const scaledClip = scaleRect(effectiveViewport, scale);
+          if (captureMode === 'clip' && requestedClip) {
+            const fallbackScrollX = typeof captureOptions.scrollX === 'number' ? captureOptions.scrollX : 0;
+            const fallbackScrollY = typeof captureOptions.scrollY === 'number' ? captureOptions.scrollY : 0;
+            const context = cropContext ?? {
+              offsetX: Math.max(0, requestedClip.x - fallbackScrollX),
+              offsetY: Math.max(0, requestedClip.y - fallbackScrollY),
+              width: Math.max(1, Math.round(requestedClip.width)),
+              height: Math.max(1, Math.round(requestedClip.height)),
+              scrollX: fallbackScrollX,
+              scrollY: fallbackScrollY,
+            };
+
+            const relativeClip: Rect = {
+              x: context.offsetX,
+              y: context.offsetY,
+              width: Math.max(1, context.width),
+              height: Math.max(1, context.height),
+            };
+            const scaledClip = scaleRect(relativeClip, scale);
             const clampedClip = clampClipToCanvas(scaledClip, canvas.width, canvas.height);
+
+            clipMetadata = {
+              x: requestedClip.x,
+              y: requestedClip.y,
+              width: relativeClip.width,
+              height: relativeClip.height,
+            };
+
+            const clippedPartially =
+              Math.round(relativeClip.width) < Math.round(requestedClip.width)
+              || Math.round(relativeClip.height) < Math.round(requestedClip.height);
+            note = clippedPartially
+              ? 'Captured the visible portion of the selected region.'
+              : 'Captured selected element region.';
 
             if (clampedClip) {
               const requiresCrop =
@@ -970,20 +2499,13 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
                 || clampedClip.width !== canvas.width
                 || clampedClip.height !== canvas.height;
 
-              clipMetadata = {
-                x: clampedClip.x / scale,
-                y: clampedClip.y / scale,
-                width: clampedClip.width / scale,
-                height: clampedClip.height / scale,
-              };
-
               if (requiresCrop) {
-                const viewportCanvas = document.createElement('canvas');
-                viewportCanvas.width = clampedClip.width;
-                viewportCanvas.height = clampedClip.height;
-                const context = viewportCanvas.getContext('2d');
-                if (context) {
-                  context.drawImage(
+                const clipCanvas = document.createElement('canvas');
+                clipCanvas.width = clampedClip.width;
+                clipCanvas.height = clampedClip.height;
+                const context2d = clipCanvas.getContext('2d');
+                if (context2d) {
+                  context2d.drawImage(
                     canvas,
                     clampedClip.x,
                     clampedClip.y,
@@ -994,16 +2516,23 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
                     clampedClip.width,
                     clampedClip.height,
                   );
-                  resultCanvas = viewportCanvas;
-                  note = 'Captured the currently visible viewport.';
+                  resultCanvas = clipCanvas;
                 }
-              } else {
-                note = 'Captured the currently visible viewport.';
               }
             } else {
-              note = 'Unable to determine viewport bounds; captured the full page instead.';
+              clipMetadata = undefined;
               captureMode = 'full-page';
+              note = 'Unable to capture requested clip; captured the full page instead.';
             }
+          } else if (captureMode === 'viewport') {
+            const effectiveViewport = viewportRect ?? currentViewport;
+            clipMetadata = {
+              x: effectiveViewport.x,
+              y: effectiveViewport.y,
+              width: effectiveViewport.width,
+              height: effectiveViewport.height,
+            };
+            note = 'Captured the currently visible viewport.';
           }
 
           const dataUrl = resultCanvas.toDataURL('image/png');
@@ -1126,6 +2655,9 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
       window.__vrooliBridgeChildInstalled = false;
       logCapture?.dispose();
       networkCapture?.dispose();
+      if (inspectController.supported) {
+        inspectController.dispose();
+      }
     },
   };
 }

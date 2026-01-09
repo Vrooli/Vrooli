@@ -136,7 +136,7 @@ func validateInput(value string) error {
 	return nil
 }
 
-func formatMessage(template string, args ...interface{}) string {
+func formatMessage(template string, args ...any) string {
 	return fmt.Sprintf(template, args...)
 }
   </input>

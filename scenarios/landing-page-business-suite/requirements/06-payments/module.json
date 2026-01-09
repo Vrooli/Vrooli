@@ -1,0 +1,249 @@
+{
+  "module_id": "payments",
+  "title": "Payments & Stripe Integration",
+  "priority": "P0",
+  "description": "Stripe checkout sessions and webhook handling",
+  "requirements": [
+    {
+      "id": "STRIPE-CONFIG",
+      "title": "Stripe environment config",
+      "prd_ref": "OT-P0-025",
+      "description": "Each landing page includes Stripe keys from environment variables",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go (env var enforcement)"
+        }
+      ],
+      "status": "complete",
+      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET enforced in stripe_service.go constructor."
+    },
+    {
+      "id": "STRIPE-ROUTES",
+      "title": "Stripe routes",
+      "prd_ref": "OT-P0-025",
+      "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "STRIPE-CONFIG"
+      ],
+      "notes": "Routes: POST /api/checkout/create, POST /api/webhooks/stripe - implemented with handlers and endpoints"
+    },
+    {
+      "id": "STRIPE-SIG",
+      "title": "Webhook signature verification",
+      "prd_ref": "OT-P0-025",
+      "description": "All webhook endpoints verify Stripe signature before processing",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "STRIPE-ROUTES"
+      ],
+      "notes": "HMAC-SHA256 signature verification implemented with proper timing attack protection"
+    },
+    {
+      "id": "SUB-VERIFY",
+      "title": "Subscription verification endpoint",
+      "prd_ref": "OT-P0-028",
+      "description": "Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go & api/stripe_service.go"
+        }
+      ],
+      "status": "complete",
+      "notes": "GET /api/subscription/verify endpoint implemented with user identity lookup (email or customer ID)"
+    },
+    {
+      "id": "SUB-CACHE",
+      "title": "Verification caching",
+      "prd_ref": "OT-P0-028",
+      "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/stripe_service.go (cache age check)"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "Cache metadata (cached_at, cache_age_ms) included in response. Warning logged if cache > 60s old"
+    },
+    {
+      "id": "SUB-CANCEL",
+      "title": "Subscription cancellation endpoint",
+      "prd_ref": "OT-P0-028",
+      "description": "API exposes POST /api/subscription/cancel validating user and returning status",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/stripe_service.go & api/stripe_handlers.go"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "POST /api/subscription/cancel endpoint implemented with user validation and status update"
+    },
+    {
+      "id": "SUB-PLANS",
+      "title": "Plan listing & checkout orchestration",
+      "prd_ref": "OT-P0-032",
+      "description": "Parse Stripe product/price metadata (tiers, intro pricing, billing_interval, plan_rank, bundle_key) and expose GET /api/v1/plans plus POST /api/v1/billing/create-checkout-session|create-credits-checkout-session and GET /api/v1/billing/portal-url that respect $1 intro month rules, weights, and deterministic slugs.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/plan_service_test.go",
+          "notes": "PlanService tests validate monthly/yearly tier ordering and lookup by Stripe price."
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/plan_service.go",
+          "notes": "PlanService loads bundle metadata, sorts tiers, and exposes lookups used by /plans."
+        }
+      ],
+      "status": "complete",
+      "notes": "Spec: Template PRD `OT-P0-032`. Backend displays the default bundle pricing with intro metadata."
+    },
+    {
+      "id": "SUB-CREDITS",
+      "title": "Credits + pricing display",
+      "prd_ref": "OT-P0-033",
+      "description": "Expose GET /api/v1/me/subscription and GET /api/v1/me/credits that convert internal credits_per_usd to display_credits_multiplier/label, include included credits + bonuses per plan, and surface upgrade CTAs for logged-in visitors.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/account_service_entitlements_test.go",
+          "notes": "AccountService credits test confirms bundle multipliers and labels are surfaced."
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/account_service.go",
+          "notes": "AccountService reads bundle metadata and exposes credits via /me/credits."
+        }
+      ],
+      "status": "complete",
+      "notes": "Spec: Template PRD `OT-P0-033`. Pricing UI now relies on account endpoints for credits."
+    },
+    {
+      "id": "SUB-ENTITLEMENTS",
+      "title": "Bundled app entitlement API",
+      "prd_ref": "OT-P0-033",
+      "description": "Provide GET /api/v1/entitlements returning plan tier, feature flags, and credit metrics for bundled apps. Responses must cache briefly (≤60s) and support offline degradation with short-lived storage for the bundled clients.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/account_service_entitlements_test.go",
+          "notes": "Entitlements test ensures features/credits/subscription status reflect bundle metadata."
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/account_service.go",
+          "notes": "AccountService exposes entitlements with cached subscription lookups and metadata."
+        }
+      ],
+      "status": "complete",
+      "notes": "Spec: Template PRD `OT-P0-033`. Bundled apps can rely on /entitlements and card data."
+    },
+    {
+      "id": "DOWNLOAD-GATE",
+      "title": "Download gating + analytics",
+      "prd_ref": "OT-P0-034",
+      "description": "Landing config includes download sections that expose platform installers + release notes sourced from S3 (or equivalent) but keep buttons disabled until the entitlement API confirms an active subscription; download attempts emit variant_id + plan metadata for analytics.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/download_authorizer_test.go",
+          "notes": "DownloadAuthorizer tests ensure entitlement-gated assets require an active subscription."
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/download_service.go",
+          "notes": "Download service exposes metadata + gating helpers consumed by the UI download section."
+        }
+      ],
+      "status": "complete",
+      "notes": "Spec: Template PRD `OT-P0-034`. DownloadSection + API now respect entitlement responses."
+    }
+  ],
+  "_metadata": {}
+}

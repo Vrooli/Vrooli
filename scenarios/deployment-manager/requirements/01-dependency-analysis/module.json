@@ -1,0 +1,135 @@
+{
+  "module_id": "dependency-analysis",
+  "title": "Dependency Analysis & Fitness Scoring",
+  "priority": "P0",
+  "description": "Recursively analyze dependencies, calculate fitness scores, and identify blockers for multi-tier deployments",
+  "requirements": [
+    {
+      "id": "DM-P0-001",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-001",
+      "title": "Dependency Aggregation",
+      "description": "Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds",
+      "status": "complete",
+      "tags": [
+        "dependency-analysis",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-001] tags"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-002",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-002",
+      "title": "Circular Dependency Detection",
+      "description": "Display clear error when circular dependencies detected (A → B → C → A)",
+      "status": "complete",
+      "tags": [
+        "dependency-analysis",
+        "error-handling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-002] tags"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-003",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-003",
+      "title": "Multi-Tier Fitness Scoring",
+      "description": "Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency",
+      "status": "complete",
+      "tags": [
+        "fitness-scoring",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-003] tags"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-004",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-004",
+      "title": "Fitness Score Breakdown",
+      "description": "Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support",
+      "status": "complete",
+      "tags": [
+        "fitness-scoring",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-004] tags"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-005",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-005",
+      "title": "Blocker Identification",
+      "description": "Clearly state reason for blockers (fitness = 0) with actionable remediation",
+      "status": "complete",
+      "tags": [
+        "fitness-scoring",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-005] tags"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-006",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-006",
+      "title": "Aggregate Resource Tallies",
+      "description": "Display total memory, CPU, GPU, storage, network requirements with units",
+      "status": "complete",
+      "tags": [
+        "resource-analysis",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "test/cli/dependency-analysis.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-006] tags"
+        }
+      ]
+    }
+  ],
+  "_metadata": {}
+}

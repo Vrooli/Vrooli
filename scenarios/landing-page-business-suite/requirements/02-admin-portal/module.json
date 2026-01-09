@@ -1,0 +1,130 @@
+{
+  "module_id": "admin-portal",
+  "title": "Admin Portal Core",
+  "priority": "P0",
+  "description": "Secure admin portal for managing landing page content, A/B variants, and analytics",
+  "requirements": [
+    {
+      "id": "AGENT-TRIGGER",
+      "title": "Agent integration trigger",
+      "prd_ref": "OT-P0-005",
+      "description": "Expose customization trigger in generated landing so the factory can initiate agent runs (factory calls into template endpoint)",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "business",
+          "status": "planned",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "notes": "API endpoint exists in factory/customize, but payload lacks BAS playbook in React Flow format. Placeholder path reserved under test/playbooks/."
+    },
+    {
+      "id": "AGENT-INPUT",
+      "title": "Structured agent input",
+      "prd_ref": "OT-P0-006",
+      "description": "Agent receives structured brief (text + assets + goals) and is constrained to template-defined APIs/files only; factory remains read-only",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "business",
+          "status": "planned",
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+        }
+      ],
+      "status": "in_progress",
+      "dependencies": [
+        "AGENT-TRIGGER"
+      ],
+      "notes": "Needs scoped APIs + playbook to validate agent touchpoints; no automation yet."
+    },
+    {
+      "id": "ADMIN-HIDDEN",
+      "title": "Security by obscurity",
+      "prd_ref": "OT-P0-007",
+      "description": "Admin portal not linked from any public page or sitemap",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "ui/src/pages/PublicHome.tsx (no admin links) & ui/src/App.tsx (admin routes protected)"
+        }
+      ],
+      "status": "complete",
+      "notes": "Admin portal routes are protected and not linked from the public landing; hidden link removed from public page."
+    },
+    {
+      "id": "ADMIN-AUTH",
+      "title": "Authentication",
+      "prd_ref": "OT-P0-008",
+      "description": "Admin portal protected by email/password with bcrypt/argon2 password hashing",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/contexts/AuthContext.test.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "bcrypt auth implemented in api/auth.go with session cookies; validated via AuthContext tests."
+    },
+    {
+      "id": "ADMIN-MODES",
+      "title": "Admin home modes",
+      "prd_ref": "OT-P0-009",
+      "description": "Admin home displays exactly two modes: Analytics / Metrics and Customization",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/pages/AdminHome.tsx (two mode cards only)"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "ADMIN-AUTH"
+      ],
+      "notes": "Two cards only (Analytics/Metrics, Customization) with navigation to respective routes."
+    },
+    {
+      "id": "ADMIN-NAV",
+      "title": "Navigation efficiency",
+      "prd_ref": "OT-P0-010",
+      "description": "Navigate to any customization card in ≤ 3 clicks from admin home",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/pages/AdminHome.tsx + ui/src/components/AdminLayout.tsx"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "ADMIN-MODES"
+      ],
+      "notes": "Mode cards link directly to analytics/customization; nav bar provides single-click access."
+    },
+    {
+      "id": "ADMIN-BREADCRUMB",
+      "title": "Breadcrumb navigation",
+      "prd_ref": "OT-P0-011",
+      "description": "All admin pages show breadcrumb indicating current location",
+      "validation": [
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/components/AdminLayout.tsx"
+        }
+      ],
+      "status": "complete",
+      "notes": "AdminLayout renders breadcrumb trail with dynamic segments for analytics/customization variants."
+    }
+  ],
+  "_metadata": {}
+}

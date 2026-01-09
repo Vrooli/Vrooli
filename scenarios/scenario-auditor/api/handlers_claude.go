@@ -62,7 +62,6 @@ func newPlanError(status int, message string, err error) *fixPlanError {
 }
 
 func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
-	logger := NewLogger()
 
 	var req claudeFixRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -108,7 +107,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":              true,
 		"message":              plan.Message,
 		"scenarios":            plan.Scenarios,
@@ -170,7 +169,7 @@ func previewClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompts := make([]map[string]interface{}, 0, len(plan.AgentEntries))
+	prompts := make([]map[string]any, 0, len(plan.AgentEntries))
 	for _, entry := range plan.AgentEntries {
 		scenarios := entry.ScenarioSet
 		if len(scenarios) == 0 && entry.Config.Metadata != nil {
@@ -178,7 +177,7 @@ func previewClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 				scenarios = strings.Split(raw, ",")
 			}
 		}
-		promptInfo := map[string]interface{}{
+		promptInfo := map[string]any{
 			"label":     entry.Config.Label,
 			"scenario":  entry.Config.Scenario,
 			"action":    entry.Config.Action,
@@ -194,7 +193,7 @@ func previewClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		prompts = append(prompts, promptInfo)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":              true,
 		"message":              plan.Message,
 		"prompts":              prompts,
@@ -563,7 +562,7 @@ func getClaudeFixStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 func writeAgentStatusResponse(w http.ResponseWriter, agent *AgentInfo) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"status":  agent.Status,
 		"agent":   agent,

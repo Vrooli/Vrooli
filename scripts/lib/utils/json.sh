@@ -34,6 +34,13 @@ source "${var_TRASH_FILE}"
 declare -g JSON_CONFIG_CACHE=""
 declare -g JSON_CONFIG_PATH=""
 declare -g JSON_DEBUG="${JSON_DEBUG:-false}"
+JSON_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JSON_RESOURCES_EXPR" ]] && JSON_RESOURCES_EXPR='(.dependencies.resources // {})'
+readonly JSON_RESOURCES_EXPR
+
+JSON_SCENARIO_DEPENDENCIES_EXPR="$var_JQ_SCENARIO_DEPENDENCIES_EXPR"
+[[ -z "$JSON_SCENARIO_DEPENDENCIES_EXPR" ]] && JSON_SCENARIO_DEPENDENCIES_EXPR='(.dependencies.scenarios // {})'
+readonly JSON_SCENARIO_DEPENDENCIES_EXPR
 
 ################################################################################
 # Core Configuration Loading Functions
@@ -156,7 +163,7 @@ json::load_service_config() {
 #######################################
 # Safely get a JSON value with fallback and validation
 # Arguments:
-#   $1 - JSON path (e.g., '.resources.storage.postgres.enabled')
+#   $1 - JSON path (e.g., '.dependencies.resources.postgres.enabled')
 #   $2 - Default value (optional, defaults to empty string)
 #   $3 - Config path (optional, uses loaded config if not provided)
 # Returns: The extracted value or default
@@ -233,6 +240,7 @@ json::path_exists() {
 json::get_enabled_resources() {
     local filter="${1:-}"
     local config_path="${2:-}"
+    local jq_resources="$JSON_RESOURCES_EXPR"
     
     if [[ -n "$config_path" ]] || [[ -z "$JSON_CONFIG_CACHE" ]]; then
         if ! json::load_service_config "$config_path"; then
@@ -243,10 +251,10 @@ json::get_enabled_resources() {
     local jq_filter
     if [[ -n "$filter" ]]; then
         # Get enabled resources matching the filter pattern
-        jq_filter=".resources | to_entries[] | select(.value.enabled == true and .key | contains(\"$filter\")) | .key"
+        jq_filter="${jq_resources} | to_entries[] | select(.value.enabled == true and .key | contains(\"$filter\")) | .key"
     else
         # Get all enabled resources in flattened structure
-        jq_filter='.resources | to_entries[] | select(.value.enabled == true) | .key'
+        jq_filter="${jq_resources} | to_entries[] | select(.value.enabled == true) | .key"
     fi
     
     echo "$JSON_CONFIG_CACHE" | jq -r "$jq_filter" 2>/dev/null | tr '\n' ' ' | xargs
@@ -262,6 +270,7 @@ json::get_enabled_resources() {
 json::get_required_resources() {
     local filter="${1:-}"
     local config_path="${2:-}"
+    local jq_resources="$JSON_RESOURCES_EXPR"
     
     if [[ -n "$config_path" ]] || [[ -z "$JSON_CONFIG_CACHE" ]]; then
         if ! json::load_service_config "$config_path"; then
@@ -272,10 +281,10 @@ json::get_required_resources() {
     local jq_filter
     if [[ -n "$filter" ]]; then
         # Get required resources matching the filter pattern
-        jq_filter=".resources | to_entries[] | select(.value.required == true and .key | contains(\"$filter\")) | .key"
+        jq_filter="${jq_resources} | to_entries[] | select(.value.required == true and .key | contains(\"$filter\")) | .key"
     else
         # Get all required resources in flattened structure
-        jq_filter='.resources | to_entries[] | select(.value.required == true) | .key'
+        jq_filter="${jq_resources} | to_entries[] | select(.value.required == true) | .key"
     fi
     
     echo "$JSON_CONFIG_CACHE" | jq -r "$jq_filter" 2>/dev/null | tr '\n' ' ' | xargs
@@ -303,7 +312,25 @@ json::get_resource_config() {
         fi
     fi
     
-    echo "$JSON_CONFIG_CACHE" | jq -c ".resources.${resource_name} // {}" 2>/dev/null
+    echo "$JSON_CONFIG_CACHE" | jq -c --arg name "$resource_name" "${JSON_RESOURCES_EXPR} | .[$name] // {}" 2>/dev/null
+}
+
+#######################################
+# Get declared scenario dependencies
+# Arguments:
+#   $1 - Config path (optional)
+# Returns: JSON object with scenario dependencies
+#######################################
+json::get_scenario_dependencies() {
+    local config_path="${1:-}"
+    
+    if [[ -n "$config_path" ]] || [[ -z "$JSON_CONFIG_CACHE" ]]; then
+        if ! json::load_service_config "$config_path"; then
+            echo '{}' && return 0
+        fi
+    fi
+    
+    echo "$JSON_CONFIG_CACHE" | jq -c "${JSON_SCENARIO_DEPENDENCIES_EXPR}" 2>/dev/null || echo '{}'
 }
 
 ################################################################################
@@ -416,15 +443,15 @@ json::validate_config() {
     fi
     
     # Basic structural validation
-    local required_sections=(".service" ".resources")
-    local section
+    if ! echo "$JSON_CONFIG_CACHE" | jq -e '.service' >/dev/null 2>&1; then
+        log::error "Missing required section: .service"
+        return 1
+    fi
     
-    for section in "${required_sections[@]}"; do
-        if ! echo "$JSON_CONFIG_CACHE" | jq -e "$section" >/dev/null 2>&1; then
-            log::error "Missing required section: $section"
-            return 1
-        fi
-    done
+    if ! echo "$JSON_CONFIG_CACHE" | jq -e "(${JSON_RESOURCES_EXPR} | length) > 0 or (${JSON_SCENARIO_DEPENDENCIES_EXPR} | length) > 0" >/dev/null 2>&1; then
+        log::error "Missing resource or scenario dependencies"
+        return 1
+    fi
     
     [[ "$JSON_DEBUG" == "true" ]] && log::debug "Configuration validation passed"
     return 0
@@ -467,25 +494,6 @@ json::set_debug() {
 }
 
 ################################################################################
-# Backward Compatibility Functions (Phase 2 - Temporary)
-################################################################################
-
-# Note: These functions provide temporary backward compatibility during migration
-# They will be REMOVED in Phase 5 cleanup
-
-#######################################
-# Legacy wrapper for direct jq calls (DEPRECATED)
-# Use json::get_value instead
-#######################################
-json::legacy_extract() {
-    local json_path="$1"
-    local file_path="${2:-}"
-    
-    log::warning "json::legacy_extract is deprecated. Use json::get_value instead."
-    json::get_value "$json_path" "" "$file_path"
-}
-
-################################################################################
 # Export Functions
 ################################################################################
 
@@ -506,9 +514,6 @@ export -f json::clear_cache
 export -f json::get_cached_path
 export -f json::set_debug
 
-# Temporary backward compatibility exports (will be removed in Phase 5)
-export -f json::legacy_extract
-
 ################################################################################
 # Self-Test Function (for development and debugging)
 ################################################################################
@@ -520,7 +525,7 @@ export -f json::legacy_extract
 json::self_test() {
     log::info "Running JSON utility self-tests..."
     
-    local test_config='{"service":{"name":"test"},"resources":{"storage":{"postgres":{"enabled":true,"required":true}}}}'
+    local test_config='{"service":{"name":"test"},"dependencies":{"resources":{"postgres":{"enabled":true,"required":true}}}}'
     local temp_file
     temp_file=$(mktemp)
     
@@ -544,7 +549,7 @@ json::self_test() {
     
     # Test 3: Get enabled resources
     local enabled_resources
-    enabled_resources=$(json::get_enabled_resources 'storage' "$temp_file")
+    enabled_resources=$(json::get_enabled_resources 'postgres' "$temp_file")
     if [[ "$enabled_resources" != "postgres" ]]; then
         log::error "Self-test failed: Expected 'postgres', got '$enabled_resources'"
         trash::safe_remove "$temp_file" --temp

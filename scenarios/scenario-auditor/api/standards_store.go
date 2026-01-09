@@ -45,7 +45,6 @@ func initStandardsStore() *StandardsStore {
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
-	logger := NewLogger()
 
 	// Get Vrooli root directory
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
@@ -173,7 +172,6 @@ func (ss *StandardsStore) StoreViolations(scenarioName string, violations []Stan
 	// Save to file if persistence is enabled
 	if ss.filePath != "" {
 		if err := ss.saveToFile(); err != nil {
-			logger := NewLogger()
 			logger.Error("Failed to persist standards violations to disk", err)
 			// Continue anyway - in-memory storage still works
 		}
@@ -254,18 +252,17 @@ func (ss *StandardsStore) ClearViolations(scenarioName string) {
 	// Save to file if persistence is enabled
 	if ss.filePath != "" {
 		if err := ss.saveToFile(); err != nil {
-			logger := NewLogger()
 			logger.Error("Failed to persist cleared violations to disk", err)
 		}
 	}
 }
 
 // GetStats returns violation statistics
-func (ss *StandardsStore) GetStats() map[string]interface{} {
+func (ss *StandardsStore) GetStats() map[string]any {
 	ss.mu.RLock()
 	defer ss.mu.RUnlock()
 
-	stats := map[string]interface{}{
+	stats := map[string]any{
 		"total":                     0,
 		"critical":                  0,
 		"high":                      0,

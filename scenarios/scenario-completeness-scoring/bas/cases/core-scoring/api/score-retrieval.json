@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "name": "score-retrieval",
+    "description": "Tests the /api/v1/scores/{scenario} endpoint returns proper score breakdown",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CORE-001\", \"SCS-CORE-002\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "get-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get score for scenario"
+        }
+      }
+    },
+    {
+      "id": "recalculate-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Force recalculate score"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "get-score",
+      "target": "recalculate-score",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

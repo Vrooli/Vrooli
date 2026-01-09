@@ -1,0 +1,95 @@
+{
+  "description": "Accept and process voice briefings via Whisper for hands-free operation",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must accept voice input through microphone or file upload and convert to text using Whisper API",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Voice Briefing Capture",
+      "validation": [
+        {
+          "notes": "Test audio file upload",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test microphone input capture",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify Whisper API integration and transcription",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Voice processing \u003c 3s for 30s audio",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successful transcription of sample briefings",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Extract structured generation parameters from voice transcription including style, subject, and technical requirements",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Voice Brief Parsing",
+      "validation": [
+        {
+          "notes": "Test parameter extraction accuracy",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end brief to parameters test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parameter extraction \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "90% accuracy on test briefings",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Voice-enabled briefings"
+}

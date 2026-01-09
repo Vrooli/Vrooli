@@ -1,0 +1,301 @@
+{
+  "metadata": {
+    "description": "Validates UI-based lifecycle management (start/stop/restart/logs) for generated scenarios without requiring terminal access",
+    "requirements": ["TMPL-LIFECYCLE"],
+    "reset": "none",
+    "executionTimeoutMs": 180000
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-factory",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to landing-manager factory UI",
+        "destinationType": "scenario",
+        "scenario": "landing-manager",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-form",
+      "type": "wait",
+      "data": {
+        "label": "Wait for generation form to load",
+        "selector": "@selector/generation-form",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fill-name",
+      "type": "type",
+      "data": {
+        "label": "Fill in scenario name for lifecycle test",
+        "selector": "@selector/generation-name-input",
+        "text": "Lifecycle Test",
+        "clearFirst": true,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-after-name",
+      "type": "wait",
+      "data": {
+        "label": "Wait for slug auto-generation",
+        "waitType": "time",
+        "durationMs": 500
+      }
+    },
+    {
+      "id": "click-generate",
+      "type": "click",
+      "data": {
+        "label": "Click generate button to create test scenario",
+        "selector": "@selector/generate-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-generation",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario generation to complete",
+        "waitType": "time",
+        "durationMs": 10000
+      }
+    },
+    {
+      "id": "wait-for-generated-list",
+      "type": "wait",
+      "data": {
+        "label": "Wait for generated scenarios list to appear",
+        "selector": "@selector/generated-scenarios-list",
+        "timeoutMs": 15000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-lifecycle-controls-exist",
+      "type": "assert",
+      "data": {
+        "label": "Assert lifecycle controls are present for lifecycle-test scenario",
+        "selector": "@selector/lifecycleStartButton(scenarioId=lifecycle-test)",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Lifecycle controls should be visible for generated scenarios"
+      }
+    },
+    {
+      "id": "wait-for-status-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Wait for scenario status to finish loading (must show Stopped)",
+        "selector": "@selector/scenarioStatusBadge(scenarioId=lifecycle-test)",
+        "assertMode": "text_contains",
+        "expectedValue": "Stopped",
+        "timeoutMs": 20000,
+        "failureMessage": "Status should show 'Stopped' for newly generated scenario before start button is enabled"
+      }
+    },
+    {
+      "id": "click-start",
+      "type": "click",
+      "data": {
+        "label": "Click start button for generated scenario",
+        "selector": "@selector/lifecycleStartButton(scenarioId=lifecycle-test)",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "wait-for-status-change",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to start (startup takes 30-60s)",
+        "waitType": "time",
+        "durationMs": 45000
+      }
+    },
+    {
+      "id": "assert-running-status",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is running",
+        "selector": "@selector/scenarioStatusBadge(scenarioId=lifecycle-test)",
+        "assertMode": "text_contains",
+        "expectedValue": "Running",
+        "timeoutMs": 30000,
+        "failureMessage": "Status should show 'Running' after start (scenario startup may take 30-60s)"
+      }
+    },
+    {
+      "id": "open-preview",
+      "type": "click",
+      "data": {
+        "label": "Open preview for running scenario",
+        "selector": "@selector/previewButton(scenarioId=lifecycle-test)",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-preview-view",
+      "type": "wait",
+      "data": {
+        "label": "Wait for preview workspace to load",
+        "selector": "@selector/landing-preview-view",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "open-info-panel",
+      "type": "click",
+      "data": {
+        "label": "Open scenario info panel",
+        "selector": "@selector/preview-info-toggle",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "view-logs-tab",
+      "type": "click",
+      "data": {
+        "label": "Switch to Logs tab",
+        "selector": "@selector/scenario-info-tab-logs",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-logs-output",
+      "type": "wait",
+      "data": {
+        "label": "Wait for logs output container",
+        "selector": "@selector/scenario-info-logs-output",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-logs-visible",
+      "type": "assert",
+      "data": {
+        "label": "Assert logs content is visible",
+        "selector": "@selector/scenario-info-logs-text",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Logs content should render inside the info panel"
+      }
+    },
+    {
+      "id": "return-to-factory",
+      "type": "click",
+      "data": {
+        "label": "Return to factory dashboard",
+        "selector": "@selector/preview-back-button",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-factory",
+      "type": "wait",
+      "data": {
+        "label": "Wait for factory list to reappear",
+        "selector": "@selector/generated-scenarios-list",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-restart",
+      "type": "click",
+      "data": {
+        "label": "Click restart button",
+        "selector": "@selector/lifecycleRestartButton(scenarioId=lifecycle-test)",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-restart",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to restart (stop + start takes 30-60s)",
+        "waitType": "time",
+        "durationMs": 45000
+      }
+    },
+    {
+      "id": "assert-still-running",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is still running after restart",
+        "selector": "@selector/scenarioStatusBadge(scenarioId=lifecycle-test)",
+        "assertMode": "text_contains",
+        "expectedValue": "Running",
+        "timeoutMs": 30000,
+        "failureMessage": "Status should show 'Running' after restart (restart may take 30-60s)"
+      }
+    },
+    {
+      "id": "click-stop",
+      "type": "click",
+      "data": {
+        "label": "Click stop button",
+        "selector": "@selector/lifecycleStopButton(scenarioId=lifecycle-test)",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "wait-for-stop",
+      "type": "wait",
+      "data": {
+        "label": "Wait for scenario to stop",
+        "waitType": "time",
+        "durationMs": 15000
+      }
+    },
+    {
+      "id": "assert-stopped-status",
+      "type": "assert",
+      "data": {
+        "label": "Assert scenario is stopped",
+        "selector": "@selector/scenarioStatusBadge(scenarioId=lifecycle-test)",
+        "assertMode": "text_contains",
+        "expectedValue": "Stopped",
+        "timeoutMs": 15000,
+        "failureMessage": "Status should show 'Stopped' after stop"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-0-1", "source": "navigate-factory", "target": "wait-for-form", "type": "smoothstep" },
+    { "id": "edge-0-2", "source": "wait-for-form", "target": "fill-name", "type": "smoothstep" },
+    { "id": "edge-0-3", "source": "fill-name", "target": "wait-after-name", "type": "smoothstep" },
+    { "id": "edge-0-4", "source": "wait-after-name", "target": "click-generate", "type": "smoothstep" },
+    { "id": "edge-0-5", "source": "click-generate", "target": "wait-for-generation", "type": "smoothstep" },
+    { "id": "edge-1", "source": "wait-for-generation", "target": "wait-for-generated-list", "type": "smoothstep" },
+    { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-lifecycle-controls-exist", "type": "smoothstep" },
+    { "id": "edge-2a", "source": "assert-lifecycle-controls-exist", "target": "wait-for-status-loaded", "type": "smoothstep" },
+    { "id": "edge-3", "source": "wait-for-status-loaded", "target": "click-start", "type": "smoothstep" },
+    { "id": "edge-4", "source": "click-start", "target": "wait-for-status-change", "type": "smoothstep" },
+    { "id": "edge-5", "source": "wait-for-status-change", "target": "assert-running-status", "type": "smoothstep" },
+    { "id": "edge-6", "source": "assert-running-status", "target": "click-logs", "type": "smoothstep" },
+    { "id": "edge-7", "source": "click-logs", "target": "wait-for-logs", "type": "smoothstep" },
+    { "id": "edge-8", "source": "wait-for-logs", "target": "assert-logs-visible", "type": "smoothstep" },
+    { "id": "edge-9", "source": "assert-logs-visible", "target": "click-restart", "type": "smoothstep" },
+    { "id": "edge-10", "source": "click-restart", "target": "wait-for-restart", "type": "smoothstep" },
+    { "id": "edge-11", "source": "wait-for-restart", "target": "assert-still-running", "type": "smoothstep" },
+    { "id": "edge-12", "source": "assert-still-running", "target": "click-stop", "type": "smoothstep" },
+    { "id": "edge-13", "source": "click-stop", "target": "wait-for-stop", "type": "smoothstep" },
+    { "id": "edge-14", "source": "wait-for-stop", "target": "assert-stopped-status", "type": "smoothstep" }
+  ]
+}

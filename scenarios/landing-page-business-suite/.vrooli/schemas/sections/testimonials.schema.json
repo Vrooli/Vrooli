@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Testimonials Section Content",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "subtitle": { "type": "string" },
+    "testimonials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "company", "content"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "company": { "type": "string" },
+          "content": { "type": "string" },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "avatar_url": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

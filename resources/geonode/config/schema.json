@@ -121,5 +121,6 @@
     "GEONODE_DB_PASSWORD",
     "GEONODE_ADMIN_USER",
     "GEONODE_ADMIN_PASSWORD"
-  ]
+  ],
+  "$id": "https://vrooli.com/resources/geonode/schema.json"
 }

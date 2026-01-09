@@ -1,0 +1,49 @@
+{
+  "phases": {
+    "business": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "dependencies": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "docs": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "integration": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "lint": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "performance": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "playbooks": {
+      "disabled": true,
+      "reason": "Currently under maintenance",
+      "addedAt": "2025-12-17T16:07:35.46311047Z"
+    },
+    "smoke": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "standards": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "structure": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    },
+    "unit": {
+      "disabled": false,
+      "addedAt": "0001-01-01T00:00:00Z"
+    }
+  }
+}

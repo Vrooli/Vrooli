@@ -1,0 +1,43 @@
+id: scenario-improver-browser-automation-studio-20251125-012124
+title: Improve scenario browser-automation-studio
+type: scenario
+operation: improver
+target: browser-automation-studio
+targets:
+    - browser-automation-studio
+category: ""
+priority: critical
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed-finalized
+current_phase: completed-finalized
+started_at: ""
+completed_at: "2025-11-28T18:44:09-05:00"
+cooldown_until: "2025-11-28T18:47:19-05:00"
+completion_count: 83
+last_completed_at: "2025-11-28T18:44:09-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-25T01:21:24-05:00"
+updated_at: "2025-11-28T18:44:09-05:00"
+tags: []
+notes: |-
+    IMPORTANT: browser-automation-studio has two CRUCIAL roles in the Vrooli ecosystem:
+    1) It will be the first monetized app
+    2) It is the e2e test harness for all other scenarios
+
+    Because of this, it is EXTREMELY important that you get this scenario working properly to satisfy both of these criteria. This means:
+    - Ensuring the playwright execution engine is fully functional
+    - Ensuring that playwright (with scenario-to-desktop) can be bundled into a desktop app (playwright-core executing the Chromium bundled with the Electron app to minimize total app size). scenario-to-desktop itself isn't fully working yet, but you have my official permission to modify that scenario too as needed, as well as the resources/playwright resource
+    - Ensuring that our e2e testing (technically called the "integration" phase, but that's a bit of a misnomer) runs browser-automation-studio (typically abbreviated to BAS) workflows correctly, does the seeding (apply.sh and cleanup.sh) properly and in a scenario-agnostic way (so that we can apply this e2e testing setup everywhere), handles fixtures properly, is organized well, etc. You have permission to edit the workflow runner scripts. Ideally we'd have as much of the functionality as possible built directly into the browser-automation-studio API instead of relying on bash scripts (which won't be portable for the desktop app), but we're making progress.
+
+    Think hard. Make sure you are measurably progressing towards these capabilities working (and reliably!).
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+steer_mode: progress

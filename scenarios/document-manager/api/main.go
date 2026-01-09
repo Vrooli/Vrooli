@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -16,6 +16,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Config struct {
@@ -201,9 +205,11 @@ func loadConfig() Config {
 
 func initDB() error {
 	var err error
-	db, err = sql.Open("postgres", config.PostgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to open database connection: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Set connection pool settings
@@ -211,101 +217,8 @@ func initDB() error {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd (±25% of delay)
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (2*rand.Float64() - 1))
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
-	
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError map[string]interface{}
-	if db != nil {
-		start := time.Now()
-		err := db.Ping()
-		latencyMs := float64(time.Since(start).Microseconds()) / 1000.0
-		if err == nil {
-			dbConnected = true
-			dbLatency = &latencyMs
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_FAILED",
-				"message":   err.Error(),
-				"category":  "network",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Determine overall status
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "document-manager-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": true,
-		"version":   "2.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func dbStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -1194,16 +1107,11 @@ func queryQdrantSimilarity(embedding []float64, limit int) ([]SearchResult, erro
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start document-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "document-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	config = loadConfig()
@@ -1211,7 +1119,6 @@ func main() {
 	if err := initDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 
 	// Initialize Redis for real-time updates
 	if err := initRedis(config.RedisURL); err != nil {
@@ -1225,7 +1132,8 @@ func main() {
 	r.Use(corsMiddleware)
 	r.Use(loggingMiddleware)
 	
-	// Health and system endpoints
+	// Health and system endpoints - using standardized api-core/health
+	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/system/db-status", dbStatusHandler).Methods("GET")
 	r.HandleFunc("/api/system/vector-status", vectorStatusHandler).Methods("GET")
@@ -1241,16 +1149,18 @@ func main() {
 
 	// Static file serving for any additional assets
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-	
-	port := config.Port
-	log.Printf("Document Manager API starting on port %s", port)
-	log.Printf("Database: %s", config.PostgresURL)
-	log.Printf("Qdrant: %s", config.QdrantURL)
-	log.Printf("Ollama: %s", config.OllamaURL)
-	log.Printf("Windmill: %s", config.WindmillURL)
-	log.Printf("n8n: %s", config.N8NURL)
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+
+	log.Println("Document Manager API starting...")
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			closeRedis()
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

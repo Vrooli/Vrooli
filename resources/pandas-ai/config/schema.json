@@ -28,7 +28,13 @@
       "type": "string",
       "description": "AI model to use for analysis",
       "default": "gpt-3.5-turbo",
-      "enum": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "claude-3-sonnet", "claude-3-opus"]
+      "enum": [
+        "gpt-3.5-turbo",
+        "gpt-4",
+        "gpt-4-turbo",
+        "claude-3-sonnet",
+        "claude-3-opus"
+      ]
     },
     "cache_enabled": {
       "type": "boolean",
@@ -39,7 +45,13 @@
       "type": "string",
       "description": "Logging verbosity",
       "default": "INFO",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ]
     },
     "database": {
       "type": "object",
@@ -103,6 +115,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/pandas-ai/schema.json"
 }

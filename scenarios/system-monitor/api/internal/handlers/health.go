@@ -18,14 +18,16 @@ import (
 type HealthHandler struct {
 	config      *config.Config
 	monitorSvc  *services.MonitorService
+	settingsMgr *services.SettingsManager
 	startTime   time.Time
 }
 
 // NewHealthHandler creates a new health handler
-func NewHealthHandler(cfg *config.Config, monitorSvc *services.MonitorService) *HealthHandler {
+func NewHealthHandler(cfg *config.Config, monitorSvc *services.MonitorService, settingsMgr *services.SettingsManager) *HealthHandler {
 	return &HealthHandler{
 		config:      cfg,
 		monitorSvc:  monitorSvc,
+		settingsMgr: settingsMgr,
 		startTime:   time.Now(),
 	}
 }
@@ -34,7 +36,7 @@ func NewHealthHandler(cfg *config.Config, monitorSvc *services.MonitorService) *
 func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	overallStatus := "healthy"
-	
+
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
 		"status":    overallStatus,
@@ -42,21 +44,33 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"readiness": true, // Service is ready to accept requests
 		"version":   h.config.Server.Version,
+		"processor_active": func() bool {
+			if h.settingsMgr == nil {
+				return true
+			}
+			return h.settingsMgr.IsActive()
+		}(),
+		"maintenance_state": func() string {
+			if h.settingsMgr == nil {
+				return "unknown"
+			}
+			return h.settingsMgr.GetMaintenanceState()
+		}(),
 		"dependencies": map[string]interface{}{},
 		"metrics": map[string]interface{}{
 			"uptime_seconds": time.Since(h.startTime).Seconds(),
 		},
 	}
-	
+
 	dependencies := healthResponse["dependencies"].(map[string]interface{})
-	
+
 	// 1. Check system metrics collection capability (core functionality)
 	metricsHealth := h.checkMetricsCollection(ctx)
 	dependencies["metrics_collection"] = metricsHealth
 	if metricsHealth["connected"] == false {
 		overallStatus = "degraded"
 	}
-	
+
 	// 2. Check investigation system (file I/O for investigations and results)
 	investigationHealth := h.checkInvestigationSystem()
 	dependencies["investigation_system"] = investigationHealth
@@ -65,7 +79,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 3. Check configured databases
 	if h.config.Resources.PostgresURL != "" {
 		pgHealth := h.checkPostgreSQL()
@@ -74,7 +88,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	if h.config.Resources.RedisURL != "" {
 		redisHealth := h.checkRedis()
 		dependencies["redis"] = redisHealth
@@ -82,7 +96,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	if h.config.Resources.QuestDBURL != "" {
 		questdbHealth := h.checkQuestDB()
 		dependencies["questdb"] = questdbHealth
@@ -90,7 +104,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			overallStatus = "degraded"
 		}
 	}
-	
+
 	// 4. Check external services (if configured)
 	if h.config.Resources.NodeRedURL != "" {
 		nodeRedHealth := h.checkNodeRed()
@@ -102,7 +116,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	if h.config.Resources.OllamaURL != "" {
 		ollamaHealth := h.checkOllama()
 		dependencies["ollama"] = ollamaHealth
@@ -112,7 +126,7 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// 5. Check alert systems (if enabled)
 	if h.config.Alerts.EnableWebhooks && h.config.Alerts.WebhookURL != "" {
 		webhookHealth := h.checkWebhookEndpoint()
@@ -123,18 +137,22 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// Update overall status and metrics
 	healthResponse["status"] = overallStatus
-	
+
 	// Add system resource metrics if available
 	if metrics, err := h.monitorSvc.GetCurrentMetrics(ctx); err == nil && metrics != nil {
 		systemMetrics := healthResponse["metrics"].(map[string]interface{})
 		systemMetrics["cpu_usage_percent"] = metrics.CPUUsage
 		systemMetrics["memory_usage_percent"] = metrics.MemoryUsage
-		systemMetrics["active_monitoring"] = true
+		if h.settingsMgr != nil {
+			systemMetrics["active_monitoring"] = h.settingsMgr.IsActive()
+		} else {
+			systemMetrics["active_monitoring"] = true
+		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(healthResponse)
 }
@@ -145,7 +163,7 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Test if we can collect system metrics
 	metrics, err := h.monitorSvc.GetCurrentMetrics(ctx)
 	if err != nil {
@@ -157,7 +175,7 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 		}
 		return result
 	}
-	
+
 	if metrics == nil {
 		result["error"] = map[string]interface{}{
 			"code":      "METRICS_NULL",
@@ -167,7 +185,7 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	result["latency_ms"] = nil // Could measure collection time if needed
 	return result
@@ -179,7 +197,7 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// Check if investigations directory exists and is accessible
 	investigationsDir := "investigations"
 	if _, err := os.Stat(investigationsDir); err != nil {
@@ -191,7 +209,7 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Check if results directory exists and is writable
 	resultsDir := "results"
 	if err := os.MkdirAll(resultsDir, 0755); err != nil {
@@ -203,7 +221,7 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Test writing a small test file
 	testFile := filepath.Join(resultsDir, ".health_check_test")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -215,10 +233,10 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// Clean up test file
 	os.Remove(testFile)
-	
+
 	result["connected"] = true
 	return result
 }
@@ -229,7 +247,7 @@ func (h *HealthHandler) checkPostgreSQL() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// This is a placeholder - you'd need to implement actual DB connection
 	// For now, just check if URL is accessible
 	if h.config.Resources.PostgresURL == "" {
@@ -241,7 +259,7 @@ func (h *HealthHandler) checkPostgreSQL() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	// TODO: Implement actual database ping when DB connection is available
 	result["connected"] = true
 	return result
@@ -253,17 +271,17 @@ func (h *HealthHandler) checkRedis() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	if h.config.Resources.RedisURL == "" {
 		result["error"] = map[string]interface{}{
-			"code":      "REDIS_URL_MISSING", 
+			"code":      "REDIS_URL_MISSING",
 			"message":   "Redis URL not configured",
 			"category":  "configuration",
 			"retryable": false,
 		}
 		return result
 	}
-	
+
 	// TODO: Implement actual Redis ping
 	result["connected"] = true
 	return result
@@ -275,17 +293,17 @@ func (h *HealthHandler) checkQuestDB() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	if h.config.Resources.QuestDBURL == "" {
 		result["error"] = map[string]interface{}{
 			"code":      "QUESTDB_URL_MISSING",
-			"message":   "QuestDB URL not configured", 
+			"message":   "QuestDB URL not configured",
 			"category":  "configuration",
 			"retryable": false,
 		}
 		return result
 	}
-	
+
 	// Test HTTP connection to QuestDB
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(h.config.Resources.QuestDBURL)
@@ -299,7 +317,7 @@ func (h *HealthHandler) checkQuestDB() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	result["connected"] = true
 	return result
 }
@@ -310,7 +328,7 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(h.config.Resources.NodeRedURL)
 	if err != nil {
@@ -325,26 +343,26 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 			result["error"] = map[string]interface{}{
 				"code":      "NODE_RED_CONNECTION_FAILED",
 				"message":   fmt.Sprintf("Cannot connect to Node-RED: %v", err),
-				"category":  "network", 
+				"category":  "network",
 				"retryable": true,
 			}
 		}
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	result["connected"] = true
 	result["latency_ms"] = nil // Could measure if needed
 	return result
 }
 
-// checkOllama tests Ollama AI service connectivity 
+// checkOllama tests Ollama AI service connectivity
 func (h *HealthHandler) checkOllama() map[string]interface{} {
 	result := map[string]interface{}{
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(h.config.Resources.OllamaURL + "/api/tags")
 	if err != nil {
@@ -357,7 +375,7 @@ func (h *HealthHandler) checkOllama() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		result["error"] = map[string]interface{}{
 			"code":      fmt.Sprintf("HTTP_%d", resp.StatusCode),
@@ -367,7 +385,7 @@ func (h *HealthHandler) checkOllama() map[string]interface{} {
 		}
 		return result
 	}
-	
+
 	result["connected"] = true
 	return result
 }
@@ -378,7 +396,7 @@ func (h *HealthHandler) checkWebhookEndpoint() map[string]interface{} {
 		"connected": false,
 		"error":     nil,
 	}
-	
+
 	// For webhook, we just check if URL is reachable (don't actually send alert)
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Head(h.config.Alerts.WebhookURL)
@@ -392,7 +410,7 @@ func (h *HealthHandler) checkWebhookEndpoint() map[string]interface{} {
 		return result
 	}
 	defer resp.Body.Close()
-	
+
 	result["connected"] = true
 	return result
 }
@@ -407,7 +425,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 // respondWithError sends an error response
 func respondWithError(w http.ResponseWriter, code int, err error) {
 	respondWithJSON(w, code, map[string]string{
-		"error": err.Error(),
+		"error":  err.Error(),
 		"status": "error",
 	})
 }

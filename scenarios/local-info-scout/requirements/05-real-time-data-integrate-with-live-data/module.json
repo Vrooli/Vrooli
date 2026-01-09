@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "local-info-scout-must-have-real-time-data-integrate-with-live-data-sources-for-hoursavailability-2025-09-24-searxng-osm-ready",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Integration with live data sources for business hours and availability information",
+      "id": "REQ-P0-005",
+      "prd_ref": "local-info-scout-must-have-real-time-data-integrate-with-live-data-sources-for-hoursavailability-2025-09-24-searxng-osm-ready",
+      "status": "draft",
+      "title": "Real-time Data Integration",
+      "validation": [
+        {
+          "notes": "Successfully pulls from SearXNG",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successfully pulls from OSM",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data properly merged from multiple sources",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Updates within 5 minutes of source changes",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Hours information accurate when verified",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Real-time Data**: Integrate with live data sources for hours/availability (✅ 2025-09-24: SearXNG + OSM ready)"
+}

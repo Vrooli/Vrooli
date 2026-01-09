@@ -1,0 +1,308 @@
+/**
+ * Proto Types - Central Export Hub
+ *
+ * This module provides a clean interface to proto-generated types for the
+ * browser-automation-studio domain. All proto types used by the driver
+ * should be imported from here.
+ *
+ * DESIGN:
+ *   - Re-exports proto types from @vrooli/proto-types
+ *   - Provides utility functions for JSON serialization/deserialization
+ *   - Maintains compatibility with existing snake_case wire format
+ *
+ * WHY THIS EXISTS:
+ *   Proto types are the single source of truth for the API contract between
+ *   the Go engine and this TypeScript driver. Using proto types ensures:
+ *   1. Type safety across language boundaries
+ *   2. Automatic validation of incoming data
+ *   3. Consistent serialization format
+ *   4. No manual type definitions to maintain
+ */
+
+// =============================================================================
+// RE-EXPORTS FROM PROTO PACKAGE
+// =============================================================================
+
+// Driver contracts (engine <-> driver)
+export {
+  type StepOutcome,
+  type CompiledInstruction,
+  type ExecutionPlan,
+  type StepFailure,
+  type DriverScreenshot,
+  type DOMSnapshot,
+  type DriverConsoleLogEntry,
+  type DriverNetworkEvent,
+  type CursorPosition,
+  type AssertionOutcome,
+  type ConditionOutcome,
+  type PlanStep,
+  type PlanEdge,
+  type PlanGraph,
+  StepOutcomeSchema,
+  CompiledInstructionSchema,
+  ExecutionPlanSchema,
+  StepFailureSchema,
+  DriverScreenshotSchema,
+  DOMSnapshotSchema,
+  DriverConsoleLogEntrySchema,
+  DriverNetworkEventSchema,
+  CursorPositionSchema,
+  AssertionOutcomeSchema,
+  ConditionOutcomeSchema,
+  PlanStepSchema,
+  PlanEdgeSchema,
+  PlanGraphSchema,
+  FailureKind,
+  FailureSource,
+} from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
+
+// Timeline (unified recording/execution format)
+export {
+  type TimelineEntry,
+  type TimelineEntryAggregates,
+  type TimelineArtifact,
+  type ElementFocus,
+  type TimelineLog,
+  type TimelineStreamMessage,
+  type TimelineStatusUpdate,
+  type TimelineHeartbeat,
+  TimelineEntrySchema,
+  TimelineEntryAggregatesSchema,
+  TimelineArtifactSchema,
+  ElementFocusSchema,
+  TimelineLogSchema,
+  TimelineStreamMessageSchema,
+  TimelineStatusUpdateSchema,
+  TimelineHeartbeatSchema,
+  TimelineMessageType,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+
+// Actions (action definitions and params)
+export {
+  type ActionDefinition,
+  type ActionMetadata,
+  type NavigateParams,
+  type ClickParams,
+  type InputParams,
+  type WaitParams,
+  type AssertParams,
+  type ScrollParams,
+  type SelectParams,
+  type EvaluateParams,
+  type KeyboardParams,
+  type HoverParams,
+  type ScreenshotParams,
+  type FocusParams,
+  type BlurParams,
+  type SubflowParams,
+  // New action params
+  type ExtractParams,
+  type UploadFileParams,
+  type DownloadParams,
+  type FrameSwitchParams,
+  type TabSwitchParams,
+  type CookieStorageParams,
+  type CookieOptions,
+  type ShortcutParams,
+  type DragDropParams,
+  type GestureParams,
+  type NetworkMockParams,
+  type RotateParams,
+  // Schemas
+  ActionDefinitionSchema,
+  ActionMetadataSchema,
+  NavigateParamsSchema,
+  ClickParamsSchema,
+  InputParamsSchema,
+  WaitParamsSchema,
+  AssertParamsSchema,
+  ScrollParamsSchema,
+  SelectParamsSchema,
+  EvaluateParamsSchema,
+  KeyboardParamsSchema,
+  HoverParamsSchema,
+  ScreenshotParamsSchema,
+  FocusParamsSchema,
+  BlurParamsSchema,
+  SubflowParamsSchema,
+  // New action param schemas
+  ExtractParamsSchema,
+  UploadFileParamsSchema,
+  DownloadParamsSchema,
+  FrameSwitchParamsSchema,
+  TabSwitchParamsSchema,
+  CookieStorageParamsSchema,
+  CookieOptionsSchema,
+  ShortcutParamsSchema,
+  DragDropParamsSchema,
+  GestureParamsSchema,
+  NetworkMockParamsSchema,
+  RotateParamsSchema,
+  // Enums
+  ActionType,
+  MouseButton,
+  NavigateWaitEvent,
+  NavigateDestinationType,
+  WaitState,
+  ScrollBehavior,
+  KeyAction,
+  KeyboardModifier,
+  // New enums
+  ExtractType,
+  FrameSwitchAction,
+  TabSwitchAction,
+  CookieOperation,
+  StorageType,
+  GestureType,
+  SwipeDirection,
+  NetworkMockOperation,
+  DeviceOrientation,
+  CookieSameSite,
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+
+// Base types (shared enums and primitives)
+export {
+  type BoundingBox,
+  type Point,
+  type NodePosition,
+  BoundingBoxSchema,
+  PointSchema,
+  NodePositionSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/geometry_pb';
+
+export {
+  type RetryStatus,
+  type RetryAttempt,
+  type AssertionResult,
+  type EventContext,
+  RetryStatusSchema,
+  RetryAttemptSchema,
+  AssertionResultSchema,
+  EventContextSchema,
+  ExecutionStatus,
+  StepStatus,
+  LogLevel,
+  TriggerType,
+  ArtifactType,
+  SelectorType,
+  NetworkEventType,
+  RecordingSource,
+  AssertionMode,
+  HighlightColor,
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
+
+// Domain types (selectors, telemetry)
+export {
+  type SelectorCandidate,
+  type ElementMeta,
+  type HighlightRegion,
+  type MaskRegion,
+  SelectorCandidateSchema,
+  ElementMetaSchema,
+  HighlightRegionSchema,
+  MaskRegionSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/domain/selectors_pb';
+
+export {
+  type ActionTelemetry,
+  type TimelineScreenshot,
+  type ConsoleLogEntry,
+  type NetworkEvent,
+  ActionTelemetrySchema,
+  TimelineScreenshotSchema,
+  ConsoleLogEntrySchema,
+  NetworkEventSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
+
+// Common types (JsonValue for dynamic data)
+export {
+  type JsonValue,
+  type JsonObject,
+  type JsonList,
+  JsonValueSchema,
+  JsonObjectSchema,
+  JsonListSchema,
+} from '@vrooli/proto-types/common/v1/types_pb';
+
+// =============================================================================
+// UTILITY EXPORTS
+// =============================================================================
+
+export * from './utils';
+export * from './recording';
+
+// =============================================================================
+// ACTION TYPE UTILITIES (Single Source of Truth)
+// =============================================================================
+// Consolidated from previously duplicated implementations in:
+// - proto/index.ts, recording/action-types.ts, recording/handler-adapter.ts
+
+export {
+  // Core conversion functions
+  actionTypeToString,
+  actionTypeToDisplayString,
+  stringToActionType,
+  normalizeToProtoActionType,
+  // Utility functions
+  isValidActionType,
+  isSelectorOptional,
+  getSupportedActionTypes,
+  getRegisteredTypeStrings,
+  // Data exports
+  ACTION_TYPE_MAP,
+  SELECTOR_OPTIONAL_ACTIONS,
+} from './action-type-utils';
+
+// NOTE: compat.ts was removed - it contained unused legacy type definitions.
+// Use proto types directly from the exports above.
+
+// =============================================================================
+// HANDLER-FRIENDLY TYPES
+// =============================================================================
+// CANONICAL LOCATION: ./instruction.ts
+//
+// Re-exported here so existing imports from 'proto/' continue to work.
+// New code should import directly from './instruction' when only these types are needed.
+
+export {
+  type HandlerInstruction,
+  toHandlerInstruction,
+  getActionType,
+} from './instruction';
+
+// =============================================================================
+// PARAM EXTRACTORS
+// =============================================================================
+// CANONICAL LOCATION: ./params.ts
+//
+// Re-exported here so existing imports from 'proto/' continue to work.
+// New code should import directly from './params' when only param extractors are needed.
+// This reduces bundle size for consumers that don't need all proto exports.
+
+export {
+  getClickParams,
+  getInputParams,
+  getNavigateParams,
+  getWaitParams,
+  getAssertParams,
+  getHoverParams,
+  getFocusParams,
+  getBlurParams,
+  getScrollParams,
+  getSelectParams,
+  getScreenshotParams,
+  getEvaluateParams,
+  getKeyboardParams,
+  getExtractParams,
+  getUploadFileParams,
+  getDownloadParams,
+  getFrameSwitchParams,
+  getTabSwitchParams,
+  getCookieStorageParams,
+  getShortcutParams,
+  getDragDropParams,
+  getGestureParams,
+  getNetworkMockParams,
+  getRotateParams,
+} from './params';

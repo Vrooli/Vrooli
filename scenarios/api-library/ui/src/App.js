@@ -58,6 +58,29 @@ function App() {
   const [maxPrice, setMaxPrice] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
   const [searchMethod, setSearchMethod] = useState('keyword');
+  const [isCompactView, setIsCompactView] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.innerWidth <= 768;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const updateCompactView = () => {
+      setIsCompactView(window.innerWidth <= 768);
+    };
+
+    updateCompactView();
+    window.addEventListener('resize', updateCompactView);
+
+    return () => {
+      window.removeEventListener('resize', updateCompactView);
+    };
+  }, []);
 
   useEffect(() => {
     fetchConfiguredAPIs();
@@ -361,76 +384,141 @@ function App() {
                     {searchMethod === 'semantic' ? 'Semantic match' : 'Keyword match'}
                   </span>
                 </div>
-                <div className="results-grid">
-                  {searchResults.map((api) => (
-                    <div
-                      key={api.id}
-                      className="api-card"
-                      onClick={() => fetchAPIDetails(api.id)}
-                    >
-                      <div className="api-card-topline">
-                        <span className="category-chip">
-                          <Tag size={12} />
-                          {api.category || 'uncategorized'}
-                        </span>
-                        {api.configured && (
-                          <span className="configured-pill">
-                            <CheckCircle size={14} />
-                            Configured
+                {isCompactView ? (
+                  <ul className="results-list" role="list">
+                    {searchResults.map((api) => (
+                      <li key={api.id} className="results-list-item">
+                        <button
+                          type="button"
+                          className="api-list-item"
+                          onClick={() => fetchAPIDetails(api.id)}
+                        >
+                          <div className="api-list-primary">
+                            <div className="api-avatar" aria-hidden="true">
+                              {getAvatarInitials(api.name || api.provider)}
+                            </div>
+                            <div className="api-list-titles">
+                              <h3>{api.name}</h3>
+                              <div className="api-list-subtitle">
+                                <span>{api.provider}</span>
+                                {getHostname(api.base_url) && (
+                                  <>
+                                    <span className="list-separator" aria-hidden="true">•</span>
+                                    <span>{getHostname(api.base_url)}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="api-list-flags">
+                              {api.status && (
+                                <span className={`api-status-chip compact ${normalizeStatusClass(api.status)}`}>
+                                  <span className="status-dot" aria-hidden="true" />
+                                  <span className="status-label">{api.status}</span>
+                                </span>
+                              )}
+                              {api.configured && (
+                                <span className="configured-pill compact">
+                                  <CheckCircle size={12} />
+                                  Configured
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="api-list-meta">
+                            <span className="category-chip compact">
+                              <Tag size={12} />
+                              {api.category || 'uncategorized'}
+                            </span>
+                            <span className="api-list-meta-item">
+                              <Key size={12} />
+                              {api.auth_type || 'Auth TBD'}
+                            </span>
+                            <span className="api-list-meta-item">
+                              <DollarSign size={12} />
+                              {api.pricing_summary || 'Pricing not available'}
+                            </span>
+                            <span className="api-list-meta-item match">
+                              <Sparkles size={12} />
+                              {`Match ${Math.round(api.relevance_score * 100)}%`}
+                            </span>
+                          </div>
+                          <p className="api-list-description">{api.description}</p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="results-grid">
+                    {searchResults.map((api) => (
+                      <div
+                        key={api.id}
+                        className="api-card"
+                        onClick={() => fetchAPIDetails(api.id)}
+                      >
+                        <div className="api-card-topline">
+                          <span className="category-chip">
+                            <Tag size={12} />
+                            {api.category || 'uncategorized'}
                           </span>
-                        )}
-                      </div>
-                      <div className="api-card-header">
-                        <div className="api-avatar" aria-hidden="true">
-                          {getAvatarInitials(api.name || api.provider)}
-                        </div>
-                        <div className="api-card-title">
-                          <h3>{api.name}</h3>
-                          <p className="api-provider">{api.provider}</p>
-                        </div>
-                        {api.status && (
-                          <div className={`api-status-chip ${normalizeStatusClass(api.status)}`}>
-                            <span className="status-dot" aria-hidden="true" />
-                            <span className="status-label">{api.status}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="api-card-quick-meta">
-                        <div className="quick-meta-item">
-                          <Key size={14} />
-                          <span>{api.auth_type || 'Auth TBD'}</span>
-                        </div>
-                        {getHostname(api.base_url) && (
-                          <div className="quick-meta-item">
-                            <Globe size={14} />
-                            <span>{getHostname(api.base_url)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="api-description">{api.description}</p>
-                      <div className="api-card-metrics">
-                        <div className="api-metric">
-                          <DollarSign size={14} />
-                          <span>{api.pricing_summary || 'Pricing not available'}</span>
-                        </div>
-                        <div className="api-metric match">
-                          <Sparkles size={14} />
-                          <span>{`Match ${Math.round(api.relevance_score * 100)}%`}</span>
-                        </div>
-                      </div>
-                      {Array.isArray(api.tags) && api.tags.length > 0 && (
-                        <div className="api-card-tags">
-                          {api.tags.slice(0, 3).map((tag, idx) => (
-                            <span key={`${api.id}-tag-${idx}`} className="api-tag">{tag}</span>
-                          ))}
-                          {api.tags.length > 3 && (
-                            <span className="api-tag more">+{api.tags.length - 3}</span>
+                          {api.configured && (
+                            <span className="configured-pill">
+                              <CheckCircle size={14} />
+                              Configured
+                            </span>
                           )}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        <div className="api-card-header">
+                          <div className="api-avatar" aria-hidden="true">
+                            {getAvatarInitials(api.name || api.provider)}
+                          </div>
+                          <div className="api-card-title">
+                            <h3>{api.name}</h3>
+                            <p className="api-provider">{api.provider}</p>
+                          </div>
+                          {api.status && (
+                            <div className={`api-status-chip ${normalizeStatusClass(api.status)}`}>
+                              <span className="status-dot" aria-hidden="true" />
+                              <span className="status-label">{api.status}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="api-card-quick-meta">
+                          <div className="quick-meta-item">
+                            <Key size={14} />
+                            <span>{api.auth_type || 'Auth TBD'}</span>
+                          </div>
+                          {getHostname(api.base_url) && (
+                            <div className="quick-meta-item">
+                              <Globe size={14} />
+                              <span>{getHostname(api.base_url)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="api-description">{api.description}</p>
+                        <div className="api-card-metrics">
+                          <div className="api-metric">
+                            <DollarSign size={14} />
+                            <span>{api.pricing_summary || 'Pricing not available'}</span>
+                          </div>
+                          <div className="api-metric match">
+                            <Sparkles size={14} />
+                            <span>{`Match ${Math.round(api.relevance_score * 100)}%`}</span>
+                          </div>
+                        </div>
+                        {Array.isArray(api.tags) && api.tags.length > 0 && (
+                          <div className="api-card-tags">
+                            {api.tags.slice(0, 3).map((tag, idx) => (
+                              <span key={`${api.id}-tag-${idx}`} className="api-tag">{tag}</span>
+                            ))}
+                            {api.tags.length > 3 && (
+                              <span className="api-tag more">+{api.tags.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
             {hasSearched && !loading && searchResults.length === 0 && (

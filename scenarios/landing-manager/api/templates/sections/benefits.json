@@ -1,0 +1,48 @@
+{
+  "$schema": "./_schema.json",
+  "id": "benefits",
+  "name": "Benefits Section",
+  "description": "Key benefits or takeaways the user will gain from the resource/product",
+  "category": "value-proposition",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Section Title",
+      "placeholder": "What's Inside",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Section Subtitle",
+      "placeholder": "Everything you need to know",
+      "max_length": 150,
+      "required": false
+    },
+    "benefits": {
+      "type": "array",
+      "label": "Key Benefits",
+      "min_items": 3,
+      "max_items": 5,
+      "item_schema": {
+        "title": {
+          "type": "string",
+          "label": "Benefit Title",
+          "max_length": 60
+        },
+        "description": {
+          "type": "string",
+          "label": "Benefit Description",
+          "max_length": 150
+        },
+        "icon": {
+          "type": "string",
+          "label": "Icon Name (Lucide)",
+          "placeholder": "check"
+        }
+      }
+    }
+  },
+  "ui_component": "BenefitsSection",
+  "default_order": 3
+}

@@ -1,0 +1,250 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "deployment-manager",
+    "displayName": "Deployment Manager",
+    "description": "Analyzes, prepares, configures, and manages deployments of any scenario to any target platform",
+    "version": "0.0.1",
+    "type": "scenario",
+    "category": "automation",
+    "tags": [
+      "deployment-orchestration",
+      "dependency-analysis",
+      "fitness-scoring",
+      "multi-tier-deployment",
+      "deployment-automation",
+      "react-ui",
+      "go-api",
+      "websocket-streaming",
+      "deployment-monitoring"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/deployment-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI, initialize database",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/deployment-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "deployment-manager",
+            "targets": [
+              "deployment-manager"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o deployment-manager-api .",
+          "description": "Build Go API binary (deployment-manager-api) in api/ directory"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed deployment-manager data"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && npm install; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && npm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Deployment Manager initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udca1 Quick start:\\n  deployment-manager analyze <scenario>\\n  deployment-manager profiles list\\n  deployment-manager fitness <scenario> --tier 2'",
+          "description": "Display access URLs for API and UI"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and production UI bundle via Node server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && POSTGRES_DB=deployment_manager ./deployment-manager-api",
+          "background": true,
+          "description": "Start Go API server",
+          "condition": {
+            "file_exists": "api/deployment-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Deployment Manager running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udcdd View logs: make logs\\n\ud83d\uded1 Stop: make stop'",
+          "description": "Display access URLs for API and UI after startup"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute deployment-manager --preset comprehensive",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'deployment-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Deployment profile storage, audit logs, fitness rules database, swap suggestion database",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional caching layer for fitness scores and dependency tree calculations"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered migration strategy suggestions and dependency swap recommendations (agent integration)"
+      }
+    },
+    "scenarios": {
+      "scenario-dependency-analyzer": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "purpose": "Dependency tree data source for fitness scoring and deployment analysis"
+      },
+      "secrets-manager": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "purpose": "Secret classification, template generation, and tier-specific secret strategies"
+      },
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "purpose": "Migration task creation when dependency swaps are approved"
+      }
+    }
+  }
+}

@@ -2,10 +2,10 @@
     "metadata": {
         "config_version": "1.0.0",
         "description": "System Monitor settings including active/inactive status",
-        "last_modified": "2025-10-16T15:31:55-04:00"
+        "last_modified": "2025-12-22T20:27:56-05:00"
     },
     "settings": {
-        "active": false,
+        "active": true,
         "metric_collection_interval": 10,
         "anomaly_detection_interval": 30,
         "threshold_check_interval": 20,

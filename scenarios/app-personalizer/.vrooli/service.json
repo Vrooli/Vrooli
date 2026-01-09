@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "app-personalizer",
@@ -19,56 +19,27 @@
       "postgres-storage",
       "minio-storage",
       "ollama-ai"
-    ]
-  },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/personalization-pipeline.json",
-          "type": "workflow"
-        }
-      ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/app-personalizer"
     },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "codellama"
-      ]
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": false,
-      "purpose": "modify app code based on personalization requirements"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "app personalization metadata and configurations",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "app versions and modification history storage"
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
@@ -103,18 +74,19 @@
       "description": "Initialize App Personalizer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "app-personalizer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "app-personalizer"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/app-personalizer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "app-personalizer",
+            "targets": [
+              "app-personalizer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -144,7 +116,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
+          "run": "echo '\ud83d\ude80 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -161,41 +133,20 @@
             "file_exists": "api/app-personalizer-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
-           "description": "Display service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+          "description": "Display service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test App Personalizer Go API and CLI",
+      "description": "Comprehensive phased testing for app-personalizer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/apps",
-          "description": "Test API apps endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats app-personalizer.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/app-personalizer.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute app-personalizer --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -214,5 +165,64 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/personalization-pipeline.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "codellama"
+        ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "modify app code based on personalization requirements"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "app personalization metadata and configurations",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "app versions and modification history storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

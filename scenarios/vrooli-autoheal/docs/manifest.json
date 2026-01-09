@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "title": "Vrooli Autoheal Documentation",
+  "description": "Health check documentation and troubleshooting guides",
+  "defaultDocument": "checks/overview.md",
+  "sections": [
+    {
+      "id": "checks",
+      "title": "Health Checks",
+      "icon": "heart-pulse",
+      "description": "Documentation for all health checks",
+      "documents": [
+        {
+          "path": "checks/overview.md",
+          "title": "Overview",
+          "description": "Introduction to the health check system"
+        },
+        {
+          "path": "checks/infrastructure.md",
+          "title": "Infrastructure Checks",
+          "description": "Network, DNS, NTP, Docker, Cloudflared, and RDP checks"
+        },
+        {
+          "path": "checks/system.md",
+          "title": "System Checks",
+          "description": "Disk, swap, zombies, ports, and inodes checks"
+        },
+        {
+          "path": "checks/resources.md",
+          "title": "Resource Checks",
+          "description": "Postgres, Redis, Ollama, Qdrant, and other resource monitoring"
+        }
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery Actions",
+      "icon": "wrench",
+      "description": "How to recover from failures",
+      "documents": [
+        {
+          "path": "recovery/actions.md",
+          "title": "Recovery Actions",
+          "description": "Available recovery actions and how to use them"
+        }
+      ]
+    }
+  ]
+}

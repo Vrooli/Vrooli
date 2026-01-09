@@ -1,0 +1,325 @@
+{
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait-builder",
+      "source": "call-open-builder",
+      "target": "wait-builder",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "drag-click-node",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "drag-click-node",
+      "target": "wait-node-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "wait-node-render",
+      "target": "verify-click-node",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "verify-click-node",
+      "target": "click-node-to-select",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "click-node-to-select",
+      "target": "verify-selected",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "find-selector-input",
+      "target": "click-selector-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "click-selector-input",
+      "target": "clear-selector",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "clear-selector",
+      "target": "type-selector",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "type-selector",
+      "target": "trigger-blur",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "re-select-node",
+      "target": "verify-selector-persisted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "verify-selector-persisted",
+      "target": "assert-selector-saved",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11-bridge-e12",
+      "source": "verify-selected",
+      "target": "find-selector-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17-bridge-e18",
+      "source": "trigger-blur",
+      "target": "re-select-node",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates Click node property configuration including selector editing",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.click",
+          "target_selector": ".react-flow__pane",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Drag Click node onto canvas"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "id": "drag-click-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for node to render"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-node-render"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Click node should appear",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify Click node exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-click-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Click node to select"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-node-to-select"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Node should be selected",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Node is selected"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-selected"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Selector input should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Selector input exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-selector-input"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Click selector input"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "click-selector-input"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "a"
+          ],
+          "modifiers": [
+            "KEYBOARD_MODIFIER_CTRL"
+          ]
+        },
+        "metadata": {
+          "label": "Clear existing selector"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "execution_settings": {
+        "wait_after_ms": 200
+      },
+      "id": "clear-selector"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-2*/",
+          "value": "#test-button"
+        },
+        "metadata": {
+          "label": "Type test selector"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "type-selector"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane"
+        },
+        "metadata": {
+          "label": "Click canvas to blur input"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "trigger-blur"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Re-select node to verify persistence"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 800
+      },
+      "id": "re-select-node"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('.react-flow__node.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
+          "store_result": "selectorPersisted"
+        },
+        "metadata": {
+          "label": "Verify selector persisted"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-selector-persisted"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Selector should persist after blur",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[value=\"#test-button\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Assert selector was saved"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-selector-saved"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
+}

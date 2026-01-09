@@ -550,80 +550,11 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: smart-shopping-assistant
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/smart-shopping-assistant
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/redis/config.yaml
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/storage
-    - ui
-    - tests
-
-resources:
-  required: [postgres, redis, qdrant]
-  optional: [ollama, browserless]
-  health_timeout: 60
-
-tests:
-  - name: "Postgres database is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Shopping research API endpoint"
-    type: http
-    service: api
-    endpoint: /api/v1/shopping/research
-    method: POST
-    body:
-      profile_id: "test-profile"
-      query: "laptop under $1000"
-      include_alternatives: true
-    expect:
-      status: 200
-      body:
-        products: []
-        alternatives: []
-        
-  - name: "CLI research command executes"
-    type: exec
-    command: ./cli/smart-shopping-assistant research "test product" --json
-    expect:
-      exit_code: 0
-      output_contains: ["products", "prices"]
-      
-  - name: "Profile integration with authenticator"
-    type: integration
-    scenario: scenario-authenticator
-    test: profile_creation_and_retrieval
-    expect:
-      success: true
-      
-  - name: "Deep research integration"
-    type: integration
-    scenario: deep-research
-    test: product_analysis_request
-    expect:
-      success: true
-```
+- Testing is orchestrated via `test/run-tests.sh`, leveraging Vrooli's shared phased runner to execute structure, dependencies, unit, integration, business, and performance phases.
+- Structure phase validates `.vrooli/service.json`, API/CLI entrypoints, database migrations, and UI assets; dependency phase verifies Go/Node manifests and client tooling readiness (`psql`, `redis-cli`, `node`).
+- Unit phase executes Go tests with coverage aggregation through `scripts/scenarios/testing/unit/run-all.sh`.
+- Integration and business phases exercise the live API for research, tracking, pattern analysis, alerts, gift recommendations, and affiliate workflows using managed runtime support.
+- Performance phase captures latency benchmarks, concurrent request handling, and cache warm-up behaviour against the running scenario.
 
 ### Performance Validation
 - [ ] Product search returns in < 3 seconds

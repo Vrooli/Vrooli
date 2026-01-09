@@ -206,16 +206,16 @@ console.log('Order status:', status);
 
 ### Comparison with Existing Workflow Tools
 
-| Feature | Temporal | n8n | Windmill | Use Case |
-|---------|----------|-----|----------|----------|
-| Visual Builder | ❌ | ✅ | ✅ | Temporal for code-first |
-| Durability | ✅✅✅ | ✅ | ✅ | Temporal for mission-critical |
-| Distributed | ✅✅✅ | ❌ | ✅ | Temporal for multi-service |
-| Exactly-Once | ✅✅✅ | ❌ | ❌ | Temporal for financial |
-| Time Travel | ✅✅✅ | ❌ | ❌ | Temporal for debugging |
-| Learning Curve | High | Low | Medium | n8n for citizen developers |
+| Feature | Temporal | n8n | Use Case |
+|---------|----------|-----|----------|
+| Visual Builder | ❌ | ✅ | Temporal for code-first |
+| Durability | ✅✅✅ | ✅ | Temporal for mission-critical |
+| Distributed | ✅✅✅ | ❌ | Temporal for multi-service |
+| Exactly-Once | ✅✅✅ | ❌ | Temporal for financial |
+| Time Travel | ✅✅✅ | ❌ | Temporal for debugging |
+| Learning Curve | High | Low | n8n for citizen developers |
 
-**When to use Temporal over n8n/Windmill:**
+**When to use Temporal over n8n:**
 - Financial transactions requiring exactly-once semantics
 - Multi-day workflows with human approvals
 - Distributed sagas across multiple services
@@ -246,7 +246,7 @@ console.log('Order status:', status);
 ### Similar Work Analysis
 - **Airbyte's Internal Temporal**: Used specifically for Airbyte's sync orchestration, not exposed as general resource
 - **n8n**: Visual workflow builder, good for simple automations but lacks durability guarantees
-- **Windmill**: Developer-focused but missing Temporal's strong consistency and time-travel debugging
+- **Developer-focused code-first tools**: Missing Temporal's strong consistency and time-travel debugging
 
 ### Unique Value Proposition
 Temporal is the only workflow orchestration solution that provides:
@@ -289,11 +289,11 @@ Temporal is the only workflow orchestration solution that provides:
 
 ## 🎯 Why Temporal Matters for Vrooli
 
-Temporal transforms Vrooli from a platform that can automate tasks to one that can guarantee business-critical operations. While n8n and Windmill excel at visual automation and rapid development, Temporal provides the infrastructure for scenarios where failure is not an option. This includes financial transactions, regulatory compliance, data consistency, and any workflow where "mostly working" isn't good enough.
+Temporal transforms Vrooli from a platform that can automate tasks to one that can guarantee business-critical operations. While n8n excels at visual automation and rapid development, Temporal provides the infrastructure for scenarios where failure is not an option. This includes financial transactions, regulatory compliance, data consistency, and any workflow where "mostly working" isn't good enough.
 
 The combination of Temporal with existing automation tools creates a complete spectrum:
 - **n8n**: Rapid visual prototyping and simple integrations
-- **Windmill**: Developer-friendly scripting and UI generation
+- **Custom scripting**: Developer-friendly scripting and UI generation
 - **Temporal**: Mission-critical workflows with guaranteed execution
 
 Together, they enable Vrooli to tackle any automation challenge from simple notifications to complex distributed transactions.

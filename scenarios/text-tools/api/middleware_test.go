@@ -21,13 +21,15 @@ func TestCORSMiddleware(t *testing.T) {
 		middleware := corsMiddleware(handler)
 
 		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://localhost")
 		w := httptest.NewRecorder()
 
 		middleware.ServeHTTP(w, req)
 
-		// Check CORS headers
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("Expected Access-Control-Allow-Origin header")
+		// Check CORS headers - should match the allowed origin
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin != "http://localhost" {
+			t.Errorf("Expected Access-Control-Allow-Origin to be http://localhost, got %s", origin)
 		}
 		if w.Header().Get("Access-Control-Allow-Methods") == "" {
 			t.Error("Expected Access-Control-Allow-Methods header")
@@ -48,6 +50,7 @@ func TestCORSMiddleware(t *testing.T) {
 		middleware := corsMiddleware(handler)
 
 		req := httptest.NewRequest("OPTIONS", "/test", nil)
+		req.Header.Set("Origin", "http://localhost")
 		w := httptest.NewRecorder()
 
 		middleware.ServeHTTP(w, req)
@@ -58,8 +61,9 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 
 		// Check CORS headers are set
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("Expected Access-Control-Allow-Origin header for OPTIONS")
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin != "http://localhost" {
+			t.Errorf("Expected Access-Control-Allow-Origin for OPTIONS, got %s", origin)
 		}
 	})
 
@@ -73,6 +77,7 @@ func TestCORSMiddleware(t *testing.T) {
 		middleware := corsMiddleware(handler)
 
 		req := httptest.NewRequest("POST", "/test", nil)
+		req.Header.Set("Origin", "http://localhost")
 		w := httptest.NewRecorder()
 
 		middleware.ServeHTTP(w, req)
@@ -80,8 +85,29 @@ func TestCORSMiddleware(t *testing.T) {
 		if !handlerCalled {
 			t.Error("Expected handler to be called for POST request")
 		}
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("Expected CORS headers on POST request")
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin != "http://localhost" {
+			t.Errorf("Expected CORS headers on POST request, got %s", origin)
+		}
+	})
+
+	t.Run("Disallowed_Origin_Request", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := corsMiddleware(handler)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://malicious-site.com")
+		w := httptest.NewRecorder()
+
+		middleware.ServeHTTP(w, req)
+
+		// Should not set CORS header for disallowed origin
+		origin := w.Header().Get("Access-Control-Allow-Origin")
+		if origin != "" {
+			t.Errorf("Expected no CORS header for disallowed origin, got %s", origin)
 		}
 	})
 }

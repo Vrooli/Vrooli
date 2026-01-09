@@ -73,7 +73,7 @@ EOF
     # Create mock resource directories and manage.sh scripts
     export TEST_RESOURCES_DIR="$TEST_DIR/resources"
     mkdir -p "$TEST_RESOURCES_DIR/ai/ollama"
-    mkdir -p "$TEST_RESOURCES_DIR/automation/n8n"
+    mkdir -p "$TEST_RESOURCES_DIR/automation/node-red"
     
     # Create a test manage.sh script
     cat > "$TEST_RESOURCES_DIR/ai/ollama/manage.sh" << 'EOF'

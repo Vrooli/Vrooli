@@ -41,7 +41,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		var health map[string]interface{}
+		var health map[string]any
 		json.NewDecoder(resp.Body).Decode(&health)
 
 		if health["status"] != "healthy" {
@@ -50,7 +50,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 	})
 
 	t.Run("ScanScenario", func(t *testing.T) {
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"scenario": "test-scenario",
 			"scanners": []string{"custom"},
 			"targets":  []string{tempDir},
@@ -72,7 +72,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Scan failed with status %d: %s", resp.StatusCode, body)
 		}
 
-		var scanResult map[string]interface{}
+		var scanResult map[string]any
 		json.NewDecoder(resp.Body).Decode(&scanResult)
 
 		if scanResult["scan_id"] == nil {
@@ -85,7 +85,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 	})
 
 	t.Run("CheckStandards", func(t *testing.T) {
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"scenario": "test-scenario",
 			"targets":  []string{tempDir},
 			"rules":    []string{"api-versioning", "error-handling"},
@@ -102,7 +102,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		var result map[string]interface{}
+		var result map[string]any
 		json.NewDecoder(resp.Body).Decode(&result)
 
 		if result["violations"] == nil {
@@ -115,7 +115,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 	})
 
 	t.Run("GenerateFixes", func(t *testing.T) {
-		violations := []map[string]interface{}{
+		violations := []map[string]any{
 			{
 				"rule":    "api-versioning",
 				"file":    "main.go",
@@ -124,7 +124,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			},
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"scenario":   "test-scenario",
 			"violations": violations,
 		}
@@ -145,7 +145,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Fix generation failed with status %d: %s", resp.StatusCode, body)
 		}
 
-		var fixResult map[string]interface{}
+		var fixResult map[string]any
 		json.NewDecoder(resp.Body).Decode(&fixResult)
 
 		if fixResult["fixes"] == nil {
@@ -169,7 +169,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		var agent map[string]interface{}
+		var agent map[string]any
 		json.NewDecoder(resp.Body).Decode(&agent)
 
 		if agent["id"] == nil {
@@ -188,10 +188,10 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		taskBody := map[string]interface{}{
+		taskBody := map[string]any{
 			"agent_id": agentID,
 			"type":     "scan",
-			"input": map[string]interface{}{
+			"input": map[string]any{
 				"target": tempDir,
 			},
 		}
@@ -246,7 +246,7 @@ func TestIntegrationRuleManagement(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		var rules []map[string]interface{}
+		var rules []map[string]any
 		json.NewDecoder(resp.Body).Decode(&rules)
 
 		if len(rules) == 0 {
@@ -269,7 +269,7 @@ func TestIntegrationRuleManagement(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 
-		var rule map[string]interface{}
+		var rule map[string]any
 		json.NewDecoder(resp.Body).Decode(&rule)
 
 		if rule["id"] != "api-versioning" {
@@ -302,7 +302,7 @@ func TestIntegrationRuleManagement(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		var rule map[string]interface{}
+		var rule map[string]any
 		json.NewDecoder(resp.Body).Decode(&rule)
 
 		if rule["enabled"] != false {
@@ -337,7 +337,7 @@ func TestIntegrationPerformanceMetrics(t *testing.T) {
 
 	start := time.Now()
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"scenario": "performance-test",
 		"targets":  []string{tempDir},
 	}
@@ -359,10 +359,10 @@ func TestIntegrationPerformanceMetrics(t *testing.T) {
 		t.Errorf("Standards check took too long: %v", elapsed)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	if metrics, ok := result["metrics"].(map[string]interface{}); ok {
+	if metrics, ok := result["metrics"].(map[string]any); ok {
 		if scanTime, ok := metrics["scan_time_ms"].(float64); ok {
 			t.Logf("Scan time: %.2fms", scanTime)
 			if scanTime > 30000 {
@@ -394,7 +394,7 @@ func TestIntegrationErrorHandling(t *testing.T) {
 		name           string
 		method         string
 		path           string
-		body           interface{}
+		body           any
 		expectedStatus int
 	}{
 		{
@@ -408,21 +408,21 @@ func TestIntegrationErrorHandling(t *testing.T) {
 			name:           "Missing required fields",
 			method:         "POST",
 			path:           "/api/v1/standards/check",
-			body:           map[string]interface{}{},
+			body:           map[string]any{},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "Non-existent scenario",
 			method:         "POST",
 			path:           "/api/v1/scan",
-			body:           map[string]interface{}{"scenario": "non-existent"},
+			body:           map[string]any{"scenario": "non-existent"},
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "Invalid agent type",
 			method:         "POST",
 			path:           "/api/v1/agents",
-			body:           map[string]interface{}{"type": "invalid"},
+			body:           map[string]any{"type": "invalid"},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
@@ -509,7 +509,7 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 			case 3:
 				endpoint = "/api/v1/standards/check"
 				method = "POST"
-				reqBody, _ := json.Marshal(map[string]interface{}{
+				reqBody, _ := json.Marshal(map[string]any{
 					"scenario": "test",
 					"targets":  []string{tempDir},
 				})
@@ -576,7 +576,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			return
 		}
 
-		var req map[string]interface{}
+		var req map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
@@ -587,10 +587,10 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			return
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"scan_id": fmt.Sprintf("scan-%d", time.Now().Unix()),
 			"status":  "completed",
-			"results": []map[string]interface{}{},
+			"results": []map[string]any{},
 		})
 	})
 
@@ -600,7 +600,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			return
 		}
 
-		var req map[string]interface{}
+		var req map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
@@ -611,14 +611,14 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			return
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"violations": []map[string]interface{}{},
-			"summary": map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
+			"violations": []map[string]any{},
+			"summary": map[string]any{
 				"total":  0,
 				"passed": 0,
 				"failed": 0,
 			},
-			"metrics": map[string]interface{}{
+			"metrics": map[string]any{
 				"scan_time_ms":   1000,
 				"files_scanned":  10,
 				"rules_executed": 5,
@@ -627,8 +627,8 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 	})
 
 	mux.HandleFunc("/api/v1/standards/fix", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"fixes": []map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
+			"fixes": []map[string]any{
 				{
 					"file": "main.go",
 					"fix":  "Add API version",
@@ -644,7 +644,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 		}
 
 		if r.URL.Path == "/api/v1/rules" {
-			json.NewEncoder(w).Encode([]map[string]interface{}{
+			json.NewEncoder(w).Encode([]map[string]any{
 				{
 					"id":      "api-versioning",
 					"name":    "API Versioning",
@@ -658,7 +658,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			if r.Method == "PATCH" {
 				w.WriteHeader(http.StatusOK)
 			} else {
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]any{
 					"id":      ruleID,
 					"name":    "Test Rule",
 					"enabled": false,
@@ -669,7 +669,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 
 	mux.HandleFunc("/api/v1/agents", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
-			var req map[string]interface{}
+			var req map[string]any
 			json.NewDecoder(r.Body).Decode(&req)
 
 			if req["type"] == "invalid" {
@@ -677,13 +677,13 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 				return
 			}
 
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"id":    fmt.Sprintf("agent-%d", time.Now().Unix()),
 				"type":  req["type"],
 				"state": "ready",
 			})
 		} else if r.Method == "GET" {
-			json.NewEncoder(w).Encode([]map[string]interface{}{})
+			json.NewEncoder(w).Encode([]map[string]any{})
 		}
 	})
 
@@ -699,7 +699,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 		if r.Method == "DELETE" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"id":    agentID,
 				"type":  "scanner",
 				"state": "ready",
@@ -709,7 +709,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 
 	mux.HandleFunc("/api/v1/agents/task", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"task_id": fmt.Sprintf("task-%d", time.Now().Unix()),
 			"status":  "running",
 		})

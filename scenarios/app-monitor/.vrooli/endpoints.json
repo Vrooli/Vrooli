@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "apps-summary",
+      "path": "/api/v1/apps/summary",
+      "method": "GET",
+      "category": "host"
+    },
+    {
+      "id": "apps-view",
+      "path": "/api/v1/apps/{id}/view",
+      "method": "POST",
+      "category": "host"
+    },
+    {
+      "id": "apps-fallback-diagnostics",
+      "path": "/api/v1/apps/{id}/fallback-diagnostics",
+      "method": "POST",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-diagnostics",
+      "path": "/api/v1/apps/{id}/diagnostics",
+      "method": "GET",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-diagnostics-iframe",
+      "path": "/api/v1/apps/{id}/diagnostics/iframe-bridge",
+      "method": "GET",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-diagnostics-status",
+      "path": "/api/v1/apps/{id}/diagnostics/status",
+      "method": "GET",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-diagnostics-health",
+      "path": "/api/v1/apps/{id}/diagnostics/health",
+      "method": "GET",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-diagnostics-localhost",
+      "path": "/api/v1/apps/{id}/diagnostics/localhost",
+      "method": "GET",
+      "category": "diagnostics"
+    },
+    {
+      "id": "apps-docs",
+      "path": "/api/v1/apps/{id}/docs",
+      "method": "GET",
+      "category": "documents"
+    },
+    {
+      "id": "apps-docs-item",
+      "path": "/api/v1/apps/{id}/docs/{*path}",
+      "method": "GET",
+      "category": "documents"
+    },
+    {
+      "id": "apps-docs-search",
+      "path": "/api/v1/apps/{id}/docs-search",
+      "method": "GET",
+      "category": "documents"
+    },
+    {
+      "id": "apps-logs",
+      "path": "/api/v1/apps/{id}/logs",
+      "method": "GET",
+      "category": "logs"
+    },
+    {
+      "id": "apps-logs-lifecycle",
+      "path": "/api/v1/apps/{id}/logs/lifecycle",
+      "method": "GET",
+      "category": "logs"
+    },
+    {
+      "id": "apps-logs-background",
+      "path": "/api/v1/apps/{id}/logs/background",
+      "method": "GET",
+      "category": "logs"
+    },
+    {
+      "id": "apps-metrics",
+      "path": "/api/v1/apps/{id}/metrics",
+      "method": "GET",
+      "category": "metrics"
+    },
+    {
+      "id": "resources-list",
+      "path": "/api/v1/resources",
+      "method": "GET",
+      "category": "resources"
+    },
+    {
+      "id": "resources-get",
+      "path": "/api/v1/resources/{id}",
+      "method": "GET",
+      "category": "resources"
+    },
+    {
+      "id": "resources-status",
+      "path": "/api/v1/resources/{id}/status",
+      "method": "GET",
+      "category": "resources"
+    },
+    {
+      "id": "docker-containers",
+      "path": "/api/v1/docker/containers",
+      "method": "GET",
+      "category": "docker"
+    },
+    {
+      "id": "lighthouse-run",
+      "path": "/api/v1/scenarios/{scenario}/lighthouse/run",
+      "method": "POST",
+      "category": "lighthouse"
+    },
+    {
+      "id": "lighthouse-history",
+      "path": "/api/v1/scenarios/{scenario}/lighthouse/history",
+      "method": "GET",
+      "category": "lighthouse"
+    },
+    {
+      "id": "lighthouse-report",
+      "path": "/api/v1/scenarios/{scenario}/lighthouse/report/{reportId}",
+      "method": "GET",
+      "category": "lighthouse"
+    },
+    {
+      "id": "debug-client-event-post",
+      "path": "/__debug/client-event",
+      "method": "POST",
+      "category": "debug"
+    },
+    {
+      "id": "debug-client-event-get",
+      "path": "/__debug/client-event",
+      "method": "GET",
+      "category": "debug"
+    }
+  ],
+  "websockets": [
+    {
+      "path": "/ws",
+      "description": "App Monitor realtime updates"
+    }
+  ]
+}

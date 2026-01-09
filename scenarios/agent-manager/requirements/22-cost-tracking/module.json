@@ -1,0 +1,40 @@
+{
+  "description": "Track token usage and API costs",
+  "module_id": "MOD-P2-022",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Track and report token usage and API costs for runs",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "Cost Tracking System",
+      "validation": [
+        {
+          "notes": "Test cost calculations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify usage tracking",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate cost reporting",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Cost Tracking"
+}

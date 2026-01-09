@@ -57,7 +57,7 @@
 ### 5. CLI Tool Installation **[VERIFIED WORKING - 2025-10-13]**
 **Severity**: Minor (reduced from Major)
 **Impact**: CLI installs successfully during setup phase
-**Current State**: CLI installed to `~/.local/bin/scheduler-cli`
+**Current State**: CLI installs `workflow-scheduler` to `~/.local/bin`
 **Remaining Issues**:
 - Cannot test CLI commands without running API (API deadlock blocks testing)
 - CLI help documentation needs verification

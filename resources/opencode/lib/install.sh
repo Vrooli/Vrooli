@@ -49,7 +49,9 @@ opencode::install::determine_version() {
     local requested_version="${OPENCODE_VERSION:-}" api_json
     if [[ -n "${requested_version}" ]]; then
         OPENCODE_INSTALL_VERSION="${requested_version}"
-        OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${requested_version}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.zip"
+        local default_ext="zip"
+        [[ "${OPENCODE_INSTALL_OS}" == "linux" ]] && default_ext="tar.gz"
+        OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${requested_version}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.${default_ext}"
         return 0
     fi
 
@@ -74,35 +76,81 @@ opencode::install::determine_version() {
         return 1
     fi
 
-    OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${OPENCODE_INSTALL_VERSION}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.zip"
+    local default_ext="zip"
+    [[ "${OPENCODE_INSTALL_OS}" == "linux" ]] && default_ext="tar.gz"
+    OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${OPENCODE_INSTALL_VERSION}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.${default_ext}"
     return 0
 }
 
 opencode::install::download() {
     local tmp_dir archive
 
-    if ! command -v unzip &>/dev/null; then
-        log::error "unzip is required to install OpenCode"
-        return 1
-    fi
     if ! command -v curl &>/dev/null; then
         log::error "curl is required to install OpenCode"
         return 1
     fi
 
     tmp_dir=$(mktemp -d)
-    archive="${tmp_dir}/opencode.zip"
+    local base_url="https://github.com/sst/opencode/releases/download/v${OPENCODE_INSTALL_VERSION}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}"
+    local candidates=()
 
-    log::info "Downloading OpenCode ${OPENCODE_INSTALL_VERSION} for ${OPENCODE_INSTALL_OS}/${OPENCODE_INSTALL_ARCH}"
-    if ! curl -fsSL -o "${archive}" "${OPENCODE_INSTALL_URL}"; then
-        log::error "Failed to download ${OPENCODE_INSTALL_URL}"
-        rm -rf "${tmp_dir}"
-        return 1
+    if [[ "${OPENCODE_INSTALL_OS}" == "linux" ]]; then
+        candidates+=(
+            "${base_url}.tar.gz"
+            "${base_url}.zip"
+            "${base_url}-musl.tar.gz"
+            "${base_url}-baseline.tar.gz"
+            "${base_url}-baseline-musl.tar.gz"
+        )
+    else
+        candidates+=(
+            "${base_url}.zip"
+            "${base_url}-baseline.zip"
+        )
     fi
 
-    if ! unzip -q "${archive}" -d "${tmp_dir}"; then
-        log::error "Failed to extract OpenCode archive"
+    local downloaded=0
+    for url in "${candidates[@]}"; do
+        archive="${tmp_dir}/$(basename "${url}")"
+        log::info "Downloading OpenCode ${OPENCODE_INSTALL_VERSION} (${url##*/})"
+        if ! curl -fsSL -o "${archive}" "${url}"; then
+            log::warning "Download failed: ${url}"
+            continue
+        fi
+
+        local extension="${archive##*.}"
+        if [[ "${extension}" == "zip" ]]; then
+            if ! command -v unzip &>/dev/null; then
+                log::error "unzip is required to install OpenCode (missing for ${url##*/})"
+                continue
+            fi
+            if ! unzip -q "${archive}" -d "${tmp_dir}"; then
+                log::warning "Failed to extract zip archive from ${url}"
+                continue
+            fi
+        else
+            if ! command -v tar &>/dev/null; then
+                log::error "tar is required to install OpenCode (missing for ${url##*/})"
+                continue
+            fi
+            if ! tar -xzf "${archive}" -C "${tmp_dir}"; then
+                log::warning "Failed to extract tar archive from ${url}"
+                continue
+            fi
+        fi
+
+        if [[ ! -f "${tmp_dir}/opencode" ]]; then
+            log::warning "Archive ${url##*/} did not contain expected 'opencode' binary"
+            continue
+        fi
+
+        downloaded=1
+        break
+    done
+
+    if [[ "${downloaded}" -ne 1 ]]; then
         rm -rf "${tmp_dir}"
+        log::error "Failed to download a compatible OpenCode archive (tried: ${candidates[*]})"
         return 1
     fi
 
@@ -114,6 +162,44 @@ opencode::install::download() {
 
     printf '%s' "${OPENCODE_INSTALL_VERSION}" >"${OPENCODE_VERSION_FILE}"
     log::success "Installed OpenCode ${OPENCODE_INSTALL_VERSION} to ${OPENCODE_BIN}"
+}
+
+opencode::install::write_shim() {
+    # Install a wrapper so `opencode` works outside resource-opencode while
+    # still using the resource-scoped config and secrets.
+    local shim_dir="${OPENCODE_SHIM_DIR:-${HOME}/.local/bin}"
+    local shim_path="${shim_dir}/opencode"
+
+    mkdir -p "${shim_dir}"
+
+    if [[ -e "${shim_path}" && ! -L "${shim_path}" ]]; then
+        log::warning "Skipping shim creation because ${shim_path} already exists"
+        return 0
+    fi
+
+    cat >"${shim_path}" <<EOF
+#!/usr/bin/env bash
+APP_ROOT="${APP_ROOT}"
+# shellcheck disable=SC1090
+source "${OPENCODE_DIR}/lib/common.sh"
+opencode::run_cli "\$@"
+EOF
+    chmod +x "${shim_path}" 2>/dev/null || true
+
+    log::success "Installed global OpenCode shim at ${shim_path}"
+    if ! printf '%s' "${PATH}" | tr ':' '\n' | grep -Fx "${shim_dir}" >/dev/null 2>&1; then
+        log::info "Add ${shim_dir} to your PATH to call 'opencode' directly."
+    fi
+}
+
+opencode::install::remove_shim() {
+    local shim_dir="${OPENCODE_SHIM_DIR:-${HOME}/.local/bin}"
+    local shim_path="${shim_dir}/opencode"
+
+    if [[ -f "${shim_path}" ]] && grep -q "${OPENCODE_DIR}/lib/common.sh" "${shim_path}" 2>/dev/null; then
+        rm -f "${shim_path}" 2>/dev/null || true
+        log::info "Removed OpenCode shim at ${shim_path}"
+    fi
 }
 
 opencode::install::execute() {
@@ -132,11 +218,13 @@ opencode::install::execute() {
     fi
 
     opencode::ensure_config
+    opencode::install::write_shim
     log::success "OpenCode CLI installation complete"
 }
 
 opencode::install::uninstall() {
     log::info "Uninstalling OpenCode AI CLI"
+    opencode::install::remove_shim
     if [[ -d "${OPENCODE_DATA_DIR}" ]]; then
         rm -rf "${OPENCODE_DATA_DIR}"
         log::success "Removed ${OPENCODE_DATA_DIR}"

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -130,10 +131,10 @@ func TestResponseTime(t *testing.T) {
 	defer srvCleanup()
 
 	tests := []struct {
-		name     string
-		path     string
-		method   string
-		maxTime  time.Duration
+		name    string
+		path    string
+		method  string
+		maxTime time.Duration
 	}{
 		{"Health", "/health", "GET", 100 * time.Millisecond},
 		{"APIHealth", "/api/health", "GET", 200 * time.Millisecond},

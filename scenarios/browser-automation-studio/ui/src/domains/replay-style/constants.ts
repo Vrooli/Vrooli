@@ -1,0 +1,7 @@
+export const MIN_CURSOR_SCALE = 0.6;
+export const MAX_CURSOR_SCALE = 1.8;
+export const MIN_BROWSER_SCALE = 0.6;
+export const MAX_BROWSER_SCALE = 1;
+
+export const REPLAY_ARROW_CURSOR_PATH =
+  'M6 3L6 22L10.4 18.1L13.1 26.4L15.9 25.2L13.1 17.5L22 17.5L6 3Z';

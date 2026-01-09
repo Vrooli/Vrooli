@@ -45,8 +45,7 @@ CREATE TABLE user_progress (
     UNIQUE(book_id, user_id)
 );
 
--- Conversation history for book discussions
-CREATE TABLE conversations (
+CREATE TABLE book_talk_conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     user_id VARCHAR(100) NOT NULL,
@@ -126,10 +125,10 @@ CREATE INDEX idx_user_progress_book_user ON user_progress(book_id, user_id);
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_updated_at ON user_progress(updated_at);
 
-CREATE INDEX idx_conversations_book_id ON conversations(book_id);
-CREATE INDEX idx_conversations_user_id ON conversations(user_id);
-CREATE INDEX idx_conversations_book_user ON conversations(book_id, user_id);
-CREATE INDEX idx_conversations_created_at ON conversations(created_at);
+CREATE INDEX idx_book_talk_conversations_book_id ON book_talk_conversations(book_id);
+CREATE INDEX idx_book_talk_conversations_user_id ON book_talk_conversations(user_id);
+CREATE INDEX idx_book_talk_conversations_book_user ON book_talk_conversations(book_id, user_id);
+CREATE INDEX idx_book_talk_conversations_created_at ON book_talk_conversations(created_at);
 
 CREATE INDEX idx_book_chunks_book_id ON book_chunks(book_id);
 CREATE INDEX idx_book_chunks_book_chunk_num ON book_chunks(book_id, chunk_number);
@@ -182,7 +181,7 @@ SELECT
 FROM books b
 LEFT JOIN user_progress up ON b.id = up.book_id;
 
-CREATE VIEW conversation_stats AS
+CREATE VIEW book_talk_conversation_stats AS
 SELECT 
     book_id,
     user_id,
@@ -191,18 +190,18 @@ SELECT
     COUNT(*) FILTER (WHERE position_boundary_respected = true) as spoiler_safe_conversations,
     COUNT(*) FILTER (WHERE position_boundary_respected = false) as spoiler_risk_conversations,
     MAX(created_at) as last_conversation_at
-FROM conversations
+FROM book_talk_conversations
 GROUP BY book_id, user_id;
 
 -- Comments for schema documentation
 COMMENT ON TABLE books IS 'Core book information and processing status';
 COMMENT ON TABLE user_progress IS 'Individual user reading progress for each book';
-COMMENT ON TABLE conversations IS 'Chat history between users and AI about book content';
+COMMENT ON TABLE book_talk_conversations IS 'Chat history between users and AI about book content';
 COMMENT ON TABLE book_chunks IS 'Metadata for book text chunks stored in Qdrant vector database';
 COMMENT ON TABLE reading_analytics IS 'Daily reading analytics for insights and progress tracking';
 COMMENT ON TABLE book_collections IS 'User-created book lists and collections';
 
 COMMENT ON COLUMN books.chapters IS 'JSON array of chapter metadata: [{title, start_position, end_position, word_count}]';
 COMMENT ON COLUMN user_progress.current_position IS 'Current reading position as chunk number (0-indexed)';
-COMMENT ON COLUMN conversations.context_chunks_used IS 'Array of chunk IDs that were used to generate the AI response';
-COMMENT ON COLUMN conversations.position_boundary_respected IS 'Whether the response avoided spoilers from future content';
+COMMENT ON COLUMN book_talk_conversations.context_chunks_used IS 'Array of chunk IDs that were used to generate the AI response';
+COMMENT ON COLUMN book_talk_conversations.position_boundary_respected IS 'Whether the response avoided spoilers from future content';

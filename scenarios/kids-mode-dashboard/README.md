@@ -18,7 +18,7 @@ A simple web dashboard for kids, providing a safe and engaging interface for edu
 
 3. Run tests:
    ```
-   ./test/run-tests.sh
+   vrooli scenario test kids-mode-dashboard
    ```
 
 ## Usage
@@ -40,4 +40,4 @@ A simple web dashboard for kids, providing a safe and engaging interface for edu
 
 ## Testing
 
-Run `./test/run-tests.sh` to execute all test phases.
+Run `vrooli scenario test kids-mode-dashboard` (or `make test`) to execute all test phases.

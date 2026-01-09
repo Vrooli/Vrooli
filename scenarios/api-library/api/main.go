@@ -28,6 +28,10 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Data models
@@ -1268,17 +1272,11 @@ func (c *SemanticSearchClient) storeEmbedding(ctx context.Context, apiID string,
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start api-library
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "api-library",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	initDB()
@@ -1310,43 +1308,27 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("API Library service starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Failed to start server:", err)
+	log.Println("API Library service starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	psqlInfo := os.Getenv("POSTGRES_URL")
-	if psqlInfo == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-		log.Printf("📊 Connecting to database: %s on %s:%s", dbName, dbHost, dbPort)
-	}
-	log.Printf("🔗 Database connection string: %s", psqlInfo)
-
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	// Set connection pool settings with better values
@@ -1354,51 +1336,6 @@ func initDB() {
 	db.SetMaxIdleConns(10)                  // Increased from 5
 	db.SetConnMaxLifetime(30 * time.Minute) // Increased from 5 minutes
 	db.SetConnMaxIdleTime(10 * time.Minute) // Added idle timeout
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -1662,6 +1599,7 @@ func setupRouter() *mux.Router {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes with rate limiting
@@ -1752,17 +1690,6 @@ func setupRouter() *mux.Router {
 }
 
 // Handlers
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "api-library",
-		"timestamp": time.Now().Unix(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 	var searchReq SearchRequest
@@ -3920,6 +3847,7 @@ class {api_name}Client:
 			"client_struct": `package {package_name}
 
 import (
+	"github.com/vrooli/api-core/preflight"
     "bytes"
     "encoding/json"
     "fmt"

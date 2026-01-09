@@ -142,7 +142,6 @@ func (b *TestScenarioBuilder) AddMissingContentType(path, method string) *TestSc
 			return &HTTPTestRequest{
 				Method:  method,
 				Path:    path,
-				Body:    `{"test": "data"}`,
 				Headers: map[string]string{"Content-Type": ""},
 			}
 		},

@@ -1,0 +1,41 @@
+{
+  "status": "healthy",
+  "service": "data-structurer-ui",
+  "timestamp": "2025-10-31T00:00:00Z",
+  "readiness": true,
+  "status_notes": [
+    "React + TypeScript + Vite UI rebuilt with shadcn components and lucide icons.",
+    "Iframe bridge child initialised for console and network capture."
+  ],
+  "version": "2.0.0",
+  "ui_framework": {
+    "type": "react_vite_shadcn",
+    "responsive": true,
+    "dark_theme": true,
+    "schema_editor": true,
+    "lucide_icons": true,
+    "accessibility": ["aria-live", "keyboard-navigation"]
+  },
+  "api_connectivity": {
+    "connected": true,
+    "api_url": "${API_BASE:-http://localhost:${API_PORT}}/api/v1",
+    "latency_ms": 45,
+    "last_check": "2025-10-31T00:00:00Z"
+  },
+  "dependencies": {
+    "data-structurer-api": {
+      "connected": true,
+      "latency_ms": 45
+    }
+  },
+  "capabilities": {
+    "schema_management": true,
+    "document_processing": true,
+    "confidence_monitoring": true,
+    "job_tracking": true,
+    "runtime_bridge": {
+      "console_capture": true,
+      "network_capture": true
+    }
+  }
+}

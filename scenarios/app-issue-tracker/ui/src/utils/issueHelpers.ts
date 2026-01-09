@@ -1,6 +1,7 @@
 import { formatFileSize } from './files';
 import { buildIssueSnapshot } from './issues';
-import type { AgentSettings, Issue, IssueAttachment } from '../data/sampleData';
+import type { Issue, IssueAttachment } from '../types/issue';
+import type { AgentSettings } from '../data/sampleData';
 import type {
   CreateIssueInitialFields,
   CreateIssuePrefill,
@@ -185,7 +186,7 @@ export async function prepareFollowUpPrefill(issue: Issue): Promise<CreateIssueP
     description: `Follow-up request for ${issue.id} (${issue.title}).\n\nDescribe the outstanding issues, regressions, or new instructions here.\n`,
     priority: issue.priority ?? 'Medium',
     status: 'open',
-    appId: issue.app || 'unknown',
+    targets: issue.targets.length > 0 ? issue.targets : [{ type: 'scenario', id: 'unknown' }],
     tags: uniqueTags,
   };
 

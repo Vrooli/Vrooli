@@ -40,7 +40,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// Verify all dependencies are reported
-		expectedServices := []string{"n8n", "windmill", "postgres", "qdrant", "minio", "redis", "ollama", "unstructured"}
+		expectedServices := []string{"n8n", "postgres", "qdrant", "minio", "redis", "ollama", "unstructured"}
 		for _, service := range expectedServices {
 			if _, exists := response.Dependencies[service]; !exists {
 				t.Errorf("Expected service '%s' in health response", service)

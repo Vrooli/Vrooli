@@ -16,7 +16,7 @@ source "${CLI_SCRIPT_DIR}/lib/core.sh"
 source "${CLI_SCRIPT_DIR}/lib/test.sh"
 
 # Load P1 integrations if available
-for integration in n8n_integration superset_dashboards ditto_integration forecast_models; do
+for integration in superset_dashboards ditto_integration forecast_models; do
     if [[ -f "${CLI_SCRIPT_DIR}/lib/${integration}.sh" ]]; then
         source "${CLI_SCRIPT_DIR}/lib/${integration}.sh"
     fi
@@ -58,10 +58,6 @@ main() {
             ;;
         credentials)
             openems::credentials "$@"
-            ;;
-        # P1 Integration Commands
-        n8n)
-            "${CLI_SCRIPT_DIR}/lib/n8n_integration.sh" "$@"
             ;;
         superset)
             "${CLI_SCRIPT_DIR}/lib/superset_dashboards.sh" "$@"
@@ -170,7 +166,6 @@ COMMANDS:
     status      Show service status
     logs        View service logs
     credentials Display integration credentials
-    n8n         n8n workflow automation integration (P1)
     superset    Apache Superset dashboard integration (P1)
     ditto       Eclipse Ditto digital twin integration (P1)
     forecast    Energy forecast models (P1)
@@ -192,8 +187,6 @@ EXAMPLES:
     # View energy metrics
     resource-openems status --verbose
     
-    # Create n8n workflows
-    resource-openems n8n create-workflows
     
     # Generate forecasts
     resource-openems forecast integrated

@@ -86,10 +86,20 @@
     "performance_mode": {
       "type": "string",
       "description": "Performance optimization mode",
-      "enum": ["standard", "optimized", "memory_efficient"],
+      "enum": [
+        "standard",
+        "optimized",
+        "memory_efficient"
+      ],
       "default": "standard"
     }
   },
-  "required": ["data_dir", "jupyter_port", "container_name", "image"],
-  "additionalProperties": false
+  "required": [
+    "data_dir",
+    "jupyter_port",
+    "container_name",
+    "image"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/sagemath/schema.json"
 }

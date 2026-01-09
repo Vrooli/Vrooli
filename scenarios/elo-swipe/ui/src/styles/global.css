@@ -392,10 +392,16 @@ button {
 
   .comparison-cards {
     grid-template-columns: 1fr;
+    grid-template-areas: 'left' 'right';
   }
 
   .comparison-divider {
     display: none;
+  }
+
+  .comparison-card--left,
+  .comparison-card--right {
+    grid-area: auto;
   }
 }
 
@@ -500,9 +506,18 @@ button {
 
 .comparison-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: 'left divider right';
   gap: 32px;
   align-items: stretch;
+}
+
+.comparison-card--left {
+  grid-area: left;
+}
+
+.comparison-card--right {
+  grid-area: right;
 }
 
 .comparison-card {
@@ -552,7 +567,9 @@ button {
 }
 
 .comparison-divider {
+  grid-area: divider;
   align-self: center;
+  justify-self: center;
   display: grid;
   place-items: center;
   width: 72px;

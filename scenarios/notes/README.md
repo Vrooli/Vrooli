@@ -11,24 +11,25 @@ Local AI-enabled note-taking system with intelligent organization, semantic sear
 
 ## Dependencies
 ### Required Resources
-- **n8n**: Workflow automation for note processing and AI operations
 - **PostgreSQL**: Primary storage for notes, folders, and metadata
 - **Qdrant**: Vector database for semantic search capabilities
 - **Ollama**: AI model for note analysis and suggestions
 
-### Shared Workflows Used
-- `ollama.json`: AI text generation and analysis
-- `embedding-generator.json`: Vector embedding creation
-- `semantic-search.json`: Vector similarity search
-- `structured-data-extractor.json`: Extract structured data from notes
-- `chain-of-thought-orchestrator.json`: Complex reasoning workflows
-- `react-loop-engine.json`: Iterative AI processing
-- `smart-semantic-search.json`: Enhanced search with context
+Automation flows (processing, embedding, and inference) are orchestrated directly by the API, so no external workflow engine is required.
+
+### Automation Modules Used
+- AI text generation and analysis pipelines (previously defined as `ollama.json`)
+- Vector embedding creation processes (formerly `embedding-generator.json`)
+- Vector similarity search orchestration (formerly `semantic-search.json`)
+- Structured data extraction routines (formerly `structured-data-extractor.json`)
+- Chain-of-thought coordination for reasoning (formerly `chain-of-thought-orchestrator.json`)
+- Iterative AI processing control loops (formerly `react-loop-engine.json`)
+- Enhanced context-aware search helpers (formerly `smart-semantic-search.json`)
 
 ## Architecture
 ### API (Go)
 - RESTful endpoints for CRUD operations
-- Integration with n8n workflows for AI processing
+- Integration with internal automation modules for AI processing
 - Direct connections to PostgreSQL and Qdrant
 
 ### CLI
@@ -58,6 +59,5 @@ Local AI-enabled note-taking system with intelligent organization, semantic sear
 
 ## Usage by Other Scenarios
 Other scenarios can interact with SmartNotes through:
-- **API**: `POST /api/notes` to store context, `GET /api/notes/search` for retrieval
+- **API**: `POST /api/notes` to store context, `GET /api/notes/search` for retrieval, and `/api/notes/process` for AI enrichment
 - **CLI**: `notes new "Context from scenario X"` for quick storage
-- **Workflows**: Execute note-processor workflow for AI-enhanced storage

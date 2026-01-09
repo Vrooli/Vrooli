@@ -1,0 +1,165 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Agent-Callable Interface",
+    "description": "HTTP/CLI API for other agents to request tidiness recommendations"
+  },
+  "requirements": [
+    {
+      "id": "TM-API-001",
+      "title": "Scenario summary endpoint",
+      "prd_ref": "OT-P0-007",
+      "description": "Expose API endpoint to request top N tidiness issues for a given scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_scenario_summary_test.go",
+          "notes": "Unit tests passing - TestAgentGetIssues_BasicScenarioQuery, TestAgentGetIssues_LimitParameter validate endpoint behavior"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/scenario-summary.json"
+        }
+      ],
+      "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&limit=N - fully functional with database integration",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-002",
+      "title": "File-scoped issue query",
+      "prd_ref": "OT-P0-007",
+      "description": "Support querying issues scoped to specific file or folder",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_scoped_query_test.go",
+          "notes": "Unit tests passing - TestAgentGetIssues_FileFilter, TestAgentGetIssues_FolderFilter validate file and folder scoping"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/file-scoped-query.json"
+        }
+      ],
+      "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&file=path/to/file.ts - supports file and folder filters",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-003",
+      "title": "Category-scoped issue query",
+      "prd_ref": "OT-P0-007",
+      "description": "Support querying issues filtered by category (e.g., 'long files', 'dead code')",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_scoped_query_test.go",
+          "notes": "Unit tests passing - TestAgentGetIssues_CategoryFilter validates category-based filtering"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/category-scoped-query.json"
+        }
+      ],
+      "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&category=dead_code - supports all issue categories",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-004",
+      "title": "Issue ranking heuristic",
+      "prd_ref": "OT-P0-007",
+      "description": "Rank returned issues by severity, occurrence count, and file criticality",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_ranking_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/issue-ranking.json"
+        }
+      ],
+      "notes": "Implemented with severity-based ranking (critical→high→medium→low→info) plus creation date DESC",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-005",
+      "title": "CLI wrapper for agent integration",
+      "prd_ref": "OT-P0-007",
+      "description": "Provide CLI commands that wrap HTTP API for agent consumption",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_cli_wrapper_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/cli-wrapper.json"
+        }
+      ],
+      "notes": "CLI fully functional: tidiness-manager issues --scenario <name> --limit 10 --category dead_code. BATS tests verify CLI commands wrap HTTP API correctly with all filtering options.",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-006",
+      "title": "Issue storage in postgres",
+      "prd_ref": "OT-P0-008",
+      "description": "Store issues in postgres with all required fields (scenario, file, category, severity, notes, remediation, campaign metadata)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_storage_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/postgres-storage.json"
+        }
+      ],
+      "notes": "PostgreSQL schema implemented with all required fields, supports querying by scenario/file/folder/category/severity",
+      "status": "complete"
+    },
+    {
+      "id": "TM-API-007",
+      "title": "Campaign metadata linkage",
+      "prd_ref": "OT-P0-008",
+      "description": "Link issues to campaign ID, session ID, and visit timestamp",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/agent_api_storage_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/campaign-metadata.json"
+        }
+      ],
+      "notes": "Campaign metadata linkage implemented - issues table has campaign_id, session_id, resource_used fields",
+      "status": "complete"
+    }
+  ]
+}

@@ -163,7 +163,7 @@ cd ui && npm test
 - **[PRD.md](PRD.md)** - Complete product requirements and architecture
 - **[API Documentation](docs/api.md)** - Detailed API specification
 - **[CLI Reference](docs/cli.md)** - Command-line interface guide
-- **[Deployment Guide](docs/deployment.md)** - Production deployment instructions
+- **[Deployment Hub](../docs/deployment/README.md)** - Tiered deployment plan
 
 ## 🤝 Integration Examples
 

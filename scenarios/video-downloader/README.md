@@ -13,7 +13,7 @@ Video Downloader is a powerful media retrieval tool that downloads videos from v
 ## Dependencies & Integration
 This scenario demonstrates Vrooli's capability to:
 - Use browserless for web scraping and URL validation
-- Leverage n8n workflows for download orchestration
+- Leverage the scenario's Go automation pipeline for download orchestration
 - Store metadata in PostgreSQL for media library management
 - Cache download progress in Redis for resumable downloads
 
@@ -39,7 +39,7 @@ The design emphasizes efficiency and clarity, making it easy to manage multiple 
 ## Technical Architecture
 - **API**: Go-based REST API for high-performance download management
 - **Storage**: PostgreSQL for metadata, Redis for queue management
-- **Processing**: yt-dlp integration through n8n workflows
+- **Processing**: yt-dlp integration managed by the API's automation pipeline
 - **Web Scraping**: Browserless for platform detection and validation
 
 ## Future Enhancements

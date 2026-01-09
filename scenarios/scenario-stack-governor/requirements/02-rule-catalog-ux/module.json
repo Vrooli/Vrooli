@@ -1,0 +1,19 @@
+{
+  "module_id": "rule-catalog-ux",
+  "title": "Rule catalog UX",
+  "priority": "P0",
+  "description": "Provide an intuitive UI that lists each rule, explains what it checks and why it matters, and lets operators toggle rules.",
+  "requirements": [
+    {
+      "id": "SSG-P0-002",
+      "category": "ux",
+      "prd_ref": "OT-P0-002",
+      "title": "Rule list with explanations",
+      "description": "UI renders the rule catalog with human-readable descriptions and a clear rationale for each rule.",
+      "status": "in_progress",
+      "tags": ["ui", "rules"],
+      "validation": []
+    }
+  ]
+}
+

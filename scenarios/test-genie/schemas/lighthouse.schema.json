@@ -1,0 +1,354 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/lighthouse.schema.json",
+  "title": "Vrooli Lighthouse Configuration",
+  "description": "Lighthouse performance and accessibility audit configuration for a scenario",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "service": {
+      "type": "string",
+      "description": "Service/scenario name"
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Scenario name (alternate field)"
+    },
+    "description": {
+      "type": "string",
+    "description": "Description of this Lighthouse configuration"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Informational metadata for documentation purposes"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Lighthouse audits are enabled"
+    },
+    "lighthouse": {
+      "type": "object",
+      "description": "Main Lighthouse configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether Lighthouse audits are enabled"
+        },
+        "url": {
+          "type": "string",
+          "description": "Base URL to audit (supports ${ENV_VAR} substitution)"
+        },
+        "thresholds": {
+          "$ref": "#/definitions/thresholds",
+          "description": "Global score thresholds"
+        },
+        "budgets": {
+          "type": "array",
+          "description": "Performance budgets by resource type",
+          "items": {
+            "$ref": "#/definitions/budget"
+          }
+        },
+        "scenarios": {
+          "type": "array",
+          "description": "Page-specific audit scenarios",
+          "items": {
+            "$ref": "#/definitions/scenario"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Individual page checks (alternate format)",
+          "items": {
+            "$ref": "#/definitions/check"
+          }
+        },
+        "config": {
+          "$ref": "#/definitions/lighthouse_config",
+          "description": "Lighthouse runner configuration"
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "description": "Page definitions (alternate top-level format)",
+      "items": {
+        "$ref": "#/definitions/page"
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Report generation options",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["json", "html"]
+          },
+          "description": "Report formats to generate"
+        },
+        "fail_on_error": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether threshold failures should fail the phase"
+        }
+      }
+    },
+    "global_options": {
+      "type": "object",
+      "description": "Global Chrome/Lighthouse options",
+      "properties": {
+        "lighthouse": {
+          "$ref": "#/definitions/lighthouse_config",
+          "description": "Lighthouse runner configuration overrides"
+        },
+        "chrome_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum time for each audit in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of retries for failed audits"
+        }
+      }
+    },
+    "performance_notes": {
+      "type": "object",
+      "description": "Documentation about performance characteristics",
+      "properties": {
+        "known_issues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optimizations_applied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "future_improvements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "thresholds": {
+      "type": "object",
+      "description": "Score thresholds (0-1 scale) with error/warn levels",
+      "patternProperties": {
+        "^[a-z0-9\\-]+$": {
+          "$ref": "#/definitions/category_threshold"
+        }
+      },
+      "additionalProperties": false
+    },
+    "category_threshold": {
+      "type": "object",
+      "description": "Error and warning thresholds for a Lighthouse category",
+      "required": ["error", "warn"],
+      "properties": {
+        "error": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum score to pass (fail below this)"
+        },
+        "warn": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Warning threshold (between error and warn)"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["resourceType", "budget"],
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "enum": ["script", "stylesheet", "image", "font", "document", "media", "other", "total"],
+          "description": "Type of resource to budget"
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Budget in kilobytes"
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scenario identifier"
+        },
+        "description": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL path to audit"
+        },
+        "thresholds": {
+          "$ref": "#/definitions/thresholds"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/definitions/lighthouse_config"
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "required": ["id", "path", "thresholds"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "thresholds": {
+          "$ref": "#/definitions/thresholds"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "viewport": {
+          "type": "string",
+          "enum": ["desktop", "mobile"]
+        },
+        "waitForSelector": {
+          "type": "string",
+          "description": "CSS selector to wait for before auditing"
+        },
+        "waitForMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time in milliseconds to wait before running the audit"
+        }
+      }
+    },
+    "lighthouse_config": {
+      "type": "object",
+      "description": "Lighthouse runner settings",
+      "properties": {
+        "extends": {
+          "type": "string",
+          "description": "Base config to extend (e.g., 'lighthouse:default')"
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "onlyCategories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "skipAudits": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "emulatedFormFactor": {
+              "type": "string",
+              "enum": ["mobile", "desktop"]
+            },
+            "formFactor": {
+              "type": "string",
+              "enum": ["mobile", "desktop"]
+            },
+            "throttling": {
+              "type": "object",
+              "properties": {
+                "rttMs": {
+                  "type": "number"
+                },
+                "throughputKbps": {
+                  "type": "number"
+                },
+                "cpuSlowdownMultiplier": {
+                  "type": "number"
+                }
+              }
+            },
+            "screenEmulation": {
+              "type": "object",
+              "properties": {
+                "mobile": {
+                  "type": "boolean"
+                },
+                "width": {
+                  "type": "integer"
+                },
+                "height": {
+                  "type": "integer"
+                },
+                "deviceScaleFactor": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

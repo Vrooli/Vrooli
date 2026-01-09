@@ -27,7 +27,7 @@ func TestGetTestCoverageHandler_NoNaN(t *testing.T) {
 		t.Fatalf("response contains NaN values: %s", recorder.Body.String())
 	}
 
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

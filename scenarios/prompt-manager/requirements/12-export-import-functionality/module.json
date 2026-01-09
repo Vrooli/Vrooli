@@ -1,0 +1,85 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-012",
+  "prd_ref": "prompt-manager-nice-to-have-exportimport-functionality-complete-fixed-database-column-mismatch-tested-and-working",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement functionality to export and import prompt collections",
+      "id": "REQ-P2-001",
+      "prd_ref": "prompt-manager-nice-to-have-exportimport-functionality-complete-fixed-database-column-mismatch-tested-and-working",
+      "status": "draft",
+      "title": "Import/Export System",
+      "validation": [
+        {
+          "notes": "Export to standard format",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Import validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Complete import/export cycle",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data integrity verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Export under 5s for 1000 prompts",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Import under 10s for 1000 prompts",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data can be migrated between systems",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Export format is human-readable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Export/import functionality (COMPLETE: Fixed database column mismatch, tested and working)"
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Send } from 'lucide-react'
+import { Plus, X, Send, Sparkles } from 'lucide-react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from './ui/button'
@@ -119,13 +119,14 @@ export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <motion.h3 
+              <motion.h3
                 className="text-lg font-semibold flex items-center gap-2"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                ✨ New Prompt
+                <Sparkles className="h-5 w-5 text-primary" />
+                New Prompt
               </motion.h3>
               <motion.div
                 initial={{ opacity: 0, rotate: -90 }}

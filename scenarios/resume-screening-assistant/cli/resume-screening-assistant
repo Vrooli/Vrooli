@@ -222,9 +222,7 @@ cmd::status() {
     fi
     
     echo
-    cli::log "Dashboard URLs:"
-    echo "  🔧 Windmill: http://localhost:8000"
-    echo "  ⚡ n8n: http://localhost:5678"
+    cli::log "Resource Endpoints:"
     echo "  🗄️  Qdrant: http://localhost:6333"
 }
 

@@ -19,7 +19,13 @@
     "controller": {
       "type": "string",
       "description": "CNC controller type",
-      "enum": ["Grbl", "Marlin", "Smoothie", "TinyG", "g2core"],
+      "enum": [
+        "Grbl",
+        "Marlin",
+        "Smoothie",
+        "TinyG",
+        "g2core"
+      ],
       "default": "Grbl"
     },
     "serialPort": {
@@ -31,7 +37,15 @@
     "baudRate": {
       "type": "integer",
       "description": "Serial communication baud rate",
-      "enum": [9600, 19200, 38400, 57600, 115200, 230400, 250000],
+      "enum": [
+        9600,
+        19200,
+        38400,
+        57600,
+        115200,
+        230400,
+        250000
+      ],
       "default": 115200
     },
     "allowRemoteAccess": {
@@ -66,10 +80,18 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "content"]
+        "required": [
+          "id",
+          "name",
+          "content"
+        ]
       }
     }
   },
-  "required": ["port", "controller"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "controller"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/cncjs/schema.json"
 }

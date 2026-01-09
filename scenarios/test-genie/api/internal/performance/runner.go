@@ -1,0 +1,203 @@
+package performance
+
+import (
+	"context"
+	"fmt"
+	"io"
+
+	"test-genie/internal/performance/golang"
+	"test-genie/internal/performance/lighthouse"
+	"test-genie/internal/performance/lighthouse/artifacts"
+	"test-genie/internal/performance/nodejs"
+	"test-genie/internal/shared"
+)
+
+// Runner orchestrates performance validation across Go and Node.js builds,
+// and Lighthouse audits.
+type Runner struct {
+	config Config
+
+	// Validators (injectable for testing)
+	golangValidator     golang.Validator
+	nodejsValidator     nodejs.Validator
+	lighthouseValidator lighthouse.Validator
+
+	logWriter io.Writer
+}
+
+// Option configures a Runner.
+type Option func(*Runner)
+
+// New creates a new performance validation runner.
+func New(config Config, opts ...Option) *Runner {
+	r := &Runner{
+		config:    config,
+		logWriter: io.Discard,
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	// Set defaults for validators if not provided via options
+	if r.golangValidator == nil {
+		r.golangValidator = golang.New(config.ScenarioDir, golang.WithLogger(r.logWriter))
+	}
+	if r.nodejsValidator == nil {
+		r.nodejsValidator = nodejs.New(config.ScenarioDir, nodejs.WithLogger(r.logWriter))
+	}
+	if r.lighthouseValidator == nil {
+		r.lighthouseValidator = r.createLighthouseValidator()
+	}
+
+	return r
+}
+
+// createLighthouseValidator creates the default lighthouse validator based on config.
+func (r *Runner) createLighthouseValidator() lighthouse.Validator {
+	// Load lighthouse config from .vrooli/lighthouse.json
+	lhConfig, err := lighthouse.LoadConfig(r.config.ScenarioDir)
+	if err != nil {
+		// If config can't be loaded, return a validator that will report the error
+		lhConfig = lighthouse.DefaultConfig()
+	}
+
+	// Create artifact writer for report generation
+	artifactWriter := artifacts.NewWriter(r.config.ScenarioDir, r.config.ScenarioName)
+
+	// Lighthouse uses CLI directly (Google's official Lighthouse CLI)
+	return lighthouse.New(lighthouse.ValidatorConfig{
+		BaseURL: r.config.UIURL,
+		Config:  lhConfig,
+	},
+		lighthouse.WithLogger(r.logWriter),
+		lighthouse.WithArtifactWriter(artifactWriter),
+	)
+}
+
+// WithLogger sets the log writer for the runner.
+func WithLogger(w io.Writer) Option {
+	return func(r *Runner) {
+		r.logWriter = w
+	}
+}
+
+// WithGolangValidator sets a custom Go validator (for testing).
+func WithGolangValidator(v golang.Validator) Option {
+	return func(r *Runner) {
+		r.golangValidator = v
+	}
+}
+
+// WithNodejsValidator sets a custom Node.js validator (for testing).
+func WithNodejsValidator(v nodejs.Validator) Option {
+	return func(r *Runner) {
+		r.nodejsValidator = v
+	}
+}
+
+// WithLighthouseValidator sets a custom Lighthouse validator (for testing).
+func WithLighthouseValidator(v lighthouse.Validator) Option {
+	return func(r *Runner) {
+		r.lighthouseValidator = v
+	}
+}
+
+// Run executes all performance validations and returns the aggregated result.
+func (r *Runner) Run(ctx context.Context) *RunResult {
+	if err := ctx.Err(); err != nil {
+		return &RunResult{
+			Success:      false,
+			Error:        err,
+			FailureClass: FailureClassSystem,
+		}
+	}
+
+	var observations []Observation
+	var summary BenchmarkSummary
+
+	shared.LogInfo(r.logWriter, "Starting performance validation for %s", r.config.ScenarioName)
+
+	// Get expectations (with defaults)
+	expectations := r.config.Expectations
+	if expectations == nil {
+		expectations = DefaultExpectations()
+	}
+
+	// Section: Go Build
+	observations = append(observations, NewSectionObservation("🔨", "Benchmarking Go API build..."))
+
+	goResult := r.golangValidator.Benchmark(ctx, expectations.GoBuildMaxDuration)
+	summary.GoBuildDuration = goResult.Duration
+	observations = append(observations, goResult.Observations...)
+
+	if !goResult.Success {
+		summary.GoBuildPassed = false
+		return &RunResult{
+			Success:      false,
+			Error:        goResult.Error,
+			FailureClass: goResult.FailureClass,
+			Remediation:  goResult.Remediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
+	summary.GoBuildPassed = true
+
+	// Section: UI Build
+	observations = append(observations, NewSectionObservation("📦", "Benchmarking UI build..."))
+
+	uiResult := r.nodejsValidator.Benchmark(ctx, expectations.UIBuildMaxDuration)
+	summary.UIBuildDuration = uiResult.Duration
+	summary.UIBuildSkipped = uiResult.Skipped
+	observations = append(observations, uiResult.Observations...)
+
+	if !uiResult.Success && !uiResult.Skipped {
+		summary.UIBuildPassed = false
+		return &RunResult{
+			Success:      false,
+			Error:        uiResult.Error,
+			FailureClass: uiResult.FailureClass,
+			Remediation:  uiResult.Remediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
+	summary.UIBuildPassed = uiResult.Success || uiResult.Skipped
+
+	// Section: Lighthouse Audits
+	observations = append(observations, NewSectionObservation("🔦", "Running Lighthouse audits..."))
+
+	lhResult := r.lighthouseValidator.Audit(ctx)
+	summary.LighthouseSkipped = lhResult.Skipped
+	summary.LighthousePages = len(lhResult.PageResults)
+	observations = append(observations, lhResult.Observations...)
+
+	if !lhResult.Success && !lhResult.Skipped {
+		summary.LighthousePassed = false
+		return &RunResult{
+			Success:      false,
+			Error:        lhResult.Error,
+			FailureClass: lhResult.FailureClass,
+			Remediation:  lhResult.Remediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
+	summary.LighthousePassed = lhResult.Success || lhResult.Skipped
+
+	// Final summary
+	observations = append(observations, Observation{
+		Type:    ObservationSuccess,
+		Icon:    "✅",
+		Message: fmt.Sprintf("Performance validation completed (%s)", summary.String()),
+	})
+
+	shared.LogSuccess(r.logWriter, "Performance validation complete")
+
+	return &RunResult{
+		Success:      true,
+		Observations: observations,
+		Summary:      summary,
+	}
+}

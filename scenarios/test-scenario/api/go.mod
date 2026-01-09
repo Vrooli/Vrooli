@@ -2,6 +2,7 @@ module test-scenario
 
 go 1.21
 
-require (
-	// No external dependencies - this is a simple test scenario
-)
+// No external dependencies - this is a simple test scenario
+require github.com/vrooli/api-core v0.0.0
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

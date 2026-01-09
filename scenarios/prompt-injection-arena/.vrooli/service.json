@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "prompt-injection-arena",
@@ -19,7 +19,28 @@
       "ollama-integration",
       "n8n-workflows",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/prompt-injection-arena"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -31,58 +52,6 @@
       "env_var": "UI_PORT",
       "description": "Arena web interface port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store injection library, agent configs, test results, leaderboards",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "codellama",
-        "qwen2.5:7b",
-        "nomic-embed-text"
-      ],
-      "purpose": "Execute agent configurations against injection tests safely"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/security-sandbox.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/injection-tester.json",
-          "type": "workflow"
-        }
-      ]
     }
   },
   "lifecycle": {
@@ -117,20 +86,26 @@
     },
     "setup": {
       "description": "Initialize Prompt Injection Arena",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/prompt-injection-arena-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "prompt-injection-arena"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/prompt-injection-arena-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "prompt-injection-arena",
+            "targets": [
+              "prompt-injection-arena"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -149,9 +124,17 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "add-data",
@@ -165,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "run": "echo '\ud83d\ude80 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -184,58 +167,27 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server in background",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test prompt injection arena API, CLI and security sandbox",
+      "description": "Comprehensive phased testing for prompt-injection-arena",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-injection-library",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/injections/library",
-          "description": "Test injection library endpoint"
-        },
-        {
-          "name": "test-agent-endpoint",
-          "run": "bash test/test-agent-security.sh",
-          "description": "Test agent security evaluation endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats prompt-injection-arena.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/prompt-injection-arena.bats"
-          }
-        },
-        {
-          "name": "test-security-sandbox",
-          "run": "bash test/test-security-sandbox.sh",
-          "description": "Validate security sandbox isolation"
+          "name": "run-phased-tests",
+          "run": "test-genie execute prompt-injection-arena --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -253,6 +205,60 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store injection library, agent configs, test results, leaderboards",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama",
+          "qwen2.5:7b",
+          "nomic-embed-text"
+        ],
+        "purpose": "Execute agent configurations against injection tests safely"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/security-sandbox.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/injection-tester.json",
+            "type": "workflow"
+          }
+        ]
+      }
     }
   }
 }

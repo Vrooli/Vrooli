@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Plus, 
-  Clock, 
-  TrendingUp, 
+import {
+  Plus,
+  TrendingUp,
   FileText,
   Heart,
-  MoreVertical
+  MoreVertical,
+  type LucideIcon
 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -17,6 +17,12 @@ import { LoadingSpinner } from './ui/loading-spinner'
 import { cn, formatRelativeTime, truncateText, estimateTokens } from '@/lib/utils'
 import type { Prompt } from '@/types'
 
+interface FilterInfo {
+  icon: LucideIcon
+  label: string
+  description: string
+}
+
 interface PromptListProps {
   prompts: Prompt[]
   selectedPrompt: Prompt | null
@@ -24,19 +30,20 @@ interface PromptListProps {
   campaignId?: string
   isLoading?: boolean
   searchQuery?: string
+  filterInfo?: FilterInfo | null
 }
 
-export function PromptList({ 
-  prompts, 
-  selectedPrompt, 
-  onSelectPrompt, 
+export function PromptList({
+  prompts,
+  selectedPrompt,
+  onSelectPrompt,
   campaignId,
   isLoading,
-  searchQuery 
+  searchQuery,
+  filterInfo
 }: PromptListProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newPrompt, setNewPrompt] = useState({ title: '', content: '' })
-  const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all')
   
   const queryClient = useQueryClient()
 
@@ -63,18 +70,8 @@ export function PromptList({
     })
   }
 
-  // Filter prompts based on current filter
-  const filteredPrompts = prompts.filter(prompt => {
-    switch (filter) {
-      case 'favorites':
-        return prompt.is_favorite
-      case 'recent':
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        return new Date(prompt.updated_at) > weekAgo
-      default:
-        return true
-    }
-  })
+  // Use prompts directly since filtering is now done at app level
+  const filteredPrompts = prompts
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -97,35 +94,41 @@ export function PromptList({
     }
   }
 
-  const filters = [
-    { key: 'all', label: 'All Prompts', icon: FileText },
-    { key: 'favorites', label: 'Favorites', icon: Heart },
-    { key: 'recent', label: 'Recent', icon: Clock },
-  ]
+  // Determine the icon and label to show based on context
+  const HeaderIcon = filterInfo?.icon || FileText
+  const headerLabel = filterInfo?.label || 'Prompts'
 
   return (
     <Card className="h-full flex flex-col bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-            >
-              📝
-            </motion.div>
-            Prompts
-            {searchQuery && (
-              <motion.span
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-sm font-normal text-muted-foreground"
+          <div className="flex-1">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+                className="text-primary"
               >
-                • Search results
-              </motion.span>
+                <HeaderIcon className="h-5 w-5" />
+              </motion.div>
+              {headerLabel}
+              {searchQuery && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-sm font-normal text-muted-foreground"
+                >
+                  • Search results
+                </motion.span>
+              )}
+            </CardTitle>
+            {filterInfo?.description && (
+              <p className="text-xs text-muted-foreground mt-1 ml-7">
+                {filterInfo.description}
+              </p>
             )}
-          </CardTitle>
-          
+          </div>
+
           {campaignId && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
@@ -139,27 +142,6 @@ export function PromptList({
             </motion.div>
           )}
         </div>
-        
-        {/* Filter tabs */}
-        {!searchQuery && (
-          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
-            {filters.map(({ key, label, icon: Icon }) => (
-              <Button
-                key={key}
-                variant={filter === key ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setFilter(key as any)}
-                className={cn(
-                  "flex-1 h-8 text-xs transition-all duration-200",
-                  filter === key && "bg-background shadow-sm"
-                )}
-              >
-                <Icon className="h-3 w-3 mr-1" />
-                {label}
-              </Button>
-            ))}
-          </div>
-        )}
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col space-y-3 overflow-hidden">

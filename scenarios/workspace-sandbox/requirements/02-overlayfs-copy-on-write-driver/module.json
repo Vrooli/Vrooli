@@ -1,0 +1,57 @@
+{
+  "description": "Linux driver using overlayfs (lowerdir=canonical read-only, upperdir/workdir per sandbox, merged mount point)",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement overlayfs driver with read-only lower dir pointing to canonical repo and writable upper/work dirs per sandbox",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "complete",
+      "title": "Overlayfs Mount Configuration",
+      "validation": [
+        {
+          "notes": "Verify driver type returns overlayfs",
+          "phase": "unit",
+          "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverType",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Test directory structure creation",
+          "phase": "unit",
+          "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverDirectoryStructure",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "API reports driver availability status",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoAvailable",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "API reports driver unavailable status correctly",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "integration: Driver info endpoint returns driver status",
+          "phase": "api",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::driver info endpoint returns status",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Overlayfs Copy-on-Write Driver"
+}

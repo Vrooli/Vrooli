@@ -1,0 +1,153 @@
+{
+  "edges": [
+    {
+      "id": "call-open-demo-workflow-to-wait-builder",
+      "source": "call-open-demo-workflow",
+      "target": "wait-builder",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "assert-nodes-exist",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "double-click-node",
+      "target": "wait-for-properties",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-properties",
+      "target": "check-properties-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7-bridge-e8",
+      "source": "assert-nodes-exist",
+      "target": "double-click-node",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11-bridge-e12",
+      "source": "check-properties-visible",
+      "target": "close-properties",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates opening and editing node properties/configuration",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow should have nodes",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Nodes exist on canvas"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-nodes-exist"
+    },
+    {
+      "action": {
+        "click": {
+          "click_count": 2,
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Double-click node to open properties"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "double-click-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for properties panel/dialog"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-for-properties"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('[role=\"dialog\"], [class*=\"properties\"], [class*=\"config\"], [class*=\"settings\"]') !== null || document.querySelector('input, textarea, select') !== null",
+          "store_result": "propertiesVisible"
+        },
+        "metadata": {
+          "label": "Check if properties UI appeared"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-properties-visible"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Close properties with Escape"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "close-properties"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
+}

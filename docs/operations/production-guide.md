@@ -1,5 +1,7 @@
 # Production Operations & Deployment Guide
 
+> ⚠️ **Status:** Operational reference only. The deployment procedures described here pre-date the tiered deployment plan. Pair this document with the [Deployment Hub](../deployment/README.md) to understand which pieces remain relevant (monitoring, incident response) versus which are legacy (multi-server topology, packaging scripts).
+
 This guide covers everything needed to successfully deploy, monitor, and maintain Vrooli in production environments.
 
 ## 📋 Table of Contents
@@ -14,9 +16,9 @@ This guide covers everything needed to successfully deploy, monitor, and maintai
 - [Troubleshooting](#troubleshooting)
 - [Incident Response](#incident-response)
 
-## 🏗️ Production Architecture
+## 🏗️ Production Architecture (Legacy Topology)
 
-### **Recommended Production Topology**
+### **Historical Topology**
 
 ```mermaid
 graph TB
@@ -89,7 +91,7 @@ graph TB
     class MONITORING,LOGS,BACKUP external
 ```
 
-### **Minimum Production Requirements**
+### **Minimum Production Requirements (Legacy)**
 
 #### **Compute Resources**
 - **Application Servers**: 3x instances (4 CPU, 16GB RAM, 100GB SSD)
@@ -624,13 +626,42 @@ redis-cli ping
 
 ## 🔁 Autoheal Watchdog
 
-- Run `scripts/maintenance/install-autoheal.sh` to install the hourly watchdog that restarts critical resources and scenarios when health checks fail.
-- Override defaults with env vars such as `VROOLI_AUTOHEAL_RESOURCES`, `VROOLI_AUTOHEAL_SCENARIOS`, `VROOLI_AUTOHEAL_GRACE_SECONDS`, `VROOLI_AUTOHEAL_VERIFY_DELAY`, and `VROOLI_AUTOHEAL_CMD_TIMEOUT` when invoking the installer.
-- API health checks target `http://127.0.0.1:${VROOLI_API_PORT:-8092}/health` by default; use `VROOLI_AUTOHEAL_API_URL`, `VROOLI_AUTOHEAL_API_TIMEOUT`, or `VROOLI_AUTOHEAL_API_RECOVERY` to customize detection and recovery when the orchestrator stops responding.
-- Example: `VROOLI_AUTOHEAL_API_RECOVERY="cd /home/USER/Vrooli && scripts/maintenance/restart-vrooli-api.sh" scripts/maintenance/install-autoheal.sh` wires the watchdog to the bundled API restart helper.
-- If `/var/log/vrooli-autoheal.log` is unwritable, it automatically falls back to `~/.vrooli/logs/vrooli-autoheal.log`.
-- The installer copies the script to `/usr/local/bin/vrooli-autoheal.sh`, ensures `/var/log/vrooli-autoheal.log` exists, registers the cron entry, and drops a weekly logrotate policy (`/etc/logrotate.d/vrooli-autoheal`).
-- Remove the automation with `scripts/maintenance/install-autoheal.sh --remove`.
+The **vrooli-autoheal** scenario provides comprehensive self-healing infrastructure monitoring with a web dashboard, persistent health history, and verified auto-recovery.
+
+### Installation
+
+```bash
+# Start the vrooli-autoheal scenario
+vrooli scenario start vrooli-autoheal
+
+# Install OS watchdog for boot persistence (survives reboots)
+cd scenarios/vrooli-autoheal && ./cli/vrooli-autoheal install
+# Use --system for system-wide installation (requires sudo)
+```
+
+### Features
+
+- **21 health checks**: Infrastructure (network, DNS, Docker, Cloudflared), system resources (disk, swap, ports, zombies), and Vrooli resources/scenarios
+- **Verified auto-healing**: Recovery actions re-check health after execution to confirm success
+- **Web dashboard**: Real-time status, trends, timeline, and manual recovery triggers at the scenario's UI port
+- **OS watchdog**: systemd (Linux), launchd (macOS), or Windows Task Scheduler integration for boot persistence
+- **Health history**: PostgreSQL-backed 24-hour retention with trend analysis
+
+### CLI Commands
+
+```bash
+./cli/vrooli-autoheal status          # View current health status
+./cli/vrooli-autoheal tick --force    # Run all health checks immediately
+./cli/vrooli-autoheal watchdog        # Check OS watchdog installation status
+./cli/vrooli-autoheal checks          # List all registered health checks
+```
+
+### Uninstallation
+
+```bash
+./cli/vrooli-autoheal uninstall       # Remove OS watchdog service
+vrooli scenario stop vrooli-autoheal  # Stop the scenario
+```
 
 ## 🔒 Security Hardening
 

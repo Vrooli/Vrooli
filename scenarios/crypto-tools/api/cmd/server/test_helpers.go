@@ -46,7 +46,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		Port:        "15001",
 		DatabaseURL: "mock", // Use mock to avoid DB dependency
 		N8NURL:      "http://mock-n8n:5678",
-		WindmillURL: "http://mock-windmill:5681",
 		APIToken:    "test-token-12345",
 	}
 

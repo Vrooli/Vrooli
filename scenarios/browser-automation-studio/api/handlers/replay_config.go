@@ -1,0 +1,523 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"math"
+	"net/http"
+	"strings"
+
+	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/database"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
+)
+
+const (
+	replayConfigSettingsKey = "replay_config.v1"
+	minBrowserScale         = 0.6
+	maxBrowserScale         = 1.0
+)
+
+// ReplayConfigRequest captures a persisted replay configuration payload.
+type ReplayConfigRequest struct {
+	Config map[string]any `json:"config"`
+}
+
+// ReplayConfigResponse returns the persisted replay configuration payload.
+type ReplayConfigResponse struct {
+	Config map[string]any `json:"config"`
+}
+
+// GetReplayConfig handles GET /api/v1/replay-config
+func (h *Handler) GetReplayConfig(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	config, err := h.loadReplayConfig(ctx)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to load replay config")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_replay_config"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: config})
+}
+
+// PutReplayConfig handles PUT /api/v1/replay-config
+func (h *Handler) PutReplayConfig(w http.ResponseWriter, r *http.Request) {
+	var req ReplayConfigRequest
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		h.log.WithError(err).Error("Failed to decode replay config request")
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	if req.Config == nil {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "config"}))
+		return
+	}
+
+	payload, err := json.Marshal(req.Config)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to marshal replay config")
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "config"}))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if err := h.repo.SetSetting(ctx, replayConfigSettingsKey, string(payload)); err != nil {
+		h.log.WithError(err).Error("Failed to persist replay config")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "set_replay_config"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: req.Config})
+}
+
+// DeleteReplayConfig handles DELETE /api/v1/replay-config
+func (h *Handler) DeleteReplayConfig(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if err := h.repo.DeleteSetting(ctx, replayConfigSettingsKey); err != nil {
+		h.log.WithError(err).Error("Failed to delete replay config")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_replay_config"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: map[string]any{}})
+}
+
+func (h *Handler) loadReplayConfig(ctx context.Context) (map[string]any, error) {
+	value, err := h.repo.GetSetting(ctx, replayConfigSettingsKey)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			return map[string]any{}, nil
+		}
+		return nil, err
+	}
+
+	if value == "" {
+		return map[string]any{}, nil
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal([]byte(value), &config); err != nil {
+		return nil, err
+	}
+
+	if config == nil {
+		return map[string]any{}, nil
+	}
+
+	return config, nil
+}
+
+func (h *Handler) replayConfigOverrides(ctx context.Context) *executionExportOverrides {
+	config, err := h.loadReplayConfig(ctx)
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Warn("Failed to load replay config for export overrides")
+		}
+		return nil
+	}
+	return replayConfigToOverrides(config)
+}
+
+func replayConfigToOverrides(config map[string]any) *executionExportOverrides {
+	if config == nil {
+		return nil
+	}
+
+	style, _ := unwrapReplayConfig(config)
+	if style == nil {
+		return nil
+	}
+
+	chromeTheme := firstString(style, "chromeTheme", "replayChromeTheme", "chrome_theme")
+	backgroundTheme := readBackgroundTheme(style)
+	cursorTheme := firstString(style, "cursorTheme", "replayCursorTheme", "cursor_theme")
+	cursorInitial := firstString(style, "cursorInitialPosition", "replayCursorInitialPosition", "cursor_initial_position")
+	clickAnimation := firstString(style, "cursorClickAnimation", "replayCursorClickAnimation", "cursor_click_animation")
+	cursorScale, hasScale := firstFloat(style, "cursorScale", "replayCursorScale", "cursor_scale")
+
+	var themePreset *themePresetOverride
+	if chromeTheme != "" || backgroundTheme != "" {
+		themePreset = &themePresetOverride{
+			ChromeTheme:     chromeTheme,
+			BackgroundTheme: backgroundTheme,
+		}
+	}
+
+	var cursorPreset *cursorPresetOverride
+	if cursorTheme != "" || cursorInitial != "" || clickAnimation != "" || hasScale {
+		cursorPreset = &cursorPresetOverride{
+			Theme:           cursorTheme,
+			InitialPosition: cursorInitial,
+			ClickAnimation:  clickAnimation,
+		}
+		if hasScale && cursorScale > 0 {
+			cursorPreset.Scale = cursorScale
+		}
+	}
+
+	if themePreset == nil && cursorPreset == nil {
+		return nil
+	}
+
+	return &executionExportOverrides{
+		ThemePreset:  themePreset,
+		CursorPreset: cursorPreset,
+	}
+}
+
+func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[string]any) {
+	if spec == nil || config == nil {
+		return
+	}
+
+	style, extra := unwrapReplayConfig(config)
+	merged := mergeReplayConfig(style, extra)
+	backgroundTheme := readBackgroundTheme(merged)
+	backgroundSource := readBackgroundSource(merged, backgroundTheme)
+	chromeTheme := firstString(merged, "chromeTheme", "replayChromeTheme", "chrome_theme")
+
+	if speed := firstString(merged, "cursorSpeedProfile", "cursor_speed_profile"); speed != "" {
+		spec.CursorMotion.SpeedProfile = speed
+	}
+	if pathStyle := firstString(merged, "cursorPathStyle", "cursor_path_style"); pathStyle != "" {
+		spec.CursorMotion.PathStyle = pathStyle
+	}
+	if browserScale, ok := firstFloat(merged, "browserScale", "replayBrowserScale", "browser_scale"); ok {
+		applyBrowserScaleToSpec(spec, browserScale, chromeTheme)
+	}
+
+	if backgroundSource != nil {
+		spec.Decor.Background = backgroundSource
+	} else if backgroundTheme != "" {
+		spec.Decor.Background = map[string]any{
+			"type": "theme",
+			"id":   backgroundTheme,
+		}
+	}
+
+	if watermark := mapWatermark(merged["watermark"]); watermark != nil {
+		spec.Watermark = watermark
+	}
+	if intro := mapIntroCard(merged["introCard"]); intro != nil {
+		spec.IntroCard = intro
+	}
+	if outro := mapOutroCard(merged["outroCard"]); outro != nil {
+		spec.OutroCard = outro
+	}
+}
+
+func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64, chromeTheme string) {
+	if spec == nil || !isFiniteFloat(scale) {
+		return
+	}
+	canvasWidth := spec.Presentation.Canvas.Width
+	canvasHeight := spec.Presentation.Canvas.Height
+	if canvasWidth <= 0 || canvasHeight <= 0 {
+		canvasWidth = spec.Presentation.Viewport.Width
+		canvasHeight = spec.Presentation.Viewport.Height
+	}
+	if canvasWidth <= 0 || canvasHeight <= 0 {
+		return
+	}
+	clamped := clampBrowserScale(scale)
+	radius := spec.Presentation.BrowserFrame.Radius
+	if radius <= 0 {
+		radius = 24
+	}
+	headerHeight := chromeHeaderHeight(chromeTheme)
+	viewportWidth := spec.Presentation.Viewport.Width
+	viewportHeight := spec.Presentation.Viewport.Height
+	if viewportWidth <= 0 || viewportHeight <= 0 {
+		viewportWidth = canvasWidth
+		viewportHeight = canvasHeight
+	}
+	frameRect := computeBrowserFrameRect(
+		float64(canvasWidth),
+		float64(canvasHeight),
+		float64(viewportWidth),
+		float64(viewportHeight),
+		clamped,
+		float64(headerHeight),
+	)
+	if frameRect.Width <= 0 || frameRect.Height <= 0 {
+		return
+	}
+	spec.Presentation.BrowserFrame = exportservices.ExportFrameRect{
+		X:      int(math.Round(frameRect.X)),
+		Y:      int(math.Round(frameRect.Y)),
+		Width:  int(math.Round(frameRect.Width)),
+		Height: int(math.Round(frameRect.Height)),
+		Radius: radius,
+	}
+}
+
+type frameRect struct {
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
+}
+
+func computeBrowserFrameRect(canvasWidth, canvasHeight, viewportWidth, viewportHeight, browserScale, chromeHeaderHeight float64) frameRect {
+	if canvasWidth <= 0 || canvasHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0 {
+		return frameRect{}
+	}
+	availableHeight := math.Max(1, canvasHeight-chromeHeaderHeight)
+	aspect := viewportHeight / viewportWidth
+	targetViewportWidth := canvasWidth * browserScale
+	maxViewportWidthByHeight := availableHeight / aspect
+	viewportWidthScaled := math.Max(1, math.Min(targetViewportWidth, maxViewportWidthByHeight))
+	viewportHeightScaled := math.Max(1, viewportWidthScaled*aspect)
+	viewportX := math.Max(0, (canvasWidth-viewportWidthScaled)/2)
+	viewportY := chromeHeaderHeight + math.Max(0, (availableHeight-viewportHeightScaled)/2)
+
+	return frameRect{
+		X:      viewportX,
+		Y:      math.Max(0, viewportY-chromeHeaderHeight),
+		Width:  viewportWidthScaled,
+		Height: viewportHeightScaled + chromeHeaderHeight,
+	}
+}
+
+func chromeHeaderHeight(theme string) int {
+	switch theme {
+	case "chromium":
+		return 84
+	case "midnight":
+		return 40
+	case "minimal":
+		return 0
+	case "aurora":
+		return 40
+	default:
+		return 40
+	}
+}
+
+func clampBrowserScale(value float64) float64 {
+	if value < minBrowserScale {
+		return minBrowserScale
+	}
+	if value > maxBrowserScale {
+		return maxBrowserScale
+	}
+	return value
+}
+
+func firstString(config map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := config[key]; ok {
+			if str, ok := value.(string); ok {
+				if trimmed := strings.TrimSpace(str); trimmed != "" {
+					return trimmed
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func readBackgroundTheme(config map[string]any) string {
+	if config == nil {
+		return ""
+	}
+	if raw, ok := config["background"]; ok {
+		if background, okBackground := raw.(map[string]any); okBackground {
+			if kind := firstString(background, "type"); kind == "theme" {
+				return firstString(background, "id", "theme", "value")
+			}
+		}
+	}
+	return firstString(config, "backgroundTheme", "replayBackgroundTheme", "background_theme")
+}
+
+func readBackgroundSource(config map[string]any, fallbackTheme string) map[string]any {
+	if config == nil {
+		return nil
+	}
+	if raw, ok := config["background"]; ok {
+		if background, okBackground := raw.(map[string]any); okBackground {
+			return background
+		}
+	}
+	if fallbackTheme == "" {
+		return nil
+	}
+	return map[string]any{
+		"type": "theme",
+		"id":   fallbackTheme,
+	}
+}
+
+func unwrapReplayConfig(config map[string]any) (map[string]any, map[string]any) {
+	if config == nil {
+		return nil, nil
+	}
+	if styleRaw, ok := config["style"]; ok {
+		style, okStyle := styleRaw.(map[string]any)
+		if okStyle {
+			if extraRaw, okExtra := config["extra"]; okExtra {
+				if extra, okExtraMap := extraRaw.(map[string]any); okExtraMap {
+					return style, extra
+				}
+			}
+			return style, nil
+		}
+	}
+	return config, nil
+}
+
+func mergeReplayConfig(style map[string]any, extra map[string]any) map[string]any {
+	if style == nil && extra == nil {
+		return map[string]any{}
+	}
+	if extra == nil {
+		return style
+	}
+	merged := map[string]any{}
+	for key, value := range style {
+		merged[key] = value
+	}
+	for key, value := range extra {
+		merged[key] = value
+	}
+	return merged
+}
+
+func firstFloat(config map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		if value, ok := config[key]; ok {
+			switch v := value.(type) {
+			case float64:
+				if isFiniteFloat(v) {
+					return v, true
+				}
+			case float32:
+				f := float64(v)
+				if isFiniteFloat(f) {
+					return f, true
+				}
+			case int:
+				return float64(v), true
+			case int64:
+				return float64(v), true
+			case int32:
+				return float64(v), true
+			}
+		}
+	}
+	return 0, false
+}
+
+func isFiniteFloat(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func mapWatermark(value any) *exportservices.ExportWatermark {
+	obj, ok := value.(map[string]any)
+	if !ok || obj == nil {
+		return nil
+	}
+	settings := &exportservices.ExportWatermark{
+		Enabled:  toBool(obj["enabled"]),
+		AssetID:  firstString(obj, "assetId", "asset_id"),
+		Position: firstString(obj, "position"),
+		Size:     toInt(obj["size"]),
+		Opacity:  toInt(obj["opacity"]),
+		Margin:   toInt(obj["margin"]),
+	}
+	if !settings.Enabled && settings.AssetID == "" && settings.Position == "" && settings.Size == 0 &&
+		settings.Opacity == 0 && settings.Margin == 0 {
+		return nil
+	}
+	return settings
+}
+
+func mapIntroCard(value any) *exportservices.ExportIntroCard {
+	obj, ok := value.(map[string]any)
+	if !ok || obj == nil {
+		return nil
+	}
+	settings := &exportservices.ExportIntroCard{
+		Enabled:           toBool(obj["enabled"]),
+		Title:             firstString(obj, "title"),
+		Subtitle:          firstString(obj, "subtitle"),
+		LogoAssetID:       firstString(obj, "logoAssetId", "logo_asset_id"),
+		BackgroundAssetID: firstString(obj, "backgroundAssetId", "background_asset_id"),
+		BackgroundColor:   firstString(obj, "backgroundColor", "background_color"),
+		TextColor:         firstString(obj, "textColor", "text_color"),
+		DurationMs:        toInt(obj["duration"]),
+	}
+	if settings.DurationMs == 0 {
+		settings.DurationMs = toInt(obj["duration_ms"])
+	}
+	if !settings.Enabled && settings.Title == "" && settings.Subtitle == "" && settings.LogoAssetID == "" &&
+		settings.BackgroundAssetID == "" && settings.BackgroundColor == "" && settings.TextColor == "" &&
+		settings.DurationMs == 0 {
+		return nil
+	}
+	return settings
+}
+
+func mapOutroCard(value any) *exportservices.ExportOutroCard {
+	obj, ok := value.(map[string]any)
+	if !ok || obj == nil {
+		return nil
+	}
+	settings := &exportservices.ExportOutroCard{
+		Enabled:           toBool(obj["enabled"]),
+		Title:             firstString(obj, "title"),
+		CtaText:           firstString(obj, "ctaText", "cta_text"),
+		CtaURL:            firstString(obj, "ctaUrl", "cta_url"),
+		LogoAssetID:       firstString(obj, "logoAssetId", "logo_asset_id"),
+		BackgroundAssetID: firstString(obj, "backgroundAssetId", "background_asset_id"),
+		BackgroundColor:   firstString(obj, "backgroundColor", "background_color"),
+		TextColor:         firstString(obj, "textColor", "text_color"),
+		DurationMs:        toInt(obj["duration"]),
+	}
+	if settings.DurationMs == 0 {
+		settings.DurationMs = toInt(obj["duration_ms"])
+	}
+	if !settings.Enabled && settings.Title == "" && settings.CtaText == "" && settings.CtaURL == "" &&
+		settings.LogoAssetID == "" && settings.BackgroundAssetID == "" && settings.BackgroundColor == "" &&
+		settings.TextColor == "" && settings.DurationMs == 0 {
+		return nil
+	}
+	return settings
+}
+
+func toBool(value any) bool {
+	if v, ok := value.(bool); ok {
+		return v
+	}
+	return false
+}
+
+func toInt(value any) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case float32:
+		if isFiniteFloat(float64(v)) {
+			return int(v)
+		}
+	case float64:
+		if isFiniteFloat(v) {
+			return int(v)
+		}
+	}
+	return 0
+}

@@ -30,10 +30,14 @@ The template uses the following variables that are replaced during generation:
 
 ### Server Configuration
 - `{{SERVER_TYPE}}` - Server type: "node", "static", "external", "executable"
+- `{{DEPLOYMENT_MODE}}` - Deployment intent: "external-server", "cloud-api", or "bundled"
 - `{{SERVER_PORT}}` - Port for local server (if applicable)
 - `{{SERVER_PATH}}` - Path to server entry point or static files
 - `{{API_ENDPOINT}}` - Scenario API endpoint for communication
 - `{{SCENARIO_DIST_PATH}}` - Path to scenario's built files
+- `{{SCENARIO_NAME}}` - Scenario identifier for telemetry + optional server automation
+- `{{AUTO_MANAGE_TIER1}}` - `true` to let the desktop wrapper run `vrooli` commands (defaults to `false` so thin clients can connect to hosted Vrooli servers without the CLI)
+- `{{VROOLI_BINARY_PATH}}` - Override for locating the `vrooli` CLI
 
 ### Window Configuration
 - `{{WINDOW_WIDTH}}` - Initial window width (default: 1200)
@@ -130,6 +134,23 @@ SERVER_PATH: "backend/server.exe"
 - **IPC Validation**: Whitelisted channels for inter-process communication
 - **Sandboxing**: Renderer process sandboxing for security
 - **Code Signing**: Support for code signing (requires certificates)
+
+## ⚙️ Local Server Bootstrapper (Opt-In)
+
+Keep `AUTO_MANAGE_TIER1=false` for traditional thin clients. When you explicitly set it to `true` **and** keep `DEPLOYMENT_MODE=external-server`, the template ships with an automation layer that:
+
+1. Searches for the `vrooli` CLI (prompts the user to locate it if missing, persisting the choice under the app's user data directory).
+2. Runs `vrooli setup --yes yes --skip-sudo yes` once per machine to install required resources without elevated privileges.
+3. Executes `vrooli scenario start <SCENARIO_NAME>` on app launch and waits for the scenario to report healthy.
+4. Calls `vrooli scenario stop <SCENARIO_NAME>` when the desktop app exits—only if it started the scenario.
+
+If you distribute the app to users who do not have `vrooli` installed, leave this disabled; the wrapper will simply load the remote UI/API you configured.
+
+## 🚧 Bundled Mode Placeholder
+
+`DEPLOYMENT_MODE="bundled"` currently shows a dialog explaining that offline/bundled builds are unavailable until Tier 2 shipping lands. Use this mode only for testing the UX copy; regenerate with `external-server` for production thin clients.
+
+All steps log telemetry to `deployment-telemetry.jsonl` so deployment-manager can see how often bootstrapping succeeds versus when the user had to intervene manually.
 
 ## 🌐 Web Application Integration
 

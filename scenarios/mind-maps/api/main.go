@@ -1,17 +1,19 @@
 package main
 
 import (
-    "context"
-    "database/sql"
-    "encoding/json"
-    "fmt"
-    "log"
-    "math"
-    "math/rand"
-    "net/http"
-    "os"
-    "strings"
-    "time"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
     "github.com/gorilla/mux"
     "github.com/lib/pq"
@@ -55,82 +57,20 @@ var mindMapProcessor *MindMapProcessor
 
 // Initialize database connection and schema
 func initDB() error {
-    // PostgreSQL URL must come from environment - no defaults
-    postgresURL := os.Getenv("POSTGRES_URL")
-    if postgresURL == "" {
-        // Try building from individual components if URL not provided
-        host := os.Getenv("POSTGRES_HOST")
-        port := os.Getenv("POSTGRES_PORT")
-        user := os.Getenv("POSTGRES_USER")
-        password := os.Getenv("POSTGRES_PASSWORD")
-        dbname := os.Getenv("POSTGRES_DB")
-        
-        if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-            return fmt.Errorf("database configuration required: provide POSTGRES_URL or all of POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-        }
-        
-        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-            user, password, host, port, dbname)
-    }
-    
-    log.Printf("🔄 Connecting to database (credentials hidden)")
-    
-    var err error
-    db, err = sql.Open("postgres", postgresURL)
-    if err != nil {
-        return fmt.Errorf("failed to open database connection: %v", err)
-    }
-    
-    // Configure connection pool for resilience
-    db.SetMaxOpenConns(25)
-    db.SetMaxIdleConns(5)
-    db.SetConnMaxLifetime(5 * time.Minute)
-    
-    // Implement exponential backoff for database connection
-    maxRetries := 10
-    baseDelay := 1 * time.Second
-    maxDelay := 30 * time.Second
-    
-    log.Println("🔄 Attempting database connection with exponential backoff...")
-    
-    var pingErr error
-    for attempt := 0; attempt < maxRetries; attempt++ {
-        pingErr = db.Ping()
-        if pingErr == nil {
-            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-            break
-        }
-        
-        // Calculate exponential backoff delay with cap
-        delay := time.Duration(math.Min(
-            float64(baseDelay) * math.Pow(2, float64(attempt)),
-            float64(maxDelay),
-        ))
-        
-        // Add random jitter to prevent thundering herd (0-25% additional delay)
-        jitterRange := float64(delay) * 0.25
-        jitter := time.Duration(jitterRange * rand.Float64())
-        actualDelay := delay + jitter
-        
-        log.Printf("⚠️  Database connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-        log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
-        
-        // Show progress stats every few attempts
-        if attempt > 0 && attempt % 3 == 0 {
-            log.Printf("📊 Connection retry statistics:")
-            log.Printf("   - Attempts: %d of %d", attempt + 1, maxRetries)
-            log.Printf("   - Time elapsed: ~%v", time.Duration(attempt * 2) * baseDelay)
-            log.Printf("   - Max wait time: %v", maxDelay)
-        }
-        
-        time.Sleep(actualDelay)
-    }
-    
-    if pingErr != nil {
-        return fmt.Errorf("database connection failed after %d attempts: %v", maxRetries, pingErr)
-    }
-    
-    log.Println("🎉 Database connection pool established successfully!")
+	var err error
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		return fmt.Errorf("database connection failed: %v", err)
+	}
+
+	// Configure connection pool for resilience
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	log.Println("🎉 Database connection pool established successfully!")
     
     // Check if proper schema exists
     var exists bool
@@ -179,15 +119,6 @@ func initDB() error {
     
     log.Println("✅ Minimal mind maps schema created successfully")
     return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-    response := Response{
-        Status:  "success",
-        Message: "Mind Maps API is running",
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
 }
 
 func getMindMapsHandler(w http.ResponseWriter, r *http.Request) {
@@ -921,22 +852,16 @@ func enableCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start mind-maps
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-        os.Exit(1)
-    }
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "mind-maps",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
     // Initialize database connection
     if err := initDB(); err != nil {
         log.Fatalf("Failed to initialize database: %v", err)
     }
-    defer db.Close()
     
     // Initialize mind map processor
     ollamaURL := os.Getenv("OLLAMA_URL")
@@ -953,9 +878,9 @@ func main() {
     log.Printf("Initialized MindMapProcessor with Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
     
     r := mux.NewRouter()
-    
+
     // Health check
-    r.HandleFunc("/health", healthHandler).Methods("GET")
+    r.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
     
     // Mind map endpoints
     r.HandleFunc("/api/mindmaps", getMindMapsHandler).Methods("GET")
@@ -979,18 +904,12 @@ func main() {
     
     // Apply CORS middleware
     handler := enableCORS(r)
-    
-    // API port is required from environment - no defaults
-    port := os.Getenv("API_PORT")
-    if port == "" {
-        port = os.Getenv("PORT")
-    }
-    if port == "" {
-        log.Fatal("❌ Missing required API_PORT or PORT environment variable")
-    }
-    
-    log.Printf("🚀 Mind Maps API starting on port %s", port)
-    if err := http.ListenAndServe(":"+port, handler); err != nil {
-        log.Fatal(err)
+
+    log.Println("🚀 Mind Maps API starting...")
+    if err := server.Run(server.Config{
+        Handler: handler,
+        Cleanup: func(ctx context.Context) error { return db.Close() },
+    }); err != nil {
+        log.Fatalf("Server error: %v", err)
     }
 }

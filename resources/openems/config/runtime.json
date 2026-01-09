@@ -7,7 +7,6 @@
     "redis"
   ],
   "optional_dependencies": [
-    "n8n",
     "apache-superset",
     "geonode"
   ],

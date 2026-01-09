@@ -17,6 +17,7 @@ This scenario provides Vrooli with **architectural self-awareness** by:
 ### Prerequisites
 - PostgreSQL resource running and accessible
 - Claude Code resource available (`resource-claude-code`)
+- Ollama resource available (`resource-ollama`)
 - Qdrant resource available (`resource-qdrant`)
 
 ### Setup
@@ -38,6 +39,15 @@ scenario-dependency-analyzer status
 # Analyze a specific scenario
 scenario-dependency-analyzer analyze chart-generator
 
+# Show deployment readiness for a scenario
+scenario-dependency-analyzer deployment chart-generator
+
+# Export recursive dependency DAG (NEW!)
+scenario-dependency-analyzer dag export chart-generator --recursive
+
+# Scan and optionally apply inferred dependencies
+scenario-dependency-analyzer scan chart-generator --apply
+
 # Analyze all scenarios (may take several minutes)
 scenario-dependency-analyzer analyze all
 
@@ -52,18 +62,33 @@ scenario-dependency-analyzer help
 ```
 
 #### Web Interface
-Access the interactive dependency graph visualization at:
+Access the interactive dependency graph visualization and catalog at:
 `http://localhost:20401`
 
 Features:
 - Real-time dependency graph visualization
 - Interactive node selection and filtering
+- Scenario catalog panel with last-scan status
+- Detail view showing declared vs detected dependencies with drift badges
+- Deployment readiness panel with tier fitness, blockers, and bundle manifest insight
+- One-click scan and scan+apply actions per scenario
 - System statistics and health monitoring
 - Export functionality for graphs
 - Technical NASA mission control aesthetic
 
 #### API Endpoints
 ```bash
+# List scenarios + metadata
+curl http://localhost:20400/api/v1/scenarios
+
+# Get stored detail for a scenario
+curl http://localhost:20400/api/v1/scenarios/chart-generator
+
+# Trigger scan (set apply=true to update service.json automatically)
+curl -X POST http://localhost:20400/api/v1/scenarios/chart-generator/scan \
+  -H "Content-Type: application/json" \
+  -d '{"apply":false}'
+
 # Get scenario dependencies
 curl http://localhost:20400/api/v1/scenarios/chart-generator/dependencies
 
@@ -74,6 +99,15 @@ curl http://localhost:20400/api/v1/graph/combined
 curl -X POST http://localhost:20400/api/v1/analyze/proposed \
   -H "Content-Type: application/json" \
   -d '{"name":"test","description":"Database-driven AI scenario","requirements":["postgres"]}'
+
+# Export recursive DAG (NEW!)
+curl "http://localhost:20400/api/v1/scenarios/chart-generator/dag/export?recursive=true"
+```
+
+**NEW Features (2025-01-22)**:
+- **📊 Recursive DAG Export**: Full dependency tree with metadata gaps via `/dag/export` endpoint and `dag export` CLI command
+- **🔍 Metadata Gap Analysis**: Automatic detection of missing deployment metadata across dependency trees
+- **📚 Comprehensive Documentation**: See `docs/api.md` and `docs/integration.md` for full API reference and integration patterns
 ```
 
 ## 🔧 Architecture
@@ -126,6 +160,9 @@ scenario-dependency-analyzer analyze your-scenario --output json
 
 # Generate optimization recommendations
 scenario-dependency-analyzer optimize your-scenario
+
+# Apply safe dependency reductions automatically
+scenario-dependency-analyzer optimize your-scenario --apply --type resource
 ```
 
 ### For Capability Planning

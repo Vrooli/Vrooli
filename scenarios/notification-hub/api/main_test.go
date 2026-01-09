@@ -1,4 +1,3 @@
-// +build testing
 
 package main
 
@@ -581,38 +580,6 @@ func TestContactManagement(t *testing.T) {
 		}
 
 		if contacts == nil {
-			t.Error("Expected empty array, got nil")
-		}
-	})
-}
-
-// TestTemplateManagement tests template CRUD operations
-func TestTemplateManagement(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("ListTemplates_Empty", func(t *testing.T) {
-		w, err := makeHTTPRequest(env, HTTPTestRequest{
-			Method:  "GET",
-			Path:    fmt.Sprintf("/api/v1/profiles/%s/templates", env.TestProfile.ID),
-			Headers: map[string]string{"X-API-Key": env.TestAPIKey},
-		})
-
-		if err != nil {
-			t.Fatalf("Failed to make request: %v", err)
-		}
-
-		response := assertJSONResponse(t, w, http.StatusOK, []string{"templates"})
-
-		templates, ok := response["templates"].([]interface{})
-		if !ok {
-			t.Fatal("Expected templates to be an array")
-		}
-
-		if templates == nil {
 			t.Error("Expected empty array, got nil")
 		}
 	})

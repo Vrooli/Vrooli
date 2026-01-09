@@ -1,0 +1,224 @@
+{
+  "edges": [
+    {
+      "id": "call-open-project-to-click-executions-tab",
+      "source": "call-open-project",
+      "target": "click-executions-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-executions-tab",
+      "target": "assert-executions-exist",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-executions-exist",
+      "target": "click-view-execution",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-view-execution",
+      "target": "assert-execution-viewer-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "look-for-replay-tab",
+      "target": "click-replay-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "click-replay-tab",
+      "target": "verify-replay-content",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "check-for-screenshot",
+      "target": "check-for-timeline",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14-bridge-e16",
+      "source": "verify-replay-content",
+      "target": "check-for-screenshot",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10-bridge-e11",
+      "source": "assert-execution-viewer-visible",
+      "target": "look-for-replay-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Validates the execution viewer Replay tab displays timeline, screenshots, and replay controls",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Demo project via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.tabs.executions"
+        },
+        "metadata": {
+          "label": "Click Executions tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-executions-tab"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Should have at least one execution to test replay",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "At least one execution exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-executions-exist"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/executions.actions.viewButton:first-of-type"
+        },
+        "metadata": {
+          "label": "Click View button on first execution"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.root",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-view-execution"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution viewer should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Execution viewer is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-viewer-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
+          "store_result": "hasReplayTab"
+        },
+        "metadata": {
+          "label": "Check if Replay tab exists"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "look-for-replay-tab"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/executions.tabs.replay"
+        },
+        "metadata": {
+          "label": "Click Replay tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "continue_on_error": true,
+        "resilience": {
+          "success_selector": "@selector/replay.player, @selector/replay.timeline, @selector/executions.viewer.screenshots",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-replay-tab"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length \u003e 0 || timeline !== null; })()",
+          "store_result": "hasReplayContent"
+        },
+        "metadata": {
+          "label": "Verify replay-related content exists"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-replay-content"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length \u003e 0; })()",
+          "store_result": "hasScreenshots"
+        },
+        "metadata": {
+          "label": "Check if screenshots are displayed"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-for-screenshot"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { return document.querySelector('@selector/replay.player') !== null; })()",
+          "store_result": "hasTimelineControls"
+        },
+        "metadata": {
+          "label": "Check if timeline/controls exist"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-for-timeline"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
+}

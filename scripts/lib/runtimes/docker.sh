@@ -202,7 +202,7 @@ docker::manage_docker_group() {
     fi
     
     # Confirm with user
-    if ! flow::is_yes "$YES" && ! flow::confirm "Add '$actual_user' to docker group?"; then
+    if ! flow::is_yes "${YES:-}" && ! flow::confirm "Add '$actual_user' to docker group?"; then
         log::warning "Skipping docker group addition"
         return 0
     fi

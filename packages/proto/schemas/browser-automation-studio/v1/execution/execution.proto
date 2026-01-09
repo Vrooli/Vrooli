@@ -1,0 +1,474 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+import "common/v1/types.proto";
+import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/base/browser_profile.proto";
+import "browser-automation-studio/v1/domain/telemetry.proto";
+import "browser-automation-studio/v1/workflows/definition.proto";
+import "browser-automation-studio/v1/actions/action.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution;execution";
+
+// =============================================================================
+// EXECUTION RUNTIME STATE
+// =============================================================================
+//
+// @layer 4
+// @domain execution
+// @imports base, domain (telemetry), workflows
+// @stability stable
+//
+// This file defines the runtime state of workflow executions:
+//   - ArtifactCollectionConfig: Controls what artifacts are collected during execution
+//   - ExecutionParameters: Typed runtime parameters for workflow execution
+//   - ExecutionResult: Typed result data from completed executions
+//   - Execution: The main execution entity returned by APIs
+//   - Adhoc execution types for running workflows without persisting
+//
+// USAGE CONTEXTS:
+//   - API: GET/POST /api/v1/executions/*
+//   - WebSocket: Real-time execution status updates
+//   - Database: Execution records persistence
+//
+// @see shared.proto ExecutionStatus for lifecycle states
+// =============================================================================
+
+// =============================================================================
+// ARTIFACT COLLECTION CONFIGURATION
+// =============================================================================
+//
+// ArtifactCollectionConfig controls what data is captured during workflow execution.
+// Use preset profiles for common configurations, or customize individual settings.
+//
+// Profiles:
+//   - "full": Collect all artifacts (default, backward compatible)
+//   - "standard": Screenshots, console logs, extracted data, assertions
+//   - "minimal": Screenshots and assertions only (fastest)
+//   - "debug": Everything plus larger size limits for troubleshooting
+//   - "none": Disable all artifact collection (execution status only)
+//
+// When profile is set, individual toggles are ignored unless profile is "custom".
+// =============================================================================
+
+// =============================================================================
+// ARTIFACT COLLECTION CONFIGURATION
+// =============================================================================
+
+// ArtifactCollectionConfig defines what artifacts to collect during execution.
+message ArtifactCollectionConfig {
+  // Preset profile name. When set, individual toggles are derived from the profile.
+  // Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+  // Use "custom" to enable individual toggle fields below.
+  optional string profile = 1;
+
+  // =============================================================================
+  // Individual artifact toggles (only used when profile = "custom" or unset)
+  // All default to true for backward compatibility.
+  // =============================================================================
+
+  // Capture screenshots at each step completion.
+  // Screenshots provide visual verification but increase storage and bandwidth.
+  optional bool collect_screenshots = 2;
+
+  // Capture DOM snapshots (HTML content) at each step.
+  // Useful for debugging element selectors but can be large for complex pages.
+  optional bool collect_dom_snapshots = 3;
+
+  // Capture browser console logs (log, warn, error, info, debug).
+  // Essential for debugging JavaScript issues in automated workflows.
+  optional bool collect_console_logs = 4;
+
+  // Capture network events (requests, responses, failures).
+  // Useful for API testing and debugging network-dependent workflows.
+  optional bool collect_network_events = 5;
+
+  // Capture extracted data from evaluate/extract steps.
+  // Required for data scraping workflows; disable only if not needed.
+  optional bool collect_extracted_data = 6;
+
+  // Capture assertion results for assert/verify steps.
+  // Required for test validation; disable only for pure automation workflows.
+  optional bool collect_assertions = 7;
+
+  // Capture cursor trail positions for replay visualization.
+  // Enhances visual replay quality but adds overhead.
+  optional bool collect_cursor_trails = 8;
+
+  // Emit real-time telemetry events (heartbeats, progress updates).
+  // Required for live execution monitoring in the UI.
+  optional bool collect_telemetry = 9;
+
+  // =============================================================================
+  // Size limit overrides (optional, uses system defaults if not set)
+  // =============================================================================
+
+  // Maximum screenshot size in bytes (default: 524288 = 512KB).
+  // Larger screenshots provide more detail but increase storage costs.
+  optional int32 max_screenshot_bytes = 20;
+
+  // Maximum DOM snapshot size in bytes (default: 524288 = 512KB).
+  // Larger snapshots capture more page content but increase storage costs.
+  optional int32 max_dom_snapshot_bytes = 21;
+
+  // Maximum size per console log entry in bytes (default: 16384 = 16KB).
+  // Larger entries capture full stack traces but may include noise.
+  optional int32 max_console_entry_bytes = 22;
+
+  // Maximum network payload preview size in bytes (default: 65536 = 64KB).
+  // Larger previews capture more request/response body content.
+  optional int32 max_network_preview_bytes = 23;
+}
+
+// ExecutionParameters captures typed runtime parameters for workflow execution.
+message ExecutionParameters {
+  // Initial URL to start the execution (for workflows without a navigate step).
+  optional string start_url = 1;
+  // Variables to inject into the workflow (e.g., login credentials).
+  // DEPRECATED: Use initial_store or initial_params instead.
+  map<string, string> variables = 2;
+  // Viewport dimensions override.
+  optional int32 viewport_width = 3;
+  optional int32 viewport_height = 4;
+  // Reserved: field 5 was timeout_seconds (migrated to timeout_ms for consistency).
+  reserved 5;
+  // Run in headless mode override.
+  optional bool headless = 6;
+  // User agent override.
+  optional string user_agent = 7;
+  // Locale override (e.g., "en-US").
+  optional string locale = 8;
+  // Timeout override in milliseconds (default: 300000 = 5 minutes).
+  optional int32 timeout_ms = 9;
+
+  // =============================================================================
+  // NAMESPACE-AWARE VARIABLE SUPPORT (Phase 2)
+  // =============================================================================
+  //
+  // These fields support the namespace-aware interpolation system:
+  // - @store/ : Mutable runtime state (initial_store -> setVariable/storeResult mutations)
+  // - @params/: Read-only input parameters (initial_params)
+  // - @env/   : Read-only environment configuration (env)
+  //
+  // Workflows reference these via ${@namespace/path} syntax with fallback support:
+  // e.g., ${@params/timeout|@env/defaultTimeout|30000}
+
+  // Absolute path to project root for workflowPath resolution.
+  // Used to resolve relative paths like "actions/login.json".
+  // Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+  optional string project_root = 10;
+
+  // Initial @params/ values - the workflow's input contract.
+  // These are read-only within the workflow. Subflows inherit parent's params
+  // unless the subflow call explicitly specifies override params.
+  map<string, common.v1.JsonValue> initial_params = 11;
+
+  // Initial @store/ values - pre-seeded runtime state.
+  // These are mutable via setVariable steps and storeResult params.
+  // Child subflows receive a copy and merge back on completion.
+  map<string, common.v1.JsonValue> initial_store = 12;
+
+  // Environment values - project/user configuration.
+  // Read-only, inherited by all subflows unchanged.
+  // Intended for project-wide settings like API endpoints, feature flags.
+  map<string, common.v1.JsonValue> env = 13;
+
+  // =============================================================================
+  // ARTIFACT COLLECTION SETTINGS
+  // =============================================================================
+
+  // Artifact collection configuration - controls what data is captured during execution.
+  // When not set, defaults to "full" profile (all artifacts collected).
+  // Use profiles for common configurations: "full", "standard", "minimal", "debug", "none"
+  // Or set profile to "custom" and configure individual toggles.
+  ArtifactCollectionConfig artifact_config = 20;
+
+  // =============================================================================
+  // BROWSER PROFILE SETTINGS
+  // =============================================================================
+
+  // Browser profile for anti-detection and human-like behavior.
+  // When set, overrides any workflow-level browser_profile.
+  // Use presets ("stealth", "balanced", "fast", "none") for common configurations,
+  // or configure individual fingerprint, behavior, and anti_detection settings.
+  BrowserProfile browser_profile = 21;
+
+  // =============================================================================
+  // SESSION PROFILE SETTINGS
+  // =============================================================================
+
+  // Session profile ID for authenticated execution.
+  // When set, loads the profile's storage state (cookies, localStorage)
+  // into the browser context before workflow execution begins.
+  // This enables running workflows in an authenticated state without login steps.
+  // @format uuid
+  optional string session_profile_id = 22 [(buf.validate.field).string.uuid = true];
+
+  // =============================================================================
+  // EXECUTION-LEVEL DEFAULTS
+  // =============================================================================
+  // These provide execution-level defaults that override workflow settings
+  // but can be further overridden by per-node settings.
+
+  // Default navigation wait condition for all navigate steps.
+  // Overrides workflow-level default, but individual NavigateParams.wait_until takes precedence.
+  // @see NavigateWaitEvent enum in actions/action.proto
+  optional NavigateWaitEvent navigation_wait_until = 23;
+
+  // Default continue-on-error behavior for all steps.
+  // When true, workflow continues to next step even if current step fails.
+  // Overrides workflow default, but individual NodeExecutionSettings.continue_on_error takes precedence.
+  optional bool continue_on_error = 24;
+}
+
+// ExecutionResult captures typed execution outcomes.
+// Use this instead of map<string, JsonValue> result for type safety.
+message ExecutionResult {
+  // Whether the execution completed successfully.
+  bool success = 1;
+  // Number of steps executed.
+  int32 steps_executed = 2;
+  // Number of steps that failed.
+  int32 steps_failed = 3;
+  // Final URL after execution completed.
+  optional string final_url = 4;
+  // Error message if execution failed.
+  optional string error = 5;
+  // Error code for programmatic handling.
+  optional string error_code = 6;
+  // Extracted data from evaluate steps (variable name -> value).
+  map<string, common.v1.JsonValue> extracted_data = 7;
+  // Screenshots captured during execution (step_index -> artifact_id).
+  map<int32, string> screenshot_artifacts = 8;
+}
+
+// TriggerMetadata captures contextual information about how an execution was triggered.
+message TriggerMetadata {
+  // User ID who initiated the execution (for manual triggers).
+  // @format uuid
+  optional string user_id = 1 [(buf.validate.field).string.uuid = true];
+  // API client ID (for API triggers).
+  // @format uuid
+  optional string client_id = 2 [(buf.validate.field).string.uuid = true];
+  // Schedule ID (for scheduled triggers).
+  // @format uuid
+  optional string schedule_id = 3 [(buf.validate.field).string.uuid = true];
+  // Webhook ID (for webhook triggers).
+  // @format uuid
+  optional string webhook_id = 4 [(buf.validate.field).string.uuid = true];
+  // External request ID for correlation with upstream systems.
+  optional string external_request_id = 5;
+  // Source IP address of the trigger request.
+  optional string source_ip = 6;
+  // User agent of the trigger request.
+  optional string user_agent = 7;
+}
+
+// =============================================================================
+// EXECUTION
+// =============================================================================
+
+// Execution is returned by GET /api/v1/executions/{id} and list APIs.
+message Execution {
+  // Unique execution identifier.
+  // @format uuid
+  string execution_id = 1;
+  // Workflow ID associated with this execution.
+  // @format uuid
+  string workflow_id = 2;
+  // Version of the workflow used for this execution.
+  int32 workflow_version = 3;
+  // Current execution status.
+  ExecutionStatus status = 4;
+  // How the execution was triggered (manual, scheduled, api, webhook).
+  TriggerType trigger_type = 5;
+  // Reserved fields from migrations:
+  // - 6: trigger_data (removed, migrated to trigger_metadata typed message)
+  // - 7: source (removed, migrated to trigger_type enum)
+  // - 12: result_data (removed, migrated to result typed message)
+  // - 17: parameters map<string, JsonValue> (removed, migrated to ExecutionParameters)
+  // - 18: result map<string, JsonValue> (removed, migrated to ExecutionResult)
+  reserved 6, 7, 12, 17, 18;
+  // When the execution started.
+  google.protobuf.Timestamp started_at = 8;
+  // When the execution completed (null if still running).
+  optional google.protobuf.Timestamp completed_at = 9;
+  // Last heartbeat received from the executor.
+  google.protobuf.Timestamp last_heartbeat_at = 10;
+  // Error message if the execution failed.
+  optional string error = 11;
+  // Progress percentage (0-100).
+  int32 progress = 13;
+  // Human-readable description of the current step.
+  optional string current_step = 14;
+  // Creation timestamp for the execution record.
+  google.protobuf.Timestamp created_at = 15;
+  // Last update timestamp for the execution record.
+  google.protobuf.Timestamp updated_at = 16;
+  // Typed runtime parameters for the execution.
+  ExecutionParameters parameters = 20;
+  // Typed execution result.
+  ExecutionResult result = 21;
+  // Trigger metadata (typed).
+  TriggerMetadata trigger_metadata = 22;
+
+  // Distributed tracing fields for observability.
+  // Trace ID for distributed tracing (e.g., OpenTelemetry trace ID).
+  optional string trace_id = 30;
+  // Correlation ID for linking related operations across services.
+  optional string correlation_id = 31;
+  // Idempotency key for request deduplication.
+  optional string request_id = 32;
+
+  // Resume chain fields for execution continuity.
+  // ID of the original execution this was resumed from (null if not a resume).
+  // @format uuid
+  optional string resumed_from = 40 [(buf.validate.field).string.uuid = true];
+}
+
+// =============================================================================
+// ADHOC EXECUTION
+// =============================================================================
+
+// ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
+message ExecuteAdhocRequest {
+  // Workflow definition to execute without persisting (V2 format).
+  WorkflowDefinitionV2 flow_definition = 1;
+  // Reserved: field 2 was 'flow_definition_v1' (migrated to flow_definition V2)
+  // Reserved: field 5 was untyped parameters map (migrated to typed parameters)
+  reserved 2, 5;
+  // Whether to wait for completion before responding.
+  bool wait_for_completion = 3;
+  // Optional metadata for labeling the execution.
+  ExecutionMetadata metadata = 4;
+  // Typed runtime parameters for the adhoc execution.
+  ExecutionParameters parameters = 6;
+}
+
+// ExecutionMetadata captures optional labels for adhoc runs.
+message ExecutionMetadata {
+  // Human-readable name for the adhoc execution.
+  string name = 1;
+  // Optional description for the adhoc execution.
+  string description = 2;
+}
+
+// ExecuteAdhocResponse mirrors the adhoc execution response payload.
+message ExecuteAdhocResponse {
+  // The created execution identifier.
+  // @format uuid
+  string execution_id = 1;
+  // Initial execution status.
+  ExecutionStatus status = 2;
+  // Workflow ID if persisted (null for adhoc).
+  // @format uuid
+  optional string workflow_id = 3 [(buf.validate.field).string.uuid = true];
+  // Human-readable status message.
+  string message = 4;
+  // Completion timestamp when wait_for_completion is true (null if async or failed).
+  optional google.protobuf.Timestamp completed_at = 5;
+  // Error message when execution fails.
+  optional string error = 6;
+}
+
+// =============================================================================
+// SCREENSHOTS
+// =============================================================================
+
+// ExecutionScreenshot wraps TimelineScreenshot with execution context.
+// This provides the canonical screenshot data plus execution-specific metadata.
+message ExecutionScreenshot {
+  // The screenshot data (canonical type from telemetry.proto).
+  TimelineScreenshot screenshot = 1;
+  // Zero-based step index in the execution.
+  int32 step_index = 2;
+  // Node ID from the workflow definition.
+  // @format uuid
+  string node_id = 3;
+  // Human-readable step label (derived from action type/metadata).
+  optional string step_label = 4;
+  // When the screenshot was captured.
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
+message GetScreenshotsResponse {
+  // Execution ID the screenshots belong to.
+  // @format uuid
+  string execution_id = 1;
+  // List of screenshots with execution context.
+  repeated ExecutionScreenshot screenshots = 2;
+  // Total count of screenshots.
+  int32 total = 3;
+}
+
+// =============================================================================
+// EXPORT PREVIEW
+// =============================================================================
+
+// ExecutionExportPreview summarizes export readiness and metadata.
+message ExecutionExportPreview {
+  // Execution ID being exported.
+  // @format uuid
+  string execution_id = 1;
+  // Identifier for the generated export spec.
+  // @format uuid
+  string spec_id = 2;
+  // Status: ready, pending, error, unavailable.
+  ExportStatus status = 3;
+  // Human-readable message about readiness or errors.
+  string message = 4;
+  // Number of captured frames available for export.
+  int32 captured_frame_count = 5;
+  // Number of assets available for export (images, etc.).
+  int32 available_asset_count = 6;
+  // Total duration in milliseconds of the replay.
+  int32 total_duration_ms = 7;
+  // Reserved: field 8 was 'export_url' (replaced with package containing full spec)
+  reserved 8;
+  // Replay movie package.
+  common.v1.JsonObject package = 9;
+}
+
+// =============================================================================
+// EXECUTOR METRICS
+// =============================================================================
+//
+// These types capture executor health and performance data for monitoring.
+// Used by TimelineHeartbeat in timeline_event.proto.
+// =============================================================================
+
+// ExecutorMetrics provides typed health metrics from the executor process.
+message ExecutorMetrics {
+  // Memory usage in bytes.
+  optional int64 memory_bytes = 1;
+  // CPU usage percentage (0-100).
+  optional double cpu_percent = 2;
+  // Number of active browser pages.
+  optional int32 active_pages = 3;
+  // Reserved: fields 4-5 were current_step/total_steps (redundant with progress).
+  reserved 4, 5;
+}
+
+// PerformanceMetrics provides web performance data captured during execution.
+message PerformanceMetrics {
+  // Network request count.
+  optional int32 network_requests = 1;
+  // Total bytes transferred.
+  optional int64 bytes_transferred = 2;
+  // DOM node count.
+  optional int32 dom_nodes = 3;
+  // JavaScript heap size in bytes.
+  optional int64 js_heap_bytes = 4;
+  // Time to first byte in milliseconds.
+  optional int32 ttfb_ms = 5;
+  // Largest contentful paint in milliseconds.
+  optional int32 lcp_ms = 6;
+  // First input delay in milliseconds.
+  optional int32 fid_ms = 7;
+  // Cumulative layout shift score.
+  optional double cls = 8;
+}

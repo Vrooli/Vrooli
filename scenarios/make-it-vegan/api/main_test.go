@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"testing"
 	"strings"
+	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	// Initialize disabled cache for predictable testing
 	cache = &CacheClient{
 		redis:  nil,
-		enable: false,
+		Enable: false,
 	}
 	os.Exit(m.Run())
 }

@@ -36,17 +36,24 @@ SUBCOMMANDS:
     start <name> [options]  Start a scenario
     start <name1> <name2>...Start multiple scenarios
     start-all               Start all available scenarios
+    setup <name>            Run the setup lifecycle for a scenario
     restart <name> [options] Restart a scenario (stop then start)
     stop <name>             Stop a running scenario
     stop-all                Stop all running scenarios
-    test <name>             Run scenario's test lifecycle event
+    test <name> [phase|all|e2e] Run scenario's test lifecycle event
     list [--json]           List available scenarios (use --include-ports for live port data)
     logs <name> [options]   View logs for a scenario
-    status [name] [--json]  Show scenario status (includes test infrastructure validation)
+    status [name] [--json]  Show scenario status
     open <name> [options]   Open scenario in browser
     port <name> [port]      Get port number(s) for scenario (use --json for JSON output)
+    ui-smoke <name> [--json] Run Browserless UI smoke harness for a scenario
+    template [cmd]          Manage scenario templates (list/show)
+    generate <template>     Scaffold a scenario from a template
+    requirements <subcommand> Manage scenario requirements (run `vrooli scenario requirements help`)
+    completeness <name> [--format json|human] Calculate objective completeness score
 
 OPTIONS FOR START:
+    --path <path>           Use custom scenario path (for generated/staging scenarios)
     --clean-stale           Clean stale port locks before starting
     --open                  Open scenario in browser after successful start
 
@@ -61,6 +68,7 @@ EXAMPLES:
     vrooli scenario start make-it-vegan         # Start a specific scenario
     vrooli scenario start make-it-vegan --clean-stale # Start with stale lock cleanup
     vrooli scenario start app-monitor --open          # Start then open in browser
+    vrooli scenario start my-app --path /path/to/staging/my-app # Start from custom location
     vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
     vrooli scenario start-all                   # Start all scenarios
     vrooli scenario restart ecosystem-manager    # Restart a scenario
@@ -97,6 +105,9 @@ main() {
         start-all)
             scenario::lifecycle::start_all "$@"
             ;;
+        setup)
+            scenario::lifecycle::setup "$@"
+            ;;
         restart)
             scenario::lifecycle::restart "$@"
             ;;
@@ -123,6 +134,21 @@ main() {
             ;;
         open)
             scenario::browser::open "$@"
+            ;;
+        requirements)
+            scenario::requirements::dispatch "$@"
+            ;;
+        ui-smoke)
+            scenario::smoke::run "$@"
+            ;;
+        template)
+            scenario::template::dispatch "$@"
+            ;;
+        generate)
+            scenario::template::generate "$@"
+            ;;
+        completeness)
+            scenario::completeness::score "$@"
             ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)

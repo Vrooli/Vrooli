@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/database"
 )
 
 type Database struct {
@@ -20,29 +21,15 @@ type Database struct {
 }
 
 func NewDatabase() (*Database, error) {
-	// Connect to PostgreSQL
-	postgresHost := os.Getenv("POSTGRES_HOST")
-	if postgresHost == "" {
-		postgresHost = "localhost"
-	}
-	postgresPort := os.Getenv("POSTGRES_PORT")
-	if postgresPort == "" {
-		postgresPort = "5432"
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=postgres password=postgres dbname=postgres sslmode=disable",
-		postgresHost, postgresPort)
-
-	pgDB, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Printf("Warning: PostgreSQL connection failed: %v", err)
-		// Continue without database for now
-		pgDB = nil
-	} else {
-		// Test connection
-		err = pgDB.Ping()
+	// Connect to PostgreSQL (optional - continues without database if unavailable)
+	var pgDB *sql.DB
+	if os.Getenv("POSTGRES_HOST") != "" || os.Getenv("POSTGRES_PORT") != "" {
+		var err error
+		pgDB, err = database.Connect(context.Background(), database.Config{
+			Driver: "postgres",
+		})
 		if err != nil {
-			log.Printf("Warning: PostgreSQL ping failed: %v", err)
+			log.Printf("Warning: PostgreSQL connection failed: %v", err)
 			pgDB = nil
 		}
 	}
@@ -65,8 +52,7 @@ func NewDatabase() (*Database, error) {
 
 	// Test Redis connection
 	ctx := context.Background()
-	_, err = rdb.Ping(ctx).Result()
-	if err != nil {
+	if _, err := rdb.Ping(ctx).Result(); err != nil {
 		log.Printf("Warning: Redis connection failed: %v", err)
 		rdb = nil
 	}

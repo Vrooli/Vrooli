@@ -113,7 +113,6 @@ func TestNewBrandManagerServiceNilDB(t *testing.T) {
 	service := NewBrandManagerService(
 		nil, // nil DB
 		"http://n8n:5678",
-		"http://windmill:8000",
 		"http://comfyui:8188",
 		"minio:9000",
 		"http://vault:8200",
@@ -125,10 +124,6 @@ func TestNewBrandManagerServiceNilDB(t *testing.T) {
 
 	if service.n8nBaseURL != "http://n8n:5678" {
 		t.Errorf("Expected n8nBaseURL to be set correctly")
-	}
-
-	if service.windmillURL != "http://windmill:8000" {
-		t.Errorf("Expected windmillURL to be set correctly")
 	}
 
 	if service.comfyUIURL != "http://comfyui:8188" {

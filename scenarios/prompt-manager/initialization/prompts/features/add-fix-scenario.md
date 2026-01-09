@@ -163,7 +163,7 @@ cd api && go run main.go &
 ### 1. Scenario Structure Validation
 ```bash
 # Validate scenario structure
-./scripts/scenarios/tools/validate-scenario.sh your-scenario
+test-genie execute your-scenario --phases structure --fail-fast
 
 # Check service.json schema
 jq . scenarios/your-scenario/service.json
@@ -175,7 +175,7 @@ jq . scenarios/your-scenario/service.json
 ./scripts/resources/populate/populate.sh add your-scenario
 
 # Validate resource connectivity
-./scripts/scenarios/validation/scenario-test-runner.sh your-scenario
+test-genie execute your-scenario --preset quick
 ```
 
 ### 3. End-to-End Testing
@@ -184,8 +184,8 @@ jq . scenarios/your-scenario/service.json
 cd scenarios/your-scenario/
 ./test.sh
 
-# Integration with scenario validation framework
-./scripts/scenarios/validation/run-all-scenarios.sh --filter your-scenario
+# Integration with test-genie orchestration
+test-genie execute your-scenario --preset comprehensive
 ```
 
 ## Business Application Design
@@ -278,7 +278,7 @@ Create scenarios with robust API foundations:
 ## File Locations Reference
 
 - **Scenario Templates**: `scripts/scenarios/templates/`
-- **Validation Framework**: `scripts/scenarios/validation/`
+- **Testing Orchestrator**: `test-genie` CLI (`scenarios/test-genie/`)
 - **Validation Tools**: `scripts/scenarios/tools/`
 - **Resource Integration**: `scripts/resources/injection/`
 - **Example Scenarios**: `scenarios/`

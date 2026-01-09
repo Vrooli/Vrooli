@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Verifies Knowledge Observatory dashboard loads with Matrix-style UI",
+    "version": 1,
+    "reset": "full",
+    "requirements": ["KO-HD-001"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "type": "navigate",
+      "data": {
+        "label": "Open Knowledge Observatory home page",
+        "destinationType": "scenario",
+        "scenario": "knowledge-observatory",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-title",
+      "type": "assert",
+      "data": {
+        "label": "Page title exists",
+        "selector": "h1",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Dashboard should display title"
+      }
+    },
+    {
+      "id": "assert-content",
+      "type": "assert",
+      "data": {
+        "label": "Page has content",
+        "selector": "body",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Dashboard should have body content"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "assert-title",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "assert-title",
+      "target": "assert-content",
+      "type": "smoothstep"
+    }
+  ]
+}

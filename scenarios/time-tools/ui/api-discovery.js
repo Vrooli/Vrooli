@@ -102,7 +102,10 @@ class TimeToolsAPIDiscovery {
         // Check if there's a Vrooli bridge available
         if (window.vrooli && window.vrooli.scenario && window.vrooli.scenario.getPort) {
             try {
-                return await window.vrooli.scenario.getPort('time-tools', 'TIME_TOOLS_PORT');
+                const apiPort =
+                    (await window.vrooli.scenario.getPort('time-tools', 'API_PORT').catch(() => null)) ||
+                    (await window.vrooli.scenario.getPort('time-tools', 'TIME_TOOLS_PORT').catch(() => null));
+                return apiPort;
             } catch (error) {
                 throw new Error('Vrooli bridge port discovery failed');
             }
@@ -111,7 +114,10 @@ class TimeToolsAPIDiscovery {
         // Check if there's a parent frame that can provide port info
         if (window.parent !== window && window.parent.vrooli) {
             try {
-                return await window.parent.vrooli.scenario.getPort('time-tools', 'TIME_TOOLS_PORT');
+                const apiPort =
+                    (await window.parent.vrooli.scenario.getPort('time-tools', 'API_PORT').catch(() => null)) ||
+                    (await window.parent.vrooli.scenario.getPort('time-tools', 'TIME_TOOLS_PORT').catch(() => null));
+                return apiPort;
             } catch (error) {
                 throw new Error('Parent frame port discovery failed');
             }

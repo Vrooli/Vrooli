@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "mind-maps",
@@ -22,7 +22,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/mind-maps"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -36,54 +57,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "phi3.5:3.8b",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Persistent storage of mind maps and metadata",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search across mind map nodes",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Real-time collaboration support and caching"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Mind Maps health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -93,6 +73,14 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -101,20 +89,26 @@
     },
     "setup": {
       "description": "Initialize Mind Maps service",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "mind-maps-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "mind-maps"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mind-maps-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "mind-maps",
+            "targets": [
+              "mind-maps"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -146,46 +140,54 @@
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83e\udde0 Mind Maps initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service endpoints"
         }
       ]
     },
     "develop": {
       "description": "Start Mind Maps services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./mind-maps-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/mind-maps-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start UI server in background",
-           "background": true
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🧠 Mind Maps running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./mind-maps-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mind-maps-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83e\udde0 Mind Maps running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test Mind Maps services",
+      "description": "Comprehensive phased testing for mind-maps",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "mind-maps --help",
-          "description": "Test CLI basic commands"
+          "name": "run-phased-tests",
+          "run": "test-genie execute mind-maps --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -203,6 +205,50 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "phi3.5:3.8b",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Persistent storage of mind maps and metadata",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search across mind map nodes",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Real-time collaboration support and caching"
+      }
     }
   }
 }

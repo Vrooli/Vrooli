@@ -175,7 +175,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["error", "warn", "info", "debug"],
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
           "description": "Logging level",
           "default": "info"
         },
@@ -192,6 +197,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/browserless/schema.json"
 }

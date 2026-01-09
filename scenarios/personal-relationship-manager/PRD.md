@@ -67,12 +67,12 @@ required:
   - resource_name: n8n
     purpose: Workflow automation for reminders and enrichment
     integration_pattern: Workflow injection and webhook triggers
-    access_method: Shared workflows and direct workflow execution
+    access_method: Direct workflow execution
     
   - resource_name: ollama
     purpose: AI-powered gift suggestions and relationship insights
-    integration_pattern: Shared workflow for reliable execution
-    access_method: initialization/n8n/ollama.json
+    integration_pattern: Direct Ollama API for reliable execution
+    access_method: HTTP API calls to Ollama
     
 optional:
   - resource_name: redis
@@ -84,18 +84,13 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Reliable LLM inference for gift suggestions
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres query
       purpose: Database operations
     - command: resource-redis get/set
       purpose: Caching layer
   
-  3_direct_api:
+  2_direct_api:
     - justification: N8n webhook responses only
       endpoint: /webhook/[workflow-id]
 ```

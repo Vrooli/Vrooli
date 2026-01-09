@@ -8,7 +8,12 @@
       "properties": {
         "backend": {
           "type": "string",
-          "enum": ["local", "s3", "sftp", "rest"],
+          "enum": [
+            "local",
+            "s3",
+            "sftp",
+            "rest"
+          ],
           "default": "local",
           "description": "Storage backend type"
         },
@@ -28,7 +33,7 @@
       "properties": {
         "schedule": {
           "type": "string",
-          "pattern": "^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|((\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*))",
+          "pattern": "^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|\u00b5s|ms|s|m|h))+)|((\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*) (\\d+|\\*))",
           "default": "0 2 * * *",
           "description": "Cron expression for backup schedule"
         },
@@ -37,7 +42,9 @@
           "items": {
             "type": "string"
           },
-          "default": ["/data"],
+          "default": [
+            "/data"
+          ],
           "description": "Paths to backup"
         },
         "exclude": {
@@ -83,7 +90,11 @@
       "properties": {
         "compression": {
           "type": "string",
-          "enum": ["off", "auto", "max"],
+          "enum": [
+            "off",
+            "auto",
+            "max"
+          ],
           "default": "auto",
           "description": "Compression level"
         },
@@ -120,5 +131,9 @@
       }
     }
   },
-  "required": ["repository", "backup"]
+  "required": [
+    "repository",
+    "backup"
+  ],
+  "$id": "https://vrooli.com/resources/restic/schema.json"
 }

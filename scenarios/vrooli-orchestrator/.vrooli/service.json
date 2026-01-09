@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "vrooli-orchestrator",
@@ -18,7 +18,28 @@
       "postgres-storage",
       "browser-automation",
       "resource-lifecycle"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/vrooli-orchestrator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -26,35 +47,10 @@
       "description": "Orchestrator management API port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Profile management dashboard port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store profile configurations, activation history, and usage analytics",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql", 
-          "type": "seed"
-        }
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Auto-open browser tabs for dashboard URLs in profiles",
-      "fallback": "Manual URL display to user console"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Profile management dashboard port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -75,7 +71,7 @@
           "interval": 30000
         },
         {
-          "name": "ui_endpoint", 
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
@@ -89,27 +85,32 @@
     },
     "setup": {
       "description": "Initialize Vrooli Orchestrator",
-       "condition": {
-         "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "vrooli-orchestrator-api",
-                "vrooli-orchestrator"
-              ]
-            },
-           {
-             "type": "cli",
-             "targets": [
-               "vrooli-orchestrator"
-             ]
-           },
-           {
-             "type": "resources",
-             "populated": true
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-orchestrator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "vrooli-orchestrator",
+            "targets": [
+              "vrooli-orchestrator"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "add-data",
@@ -127,12 +128,17 @@
           "description": "Build Go orchestration API binary"
         },
         {
-          "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
-          "description": "Build profile management UI",
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
           }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build profile management UI"
         },
         {
           "name": "create-default-profiles",
@@ -144,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nProfile Management:\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate developer\\n  vrooli-orchestrator deactivate'",
+          "run": "echo '\ud83d\ude80 Vrooli Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nProfile Management:\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate developer\\n  vrooli-orchestrator deactivate'",
           "description": "Display service access URLs and basic commands"
         }
       ]
@@ -152,72 +158,38 @@
     "develop": {
       "description": "Start orchestrator with API server and dashboard UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./vrooli-orchestrator-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/vrooli-orchestrator-api"
-           }
-         },
         {
-          "name": "start-ui",
-          "run": "cd ui && npm start",
-          "description": "Start profile management dashboard",
+          "name": "start-api",
+          "run": "cd api && ./vrooli-orchestrator-api",
+          "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "api/vrooli-orchestrator-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
-           "description": "Display all running service URLs and commands"
-         }
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve profile management dashboard from production bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
+          "description": "Display all running service URLs and commands"
+        }
       ]
     },
     "test": {
-      "description": "Test orchestrator API, CLI, and profile functionality",
+      "description": "Comprehensive phased testing for vrooli-orchestrator",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-profiles-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/profiles",
-          "description": "Test profiles list endpoint"
-        },
-        {
-          "name": "test-profile-creation",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/profiles -H 'Content-Type: application/json' -d '{\"name\":\"test-profile\",\"display_name\":\"Test Profile\",\"resources\":[\"postgres\"],\"scenarios\":[]}'",
-          "description": "Test profile creation endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats vrooli-orchestrator.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/vrooli-orchestrator.bats"
-          }
-        },
-        {
-          "name": "test-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Test UI build process",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute vrooli-orchestrator --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -236,5 +208,45 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store profile configurations, activation history, and usage analytics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Auto-open browser tabs for dashboard URLs in profiles",
+        "fallback": "Manual URL display to user console"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

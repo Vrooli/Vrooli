@@ -103,28 +103,43 @@ codex::is_configured() {
 
 #######################################
 # Check if Codex service is available
+# Uses `codex login status` to verify authentication
 # Returns:
-#   0 if available, 1 otherwise
+#   0 if available (logged in)
+#   1 if unavailable (not logged in or CLI not found)
+#   2 if unknown (can't determine status)
 #######################################
 codex::is_available() {
-    local api_key
-    api_key=$(codex::get_api_key)
-    
-    if [[ -z "${api_key}" ]]; then
+    # First check if codex CLI is installed
+    if ! command -v codex &>/dev/null; then
         return 1
     fi
-    
-    # Test API connection with a simple models request
-    local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" \
-        -H "Authorization: Bearer ${api_key}" \
-        "${CODEX_API_ENDPOINT}/models" 2>/dev/null)
-    
-    if [[ "${response}" == "200" ]]; then
+
+    # Use codex login status to check authentication
+    # This doesn't use any API credits
+    local login_output
+    login_output=$(timeout 5 codex login status 2>&1) || true
+    local exit_code=$?
+
+    # Check if logged in (output contains "Logged in")
+    if [[ "$login_output" =~ "Logged in" ]]; then
         return 0
-    else
+    fi
+
+    # Check if explicitly not logged in
+    if [[ "$login_output" =~ "Not logged in" ]] || [[ "$login_output" =~ "not logged in" ]]; then
         return 1
     fi
+
+    # Timeout or other issue - return unknown
+    if [[ $exit_code -eq 124 ]]; then
+        # Timeout
+        return 2
+    fi
+
+    # If we can't determine status, return unknown (2) instead of failing
+    # This prevents showing "unhealthy" when we just don't know
+    return 2
 }
 
 #######################################

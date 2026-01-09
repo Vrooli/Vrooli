@@ -23,9 +23,11 @@ func TestCompleteFunnelFlow(t *testing.T) {
 
 	t.Run("CompleteUserJourney", func(t *testing.T) {
 		// Step 1: Create funnel
+		projectID := createTestProject(t, testServer.Server, "Complete Journey Project")
 		funnelData := map[string]interface{}{
 			"name":        "Complete Journey Test",
 			"description": "Testing full user journey",
+			"project_id":  projectID,
 			"steps": []map[string]interface{}{
 				{
 					"type":     "form",
@@ -74,7 +76,7 @@ func TestCompleteFunnelFlow(t *testing.T) {
 
 		// Step 3: Start funnel execution
 		req, _ = makeHTTPRequest("GET", fmt.Sprintf("/api/v1/execute/%s", slug), nil)
-		req.RemoteAddr = "127.0.0.1:12345"  // Set test IP address
+		req.RemoteAddr = "127.0.0.1:12345" // Set test IP address
 		recorder = httptest.NewRecorder()
 		testServer.Server.router.ServeHTTP(recorder, req)
 
@@ -185,7 +187,11 @@ func TestCompleteFunnelFlow(t *testing.T) {
 			t.Error("Expected at least 1 view in analytics")
 		}
 
-		if analytics["totalLeads"].(float64) < 1 {
+		if analytics["capturedLeads"].(float64) < 1 {
+			t.Error("Expected at least 1 captured lead")
+		}
+
+		if analytics["completedLeads"].(float64) < 1 {
 			t.Error("Expected at least 1 completed lead")
 		}
 
@@ -512,9 +518,13 @@ func TestAnalyticsTracking(t *testing.T) {
 			t.Errorf("Expected at least 2 views, got %v", analytics["totalViews"])
 		}
 
-		// Should have 1 completed lead
-		if analytics["totalLeads"].(float64) < 1 {
-			t.Errorf("Expected at least 1 completed lead, got %v", analytics["totalLeads"])
+		// Should have captured and completed leads
+		if analytics["capturedLeads"].(float64) < 1 {
+			t.Errorf("Expected at least 1 captured lead, got %v", analytics["capturedLeads"])
+		}
+
+		if analytics["completedLeads"].(float64) < 1 {
+			t.Errorf("Expected at least 1 completed lead, got %v", analytics["completedLeads"])
 		}
 
 		// Conversion rate should be calculated

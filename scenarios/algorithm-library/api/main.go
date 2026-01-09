@@ -1,16 +1,20 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -70,99 +74,20 @@ var db *sql.DB
 var algorithmProcessor *AlgorithmProcessor
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start algorithm-library
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "algorithm-library",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize database connection with exponential backoff
-	// ALL database configuration MUST come from environment - no defaults for security
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	// Open database connection (doesn't actually connect yet)
+	// Initialize database connection
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
-	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting to connect to database with exponential backoff...")
-	log.Printf("📊 Connection details: host=%s port=%s db=%s user=%s", dbHost, dbPort, dbName, dbUser)
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Try to ping the database
-		err = db.Ping()
-		if err == nil {
-			log.Printf("✅ Successfully connected to database on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate delay with exponential backoff
-		// Formula: min(baseDelay * 2^attempt, maxDelay)
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd (random 0-25% additional delay)
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
-		log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
-
-		// Show connection status details every 3 attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Connection retry statistics:")
-			log.Printf("   - Total time elapsed: %v", time.Duration(attempt)*baseDelay)
-			log.Printf("   - Next delay will be: %v", actualDelay)
-			log.Printf("   - Max delay cap: %v", maxDelay)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	// Final check - if still not connected, exit
-	if err != nil {
-		log.Printf("❌ Failed to connect to database after %d attempts", maxRetries)
-		log.Printf("💡 Troubleshooting tips:")
-		log.Printf("   1. Check if PostgreSQL is running: docker ps | grep postgres")
-		log.Printf("   2. Verify port %s is accessible: nc -zv localhost %s", dbPort, dbPort)
-		log.Printf("   3. Check credentials are correct")
-		log.Printf("   4. Ensure database '%s' exists", dbName)
-		log.Fatal("Exiting due to database connection failure: ", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	log.Println("🎉 Database connection established and verified!")
@@ -178,7 +103,11 @@ func main() {
 	// Set up routes
 	router := mux.NewRouter()
 
-	// Health check
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Algorithm routes - Specific routes MUST come before parameterized routes
@@ -231,39 +160,20 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - required, no default
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ Missing required API_PORT environment variable")
+	log.Printf("Algorithm Library API starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Algorithm Library API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-// healthHandler returns the health status of the API and its dependencies.
-// Returns 200 OK if healthy, 503 Service Unavailable if database is down.
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	err := db.Ping()
-	status := "healthy"
-	if err != nil {
-		status = "unhealthy"
-		log.Printf("Health check failed - database ping error: %v", err)
-	}
-
-	response := map[string]interface{}{
-		"status":   status,
-		"service":  "algorithm-library-api",
-		"database": err == nil,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-	json.NewEncoder(w).Encode(response)
-}
 
 // searchAlgorithmsHandler searches for algorithms based on query parameters.
 // Supports filtering by query text, category, complexity, language, and difficulty.
@@ -673,7 +583,7 @@ func validateAlgorithmHandler(w http.ResponseWriter, r *http.Request) {
 		// Wrap user code with test harness that calls the function with test input
 		wrappedCode := WrapCodeWithTestHarness(req.Language, req.Code, algorithmName, inputJSON)
 
-		// Execute using n8n workflow with fallback to local execution
+		// Execute locally with language-specific executor
 		execResult, execErr := ExecuteWithFallback(req.Language, wrappedCode, "", 5*time.Second)
 
 		if execErr != nil && strings.Contains(execErr.Error(), "unsupported language") {
@@ -898,3 +808,5 @@ func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
+// Test change for rebuild detection

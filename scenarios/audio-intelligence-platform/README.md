@@ -18,10 +18,6 @@ A comprehensive audio processing and intelligence system that handles transcript
 - **qdrant**: Vector database for semantic search
 - **n8n**: Workflow automation engine
 
-### Shared Workflows Used
-- `initialization/n8n/ollama.json`: For AI generation and embeddings
-- `initialization/n8n/embedding-generator.json`: For generating embeddings
-
 ## Integration Points
 ### Cross-Scenario Usage
 - **stream-of-consciousness-analyzer**: Can process voice notes and recordings
@@ -71,9 +67,9 @@ Default settings in `initialization/configuration/`:
 - `ui-config.json`: Interface customization options
 
 ## Testing
-- `test.sh`: Basic functionality tests
-- `custom-tests.sh`: Audio processing validation
-- `test/test-analysis-endpoint.sh`: API endpoint testing
+- `vrooli scenario test audio-intelligence-platform`: Phased orchestration covering structure, dependencies, unit, integration, business, and performance gates
+- `test/phases/test-integration.sh`: Starts the scenario via the lifecycle and validates core API endpoints
+- `cli/audio-intelligence-platform.bats` & `custom-tests.sh`: CLI contracts and custom workflow checks executed during the business phase
 
 ## Performance Considerations
 - Audio files are processed asynchronously to prevent blocking

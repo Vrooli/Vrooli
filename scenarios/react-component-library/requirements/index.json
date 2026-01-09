@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [],
+  "imports": [
+    "01-component-registry/module.json",
+    "02-code-editor-preview/module.json",
+    "03-multi-viewport-emulator/module.json",
+    "04-element-selection/module.json",
+    "05-ai-editing/module.json",
+    "06-search-filtering/module.json",
+    "07-adoption-workflow/module.json",
+    "08-version-tracking/module.json"
+  ]
+}

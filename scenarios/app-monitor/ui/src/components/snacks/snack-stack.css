@@ -1,0 +1,143 @@
+.snack-stack {
+  position: fixed;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.snack-stack--top-right {
+  top: clamp(16px, 4vw, 28px);
+  right: clamp(16px, 4vw, 28px);
+  align-items: flex-end;
+}
+
+.snack-stack--top-left {
+  top: clamp(16px, 4vw, 28px);
+  left: clamp(16px, 4vw, 28px);
+  align-items: flex-start;
+}
+
+.snack-stack--bottom-right {
+  right: clamp(16px, 4vw, 28px);
+  bottom: clamp(16px, 4vw, 28px);
+  align-items: flex-end;
+}
+
+.snack-stack--bottom-left {
+  left: clamp(16px, 4vw, 28px);
+  bottom: clamp(16px, 4vw, 28px);
+  align-items: flex-start;
+}
+
+.snack-card {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  min-width: 280px;
+  max-width: 360px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.dark .snack-card {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.snack-card--info,
+.snack-card--loading {
+  border-color: rgba(94, 234, 212, 0.3);
+}
+
+.snack-card--success {
+  border-color: rgba(74, 222, 128, 0.42);
+}
+
+.snack-card--warning {
+  border-color: rgba(251, 191, 36, 0.42);
+}
+
+.snack-card--error {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.snack-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.snack-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.snack-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.snack-card__message {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.snack-card__action {
+  border: none;
+  background: rgba(148, 163, 184, 0.16);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.snack-card__action:hover {
+  background: rgba(148, 163, 184, 0.26);
+}
+
+.snack-card__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.snack-card__close:hover,
+.snack-card__close:focus-visible {
+  background: rgba(148, 163, 184, 0.24);
+  outline: none;
+}
+
+.snack-icon--spin {
+  animation: snack-stack-spin 1s linear infinite;
+}
+
+@keyframes snack-stack-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

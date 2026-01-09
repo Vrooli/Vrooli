@@ -1,0 +1,112 @@
+{
+  "module": "health-registry",
+  "description": "Extensible health check registration and execution system",
+  "prd_refs": [
+    "OT-P0-004",
+    "OT-P1-008"
+  ],
+  "requirements": [
+    {
+      "id": "REG-CORE-001",
+      "title": "Health check registration",
+      "description": "registerCheck(check) adds a health check to the registry",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "REG-CORE-002",
+      "title": "Platform-filtered check retrieval",
+      "description": "getChecksForPlatform(platform) returns only checks valid for the current platform",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "REG-CORE-003",
+      "title": "Health check interface compliance",
+      "description": "All checks implement id, description, intervalSeconds, platforms?, and run() method",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "REG-CORE-004",
+      "title": "Health result structure",
+      "description": "All checks return {status: ok|warning|critical, message, details?}",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "REG-INTERVAL-001",
+      "title": "Per-check interval tracking",
+      "description": "Registry tracks last run time per check and only runs when interval elapsed",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "REG-INTERVAL-002",
+      "title": "Configurable check intervals",
+      "description": "Each check can specify its own intervalSeconds value",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

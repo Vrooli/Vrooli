@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -108,8 +107,8 @@ type ErrorTestPattern struct {
 
 // HandlerTestSuite provides a comprehensive test framework for HTTP handlers
 type HandlerTestSuite struct {
-	HandlerName    string
-	BaseURL        string
+	HandlerName     string
+	BaseURL         string
 	RequiredURLVars []string
 }
 

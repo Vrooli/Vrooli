@@ -8,18 +8,21 @@ import (
 	"strconv"
 	"time"
 
+	"app-monitor-api/logger"
+
 	"github.com/docker/docker/client"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds all application configuration
 type Config struct {
-	API           APIConfig
-	Database      DatabaseConfig
-	Redis         RedisConfig
-	Docker        DockerConfig
-	Orchestrator  OrchestratorConfig
+	API          APIConfig
+	Database     DatabaseConfig
+	Redis        RedisConfig
+	Docker       DockerConfig
+	Orchestrator OrchestratorConfig
 }
 
 // APIConfig holds API server configuration
@@ -32,14 +35,14 @@ type APIConfig struct {
 
 // DatabaseConfig holds database configuration
 type DatabaseConfig struct {
-	URL                string
-	MaxOpenConns       int
-	MaxIdleConns       int
-	ConnMaxLifetime    time.Duration
-	ConnectionTimeout  time.Duration
-	MaxRetries         int
-	RetryBackoffBase   time.Duration
-	RetryBackoffMax    time.Duration
+	URL               string
+	MaxOpenConns      int
+	MaxIdleConns      int
+	ConnMaxLifetime   time.Duration
+	ConnectionTimeout time.Duration
+	MaxRetries        int
+	RetryBackoffBase  time.Duration
+	RetryBackoffMax   time.Duration
 }
 
 // RedisConfig holds Redis configuration
@@ -55,10 +58,10 @@ type RedisConfig struct {
 
 // DockerConfig holds Docker configuration
 type DockerConfig struct {
-	Host        string
-	APIVersion  string
-	TLSVerify   bool
-	CertPath    string
+	Host       string
+	APIVersion string
+	TLSVerify  bool
+	CertPath   string
 }
 
 // OrchestratorConfig holds orchestrator configuration
@@ -66,14 +69,13 @@ type OrchestratorConfig struct {
 	StatusURL string
 }
 
-
 // LoadConfig loads configuration from environment variables with defaults
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		API: APIConfig{
 			Port:            os.Getenv("API_PORT"),
 			ReadTimeout:     getDurationEnv("API_READ_TIMEOUT", 30*time.Second),
-			WriteTimeout:    getDurationEnv("API_WRITE_TIMEOUT", 30*time.Second),
+			WriteTimeout:    getDurationEnv("API_WRITE_TIMEOUT", 90*time.Second),
 			ShutdownTimeout: getDurationEnv("API_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
 		Database: DatabaseConfig{
@@ -87,7 +89,7 @@ func LoadConfig() (*Config, error) {
 			RetryBackoffMax:   getDurationEnv("DB_RETRY_BACKOFF_MAX", 30*time.Second),
 		},
 		Redis: RedisConfig{
-			URL:             getEnv("REDIS_URL", ""),
+			URL:             buildRedisURL(),
 			MaxRetries:      getIntEnv("REDIS_MAX_RETRIES", 3),
 			MinRetryBackoff: getDurationEnv("REDIS_MIN_RETRY_BACKOFF", 8*time.Millisecond),
 			MaxRetryBackoff: getDurationEnv("REDIS_MAX_RETRY_BACKOFF", 512*time.Millisecond),
@@ -114,62 +116,25 @@ func LoadConfig() (*Config, error) {
 	return cfg, nil
 }
 
-// InitializeDatabase creates and configures a database connection
+// InitializeDatabase creates and configures a database connection with automatic retry and backoff.
 func (c *Config) InitializeDatabase() (*sql.DB, error) {
 	if c.Database.URL == "" {
 		return nil, nil // Database is optional
 	}
 
-	db, err := sql.Open("postgres", c.Database.URL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		DSN:             c.Database.URL,
+		MaxOpenConns:    c.Database.MaxOpenConns,
+		MaxIdleConns:    c.Database.MaxIdleConns,
+		ConnMaxLifetime: c.Database.ConnMaxLifetime,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(c.Database.MaxOpenConns)
-	db.SetMaxIdleConns(c.Database.MaxIdleConns)
-	db.SetConnMaxLifetime(c.Database.ConnMaxLifetime)
-
-	// Test connection with retries
-	if err := c.testDatabaseConnection(db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
+	logger.Info("✅ Database connected successfully")
 	return db, nil
-}
-
-// testDatabaseConnection tests the database connection with exponential backoff
-func (c *Config) testDatabaseConnection(db *sql.DB) error {
-	var lastErr error
-	backoff := c.Database.RetryBackoffBase
-
-	for attempt := 0; attempt < c.Database.MaxRetries; attempt++ {
-		ctx, cancel := context.WithTimeout(context.Background(), c.Database.ConnectionTimeout)
-		err := db.PingContext(ctx)
-		cancel()
-
-		if err == nil {
-			fmt.Printf("✅ Database connected successfully on attempt %d\n", attempt+1)
-			return nil
-		}
-
-		lastErr = err
-		fmt.Printf("⚠️  Database connection attempt %d/%d failed: %v\n", attempt+1, c.Database.MaxRetries, err)
-
-		if attempt < c.Database.MaxRetries-1 {
-			fmt.Printf("⏳ Waiting %v before next attempt\n", backoff)
-			time.Sleep(backoff)
-
-			// Exponential backoff with cap
-			backoff *= 2
-			if backoff > c.Database.RetryBackoffMax {
-				backoff = c.Database.RetryBackoffMax
-			}
-		}
-	}
-
-	return fmt.Errorf("database connection failed after %d attempts: %w", c.Database.MaxRetries, lastErr)
 }
 
 // InitializeRedis creates and configures a Redis client
@@ -201,7 +166,7 @@ func (c *Config) InitializeRedis() (*redis.Client, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	fmt.Println("✅ Redis connected successfully")
+	logger.Info("✅ Redis connected successfully")
 	return client, nil
 }
 
@@ -234,7 +199,7 @@ func (c *Config) InitializeDocker() (*client.Client, error) {
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
 	}
 
-	fmt.Println("✅ Docker connected successfully")
+	logger.Info("✅ Docker connected successfully")
 	return dockerClient, nil
 }
 
@@ -290,6 +255,23 @@ func buildPostgresURL() string {
 	if host != "" && port != "" && user != "" && password != "" && dbName != "" {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			user, password, host, port, dbName)
+	}
+
+	return ""
+}
+
+func buildRedisURL() string {
+	// First check for complete URL
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		return url
+	}
+
+	// Try to build from individual components
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+
+	if host != "" && port != "" {
+		return fmt.Sprintf("redis://%s:%s", host, port)
 	}
 
 	return ""

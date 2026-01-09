@@ -6,6 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.2.1
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -36,3 +37,5 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

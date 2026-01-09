@@ -1,10 +1,11 @@
-// +build testing
 
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -38,6 +39,11 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestGenerateQuiz(t *testing.T) {
+	// Skip Ollama-dependent tests if SKIP_OLLAMA_TESTS is set (for fast unit tests)
+	if os.Getenv("SKIP_OLLAMA_TESTS") != "" {
+		t.Skip("Skipping Ollama-dependent test (SKIP_OLLAMA_TESTS is set)")
+	}
+
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
@@ -202,13 +208,23 @@ func TestListQuizzes(t *testing.T) {
 		defer cleanupTestQuiz(t, env, quiz1.ID)
 
 		w := makeHTTPRequest("GET", "/api/v1/quizzes", nil, env.Router)
-		assertJSONResponse(t, w, http.StatusOK, func(body map[string]interface{}) {
-			// Body should be an array
-			if w.Body.String() == "null" {
-				// Empty list is acceptable
-				return
-			}
-		})
+		// List endpoint returns an array, not an object
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+			return
+		}
+
+		// Verify response is valid JSON array
+		var quizzes []interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &quizzes); err != nil {
+			t.Errorf("Failed to parse JSON array response: %v. Body: %s", err, w.Body.String())
+			return
+		}
+
+		// Should have at least the quiz we created
+		if len(quizzes) == 0 {
+			t.Logf("Warning: Expected at least 1 quiz, got %d", len(quizzes))
+		}
 	})
 
 	t.Run("WithLimit", func(t *testing.T) {
@@ -577,6 +593,12 @@ func TestGenerateMockQuestions(t *testing.T) {
 
 // Test edge cases
 func TestEdgeCases(t *testing.T) {
+	// Skip if Ollama is not available or slow (these tests call quiz generation)
+	// These are better suited for integration tests
+	if testing.Short() {
+		t.Skip("Skipping edge case tests in short mode (require Ollama)")
+	}
+
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 

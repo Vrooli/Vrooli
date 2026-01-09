@@ -70,25 +70,44 @@
   }
 
   .modal-content {
-    @apply fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800;
+    @apply fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-4 md:p-6 shadow-xl dark:bg-gray-800;
   }
 }
 
 @layer utilities {
   .calendar-grid {
     display: grid;
-    grid-template-columns: 80px repeat(7, 1fr);
-    grid-template-rows: 40px repeat(24, 60px);
+    grid-template-columns: 60px repeat(7, 1fr);
+    grid-template-rows: 32px repeat(24, 50px);
+  }
+
+  @media (min-width: 768px) {
+    .calendar-grid {
+      grid-template-columns: 80px repeat(7, 1fr);
+      grid-template-rows: 40px repeat(24, 60px);
+    }
   }
 
   .calendar-month-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: 40px repeat(6, 120px);
+    grid-template-rows: 32px repeat(6, 80px);
+  }
+
+  @media (min-width: 768px) {
+    .calendar-month-grid {
+      grid-template-rows: 40px repeat(6, 120px);
+    }
   }
 
   .event-block {
-    @apply absolute rounded px-2 py-1 text-xs font-medium shadow-sm transition-all hover:shadow-md hover:z-10;
+    @apply absolute rounded px-1 py-0.5 text-xs font-medium shadow-sm transition-all hover:shadow-md hover:z-10;
+  }
+
+  @media (min-width: 768px) {
+    .event-block {
+      @apply px-2 py-1;
+    }
   }
 
   .scrollbar-thin {

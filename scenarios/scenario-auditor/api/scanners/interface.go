@@ -77,7 +77,7 @@ type Finding struct {
 	References     []string               `json:"references,omitempty"`
 	CWE            int                    `json:"cwe,omitempty"`
 	OWASP          string                 `json:"owasp,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 
 // ScanResult contains the results from a security scan
@@ -379,10 +379,10 @@ func (so *ScanOrchestrator) calculateStatistics(findings []Finding) ScanStatisti
 
 // Logger interface for logging
 type Logger interface {
-	Info(msg string, args ...interface{})
-	Warn(msg string, args ...interface{})
-	Error(msg string, args ...interface{})
-	Debug(msg string, args ...interface{})
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+	Error(msg string, args ...any)
+	Debug(msg string, args ...any)
 }
 
 // Helper function to generate unique scan IDs

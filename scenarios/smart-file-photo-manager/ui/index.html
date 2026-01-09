@@ -6,6 +6,7 @@
     <title>SmartFile - AI-Powered File & Photo Manager</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
     <script type="module">
         import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
@@ -52,23 +53,23 @@
 
             <nav class="nav-menu">
                 <button class="nav-item active" data-view="organize">
-                    <span class="nav-icon">📁</span>
+                    <span class="nav-icon" data-lucide="folder" aria-hidden="true"></span>
                     <span class="nav-label">Organize</span>
                 </button>
                 <button class="nav-item" data-view="search">
-                    <span class="nav-icon">🔍</span>
+                    <span class="nav-icon" data-lucide="search" aria-hidden="true"></span>
                     <span class="nav-label">Search</span>
                 </button>
                 <button class="nav-item" data-view="duplicates">
-                    <span class="nav-icon">🔄</span>
+                    <span class="nav-icon" data-lucide="copy-check" aria-hidden="true"></span>
                     <span class="nav-label">Duplicates</span>
                 </button>
                 <button class="nav-item" data-view="tags">
-                    <span class="nav-icon">🏷️</span>
+                    <span class="nav-icon" data-lucide="tags" aria-hidden="true"></span>
                     <span class="nav-label">Tags</span>
                 </button>
                 <button class="nav-item" data-view="insights">
-                    <span class="nav-icon">📊</span>
+                    <span class="nav-icon" data-lucide="bar-chart-3" aria-hidden="true"></span>
                     <span class="nav-label">Insights</span>
                 </button>
             </nav>
@@ -100,11 +101,11 @@
 
                 <div class="header-actions">
                     <button class="action-btn upload-btn" id="upload-btn">
-                        <span class="btn-icon">⬆</span>
+                        <span class="btn-icon" data-lucide="upload" aria-hidden="true"></span>
                         <span class="btn-text">Upload</span>
                     </button>
                     <button class="action-btn organize-btn" id="ai-organize-btn">
-                        <span class="btn-icon">✨</span>
+                        <span class="btn-icon" data-lucide="sparkles" aria-hidden="true"></span>
                         <span class="btn-text">AI Organize</span>
                     </button>
                 </div>
@@ -159,7 +160,7 @@
                     </div>
                     <div class="search-results" id="search-results">
                         <div class="empty-state">
-                            <span class="empty-icon">🔍</span>
+                            <span class="empty-icon" data-lucide="search" aria-hidden="true"></span>
                             <p>Search for files using natural language</p>
                             <p class="empty-hint">Try "photos from last summer" or "documents about project X"</p>
                         </div>
@@ -176,7 +177,7 @@
                     </div>
                     <div class="duplicates-container" id="duplicates-container">
                         <div class="empty-state">
-                            <span class="empty-icon">🔄</span>
+                            <span class="empty-icon" data-lucide="scan" aria-hidden="true"></span>
                             <p>No duplicates found</p>
                             <p class="empty-hint">Click 'Scan for Duplicates' to find similar files</p>
                         </div>
@@ -203,28 +204,28 @@
                     </div>
                     <div class="insights-grid">
                         <div class="insight-card">
-                            <div class="insight-icon">📷</div>
+                            <div class="insight-icon" data-lucide="camera" aria-hidden="true"></div>
                             <div class="insight-content">
                                 <div class="insight-value">1,234</div>
                                 <div class="insight-label">Photos</div>
                             </div>
                         </div>
                         <div class="insight-card">
-                            <div class="insight-icon">📄</div>
+                            <div class="insight-icon" data-lucide="file-text" aria-hidden="true"></div>
                             <div class="insight-content">
                                 <div class="insight-value">567</div>
                                 <div class="insight-label">Documents</div>
                             </div>
                         </div>
                         <div class="insight-card">
-                            <div class="insight-icon">🎥</div>
+                            <div class="insight-icon" data-lucide="clapperboard" aria-hidden="true"></div>
                             <div class="insight-content">
                                 <div class="insight-value">89</div>
                                 <div class="insight-label">Videos</div>
                             </div>
                         </div>
                         <div class="insight-card">
-                            <div class="insight-icon">🎵</div>
+                            <div class="insight-icon" data-lucide="music" aria-hidden="true"></div>
                             <div class="insight-content">
                                 <div class="insight-value">456</div>
                                 <div class="insight-label">Audio Files</div>

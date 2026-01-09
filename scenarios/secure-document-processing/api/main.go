@@ -2,21 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
-
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Services  map[string]string `json:"services"`
-}
 
 type Document struct {
 	ID       string    `json:"id"`
@@ -26,11 +20,11 @@ type Document struct {
 }
 
 type ProcessingJob struct {
-	ID          string    `json:"id"`
-	JobName     string    `json:"jobName"`
-	Status      string    `json:"status"`
-	Created     time.Time `json:"created"`
-	Documents   []string  `json:"documents"`
+	ID        string    `json:"id"`
+	JobName   string    `json:"jobName"`
+	Status    string    `json:"status"`
+	Created   time.Time `json:"created"`
+	Documents []string  `json:"documents"`
 }
 
 type Workflow struct {
@@ -42,17 +36,11 @@ type Workflow struct {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start secure-document-processing
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "secure-document-processing",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	port := getEnv("API_PORT", getEnv("PORT", ""))
@@ -60,7 +48,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health check endpoint
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API endpoints
 	api := r.PathPrefix("/api").Subrouter()
@@ -86,31 +74,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	services := map[string]string{
-		"n8n":              getServiceStatus(os.Getenv("N8N_BASE_URL")),
-		"windmill":         getServiceStatus(os.Getenv("WINDMILL_BASE_URL")),
-		"vault":            getServiceStatus(os.Getenv("VAULT_URL")),
-		"minio":            getServiceStatus(os.Getenv("MINIO_URL")),
-		"unstructured":     getServiceStatus(os.Getenv("UNSTRUCTURED_URL")),
-		"postgres":         "healthy", // Assume healthy if we got this far
-	}
-
-	if os.Getenv("QDRANT_URL") != "" {
-		services["qdrant"] = getServiceStatus(os.Getenv("QDRANT_URL"))
-	}
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Services:  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func documentsHandler(w http.ResponseWriter, r *http.Request) {

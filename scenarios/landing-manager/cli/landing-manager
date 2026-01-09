@@ -1,0 +1,540 @@
+#!/bin/bash
+# landing-manager - Command-line interface for Landing Manager
+
+set -euo pipefail
+
+readonly CLI_NAME="landing-manager"
+readonly CLI_VERSION="1.0.0"
+readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
+readonly CONFIG_FILE="$CONFIG_DIR/config.json"
+readonly SCENARIO_ID="landing-manager"
+readonly DEFAULT_TOKEN=""
+CONFIG_API_BASE=""
+API_BASE=""
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
+
+init_config() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" <<JSON
+{
+  "api_base": "",
+  "api_token": "$DEFAULT_TOKEN",
+  "output_format": "json",
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+JSON
+        echo -e "${GREEN}✓${NC} Configuration created at $CONFIG_FILE"
+    fi
+}
+
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+    else
+        CONFIG_API_BASE=""
+        API_TOKEN=""
+    fi
+}
+
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
+    fi
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
+    fi
+
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+        return 0
+    fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
+}
+
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local url="${API_BASE}${endpoint}"
+
+    if [[ -z "$API_BASE" ]]; then
+        echo -e "${RED}✗${NC} API base URL is not configured. Start the scenario via 'vrooli scenario run landing-manager' or run '$CLI_NAME configure api_base <url>'." >&2
+        return 1
+    fi
+
+    local headers=(-H 'Content-Type: application/json')
+    if [[ -n "${API_TOKEN:-}" ]]; then
+        headers+=(-H "Authorization: Bearer $API_TOKEN")
+    fi
+
+    curl -s -X "$method" "${headers[@]}" "$url"
+}
+
+cmd_status() {
+    echo -e "${BLUE}Checking system health...${NC}"
+    response=$(api_request GET "/health" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API is not reachable"
+        return 1
+    fi
+
+    status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+    if [[ "$status" == "healthy" ]]; then
+        echo -e "${GREEN}✓${NC} Service is healthy"
+    else
+        echo -e "${YELLOW}⚠${NC} Service status: $status"
+    fi
+
+    echo "$response" | jq -r '
+        "  Service: \(.service // "unknown")",
+        "  Version: \(.version // "unknown")",
+        "  Database: \(.dependencies.database // "unknown")"
+    ' 2>/dev/null || true
+}
+
+cmd_configure() {
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [[ -z "$key" ]]; then
+        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
+        return 0
+    fi
+
+    case "$key" in
+        api|api_base)
+            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API base set to: $value"
+            CONFIG_API_BASE="$value"
+            ;;
+        token|api_token)
+            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+            echo -e "${GREEN}✓${NC} API token updated"
+            API_TOKEN="$value"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown configuration key: $key"
+            echo "Valid keys: api_base, api_token"
+            return 1
+            ;;
+    esac
+}
+
+cmd_template_list() {
+    echo -e "${BLUE}Fetching available templates...${NC}"
+    response=$(api_request GET "/templates" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch templates"
+        return 1
+    fi
+
+    echo "$response" | jq -r '.[] | "  • \(.id) - \(.name)\n    \(.description)"' 2>/dev/null || echo "$response"
+}
+
+cmd_template_show() {
+    local template_id="${1:-}"
+    if [[ -z "$template_id" ]]; then
+        echo -e "${RED}✗${NC} Template ID required"
+        echo "Usage: $CLI_NAME template show <template-id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching template details for: $template_id${NC}"
+    response=$(api_request GET "/templates/${template_id}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Template not found: $template_id"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_generate() {
+    local template_id=""
+    local name=""
+    local slug=""
+    local dry_run="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --slug)
+                slug="$2"
+                shift 2
+                ;;
+            --dry-run|--dryrun)
+                dry_run="true"
+                shift 1
+                ;;
+            *)
+                if [[ -z "$template_id" ]]; then
+                    template_id="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$template_id" || -z "$name" || -z "$slug" ]]; then
+        echo -e "${RED}✗${NC} Missing required arguments"
+        echo "Usage: $CLI_NAME generate <template-id> --name <name> --slug <slug> [--dry-run]"
+        return 1
+    fi
+
+    echo -e "${BLUE}Generating landing page scenario...${NC}"
+    local payload
+    payload=$(jq -n \
+        --arg tid "$template_id" \
+        --arg n "$name" \
+        --arg s "$slug" \
+        --arg dr "$dry_run" \
+        '{template_id: $tid, name: $n, slug: $s, options: {dry_run: ($dr == "true")}}')
+
+    response=$(curl -s -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$payload" \
+        "${API_BASE}/generate" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Generation failed"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_preview() {
+    local scenario_id="${1:-}"
+    if [[ -z "$scenario_id" ]]; then
+        echo -e "${RED}✗${NC} Scenario ID required"
+        echo "Usage: $CLI_NAME preview <scenario-id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching preview links for: $scenario_id${NC}"
+    response=$(api_request GET "/preview/${scenario_id}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to get preview links for scenario: $scenario_id"
+        return 1
+    fi
+
+    echo "$response" | jq -r '
+        "Preview Links for \(.scenario_id):",
+        "  Path: \(.path)",
+        "  Base URL: \(.base_url)",
+        "",
+        "Links:",
+        "  Public Landing: \(.links.public_landing)",
+        "  Admin Portal: \(.links.admin_portal)",
+        "  Admin Login: \(.links.admin_login)",
+        "  Health Check: \(.links.health)",
+        "",
+        "Instructions:",
+        (.instructions[] | "  • \(.)"),
+        "",
+        "Notes: \(.notes)"
+    ' 2>/dev/null || echo "$response"
+}
+
+cmd_customize() {
+    local scenario_id=""
+    local brief_file=""
+    local preview=false
+    local persona_id=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --brief-file)
+                brief_file="$2"
+                shift 2
+                ;;
+            --preview)
+                preview=true
+                shift
+                ;;
+            --persona)
+                persona_id="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$scenario_id" ]]; then
+                    scenario_id="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario_id" || -z "$brief_file" ]]; then
+        echo -e "${RED}✗${NC} Missing required arguments"
+        echo "Usage: $CLI_NAME customize <scenario-id> --brief-file <file> [--preview] [--persona <id>]"
+        return 1
+    fi
+
+    if [[ ! -f "$brief_file" ]]; then
+        echo -e "${RED}✗${NC} Brief file not found: $brief_file"
+        return 1
+    fi
+
+    local brief
+    brief=$(<"$brief_file")
+
+    echo -e "${BLUE}Triggering agent customization...${NC}"
+    if [[ -n "$persona_id" ]]; then
+        echo -e "${BLUE}Using persona: $persona_id${NC}"
+    fi
+
+    local payload
+    if [[ -n "$persona_id" ]]; then
+        payload=$(jq -n \
+            --arg sid "$scenario_id" \
+            --arg b "$brief" \
+            --argjson p "$preview" \
+            --arg pid "$persona_id" \
+            '{scenario_id: $sid, brief: $b, preview: $p, persona_id: $pid}')
+    else
+        payload=$(jq -n \
+            --arg sid "$scenario_id" \
+            --arg b "$brief" \
+            --argjson p "$preview" \
+            '{scenario_id: $sid, brief: $b, preview: $p}')
+    fi
+
+    response=$(curl -s -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$payload" \
+        "${API_BASE}/customize" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Customization request failed"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_personas_list() {
+    echo -e "${BLUE}Fetching agent personas...${NC}"
+    response=$(curl -s "${API_BASE}/personas" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch personas"
+        return 1
+    fi
+
+    echo -e "\n${GREEN}Available Agent Personas:${NC}\n"
+    echo "$response" | jq -r '.[] | "  \(.id)
+    Name: \(.name)
+    Description: \(.description)
+    Use Cases: \(.use_cases | join(", "))
+    Keywords: \(.keywords | join(", "))
+    "' 2>/dev/null || echo "$response"
+}
+
+cmd_personas_show() {
+    local persona_id="$1"
+    if [[ -z "$persona_id" ]]; then
+        echo -e "${RED}✗${NC} Missing persona ID"
+        echo "Usage: $CLI_NAME personas show <id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching persona: $persona_id${NC}"
+    response=$(curl -s "${API_BASE}/personas/${persona_id}" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch persona"
+        return 1
+    fi
+
+    echo -e "\n${GREEN}Persona Details:${NC}\n"
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_version() {
+    echo "$CLI_NAME version $CLI_VERSION"
+    if [[ -n "$API_BASE" ]]; then
+        echo "API endpoint: $API_BASE"
+    else
+        echo "API endpoint: (auto-detect when scenario is running)"
+    fi
+}
+
+cmd_help() {
+    cat <<'EOF'
+landing-manager - Command-line interface for Landing Manager
+
+Usage: landing-manager <command>
+
+Commands:
+    status                              Check API and dependency health
+    template list                       List available landing page templates
+    template show <id>                  Show detailed template metadata
+    generate <template> --name <name> --slug <slug> [--dry-run]
+                                        Generate a new landing page scenario (use --dry-run for plan only)
+    preview <scenario-id>               Get preview links for a generated scenario
+    personas list                       List available agent personas for customization
+    personas show <id>                  Show detailed persona prompt and guidance
+    customize <scenario> --brief-file <file> [--preview] [--persona <id>]
+                                        Trigger agent customization of a landing page
+    configure                           View or update CLI configuration
+    version                             Show CLI version
+    help                                Show this help message
+
+Spec references:
+    Template runtime spec: scripts/scenarios/templates/landing-page-react-vite/PRD.md
+    Vrooli Ascension landing page: scenarios/browser-automation-studio
+EOF
+}
+
+main() {
+    init_config
+    load_config
+
+    local command="${1:-help}"
+    shift || true
+
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
+    fi
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    if [[ "$command" == "status" || "$command" == "template" || "$command" == "generate" || "$command" == "preview" || "$command" == "customize" || "$command" == "personas" ]]; then
+        if [[ -z "$API_BASE" ]]; then
+            if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+                echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
+                exit 1
+            fi
+        fi
+    fi
+
+    case "$command" in
+        status)
+            cmd_status
+            ;;
+        template)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    cmd_template_list
+                    ;;
+                show)
+                    cmd_template_show "$@"
+                    ;;
+                *)
+                    echo -e "${RED}✗${NC} Unknown template subcommand: $subcommand"
+                    echo "Valid subcommands: list, show"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        personas)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    cmd_personas_list
+                    ;;
+                show)
+                    cmd_personas_show "$@"
+                    ;;
+                *)
+                    echo -e "${RED}✗${NC} Unknown personas subcommand: $subcommand"
+                    echo "Valid subcommands: list, show"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        generate)
+            cmd_generate "$@"
+            ;;
+        preview)
+            cmd_preview "$@"
+            ;;
+        customize)
+            cmd_customize "$@"
+            ;;
+        configure|config)
+            cmd_configure "$@"
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown command: $command"
+            echo "Run '$CLI_NAME help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,36 +1,8 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="knowledge-observatory"
-INSTALL_DIR="$HOME/.vrooli/bin"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/knowledge-observatory/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-echo "🔭 Installing Knowledge Observatory CLI..."
-
-mkdir -p "$INSTALL_DIR"
-
-if [[ ! -f "$SCRIPT_DIR/$CLI_NAME" ]]; then
-    echo "Error: CLI script not found at $SCRIPT_DIR/$CLI_NAME" >&2
-    exit 1
-fi
-
-cp "$SCRIPT_DIR/$CLI_NAME" "$INSTALL_DIR/"
-chmod +x "$INSTALL_DIR/$CLI_NAME"
-
-if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-    echo ""
-    echo "⚠️  $INSTALL_DIR is not in your PATH"
-    echo "Add the following line to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
-    echo ""
-    echo "  export PATH=\"\$PATH:$INSTALL_DIR\""
-    echo ""
-fi
-
-if command -v "$CLI_NAME" &> /dev/null; then
-    echo "✅ Knowledge Observatory CLI installed successfully!"
-    echo "   Run '$CLI_NAME help' to get started"
-else
-    echo "✅ Knowledge Observatory CLI installed to $INSTALL_DIR/$CLI_NAME"
-    echo "   Restart your shell or update your PATH to use it"
-fi
+install_cli "$CLI_DIR/knowledge-observatory" "knowledge-observatory"

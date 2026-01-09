@@ -1,0 +1,80 @@
+/* [REQ:DESIGN-FONT] Custom Typography - Space Grotesk with optimized loading */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* Clause-style palette */
+  --color-accent: 249 115 22;         /* #F97316 */
+  --color-accent-secondary: 56 189 248; /* #38BDF8 */
+  --color-success: 16 185 129;        /* #10B981 */
+
+  --color-bg-base: 7 9 15;            /* #07090F */
+  --color-surface-primary: 15 23 42;  /* #0F172A */
+  --color-surface-muted: 30 36 51;    /* #1E2433 */
+  --color-surface-alt: 246 245 242;   /* #F6F5F2 */
+
+  --color-text-primary: 243 244 246;  /* #F3F4F6 */
+  --color-text-secondary: 148 163 184;/* #94A3B8 */
+  --color-text-muted: 100 116 139;    /* #64748B */
+
+  /* Spacing Scale */
+  --spacing-unit: 0.25rem;
+  --spacing-xs: calc(var(--spacing-unit) * 2);   /* 0.5rem / 8px */
+  --spacing-sm: calc(var(--spacing-unit) * 3);   /* 0.75rem / 12px */
+  --spacing-md: calc(var(--spacing-unit) * 4);   /* 1rem / 16px */
+  --spacing-lg: calc(var(--spacing-unit) * 6);   /* 1.5rem / 24px */
+  --spacing-xl: calc(var(--spacing-unit) * 8);   /* 2rem / 32px */
+  --spacing-2xl: calc(var(--spacing-unit) * 12); /* 3rem / 48px */
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+}
+
+body {
+  font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  background-color: rgb(var(--color-bg-base));
+  color: rgb(var(--color-text-primary));
+}
+
+@layer utilities {
+  .bg-case-study {
+    background: radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.08), transparent 45%),
+      radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.08), transparent 40%),
+      rgb(var(--color-bg-base));
+  }
+
+  .panel-glow {
+    box-shadow:
+      0 18px 40px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .noise-overlay {
+    position: relative;
+  }
+
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='1' height='1' fill='white'/%3E%3C/svg%3E");
+  }
+}

@@ -10,15 +10,6 @@
       "connection_timeout": 30000,
       "health_check_url": "postgresql://postgres:password@localhost:5433/document_manager"
     },
-    "windmill": {
-      "host": "localhost",
-      "port": 5681,
-      "base_url": "http://localhost:5681",
-      "api_url": "http://localhost:5681/api",
-      "workspace": "document_manager",
-      "auth_token": "${WINDMILL_TOKEN}",
-      "health_check_url": "http://localhost:5681/api/version"
-    },
     "n8n": {
       "host": "localhost", 
       "port": 5678,

@@ -179,14 +179,14 @@ Access at: `http://localhost:3002`
 The orchestrator enables intelligent scenario interactions:
 
 ```bash
-# scenario-surfer can preload profiles before showing scenarios
+# app-monitor can preload profiles before showing scenarios
 vrooli-orchestrator activate gaming-entertainment
 
 # morning-vision-walk can switch to productivity mode
 vrooli-orchestrator activate business-productivity  
 
 # deployment-manager can create customer-specific profiles
-vrooli-orchestrator create-profile customer-demo --resources postgres --scenarios scenario-surfer
+vrooli-orchestrator create-profile customer-demo --resources postgres --scenarios app-monitor
 ```
 
 ## 🧪 Testing

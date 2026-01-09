@@ -18,6 +18,10 @@
         "name": {
           "type": "string"
         },
+        "parent": {
+          "type": "string",
+          "const": "vrooli"
+        },
         "displayName": {
           "type": "string"
         },
@@ -26,8 +30,91 @@
         },
         "version": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "Scenario classification (e.g., business-application, helper)"
+        },
+        "category": {
+          "type": "string",
+          "description": "High-level scenario category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Free-form keywords for search and filtering"
+        },
+        "maintainers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "repository": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "default": "git"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "directory": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "license": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri"
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri"
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "issues": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "additionalProperties": false
+        },
+        "importance": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "important",
+            "standard",
+            "experimental"
+          ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ports": {
       "type": "object",
@@ -49,15 +136,98 @@
           "description": {
             "type": "string"
           }
-        }
+        },
+        "additionalProperties": false
       }
     },
-    "resources": {
-      "$ref": "resource-definitions.json#/resourceCatalog",
-      "description": "Resource configurations with auto-completion support"
+    "dependencies": {
+      "type": "object",
+      "description": "Scenario and resource dependencies",
+      "properties": {
+        "resources": {
+          "$ref": "resource-definitions.json#/resourceCatalog",
+          "description": "Resource dependencies declared under the dependencies namespace"
+        },
+        "scenarios": {
+          "type": "object",
+          "description": "Scenario dependencies keyed by scenario identifier",
+          "patternProperties": {
+            "^[a-z0-9-]+$": {
+              "$ref": "#/definitions/scenarioDependency"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     },
     "deployment": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "metadata_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_analyzed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "analyzer": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "aggregate_requirements": {
+          "$ref": "#/definitions/deploymentRequirements"
+        },
+        "tiers": {
+          "type": "object",
+          "properties": {
+            "tier-1-local": {
+              "$ref": "#/definitions/deploymentTier"
+            },
+            "tier-2-desktop": {
+              "$ref": "#/definitions/deploymentTier"
+            },
+            "tier-3-mobile": {
+              "$ref": "#/definitions/deploymentTier"
+            },
+            "tier-4-saas": {
+              "$ref": "#/definitions/deploymentTier"
+            },
+            "tier-5-enterprise": {
+              "$ref": "#/definitions/deploymentTier"
+            }
+          },
+          "additionalProperties": false
+        },
+        "dependencies": {
+          "type": "object",
+          "properties": {
+            "resources": {
+              "$ref": "#/definitions/deploymentDependencyMap"
+            },
+            "scenarios": {
+              "$ref": "#/definitions/deploymentDependencyMap"
+            }
+          },
+          "additionalProperties": false
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentOverride"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "lifecycle": {
       "type": "object",
@@ -83,18 +253,342 @@
         },
         "health": {
           "$ref": "#/definitions/healthPhase"
-        },
-        "timeout": {
-          "type": "number",
-          "description": "Default timeout in seconds for lifecycle operations"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "dependencies"
+  ],
+  "allOf": [
+    {
+      "properties": {
+        "dependencies": {
+          "anyOf": [
+            {
+              "required": [
+                "resources"
+              ]
+            },
+            {
+              "required": [
+                "scenarios"
+              ]
+            }
+          ]
         }
       }
     }
-  },
-  "required": [
-    "resources"
   ],
   "definitions": {
+    "scenarioDependency": {
+      "type": "object",
+      "description": "Metadata describing a dependent scenario",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scenario identifier"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the dependency is mandatory"
+        },
+        "version": {
+          "$ref": "common.schema.json#/definitions/semver",
+          "description": "Exact scenario version required"
+        },
+        "versionRange": {
+          "type": "string",
+          "description": "Semantic version range that is acceptable"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable context for the dependency"
+        }
+      }
+    },
+    "deploymentRequirements": {
+      "type": "object",
+      "properties": {
+        "ram_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "disk_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cpu_cores": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gpu": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "offline"
+          ]
+        },
+        "storage_mb_per_user": {
+          "type": "number",
+          "minimum": 0
+        },
+        "startup_time_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bucket": {
+          "type": "string",
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "calculated",
+            "estimated",
+            "manual"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentTier": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "ready",
+            "limited",
+            "blocked"
+          ]
+        },
+        "fitness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "requirements": {
+          "$ref": "#/definitions/deploymentRequirements"
+        },
+        "adaptations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentAdaptation"
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentTierSecret"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/deploymentArtifact"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentAdaptation": {
+      "type": "object",
+      "properties": {
+        "dependency": {
+          "type": "string"
+        },
+        "swap": {
+          "type": "string"
+        },
+        "impact": {
+          "type": "string"
+        },
+        "effort_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentTierSecret": {
+      "type": "object",
+      "properties": {
+        "secret_id": {
+          "type": "string"
+        },
+        "classification": {
+          "type": "string",
+          "enum": [
+            "infrastructure",
+            "service",
+            "user"
+          ]
+        },
+        "strategy_ref": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "secret_id"
+      ],
+      "additionalProperties": false
+    },
+    "deploymentArtifact": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "producer": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentDependencyMap": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9-]+$": {
+          "$ref": "#/definitions/deploymentDependency"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentDependency": {
+      "type": "object",
+      "properties": {
+        "resource_type": {
+          "type": "string"
+        },
+        "footprint": {
+          "$ref": "#/definitions/deploymentRequirements"
+        },
+        "platform_support": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/dependencyTierSupport"
+          }
+        },
+        "swappable_with": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dependencySwap"
+          }
+        },
+        "packaging_hints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependencyTierSupport": {
+      "type": "object",
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        },
+        "fitness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string"
+        },
+        "requirements": {
+          "$ref": "#/definitions/deploymentRequirements"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependencySwap": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "relationship": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentOverride": {
+      "type": "object",
+      "properties": {
+        "tier": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "value": {},
+        "reason": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
     "lifecyclePhase": {
       "type": "object",
       "properties": {
@@ -102,15 +596,7 @@
           "type": "string"
         },
         "condition": {
-          "type": "object",
-          "properties": {
-            "checks": {
-              "type": "array",
-              "items": {
-                "type": "object"
-              }
-            }
-          }
+          "$ref": "#/definitions/conditionBlock"
         },
         "steps": {
           "type": "array",
@@ -130,7 +616,7 @@
                 "type": "boolean"
               },
               "condition": {
-                "type": "object"
+                "$ref": "#/definitions/conditionBlock"
               },
               "retry": {
                 "type": "object",
@@ -141,16 +627,107 @@
                   "delay": {
                     "type": "integer"
                   }
-                }
+                },
+                "additionalProperties": false
               }
             },
             "required": [
               "name",
               "run"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "conditionBlock": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/conditionCheck"
+          }
+        },
+        "file_exists": {
+          "$ref": "#/definitions/pathOrList"
+        },
+        "file_not_exists": {
+          "$ref": "#/definitions/pathOrList"
+        },
+        "command_exists": {
+          "type": "string"
+        },
+        "binary_exists": {
+          "type": "string"
+        },
+        "resource_enabled": {
+          "type": "string"
+        },
+        "json_path_exists": {
+          "type": "string"
+        },
+        "env_var_set": {
+          "type": "string"
+        },
+        "always": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "conditionCheck": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "string"
+        },
+        "bundle_path": {
+          "type": "string"
+        },
+        "source_dir": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "path": {
+          "type": "string"
+        },
+        "populated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "pathOrList": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "healthPhase": {
       "type": "object",
@@ -179,7 +756,8 @@
               "default": "/metrics",
               "description": "Metrics endpoint path"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "checks": {
           "type": "array",
@@ -226,7 +804,8 @@
             "required": [
               "name",
               "type"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "timeout": {
@@ -244,7 +823,8 @@
           "default": 10000,
           "description": "Grace period in milliseconds before first health check"
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

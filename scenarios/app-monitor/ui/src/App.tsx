@@ -1,16 +1,79 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
-import AppsView from '@/components/views/AppsView';
-import AppPreviewView from '@/components/views/AppPreviewView';
-import LogsView from '@/components/views/LogsView';
-import ResourcesView from '@/components/views/ResourcesView';
-import ResourceDetailView from '@/components/views/ResourceDetailView';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import Shell from '@/components/Shell';
+import AppPreviewView from '@/components/views/AppPreviewView';
+import HomeView from '@/components/views/HomeView';
+import ResourceDetailView from '@/components/views/ResourceDetailView';
+import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
-import './App.css';
+import { logger } from '@/services/logger';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
+import { useEffect, useState } from 'react';
+import {
+  Navigate,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+  useLocation,
+  useParams,
+} from 'react-router-dom';
+import './App.css';
+
+function TabOverlayRedirect({ segment }: { segment?: 'apps' | 'resources' }) {
+  const location = useLocation();
+  const nextParams = new URLSearchParams(location.search);
+  nextParams.set('overlay', 'tabs');
+  if (segment) {
+    nextParams.set('segment', segment);
+  } else {
+    nextParams.delete('segment');
+  }
+
+  const search = nextParams.toString();
+  const target = search ? `/?${search}` : '/?overlay=tabs';
+
+  return <Navigate to={target} replace />;
+}
+
+function LogsAppRedirect() {
+  const { appId } = useParams<{ appId?: string }>();
+  const location = useLocation();
+
+  const params = new URLSearchParams(location.search);
+  params.set('overlay', 'logs');
+  const search = params.toString();
+  const targetSearch = search ? `?${search}` : '?overlay=logs';
+  const targetPath = appId ? `/apps/${encodeURIComponent(appId)}/preview${targetSearch}` : '';
+
+  useEffect(() => {
+    if (!appId || !isIosSafariUserAgent()) {
+      return;
+    }
+    primePreviewGuardForNavigation({
+      appId,
+      recoverPath: targetPath,
+    });
+  }, [appId, targetPath]);
+
+  if (!appId) {
+    return <TabOverlayRedirect segment="apps" />;
+  }
+
+  const navigationState = {
+    fromAppsList: true,
+    originAppId: appId,
+    navTimestamp: Date.now(),
+    suppressedAutoBack: false,
+  } as const;
+
+  return (
+    <Navigate
+      to={targetPath}
+      state={navigationState}
+      replace
+    />
+  );
+}
 
 function App() {
   const loadApps = useAppsStore(state => state.loadApps);
@@ -18,33 +81,29 @@ function App() {
   const loadResources = useResourcesStore(state => state.loadResources);
   const [isConnected, setIsConnected] = useState(false);
 
-  // WebSocket connection for real-time updates
   const { connectionState } = useAppWebSocket({
     onAppUpdate: (update) => {
-      console.log('App update received:', update);
+      logger.debug('Received app update payload', update);
       updateAppInStore(update);
     },
     onMetricUpdate: () => {
-      // Metrics are now handled by system-monitor iframe
     },
     onLogEntry: (log) => {
-      console.log('Log entry received:', log);
-      // Logs are handled directly in LogsView component
+      logger.debug('Received live log entry', log);
     },
     onConnection: (connected) => {
       setIsConnected(connected);
+      logger.info('App monitor websocket connection updated', { connected });
     },
     onError: (error) => {
-      console.error('WebSocket error:', error);
+      logger.error('App monitor websocket error', error);
     },
   });
 
-  // Log connection state changes
   useEffect(() => {
-    console.log(`WebSocket connection state: ${connectionState}`);
+    logger.debug('WebSocket connection state changed', { state: connectionState });
   }, [connectionState]);
 
-  // Fetch initial data on component mount
   useEffect(() => {
     void loadApps();
     void loadResources();
@@ -54,19 +113,19 @@ function App() {
     <ErrorBoundary>
       <Router>
         <div className="app">
-          <div className="matrix-rain"></div>
-          <Layout isConnected={isConnected}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/apps" replace />} />
-              <Route path="/apps" element={<AppsView />} />
-              <Route path="/apps/:appId/preview" element={<AppPreviewView />} />
-              <Route path="/logs" element={<LogsView />} />
-              <Route path="/logs/:appId" element={<LogsView />} />
-              <Route path="/resources" element={<ResourcesView />} />
-              <Route path="/resources/:resourceId" element={<ResourceDetailView />} />
-              <Route path="*" element={<Navigate to="/apps" replace />} />
-            </Routes>
-          </Layout>
+          <Routes>
+            <Route element={<Shell isConnected={isConnected} />}>
+              <Route index element={<HomeView />} />
+              <Route path="apps" element={<TabOverlayRedirect segment="apps" />} />
+              <Route path="resources" element={<TabOverlayRedirect segment="resources" />} />
+              <Route path="tabs" element={<TabOverlayRedirect />} />
+              <Route path="apps/:appId/preview" element={<AppPreviewView />} />
+              <Route path="resources/:resourceId" element={<ResourceDetailView />} />
+              <Route path="logs" element={<TabOverlayRedirect segment="apps" />} />
+              <Route path="logs/:appId" element={<LogsAppRedirect />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
         </div>
       </Router>
     </ErrorBoundary>

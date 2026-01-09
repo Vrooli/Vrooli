@@ -10,13 +10,26 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Server     ServerConfig
-	Database   DatabaseConfig
-	Monitoring MonitoringConfig
-	Resources  ResourcesConfig
-	Alerts     AlertConfig
-	Logging    LoggingConfig
-	Health     HealthConfig
+	Server       ServerConfig
+	Database     DatabaseConfig
+	Monitoring   MonitoringConfig
+	Resources    ResourcesConfig
+	Alerts       AlertConfig
+	Logging      LoggingConfig
+	Health       HealthConfig
+	AgentManager AgentManagerConfig
+}
+
+// AgentManagerConfig contains agent-manager service configuration
+type AgentManagerConfig struct {
+	// ProfileName is the name to use for the system-monitor agent profile
+	ProfileName string
+	// ProfileKey is the stable key used for profile lookup/creation
+	ProfileKey string
+	// Timeout for API requests
+	Timeout time.Duration
+	// Enabled determines whether agent-manager is available for investigations
+	Enabled bool
 }
 
 // ServerConfig contains server configuration
@@ -39,36 +52,35 @@ type DatabaseConfig struct {
 
 // MonitoringConfig contains monitoring configuration
 type MonitoringConfig struct {
-	MetricsInterval    time.Duration
-	AnomalyInterval    time.Duration
-	ReportInterval     time.Duration
-	ThresholdInterval  time.Duration
-	RetentionDays      int
-	EnableAutoResolve  bool
-	MaxInvestigations  int
+	MetricsInterval   time.Duration
+	AnomalyInterval   time.Duration
+	ReportInterval    time.Duration
+	ThresholdInterval time.Duration
+	RetentionDays     int
+	EnableAutoResolve bool
+	MaxInvestigations int
 }
 
 // ResourcesConfig contains resource service configurations
 type ResourcesConfig struct {
-	PostgresURL    string
-	RedisURL       string
-	QuestDBURL     string
-	NodeRedURL     string
-	OllamaURL      string
-	CodexCommand   string
-	GrafanaURL     string
+	PostgresURL string
+	RedisURL    string
+	QuestDBURL  string
+	NodeRedURL  string
+	OllamaURL   string
+	GrafanaURL  string
 }
 
 // AlertConfig contains alerting configuration
 type AlertConfig struct {
-	WebhookURL       string
-	EnableWebhooks   bool
-	EnableEmail      bool
-	EmailFrom        string
-	EmailSMTPHost    string
-	EmailSMTPPort    int
-	MinSeverity      int
-	CooldownMinutes  int
+	WebhookURL      string
+	EnableWebhooks  bool
+	EnableEmail     bool
+	EmailFrom       string
+	EmailSMTPHost   string
+	EmailSMTPPort   int
+	MinSeverity     int
+	CooldownMinutes int
 }
 
 // LoggingConfig contains logging configuration
@@ -117,22 +129,21 @@ func Load() *Config {
 			EnableMigrations:   getEnvAsBool("DB_ENABLE_MIGRATIONS", true),
 		},
 		Monitoring: MonitoringConfig{
-			MetricsInterval:    time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 10)) * time.Second,
-			AnomalyInterval:    time.Duration(getEnvAsInt("ANOMALY_INTERVAL_SECONDS", 30)) * time.Second,
-			ReportInterval:     time.Duration(getEnvAsInt("REPORT_INTERVAL_HOURS", 1)) * time.Hour,
-			ThresholdInterval:  time.Duration(getEnvAsInt("THRESHOLD_INTERVAL_SECONDS", 20)) * time.Second,
-			RetentionDays:      getEnvAsInt("RETENTION_DAYS", 30),
-			EnableAutoResolve:  getEnvAsBool("ENABLE_AUTO_RESOLVE", false),
-			MaxInvestigations:  getEnvAsInt("MAX_INVESTIGATIONS", 100),
+			MetricsInterval:   time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 10)) * time.Second,
+			AnomalyInterval:   time.Duration(getEnvAsInt("ANOMALY_INTERVAL_SECONDS", 30)) * time.Second,
+			ReportInterval:    time.Duration(getEnvAsInt("REPORT_INTERVAL_HOURS", 1)) * time.Hour,
+			ThresholdInterval: time.Duration(getEnvAsInt("THRESHOLD_INTERVAL_SECONDS", 20)) * time.Second,
+			RetentionDays:     getEnvAsInt("RETENTION_DAYS", 30),
+			EnableAutoResolve: getEnvAsBool("ENABLE_AUTO_RESOLVE", false),
+			MaxInvestigations: getEnvAsInt("MAX_INVESTIGATIONS", 100),
 		},
 		Resources: ResourcesConfig{
-			PostgresURL:  getEnv("POSTGRES_URL", "postgres://localhost:5432/system_monitor"),
-			RedisURL:     getEnv("REDIS_URL", "redis://localhost:6379"),
-			QuestDBURL:   getEnv("QUESTDB_URL", "http://localhost:9000"),
-			NodeRedURL:   getEnv("NODE_RED_URL", "http://localhost:1880"),
-			OllamaURL:    getEnv("OLLAMA_URL", "http://localhost:11434"),
-			CodexCommand: getEnv("CODEX_COMMAND", "resource-codex content execute"),
-			GrafanaURL:   getEnv("GRAFANA_URL", "http://localhost:3004"),
+			PostgresURL: getEnv("POSTGRES_URL", "postgres://localhost:5432/system_monitor"),
+			RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
+			QuestDBURL:  getEnv("QUESTDB_URL", "http://localhost:9000"),
+			NodeRedURL:  getEnv("NODE_RED_URL", "http://localhost:1880"),
+			OllamaURL:   getEnv("OLLAMA_URL", "http://localhost:11434"),
+			GrafanaURL:  getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{
 			WebhookURL:      getEnv("ALERT_WEBHOOK_URL", ""),
@@ -160,6 +171,16 @@ func Load() *Config {
 			StartupGracePeriod: time.Duration(getEnvAsInt("HEALTH_STARTUP_GRACE_SECONDS", 10)) * time.Second,
 			Endpoints:          loadHealthEndpoints(),
 		},
+		AgentManager: AgentManagerConfig{
+			ProfileName: getEnv("AGENT_MANAGER_PROFILE_NAME", "system-monitor-investigator"),
+			ProfileKey:  getEnv("AGENT_MANAGER_PROFILE_KEY", ""),
+			Timeout:     time.Duration(getEnvAsInt("AGENT_MANAGER_TIMEOUT_SECONDS", 30)) * time.Second,
+			Enabled:     getEnvAsBool("AGENT_MANAGER_ENABLED", true),
+		},
+	}
+
+	if cfg.AgentManager.ProfileKey == "" {
+		cfg.AgentManager.ProfileKey = cfg.AgentManager.ProfileName
 	}
 
 	cfg.validate()

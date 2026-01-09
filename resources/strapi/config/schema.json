@@ -2,11 +2,17 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Strapi Resource Configuration Schema",
   "type": "object",
-  "required": ["database", "server"],
+  "required": [
+    "database",
+    "server"
+  ],
   "properties": {
     "server": {
       "type": "object",
-      "required": ["host", "port"],
+      "required": [
+        "host",
+        "port"
+      ],
       "properties": {
         "host": {
           "type": "string",
@@ -38,17 +44,30 @@
     },
     "database": {
       "type": "object",
-      "required": ["client", "connection"],
+      "required": [
+        "client",
+        "connection"
+      ],
       "properties": {
         "client": {
           "type": "string",
-          "enum": ["postgres", "mysql", "sqlite"],
+          "enum": [
+            "postgres",
+            "mysql",
+            "sqlite"
+          ],
           "description": "Database client type",
           "default": "postgres"
         },
         "connection": {
           "type": "object",
-          "required": ["host", "port", "database", "user", "password"],
+          "required": [
+            "host",
+            "port",
+            "database",
+            "user",
+            "password"
+          ],
           "properties": {
             "host": {
               "type": "string",
@@ -99,7 +118,11 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["local", "s3", "cloudinary"],
+          "enum": [
+            "local",
+            "s3",
+            "cloudinary"
+          ],
           "description": "Storage provider for uploads",
           "default": "local"
         },
@@ -146,7 +169,9 @@
               "items": {
                 "type": "string"
               },
-              "default": ["*"]
+              "default": [
+                "*"
+              ]
             }
           }
         },
@@ -180,7 +205,10 @@
         },
         "type": {
           "type": "string",
-          "enum": ["memory", "redis"],
+          "enum": [
+            "memory",
+            "redis"
+          ],
           "default": "memory"
         },
         "redis": {
@@ -196,5 +224,6 @@
         }
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/strapi/schema.json"
 }

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -199,8 +200,8 @@ func TestTournamentHandlers(t *testing.T) {
 			Method: "POST",
 			Path:   "/api/v1/tournaments",
 			Body: map[string]interface{}{
-				"name":        "Test Tournament",
-				"description": "Test description",
+				"name":         "Test Tournament",
+				"description":  "Test description",
 				"scheduled_at": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
 				"configuration": map[string]interface{}{
 					"max_rounds": 10,

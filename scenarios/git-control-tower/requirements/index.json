@@ -1,0 +1,35 @@
+{
+  "_metadata": {
+    "description": "Git Control Tower requirement registry - modules mirror PRD operational targets",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "meta": {
+    "scenario": "git-control-tower",
+    "version": "0.0.1",
+    "generated": "2025-12-16",
+    "owners": [
+      {
+        "platform": "git-control-tower",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "01-health-check-endpoint/requirements.json",
+    "02-repository-status-api/requirements.json",
+    "03-file-diff-endpoint/requirements.json",
+    "04-stage-unstage-operations/requirements.json",
+    "05-commit-composition-api/requirements.json",
+    "06-push-pull-status/requirements.json",
+    "07-postgres-audit-logging/requirements.json",
+    "08-cli-command-parity/requirements.json",
+    "09-branch-operations/requirements.json",
+    "10-ai-assisted-commit-messages/requirements.json",
+    "11-conflict-detection-reporting/requirements.json",
+    "12-change-preview/requirements.json",
+    "13-web-ui-dashboard/requirements.json",
+    "14-worktree-management/requirements.json",
+    "15-stash-operations/requirements.json"
+  ]
+}

@@ -1,0 +1,269 @@
+{
+  "module": "infrastructure-checks",
+  "description": "Platform and infrastructure health checks",
+  "prd_refs": [
+    "OT-P1-001",
+    "OT-P1-002",
+    "OT-P1-003",
+    "OT-P1-004",
+    "OT-P1-005",
+    "OT-P1-009"
+  ],
+  "requirements": [
+    {
+      "id": "INFRA-NET-001",
+      "title": "Network connectivity check",
+      "description": "Verify basic network connectivity via ping to configurable target",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-DNS-001",
+      "title": "DNS resolution check",
+      "description": "Verify DNS resolution is working via lookup of configurable domain",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-TIME-001",
+      "title": "Time synchronization check",
+      "description": "Verify NTP is synchronized (platform-specific implementation)",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-DISK-001",
+      "title": "Disk space check",
+      "description": "Warn when disk usage exceeds configurable threshold",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-SWAP-001",
+      "title": "Swap usage check",
+      "description": "Warn when swap usage indicates memory pressure",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-ZOMBIE-001",
+      "title": "Zombie process check",
+      "description": "Detect excessive zombie processes (Linux/macOS)",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-PORT-001",
+      "title": "Port exhaustion check",
+      "description": "Warn when ephemeral port usage is high",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-RDP-001",
+      "title": "RDP/xrdp health check",
+      "description": "Check xrdp (Linux) or TermService (Windows) is running",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-RDP-002",
+      "title": "RDP auto-restart",
+      "description": "Attempt to restart RDP service if down",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-DOCKER-001",
+      "title": "Docker daemon health",
+      "description": "Verify Docker daemon is responsive via docker info",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-DOCKER-002",
+      "title": "Docker auto-restart",
+      "description": "Attempt to restart Docker service if unresponsive",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-TUNNEL-001",
+      "title": "Cloudflared service check",
+      "description": "Verify cloudflared service is active",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-TUNNEL-002",
+      "title": "Cloudflared connectivity test",
+      "description": "Optionally test end-to-end tunnel connectivity",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-TUNNEL-003",
+      "title": "Cloudflared auto-restart",
+      "description": "Restart cloudflared if service or connectivity check fails",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "INFRA-SHUTDOWN-001",
+      "title": "Graceful SIGTERM handling",
+      "description": "Loop mode handles SIGINT/SIGTERM cleanly, completing current tick before exit",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/vrooli-autoheal.bats",
+          "notes": "CLI tests pending implementation"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

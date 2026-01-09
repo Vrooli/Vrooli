@@ -16,13 +16,13 @@ export function EventModal() {
   const [formData, setFormData] = useState<CreateEventRequest>({
     title: '',
     description: '',
-    startTime: '',
-    endTime: '',
+    start_time: '',
+    end_time: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     location: '',
-    eventType: 'meeting',
+    event_type: 'meeting',
     reminders: [{ minutesBefore: 15, notificationType: 'email' }],
-    automationConfig: {
+    automation_config: {
       enabled: false,
       type: 'recurring'
     }
@@ -42,12 +42,12 @@ export function EventModal() {
       setFormData({
         title: selectedEvent.title || '',
         description: selectedEvent.description || '',
-        startTime: selectedEvent.startTime ? format(new Date(selectedEvent.startTime), "yyyy-MM-dd'T'HH:mm") : '',
-        endTime: selectedEvent.endTime ? format(new Date(selectedEvent.endTime), "yyyy-MM-dd'T'HH:mm") : '',
+        start_time: selectedEvent.startTime ? format(new Date(selectedEvent.startTime), "yyyy-MM-dd'T'HH:mm") : '',
+        end_time: selectedEvent.endTime ? format(new Date(selectedEvent.endTime), "yyyy-MM-dd'T'HH:mm") : '',
         timezone: selectedEvent.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         location: selectedEvent.location || '',
-        eventType: selectedEvent.eventType || 'meeting',
-        automationConfig: selectedEvent.automationConfig || {
+        event_type: selectedEvent.eventType || 'meeting',
+        automation_config: selectedEvent.automationConfig || {
           enabled: false,
           type: 'recurring'
         }
@@ -123,17 +123,17 @@ export function EventModal() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.title || !formData.startTime || !formData.endTime) {
+
+    if (!formData.title || !formData.start_time || !formData.end_time) {
       toast.error('Please fill in required fields')
       return
     }
 
     const eventData = {
       ...formData,
-      startTime: new Date(formData.startTime).toISOString(),
-      endTime: new Date(formData.endTime).toISOString(),
-      automationConfig: recurrenceEnabled ? {
+      start_time: new Date(formData.start_time).toISOString(),
+      end_time: new Date(formData.end_time).toISOString(),
+      automation_config: recurrenceEnabled ? {
         enabled: true,
         type: 'recurring' as const,
         recurrence: recurrenceConfig
@@ -181,9 +181,9 @@ export function EventModal() {
   ]
 
   const getRecurrencePreview = () => {
-    if (!recurrenceEnabled || !formData.startTime) return []
-    
-    const startDate = new Date(formData.startTime)
+    if (!recurrenceEnabled || !formData.start_time) return []
+
+    const startDate = new Date(formData.start_time)
     const previews: Date[] = []
     const exceptions = new Set(recurrenceConfig.exceptions || [])
     let currentDate = new Date(startDate)
@@ -271,8 +271,8 @@ export function EventModal() {
                   </label>
                   <input
                     type="datetime-local"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                    value={formData.start_time}
+                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                     className="input"
                     required
                   />
@@ -284,8 +284,8 @@ export function EventModal() {
                   </label>
                   <input
                     type="datetime-local"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                    value={formData.end_time}
+                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                     className="input"
                     required
                   />
@@ -310,8 +310,8 @@ export function EventModal() {
                 <div>
                   <label className="label text-sm font-medium">Event Type</label>
                   <select
-                    value={formData.eventType}
-                    onChange={(e) => setFormData({ ...formData, eventType: e.target.value as Event['eventType'] })}
+                    value={formData.event_type}
+                    onChange={(e) => setFormData({ ...formData, event_type: e.target.value as Event['eventType'] })}
                     className="input"
                   >
                     <option value="meeting">Meeting</option>

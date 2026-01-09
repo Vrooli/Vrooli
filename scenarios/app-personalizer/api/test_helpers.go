@@ -279,21 +279,3 @@ func setupTestAppRegistry(t *testing.T, env *TestEnvironment) *TestAppRegistry {
 		},
 	}
 }
-
-// mockHTTPClient creates a mock HTTP client for testing external calls
-type MockHTTPClient struct {
-	DoFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return m.DoFunc(req)
-}
-
-// createMockN8nResponse creates a mock n8n webhook response
-func createMockN8nResponse(statusCode int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: statusCode,
-		Body:       io.NopCloser(bytes.NewBufferString(body)),
-		Header:     make(http.Header),
-	}
-}

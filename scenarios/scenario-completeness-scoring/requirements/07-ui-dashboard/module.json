@@ -1,0 +1,147 @@
+{
+  "_metadata": {
+    "module_name": "UI Dashboard",
+    "description": "Visual interface for score management",
+    "prd_ref": "OT-P1-004, OT-P1-005, OT-P1-006, OT-P2-003",
+    "priority": "P1"
+  },
+  "requirements": [
+    {
+      "id": "SCS-UI-001",
+      "title": "Dashboard overview",
+      "description": "Visual overview of all scenarios with scores, trends, and health status",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/Dashboard.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Dashboard page implemented with scenario table, health alerts, and score display"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/ui-dashboard/e2e/dashboard-overview.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E playbook validates dashboard rendering and components"
+        }
+      ]
+    },
+    {
+      "id": "SCS-UI-002",
+      "title": "Configuration UI",
+      "description": "Toggle switches for components with health indicators and presets",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/Configuration.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Configuration panel with presets, health status, and circuit breaker controls"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/ui-dashboard/e2e/configuration-panel.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E playbook validates configuration panel and preset selection"
+        }
+      ]
+    },
+    {
+      "id": "SCS-UI-003",
+      "title": "Scenario detail view",
+      "description": "Drill-down showing full breakdown, history chart, and recommendations",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/ScenarioDetail.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Scenario detail page with score breakdown, sparkline history, metrics, and recommendations"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/ui-dashboard/e2e/scenario-detail.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E playbook validates scenario detail view and components"
+        }
+      ]
+    },
+    {
+      "id": "SCS-UI-004",
+      "title": "What-if simulator UI",
+      "description": "Interactive UI for simulating changes and seeing impact",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/pages/ScenarioDetail.tsx::WhatIfAnalysis",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "WhatIfAnalysis component with interactive checkboxes, select all/clear, projected score calculation, and classification display"
+        }
+      ]
+    },
+    {
+      "id": "SCS-UI-005",
+      "title": "Score progress bars",
+      "description": "Visual progress bars for each scoring dimension",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/ScoreBar.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ScoreBar component with percentage display and color coding"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/ui-dashboard/e2e/scenario-detail.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E playbook validates score bars in detail view"
+        }
+      ]
+    },
+    {
+      "id": "SCS-UI-006",
+      "title": "Sparkline trend charts",
+      "description": "Small inline charts showing score history trends",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/Sparkline.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SVG sparkline component with trend coloring"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/ui-dashboard/e2e/dashboard-overview.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "E2E playbook validates sparklines in dashboard view"
+        }
+      ]
+    }
+  ]
+}

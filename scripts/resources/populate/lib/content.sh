@@ -116,10 +116,6 @@ content::add_single_item() {
     
     # Build command based on resource type and content
     case "$resource" in
-        n8n)
-            # N8n workflows
-            add_cmd="$add_cmd workflows --file \"$file\""
-            ;;
         postgres)
             # Database schemas/migrations
             add_cmd="$add_cmd schema --file \"$file\""

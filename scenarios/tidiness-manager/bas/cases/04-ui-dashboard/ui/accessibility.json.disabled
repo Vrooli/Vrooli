@@ -1,0 +1,90 @@
+{
+  "metadata": {
+    "description": "[REQ:TM-UI-007] Verify keyboard navigation works for tables and filters",
+    "requirements": ["TM-UI-007"],
+    "phase": "business",
+    "surface": "ui",
+    "capability": "04-ui-dashboard",
+    "reset": "none",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to dashboard",
+        "destinationType": "url",
+        "url": "http://localhost:{{UI_PORT}}/dashboard"
+      }
+    },
+    {
+      "id": "wait-for-table",
+      "type": "wait",
+      "data": {
+        "label": "Wait for table to load",
+        "waitType": "duration",
+        "durationMs": 1000,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "press-tab",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Tab to move focus",
+        "key": "Tab"
+      }
+    },
+    {
+      "id": "press-enter",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Enter to activate focused element",
+        "key": "Enter"
+      }
+    },
+    {
+      "id": "capture-accessibility",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture keyboard navigation state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-table",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-table",
+      "target": "press-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "press-tab",
+      "target": "press-enter",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "press-enter",
+      "target": "capture-accessibility",
+      "type": "smoothstep"
+    }
+  ]
+}

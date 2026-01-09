@@ -23,7 +23,7 @@ gemini::inject() {
     gemini::init >/dev/null 2>&1
     
     case "$target" in
-        n8n|huginn|windmill|node-red)
+        n8n|huginn|node-red)
             # Inject API credentials for automation platforms
             local injection_data="{
                 \"type\": \"gemini\",

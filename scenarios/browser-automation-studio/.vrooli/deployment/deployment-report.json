@@ -1,0 +1,807 @@
+{
+  "scenario": "browser-automation-studio",
+  "report_version": 1,
+  "generated_at": "2026-01-08T01:30:53.819529398Z",
+  "dependencies": [
+    {
+      "name": "minio",
+      "type": "resource",
+      "resource_type": "object-storage",
+      "requirements": {
+        "ram_mb": 512,
+        "disk_mb": 2048,
+        "cpu_cores": 1,
+        "network": "required",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.8,
+          "notes": "Shared MinIO resource"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.3,
+          "reason": "Requires bundled object storage process",
+          "alternatives": [
+            "filesystem-store"
+          ]
+        },
+        "tier-4-saas": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Map to S3/Spaces bucket"
+        }
+      },
+      "alternatives": [
+        "filesystem-store"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "resource_type": "llm-server",
+      "requirements": {
+        "ram_mb": 4096,
+        "disk_mb": 8192,
+        "cpu_cores": 4,
+        "gpu": false,
+        "network": "optional",
+        "source": "estimated",
+        "confidence": "low"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.6,
+          "notes": "Optional but heavy"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Model download sizes exceed desktop bundle budget",
+          "alternatives": [
+            "openrouter"
+          ]
+        }
+      },
+      "alternatives": [
+        "openrouter"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "openrouter",
+      "type": "resource",
+      "resource_type": "llm-api",
+      "requirements": {
+        "network": "required",
+        "source": "manual",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Used when Ollama disabled"
+        },
+        "tier-2-desktop": {
+          "supported": true,
+          "fitness_score": 0.5,
+          "reason": "Requires user-provided API key and network"
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "playwright",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.1,
+          "reason": "Heavy operations not suitable for mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "resource_type": "database",
+      "requirements": {
+        "ram_mb": 768,
+        "disk_mb": 4096,
+        "cpu_cores": 1,
+        "network": "required",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.9,
+          "notes": "Uses shared postgres resource"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Desktop install would need embedded database service",
+          "alternatives": [
+            "sqlite"
+          ]
+        },
+        "tier-4-saas": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Needs managed PaaS provisioning"
+        }
+      },
+      "alternatives": [
+        "sqlite"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "resource_type": "cache",
+      "requirements": {
+        "ram_mb": 256,
+        "disk_mb": 128,
+        "cpu_cores": 0.5,
+        "network": "optional",
+        "source": "estimated",
+        "confidence": "low"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.8,
+          "notes": "Shared redis"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.3,
+          "reason": "Need embedded cache or switch to in-process broadcast",
+          "alternatives": [
+            "event-emitter"
+          ]
+        }
+      },
+      "alternatives": [
+        "event-emitter",
+        "in-memory-pubsub"
+      ],
+      "source": "declared"
+    }
+  ],
+  "aggregates": {
+    "desktop": {
+      "fitness_score": 0.6,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "playwright"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "enterprise": {
+      "fitness_score": 0.98,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "local": {
+      "fitness_score": 1,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "mobile": {
+      "fitness_score": 0.1,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "playwright"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "saas": {
+      "fitness_score": 0.85,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "server": {
+      "fitness_score": 0.95,
+      "dependency_count": 1,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "tier-1-local": {
+      "fitness_score": 0.76,
+      "dependency_count": 5,
+      "blocking_dependencies": [
+        "ollama",
+        "openrouter"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 5632,
+        "disk_mb": 14464,
+        "cpu_cores": 6.5
+      }
+    },
+    "tier-2-desktop": {
+      "fitness_score": 0.3,
+      "dependency_count": 5,
+      "blocking_dependencies": [
+        "minio",
+        "ollama",
+        "openrouter",
+        "postgres",
+        "redis"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 5632,
+        "disk_mb": 14464,
+        "cpu_cores": 6.5
+      }
+    },
+    "tier-4-saas": {
+      "fitness_score": 0.7,
+      "dependency_count": 2,
+      "blocking_dependencies": [
+        "minio",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 1280,
+        "disk_mb": 6144,
+        "cpu_cores": 2
+      }
+    }
+  },
+  "bundle_manifest": {
+    "scenario": "browser-automation-studio",
+    "generated_at": "2026-01-08T01:30:53.819529398Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/browser-automation-studio-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/browser-automation-studio",
+        "type": "cli-binary",
+        "exists": false
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "minio",
+        "type": "resource",
+        "resource_type": "object-storage",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.8,
+            "notes": "Shared MinIO resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.3,
+            "reason": "Requires bundled object storage process",
+            "alternatives": [
+              "filesystem-store"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Map to S3/Spaces bucket"
+          }
+        },
+        "alternatives": [
+          "filesystem-store"
+        ]
+      },
+      {
+        "name": "ollama",
+        "type": "resource",
+        "resource_type": "llm-server",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.6,
+            "notes": "Optional but heavy"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Model download sizes exceed desktop bundle budget",
+            "alternatives": [
+              "openrouter"
+            ]
+          }
+        },
+        "alternatives": [
+          "openrouter"
+        ]
+      },
+      {
+        "name": "openrouter",
+        "type": "resource",
+        "resource_type": "llm-api",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Used when Ollama disabled"
+          },
+          "tier-2-desktop": {
+            "supported": true,
+            "fitness_score": 0.5,
+            "reason": "Requires user-provided API key and network"
+          }
+        }
+      },
+      {
+        "name": "playwright",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "reason": "Heavy operations not suitable for mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "postgres",
+        "type": "resource",
+        "resource_type": "database",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.9,
+            "notes": "Uses shared postgres resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Desktop install would need embedded database service",
+            "alternatives": [
+              "sqlite"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Needs managed PaaS provisioning"
+          }
+        },
+        "alternatives": [
+          "sqlite"
+        ]
+      },
+      {
+        "name": "redis",
+        "type": "resource",
+        "resource_type": "cache",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.8,
+            "notes": "Shared redis"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.3,
+            "reason": "Need embedded cache or switch to in-process broadcast",
+            "alternatives": [
+              "event-emitter"
+            ]
+          }
+        },
+        "alternatives": [
+          "event-emitter",
+          "in-memory-pubsub"
+        ]
+      }
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "browser-automation-studio",
+        "version": "1.0.0",
+        "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "swaps": [
+        {
+          "original": "minio",
+          "replacement": "filesystem-store",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "ollama",
+          "replacement": "openrouter",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "postgres",
+          "replacement": "sqlite",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "redis",
+          "replacement": "event-emitter",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        }
+      ],
+      "services": [
+        {
+          "id": "browser-automation-studio-api",
+          "type": "api-binary",
+          "description": "Bundled API process for browser-automation-studio",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/api/darwin-x64/browser-automation-studio-api"
+            },
+            "linux-x64": {
+              "path": "bin/api/linux-x64/browser-automation-studio-api"
+            },
+            "win-x64": {
+              "path": "bin/api/win-x64/browser-automation-studio-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/api/{{platform}}/browser-automation-studio-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${browser-automation-studio-api.api}",
+            "BAS_DB_BACKEND": "sqlite",
+            "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle served locally",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        },
+        {
+          "id": "browser-automation-studio-cli",
+          "type": "resource",
+          "description": "CLI for browser-automation-studio scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/browser-automation-studio"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/browser-automation-studio"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/browser-automation-studio.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/browser-automation-studio{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          }
+        }
+      ]
+    }
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "minio",
+        "dependency_type": "resource",
+        "secret_type": "object_storage_credentials",
+        "required_secrets": [
+          "minio_access_key",
+          "minio_secret_key"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/object-storage.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "playwright",
+        "dependency_type": "resource",
+        "secret_type": "browser_automation_token",
+        "required_secrets": [
+          "playwright_token"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/browser-automation.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "redis",
+        "dependency_type": "resource",
+        "secret_type": "cache_credentials",
+        "required_secrets": [
+          "redis_password"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "minio",
+        "alternative_resource": "s3",
+        "reason": "Cloud object storage for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "cloud_alternative",
+        "impact_description": "Better reliability and global availability"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      },
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      },
+      {
+        "original_resource": "redis",
+        "alternative_resource": "in-memory-cache",
+        "reason": "Embedded caching for desktop deployments",
+        "applicable_tiers": [
+          "desktop"
+        ],
+        "relationship": "embedded_alternative",
+        "impact_description": "Simplifies deployment, no separate service needed"
+      }
+    ],
+    "recommendations": [
+      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 5 resource swap(s) for deployment optimization"
+    ]
+  }
+}

@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -74,16 +75,11 @@ var db *sql.DB
 var typingProcessor *TypingProcessor
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start typing-test
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "typing-test",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment - REQUIRED, no defaults
@@ -92,81 +88,15 @@ func main() {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	// Connect to database
+	// Connect to database with exponential backoff
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatalf("❌ Database connection failed: %v", err)
 	}
 	defer db.Close()
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -180,7 +110,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	router.HandleFunc("/api/leaderboard", getLeaderboard).Methods("GET")
 	router.HandleFunc("/api/submit-score", submitScore).Methods("POST")
 	router.HandleFunc("/api/stats", submitStats).Methods("POST")
@@ -280,57 +210,6 @@ func initDB() {
 	if _, err := db.Exec(query); err != nil {
 		log.Printf("Warning: Failed to initialize minimal database: %v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError interface{}
-
-	if db != nil {
-		start := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		if err := db.PingContext(ctx); err == nil {
-			dbConnected = true
-			latency := float64(time.Since(start).Milliseconds())
-			dbLatency = &latency
-			dbError = nil
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "DB_PING_FAILED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "typing-test-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbConnected, // Ready when DB is connected
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func getLeaderboard(w http.ResponseWriter, r *http.Request) {

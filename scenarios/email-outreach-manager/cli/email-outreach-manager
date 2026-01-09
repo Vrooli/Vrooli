@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CLI_NAME="email-outreach-manager"
+CLI_VERSION="1.0.0"
+DEFAULT_HOST="${EMAIL_OUTREACH_API_HOST:-localhost}"
+DEFAULT_PORT="${EMAIL_OUTREACH_API_PORT:-${API_PORT:-18001}}"
+API_BASE="${EMAIL_OUTREACH_API_BASE:-${EMAIL_OUTREACH_API_URL:-http://${DEFAULT_HOST}:${DEFAULT_PORT}}}"
+
+usage() {
+  cat <<USAGE
+Email Outreach Manager CLI
+USAGE: ${CLI_NAME} <command> [options]
+
+Commands:
+  status            Check API health endpoint
+  send --to <email> Send a sample outreach message
+  version           Print CLI version
+  help              Show this message
+
+Environment:
+  EMAIL_OUTREACH_API_BASE   Override API base URL (default: ${API_BASE})
+  EMAIL_OUTREACH_API_HOST   Override API host component
+  EMAIL_OUTREACH_API_PORT   Override API port
+USAGE
+}
+
+require_curl() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is required for this command" >&2
+    exit 1
+  fi
+}
+
+cmd_status() {
+  require_curl
+  local endpoint="${API_BASE%/}/health"
+  if output=$(curl -sf "$endpoint" 2>/dev/null); then
+    echo "$output"
+  else
+    echo "Failed to reach API at $endpoint" >&2
+    exit 1
+  fi
+}
+
+cmd_send() {
+  require_curl
+  local recipient=""
+  local subject="Sample Outreach"
+  local body="Hello from Email Outreach Manager"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --to)
+        recipient="$2"
+        shift 2
+        ;;
+      --subject)
+        subject="$2"
+        shift 2
+        ;;
+      --body)
+        body="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+  if [[ -z "$recipient" ]]; then
+    echo "--to <email> is required" >&2
+    exit 1
+  fi
+  local endpoint="${API_BASE%/}/api/v1/campaigns/test-send"
+  local payload
+  payload=$(cat <<JSON
+{
+  "recipient": "$recipient",
+  "subject": "$subject",
+  "body": "$body"
+}
+JSON
+)
+  if response=$(curl -sf -H 'Content-Type: application/json' -d "$payload" "$endpoint" 2>/dev/null); then
+    echo "$response"
+  else
+    echo "Failed to send test email via $endpoint" >&2
+    exit 1
+  fi
+}
+
+cmd_version() {
+  echo "${CLI_NAME} ${CLI_VERSION}"
+}
+
+main() {
+  local command="${1:-help}"
+  shift || true
+  case "$command" in
+    help|-h|--help)
+      usage
+      ;;
+    version|-v|--version)
+      cmd_version
+      ;;
+    status)
+      cmd_status "$@"
+      ;;
+    send)
+      cmd_send "$@"
+      ;;
+    *)
+      echo "Unknown command: $command" >&2
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

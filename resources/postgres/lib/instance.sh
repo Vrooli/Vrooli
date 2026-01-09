@@ -64,8 +64,12 @@ postgres::instance::create() {
         fi
     fi
     
-    # Generate secure credentials
-    local password=$(postgres::common::generate_password)
+    # Use existing password from environment (e.g., from secrets.json) or generate new one
+    # This allows deployments to pre-provision passwords before starting postgres
+    local password="${POSTGRES_PASSWORD:-$(postgres::common::generate_password)}"
+    if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
+        log::debug "Using pre-configured POSTGRES_PASSWORD from environment"
+    fi
     
     # Handle networks - merge template networks with manually specified ones
     local template_networks=$(postgres::network::load_template_networks "$template")

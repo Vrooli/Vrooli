@@ -32,6 +32,49 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.search_history (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ingest history for auditing and replay
+CREATE TABLE IF NOT EXISTS knowledge_observatory.ingest_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    record_id VARCHAR(255) NOT NULL,
+    namespace VARCHAR(255) NOT NULL,
+    collection_name VARCHAR(255) NOT NULL,
+    content_hash VARCHAR(64),
+    visibility VARCHAR(20) NOT NULL CHECK (visibility IN ('private', 'shared', 'global')),
+    source TEXT,
+    source_type VARCHAR(100),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('success', 'failure')),
+    error_message TEXT,
+    took_ms INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Async ingest jobs
+CREATE TABLE IF NOT EXISTS knowledge_observatory.ingest_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_json JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'running', 'success', 'failure')),
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    finished_at TIMESTAMP WITH TIME ZONE,
+    total_chunks INTEGER DEFAULT 0,
+    completed_chunks INTEGER DEFAULT 0
+);
+
+-- External ID mappings for idempotency (per namespace)
+CREATE TABLE IF NOT EXISTS knowledge_observatory.external_id_map (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    namespace VARCHAR(255) NOT NULL,
+    external_id VARCHAR(255) NOT NULL,
+    kind VARCHAR(20) NOT NULL CHECK (kind IN ('record', 'document')),
+    record_id VARCHAR(255),
+    document_id VARCHAR(255),
+    content_hash VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(namespace, external_id, kind)
+);
+
 -- Knowledge entries metadata (cached from Qdrant)
 CREATE TABLE IF NOT EXISTS knowledge_observatory.knowledge_metadata (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,6 +145,13 @@ CREATE INDEX idx_quality_metrics_collection ON knowledge_observatory.quality_met
 CREATE INDEX idx_quality_metrics_measured_at ON knowledge_observatory.quality_metrics(measured_at DESC);
 CREATE INDEX idx_search_history_query ON knowledge_observatory.search_history USING gin(to_tsvector('english', query));
 CREATE INDEX idx_search_history_created ON knowledge_observatory.search_history(created_at DESC);
+CREATE INDEX idx_ingest_history_created ON knowledge_observatory.ingest_history(created_at DESC);
+CREATE INDEX idx_ingest_history_namespace ON knowledge_observatory.ingest_history(namespace);
+CREATE INDEX idx_ingest_history_record_id ON knowledge_observatory.ingest_history(record_id);
+CREATE INDEX idx_ingest_jobs_created ON knowledge_observatory.ingest_jobs(created_at DESC);
+CREATE INDEX idx_ingest_jobs_status ON knowledge_observatory.ingest_jobs(status);
+CREATE INDEX idx_external_id_map_namespace ON knowledge_observatory.external_id_map(namespace);
+CREATE INDEX idx_external_id_map_external_id ON knowledge_observatory.external_id_map(external_id);
 CREATE INDEX idx_knowledge_metadata_collection ON knowledge_observatory.knowledge_metadata(collection_name);
 CREATE INDEX idx_knowledge_metadata_source ON knowledge_observatory.knowledge_metadata(source_scenario);
 CREATE INDEX idx_alerts_level ON knowledge_observatory.alerts(level) WHERE NOT acknowledged;
@@ -123,6 +173,10 @@ CREATE TRIGGER update_quality_metrics_updated_at BEFORE UPDATE
 
 CREATE TRIGGER update_knowledge_metadata_updated_at BEFORE UPDATE
     ON knowledge_observatory.knowledge_metadata FOR EACH ROW
+    EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();
+
+CREATE TRIGGER update_external_id_map_updated_at BEFORE UPDATE
+    ON knowledge_observatory.external_id_map FOR EACH ROW
     EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();
 
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE

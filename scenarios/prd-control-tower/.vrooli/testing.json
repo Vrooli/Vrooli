@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for prd-control-tower scenario",
+    "last_updated": "2025-11-08T17:24:48Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {
+        "coverage": {
+          "warn_threshold": 50,
+          "error_threshold": 37
+        }
+      },
+      "node": {}
+    }
+  },
+  "playbooks": {
+    "enabled": false,
+    "_note": "Playbooks depend on the shared browser-automation-studio runtime; keep disabled by default so prd-control-tower tests don't fail when BAS is unavailable."
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  }
+}

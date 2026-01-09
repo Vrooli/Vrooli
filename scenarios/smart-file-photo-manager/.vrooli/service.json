@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "smart-file-photo-manager",
@@ -22,7 +22,28 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/smart-file-photo-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -36,76 +57,13 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store file metadata, processing history, and AI-generated suggestions",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic file search, image similarity matching, and content embeddings",
-      "initialization": [
-        {
-          "file": "initialization/storage/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Object storage for original files, processed versions, and thumbnails",
-      "initialization": [
-        {
-          "file": "initialization/storage/minio/buckets.json",
-          "type": "bucket"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Caching file metadata and processing job queue management"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llava:13b",
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": true,
-      "purpose": "Document text extraction and content parsing"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Smart File Photo Manager health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -113,6 +71,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -125,18 +91,24 @@
       "description": "Initialize Smart File Photo Manager",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "smart-file-photo-manager-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "smart-file-photo-manager"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/smart-file-photo-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "smart-file-photo-manager",
+            "targets": [
+              "smart-file-photo-manager"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -165,8 +137,21 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -174,15 +159,15 @@
     "develop": {
       "description": "Start smart file photo manager with Go API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./smart-file-photo-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/smart-file-photo-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./smart-file-photo-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/smart-file-photo-manager-api"
+          }
+        },
         {
           "name": "install-ui-dependencies",
           "run": "cd ui && npm install",
@@ -197,54 +182,23 @@
           "description": "Start Node.js UI server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test smart file photo manager API and workflows",
+      "description": "Comprehensive phased testing for smart-file-photo-manager",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-files-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/files",
-          "description": "Test API files endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/search?q=test",
-          "description": "Test API search endpoint"
-        },
-        {
-          "name": "test-upload-endpoint",
-          "run": "bash test/test-upload-endpoint.sh",
-          "description": "Test file upload endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats smart-file-photo-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/smart-file-photo-manager.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test-genie execute smart-file-photo-manager --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -262,6 +216,66 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store file metadata, processing history, and AI-generated suggestions",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic file search, image similarity matching, and content embeddings",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "config"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Object storage for original files, processed versions, and thumbnails"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Caching file metadata and processing job queue management"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llava:13b",
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document text extraction and content parsing"
+      }
     }
   }
 }

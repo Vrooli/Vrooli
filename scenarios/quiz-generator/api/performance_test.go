@@ -1,4 +1,3 @@
-// +build testing
 
 package main
 
@@ -37,11 +36,11 @@ func TestConcurrentQuizCreation(t *testing.T) {
 					UpdatedAt:    time.Now(),
 					Questions: []Question{
 						{
-							ID:            "q1",
-							Type:          "mcq",
-							QuestionText:  "Test question",
-							Difficulty:    "easy",
-							Points:        1,
+							ID:           "q1",
+							Type:         "mcq",
+							QuestionText: "Test question",
+							Difficulty:   "easy",
+							Points:       1,
 						},
 					},
 				}
@@ -132,6 +131,11 @@ func TestConcurrentQuizRetrieval(t *testing.T) {
 
 // TestQuizGenerationPerformance tests quiz generation performance
 func TestQuizGenerationPerformance(t *testing.T) {
+	// Skip if running in short mode (Ollama integration is slow)
+	if testing.Short() {
+		t.Skip("Skipping performance tests in short mode (require Ollama)")
+	}
+
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
@@ -224,7 +228,7 @@ func TestQuizSubmissionPerformance(t *testing.T) {
 
 		// Submit answers
 		submission := QuizSubmitRequest{
-			Responses:  []QuestionResponse{},
+			Responses: []QuestionResponse{},
 			TimeTaken: 600,
 		}
 
@@ -344,10 +348,10 @@ func BenchmarkQuizCreation(b *testing.B) {
 		PassingScore: 70,
 		Questions: []Question{
 			{
-				Type:          "mcq",
-				QuestionText:  "Test",
-				Difficulty:    "easy",
-				Points:        1,
+				Type:         "mcq",
+				QuestionText: "Test",
+				Difficulty:   "easy",
+				Points:       1,
 			},
 		},
 	}

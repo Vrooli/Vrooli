@@ -158,44 +158,6 @@ func TestSearchTravelsHandler_QueryParsing(t *testing.T) {
 	}
 }
 
-// TestSearchTravelsHandler_N8NIntegration tests n8n workflow integration
-func TestSearchTravelsHandler_N8NIntegration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// Save original N8N_URL
-	origN8NURL := os.Getenv("N8N_URL")
-	defer os.Setenv("N8N_URL", origN8NURL)
-
-	t.Run("N8N_URLFromEnv", func(t *testing.T) {
-		os.Setenv("N8N_URL", "http://custom-n8n:5678")
-
-		req := httptest.NewRequest("GET", "/api/travels/search?q=test", nil)
-		w := httptest.NewRecorder()
-
-		searchTravelsHandler(w, req)
-
-		// Should return OK even if n8n is unavailable (graceful fallback)
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-	})
-
-	t.Run("N8N_DefaultURL", func(t *testing.T) {
-		os.Unsetenv("N8N_URL")
-
-		req := httptest.NewRequest("GET", "/api/travels/search?q=test", nil)
-		w := httptest.NewRecorder()
-
-		searchTravelsHandler(w, req)
-
-		// Should use default localhost:5678 and handle gracefully
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-	})
-}
-
 // TestAddTravelHandler_ValidationErrors tests input validation
 func TestAddTravelHandler_ValidationErrors(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -263,12 +225,12 @@ func TestAddTravelHandler_ValidationErrors(t *testing.T) {
 func TestDataStructures_EdgeCases(t *testing.T) {
 	t.Run("Travel_EmptyArrays", func(t *testing.T) {
 		travel := &Travel{
-			ID:           1,
-			UserID:       "test",
-			Location:     "Test",
-			Photos:       []string{},
-			Tags:         []string{},
-			CreatedAt:    time.Now(),
+			ID:        1,
+			UserID:    "test",
+			Location:  "Test",
+			Photos:    []string{},
+			Tags:      []string{},
+			CreatedAt: time.Now(),
 		}
 
 		jsonData, err := json.Marshal(travel)
@@ -409,10 +371,10 @@ func TestInitDB_EnvValidation(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name           string
-		setEnvVars     map[string]string
-		expectError    bool
-		errorContains  string
+		name          string
+		setEnvVars    map[string]string
+		expectError   bool
+		errorContains string
 	}{
 		{
 			name:          "MissingAll",

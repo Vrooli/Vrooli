@@ -1,22 +1,24 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type DeviceController struct {
-	db *sql.DB
+	db               *sql.DB
+	haClient         *HomeAssistantClient
+	mu               sync.RWMutex
+	lastDeviceSource string
 }
 
 type DeviceControlRequest struct {
@@ -46,6 +48,7 @@ type DeviceStatus struct {
 	State       map[string]interface{} `json:"state"`
 	Available   bool                   `json:"available"`
 	LastUpdated string                 `json:"last_updated"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
 }
 
 type Profile struct {
@@ -56,10 +59,33 @@ type Profile struct {
 	CreatedAt   string                 `json:"created_at"`
 }
 
-func NewDeviceController(db *sql.DB) *DeviceController {
+func NewDeviceController(db *sql.DB, haClient *HomeAssistantClient) *DeviceController {
 	return &DeviceController{
-		db: db,
+		db:               db,
+		haClient:         haClient,
+		lastDeviceSource: "unknown",
 	}
+}
+
+func (dc *DeviceController) SetHomeAssistantClient(client *HomeAssistantClient) {
+	if dc == nil {
+		return
+	}
+
+	dc.mu.Lock()
+	defer dc.mu.Unlock()
+	dc.haClient = client
+}
+
+func (dc *DeviceController) getHomeAssistantClient() *HomeAssistantClient {
+	if dc == nil {
+		return nil
+	}
+
+	dc.mu.RLock()
+	client := dc.haClient
+	dc.mu.RUnlock()
+	return client
 }
 
 func (dc *DeviceController) ControlDevice(ctx context.Context, req DeviceControlRequest) (*DeviceControlResponse, error) {
@@ -99,8 +125,8 @@ func (dc *DeviceController) ControlDevice(ctx context.Context, req DeviceControl
 		}, fmt.Errorf("permission denied")
 	}
 
-	// Execute Home Assistant command
-	result, err := dc.executeHomeAssistantCommand(ctx, req)
+	// Execute Home Assistant command when available
+	result, err := dc.controlDevice(ctx, req)
 	if err != nil {
 		return &DeviceControlResponse{
 			Success:         false,
@@ -154,7 +180,7 @@ func (dc *DeviceController) validateControlRequest(req DeviceControlRequest) err
 	// Validate action against allowed actions
 	allowedActions := []string{
 		"turn_on", "turn_off", "toggle", "set_brightness",
-		"set_temperature", "set_color", "activate", "refresh",
+		"set_temperature", "set_mode", "set_color", "activate", "refresh",
 	}
 
 	actionAllowed := false
@@ -182,6 +208,7 @@ func (dc *DeviceController) checkPermissions(ctx context.Context, userID, profil
 		"550e8400-e29b-41d4-a716-446655440001": {"*"},                                                         // Admin user
 		"550e8400-e29b-41d4-a716-446655440002": {"light.living_room", "light.bedroom", "switch.coffee_maker"}, // Family member
 		"550e8400-e29b-41d4-a716-446655440003": {"light.bedroom_kid"},                                         // Kid user
+		"mock-user-id":                         {"*"},                                                         // Demo user profile
 	}
 
 	userID = strings.TrimSpace(userID)
@@ -209,34 +236,15 @@ type HACommandResult struct {
 	Message string                 `json:"message"`
 }
 
-func (dc *DeviceController) executeHomeAssistantCommand(ctx context.Context, req DeviceControlRequest) (*HACommandResult, error) {
-	// Build parameters string for the command
-	var paramStr string
-	if len(req.Parameters) > 0 {
-		paramBytes, _ := json.Marshal(req.Parameters)
-		paramStr = string(paramBytes)
+func (dc *DeviceController) controlDevice(ctx context.Context, req DeviceControlRequest) (*HACommandResult, error) {
+	if client := dc.getHomeAssistantClient(); client != nil {
+		result, err := client.ControlDevice(ctx, req)
+		if err == nil {
+			return result, nil
+		}
+		log.Printf("Home Assistant control failed, falling back to mock: %v", err)
 	}
 
-	// Try to execute Home Assistant CLI command
-	var cmd *exec.Cmd
-	if paramStr != "" {
-		cmd = exec.CommandContext(ctx, "resource-home-assistant", "api-info")
-	} else {
-		cmd = exec.CommandContext(ctx, "resource-home-assistant", "api-info")
-	}
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		// Use mock implementation when Home Assistant commands are not available
-		return dc.mockControlDevice(&req)
-	}
-
-	// For now, use mock implementation since Home Assistant resource doesn't have device control commands
 	return dc.mockControlDevice(&req)
 }
 
@@ -315,25 +323,20 @@ func (dc *DeviceController) logExecution(ctx context.Context, req DeviceControlR
 }
 
 func (dc *DeviceController) GetDeviceStatus(ctx context.Context, deviceID string) (*DeviceStatus, error) {
-	// Try to execute Home Assistant status command
-	cmd := exec.CommandContext(ctx, "resource-home-assistant", "api-info")
-
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-
-	err := cmd.Run()
-	if err != nil {
-		// Return mock status when Home Assistant is not available
-		devices := dc.getMockDevices()
-		for _, device := range devices {
-			if device.DeviceID == deviceID {
-				return &device, nil
-			}
+	if client := dc.getHomeAssistantClient(); client != nil {
+		status, err := client.GetDevice(ctx, deviceID)
+		if err == nil {
+			return status, nil
 		}
-		return nil, fmt.Errorf("device not found: %s", deviceID)
+		log.Printf("Failed to fetch device %s from Home Assistant: %v", deviceID, err)
 	}
 
-	// For now, return mock data since the Home Assistant resource doesn't have device-specific commands
+	if dc.db != nil {
+		if status, err := dc.fetchDeviceFromDatabase(ctx, deviceID); err == nil {
+			return status, nil
+		}
+	}
+
 	devices := dc.getMockDevices()
 	for _, device := range devices {
 		if device.DeviceID == deviceID {
@@ -341,41 +344,167 @@ func (dc *DeviceController) GetDeviceStatus(ctx context.Context, deviceID string
 		}
 	}
 
-	return &DeviceStatus{
-		DeviceID:    deviceID,
-		Name:        fmt.Sprintf("Device %s", deviceID),
-		Type:        strings.Split(deviceID, ".")[0],
-		State:       map[string]interface{}{"status": "unknown"},
-		Available:   true,
-		LastUpdated: time.Now().Format(time.RFC3339),
-	}, nil
+	return nil, fmt.Errorf("device not found: %s", deviceID)
 }
 
-func (dc *DeviceController) ListDevices(ctx context.Context) ([]DeviceStatus, error) {
-	// Try to execute Home Assistant list command
-	cmd := exec.CommandContext(ctx, "resource-home-assistant", "content", "list")
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		// Fallback to mock data when Home Assistant integration is not fully available
-		return dc.getMockDevices(), nil
+func (dc *DeviceController) fetchDeviceFromDatabase(ctx context.Context, deviceID string) (*DeviceStatus, error) {
+	if dc.db == nil {
+		return nil, fmt.Errorf("database not configured")
 	}
 
-	// Parse output - try as JSON array first
-	var devices []DeviceStatus
-	output := stdout.String()
+	query := `
+		SELECT device_id, name, device_type, state, available, last_updated
+		FROM device_states
+		WHERE device_id = $1
+	`
 
-	if err := json.Unmarshal([]byte(output), &devices); err != nil {
-		// If parsing fails, return mock devices
-		return dc.getMockDevices(), nil
+	var (
+		id          string
+		name        string
+		deviceType  string
+		stateJSON   []byte
+		available   bool
+		lastUpdated sql.NullTime
+	)
+
+	if err := dc.db.QueryRowContext(ctx, query, deviceID).Scan(&id, &name, &deviceType, &stateJSON, &available, &lastUpdated); err != nil {
+		return nil, err
+	}
+
+	state := map[string]interface{}{}
+	if len(stateJSON) > 0 {
+		if err := json.Unmarshal(stateJSON, &state); err != nil {
+			state = map[string]interface{}{"raw": string(stateJSON)}
+		}
+	}
+
+	domain := domainFromEntity(id)
+	if domain != "" {
+		deviceType = domain
+	}
+
+	status := &DeviceStatus{
+		DeviceID:    id,
+		Name:        name,
+		Type:        deviceType,
+		State:       state,
+		Available:   available,
+		LastUpdated: time.Now().Format(time.RFC3339),
+	}
+
+	if lastUpdated.Valid {
+		status.LastUpdated = lastUpdated.Time.Format(time.RFC3339)
+	}
+
+	return status, nil
+}
+
+func (dc *DeviceController) listDevicesFromDatabase(ctx context.Context) ([]DeviceStatus, error) {
+	if dc.db == nil {
+		return nil, fmt.Errorf("database not configured")
+	}
+
+	query := `
+		SELECT device_id, name, device_type, state, available, last_updated
+		FROM device_states
+		ORDER BY name ASC
+	`
+
+	rows, err := dc.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var devices []DeviceStatus
+	for rows.Next() {
+		var (
+			id          string
+			name        string
+			deviceType  string
+			stateJSON   []byte
+			available   bool
+			lastUpdated sql.NullTime
+		)
+
+		if err := rows.Scan(&id, &name, &deviceType, &stateJSON, &available, &lastUpdated); err != nil {
+			continue
+		}
+
+		state := map[string]interface{}{}
+		if len(stateJSON) > 0 {
+			if err := json.Unmarshal(stateJSON, &state); err != nil {
+				state = map[string]interface{}{"raw": string(stateJSON)}
+			}
+		}
+
+		domain := domainFromEntity(id)
+		if domain != "" {
+			deviceType = domain
+		}
+
+		lastUpdatedStr := time.Now().Format(time.RFC3339)
+		if lastUpdated.Valid {
+			lastUpdatedStr = lastUpdated.Time.Format(time.RFC3339)
+		}
+
+		devices = append(devices, DeviceStatus{
+			DeviceID:    id,
+			Name:        name,
+			Type:        deviceType,
+			State:       state,
+			Available:   available,
+			LastUpdated: lastUpdatedStr,
+		})
 	}
 
 	return devices, nil
+}
+
+func (dc *DeviceController) ListDevices(ctx context.Context) ([]DeviceStatus, error) {
+	if client := dc.getHomeAssistantClient(); client != nil {
+		if devices, err := client.ListDevices(ctx); err == nil && len(devices) > 0 {
+			dc.setLastDeviceSource("home_assistant")
+			return devices, nil
+		}
+	}
+
+	if dc.db != nil {
+		if devices, err := dc.listDevicesFromDatabase(ctx); err == nil && len(devices) > 0 {
+			dc.setLastDeviceSource("database")
+			return devices, nil
+		}
+	}
+
+	dc.setLastDeviceSource("mock")
+	return dc.getMockDevices(), nil
+}
+
+func (dc *DeviceController) setLastDeviceSource(source string) {
+	if dc == nil {
+		return
+	}
+
+	if strings.TrimSpace(source) == "" {
+		source = "unknown"
+	}
+
+	dc.mu.Lock()
+	defer dc.mu.Unlock()
+	dc.lastDeviceSource = source
+}
+
+func (dc *DeviceController) LastDeviceDataSource() string {
+	if dc == nil {
+		return "unknown"
+	}
+
+	dc.mu.RLock()
+	defer dc.mu.RUnlock()
+	if dc.lastDeviceSource == "" {
+		return "unknown"
+	}
+	return dc.lastDeviceSource
 }
 
 func (dc *DeviceController) getMockDevices() []DeviceStatus {

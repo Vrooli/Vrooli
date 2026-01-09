@@ -3,15 +3,24 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
-const API_URL = process.env.API_URL || 'http://localhost:8456';
+const API_URL = process.env.API_URL || (process.env.API_PORT ? `http://localhost:${process.env.API_PORT}` : 'http://localhost:8456');
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_DIR = fs.existsSync(path.join(DIST_DIR, 'index.html')) ? DIST_DIR : __dirname;
+
+if (STATIC_DIR === __dirname) {
+    console.warn('⚠️  UI bundle not built. Serving files directly from ui/. Run `npm run build` for optimized assets.');
+}
+
+app.use(express.static(STATIC_DIR));
 
 // Proxy API requests to the backend
 app.use('/api', (req, res) => {
@@ -35,7 +44,7 @@ app.use('/api', (req, res) => {
 
 // Serve the main page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_DIR, 'index.html'));
 });
 
 // Health check endpoint

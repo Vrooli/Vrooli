@@ -104,9 +104,16 @@
       "description": "Neo4j plugins to enable",
       "items": {
         "type": "string",
-        "enum": ["apoc", "graph-data-science", "streams", "neosemantics"]
+        "enum": [
+          "apoc",
+          "graph-data-science",
+          "streams",
+          "neosemantics"
+        ]
       },
-      "default": ["apoc"]
+      "default": [
+        "apoc"
+      ]
     },
     "startup": {
       "type": "object",
@@ -129,5 +136,6 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/neo4j/schema.json"
 }

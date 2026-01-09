@@ -1,0 +1,664 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/service.schema.json",
+  "title": "Vrooli Service Configuration",
+  "description": "Service configuration for Vrooli scenarios including metadata, ports, lifecycle, and dependencies",
+  "type": "object",
+  "required": ["version", "service"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "service": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Scenario identifier (lowercase, hyphens allowed)"
+        },
+        "parent": {
+          "type": "string",
+          "const": "vrooli",
+          "description": "Parent service (always 'vrooli' for scenarios)"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable display name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of the scenario"
+        },
+        "version": {
+          "type": "string",
+          "description": "Scenario version"
+        },
+        "type": {
+          "type": "string",
+          "description": "Scenario classification (e.g., business-application, helper, scenario)"
+        },
+        "category": {
+          "type": "string",
+          "description": "High-level category (e.g., ai_tools, general)"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Free-form keywords for search and filtering"
+        },
+        "maintainers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/maintainer"
+          }
+        },
+        "repository": {
+          "$ref": "#/definitions/repository"
+        },
+        "license": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri"
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri"
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "issues": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "importance": {
+          "type": "string",
+          "enum": ["critical", "important", "standard", "experimental"]
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "description": "Port configuration for scenario services",
+      "additionalProperties": {
+        "$ref": "#/definitions/port_config"
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Lifecycle phase definitions",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "health": {
+          "$ref": "#/definitions/health_config"
+        },
+        "setup": {
+          "$ref": "#/definitions/lifecycle_phase"
+        },
+        "develop": {
+          "$ref": "#/definitions/lifecycle_phase"
+        },
+        "test": {
+          "$ref": "#/definitions/lifecycle_phase"
+        },
+        "stop": {
+          "$ref": "#/definitions/lifecycle_phase"
+        },
+        "shutdown": {
+          "$ref": "#/definitions/lifecycle_phase"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Resource and scenario dependencies",
+      "properties": {
+        "resources": {
+          "type": "object",
+          "description": "Resource dependencies",
+          "additionalProperties": {
+            "$ref": "#/definitions/resource_dependency"
+          }
+        },
+        "scenarios": {
+          "type": "object",
+          "description": "Scenario dependencies",
+          "additionalProperties": {
+            "$ref": "#/definitions/scenario_dependency"
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Deployment tier configuration",
+      "properties": {
+        "metadata_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_analyzed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "analyzer": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        },
+        "aggregate_requirements": {
+          "$ref": "#/definitions/deployment_requirements"
+        },
+        "tiers": {
+          "type": "object",
+          "properties": {
+            "tier-1-local": {
+              "$ref": "#/definitions/deployment_tier"
+            },
+            "tier-2-desktop": {
+              "$ref": "#/definitions/deployment_tier"
+            },
+            "tier-3-mobile": {
+              "$ref": "#/definitions/deployment_tier"
+            },
+            "tier-4-saas": {
+              "$ref": "#/definitions/deployment_tier"
+            },
+            "tier-5-enterprise": {
+              "$ref": "#/definitions/deployment_tier"
+            }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/deployment_dependency"
+              }
+            },
+            "scenarios": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/deployment_dependency"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "maintainer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "default": "git"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "directory": {
+          "type": "string"
+        }
+      }
+    },
+    "port_config": {
+      "type": "object",
+      "properties": {
+        "env_var": {
+          "type": "string",
+          "description": "Environment variable name for this port"
+        },
+        "port": {
+          "type": ["integer", "string"],
+          "description": "Fixed port number or variable reference"
+        },
+        "range": {
+          "type": "string",
+          "pattern": "^\\d+-\\d+$",
+          "description": "Port range for dynamic allocation (e.g., '15000-19999')"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "health_config": {
+      "type": "object",
+      "description": "Health check configuration",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "endpoints": {
+          "type": "object",
+          "properties": {
+            "api": {
+              "type": "string",
+              "default": "/health"
+            },
+            "ui": {
+              "type": "string",
+              "default": "/health"
+            },
+            "metrics": {
+              "type": "string",
+              "default": "/metrics"
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/health_check"
+          }
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Default timeout in milliseconds"
+        },
+        "interval": {
+          "type": "integer",
+          "description": "Check interval in milliseconds"
+        },
+        "startup_grace_period": {
+          "type": "integer",
+          "description": "Grace period before first check in milliseconds"
+        }
+      }
+    },
+    "health_check": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["http", "tcp", "postgres", "redis", "process", "file"]
+        },
+        "target": {
+          "type": "string",
+          "description": "Target URL, port, or path"
+        },
+        "critical": {
+          "type": "boolean",
+          "default": true
+        },
+        "timeout": {
+          "type": "integer"
+        },
+        "interval": {
+          "type": "integer"
+        }
+      }
+    },
+    "lifecycle_phase": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition_block"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/lifecycle_step"
+          }
+        }
+      }
+    },
+    "lifecycle_step": {
+      "type": "object",
+      "required": ["name", "run"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string",
+          "description": "Shell command to execute"
+        },
+        "description": {
+          "type": "string"
+        },
+        "background": {
+          "type": "boolean",
+          "description": "Run in background"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition_block"
+        },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "max_attempts": {
+              "type": "integer"
+            },
+            "delay": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "condition_block": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition_check"
+          }
+        },
+        "file_exists": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}}
+          ]
+        },
+        "file_not_exists": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}}
+          ]
+        },
+        "command_exists": {
+          "type": "string"
+        },
+        "binary_exists": {
+          "type": "string"
+        },
+        "resource_enabled": {
+          "type": "string"
+        },
+        "env_var_set": {
+          "type": "string"
+        },
+        "always": {
+          "type": "boolean"
+        }
+      }
+    },
+    "condition_check": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["binaries", "cli", "ui-bundle", "directory", "file", "command"]
+        },
+        "targets": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "command": {
+          "type": "string"
+        },
+        "bundle_path": {
+          "type": "string"
+        },
+        "source_dir": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "populated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "resource_dependency": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Resource type identifier"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string",
+          "description": "Database schema name if applicable"
+        },
+        "version": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "description": "Resource-specific configuration"
+        }
+      }
+    },
+    "scenario_dependency": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "version": {
+          "type": "string"
+        },
+        "versionRange": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "deployment_requirements": {
+      "type": "object",
+      "properties": {
+        "ram_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "disk_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cpu_cores": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gpu": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "string",
+          "enum": ["required", "optional", "offline"]
+        },
+        "storage_mb_per_user": {
+          "type": "number"
+        },
+        "startup_time_ms": {
+          "type": "number"
+        },
+        "bucket": {
+          "type": "string",
+          "enum": ["small", "medium", "large"]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["calculated", "estimated", "manual"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        }
+      }
+    },
+    "deployment_tier": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ready", "limited", "blocked"]
+        },
+        "fitness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "constraints": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "notes": {
+          "type": "string"
+        },
+        "requirements": {
+          "$ref": "#/definitions/deployment_requirements"
+        },
+        "adaptations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dependency": {"type": "string"},
+              "swap": {"type": "string"},
+              "impact": {"type": "string"},
+              "effort_days": {"type": "number"},
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["secret_id"],
+            "properties": {
+              "secret_id": {"type": "string"},
+              "classification": {
+                "type": "string",
+                "enum": ["infrastructure", "service", "user"]
+              },
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string"},
+              "producer": {"type": "string"},
+              "status": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "deployment_dependency": {
+      "type": "object",
+      "properties": {
+        "resource_type": {
+          "type": "string"
+        },
+        "footprint": {
+          "$ref": "#/definitions/deployment_requirements"
+        },
+        "platform_support": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "supported": {"type": "boolean"},
+              "fitness_score": {"type": "number"},
+              "reason": {"type": "string"},
+              "requirements": {"$ref": "#/definitions/deployment_requirements"},
+              "alternatives": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "swappable_with": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "relationship": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "packaging_hints": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}

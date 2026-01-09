@@ -1,0 +1,19 @@
+{
+  "module_id": "rule-enablement-config",
+  "title": "Rule enablement config",
+  "priority": "P0",
+  "description": "Persist which rules are enabled in a human-editable config file (and editable via UI/API).",
+  "requirements": [
+    {
+      "id": "SSG-P0-001",
+      "category": "config",
+      "prd_ref": "OT-P0-001",
+      "title": "File-backed enabled rules",
+      "description": "The system persists enabled/disabled rules in a stable, human-editable config file and normalizes unknown rule IDs safely.",
+      "status": "in_progress",
+      "tags": ["config", "rules"],
+      "validation": []
+    }
+  ]
+}
+

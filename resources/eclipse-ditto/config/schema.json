@@ -83,6 +83,11 @@
       "default": false
     }
   },
-  "required": ["gateway_port", "mongodb_host", "mongodb_db"],
-  "additionalProperties": false
+  "required": [
+    "gateway_port",
+    "mongodb_host",
+    "mongodb_db"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/eclipse-ditto/schema.json"
 }

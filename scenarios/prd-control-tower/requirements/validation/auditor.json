@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "description": "PRD structure validation via scenario-auditor integration",
+    "module": "validation.auditor",
+    "last_validated_at": "2025-11-14T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PCT-VALIDATE-CALL",
+      "category": "validation.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Validation service calls scenario-auditor API for PRD structure checks",
+      "description": "Verifies POST /api/v1/drafts/{id}/validate calls scenario-auditor with draft content and returns violations.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRunScenarioAuditor with HTTP and CLI integration"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validation API endpoint integration tests"
+        }
+      ]
+    },
+    {
+      "id": "PCT-VALIDATE-CACHE",
+      "category": "validation.caching",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Validation results cache in PostgreSQL with timestamp",
+      "description": "Ensures validation results persist to database and are reused until draft content changes.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestValidationRequestCaching verifies cache behavior"
+        }
+      ]
+    },
+    {
+      "id": "PCT-VALIDATE-DISPLAY",
+      "category": "validation.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Draft workspace displays violations with severity and recommendations",
+      "description": "Confirms StructureChecklist component renders missing sections and violation counts from validation API.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validation response structure tests validate data for UI display"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_drafts_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validation API returns properly structured violation data"
+        }
+      ]
+    }
+  ]
+}

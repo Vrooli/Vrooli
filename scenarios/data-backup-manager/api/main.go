@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type BackupJob struct {
@@ -80,12 +83,6 @@ type ResourceHealth struct {
 	Message     string    `json:"message,omitempty"`
 }
 
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Version   string            `json:"version"`
-	Resources ResourceHealthMap `json:"resources"`
-}
 
 // Compliance tracking
 func handleComplianceReport(w http.ResponseWriter, r *http.Request) {
@@ -332,24 +329,11 @@ func handleMaintenanceAgentToggle(w http.ResponseWriter, r *http.Request) {
 var backupManager *BackupManager
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start data-backup-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
-	}
-
-	// Get port from environment with fallback for development
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		// Use a default port in the reserved range for data-backup-manager
-		port = "20010"
-		log.Printf("⚠️  API_PORT not set, using default port %s", port)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "data-backup-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize backup manager
@@ -376,8 +360,13 @@ func main() {
 
 	r := mux.NewRouter()
 
-	// Health endpoint
-	r.HandleFunc("/health", handleHealth).Methods("GET")
+	// Health endpoint - using standardized api-core/health
+	var dbPinger interface{ Ping() error }
+	if backupManager != nil {
+		dbPinger = backupManager.db
+	}
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(dbPinger), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	api := r.PathPrefix("/api/v1").Subrouter()
@@ -421,43 +410,18 @@ func main() {
 
 	handler := c.Handler(r)
 
-	log.Printf("Data Backup Manager API starting on port %s", port)
-	log.Printf("Health check: http://localhost:%s/health", port)
-	log.Printf("API documentation: http://localhost:%s/api/v1", port)
-
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	resources := ResourceHealthMap{
-		"postgres": ResourceHealth{
-			Status:      "healthy",
-			LastChecked: time.Now(),
-			Message:     "Connection successful",
+	log.Println("Data Backup Manager API starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if backupManager != nil && backupManager.db != nil {
+				return backupManager.db.Close()
+			}
+			return nil
 		},
-		"minio": ResourceHealth{
-			Status:      "healthy", 
-			LastChecked: time.Now(),
-			Message:     "Storage accessible",
-		},
-		"n8n": ResourceHealth{
-			Status:      "healthy",
-			LastChecked: time.Now(),
-			Message:     "Workflows active",
-		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Resources: resources,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func handleBackupCreate(w http.ResponseWriter, r *http.Request) {

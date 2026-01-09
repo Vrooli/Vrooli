@@ -1,0 +1,45 @@
+{
+  "$schema": "./_schema.json",
+  "id": "cta",
+  "name": "Call-to-Action Section",
+  "description": "Bottom-of-page conversion section with compelling copy and action button",
+  "category": "conversion",
+  "fields": {
+    "title": {
+      "type": "string",
+      "label": "Headline",
+      "placeholder": "Ready to get started?",
+      "max_length": 80,
+      "required": true
+    },
+    "subtitle": {
+      "type": "string",
+      "label": "Subheadline",
+      "placeholder": "Join thousands of teams building with Vrooli",
+      "max_length": 150,
+      "required": false
+    },
+    "cta_text": {
+      "type": "string",
+      "label": "CTA Button Text",
+      "placeholder": "Start Free Trial",
+      "max_length": 30,
+      "required": true
+    },
+    "cta_url": {
+      "type": "string",
+      "label": "CTA URL",
+      "placeholder": "/signup",
+      "required": true
+    },
+    "background_style": {
+      "type": "string",
+      "label": "Background Style",
+      "enum": ["gradient", "solid", "dark"],
+      "default": "gradient",
+      "required": false
+    }
+  },
+  "ui_component": "CTASection",
+  "default_order": 10
+}

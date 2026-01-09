@@ -17,7 +17,7 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__appIs
       parentOrigin = new URL(document.referrer).origin;
     }
   } catch (error) {
-    console.warn('[AppIssueTracker] Unable to parse parent origin for iframe bridge', error);
+    // Unable to parse parent origin - will use default
   }
 
   initIframeBridgeChild({ parentOrigin, appId: 'app-issue-tracker' });

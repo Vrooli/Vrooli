@@ -129,13 +129,13 @@ func emptyBodyPattern(urlPath string) ErrorTestPattern {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}) time.Duration
-	Validate       func(t *testing.T, duration time.Duration, setupData interface{})
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}) time.Duration
+	Validate    func(t *testing.T, duration time.Duration, setupData interface{})
+	Cleanup     func(setupData interface{})
 }
 
 // RunPerformanceTest executes a performance test
@@ -168,14 +168,14 @@ func RunPerformanceTest(t *testing.T, pattern PerformanceTestPattern) {
 
 // ConcurrencyTestPattern defines concurrency testing scenarios
 type ConcurrencyTestPattern struct {
-	Name           string
-	Description    string
-	Concurrency    int
-	Iterations     int
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}, iteration int) error
-	Validate       func(t *testing.T, setupData interface{}, results []error)
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	Concurrency int
+	Iterations  int
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}, iteration int) error
+	Validate    func(t *testing.T, setupData interface{}, results []error)
+	Cleanup     func(setupData interface{})
 }
 
 // RunConcurrencyTest executes a concurrency test

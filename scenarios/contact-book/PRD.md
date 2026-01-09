@@ -99,8 +99,8 @@ integration_priorities:
     - None required - Contact Book is foundational data layer
       
   2_resource_cli:        
-    - command: resource-qdrant embeddings refresh
-      purpose: Generate semantic embeddings for contact search
+    - command: knowledge-observatory ingest
+      purpose: Store searchable knowledge records for semantic retrieval
     - command: resource-minio upload/download
       purpose: Store and retrieve contact photos and documents
       
@@ -514,7 +514,8 @@ structure:
     - cli/install.sh
     - initialization/postgres/schema.sql
     - initialization/postgres/seed.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
+    - test/phases/test-structure.sh
     
   required_dirs:
     - api

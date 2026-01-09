@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // TestGetFunnels tests funnel listing (covering handleGetFunnels)
@@ -52,6 +54,13 @@ func TestGetFunnels(t *testing.T) {
 		for _, funnel := range funnels {
 			if funnel["id"] == funnelID {
 				found = true
+				steps, ok := funnel["steps"].([]interface{})
+				if !ok {
+					t.Fatalf("expected steps to be an array, got %T", funnel["steps"])
+				}
+				if steps == nil {
+					t.Fatal("expected steps to be an empty array when no steps exist, got nil")
+				}
 				break
 			}
 		}
@@ -67,6 +76,54 @@ func TestGetFunnels(t *testing.T) {
 
 		if recorder.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", recorder.Code)
+		}
+	})
+
+	t.Run("Steps_ReturnsEmptyArrayWhenNoSteps", func(t *testing.T) {
+		name := "Empty Steps Funnel " + uuid.NewString()
+		projectID := createTestProject(t, testServer.Server, "Additional Empty Steps Project")
+		funnelData := map[string]interface{}{
+			"name":        name,
+			"description": "Funnel without predefined steps",
+			"project_id":  projectID,
+			"steps":       []map[string]interface{}{},
+		}
+
+		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
+		recorder := httptest.NewRecorder()
+		testServer.Server.router.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusCreated {
+			t.Fatalf("Failed to create funnel without steps: status %d, body: %s", recorder.Code, recorder.Body.String())
+		}
+
+		var createResp map[string]interface{}
+		json.Unmarshal(recorder.Body.Bytes(), &createResp)
+		funnelID := createResp["id"].(string)
+		defer cleanupTestData(t, testServer.Server, funnelID)
+
+		req, _ = makeHTTPRequest("GET", "/api/v1/funnels/"+funnelID, nil)
+		recorder = httptest.NewRecorder()
+		testServer.Server.router.ServeHTTP(recorder, req)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("Expected status 200 when fetching funnel, got %d", recorder.Code)
+		}
+
+		var funnel map[string]interface{}
+		json.Unmarshal(recorder.Body.Bytes(), &funnel)
+
+		if funnel["steps"] == nil {
+			t.Fatalf("expected steps field to be an empty array, got nil")
+		}
+
+		steps, ok := funnel["steps"].([]interface{})
+		if !ok {
+			t.Fatalf("expected steps to be an array, got %T", funnel["steps"])
+		}
+
+		if len(steps) != 0 {
+			t.Fatalf("expected zero steps, got %d", len(steps))
 		}
 	})
 }
@@ -191,8 +248,10 @@ func TestExecuteFunnel(t *testing.T) {
 
 	t.Run("Error_InactiveStatus", func(t *testing.T) {
 		// Create funnel in draft status (default)
+		projectID := createTestProject(t, testServer.Server, "Execute Draft Project")
 		funnelData := map[string]interface{}{
-			"name": "Draft Funnel",
+			"name":       "Draft Funnel",
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -219,8 +278,10 @@ func TestExecuteFunnel(t *testing.T) {
 
 	t.Run("Success_NewSession", func(t *testing.T) {
 		// Create and activate funnel
+		projectID := createTestProject(t, testServer.Server, "Execute Active Project")
 		funnelData := map[string]interface{}{
-			"name": "Execute Test Funnel",
+			"name":       "Execute Test Funnel",
+			"project_id": projectID,
 			"steps": []map[string]interface{}{
 				{
 					"type":     "form",
@@ -353,8 +414,10 @@ func TestEdgeCases(t *testing.T) {
 			longName[i] = 'a'
 		}
 
+		projectID := createTestProject(t, testServer.Server, "Edge Long Name Project")
 		funnelData := map[string]interface{}{
-			"name": string(longName),
+			"name":       string(longName),
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -370,8 +433,10 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("SpecialCharactersInName", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Edge Special Characters Project")
 		funnelData := map[string]interface{}{
-			"name": "Test!@#$%^&*()",
+			"name":       "Test!@#$%^&*()",
+			"project_id": projectID,
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)
@@ -392,9 +457,11 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("EmptyStepsArray", func(t *testing.T) {
+		projectID := createTestProject(t, testServer.Server, "Edge Empty Steps Project")
 		funnelData := map[string]interface{}{
-			"name":  "Empty Steps Funnel",
-			"steps": []map[string]interface{}{},
+			"name":       "Empty Steps Funnel",
+			"project_id": projectID,
+			"steps":      []map[string]interface{}{},
 		}
 
 		req, _ := makeHTTPRequest("POST", "/api/v1/funnels", funnelData)

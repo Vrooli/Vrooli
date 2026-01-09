@@ -5,4 +5,4 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLI_DIR="${APP_ROOT}/scenarios/news-aggregator-bias-analysis/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/news-bias" "news-bias"
+install_cli "$CLI_DIR/news-aggregator-bias-analysis" "news-aggregator-bias-analysis"
