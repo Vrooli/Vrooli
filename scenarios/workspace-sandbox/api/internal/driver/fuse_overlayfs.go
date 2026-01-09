@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"workspace-sandbox/internal/types"
 )
@@ -144,7 +143,7 @@ func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) err
 	}
 
 	// Check if mounted first
-	if !d.isMounted(s.MergedDir) {
+	if !isMountPoint(s.MergedDir) {
 		return nil // Already unmounted
 	}
 
@@ -166,7 +165,7 @@ func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) err
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if already unmounted
-		if !d.isMounted(s.MergedDir) {
+		if !isMountPoint(s.MergedDir) {
 			return nil
 		}
 		return fmt.Errorf("fusermount unmount failed: %v (output: %s)", err, strings.TrimSpace(string(output)))
@@ -175,270 +174,42 @@ func (d *FuseOverlayfsDriver) Unmount(ctx context.Context, s *types.Sandbox) err
 	return nil
 }
 
-// isMounted checks if a path is a mount point.
-func (d *FuseOverlayfsDriver) isMounted(path string) bool {
-	cmd := exec.Command("mountpoint", "-q", path)
-	return cmd.Run() == nil
-}
-
 // GetChangedFiles returns the list of files changed in the upper layer.
+// Delegates to shared helper for overlayfs-based change detection.
 func (d *FuseOverlayfsDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
-	if s.UpperDir == "" {
-		return nil, fmt.Errorf("sandbox upper directory not set")
-	}
-
-	var changes []*types.FileChange
-
-	err := filepath.Walk(s.UpperDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory
-		if path == s.UpperDir {
-			return nil
-		}
-
-		// Get relative path
-		relPath, err := filepath.Rel(s.UpperDir, path)
-		if err != nil {
-			return err
-		}
-
-		// Skip overlayfs internal files
-		if strings.HasPrefix(relPath, ".overlay") {
-			return nil
-		}
-
-		// Skip directories - they are structural containers created by overlayfs
-		// when files inside them are modified. The actual file changes are what
-		// we want to track. Directory additions are implied by file additions,
-		// and directory deletions are tracked via whiteout markers.
-		if info.IsDir() {
-			return nil
-		}
-
-		baseName := filepath.Base(relPath)
-		if baseName == ".wh..opq" {
-			return nil
-		}
-		if strings.HasPrefix(baseName, ".wh.") {
-			targetName := strings.TrimPrefix(baseName, ".wh.")
-			if targetName == "" {
-				return nil
-			}
-			if strings.HasPrefix(targetName, ".wh.") || targetName == ".wh..opq" {
-				return nil
-			}
-
-			targetRel := targetName
-			if dir := filepath.Dir(relPath); dir != "." {
-				targetRel = filepath.Join(dir, targetName)
-			}
-
-			var fileSize int64
-			var fileMode int
-			if lowerInfo, statErr := os.Stat(filepath.Join(s.LowerDir, targetRel)); statErr == nil {
-				fileSize = lowerInfo.Size()
-				fileMode = int(lowerInfo.Mode())
-			}
-
-			change := &types.FileChange{
-				ID:             StableFileID(s.ID, targetRel),
-				SandboxID:      s.ID,
-				FilePath:       targetRel,
-				ChangeType:     types.ChangeTypeDeleted,
-				FileSize:       fileSize,
-				FileMode:       fileMode,
-				DetectedAt:     time.Now(),
-				ApprovalStatus: types.ApprovalPending,
-			}
-
-			changes = append(changes, change)
-			return nil
-		}
-
-		// Determine change type
-		changeType := d.detectChangeType(s, relPath, info)
-
-		change := &types.FileChange{
-			ID:             StableFileID(s.ID, relPath),
-			SandboxID:      s.ID,
-			FilePath:       relPath,
-			ChangeType:     changeType,
-			FileSize:       info.Size(),
-			FileMode:       int(info.Mode()),
-			DetectedAt:     time.Now(),
-			ApprovalStatus: types.ApprovalPending,
-		}
-
-		changes = append(changes, change)
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk upper directory: %w", err)
-	}
-
-	return changes, nil
-}
-
-// detectChangeType determines if a file was added, modified, or deleted.
-func (d *FuseOverlayfsDriver) detectChangeType(s *types.Sandbox, relPath string, upperInfo os.FileInfo) types.ChangeType {
-	lowerPath := filepath.Join(s.LowerDir, relPath)
-	lowerInfo, err := os.Stat(lowerPath)
-
-	if os.IsNotExist(err) {
-		return types.ChangeTypeAdded
-	}
-
-	if err != nil {
-		return types.ChangeTypeModified
-	}
-
-	// Check for whiteout (deletion marker)
-	if d.isWhiteout(filepath.Join(s.UpperDir, relPath)) {
-		return types.ChangeTypeDeleted
-	}
-
-	// Compare sizes and modes
-	if lowerInfo.Size() != upperInfo.Size() || lowerInfo.Mode() != upperInfo.Mode() {
-		return types.ChangeTypeModified
-	}
-
-	return types.ChangeTypeModified
-}
-
-// isWhiteout checks if a file is an overlayfs whiteout marker.
-func (d *FuseOverlayfsDriver) isWhiteout(path string) bool {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return false
-	}
-
-	// fuse-overlayfs uses character devices with major 0, minor 0 for whiteouts
-	if info.Mode()&os.ModeCharDevice != 0 {
-		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-			return stat.Rdev == 0
-		}
-	}
-
-	return false
+	return getOverlayChangedFiles(s)
 }
 
 // RemoveFromUpper removes a file from the upper layer.
+// Delegates to shared helper with path traversal protection.
 func (d *FuseOverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
 	if s.UpperDir == "" {
 		return fmt.Errorf("sandbox has no upper directory configured")
 	}
-
-	// Security: ensure filePath is relative and doesn't escape
-	cleanPath := filepath.Clean(filePath)
-	if filepath.IsAbs(cleanPath) {
-		cleanPath = strings.TrimPrefix(cleanPath, "/")
-	}
-	if strings.HasPrefix(cleanPath, "..") {
-		return fmt.Errorf("path traversal not allowed: %s", filePath)
-	}
-
-	fullPath := filepath.Join(s.UpperDir, cleanPath)
-
-	// Verify fullPath is under UpperDir
-	absFullPath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-	absUpperDir, err := filepath.Abs(s.UpperDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve upper dir: %w", err)
-	}
-	if !strings.HasPrefix(absFullPath, absUpperDir) {
-		return fmt.Errorf("path escapes upper directory: %s", filePath)
-	}
-
-	// Remove the file
-	err = os.Remove(fullPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove file: %w", err)
-	}
-
-	// Clean up empty parent directories
-	dir := filepath.Dir(fullPath)
-	for dir != absUpperDir && dir != "." && dir != "/" {
-		if rmErr := os.Remove(dir); rmErr != nil {
-			break
-		}
-		dir = filepath.Dir(dir)
-	}
-
-	return nil
+	return removeFromUpperSecure(s.UpperDir, filePath)
 }
 
 // Cleanup removes all sandbox artifacts.
+// Delegates to shared helper with driver-specific unmount.
 func (d *FuseOverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
-	// Unmount first
-	if err := d.Unmount(ctx, s); err != nil {
-		fmt.Printf("warning: unmount failed during cleanup: %v\n", err)
-	}
-
-	// Remove sandbox directory
-	sandboxDir := filepath.Join(d.config.BaseDir, s.ID.String())
-	if err := os.RemoveAll(sandboxDir); err != nil {
-		return fmt.Errorf("failed to remove sandbox directory: %w", err)
-	}
-
-	return nil
+	return cleanupSandboxDir(d.config.BaseDir, s.ID, func() error {
+		return d.Unmount(ctx, s)
+	})
 }
 
 // IsMounted checks if the sandbox is currently mounted.
+// Delegates to shared helper.
 func (d *FuseOverlayfsDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
 	if s.MergedDir == "" {
 		return false, nil
 	}
-	return d.isMounted(s.MergedDir), nil
+	return isMountPoint(s.MergedDir), nil
 }
 
 // VerifyMountIntegrity checks that the mount is healthy.
+// Delegates to shared helper.
 func (d *FuseOverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
-	if s.MergedDir == "" {
-		return fmt.Errorf("merged directory path is empty")
-	}
-
-	info, err := os.Stat(s.MergedDir)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("merged directory does not exist: %s", s.MergedDir)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot stat merged directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("merged path is not a directory: %s", s.MergedDir)
-	}
-
-	// Verify it's mounted
-	if !d.isMounted(s.MergedDir) {
-		return fmt.Errorf("merged directory is not mounted: %s", s.MergedDir)
-	}
-
-	// Check accessibility
-	entries, err := os.ReadDir(s.MergedDir)
-	if err != nil {
-		return fmt.Errorf("merged directory is not accessible: %w", err)
-	}
-	_ = entries
-
-	// Check upper dir
-	if s.UpperDir != "" {
-		upperInfo, err := os.Stat(s.UpperDir)
-		if err != nil {
-			return fmt.Errorf("upper directory check failed: %w", err)
-		}
-		if !upperInfo.IsDir() {
-			return fmt.Errorf("upper path is not a directory: %s", s.UpperDir)
-		}
-	}
-
-	return nil
+	return verifyOverlayMountIntegrity(s)
 }
 
 // --- Process Execution Methods ---

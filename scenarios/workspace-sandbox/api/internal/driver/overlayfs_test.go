@@ -175,19 +175,23 @@ func TestDetectChangeType(t *testing.T) {
 		UpperDir: upperDir,
 	}
 
-	// Test change detection
+	// Test change detection using shared helper
 	newInfo, _ := os.Stat(newFile)
 	modInfo, _ := os.Stat(modifiedFile)
 
-	newType := drv.detectChangeType(sb, "new.txt", newInfo)
+	// Use the shared detectOverlayChangeType helper
+	newType := detectOverlayChangeType(sb, "new.txt", newInfo)
 	if newType != types.ChangeTypeAdded {
 		t.Errorf("new file should be ChangeTypeAdded, got %s", newType)
 	}
 
-	modType := drv.detectChangeType(sb, "existing.txt", modInfo)
+	modType := detectOverlayChangeType(sb, "existing.txt", modInfo)
 	if modType != types.ChangeTypeModified {
 		t.Errorf("modified file should be ChangeTypeModified, got %s", modType)
 	}
+
+	// Verify driver is created (unused but confirms API)
+	_ = drv
 }
 
 func TestOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
