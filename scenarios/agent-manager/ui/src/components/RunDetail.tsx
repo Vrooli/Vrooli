@@ -80,7 +80,7 @@ export function RunDetail({
   onContinue,
   deleteLoading,
 }: RunDetailProps) {
-  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "response" | "cost">("events");
+  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("events");
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
@@ -359,14 +359,14 @@ export function RunDetail({
           <button
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "response"
+              activeTab === "messages"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
-            onClick={() => setActiveTab("response")}
+            onClick={() => setActiveTab("messages")}
           >
             <MessageSquare className="h-4 w-4 inline mr-2" />
-            Response
+            Messages
           </button>
           <button
             className={cn(
@@ -447,12 +447,13 @@ export function RunDetail({
                 </div>
               </div>
             )
-          ) : activeTab === "response" ? (
+          ) : activeTab === "messages" ? (
             <ChatInterface
               run={run}
               events={events}
               eventsLoading={eventsLoading}
               onContinue={onContinue}
+              initialPrompt={task?.description}
             />
           ) : activeTab === "diff" ? (
             diffLoading ? (

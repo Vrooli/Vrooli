@@ -20,17 +20,30 @@ interface ChatInterfaceProps {
   events: RunEvent[];
   eventsLoading: boolean;
   onContinue: (message: string) => Promise<void>;
+  /** The initial task prompt that started this run */
+  initialPrompt?: string;
 }
 
-export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatInterfaceProps) {
+export function ChatInterface({ run, events, eventsLoading, onContinue, initialPrompt }: ChatInterfaceProps) {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Extract all messages from events
+  // Extract all messages from events, with initial prompt as first message
   const messages = useMemo(() => {
     const result: ChatMessage[] = [];
+
+    // Add the initial task prompt as the first user message
+    if (initialPrompt) {
+      result.push({
+        id: "initial-prompt",
+        role: "user",
+        content: initialPrompt,
+        timestamp: run.createdAt ? new Date(timestampMs(run.createdAt)) : new Date(),
+      });
+    }
+
     for (const event of events) {
       if (event.data.case !== "message") continue;
       const payload = event.data.value as { role?: string; content?: string };
@@ -45,23 +58,35 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
       });
     }
     return result;
-  }, [events]);
+  }, [events, initialPrompt, run.createdAt]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  // Check if the run is actively generating
+  const isGenerating = useMemo(() => {
+    return run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING || run.status === RunStatus.PENDING;
+  }, [run.status]);
+
   // Check if continuation is available
   const canContinue = useMemo(() => {
     // Must have a session ID
     if (!run.sessionId) return false;
     // Must not be currently running
-    if (run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING || run.status === RunStatus.PENDING) {
+    if (isGenerating) {
       return false;
     }
     return true;
-  }, [run.sessionId, run.status]);
+  }, [run.sessionId, isGenerating]);
+
+  // Auto-scroll when generating state changes (show skeleton)
+  useEffect(() => {
+    if (isGenerating) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isGenerating]);
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !canContinue || sending) return;
@@ -168,11 +193,7 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
 
               {/* Content */}
               <div className="text-sm">
-                {message.role === "user" ? (
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                ) : (
-                  <MarkdownRenderer content={message.content} />
-                )}
+                <MarkdownRenderer content={message.content} />
               </div>
 
               {/* Timestamp */}
@@ -189,6 +210,31 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
             </div>
           </div>
         ))}
+
+        {/* Loading skeleton when agent is generating */}
+        {isGenerating && (
+          <div className="flex gap-3 flex-row">
+            {/* Avatar */}
+            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
+              <Bot className="h-4 w-4" />
+            </div>
+
+            {/* Skeleton bubble */}
+            <div className="max-w-[80%] rounded-lg px-4 py-3 bg-muted">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating response...</span>
+              </div>
+              {/* Animated skeleton bars */}
+              <div className="mt-2 space-y-2">
+                <div className="h-3 bg-muted-foreground/20 rounded animate-pulse w-[200px]" />
+                <div className="h-3 bg-muted-foreground/20 rounded animate-pulse w-[160px]" />
+                <div className="h-3 bg-muted-foreground/20 rounded animate-pulse w-[180px]" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 

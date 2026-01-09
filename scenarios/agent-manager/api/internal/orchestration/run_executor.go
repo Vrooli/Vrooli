@@ -854,6 +854,9 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 	if e.result != nil {
 		e.run.Summary = e.result.Summary
 		e.run.ExitCode = &e.result.ExitCode
+		if e.result.SessionID != "" {
+			e.run.SessionID = e.result.SessionID
+		}
 	}
 
 	if err := e.validateExpectedOutputs(ctx); err != nil {
