@@ -115,7 +115,8 @@ func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 		SupportsCostTracking: true,
 		SupportsStreaming:    true,
 		SupportsCancellation: true,
-		MaxTurns:             0, // unlimited
+		SupportsContinuation: true, // Claude Code supports --resume for session continuation
+		MaxTurns:             0,    // unlimited
 		SupportedModels: []string{
 			"sonnet",
 			"opus",
@@ -368,6 +369,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
+	// Capture session ID for conversation continuation (before stream state is cleared)
+	if state := r.streamStateFor(req.RunID); state != nil && state.sessionID != "" {
+		result.SessionID = state.sessionID
+	}
+
 	// Emit completion event
 	if req.EventSink != nil {
 		finalStatus := string(domain.RunStatusComplete)
@@ -409,6 +415,255 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// Continue resumes an existing session with a follow-up message.
+// Uses Claude Code's --resume flag to continue the conversation.
+func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	if !r.available {
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeClaudeCode,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
+	}
+
+	if req.SessionID == "" {
+		return nil, ErrSessionExpired
+	}
+
+	startTime := time.Now()
+	r.initStreamState(req.RunID)
+	defer r.clearStreamState(req.RunID)
+
+	// Build command arguments with --resume flag
+	args := []string{
+		"run",
+		"--tag", req.RunID.String(),
+		"--resume", req.SessionID,
+		"-", // Read prompt from stdin
+	}
+
+	// Create command using resource-claude-code
+	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	cmd.Dir = req.WorkingDir
+
+	// Set environment - use stream-json for event streaming
+	env := os.Environ()
+	env = append(env, "OUTPUT_FORMAT=stream-json")
+	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
+	for key, value := range req.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+	cmd.Env = env
+
+	// Create a new process group so we can kill the entire subprocess tree
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	// Track the running command for cancellation
+	r.mu.Lock()
+	r.runs[req.RunID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, req.RunID)
+		r.mu.Unlock()
+	}()
+
+	// Create pipes for stdout/stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Provide prompt via stdin
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Start command
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Emit starting event
+	if req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			string(domain.RunStatusRunning),
+			"Claude Code continuation started",
+		))
+		// Emit the user's follow-up message as an event
+		_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "user", req.Prompt))
+	}
+
+	// Write prompt and close stdin
+	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+	stdin.Close()
+
+	// Process streaming output
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+
+	// Read stderr in background
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			errorOutput.WriteString(scanner.Text())
+			errorOutput.WriteString("\n")
+		}
+	}()
+
+	// Parse streaming JSON output
+	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		events, err := r.parseStreamEvents(req.RunID, line)
+		if err != nil {
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(domain.NewLogEvent(
+					req.RunID,
+					"warn",
+					fmt.Sprintf("Failed to parse event: %v", err),
+				))
+			}
+			continue
+		}
+
+		if len(events) == 0 {
+			continue
+		}
+
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
+		}
+	}
+
+	// Wait for command to complete with timeout
+	const wrapperCleanupTimeout = 30 * time.Second
+	waitDone := make(chan error, 1)
+	go func() {
+		waitDone <- cmd.Wait()
+	}()
+
+	select {
+	case err = <-waitDone:
+		// Normal completion
+	case <-time.After(wrapperCleanupTimeout):
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		err = <-waitDone
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		err = <-waitDone
+	}
+
+	duration := time.Since(startTime)
+
+	// Determine result
+	result := &ExecuteResult{
+		Duration:  duration,
+		Metrics:   metrics,
+		SessionID: req.SessionID, // Preserve the session ID for further continuations
+	}
+
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "continuation cancelled"
+		} else if exitErr, ok := err.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			result.ErrorMessage = errorOutput.String()
+			// Check if session expired (exit code or error message indicates this)
+			if strings.Contains(result.ErrorMessage, "session") && strings.Contains(result.ErrorMessage, "not found") {
+				return nil, ErrSessionExpired
+			}
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = err.Error()
+		}
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+		result.Summary = &domain.RunSummary{
+			Description:  lastAssistantMessage,
+			TurnsUsed:    metrics.TurnsUsed,
+			TokensUsed:   TotalTokens(metrics),
+			CostEstimate: metrics.CostEstimateUSD,
+		}
+	}
+
+	// Update session ID from stream if a new one was provided
+	if state := r.streamStateFor(req.RunID); state != nil && state.sessionID != "" {
+		result.SessionID = state.sessionID
+	}
+
+	// Emit completion event
+	if req.EventSink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			finalStatus,
+			"Claude Code continuation completed",
+		))
+		_ = req.EventSink.Close()
+	}
+
+	return result, nil
 }
 
 // IsAvailable checks if Claude Code is currently available.
@@ -521,6 +776,7 @@ type claudeStreamState struct {
 	toolUseName    string
 	toolUsePayload strings.Builder
 	lastAssistant  string
+	sessionID      string // Captured from stream for conversation continuation
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -772,6 +1028,11 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 	}
 
 	state := r.streamStateFor(runID)
+
+	// Capture session_id for conversation continuation if present
+	if streamEvent.SessionID != "" && state.sessionID == "" {
+		state.sessionID = streamEvent.SessionID
+	}
 
 	switch streamEvent.Type {
 	case "message":

@@ -98,6 +98,7 @@ type CodexRunner struct {
 	useJSONStream  bool // whether to use direct codex CLI with --json
 	pricingService PricingService
 	runModels      map[uuid.UUID]string
+	runThreadIDs   map[uuid.UUID]string // Thread IDs for session continuation
 }
 
 // PricingService defines the interface for pricing calculations.
@@ -169,6 +170,7 @@ func NewCodexRunner(opts ...CodexRunnerOption) (*CodexRunner, error) {
 		runs:          make(map[uuid.UUID]*exec.Cmd),
 		useJSONStream: codexCLIPath != "", // Enable JSON streaming if codex CLI is available
 		runModels:     make(map[uuid.UUID]string),
+		runThreadIDs:  make(map[uuid.UUID]string),
 	}
 	for _, opt := range opts {
 		opt(runner)
@@ -247,7 +249,8 @@ func (r *CodexRunner) Capabilities() Capabilities {
 		SupportsCostTracking: true,
 		SupportsStreaming:    r.useJSONStream, // JSON streaming if codex CLI available
 		SupportsCancellation: true,
-		MaxTurns:             0, // unlimited
+		SupportsContinuation: true, // Codex supports "codex resume <thread_id>"
+		MaxTurns:             0,    // unlimited
 		SupportedModels: []string{
 			"gpt-5.2-codex",
 			"gpt-5.1-codex-max",
@@ -376,7 +379,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}()
 
-	// Parse streaming JSON output
+	// Parse streaming JSON output (and capture thread_id for session continuation)
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -385,8 +388,8 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 			continue
 		}
 
-		// Parse the streaming event(s)
-		events := r.parseCodexStreamEvents(req.RunID, line)
+		// Parse the streaming event(s) and capture thread_id
+		events := r.parseCodexStreamEventsWithThreadID(req.RunID, line)
 		if len(events) == 0 {
 			continue
 		}
@@ -417,10 +420,15 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 	err = cmd.Wait()
 	duration := time.Since(startTime)
 
+	// Capture thread ID before clearing
+	sessionID := r.threadIDForRun(req.RunID)
+	defer r.clearThreadID(req.RunID)
+
 	// Determine result
 	result := &ExecuteResult{
-		Duration: duration,
-		Metrics:  metrics,
+		Duration:  duration,
+		Metrics:   metrics,
+		SessionID: sessionID,
 	}
 
 	if err != nil {
@@ -1012,4 +1020,316 @@ func (r *CodexRunner) modelForRun(runID uuid.UUID) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.runModels[runID]
+}
+
+func (r *CodexRunner) trackThreadID(runID uuid.UUID, threadID string) {
+	if threadID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.runThreadIDs == nil {
+		r.runThreadIDs = make(map[uuid.UUID]string)
+	}
+	// Only set once - first thread ID captured is the session ID
+	if _, exists := r.runThreadIDs[runID]; !exists {
+		r.runThreadIDs[runID] = threadID
+	}
+}
+
+func (r *CodexRunner) clearThreadID(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.runThreadIDs, runID)
+}
+
+func (r *CodexRunner) threadIDForRun(runID uuid.UUID) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.runThreadIDs[runID]
+}
+
+// Continue resumes an existing session with a follow-up message.
+// Uses Codex's "resume" command to continue the conversation.
+func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	if !r.available {
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeCodex,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
+	}
+
+	if req.SessionID == "" {
+		return nil, ErrSessionExpired
+	}
+
+	if !r.useJSONStream {
+		// Resume requires direct codex CLI
+		return nil, ErrContinuationNotSupported
+	}
+
+	startTime := time.Now()
+
+	// Build command arguments for codex resume
+	args := []string{
+		"resume", req.SessionID,
+		"--json",
+	}
+
+	// Create command using direct codex CLI
+	cmd := exec.CommandContext(ctx, r.codexCLIPath, args...)
+	cmd.Dir = req.WorkingDir
+
+	// Set environment
+	env := os.Environ()
+	env = append(env, "CODEX_NON_INTERACTIVE=true")
+	for key, value := range req.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+	cmd.Env = env
+
+	// Track the running command for cancellation
+	r.mu.Lock()
+	r.runs[req.RunID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, req.RunID)
+		r.mu.Unlock()
+	}()
+
+	// Create pipes for stdout/stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Provide prompt via stdin
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Start command
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Emit starting event
+	if req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			string(domain.RunStatusRunning),
+			"Codex continuation started",
+		))
+		// Emit the user's follow-up message as an event
+		_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "user", req.Prompt))
+	}
+
+	// Write prompt and close stdin
+	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+	stdin.Close()
+
+	// Process streaming output
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+
+	// Read stderr in background
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			errorOutput.WriteString(scanner.Text())
+			errorOutput.WriteString("\n")
+		}
+	}()
+
+	// Parse streaming JSON output
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		events := r.parseCodexStreamEventsWithThreadID(req.RunID, line)
+		if len(events) == 0 {
+			continue
+		}
+
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
+		}
+	}
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	duration := time.Since(startTime)
+
+	// Determine result
+	result := &ExecuteResult{
+		Duration:  duration,
+		Metrics:   metrics,
+		SessionID: req.SessionID, // Preserve the session ID for further continuations
+	}
+
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "continuation cancelled"
+		} else if exitErr, ok := err.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			result.ErrorMessage = errorOutput.String()
+			// Check if session expired
+			if strings.Contains(result.ErrorMessage, "thread") && strings.Contains(result.ErrorMessage, "not found") {
+				return nil, ErrSessionExpired
+			}
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = err.Error()
+		}
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+		result.Summary = &domain.RunSummary{
+			Description:  lastAssistantMessage,
+			TurnsUsed:    metrics.TurnsUsed,
+			TokensUsed:   TotalTokens(metrics),
+			CostEstimate: metrics.CostEstimateUSD,
+		}
+	}
+
+	// Emit completion event
+	if req.EventSink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			finalStatus,
+			"Codex continuation completed",
+		))
+		_ = req.EventSink.Close()
+	}
+
+	return result, nil
+}
+
+// parseCodexStreamEventsWithThreadID is like parseCodexStreamEvents but also captures thread_id.
+func (r *CodexRunner) parseCodexStreamEventsWithThreadID(runID uuid.UUID, line string) []*domain.RunEvent {
+	// Skip empty lines
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "data:") {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+	}
+	if line == "" || line[0] != '{' {
+		return nil
+	}
+
+	var streamEvent CodexStreamEvent
+	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
+		return nil
+	}
+
+	// Capture thread_id for session continuation
+	if streamEvent.ThreadID != "" {
+		r.trackThreadID(runID, streamEvent.ThreadID)
+	}
+
+	return r.parseCodexStreamEventsInternal(runID, &streamEvent)
+}
+
+// parseCodexStreamEventsInternal processes a parsed CodexStreamEvent.
+func (r *CodexRunner) parseCodexStreamEventsInternal(runID uuid.UUID, streamEvent *CodexStreamEvent) []*domain.RunEvent {
+	events := []*domain.RunEvent{}
+
+	// Handle top-level tool payloads
+	if streamEvent.Tool != nil && streamEvent.Item == nil {
+		toolName := streamEvent.Tool.Name
+		var input map[string]interface{}
+		if streamEvent.Tool.Input != nil {
+			_ = json.Unmarshal(streamEvent.Tool.Input, &input)
+		}
+		if len(input) > 0 {
+			events = append(events, domain.NewToolCallEvent(runID, toolName, input))
+		}
+		if streamEvent.Tool.Output != "" {
+			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))
+		}
+		if len(events) > 0 {
+			return events
+		}
+	}
+
+	if strings.HasPrefix(streamEvent.Type, "item.") && streamEvent.Item != nil {
+		return r.parseCodexItemEvents(runID, streamEvent.Item)
+	}
+
+	switch streamEvent.Type {
+	case "thread.started":
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Thread started: "+streamEvent.ThreadID)}
+
+	case "turn.started":
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
+
+	case "turn.completed":
+		if streamEvent.Usage != nil {
+			costEvent := r.buildCodexCostEvent(runID, streamEvent.Usage)
+			return []*domain.RunEvent{costEvent}
+		}
+
+	case "error":
+		if streamEvent.Error != nil {
+			return []*domain.RunEvent{domain.NewErrorEvent(
+				runID,
+				streamEvent.Error.Code,
+				streamEvent.Error.Message,
+				false,
+			)}
+		}
+	}
+
+	return nil
 }

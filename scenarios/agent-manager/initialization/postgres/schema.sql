@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS runs (
     total_size_bytes BIGINT DEFAULT 0,
     sandbox_config JSONB DEFAULT '{}'::jsonb,
 
+    -- Session continuation support
+    session_id VARCHAR(255),
+
     -- Metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -128,6 +131,7 @@ CREATE INDEX idx_runs_status ON runs(status);
 CREATE INDEX idx_runs_approval_state ON runs(approval_state);
 CREATE INDEX idx_runs_created_at ON runs(created_at DESC);
 CREATE INDEX idx_runs_sandbox_id ON runs(sandbox_id) WHERE sandbox_id IS NOT NULL;
+CREATE INDEX idx_runs_session_id ON runs(session_id) WHERE session_id IS NOT NULL;
 
 -- ============================================================================
 -- RunEvent - Append-only event stream

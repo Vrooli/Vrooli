@@ -54,6 +54,7 @@ interface RunsPageProps {
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onInvestigateRuns: (runIds: string[], customContext?: string) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
+  onContinueRun: (id: string, message: string) => Promise<Run>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
@@ -91,6 +92,7 @@ export function RunsPage({
   onRejectRun,
   onInvestigateRuns,
   onApplyInvestigation,
+  onContinueRun,
   onRefresh,
   wsSubscribe,
   wsUnsubscribe,
@@ -580,6 +582,12 @@ export function RunsPage({
           onInvestigate={handleInvestigateFromDetail}
           onApplyInvestigation={handleApplyInvestigationFromDetail}
           onDelete={handleDelete}
+          onContinue={async (message) => {
+            await onContinueRun(selectedRun.id, message);
+            // Reload events to show the new messages
+            const newEvents = await onGetEvents(selectedRun.id);
+            setEvents(newEvents);
+          }}
           deleteLoading={deleteLoading}
         />
       )}

@@ -115,6 +115,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
@@ -1577,6 +1578,51 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.StopRunResponse{Status: "stopped"})
+}
+
+// ContinueRun continues an existing run's conversation with a follow-up message.
+// POST /api/v1/runs/{id}/continue
+// Body: {"message": "Please also update the tests"}
+func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req domainpb.ContinueRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Override run_id from path
+	req.RunId = idStr
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	run, err := h.svc.ContinueRun(r.Context(), orchestration.ContinueRunRequest{
+		RunID:   id,
+		Message: req.Message,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &domainpb.ContinueRunResponse{
+		Success: true,
+		Run:     protoconv.RunToProto(run),
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
 }
 
 // GetRunByTag retrieves a run by its custom tag.

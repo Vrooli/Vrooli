@@ -123,6 +123,14 @@ message Run {
   // Total size of changes in bytes.
   int64 total_size_bytes = 25;
 
+  // Runner-specific session identifier for conversation resumption.
+  // Populated from runner stream events:
+  //   - Claude Code: session_id
+  //   - Codex: thread_id
+  //   - OpenCode: sessionID
+  // Used with the Continue endpoint to resume conversations.
+  string session_id = 28;
+
   // When the run was created.
   google.protobuf.Timestamp created_at = 26;
 
@@ -328,6 +336,9 @@ message RunnerCapabilities {
 
   // Maximum turns (0 = unlimited).
   int32 max_turns = 6;
+
+  // Supports session continuation (resume/continue conversation).
+  bool supports_continuation = 7;
 }
 
 // =============================================================================
@@ -438,4 +449,41 @@ message FileDiff {
 
   // Unified diff for this file.
   string patch = 6;
+}
+
+// =============================================================================
+// CONTINUE RUN REQUEST/RESPONSE
+// =============================================================================
+
+// ContinueRunRequest contains parameters for continuing a run's conversation.
+//
+// Sends a follow-up message to an existing run's session, resuming the
+// conversation even after the runner process has ended (using stored session_id).
+//
+// @usage POST /api/v1/runs/{id}/continue
+message ContinueRunRequest {
+  // Run ID to continue.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Follow-up message to send to the agent.
+  string message = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// ContinueRunResponse contains the result of continuing a run.
+//
+// @usage POST /api/v1/runs/{id}/continue response
+message ContinueRunResponse {
+  // Whether the continuation started successfully.
+  bool success = 1;
+
+  // Updated run with new session state.
+  Run run = 2;
+
+  // Error message if continuation failed.
+  string error = 3;
+
+  // Error code for programmatic handling.
+  // Codes: "session_expired", "continuation_not_supported", "run_not_found"
+  string error_code = 4;
 }

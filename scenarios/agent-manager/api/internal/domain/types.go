@@ -255,6 +255,13 @@ type Run struct {
 	ChangedFiles   int    `json:"changedFiles" db:"changed_files"`
 	TotalSizeBytes int64  `json:"totalSizeBytes" db:"total_size_bytes"`
 
+	// Session continuation support
+	// Stores the runner-specific session identifier for conversation resumption.
+	// For Claude Code: session_id from stream events
+	// For Codex: thread_id from stream events
+	// For OpenCode: sessionID from stream events
+	SessionID string `json:"sessionId,omitempty" db:"session_id"`
+
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`

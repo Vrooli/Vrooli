@@ -173,6 +173,19 @@ func (m *MockRunner) SetCapabilities(caps Capabilities) {
 	m.capabilities = caps
 }
 
+// Continue continues a previous conversation in the same session.
+func (m *MockRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	// Default mock behavior: simulate successful continuation
+	return &ExecuteResult{
+		Success:   true,
+		ExitCode:  0,
+		SessionID: req.SessionID,
+		Summary: &domain.RunSummary{
+			Description: "Mock continuation completed successfully",
+		},
+	}, nil
+}
+
 // Verify interface compliance
 var _ Runner = (*MockRunner)(nil)
 
@@ -223,6 +236,11 @@ func (s *StubRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 func (s *StubRunner) IsAvailable(ctx context.Context) (bool, string) {
 	return false, s.message
+}
+
+// Continue is not supported for stub runners.
+func (s *StubRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	return nil, ErrContinuationNotSupported
 }
 
 // Verify interface compliance

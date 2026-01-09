@@ -192,6 +192,7 @@ export default function App() {
                   onRejectRun={runs.rejectRun}
                   onInvestigateRuns={runs.investigateRuns}
                   onApplyInvestigation={runs.applyInvestigation}
+                  onContinueRun={runs.continueRun}
                   onRefresh={runs.refetch}
                   wsSubscribe={ws.subscribe}
                   wsUnsubscribe={ws.unsubscribe}

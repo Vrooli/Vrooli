@@ -40,6 +40,7 @@ class Run(_message.Message):
     LOG_PATH_FIELD_NUMBER: _ClassVar[int]
     CHANGED_FILES_FIELD_NUMBER: _ClassVar[int]
     TOTAL_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
@@ -67,9 +68,10 @@ class Run(_message.Message):
     log_path: str
     changed_files: int
     total_size_bytes: int
+    session_id: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunSummary(_message.Message):
     __slots__ = ()
@@ -182,13 +184,15 @@ class RunnerCapabilities(_message.Message):
     SUPPORTS_COST_TRACKING_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_CANCELLATION_FIELD_NUMBER: _ClassVar[int]
     MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_CONTINUATION_FIELD_NUMBER: _ClassVar[int]
     supports_streaming: bool
     supports_messages: bool
     supports_tool_events: bool
     supports_cost_tracking: bool
     supports_cancellation: bool
     max_turns: int
-    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ...) -> None: ...
+    supports_continuation: bool
+    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ...) -> None: ...
 
 class ProbeResult(_message.Message):
     __slots__ = ()
@@ -264,3 +268,23 @@ class FileDiff(_message.Message):
     is_binary: bool
     patch: str
     def __init__(self, path: _Optional[str] = ..., change_type: _Optional[str] = ..., additions: _Optional[int] = ..., deletions: _Optional[int] = ..., is_binary: _Optional[bool] = ..., patch: _Optional[str] = ...) -> None: ...
+
+class ContinueRunRequest(_message.Message):
+    __slots__ = ()
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    message: str
+    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ContinueRunResponse(_message.Message):
+    __slots__ = ()
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    run: Run
+    error: str
+    error_code: str
+    def __init__(self, success: _Optional[bool] = ..., run: _Optional[_Union[Run, _Mapping]] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ...) -> None: ...

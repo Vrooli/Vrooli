@@ -66,6 +66,7 @@ type Service interface {
 	StopRun(ctx context.Context, id uuid.UUID) error
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
+	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
 
 	// --- Run Resumption Operations (Interruption Resilience) ---
 	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -230,6 +231,12 @@ type StopAllResult struct {
 	Failed    int      `json:"failed"`    // Number of runs that failed to stop
 	Skipped   int      `json:"skipped"`   // Number of runs that were already stopped
 	FailedIDs []string `json:"failedIds"` // IDs of runs that failed to stop
+}
+
+// ContinueRunRequest contains parameters for continuing an existing run conversation.
+type ContinueRunRequest struct {
+	RunID   uuid.UUID `json:"runId"`
+	Message string    `json:"message"`
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -1391,6 +1398,182 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 	run.EndedAt = &now
 	run.UpdatedAt = now
 	return o.runs.Update(ctx, run)
+}
+
+// ContinueRun continues an existing run's conversation with a follow-up message.
+// The message is appended to the run's event stream and the response is streamed back.
+func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error) {
+	// Validate message
+	if strings.TrimSpace(req.Message) == "" {
+		return nil, domain.NewValidationError("message", "message is required")
+	}
+
+	// Get the run
+	run, err := o.GetRun(ctx, req.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate run has a session ID
+	if run.SessionID == "" {
+		return nil, domain.NewStateError("Run", string(run.Status), "continue",
+			"run has no session ID - continuation not available for this run")
+	}
+
+	// Validate run is in a continuable state (completed or failed, not running)
+	if run.Status == domain.RunStatusRunning || run.Status == domain.RunStatusStarting {
+		return nil, domain.NewStateError("Run", string(run.Status), "continue",
+			"cannot continue a run that is still in progress")
+	}
+
+	// Get the runner type from resolved config
+	var runnerType domain.RunnerType
+	if run.ResolvedConfig != nil {
+		runnerType = run.ResolvedConfig.RunnerType
+	} else if run.AgentProfileID != nil {
+		if profile, err := o.GetProfile(ctx, *run.AgentProfileID); err == nil && profile != nil {
+			runnerType = profile.RunnerType
+		}
+	}
+
+	if runnerType == "" {
+		return nil, domain.NewStateError("Run", string(run.Status), "continue",
+			"cannot determine runner type for this run")
+	}
+
+	// Get the runner
+	if o.runners == nil {
+		return nil, domain.NewConfigMissingError("runners", "runner registry not configured", nil)
+	}
+
+	r, err := o.runners.Get(runnerType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check runner supports continuation
+	caps := r.Capabilities()
+	if !caps.SupportsContinuation {
+		return nil, runner.ErrContinuationNotSupported
+	}
+
+	// Update run status to running
+	run.Status = domain.RunStatusRunning
+	run.UpdatedAt = time.Now()
+	if err := o.runs.Update(ctx, run); err != nil {
+		return nil, err
+	}
+
+	// Emit user message event
+	if o.events != nil {
+		userEvent := domain.NewMessageEvent(run.ID, "user", req.Message)
+		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
+			// Log but don't fail
+			_ = err
+		}
+		if o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(userEvent)
+		}
+	}
+
+	// Get the task for working directory
+	task, err := o.GetTask(ctx, run.TaskID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine working directory
+	workDir := ""
+	if run.SandboxID != nil && o.sandbox != nil {
+		workDir, _ = o.sandbox.GetWorkspacePath(ctx, *run.SandboxID)
+	}
+	if workDir == "" && task != nil {
+		if task.ProjectRoot != "" {
+			workDir = task.ProjectRoot
+		}
+	}
+
+	// Create event sink for the continuation
+	var eventSink runner.EventSink
+	if o.events != nil {
+		if o.broadcaster != nil {
+			eventSink = &broadcastingEventSink{
+				store:       o.events,
+				runID:       run.ID,
+				broadcaster: o.broadcaster,
+			}
+		} else {
+			eventSink = &eventStoreAdapter{
+				store: o.events,
+				runID: run.ID,
+			}
+		}
+	} else {
+		eventSink = &noOpEventSink{}
+	}
+
+	// Execute continuation asynchronously
+	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir)
+
+	return run, nil
+}
+
+// executeContinuation handles the actual continuation execution (runs in background).
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string) {
+	// Build continue request
+	continueReq := runner.ContinueRequest{
+		RunID:      run.ID,
+		SessionID:  run.SessionID,
+		Prompt:     message,
+		WorkingDir: workDir,
+		EventSink:  eventSink,
+	}
+
+	// Execute continuation
+	result, err := r.Continue(ctx, continueReq)
+
+	// Update run based on result
+	now := time.Now()
+	run.UpdatedAt = now
+
+	if err != nil {
+		run.Status = domain.RunStatusFailed
+		run.EndedAt = &now
+		if o.events != nil {
+			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
+			_ = o.events.Append(ctx, run.ID, errorEvent)
+			if o.broadcaster != nil {
+				o.broadcaster.BroadcastEvent(errorEvent)
+			}
+		}
+	} else if result != nil {
+		run.Status = domain.RunStatusComplete
+		run.EndedAt = &now
+
+		// Update session ID if it changed
+		if result.SessionID != "" {
+			run.SessionID = result.SessionID
+		}
+
+		// Update summary if available
+		if result.Summary != nil {
+			run.Summary = result.Summary
+		}
+	} else {
+		run.Status = domain.RunStatusComplete
+		run.EndedAt = &now
+	}
+
+	// Persist updated run
+	if err := o.runs.Update(ctx, run); err != nil {
+		// Log but can't do much else
+		_ = err
+	}
+
+	// Broadcast status update
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
+	}
 }
 
 // executeRun handles the actual agent execution (runs in background).
