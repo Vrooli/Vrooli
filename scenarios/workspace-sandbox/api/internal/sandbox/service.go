@@ -719,9 +719,12 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 		}, nil
 	}
 
-	// Generate unified diff
+	// Generate unified diff with project-relative paths
 	gen := diff.NewGenerator()
-	return gen.GenerateDiff(ctx, sandbox, changes)
+	opts := &diff.GenerateOptions{
+		PathPrefix: scopePathPrefix(sandbox),
+	}
+	return gen.GenerateDiff(ctx, sandbox, changes, opts)
 }
 
 var errMissingUpperDir = errors.New("sandbox upper directory missing")
@@ -1102,6 +1105,28 @@ func projectRelativePath(sandbox *types.Sandbox, relScopePath string) string {
 	return filepath.ToSlash(rel)
 }
 
+// scopePathPrefix returns the relative path from ProjectRoot to ScopePath.
+// This prefix should be prepended to scope-relative file paths to make them
+// project-relative, which is required for git apply to work correctly.
+// Returns empty string if ScopePath == ProjectRoot (full-repo sandbox).
+func scopePathPrefix(sandbox *types.Sandbox) string {
+	if sandbox.ScopePath == "" || sandbox.ProjectRoot == "" {
+		return ""
+	}
+	// Clean and compare paths
+	cleanScope := filepath.Clean(sandbox.ScopePath)
+	cleanProject := filepath.Clean(sandbox.ProjectRoot)
+	if cleanScope == cleanProject {
+		return ""
+	}
+	rel, err := filepath.Rel(cleanProject, cleanScope)
+	if err != nil {
+		return ""
+	}
+	// Use forward slashes for cross-platform diff compatibility
+	return filepath.ToSlash(rel)
+}
+
 func isBinaryChange(sandbox *types.Sandbox, change *types.FileChange) bool {
 	path := ""
 	switch change.ChangeType {
@@ -1224,6 +1249,10 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return nil, fmt.Errorf("failed to get changes: %w", err)
 	}
 
+	// Filter out .git/ files - these should never be included in diffs
+	// This matches the filtering in GetDiff for consistency
+	allChanges = filterDiffChanges(allChanges)
+
 	// [OT-P2-002] Conflict Detection
 	// Check if the canonical repo has changed since sandbox creation
 	// Uses injected gitOps for test isolation
@@ -1314,9 +1343,14 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}
 	}
 
-	// Generate diff for selected changes
+	// Generate diff for selected changes with project-relative paths
+	// The path prefix ensures paths in the diff are relative to ProjectRoot,
+	// which is where git apply runs. This is critical for scoped sandboxes.
 	gen := diff.NewGenerator()
-	diffResult, err := gen.GenerateDiff(ctx, sandbox, changes)
+	diffOpts := &diff.GenerateOptions{
+		PathPrefix: scopePathPrefix(sandbox),
+	}
+	diffResult, err := gen.GenerateDiff(ctx, sandbox, changes, diffOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate diff: %w", err)
 	}

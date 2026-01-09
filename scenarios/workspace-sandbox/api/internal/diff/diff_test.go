@@ -3,6 +3,7 @@ package diff
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,7 +102,7 @@ func TestDiffNewFile(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		diff, err := gen.diffNewFile(ctx, tmpDir, "newfile.txt")
+		diff, err := gen.diffNewFile(ctx, tmpDir, "newfile.txt", "")
 		if err != nil {
 			t.Fatalf("diffNewFile failed: %v", err)
 		}
@@ -110,8 +111,9 @@ func TestDiffNewFile(t *testing.T) {
 		if !strings.Contains(diff, "diff --git a/newfile.txt b/newfile.txt") {
 			t.Error("diff should contain git-style header")
 		}
-		if !strings.Contains(diff, "new file mode") {
-			t.Error("diff should indicate new file")
+		// Verify correct git file mode format (100644 for non-executable regular files)
+		if !strings.Contains(diff, "new file mode 100644") {
+			t.Errorf("diff should have correct git file mode 100644, got: %s", diff)
 		}
 		if !strings.Contains(diff, "--- /dev/null") {
 			t.Error("diff should show /dev/null as source")
@@ -125,19 +127,39 @@ func TestDiffNewFile(t *testing.T) {
 		}
 	})
 
+	t.Run("new executable file", func(t *testing.T) {
+		// Create an executable file
+		content := "#!/bin/bash\necho hello\n"
+		filePath := filepath.Join(tmpDir, "script.sh")
+		if err := os.WriteFile(filePath, []byte(content), 0o755); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		diff, err := gen.diffNewFile(ctx, tmpDir, "script.sh", "")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+
+		// Verify correct git file mode format (100755 for executable files)
+		if !strings.Contains(diff, "new file mode 100755") {
+			t.Errorf("diff should have correct git file mode 100755 for executable, got: %s", diff)
+		}
+	})
+
 	t.Run("new empty file", func(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "empty.txt")
 		if err := os.WriteFile(filePath, []byte{}, 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		diff, err := gen.diffNewFile(ctx, tmpDir, "empty.txt")
+		diff, err := gen.diffNewFile(ctx, tmpDir, "empty.txt", "")
 		if err != nil {
 			t.Fatalf("diffNewFile failed: %v", err)
 		}
 
-		if !strings.Contains(diff, "new file mode") {
-			t.Error("empty file diff should still indicate new file")
+		// Verify correct git file mode format
+		if !strings.Contains(diff, "new file mode 100644") {
+			t.Errorf("empty file diff should have correct git file mode 100644, got: %s", diff)
 		}
 	})
 
@@ -148,13 +170,17 @@ func TestDiffNewFile(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		diff, err := gen.diffNewFile(ctx, tmpDir, "image.png")
+		diff, err := gen.diffNewFile(ctx, tmpDir, "image.png", "")
 		if err != nil {
 			t.Fatalf("diffNewFile failed: %v", err)
 		}
 
 		if !strings.Contains(diff, "Binary file") {
 			t.Error("binary file diff should indicate binary")
+		}
+		// Verify correct git file mode format for binary files
+		if !strings.Contains(diff, "new file mode 100644") {
+			t.Errorf("binary file diff should have correct git file mode 100644, got: %s", diff)
 		}
 	})
 
@@ -164,7 +190,7 @@ func TestDiffNewFile(t *testing.T) {
 			t.Fatalf("Failed to create test directory: %v", err)
 		}
 
-		diff, err := gen.diffNewFile(ctx, tmpDir, "newdir")
+		diff, err := gen.diffNewFile(ctx, tmpDir, "newdir", "")
 		if err != nil {
 			t.Fatalf("diffNewFile failed: %v", err)
 		}
@@ -175,7 +201,7 @@ func TestDiffNewFile(t *testing.T) {
 	})
 
 	t.Run("nonexistent file", func(t *testing.T) {
-		_, err := gen.diffNewFile(ctx, tmpDir, "nonexistent.txt")
+		_, err := gen.diffNewFile(ctx, tmpDir, "nonexistent.txt", "")
 		if err == nil {
 			t.Error("diffNewFile should fail for nonexistent file")
 		}
@@ -195,19 +221,38 @@ func TestDiffDeletedFile(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		diff, err := gen.diffDeletedFile(ctx, tmpDir, "deleted.txt")
+		diff, err := gen.diffDeletedFile(ctx, tmpDir, "deleted.txt", "")
 		if err != nil {
 			t.Fatalf("diffDeletedFile failed: %v", err)
 		}
 
-		if !strings.Contains(diff, "deleted file mode") {
-			t.Error("diff should indicate deleted file")
+		// Verify correct git file mode format (100644 for non-executable regular files)
+		if !strings.Contains(diff, "deleted file mode 100644") {
+			t.Errorf("diff should have correct git file mode 100644, got: %s", diff)
 		}
 		if !strings.Contains(diff, "+++ /dev/null") {
 			t.Error("diff should show /dev/null as destination")
 		}
 		if !strings.Contains(diff, "-line 1") {
 			t.Error("diff should show deleted lines with - prefix")
+		}
+	})
+
+	t.Run("deleted executable file", func(t *testing.T) {
+		content := "#!/bin/bash\necho hello\n"
+		filePath := filepath.Join(tmpDir, "deleted_script.sh")
+		if err := os.WriteFile(filePath, []byte(content), 0o755); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		diff, err := gen.diffDeletedFile(ctx, tmpDir, "deleted_script.sh", "")
+		if err != nil {
+			t.Fatalf("diffDeletedFile failed: %v", err)
+		}
+
+		// Verify correct git file mode format (100755 for executable files)
+		if !strings.Contains(diff, "deleted file mode 100755") {
+			t.Errorf("diff should have correct git file mode 100755 for executable, got: %s", diff)
 		}
 	})
 
@@ -218,13 +263,17 @@ func TestDiffDeletedFile(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		diff, err := gen.diffDeletedFile(ctx, tmpDir, "binary.bin")
+		diff, err := gen.diffDeletedFile(ctx, tmpDir, "binary.bin", "")
 		if err != nil {
 			t.Fatalf("diffDeletedFile failed: %v", err)
 		}
 
 		if !strings.Contains(diff, "Binary file") {
 			t.Error("binary file diff should indicate binary")
+		}
+		// Verify correct git file mode format for binary files
+		if !strings.Contains(diff, "deleted file mode 100644") {
+			t.Errorf("binary file diff should have correct git file mode 100644, got: %s", diff)
 		}
 	})
 
@@ -234,7 +283,7 @@ func TestDiffDeletedFile(t *testing.T) {
 			t.Fatalf("Failed to create test directory: %v", err)
 		}
 
-		diff, err := gen.diffDeletedFile(ctx, tmpDir, "deleteddir")
+		diff, err := gen.diffDeletedFile(ctx, tmpDir, "deleteddir", "")
 		if err != nil {
 			t.Fatalf("diffDeletedFile failed: %v", err)
 		}
@@ -265,7 +314,7 @@ func TestDiffModifiedFile(t *testing.T) {
 			t.Fatalf("Failed to create modified file: %v", err)
 		}
 
-		diff, err := gen.diffModifiedFile(ctx, lowerDir, upperDir, "file.txt")
+		diff, err := gen.diffModifiedFile(ctx, lowerDir, upperDir, "file.txt", "")
 		if err != nil {
 			t.Fatalf("diffModifiedFile failed: %v", err)
 		}
@@ -288,7 +337,7 @@ func TestDiffModifiedFile(t *testing.T) {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 
-		diff, err := gen.diffModifiedFile(ctx, lowerDir, upperDir, "same.txt")
+		diff, err := gen.diffModifiedFile(ctx, lowerDir, upperDir, "same.txt", "")
 		if err != nil {
 			t.Fatalf("diffModifiedFile failed: %v", err)
 		}
@@ -315,7 +364,7 @@ func TestGenerateDiff(t *testing.T) {
 	}
 
 	t.Run("empty changes list", func(t *testing.T) {
-		result, err := gen.GenerateDiff(ctx, sandbox, []*types.FileChange{})
+		result, err := gen.GenerateDiff(ctx, sandbox, []*types.FileChange{}, nil)
 		if err != nil {
 			t.Fatalf("GenerateDiff failed: %v", err)
 		}
@@ -337,7 +386,7 @@ func TestGenerateDiff(t *testing.T) {
 			LowerDir: lowerDir,
 			UpperDir: "",
 		}
-		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{})
+		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{}, nil)
 		if err == nil {
 			t.Error("should fail with empty upper dir")
 		}
@@ -352,7 +401,7 @@ func TestGenerateDiff(t *testing.T) {
 			LowerDir: "",
 			UpperDir: upperDir,
 		}
-		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{})
+		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{}, nil)
 		if err == nil {
 			t.Error("should fail with empty lower dir")
 		}
@@ -364,7 +413,7 @@ func TestGenerateDiff(t *testing.T) {
 			LowerDir: lowerDir,
 			UpperDir: "/nonexistent/path",
 		}
-		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{})
+		_, err := gen.GenerateDiff(ctx, badSandbox, []*types.FileChange{}, nil)
 		if err == nil {
 			t.Error("should fail with nonexistent upper dir")
 		}
@@ -384,7 +433,7 @@ func TestGenerateDiff(t *testing.T) {
 			{ID: uuid.New(), FilePath: "deleted.txt", ChangeType: types.ChangeTypeDeleted},
 		}
 
-		result, err := gen.GenerateDiff(ctx, sandbox, changes)
+		result, err := gen.GenerateDiff(ctx, sandbox, changes, nil)
 		if err != nil {
 			t.Fatalf("GenerateDiff failed: %v", err)
 		}
@@ -414,7 +463,7 @@ func TestGenerateDiff(t *testing.T) {
 			{ID: uuid.New(), FilePath: "a.txt", ChangeType: types.ChangeTypeAdded},
 		}
 
-		result, err := gen.GenerateDiff(ctx, sandbox, changes)
+		result, err := gen.GenerateDiff(ctx, sandbox, changes, nil)
 		if err != nil {
 			t.Fatalf("GenerateDiff failed: %v", err)
 		}
@@ -428,6 +477,54 @@ func TestGenerateDiff(t *testing.T) {
 		}
 		if result.Files[1].FilePath != "z.txt" {
 			t.Errorf("second file should be z.txt, got %s", result.Files[1].FilePath)
+		}
+	})
+
+	t.Run("path prefix for scoped sandboxes", func(t *testing.T) {
+		// Create a file that would be in a subdirectory scope
+		if err := os.WriteFile(filepath.Join(upperDir, "scoped.txt"), []byte("scoped content\n"), 0o644); err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+
+		changes := []*types.FileChange{
+			{ID: uuid.New(), FilePath: "scoped.txt", ChangeType: types.ChangeTypeAdded},
+		}
+
+		// Generate diff WITH path prefix (simulating a scoped sandbox)
+		opts := &GenerateOptions{PathPrefix: "src/myapp"}
+		result, err := gen.GenerateDiff(ctx, sandbox, changes, opts)
+		if err != nil {
+			t.Fatalf("GenerateDiff failed: %v", err)
+		}
+
+		// The diff should contain the prefixed path
+		if !strings.Contains(result.UnifiedDiff, "diff --git a/src/myapp/scoped.txt b/src/myapp/scoped.txt") {
+			t.Errorf("diff should contain prefixed path, got:\n%s", result.UnifiedDiff)
+		}
+		if !strings.Contains(result.UnifiedDiff, "+++ b/src/myapp/scoped.txt") {
+			t.Error("diff should show prefixed destination file")
+		}
+	})
+
+	t.Run("empty path prefix uses original paths", func(t *testing.T) {
+		if err := os.WriteFile(filepath.Join(upperDir, "noscope.txt"), []byte("no scope\n"), 0o644); err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+
+		changes := []*types.FileChange{
+			{ID: uuid.New(), FilePath: "noscope.txt", ChangeType: types.ChangeTypeAdded},
+		}
+
+		// Generate diff WITHOUT path prefix (full-repo sandbox)
+		opts := &GenerateOptions{PathPrefix: ""}
+		result, err := gen.GenerateDiff(ctx, sandbox, changes, opts)
+		if err != nil {
+			t.Fatalf("GenerateDiff failed: %v", err)
+		}
+
+		// The diff should use the original path
+		if !strings.Contains(result.UnifiedDiff, "diff --git a/noscope.txt b/noscope.txt") {
+			t.Errorf("diff should use original path, got:\n%s", result.UnifiedDiff)
 		}
 	})
 }
@@ -637,7 +734,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeAdded,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change)
+		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -657,7 +754,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeDeleted,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change)
+		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -673,7 +770,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: "unknown",
 		}
 
-		_, err := GenerateFileDiff(ctx, sandbox, change)
+		_, err := GenerateFileDiff(ctx, sandbox, change, "")
 		if err == nil {
 			t.Error("should fail for unknown change type")
 		}
@@ -1017,6 +1114,275 @@ diff --git a/file2.txt b/file2.txt
 		hunks := GetHunksForFile(diff, "nonexistent.txt")
 		if len(hunks) != 0 {
 			t.Errorf("expected 0 hunks for non-existing file, got %d", len(hunks))
+		}
+	})
+}
+
+// TestGitFileMode tests the gitFileMode helper function
+func TestGitFileMode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("regular non-executable file", func(t *testing.T) {
+		filePath := filepath.Join(tmpDir, "regular.txt")
+		if err := os.WriteFile(filePath, []byte("test"), 0o644); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+		info, _ := os.Stat(filePath)
+		mode := gitFileMode(info)
+		if mode != 0o100644 {
+			t.Errorf("gitFileMode for regular file: got %o, want 100644", mode)
+		}
+	})
+
+	t.Run("executable file", func(t *testing.T) {
+		filePath := filepath.Join(tmpDir, "script.sh")
+		if err := os.WriteFile(filePath, []byte("#!/bin/bash"), 0o755); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+		info, _ := os.Stat(filePath)
+		mode := gitFileMode(info)
+		if mode != 0o100755 {
+			t.Errorf("gitFileMode for executable: got %o, want 100755", mode)
+		}
+	})
+
+	t.Run("directory", func(t *testing.T) {
+		dirPath := filepath.Join(tmpDir, "testdir")
+		if err := os.Mkdir(dirPath, 0o755); err != nil {
+			t.Fatalf("Failed to create test dir: %v", err)
+		}
+		info, _ := os.Stat(dirPath)
+		mode := gitFileMode(info)
+		// Directory mode should be 040xxx
+		if mode&0o170000 != 0o040000 {
+			t.Errorf("gitFileMode for directory: got %o, want 040xxx prefix", mode)
+		}
+	})
+}
+
+// TestGitApplyCheckIntegration validates that generated diffs are valid git patches
+// by actually running `git apply --check` on them.
+func TestGitApplyCheckIntegration(t *testing.T) {
+	// Check if git is available
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available, skipping integration test")
+	}
+
+	// Create a temporary git repository
+	repoDir := t.TempDir()
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Configure git user for commits
+	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd.Dir = repoDir
+	cmd.Run()
+	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd.Dir = repoDir
+	cmd.Run()
+
+	// Create initial commit so we have a HEAD
+	initialFile := filepath.Join(repoDir, "initial.txt")
+	if err := os.WriteFile(initialFile, []byte("initial\n"), 0o644); err != nil {
+		t.Fatalf("Failed to create initial file: %v", err)
+	}
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = repoDir
+	cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd.Dir = repoDir
+	cmd.Run()
+
+	gen := NewGenerator()
+	ctx := context.Background()
+
+	t.Run("new file diff is valid git patch", func(t *testing.T) {
+		// Create a new file to generate diff for
+		upperDir := t.TempDir()
+		newFilePath := filepath.Join(upperDir, "newfile.txt")
+		if err := os.WriteFile(newFilePath, []byte("line 1\nline 2\nline 3\n"), 0o644); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		diff, err := gen.diffNewFile(ctx, upperDir, "newfile.txt", "")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+
+		// Run git apply --check to verify the diff is valid
+		cmd := exec.Command("git", "apply", "--check")
+		cmd.Dir = repoDir
+		cmd.Stdin = strings.NewReader(diff)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("git apply --check failed for new file diff: %v\nStderr: %s\nDiff:\n%s",
+				err, stderr.String(), diff)
+		}
+	})
+
+	t.Run("new executable file diff is valid git patch", func(t *testing.T) {
+		upperDir := t.TempDir()
+		execFilePath := filepath.Join(upperDir, "script.sh")
+		if err := os.WriteFile(execFilePath, []byte("#!/bin/bash\necho hello\n"), 0o755); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		diff, err := gen.diffNewFile(ctx, upperDir, "script.sh", "")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+
+		cmd := exec.Command("git", "apply", "--check")
+		cmd.Dir = repoDir
+		cmd.Stdin = strings.NewReader(diff)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("git apply --check failed for executable file diff: %v\nStderr: %s\nDiff:\n%s",
+				err, stderr.String(), diff)
+		}
+	})
+
+	t.Run("deleted file diff is valid git patch", func(t *testing.T) {
+		// First, add a file to the repo that we'll "delete"
+		fileToDelete := filepath.Join(repoDir, "to_delete.txt")
+		if err := os.WriteFile(fileToDelete, []byte("will be deleted\n"), 0o644); err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "to_delete.txt")
+		cmd.Dir = repoDir
+		cmd.Run()
+		cmd = exec.Command("git", "commit", "-m", "Add file to delete")
+		cmd.Dir = repoDir
+		cmd.Run()
+
+		// Generate delete diff
+		diff, err := gen.diffDeletedFile(ctx, repoDir, "to_delete.txt", "")
+		if err != nil {
+			t.Fatalf("diffDeletedFile failed: %v", err)
+		}
+
+		cmd = exec.Command("git", "apply", "--check")
+		cmd.Dir = repoDir
+		cmd.Stdin = strings.NewReader(diff)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("git apply --check failed for deleted file diff: %v\nStderr: %s\nDiff:\n%s",
+				err, stderr.String(), diff)
+		}
+	})
+
+	t.Run("combined diff for multiple files is valid", func(t *testing.T) {
+		// Create sandbox structure
+		upperDir := t.TempDir()
+		lowerDir := repoDir
+
+		// Create new files in upper
+		os.WriteFile(filepath.Join(upperDir, "new1.txt"), []byte("new file 1\n"), 0o644)
+		os.WriteFile(filepath.Join(upperDir, "new2.txt"), []byte("new file 2\n"), 0o644)
+
+		// Generate combined diff
+		var diffBuilder strings.Builder
+
+		diff1, _ := gen.diffNewFile(ctx, upperDir, "new1.txt", "")
+		diffBuilder.WriteString(diff1)
+
+		diff2, _ := gen.diffNewFile(ctx, upperDir, "new2.txt", "")
+		diffBuilder.WriteString(diff2)
+
+		combinedDiff := diffBuilder.String()
+
+		cmd := exec.Command("git", "apply", "--check")
+		cmd.Dir = lowerDir
+		cmd.Stdin = strings.NewReader(combinedDiff)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("git apply --check failed for combined diff: %v\nStderr: %s\nDiff:\n%s",
+				err, stderr.String(), combinedDiff)
+		}
+	})
+
+	t.Run("diff with path prefix is valid git patch", func(t *testing.T) {
+		// Create subdirectory in repo to match path prefix
+		scopeDir := filepath.Join(repoDir, "src", "app")
+		os.MkdirAll(scopeDir, 0o755)
+
+		upperDir := t.TempDir()
+
+		// Create files - these will have paths prefixed with "src/app/"
+		os.WriteFile(filepath.Join(upperDir, "component.ts"), []byte("export const X = 1;\n"), 0o644)
+		os.WriteFile(filepath.Join(upperDir, "util.ts"), []byte("export function util() {}\n"), 0o644)
+		os.MkdirAll(filepath.Join(upperDir, "nested"), 0o755)
+		os.WriteFile(filepath.Join(upperDir, "nested", "deep.ts"), []byte("// deep\n"), 0o644)
+
+		// Generate combined diff with path prefix
+		var diffBuilder strings.Builder
+
+		diff1, err := gen.diffNewFile(ctx, upperDir, "component.ts", "src/app")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+		diffBuilder.WriteString(diff1)
+
+		diff2, err := gen.diffNewFile(ctx, upperDir, "util.ts", "src/app")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+		diffBuilder.WriteString(diff2)
+
+		diff3, err := gen.diffNewFile(ctx, upperDir, "nested/deep.ts", "src/app")
+		if err != nil {
+			t.Fatalf("diffNewFile failed: %v", err)
+		}
+		diffBuilder.WriteString(diff3)
+
+		combinedDiff := diffBuilder.String()
+
+		// Verify paths in diff
+		if !strings.Contains(combinedDiff, "diff --git a/src/app/component.ts b/src/app/component.ts") {
+			t.Errorf("diff should contain prefixed path, got:\n%s", combinedDiff)
+		}
+
+		cmd := exec.Command("git", "apply", "--check")
+		cmd.Dir = repoDir
+		cmd.Stdin = strings.NewReader(combinedDiff)
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("git apply --check failed for prefixed diff: %v\nStderr: %s\nDiff:\n%s",
+				err, stderr.String(), combinedDiff)
+		}
+	})
+
+	t.Run("diff with binary file is valid git patch", func(t *testing.T) {
+		upperDir := t.TempDir()
+
+		// Create a binary file
+		binaryContent := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00}
+		os.WriteFile(filepath.Join(upperDir, "image.png"), binaryContent, 0o644)
+
+		diff, err := gen.diffNewFile(ctx, upperDir, "image.png", "")
+		if err != nil {
+			t.Fatalf("diffNewFile for binary failed: %v", err)
+		}
+
+		t.Logf("Binary file diff:\n%s", diff)
+
+		// Binary diffs don't apply with git apply, but shouldn't cause assertion failures
+		// Just verify the format looks reasonable
+		if !strings.Contains(diff, "new file mode 100644") {
+			t.Errorf("binary diff should have file mode")
+		}
+		if !strings.Contains(diff, "Binary file") {
+			t.Errorf("binary diff should indicate binary")
 		}
 	})
 }

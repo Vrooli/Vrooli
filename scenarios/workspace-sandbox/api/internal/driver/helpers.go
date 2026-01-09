@@ -57,6 +57,12 @@ func getOverlayChangedFiles(s *types.Sandbox) ([]*types.FileChange, error) {
 			return nil
 		}
 
+		// Skip .git directory - git internal files should never be included in diffs.
+		// This prevents sandbox changes from including git objects, index, etc.
+		if relPath == ".git" || strings.HasPrefix(relPath, ".git"+string(filepath.Separator)) {
+			return nil
+		}
+
 		// Skip directories - they are structural containers created by overlayfs
 		// when files inside them are modified. The actual file changes are what
 		// we want to track. Directory additions are implied by file additions,

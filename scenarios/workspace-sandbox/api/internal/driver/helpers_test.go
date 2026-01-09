@@ -3,6 +3,7 @@ package driver
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -246,6 +247,64 @@ func TestGetOverlayChangedFiles_SkipsOpaqueMarker(t *testing.T) {
 		if c.FilePath == ".wh..opq" {
 			t.Error("should not include opaque markers")
 		}
+	}
+}
+
+func TestGetOverlayChangedFiles_SkipsGitDirectory(t *testing.T) {
+	upperDir := t.TempDir()
+	lowerDir := t.TempDir()
+
+	// Create .git directory with internal files (simulating git operations in sandbox)
+	gitDir := filepath.Join(upperDir, ".git")
+	if err := os.MkdirAll(filepath.Join(gitDir, "objects", "ab"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Create git object file (binary)
+	if err := os.WriteFile(filepath.Join(gitDir, "objects", "ab", "cdef1234"), []byte{0x00, 0x01, 0x02}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Create git index file
+	if err := os.WriteFile(filepath.Join(gitDir, "index"), []byte("git index"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Create git config
+	if err := os.WriteFile(filepath.Join(gitDir, "config"), []byte("[core]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a normal source file that should be detected
+	if err := os.WriteFile(filepath.Join(upperDir, "main.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := &types.Sandbox{
+		ID:       uuid.New(),
+		UpperDir: upperDir,
+		LowerDir: lowerDir,
+	}
+
+	changes, err := getOverlayChangedFiles(s)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should only have main.go, not any .git/* files
+	if len(changes) != 1 {
+		t.Errorf("expected 1 change (main.go only), got %d", len(changes))
+		for _, c := range changes {
+			t.Logf("  - %s (%s)", c.FilePath, c.ChangeType)
+		}
+	}
+
+	for _, c := range changes {
+		if c.FilePath == ".git" || strings.HasPrefix(c.FilePath, ".git/") || strings.HasPrefix(c.FilePath, ".git"+string(filepath.Separator)) {
+			t.Errorf("should not include .git files, found: %s", c.FilePath)
+		}
+	}
+
+	// Verify the one file is main.go
+	if len(changes) == 1 && changes[0].FilePath != "main.go" {
+		t.Errorf("expected main.go, got %s", changes[0].FilePath)
 	}
 }
 
