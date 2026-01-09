@@ -803,6 +803,7 @@ export function ProjectFileTree({
                   key={`${node.kind}:${node.path}`}
                   node={node}
                   prefixParts={rootPrefix}
+                  depth={0}
                   expandedFolders={expandedFolders}
                   selectedTreeFolder={selectedTreeFolder}
                   dragSourcePath={dragSourcePath}
