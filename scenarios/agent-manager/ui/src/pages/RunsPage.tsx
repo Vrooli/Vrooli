@@ -33,6 +33,7 @@ import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
+import { useViewportSize } from "../hooks/useViewportSize";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -98,6 +99,7 @@ export function RunsPage({
 }: RunsPageProps) {
   const { runId } = useParams<{ runId?: string }>();
   const navigate = useNavigate();
+  const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<RunDiff | null>(null);
@@ -377,6 +379,23 @@ export function RunsPage({
 
     return result;
   }, [runs, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (runId) return;
+    if (filteredAndSortedRuns.length === 0) return;
+
+    const selectedRunId = selectedRun?.id ?? null;
+    const hasSelection =
+      selectedRunId !== null &&
+      filteredAndSortedRuns.some((run) => run.id === selectedRunId);
+
+    if (!hasSelection) {
+      const firstRun = filteredAndSortedRuns[0];
+      navigate(`/runs/${firstRun.id}`, { replace: true });
+      loadRunDetails(firstRun);
+    }
+  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRun?.id]);
 
   const filters: FilterConfig[] = [
     {

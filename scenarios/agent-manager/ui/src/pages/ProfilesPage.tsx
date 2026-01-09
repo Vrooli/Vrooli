@@ -29,6 +29,7 @@ import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, Runner
 import { ModelPreset, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
 import { ProfileDetail } from "../components/ProfileDetail";
+import { useViewportSize } from "../hooks/useViewportSize";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -99,6 +100,7 @@ export function ProfilesPage({
   runners,
   modelRegistry,
 }: ProfilesPageProps) {
+  const { isDesktop } = useViewportSize();
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
   };
@@ -294,6 +296,19 @@ export function ProfilesPage({
 
     return result;
   }, [profiles, runnerTypeFilter, searchQuery, sortBy]);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (filteredAndSortedProfiles.length === 0) return;
+
+    const hasSelection =
+      selectedProfileId !== null &&
+      filteredAndSortedProfiles.some((profile) => profile.id === selectedProfileId);
+
+    if (!hasSelection) {
+      setSelectedProfileId(filteredAndSortedProfiles[0].id);
+    }
+  }, [filteredAndSortedProfiles, isDesktop, selectedProfileId]);
 
   const filters: FilterConfig[] = [
     {

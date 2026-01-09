@@ -3,6 +3,7 @@
  *
  * Modal for importing existing project folders into the browser-automation-studio.
  * Features both drag-and-drop and folder browser for easy navigation and project discovery.
+ * Responsive layout: side-by-side on desktop, stacked on mobile.
  * Two-step flow: browse/validate folder path, then preview and import.
  */
 
@@ -10,17 +11,14 @@ import { useState, useEffect, useId, useRef, useCallback } from 'react';
 import {
   X,
   Upload,
-  AlertCircle,
   FolderSearch,
   Loader2,
-  CheckCircle2,
 } from 'lucide-react';
 import { ResponsiveDialog } from '@shared/layout';
 import { selectors } from '@constants/selectors';
 import toast from 'react-hot-toast';
 
-import { DropZone } from '../components/DropZone';
-import { FolderBrowser } from '../components/FolderBrowser';
+import { ImportSourceSelector } from '../components/ImportSourceSelector';
 import { StatusBadge, AlertBox } from '../components/ValidationStatus';
 import { useProjectImport, type InspectFolderResponse } from '../hooks/useProjectImport';
 import { getApiBase } from '../../../config';
@@ -43,7 +41,6 @@ export function ProjectImportModal({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [pathValidationStatus, setPathValidationStatus] = useState<'valid' | 'invalid' | 'checking' | null>(null);
 
-  const folderInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -117,16 +114,6 @@ export function ProjectImportModal({
     }
   }, [isOpen, reset]);
 
-  // Focus folder input when modal opens
-  useEffect(() => {
-    if (isOpen && folderInputRef.current && !showPreview) {
-      const timer = setTimeout(() => {
-        folderInputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, showPreview]);
-
   const validateFolderPath = useCallback((path: string): string | null => {
     const trimmed = path.trim();
     if (!trimmed) {
@@ -184,13 +171,6 @@ export function ProjectImportModal({
     reset();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !showPreview && !isInspecting) {
-      e.preventDefault();
-      handleValidate();
-    }
-  };
-
   // Handle folder selection from browser
   const handleFolderSelect = useCallback(async (entry: FolderEntry) => {
     setFolderPath(entry.path);
@@ -206,61 +186,70 @@ export function ProjectImportModal({
     clearError();
   }, [clearError]);
 
+  // Handle folder path submit (Enter key or validate button)
+  const handlePathSubmit = useCallback(() => {
+    if (!isInspecting) {
+      handleValidate();
+    }
+  }, [isInspecting, handleValidate]);
+
   return (
     <ResponsiveDialog
       isOpen={isOpen}
       onDismiss={onClose}
       ariaLabelledBy={titleId}
-      size="default"
+      size="wide"
       overlayClassName="bg-black/70 backdrop-blur-sm"
-      className="bg-gray-900 border border-gray-700/50 shadow-2xl rounded-2xl overflow-hidden"
+      className="bg-gray-900 border border-gray-700/50 shadow-2xl rounded-2xl overflow-hidden !p-0"
     >
-      <div data-testid={selectors.dialogs.projectImport.root}>
-        {/* Header */}
-        <div className="relative px-6 pt-6 pb-4">
+      <div data-testid={selectors.dialogs.projectImport.root} className="flex flex-col max-h-[inherit]">
+        {/* Header - fixed at top, condensed on mobile */}
+        <div className="relative px-4 pt-4 pb-2 md:px-6 md:pt-6 md:pb-4 flex-shrink-0">
           {/* Close button */}
           <button
             type="button"
             data-testid={selectors.dialogs.base.closeButton}
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="absolute top-3 right-3 md:top-4 md:right-4 p-1.5 md:p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             aria-label="Close import modal"
             disabled={isImporting}
           >
             <X size={18} />
           </button>
 
-          {/* Icon & Title */}
-          <div className="flex flex-col items-center text-center mb-2">
-            <div className="w-14 h-14 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-green-500/10">
-              <Upload size={28} className="text-green-400" />
+          {/* Icon & Title - inline on mobile, stacked on desktop */}
+          <div className="flex items-center gap-3 md:flex-col md:items-center md:text-center md:gap-0 mb-1 md:mb-2">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-xl md:rounded-2xl flex items-center justify-center md:mb-4 shadow-lg shadow-green-500/10 flex-shrink-0">
+              <Upload size={20} className="md:hidden text-green-400" />
+              <Upload size={28} className="hidden md:block text-green-400" />
             </div>
-            <h2
-              id={titleId}
-              className="text-xl font-bold text-white tracking-tight"
-            >
-              Import Project
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              {showPreview
-                ? 'Review and import the project'
-                : 'Browse or enter the path to import'}
-            </p>
+            <div>
+              <h2
+                id={titleId}
+                className="text-lg md:text-xl font-bold text-white tracking-tight"
+              >
+                Import Project
+              </h2>
+              <p className="text-xs md:text-sm text-gray-400 md:mt-1">
+                {showPreview
+                  ? 'Review and import the project'
+                  : 'Drag a folder or browse to select'}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="px-6 pb-6">
+        {/* Content - scrollable */}
+        <div className="px-6 pb-6 flex-1 overflow-y-auto min-h-0">
           {!showPreview ? (
             <SelectStep
               folderPath={folderPath}
-              folderInputRef={folderInputRef}
               validationError={validationError}
               pathValidationStatus={pathValidationStatus}
               error={error}
               isInspecting={isInspecting}
               onFolderPathChange={handleFolderPathChange}
-              onKeyDown={handleKeyDown}
+              onPathSubmit={handlePathSubmit}
               onFolderSelect={handleFolderSelect}
               onValidate={() => handleValidate()}
               onClose={onClose}
@@ -285,16 +274,15 @@ export function ProjectImportModal({
   );
 }
 
-/** Selection step */
+/** Selection step with dual-input pattern */
 interface SelectStepProps {
   folderPath: string;
-  folderInputRef: React.RefObject<HTMLInputElement>;
   validationError: string | null;
   pathValidationStatus: 'valid' | 'invalid' | 'checking' | null;
   error: string | null;
   isInspecting: boolean;
   onFolderPathChange: (path: string) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
+  onPathSubmit: () => void;
   onFolderSelect: (entry: FolderEntry) => void;
   onValidate: () => void;
   onClose: () => void;
@@ -302,103 +290,50 @@ interface SelectStepProps {
 
 function SelectStep({
   folderPath,
-  folderInputRef,
   validationError,
   pathValidationStatus,
   error,
   isInspecting,
   onFolderPathChange,
-  onKeyDown,
+  onPathSubmit,
   onFolderSelect,
   onValidate,
   onClose,
 }: SelectStepProps) {
   return (
     <>
-      {/* DropZone for folder selection */}
-      <DropZone
-        variant="folder"
-        onFolderSelected={(path) => {
+      <ImportSourceSelector
+        // DropZone props
+        dropZoneVariant="folder"
+        dropZoneLabel="Drop project folder here"
+        dropZoneDescription="or use the browser on the right"
+        onDropZoneFolderSelected={(path) => {
           onFolderPathChange(path);
-          // Auto-validate when folder is selected via system picker
+          // Note: Native folder picker gives folder name, not full path
+          // User will need to use browser for full path selection
         }}
-        label="Drop project folder here"
-        description="or use the browser below"
-        showPreview={false}
-        disabled={isInspecting}
-      />
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px bg-gray-700/50" />
-        <span className="text-xs text-gray-500">or enter path manually</span>
-        <div className="flex-1 h-px bg-gray-700/50" />
-      </div>
-
-      {/* Folder Path Input */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Project Folder Path
-        </label>
-        <div className="relative">
-          <input
-            ref={folderInputRef}
-            type="text"
-            data-testid={selectors.dialogs.projectImport.folderPathInput}
-            value={folderPath}
-            onChange={(e) => onFolderPathChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            className={`w-full px-4 py-3 pr-10 bg-gray-800/50 border-2 rounded-xl text-white placeholder-gray-500 focus:outline-none font-mono text-sm transition-colors ${
-              validationError || error
-                ? 'border-red-500/50 focus:border-red-500'
-                : pathValidationStatus === 'valid'
-                ? 'border-green-500/50 focus:border-green-500'
-                : 'border-gray-700/50 focus:border-flow-accent'
-            }`}
-            placeholder="/path/to/existing/project"
-            disabled={isInspecting}
-          />
-          {/* Validation status indicator */}
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {pathValidationStatus === 'checking' && (
-              <Loader2 size={16} className="animate-spin text-gray-500" />
-            )}
-            {pathValidationStatus === 'valid' && (
-              <CheckCircle2 size={16} className="text-green-400" />
-            )}
-            {pathValidationStatus === 'invalid' && (
-              <AlertCircle size={16} className="text-red-400" />
-            )}
-          </div>
-        </div>
-        {(validationError || error) && (
-          <p
-            className="mt-2 text-red-400 text-xs flex items-center gap-1"
-            data-testid={selectors.dialogs.projectImport.folderPathError}
-          >
-            <AlertCircle size={12} />
-            {validationError || error}
-          </p>
-        )}
-      </div>
-
-      {/* Folder Browser Panel */}
-      <FolderBrowser
-        mode="projects"
-        onSelect={onFolderSelect}
+        // FolderBrowser props
+        folderBrowserMode="projects"
+        onFolderSelect={onFolderSelect}
         onNavigate={onFolderPathChange}
         initialPath={DEFAULT_PROJECTS_ROOT}
         showRegistered={false}
-        className="max-h-48"
-      />
 
-      {/* Loading indicator */}
-      {isInspecting && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
-          <Loader2 size={16} className="animate-spin" />
-          <span className="text-sm">Inspecting folder...</span>
-        </div>
-      )}
+        // Path input
+        showPathInput={true}
+        pathValue={folderPath}
+        pathLabel="Project Folder Path"
+        pathPlaceholder="/path/to/existing/project"
+        onPathChange={onFolderPathChange}
+        onPathSubmit={onPathSubmit}
+        pathValidationStatus={pathValidationStatus}
+        pathError={validationError || error}
+
+        // State
+        disabled={isInspecting}
+        isLoading={isInspecting}
+      />
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-4">

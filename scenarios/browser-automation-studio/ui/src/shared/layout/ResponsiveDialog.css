@@ -44,7 +44,7 @@
 
 .responsive-dialog__content--wide {
   width: min(960px, 100%);
-  max-height: min(660px, calc(100vh - 64px));
+  max-height: min(720px, calc(100vh - 64px));
 }
 
 .responsive-dialog__content--xl {

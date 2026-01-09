@@ -3,19 +3,20 @@
  *
  * Modal for importing workflow/routine files into a project.
  * Supports both drag-and-drop file upload and folder browsing.
+ * Responsive layout: side-by-side on desktop, stacked on mobile.
  */
 
-import { useState, useEffect, useCallback, useId, useRef } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { FileCode, Loader2, X, Upload } from 'lucide-react';
 import { ResponsiveDialog } from '@shared/layout';
 import toast from 'react-hot-toast';
 
-import { DropZone } from '../components/DropZone';
-import { FolderBrowser } from '../components/FolderBrowser';
+import { ImportSourceSelector } from '../components/ImportSourceSelector';
 import { StatusBadge, AlertBox } from '../components/ValidationStatus';
 import { useRoutineImport, type InspectRoutineResponse } from '../hooks/useRoutineImport';
 import type { RoutineImportModalProps, FolderEntry, SelectedFile } from '../types';
 import { WORKFLOW_EXTENSIONS } from '../constants';
+import { getApiBase } from '../../../config';
 
 type Step = 'select' | 'preview';
 
@@ -32,8 +33,7 @@ export function RoutineImportModal({
   const [currentFolderPath, setCurrentFolderPath] = useState('');
   const [workflowName, setWorkflowName] = useState('');
   const [overwrite, setOverwrite] = useState(false);
-
-  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const {
     isInspecting,
@@ -54,6 +54,7 @@ export function RoutineImportModal({
       setCurrentFolderPath('');
       setWorkflowName('');
       setOverwrite(false);
+      setIsUploadingFile(false);
       reset();
     }
   }, [isOpen, reset]);
@@ -65,7 +66,7 @@ export function RoutineImportModal({
     }
   }, [inspectResult, workflowName]);
 
-  // Handle file selection from drop zone
+  // Handle file selection from drop zone - upload to temp then inspect
   const handleFilesSelected = useCallback(
     async (files: SelectedFile[]) => {
       if (files.length === 0) return;
@@ -75,12 +76,40 @@ export function RoutineImportModal({
         return;
       }
 
-      // For dropped files, we need the path - in browser context we can't get it
-      // This would work with Electron/Tauri where we have file system access
-      // For now, show a message that folder browsing is preferred
-      toast.error('Please use folder browser to select workflow files');
+      setIsUploadingFile(true);
+      clearError();
+
+      try {
+        // Upload file to temp location on server
+        const formData = new FormData();
+        formData.append('file', file.file);
+        formData.append('project_id', projectId);
+
+        const uploadResponse = await fetch(`${getApiBase()}/projects/${projectId}/routines/upload-temp`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.message || 'Failed to upload file');
+        }
+
+        const { temp_path } = await uploadResponse.json();
+        setSelectedPath(temp_path);
+
+        // Inspect the uploaded file
+        const result = await inspectFile(temp_path);
+        if (result && result.exists && result.is_valid) {
+          setStep('preview');
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to upload file');
+      } finally {
+        setIsUploadingFile(false);
+      }
     },
-    []
+    [projectId, inspectFile, clearError]
   );
 
   // Handle folder navigation in browser
@@ -134,55 +163,67 @@ export function RoutineImportModal({
   }, [clearError]);
 
   const showPreview = step === 'preview' && inspectResult;
+  const isLoading = isInspecting || isUploadingFile;
 
   return (
     <ResponsiveDialog
       isOpen={isOpen}
       onDismiss={onClose}
       ariaLabelledBy={titleId}
-      size="default"
+      size="wide"
       overlayClassName="bg-black/70 backdrop-blur-sm"
-      className="bg-gray-900 border border-gray-700/50 shadow-2xl rounded-2xl overflow-hidden"
+      className="bg-gray-900 border border-gray-700/50 shadow-2xl rounded-2xl overflow-hidden !p-0"
     >
-      <div>
-        {/* Header */}
-        <div className="relative px-6 pt-6 pb-4">
+      <div className="flex flex-col max-h-[inherit]">
+        {/* Header - fixed at top, condensed on mobile */}
+        <div className="relative px-4 pt-4 pb-2 md:px-6 md:pt-6 md:pb-4 flex-shrink-0">
           {/* Close button */}
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="absolute top-3 right-3 md:top-4 md:right-4 p-1.5 md:p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             aria-label="Close"
             disabled={isImporting}
           >
             <X size={18} />
           </button>
 
-          {/* Icon & Title */}
-          <div className="flex flex-col items-center text-center mb-2">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500/30 to-violet-500/20 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/10">
-              <FileCode size={28} className="text-purple-400" />
+          {/* Icon & Title - inline on mobile, stacked on desktop */}
+          <div className="flex items-center gap-3 md:flex-col md:items-center md:text-center md:gap-0 mb-1 md:mb-2">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-purple-500/30 to-violet-500/20 rounded-xl md:rounded-2xl flex items-center justify-center md:mb-4 shadow-lg shadow-purple-500/10 flex-shrink-0">
+              <FileCode size={20} className="md:hidden text-purple-400" />
+              <FileCode size={28} className="hidden md:block text-purple-400" />
             </div>
-            <h2 id={titleId} className="text-xl font-bold text-white tracking-tight">
-              Import Workflow
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              {showPreview
-                ? 'Review and import the workflow'
-                : 'Select a workflow file to import'}
-            </p>
+            <div>
+              <h2 id={titleId} className="text-lg md:text-xl font-bold text-white tracking-tight">
+                Import Workflow
+              </h2>
+              <p className="text-xs md:text-sm text-gray-400 md:mt-1">
+                {showPreview
+                  ? 'Review and import the workflow'
+                  : 'Drag a file or browse to select'}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="px-6 pb-6">
+        {/* Content - scrollable */}
+        <div className="px-6 pb-6 flex-1 overflow-y-auto min-h-0">
+          {/* Error */}
+          {error && (
+            <AlertBox
+              type="error"
+              title="Error"
+              message={error}
+              className="mb-4"
+            />
+          )}
+
           {!showPreview ? (
             <SelectStep
               projectId={projectId}
               folderPath={currentFolderPath}
-              folderInputRef={folderInputRef}
-              isInspecting={isInspecting}
-              error={error}
+              isLoading={isLoading}
               onFolderPathChange={handleFolderPathChange}
               onFolderNavigate={handleFolderNavigate}
               onFilesSelected={handleFilesSelected}
@@ -209,13 +250,11 @@ export function RoutineImportModal({
   );
 }
 
-/** Selection step */
+/** Selection step with dual-input pattern */
 interface SelectStepProps {
   projectId: string;
   folderPath: string;
-  folderInputRef: React.RefObject<HTMLInputElement>;
-  isInspecting: boolean;
-  error: string | null;
+  isLoading: boolean;
   onFolderPathChange: (path: string) => void;
   onFolderNavigate: (path: string) => void;
   onFilesSelected: (files: SelectedFile[]) => void;
@@ -226,9 +265,7 @@ interface SelectStepProps {
 function SelectStep({
   projectId,
   folderPath,
-  folderInputRef,
-  isInspecting,
-  error,
+  isLoading,
   onFolderPathChange,
   onFolderNavigate,
   onFilesSelected,
@@ -237,70 +274,32 @@ function SelectStep({
 }: SelectStepProps) {
   return (
     <>
-      {/* Drop Zone */}
-      <DropZone
-        variant="file"
-        accept={WORKFLOW_EXTENSIONS as unknown as string[]}
+      <ImportSourceSelector
+        // DropZone props
+        dropZoneVariant="file"
+        dropZoneAccept={WORKFLOW_EXTENSIONS as unknown as string[]}
+        dropZoneLabel="Drag workflow file here"
+        dropZoneDescription="or click to browse your device"
         onFilesSelected={onFilesSelected}
-        label="Drop workflow file here"
-        description="or browse below"
-        showPreview={false}
-        disabled={isInspecting}
-      />
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px bg-gray-700/50" />
-        <span className="text-xs text-gray-500">or browse project files</span>
-        <div className="flex-1 h-px bg-gray-700/50" />
-      </div>
-
-      {/* Folder Path Input */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Current Location
-        </label>
-        <div className="relative">
-          <input
-            ref={folderInputRef}
-            type="text"
-            value={folderPath}
-            onChange={(e) => onFolderPathChange(e.target.value)}
-            className="w-full px-4 py-3 pr-10 bg-gray-800/50 border-2 border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 font-mono text-sm transition-colors"
-            placeholder="Browsing workflows folder..."
-            disabled={isInspecting}
-            readOnly
-          />
-        </div>
-      </div>
-
-      {/* Folder Browser */}
-      <FolderBrowser
-        mode="workflows"
+        // FolderBrowser props
+        folderBrowserMode="workflows"
         projectId={projectId}
-        onSelect={onFolderSelect}
+        onFolderSelect={onFolderSelect}
         onNavigate={onFolderNavigate}
         showRegistered={false}
-        className="max-h-48"
+
+        // Path input
+        showPathInput={true}
+        pathValue={folderPath}
+        pathLabel="Current Location"
+        pathPlaceholder="Browsing workflows folder..."
+        onPathChange={onFolderPathChange}
+
+        // State
+        disabled={isLoading}
+        isLoading={isLoading}
       />
-
-      {/* Error */}
-      {error && (
-        <AlertBox
-          type="error"
-          title="Error"
-          message={error}
-          className="mt-4"
-        />
-      )}
-
-      {/* Loading indicator */}
-      {isInspecting && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
-          <Loader2 size={16} className="animate-spin" />
-          <span className="text-sm">Inspecting workflow...</span>
-        </div>
-      )}
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-4">
@@ -308,7 +307,7 @@ function SelectStep({
           type="button"
           onClick={onClose}
           className="px-5 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors"
-          disabled={isInspecting}
+          disabled={isLoading}
         >
           Cancel
         </button>
@@ -336,7 +335,6 @@ function PreviewStep({
   workflowName,
   overwrite,
   isImporting,
-  error,
   onNameChange,
   onOverwriteChange,
   onBack,
@@ -446,16 +444,6 @@ function PreviewStep({
           />
           Overwrite existing workflow
         </label>
-      )}
-
-      {/* Error */}
-      {error && (
-        <AlertBox
-          type="error"
-          title="Import Error"
-          message={error}
-          className="mb-4"
-        />
       )}
 
       {/* Actions */}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   AlertCircle,
@@ -38,6 +38,7 @@ import { SearchToolbar, type FilterConfig, type SortOption } from "../components
 import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
+import { useViewportSize } from "../hooks/useViewportSize";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -133,6 +134,7 @@ export function TasksPage({
   runners,
   modelRegistry,
 }: TasksPageProps) {
+  const { isDesktop } = useViewportSize();
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
   };
@@ -467,6 +469,19 @@ export function TasksPage({
 
     return result;
   }, [tasks, statusFilter, searchQuery, sortBy]);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (filteredAndSortedTasks.length === 0) return;
+
+    const hasSelection =
+      selectedTaskId !== null &&
+      filteredAndSortedTasks.some((task) => task.id === selectedTaskId);
+
+    if (!hasSelection) {
+      setSelectedTaskId(filteredAndSortedTasks[0].id);
+    }
+  }, [filteredAndSortedTasks, isDesktop, selectedTaskId]);
 
   const filters: FilterConfig[] = [
     {

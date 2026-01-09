@@ -52,7 +52,7 @@ const ALLOWED_BASH_COMMANDS = [
   "gofmt", "gofumpt", "golangci-lint",
   "pnpm typecheck", "pnpm run typecheck", "tsc",
   "ls", "pwd", "which", "wc", "diff",
-  "git status", "git diff", "git log", "git show", "git branch"
+  "git status", "git diff", "git log", "git show"
 ];
 
 function buildSafetyPreamble(
