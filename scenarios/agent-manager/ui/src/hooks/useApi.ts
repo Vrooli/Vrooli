@@ -624,10 +624,14 @@ export function useRuns() {
   );
 
   const investigateRuns = useCallback(
-    async (runIds: string[], customContext?: string): Promise<Run> => {
+    async (
+      runIds: string[],
+      customContext?: string,
+      depth?: "quick" | "standard" | "deep"
+    ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
-        body: JSON.stringify({ runIds, customContext }),
+        body: JSON.stringify({ runIds, customContext, depth }),
       });
       const message = parseProto<any>(CreateRunResponseSchema, created);
       const mapped = message.run as Run;

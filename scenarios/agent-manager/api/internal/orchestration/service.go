@@ -57,7 +57,7 @@ type Service interface {
 
 	// --- Run Operations ---
 	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
-	CreateInvestigationRun(ctx context.Context, runIDs []uuid.UUID, customContext string) (*domain.Run, error)
+	CreateInvestigationRun(ctx context.Context, req CreateInvestigationRequest) (*domain.Run, error)
 	CreateInvestigationApplyRun(ctx context.Context, investigationRunID uuid.UUID, customContext string) (*domain.Run, error)
 	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
 	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
@@ -237,6 +237,13 @@ type StopAllResult struct {
 type ContinueRunRequest struct {
 	RunID   uuid.UUID `json:"runId"`
 	Message string    `json:"message"`
+}
+
+// CreateInvestigationRequest contains parameters for creating an investigation run.
+type CreateInvestigationRequest struct {
+	RunIDs        []uuid.UUID        `json:"runIds"`
+	CustomContext string             `json:"customContext,omitempty"`
+	Depth         InvestigationDepth `json:"depth,omitempty"` // Defaults to "standard"
 }
 
 // ApproveRequest contains parameters for approving a run.

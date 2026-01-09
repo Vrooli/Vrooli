@@ -52,7 +52,7 @@ interface RunsPageProps {
   onGetDiff: (id: string) => Promise<RunDiff>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
-  onInvestigateRuns: (runIds: string[], customContext?: string) => Promise<Run>;
+  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep") => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
   onContinueRun: (id: string, message: string) => Promise<Run>;
   onRefresh: () => void;
@@ -314,11 +314,11 @@ export function RunsPage({
     setSelectionMode(!selectionMode);
   };
 
-  const handleInvestigate = async (customContext: string) => {
+  const handleInvestigate = async (customContext: string, depth: "quick" | "standard" | "deep") => {
     setInvestigateLoading(true);
     setInvestigateError(null);
     try {
-      const created = await onInvestigateRuns(Array.from(selectedRunIds), customContext || undefined);
+      const created = await onInvestigateRuns(Array.from(selectedRunIds), customContext || undefined, depth);
       setInvestigateModalOpen(false);
       setSelectedRunIds(new Set());
       setSelectionMode(false);

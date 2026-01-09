@@ -132,9 +132,14 @@ export interface RejectFormData {
   reason?: string;
 }
 
+/** Investigation depth controls how thorough the investigation should be. */
+export type InvestigationDepth = "quick" | "standard" | "deep";
+
 export interface CreateInvestigationRunRequest {
   runIds: string[];
   customContext?: string;
+  /** Investigation depth: quick (fast analysis), standard (balanced), or deep (thorough) */
+  depth?: InvestigationDepth;
 }
 
 export interface ApplyInvestigationRunRequest {

@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,23 +26,271 @@ const (
 	investigationReportTimeout = 10 * time.Minute
 )
 
+// InvestigationDepth controls how thorough the investigation should be.
+type InvestigationDepth string
+
+const (
+	// InvestigationDepthQuick performs rapid analysis with minimal exploration.
+	InvestigationDepthQuick InvestigationDepth = "quick"
+	// InvestigationDepthStandard performs balanced analysis with targeted exploration.
+	InvestigationDepthStandard InvestigationDepth = "standard"
+	// InvestigationDepthDeep performs thorough exploration of the codebase.
+	InvestigationDepthDeep InvestigationDepth = "deep"
+)
+
+// IsValid checks if the investigation depth is valid.
+func (d InvestigationDepth) IsValid() bool {
+	switch d {
+	case InvestigationDepthQuick, InvestigationDepthStandard, InvestigationDepthDeep, "":
+		return true
+	default:
+		return false
+	}
+}
+
+// ScenarioContext contains information about a scenario being investigated.
+type ScenarioContext struct {
+	ProjectRoot    string   `json:"projectRoot"`
+	ScenarioName   string   `json:"scenarioName,omitempty"`
+	RunIDs         []string `json:"runIds"`
+	KeyFiles       []string `json:"keyFiles,omitempty"`
+	StructureHints []string `json:"structureHints,omitempty"`
+}
+
+// extractScenarioRoots extracts unique project roots from the investigated runs' tasks.
+// Returns a map of projectRoot -> list of runIDs that use that root.
+func (o *Orchestrator) extractScenarioRoots(ctx context.Context, runIDs []uuid.UUID) (map[string][]uuid.UUID, error) {
+	roots := make(map[string][]uuid.UUID)
+
+	for _, runID := range runIDs {
+		run, err := o.GetRun(ctx, runID)
+		if err != nil {
+			return nil, err
+		}
+
+		task, err := o.GetTask(ctx, run.TaskID)
+		if err != nil {
+			return nil, err
+		}
+
+		projectRoot := task.ProjectRoot
+		if projectRoot == "" {
+			projectRoot = o.config.DefaultProjectRoot // Fallback
+		}
+
+		roots[projectRoot] = append(roots[projectRoot], runID)
+	}
+
+	return roots, nil
+}
+
+// determineInvestigationWorkDir determines the appropriate working directory for investigation.
+// If all runs share the same projectRoot, use that. Otherwise, use the common ancestor.
+func determineInvestigationWorkDir(roots map[string][]uuid.UUID, fallback string) string {
+	if len(roots) == 0 {
+		return fallback
+	}
+
+	// If single root, use it directly
+	if len(roots) == 1 {
+		for root := range roots {
+			return root
+		}
+	}
+
+	// Multiple roots - find common ancestor
+	var paths []string
+	for root := range roots {
+		paths = append(paths, root)
+	}
+
+	return findCommonAncestor(paths, fallback)
+}
+
+// findCommonAncestor finds the common ancestor directory of multiple paths.
+func findCommonAncestor(paths []string, fallback string) string {
+	if len(paths) == 0 {
+		return fallback
+	}
+
+	parts := strings.Split(paths[0], string(os.PathSeparator))
+
+	for _, path := range paths[1:] {
+		otherParts := strings.Split(path, string(os.PathSeparator))
+		minLen := len(parts)
+		if len(otherParts) < minLen {
+			minLen = len(otherParts)
+		}
+
+		commonLen := 0
+		for i := 0; i < minLen; i++ {
+			if parts[i] == otherParts[i] {
+				commonLen = i + 1
+			} else {
+				break
+			}
+		}
+		parts = parts[:commonLen]
+	}
+
+	if len(parts) == 0 {
+		return fallback
+	}
+
+	return strings.Join(parts, string(os.PathSeparator))
+}
+
+// buildScenarioContextAttachment creates a context attachment describing the scenarios.
+func buildScenarioContextAttachment(roots map[string][]uuid.UUID) domain.ContextAttachment {
+	var contexts []ScenarioContext
+
+	for root, runIDs := range roots {
+		scenarioCtx := ScenarioContext{
+			ProjectRoot: root,
+			RunIDs:      make([]string, len(runIDs)),
+		}
+
+		for i, id := range runIDs {
+			scenarioCtx.RunIDs[i] = id.String()
+		}
+
+		// Extract scenario name from path
+		scenarioCtx.ScenarioName = extractScenarioName(root)
+
+		// Add key files to explore
+		scenarioCtx.KeyFiles = detectKeyFiles(root)
+
+		// Add structure hints
+		scenarioCtx.StructureHints = getStructureHints(root)
+
+		contexts = append(contexts, scenarioCtx)
+	}
+
+	content, _ := json.MarshalIndent(contexts, "", "  ")
+
+	return domain.ContextAttachment{
+		Type:    "note",
+		Key:     "scenario-context",
+		Label:   "Scenario Context",
+		Content: string(content),
+		Tags:    []string{"scenario", "context", "investigation"},
+	}
+}
+
+// extractScenarioName extracts the scenario name from a project root path.
+func extractScenarioName(projectRoot string) string {
+	// Extract scenario name from path like "/home/.../Vrooli/scenarios/agent-manager"
+	parts := strings.Split(projectRoot, string(os.PathSeparator))
+	for i, part := range parts {
+		if part == "scenarios" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	// Fallback to last path component
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return "unknown"
+}
+
+// detectKeyFiles finds important files in a project root.
+func detectKeyFiles(projectRoot string) []string {
+	keyFiles := []string{
+		"CLAUDE.md",
+		"README.md",
+		"service.json",
+		"Makefile",
+		".vrooli/service.json",
+	}
+
+	var found []string
+	for _, file := range keyFiles {
+		path := filepath.Join(projectRoot, file)
+		if _, err := os.Stat(path); err == nil {
+			found = append(found, file)
+		}
+	}
+
+	// Check for common subdirectories
+	for _, subdir := range []string{"api", "ui", "cli", "docs"} {
+		path := filepath.Join(projectRoot, subdir)
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			found = append(found, subdir+"/")
+		}
+	}
+
+	return found
+}
+
+// getStructureHints provides hints about the project structure.
+func getStructureHints(projectRoot string) []string {
+	var hints []string
+
+	// Check for Go API
+	if _, err := os.Stat(filepath.Join(projectRoot, "api", "main.go")); err == nil {
+		hints = append(hints, "Go API in api/ - check api/internal/ for handlers and services")
+	}
+
+	// Check for React UI
+	if _, err := os.Stat(filepath.Join(projectRoot, "ui", "package.json")); err == nil {
+		hints = append(hints, "React UI in ui/ - check ui/src/ for components and hooks")
+	}
+
+	// Check for CLI
+	if _, err := os.Stat(filepath.Join(projectRoot, "cli")); err == nil {
+		hints = append(hints, "CLI in cli/ - check for command implementations")
+	}
+
+	// Check for CLAUDE.md
+	if _, err := os.Stat(filepath.Join(projectRoot, "CLAUDE.md")); err == nil {
+		hints = append(hints, "Has CLAUDE.md - read this first for project context")
+	}
+
+	return hints
+}
+
 // CreateInvestigationRun creates a new investigation run for the given run IDs.
 func (o *Orchestrator) CreateInvestigationRun(
 	ctx context.Context,
-	runIDs []uuid.UUID,
-	customContext string,
+	req CreateInvestigationRequest,
 ) (*domain.Run, error) {
-	if len(runIDs) == 0 {
+	if len(req.RunIDs) == 0 {
 		return nil, domain.NewValidationError("runIds", "at least one run ID is required")
 	}
 
-	attachments, err := o.buildInvestigationAttachments(ctx, runIDs, customContext)
+	// Default depth to standard
+	depth := req.Depth
+	if depth == "" {
+		depth = InvestigationDepthStandard
+	}
+	if !depth.IsValid() {
+		return nil, domain.NewValidationError("depth", "must be 'quick', 'standard', or 'deep'")
+	}
+
+	// Extract scenario roots from investigated runs
+	roots, err := o.extractScenarioRoots(ctx, req.RunIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract scenario roots: %w", err)
+	}
+
+	// Determine working directory
+	workDir := determineInvestigationWorkDir(roots, o.config.DefaultProjectRoot)
+
+	// Build attachments
+	attachments, err := o.buildInvestigationAttachments(ctx, req.RunIDs, req.CustomContext)
 	if err != nil {
 		return nil, err
 	}
 
-	prompt := buildInvestigationPrompt(runIDs, customContext)
-	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments)
+	// Add scenario context attachment as first attachment
+	scenarioCtx := buildScenarioContextAttachment(roots)
+	attachments = append([]domain.ContextAttachment{scenarioCtx}, attachments...)
+
+	// Build directive prompt with depth awareness
+	prompt := buildInvestigationPrompt(req.RunIDs, req.CustomContext, depth, roots)
+
+	// Create task with correct working directory
+	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, workDir)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +323,8 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	}
 
 	prompt := buildApplyPrompt(investigationRunID, customContext)
-	applyTask, err := o.createInvestigationTask(ctx, "Apply Investigation", prompt, attachments)
+	// Use the original task's project root for the apply run
+	applyTask, err := o.createInvestigationTask(ctx, "Apply Investigation", prompt, attachments, task.ProjectRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +337,12 @@ func (o *Orchestrator) createInvestigationTask(
 	titlePrefix string,
 	prompt string,
 	attachments []domain.ContextAttachment,
+	projectRoot string,
 ) (*domain.Task, error) {
 	now := time.Now()
-	projectRoot := strings.TrimSpace(o.config.DefaultProjectRoot)
+	if projectRoot == "" {
+		projectRoot = strings.TrimSpace(o.config.DefaultProjectRoot)
+	}
 	task := &domain.Task{
 		ID:                 uuid.New(),
 		Title:              fmt.Sprintf("%s %s", titlePrefix, taskShortID()),
@@ -255,33 +509,105 @@ func (o *Orchestrator) buildApplyAttachments(
 	return attachments, nil
 }
 
-func buildInvestigationPrompt(runIDs []uuid.UUID, customContext string) string {
+func buildInvestigationPrompt(runIDs []uuid.UUID, customContext string, depth InvestigationDepth, roots map[string][]uuid.UUID) string {
 	var sb strings.Builder
 	sb.WriteString("# Agent-Manager Investigation\n\n")
-	sb.WriteString("You are investigating agent-manager runs to diagnose issues and recommend improvements.\n\n")
 
+	// Set expectations based on depth
+	switch depth {
+	case InvestigationDepthQuick:
+		sb.WriteString("## Investigation Mode: QUICK\n")
+		sb.WriteString("Perform a rapid analysis focusing on the most obvious issues.\n")
+		sb.WriteString("Time target: 2-3 minutes. Focus on the error messages and immediate causes.\n\n")
+	case InvestigationDepthDeep:
+		sb.WriteString("## Investigation Mode: DEEP\n")
+		sb.WriteString("Perform a thorough investigation exploring all relevant code paths.\n")
+		sb.WriteString("Take time to understand the full context before diagnosing. Explore related files and dependencies.\n\n")
+	default: // Standard
+		sb.WriteString("## Investigation Mode: STANDARD\n")
+		sb.WriteString("Perform a balanced investigation with targeted exploration.\n\n")
+	}
+
+	// Directive instructions
+	sb.WriteString("## Your Mission\n")
+	sb.WriteString("You are an expert debugger. Your job is to ACTIVELY INVESTIGATE why the runs below failed.\n")
+	sb.WriteString("**Do NOT just analyze the provided data - EXPLORE THE CODEBASE to find root causes.**\n\n")
+
+	// Scenario locations to explore
+	sb.WriteString("## Scenario Locations to Explore\n")
+	for root, ids := range roots {
+		scenarioName := extractScenarioName(root)
+		sb.WriteString(fmt.Sprintf("### %s\n", scenarioName))
+		sb.WriteString(fmt.Sprintf("- **Path**: `%s`\n", root))
+		sb.WriteString(fmt.Sprintf("- **Runs**: %d\n", len(ids)))
+
+		// Add key files if they exist
+		keyFiles := detectKeyFiles(root)
+		if len(keyFiles) > 0 {
+			sb.WriteString(fmt.Sprintf("- **Key files**: %s\n", strings.Join(keyFiles, ", ")))
+		}
+
+		// Add structure hints
+		hints := getStructureHints(root)
+		for _, hint := range hints {
+			sb.WriteString(fmt.Sprintf("  - %s\n", hint))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Runs under investigation
 	sb.WriteString("## Runs Under Investigation\n")
 	for _, id := range runIDs {
-		sb.WriteString(fmt.Sprintf("- %s\n", id))
+		sb.WriteString(fmt.Sprintf("- `%s`\n", id))
 	}
 	sb.WriteString("\n")
 
-	sb.WriteString("## How to Fetch Full Run Data\n")
-	sb.WriteString("If you need full details beyond the attachments, use the agent-manager CLI:\n")
-	sb.WriteString("- agent-manager run get <run-id>\n")
-	sb.WriteString("- agent-manager run events <run-id>\n")
-	sb.WriteString("- agent-manager run diff <run-id>\n\n")
+	// Active investigation steps
+	sb.WriteString("## Required Investigation Steps\n")
+	sb.WriteString("1. **Read the scenario's CLAUDE.md or README.md** to understand the project structure\n")
+	sb.WriteString("2. **Analyze the error messages** in the attached run events - find the actual failure\n")
+	sb.WriteString("3. **Trace the error to source code** - use grep/read to find the failing code path\n")
+	sb.WriteString("4. **Check related files** - look at imports, dependencies, callers, and configuration\n")
+	sb.WriteString("5. **Identify the root cause** - distinguish symptoms from underlying issues\n\n")
 
+	// Common patterns to check
+	sb.WriteString("## Common Failure Patterns to Check\n")
+	sb.WriteString("- **Log/Output Issues**: Large outputs breaking scanners, missing newlines, buffering problems\n")
+	sb.WriteString("- **Path Issues**: Relative vs absolute paths, working directory assumptions\n")
+	sb.WriteString("- **Timeout Issues**: Operations taking longer than expected\n")
+	sb.WriteString("- **Tool Issues**: Missing tools, wrong tool usage, tool not trusted by agent\n")
+	sb.WriteString("- **Prompt Issues**: Agent not understanding instructions, missing context\n")
+	sb.WriteString("- **State Issues**: Stale data, cache invalidation, missing initialization\n\n")
+
+	// How to use CLI
+	sb.WriteString("## How to Fetch Additional Run Data\n")
+	sb.WriteString("If you need full details beyond the attachments, use the agent-manager CLI:\n")
+	sb.WriteString("```bash\n")
+	sb.WriteString("agent-manager run get <run-id>      # Full run details\n")
+	sb.WriteString("agent-manager run events <run-id>  # All events with tool calls\n")
+	sb.WriteString("agent-manager run diff <run-id>    # Code changes made\n")
+	sb.WriteString("```\n\n")
+
+	// Custom context from user
 	if strings.TrimSpace(customContext) != "" {
-		sb.WriteString("## Additional Context\n")
+		sb.WriteString("## Additional Context from User\n")
 		sb.WriteString(customContext)
 		sb.WriteString("\n\n")
 	}
 
-	sb.WriteString("## Report\n")
-	sb.WriteString("- Summary of root cause(s)\n")
-	sb.WriteString("- Evidence (reference run IDs and event sequences)\n")
-	sb.WriteString("- Recommendations\n")
+	// Report format
+	sb.WriteString("## Required Report Format\n")
+	sb.WriteString("Provide your findings in this structure:\n\n")
+	sb.WriteString("### 1. Executive Summary\n")
+	sb.WriteString("One-paragraph summary of what went wrong and why.\n\n")
+	sb.WriteString("### 2. Root Cause Analysis\n")
+	sb.WriteString("- **Primary cause** with file:line references\n")
+	sb.WriteString("- **Contributing factors**\n")
+	sb.WriteString("- **Evidence** (run IDs, event sequences, code snippets)\n\n")
+	sb.WriteString("### 3. Recommendations\n")
+	sb.WriteString("- **Immediate fix** (copy-pasteable code if possible)\n")
+	sb.WriteString("- **Preventive measures**\n")
+	sb.WriteString("- **Monitoring suggestions**\n")
 
 	return sb.String()
 }
@@ -322,14 +648,26 @@ func investigationProfileRef() *ProfileRef {
 
 func defaultInvestigationProfile() *domain.AgentProfile {
 	return &domain.AgentProfile{
-		Name:                 "Agent-Manager Investigation",
-		ProfileKey:           investigationProfileKey,
-		Description:          "Agent profile for agent-manager investigations",
-		RunnerType:           domain.RunnerTypeCodex,
-		ModelPreset:          domain.ModelPresetSmart,
-		MaxTurns:             50,
-		Timeout:              investigationReportTimeout,
-		AllowedTools:         []string{"read_file", "list_files", "execute_command", "analyze_code"},
+		Name:        "Agent-Manager Investigation",
+		ProfileKey:  investigationProfileKey,
+		Description: "Agent profile for active agent-manager investigations",
+		RunnerType:  domain.RunnerTypeCodex,
+		ModelPreset: domain.ModelPresetSmart,
+		MaxTurns:    75, // Increased for active exploration
+		Timeout:     investigationReportTimeout,
+		AllowedTools: []string{
+			// File exploration
+			"read_file",
+			"list_files",
+			"glob",
+			"grep",
+			// Code analysis
+			"analyze_code",
+			// Command execution for investigation
+			"execute_command",
+			// Search capabilities
+			"web_search",
+		},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
 		RequiresApproval:     false,

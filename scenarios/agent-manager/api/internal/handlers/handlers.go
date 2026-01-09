@@ -1358,6 +1358,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 	var req struct {
 		RunIDs        []string `json:"runIds"`
 		CustomContext string   `json:"customContext,omitempty"`
+		Depth         string   `json:"depth,omitempty"` // quick, standard, or deep
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -1374,7 +1375,18 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		runIDs = append(runIDs, id)
 	}
 
-	run, err := h.svc.CreateInvestigationRun(r.Context(), runIDs, req.CustomContext)
+	// Validate depth if provided
+	depth := orchestration.InvestigationDepth(req.Depth)
+	if !depth.IsValid() {
+		writeSimpleError(w, r, "depth", "must be 'quick', 'standard', or 'deep'")
+		return
+	}
+
+	run, err := h.svc.CreateInvestigationRun(r.Context(), orchestration.CreateInvestigationRequest{
+		RunIDs:        runIDs,
+		CustomContext: req.CustomContext,
+		Depth:         depth,
+	})
 	if err != nil {
 		writeError(w, r, err)
 		return
