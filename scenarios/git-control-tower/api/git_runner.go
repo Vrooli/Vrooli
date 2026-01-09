@@ -109,6 +109,9 @@ type GitRunner interface {
 
 	// CheckRefFormat validates a branch name using git check-ref-format.
 	CheckRefFormat(ctx context.Context, repoDir string, name string) error
+
+	// SetUpstream sets the upstream tracking branch for a local branch.
+	SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -659,6 +662,25 @@ func (r *ExecGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name
 			return fmt.Errorf("git check-ref-format failed: %w (%s)", err, strings.TrimSpace(string(out)))
 		}
 		return fmt.Errorf("git check-ref-format failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error {
+	branch = strings.TrimSpace(branch)
+	upstream = strings.TrimSpace(upstream)
+	if branch == "" || upstream == "" {
+		return fmt.Errorf("branch and upstream are required")
+	}
+	args := []string{"-C", repoDir, "branch", "--set-upstream-to", upstream, branch}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git branch --set-upstream-to failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git branch --set-upstream-to failed: %w", err)
 	}
 	return nil
 }

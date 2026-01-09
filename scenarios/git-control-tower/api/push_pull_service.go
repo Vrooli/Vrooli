@@ -139,6 +139,93 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 	}, nil
 }
 
+// RunUpstreamAction executes a safe, whitelisted upstream action.
+func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActionRequest) (*UpstreamActionResponse, error) {
+	if deps.Git == nil {
+		return nil, fmt.Errorf("git runner is required")
+	}
+	repoDir := strings.TrimSpace(deps.RepoDir)
+	if repoDir == "" {
+		return nil, fmt.Errorf("repo dir is required")
+	}
+
+	action := strings.TrimSpace(strings.ToLower(req.Action))
+	resp := &UpstreamActionResponse{
+		Action:    action,
+		Remote:    strings.TrimSpace(req.Remote),
+		Branch:    strings.TrimSpace(req.Branch),
+		Upstream:  strings.TrimSpace(req.Upstream),
+		Timestamp: time.Now().UTC(),
+	}
+
+	resolveBranch := func() string {
+		if resp.Branch != "" {
+			return resp.Branch
+		}
+		status, err := GetRepoStatus(ctx, RepoStatusDeps{
+			Git:     deps.Git,
+			RepoDir: repoDir,
+		})
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(status.Branch.Head)
+	}
+
+	switch action {
+	case "fetch":
+		if resp.Remote == "" {
+			resp.Remote = "origin"
+		}
+		if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote); err != nil {
+			resp.Error = err.Error()
+			return resp, nil
+		}
+		resp.Success = true
+		return resp, nil
+	case "push_set_upstream":
+		if resp.Remote == "" {
+			resp.Remote = "origin"
+		}
+		resp.Branch = resolveBranch()
+		if resp.Branch == "" {
+			resp.Error = "branch could not be resolved for push"
+			return resp, nil
+		}
+		pushResp, err := PushToRemote(ctx, deps, PushRequest{
+			Remote:      resp.Remote,
+			Branch:      resp.Branch,
+			SetUpstream: true,
+		})
+		if err != nil {
+			resp.Error = err.Error()
+			return resp, nil
+		}
+		resp.Success = pushResp.Success
+		resp.Error = pushResp.Error
+		return resp, nil
+	case "set_upstream":
+		if resp.Upstream == "" {
+			resp.Error = "upstream is required"
+			return resp, nil
+		}
+		resp.Branch = resolveBranch()
+		if resp.Branch == "" {
+			resp.Error = "branch could not be resolved for upstream"
+			return resp, nil
+		}
+		if err := deps.Git.SetUpstream(ctx, repoDir, resp.Branch, resp.Upstream); err != nil {
+			resp.Error = err.Error()
+			return resp, nil
+		}
+		resp.Success = true
+		return resp, nil
+	default:
+		resp.Error = "unsupported action"
+		return resp, nil
+	}
+}
+
 func resolveRefOID(ctx context.Context, deps PushPullDeps, repoDir string, ref string) (string, error) {
 	out, err := deps.Git.RevParse(ctx, repoDir, ref)
 	if err != nil {

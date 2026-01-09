@@ -295,6 +295,25 @@ export interface PullResponse {
   timestamp: string;
 }
 
+export type UpstreamActionType = "fetch" | "push_set_upstream" | "set_upstream";
+
+export interface UpstreamActionRequest {
+  action: UpstreamActionType;
+  remote?: string;
+  branch?: string;
+  upstream?: string;
+}
+
+export interface UpstreamActionResponse {
+  success: boolean;
+  action: UpstreamActionType | string;
+  remote?: string;
+  branch?: string;
+  upstream?: string;
+  error?: string;
+  timestamp: string;
+}
+
 export interface SyncStatusResponse {
   branch: string;
   upstream?: string;
@@ -470,6 +489,18 @@ export async function pullFromRemote(request: PullRequest = {}): Promise<PullRes
     body: JSON.stringify(request)
   });
   return handleResponse<PullResponse>(res);
+}
+
+export async function runUpstreamAction(
+  request: UpstreamActionRequest
+): Promise<UpstreamActionResponse> {
+  const url = buildApiUrl("/repo/upstream-action", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<UpstreamActionResponse>(res);
 }
 
 export async function fetchSyncStatus(doFetch = false): Promise<SyncStatusResponse> {

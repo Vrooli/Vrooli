@@ -116,3 +116,71 @@ func TestPushToRemote_UsesUpstreamWhenAvailable(t *testing.T) {
 		t.Fatalf("expected pushed=true when upstream updated")
 	}
 }
+
+func TestRunUpstreamAction_Fetch(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, UpstreamActionRequest{Action: "fetch", Remote: "origin"})
+	if err != nil {
+		t.Fatalf("RunUpstreamAction returned error: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("expected success, got error: %s", resp.Error)
+	}
+	if fake.FetchCount != 1 {
+		t.Fatalf("expected fetch count 1, got %d", fake.FetchCount)
+	}
+}
+
+func TestRunUpstreamAction_SetUpstream(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.Branch.Head = "agi"
+	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, UpstreamActionRequest{
+		Action:   "set_upstream",
+		Branch:   "agi",
+		Upstream: "origin/agi",
+	})
+	if err != nil {
+		t.Fatalf("RunUpstreamAction returned error: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("expected success, got error: %s", resp.Error)
+	}
+	if fake.Branch.Upstream != "origin/agi" {
+		t.Fatalf("expected upstream origin/agi, got %s", fake.Branch.Upstream)
+	}
+}
+
+func TestRunUpstreamAction_PushSetUpstream(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.Branch.Head = "agi"
+	fake.Branch.OID = "local123"
+	resp, err := RunUpstreamAction(context.Background(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, UpstreamActionRequest{
+		Action: "push_set_upstream",
+		Remote: "origin",
+		Branch: "agi",
+	})
+	if err != nil {
+		t.Fatalf("RunUpstreamAction returned error: %v", err)
+	}
+	if !resp.Success {
+		t.Fatalf("expected success, got error: %s", resp.Error)
+	}
+	if fake.CallCount("Push") != 1 {
+		t.Fatalf("expected push to be called once")
+	}
+}

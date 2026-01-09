@@ -1,6 +1,10 @@
 import { GitBranch, Info, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
+import { runUpstreamAction, type UpstreamActionRequest } from "../lib/api";
+import { queryKeys } from "../lib/hooks";
 
 interface UpstreamInfoModalProps {
   isOpen: boolean;
@@ -26,12 +30,30 @@ export function UpstreamInfoModal({
   onClose
 }: UpstreamInfoModalProps) {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [runState, setRunState] = useState<{
+    status: "idle" | "running" | "success" | "error";
+    message?: string;
+  }>({ status: "idle" });
+  const [showActionsOverride, setShowActionsOverride] = useState(false);
+  useEffect(() => {
+    if (isOpen) return;
+    setSelectedActionId(null);
+    setRunState({ status: "idle" });
+    setShowActionsOverride(false);
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const remote = getRemoteName(upstreamRef);
   const hasLocal = Boolean(localBranch);
   const desiredUpstream = localBranch ? `${remote}/${localBranch}` : "";
   const canSuggestSetUpstream = Boolean(localBranch);
+  const hasUpstream = Boolean(upstreamRef);
+  const trackingMismatch =
+    Boolean(localBranch && upstreamRef) && !upstreamRef.endsWith(`/${localBranch}`);
+  const hasIssue = !hasUpstream || trackingMismatch || behind > 0;
+  const showActions = hasIssue || showActionsOverride;
   const copyCommand = (command: string) => {
     if (!navigator?.clipboard) return;
     void navigator.clipboard.writeText(command);
@@ -68,7 +90,8 @@ export function UpstreamInfoModal({
       title: "Fetch remote updates",
       description: `Refresh ${remote} refs so ahead/behind is accurate.`,
       safety: "Safe: does not change your working tree or staged files.",
-      command: fetchCommand
+      command: fetchCommand,
+      request: { action: "fetch", remote } as UpstreamActionRequest
     },
     {
       id: "push",
@@ -77,7 +100,11 @@ export function UpstreamInfoModal({
         ? `Push ${localBranch} and track ${remote}/${localBranch} by default.`
         : `Push your branch and set its upstream on ${remote}.`,
       safety: "Safe: pushes commits only; does not touch local files.",
-      command: pushCommand
+      command: pushCommand,
+      request: hasLocal
+        ? ({ action: "push_set_upstream", remote, branch: localBranch } as UpstreamActionRequest)
+        : ({ action: "push_set_upstream", remote } as UpstreamActionRequest),
+      disabled: !hasLocal
     },
     {
       id: "set-upstream",
@@ -87,9 +114,45 @@ export function UpstreamInfoModal({
         : "Set your branch to track a different upstream ref.",
       safety: "Safe: changes tracking metadata only; no file changes.",
       command: setUpstreamCommand,
-      disabled: !canSuggestSetUpstream
+      disabled: !canSuggestSetUpstream,
+      request: hasLocal
+        ? ({ action: "set_upstream", branch: localBranch, upstream: desiredUpstream } as UpstreamActionRequest)
+        : ({ action: "set_upstream" } as UpstreamActionRequest)
     }
   ];
+  const selectedAction = actions.find((action) => action.id === selectedActionId);
+
+  const handleCopy = () => {
+    if (!selectedAction) return;
+    copyCommand(selectedAction.command);
+  };
+
+  const handleRun = async () => {
+    if (!selectedAction || selectedAction.disabled || !selectedAction.request) return;
+    setRunState({ status: "running" });
+    try {
+      const result = await runUpstreamAction(selectedAction.request);
+      if (!result.success) {
+        setRunState({
+          status: "error",
+          message: result.error || "Action failed"
+        });
+        return;
+      }
+      setRunState({
+        status: "success",
+        message: "Action completed successfully."
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+    } catch (error) {
+      setRunState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Action failed"
+      });
+    }
+  };
 
   const content = (
     <>
@@ -105,33 +168,76 @@ export function UpstreamInfoModal({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs text-slate-300">
-          <Info className="h-3.5 w-3.5 text-slate-400" />
-          Recommended actions
-        </div>
-        <div className="grid gap-3">
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => copyCommand(action.command)}
-              disabled={action.disabled}
-              className={`w-full rounded-xl border px-4 py-4 text-left transition ${
-                action.disabled
-                  ? "border-slate-800/50 bg-slate-900/20 text-slate-600"
-                  : "border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60"
-              }`}
-            >
-              <div className="text-sm font-semibold">{action.title}</div>
-              <div className="mt-1 text-xs text-slate-400">{action.description}</div>
-              <div className="mt-2 text-[11px] text-emerald-300">{action.safety}</div>
-              <div className="mt-2 text-[11px] font-mono text-slate-500">
-                {action.command}
+        {showActions ? (
+          <>
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <Info className="h-3.5 w-3.5 text-slate-400" />
+              Recommended actions
+            </div>
+            <div className="grid gap-3">
+              {actions.map((action) => {
+                const isSelected = action.id === selectedActionId;
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => {
+                      if (!action.disabled) {
+                        setSelectedActionId(action.id);
+                        setRunState({ status: "idle" });
+                      }
+                    }}
+                    disabled={action.disabled}
+                    className={`w-full rounded-xl border px-4 py-4 text-left transition ${
+                      action.disabled
+                        ? "border-slate-800/50 bg-slate-900/20 text-slate-600"
+                        : isSelected
+                          ? "border-blue-400/60 bg-blue-500/10 text-slate-200 ring-1 ring-blue-400/30"
+                          : "border-slate-800 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{action.title}</div>
+                    <div className="mt-1 text-xs text-slate-400">{action.description}</div>
+                    <div className="mt-2 text-[11px] text-emerald-300">{action.safety}</div>
+                    <div className="mt-2 text-[11px] font-mono text-slate-500">
+                      {action.command}
+                    </div>
+                    <div className="mt-3 text-xs text-slate-300">
+                      {action.disabled ? "Unavailable" : "Click to select"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {runState.status !== "idle" && (
+              <div
+                className={`rounded-lg border px-3 py-2 text-xs ${
+                  runState.status === "success"
+                    ? "border-emerald-800/60 bg-emerald-950/40 text-emerald-300"
+                    : runState.status === "error"
+                      ? "border-red-800/60 bg-red-950/40 text-red-300"
+                      : "border-slate-800/70 bg-slate-900/40 text-slate-400"
+                }`}
+              >
+                {runState.status === "running" ? "Running action..." : runState.message}
               </div>
-              <div className="mt-3 text-xs text-slate-300">Click to copy</div>
-            </button>
-          ))}
-        </div>
+            )}
+          </>
+        ) : (
+          <div className="rounded-lg border border-slate-800/70 bg-slate-900/40 px-3 py-3 text-xs text-slate-400">
+            Tracking looks correct and the remote is not ahead. Actions are hidden by default.
+            <div className="mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowActionsOverride(true)}
+                className="h-7 px-2 text-xs"
+              >
+                Show actions anyway
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -163,14 +269,32 @@ export function UpstreamInfoModal({
           {content}
         </div>
 
-        <div className="border-t border-slate-800 px-4 py-4 pb-safe">
+        <div className="border-t border-slate-800 px-4 py-4 pb-safe flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            disabled={!selectedAction}
+            className="flex-1 h-12 text-sm touch-target"
+          >
+            Copy
+          </Button>
           <Button
             variant="default"
             size="sm"
-            onClick={onClose}
-            className="w-full h-12 text-sm touch-target"
+            onClick={handleRun}
+            disabled={!selectedAction || runState.status === "running"}
+            className="flex-1 h-12 text-sm touch-target"
           >
-            Done
+            {runState.status === "running" ? "Running..." : "Run now"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="flex-1 h-12 text-sm touch-target"
+          >
+            Close
           </Button>
         </div>
       </div>
@@ -208,6 +332,22 @@ export function UpstreamInfoModal({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            disabled={!selectedAction}
+          >
+            Copy
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleRun}
+            disabled={!selectedAction || runState.status === "running"}
+          >
+            {runState.status === "running" ? "Running..." : "Run now"}
+          </Button>
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>

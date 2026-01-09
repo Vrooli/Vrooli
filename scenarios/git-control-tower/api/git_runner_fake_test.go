@@ -694,6 +694,17 @@ func (f *FakeGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name
 	return nil
 }
 
+func (f *FakeGitRunner) SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error {
+	f.recordCall("SetUpstream", repoDir, branch, upstream)
+	branch = strings.TrimSpace(branch)
+	upstream = strings.TrimSpace(upstream)
+	if branch == "" || upstream == "" {
+		return fmt.Errorf("branch and upstream are required")
+	}
+	f.Branch.Upstream = upstream
+	return nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.

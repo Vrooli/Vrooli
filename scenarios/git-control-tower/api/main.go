@@ -95,6 +95,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/upstream-action", s.handleUpstreamAction).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/branches", s.handleRepoBranches).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/branch/create", s.handleBranchCreate).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/branch/switch", s.handleBranchSwitch).Methods("POST")
@@ -654,6 +655,38 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handleUpstreamAction handles POST /api/v1/repo/upstream-action
+func (s *Server) handleUpstreamAction(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req UpstreamActionRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := RunUpstreamAction(ctx, PushPullDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
 	if !result.Success {
 		resp.UnprocessableEntity(result)
 		return
