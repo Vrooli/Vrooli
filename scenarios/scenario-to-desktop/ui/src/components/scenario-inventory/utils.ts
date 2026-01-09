@@ -1,23 +1,16 @@
 /**
  * Utility functions for scenario inventory
+ *
+ * @deprecated This module exists only for backward compatibility.
+ * New code should import directly from the domain layer:
+ *   import { formatBytes, getPlatformIcon, getPlatformName } from "../../domain/download";
+ *
+ * These exports will be removed in a future version.
  */
 
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-}
-
-export const platformIcons: Record<string, string> = {
-  win: '🪟',
-  mac: '🍎',
-  linux: '🐧'
-};
-
-export const platformNames: Record<string, string> = {
-  win: 'Windows',
-  mac: 'macOS',
-  linux: 'Linux'
-};
+export {
+  formatBytes,
+  PLATFORM_DISPLAY_INFO,
+  getPlatformIcon,
+  getPlatformName
+} from "../../domain/download";

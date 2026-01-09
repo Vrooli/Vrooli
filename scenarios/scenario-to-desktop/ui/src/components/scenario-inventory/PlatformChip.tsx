@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { PlatformBuildResult } from "../../lib/api";
 import { Button } from "../ui/button";
 import { CheckCircle, XCircle, Loader2, AlertCircle, ChevronDown, ChevronUp, Copy, Check, FileDown } from "lucide-react";
-import { formatBytes, platformIcons, platformNames } from "./utils";
 import { getDownloadUrl } from "../../lib/api";
+import { triggerDownload, writeToClipboard } from "../../lib/browser";
+import { formatBytes, getPlatformIcon, getPlatformName } from "../../domain/download";
 
 interface PlatformChipProps {
   platform: string;
@@ -32,17 +33,20 @@ export function PlatformChip({ platform, result, scenarioName }: PlatformChipPro
     }
   }, [result?.status]);
 
-  const handleDownload = () => {
-    window.open(getDownloadUrl(scenarioName, platform), '_blank');
-  };
+  const handleDownload = useCallback(() => {
+    const url = getDownloadUrl(scenarioName, platform);
+    triggerDownload({ url });
+  }, [scenarioName, platform]);
 
-  const handleCopyErrors = async () => {
+  const handleCopyErrors = useCallback(async () => {
     if (!result?.error_log) return;
     const errorText = result.error_log.join('\n\n---\n\n');
-    await navigator.clipboard.writeText(errorText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    const clipResult = await writeToClipboard(errorText);
+    if (clipResult.success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [result?.error_log]);
 
   // Determine chip style based on status
   let chipClass = "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all";
@@ -78,10 +82,10 @@ export function PlatformChip({ platform, result, scenarioName }: PlatformChipPro
         onClick={result?.status === "ready" ? handleDownload : undefined}
         title={result?.status === "ready" ? "Click to download" : undefined}
       >
-        <span className="text-lg">{platformIcons[platform]}</span>
+        <span className="text-lg">{getPlatformIcon(platform)}</span>
         {icon}
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-medium">{platformNames[platform]}</span>
+          <span className="text-xs font-medium">{getPlatformName(platform)}</span>
           <span className="text-[10px] opacity-80">{statusText}</span>
         </div>
         {result?.file_size && result.status === "ready" && (

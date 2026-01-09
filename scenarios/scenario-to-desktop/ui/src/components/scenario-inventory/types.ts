@@ -1,6 +1,13 @@
 /**
  * Shared types for scenario inventory components
+ *
+ * Note: Core domain types (DesktopBuildArtifact, etc.) are now defined in
+ * the domain layer (../../domain/types.ts) and re-exported here for
+ * backward compatibility.
  */
+
+// Re-export domain types for backward compatibility
+export type { DesktopBuildArtifact } from "../../domain/types";
 
 export interface DesktopConnectionConfig {
   proxy_url?: string;
@@ -15,15 +22,6 @@ export interface DesktopConnectionConfig {
   server_type?: string;
   bundle_manifest_path?: string;
   updated_at?: string;
-}
-
-export interface DesktopBuildArtifact {
-  platform?: string;
-  file_name: string;
-  size_bytes?: number;
-  modified_at?: string;
-  absolute_path?: string;
-  relative_path?: string;
 }
 
 export interface ScenarioDesktopStatus {

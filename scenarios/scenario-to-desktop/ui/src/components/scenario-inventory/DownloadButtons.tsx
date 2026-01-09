@@ -1,9 +1,16 @@
 import { Button } from "../ui/button";
 import { Download, Copy, Check } from "lucide-react";
-import { platformIcons, platformNames, formatBytes } from "./utils";
-import type { DesktopBuildArtifact } from "./types";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { getDownloadUrl } from "../../lib/api";
+import { triggerDownload, writeToClipboard } from "../../lib/browser";
+import {
+  getSortedPlatformGroups,
+  getPlatformIcon,
+  getPlatformName,
+  formatBytes,
+  type Platform,
+  type DesktopBuildArtifact
+} from "../../domain/download";
 
 interface DownloadButtonsProps {
   scenarioName: string;
@@ -14,44 +21,47 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  if (!artifacts?.length) {
+  // Use domain function for grouping artifacts by platform
+  const platformGroups = getSortedPlatformGroups(artifacts);
+
+  const handleDownload = useCallback(
+    (platform: Platform | "unknown") => {
+      const url = getDownloadUrl(scenarioName, platform);
+      triggerDownload({ url });
+    },
+    [scenarioName]
+  );
+
+  const handleCopyPath = useCallback(async (path?: string) => {
+    if (!path) return;
+    const result = await writeToClipboard(path);
+    if (result.success) {
+      setCopiedPath(path);
+      setTimeout(() => setCopiedPath(null), 2000);
+    }
+  }, []);
+
+  if (platformGroups.length === 0) {
     return null;
   }
 
-  const artifactByPlatform: Record<string, DesktopBuildArtifact[]> = {};
-  artifacts.forEach((artifact) => {
-    const key = artifact.platform || "unknown";
-    if (!artifactByPlatform[key]) {
-      artifactByPlatform[key] = [];
-    }
-    artifactByPlatform[key].push(artifact);
-  });
-
-  const handleDownload = (platform: string) => {
-    window.open(getDownloadUrl(scenarioName, platform), '_blank');
-  };
-
-  const handleCopyPath = (path?: string) => {
-    if (!path) return;
-    navigator.clipboard.writeText(path);
-    setCopiedPath(path);
-    setTimeout(() => setCopiedPath(null), 2000);
-  };
-
   return (
     <div className="space-y-3">
-      {Object.entries(artifactByPlatform).map(([platform, platformArtifacts]) => (
-        <div key={platform} className="rounded-lg border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+      {platformGroups.map((group) => (
+        <div
+          key={group.platform}
+          className="rounded-lg border border-slate-700 bg-slate-900/40 p-3 space-y-2"
+        >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xl">{platformIcons[platform] || '📦'}</span>
+            <span className="text-xl">{getPlatformIcon(group.platform)}</span>
             <p className="text-sm font-semibold text-slate-100">
-              {platformNames[platform] || 'Installer'}
+              {getPlatformName(group.platform)}
             </p>
             <Button
               variant="outline"
               size="sm"
               className="gap-1"
-              onClick={() => handleDownload(platform)}
+              onClick={() => handleDownload(group.platform)}
             >
               <Download className="h-3 w-3" /> Download packaged build
             </Button>
@@ -62,17 +72,20 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
               onClick={() =>
                 setExpanded((prev) => ({
                   ...prev,
-                  [platform]: !prev[platform],
+                  [group.platform]: !prev[group.platform]
                 }))
               }
             >
-              {expanded[platform] ? 'Hide file list' : 'Show file paths'}
+              {expanded[group.platform] ? "Hide file list" : "Show file paths"}
             </Button>
           </div>
-          {expanded[platform] && (
+          {expanded[group.platform] && (
             <div className="max-h-48 overflow-y-auto rounded border border-slate-800 bg-black/30 p-2 text-xs text-slate-400">
-              {platformArtifacts.map((artifact) => (
-                <div key={artifact.absolute_path} className="flex flex-wrap items-center gap-2 py-1">
+              {group.artifacts.map((artifact) => (
+                <div
+                  key={artifact.absolute_path}
+                  className="flex flex-wrap items-center gap-2 py-1"
+                >
                   <span>{artifact.file_name}</span>
                   {artifact.size_bytes && <span>({formatBytes(artifact.size_bytes)})</span>}
                   {artifact.relative_path && (

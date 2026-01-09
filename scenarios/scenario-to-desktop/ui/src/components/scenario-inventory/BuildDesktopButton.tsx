@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle, Check, HelpCircle } from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
-import { platformIcons, platformNames } from "./utils";
 import { buildScenarioDesktop, checkWineStatus, fetchBuildStatus, type WineCheckResponse } from "../../lib/api";
+import { writeToClipboard } from "../../lib/browser";
+import { getPlatformIcon, getPlatformName } from "../../domain/download";
 
 interface BuildDesktopButtonProps {
   scenarioName: string;
@@ -173,11 +174,15 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
     );
   }
 
+  // Copy error handler
+  const copyError = useCallback(async () => {
+    if (mutationError) {
+      await writeToClipboard(mutationError);
+    }
+  }, [mutationError]);
+
   // Show mutation error
   if (mutationError) {
-    const copyError = () => {
-      navigator.clipboard.writeText(mutationError);
-    };
 
     return (
       <div className="flex flex-col gap-2 w-full">
@@ -267,7 +272,7 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   const selectionSummary = (() => {
     if (selectedPlatforms.length === platformOptions.length) return 'Building installers for every platform.';
     if (selectedPlatforms.length === 0) return 'Select at least one platform to get started.';
-    return `Building ${selectedPlatforms.map((platform) => platformNames[platform]).join(' + ')}.`;
+    return `Building ${selectedPlatforms.map((platform) => getPlatformName(platform)).join(' + ')}.`;
   })();
 
   return (
@@ -300,7 +305,7 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
                 >
                   <div className="flex items-center justify-between text-sm font-semibold text-slate-100">
                     <div className="flex items-center gap-2">
-                      <span>{platformIcons[id]}</span>
+                      <span>{getPlatformIcon(id)}</span>
                       {label}
                     </div>
                     {active && <Check className="h-4 w-4 text-green-400" />}

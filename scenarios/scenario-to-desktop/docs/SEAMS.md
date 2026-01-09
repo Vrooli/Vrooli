@@ -138,22 +138,109 @@ export function getSelectedPlatforms(platforms: PlatformSelection): string[]
 **Purpose**: Pure function for computing connection decisions from mode/type
 **Status**: ✅ Excellent - pure, testable, no side effects
 
-#### 5. Generator Draft Hook Seam (`hooks/useGeneratorDraft.ts`)
+#### 5. Domain Types Seam (`domain/types.ts`)
+**Location**: `ui/src/domain/types.ts`
+**Purpose**: Centralized domain types used across the application - ensures domain types don't leak into presentation layer
+**Types**:
+```typescript
+// Build artifacts
+export interface DesktopBuildArtifact { ... }
+
+// Telemetry
+export interface TelemetryEvent { ... }
+export type OperatingSystem = "Windows" | "macOS" | "Linux"
+export interface TelemetryFilePath { ... }
+
+// Download
+export type Platform = "win" | "mac" | "linux"
+export interface PlatformDisplayInfo { ... }
+export interface PlatformArtifactGroup { ... }
+```
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 6. Download Domain Logic Seam (`domain/download.ts`)
+**Location**: `ui/src/domain/download.ts`
+**Purpose**: Pure functions for download-related operations: platform validation, artifact grouping, size formatting, URL building
+**Functions**:
+```typescript
+// Platform handling
+export function isValidPlatform(value: string): value is Platform
+export function parsePlatform(value: string | undefined): Platform | undefined
+export function getPlatformIcon(platform: string): string
+export function getPlatformName(platform: string): string
+
+// Artifact organization
+export function groupArtifactsByPlatform(artifacts: DesktopBuildArtifact[] | undefined): Map<Platform | "unknown", PlatformArtifactGroup>
+export function getSortedPlatformGroups(artifacts: DesktopBuildArtifact[] | undefined): PlatformArtifactGroup[]
+export function getAvailablePlatforms(artifacts: DesktopBuildArtifact[] | undefined): Platform[]
+export function hasDownloadableArtifacts(artifacts: DesktopBuildArtifact[] | undefined, platform: Platform): boolean
+
+// Size formatting
+export function formatBytes(bytes: number | undefined): string
+export function computeTotalArtifactSize(artifacts: DesktopBuildArtifact[] | undefined): number
+
+// URL building
+export function buildDownloadPath(options: DownloadResolverOptions): string
+```
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 7. Telemetry Domain Logic Seam (`domain/telemetry.ts`)
+**Location**: `ui/src/domain/telemetry.ts`
+**Purpose**: Pure functions for telemetry file parsing, validation, and path generation
+**Functions**:
+```typescript
+// Path generation
+export function generateTelemetryPaths(appName: string): TelemetryFilePath[]
+export function getTelemetryPathForOS(appName: string, os: OperatingSystem): string
+
+// JSONL parsing
+export function parseJsonlContent(content: string): TelemetryParseResult
+export function processTelemetryContent(content: string): { success: boolean; events?: TelemetryEvent[]; error?: string }
+
+// Event validation
+export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryValidationResult
+export function isStandardEvent(eventType: string): eventType is StandardEventType
+
+// Display helpers
+export function formatEventPreview(event: TelemetryEvent): string
+export function generateExampleEvent(): string
+```
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 8. Browser API Seam (`lib/browser.ts`)
+**Location**: `ui/src/lib/browser.ts`
+**Purpose**: Abstracts browser-specific APIs (clipboard, file reading, downloads) for testability
+**Functions**:
+```typescript
+// Clipboard operations
+export async function writeToClipboard(text: string): Promise<ClipboardWriteResult>
+
+// File operations
+export async function readFileAsText(file: File): Promise<FileReadResult>
+
+// Download operations
+export function triggerDownload(options: DownloadTriggerOptions): void
+export function triggerBlobDownload(blob: Blob, filename: string): void
+```
+**Usage**: Components use these instead of calling browser APIs directly, enabling easy mocking in tests
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 9. Generator Draft Hook Seam (`hooks/useGeneratorDraft.ts`)
 **Location**: `ui/src/hooks/useGeneratorDraft.ts`
 **Purpose**: Encapsulates draft persistence logic with debounced saving
 **Status**: ✅ Implemented
 
-#### 6. Preflight Session Hook Seam (`hooks/usePreflightSession.ts`)
+#### 10. Preflight Session Hook Seam (`hooks/usePreflightSession.ts`)
 **Location**: `ui/src/hooks/usePreflightSession.ts`
 **Purpose**: Encapsulates preflight polling, session state, and lifecycle
 **Status**: ✅ Implemented
 
-#### 7. Signing Config Hook Seam (`hooks/useSigningConfig.ts`)
+#### 11. Signing Config Hook Seam (`hooks/useSigningConfig.ts`)
 **Location**: `ui/src/hooks/useSigningConfig.ts`
 **Purpose**: Encapsulates signing configuration queries
 **Status**: ✅ Implemented
 
-#### 8. Preflight Constants Seam (`lib/preflight-constants.ts`)
+#### 12. Preflight Constants Seam (`lib/preflight-constants.ts`)
 **Location**: `ui/src/lib/preflight-constants.ts`
 **Purpose**: Centralizes all preflight UI constants - styles, guidance text, coverage config
 **Functions**:
@@ -168,7 +255,7 @@ export const COVERAGE_ROWS: CoverageRow[]
 ```
 **Status**: ✅ Implemented
 
-#### 9. Preflight Utilities Seam (`lib/preflight-utils.ts`)
+#### 13. Preflight Utilities Seam (`lib/preflight-utils.ts`)
 **Location**: `ui/src/lib/preflight-utils.ts`
 **Purpose**: Pure utility functions for preflight data processing
 **Functions**:
@@ -185,7 +272,7 @@ export function detectLikelyRootMismatch(validationValid, missingAssetsCount, mi
 ```
 **Status**: ✅ Implemented
 
-#### 10. Preflight Sub-Components Seam (`components/preflight/`)
+#### 14. Preflight Sub-Components Seam (`components/preflight/`)
 **Location**: `ui/src/components/preflight/`
 **Purpose**: Focused, reusable components for preflight UI
 **Components**:
@@ -240,9 +327,14 @@ ui/src/
 │   └── useSigningConfig.ts        # Signing configuration hook
 │
 ├── domain/
+│   ├── index.ts                   # Export barrel
 │   ├── deployment.ts              # Deployment decision logic
 │   ├── deployment.test.ts         # Tests for deployment logic
-│   └── generator.ts               # Generator validation/config logic
+│   ├── download.ts                # Download/artifact domain logic
+│   ├── download.test.ts           # Tests for download logic
+│   ├── generator.ts               # Generator validation/config logic
+│   ├── telemetry.ts               # Telemetry parsing/validation logic
+│   └── telemetry.test.ts          # Tests for telemetry logic
 │
 ├── components/
 │   ├── GeneratorForm.tsx          # Main generator form (uses hooks)
@@ -288,6 +380,15 @@ ui/src/
 | `getServiceURL()` | Pure function, direct unit tests |
 | `getManifestHealthConfig()` | Pure function, direct unit tests |
 | `detectLikelyRootMismatch()` | Pure function, direct unit tests |
+| `groupArtifactsByPlatform()` | Pure function, direct unit tests |
+| `formatBytes()` | Pure function, direct unit tests |
+| `buildDownloadPath()` | Pure function, direct unit tests |
+| `parseJsonlContent()` | Pure function, direct unit tests |
+| `processTelemetryContent()` | Pure function, direct unit tests |
+| `generateTelemetryPaths()` | Pure function, direct unit tests |
+| `writeToClipboard()` | Mock navigator.clipboard in tests |
+| `readFileAsText()` | Mock File.text() in tests |
+| `triggerDownload()` | Mock window.open in tests |
 
 ### Integration Testing Points
 
@@ -309,6 +410,47 @@ ui/src/
 ---
 
 ## Recent Refactoring Completed
+
+### Download & Telemetry Domain Extraction (Jan 2026)
+**Goal**: Apply screaming architecture principles to downloading and telemetry-related code
+
+**Changes**:
+1. Created `domain/download.ts` - Pure functions for platform validation, artifact grouping, size formatting, URL building
+2. Created `domain/telemetry.ts` - Pure functions for JSONL parsing, event validation, telemetry path generation
+3. Created `domain/index.ts` - Export barrel for all domain modules
+4. Refactored `DownloadButtons.tsx` - Now uses domain functions instead of inline logic
+5. Refactored `TelemetryUploadCard.tsx` - Now uses domain functions instead of embedded parsing
+6. Updated `scenario-inventory/utils.ts` - Re-exports from domain for backward compatibility
+7. Added comprehensive test suites: `download.test.ts` and `telemetry.test.ts`
+
+**Improvements**:
+- Domain logic is now pure, testable, and isolated from presentation
+- Clear separation between "what the app does" (domain) and "how it looks" (components)
+- Components are now thin wrappers around domain logic
+- Consistent patterns across the domain layer
+
+### Browser Seams & Architecture Improvements (Jan 2026)
+**Goal**: Apply screaming architecture, boundary enforcement, and seam discovery principles to download/telemetry code
+
+**Changes**:
+1. Created `domain/types.ts` - Centralized domain types (DesktopBuildArtifact, TelemetryEvent, Platform, etc.)
+2. Created `lib/browser.ts` - Browser API seams for clipboard, file reading, downloads
+3. Refactored all download/telemetry components to use browser seams instead of direct browser API calls
+4. Updated type imports to flow from domain layer instead of component layer
+5. Deprecated `scenario-inventory/utils.ts` - now a thin re-export layer
+
+**Files Updated**:
+- `DownloadButtons.tsx` - Uses `triggerDownload()`, `writeToClipboard()` from browser seams
+- `TelemetryUploadCard.tsx` - Uses `readFileAsText()`, `writeToClipboard()` from browser seams
+- `PlatformChip.tsx` - Uses `triggerDownload()`, `writeToClipboard()`, `getPlatformIcon()`, `getPlatformName()`
+- `BuildDesktopButton.tsx` - Uses `writeToClipboard()`, `getPlatformIcon()`, `getPlatformName()`
+- `ScenarioCard.tsx` - Uses `triggerDownload()`, `getPlatformIcon()`
+
+**Architecture Improvements**:
+- **Testability**: Components can now be unit tested by mocking browser seams
+- **Responsibility Separation**: Domain types live in domain layer, not presentation layer
+- **Seam Enforcement**: Browser side effects isolated behind explicit seam functions
+- **Dependency Direction**: Presentation → Domain → Types (unidirectional)
 
 ### BundledPreflightSection.tsx Refactoring (Jan 2026)
 **Before**: 1,509 lines with mixed presentation and utility functions

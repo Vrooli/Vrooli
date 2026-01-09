@@ -1,11 +1,12 @@
-import { type KeyboardEvent } from "react";
+import { type KeyboardEvent, useCallback } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Monitor, Package, CheckCircle, XCircle, Clock, Download } from "lucide-react";
-import { formatBytes, platformIcons } from "./utils";
 import { Button } from "../ui/button";
 import type { ScenarioDesktopStatus, DesktopBuildArtifact } from "./types";
 import { getDownloadUrl } from "../../lib/api";
+import { triggerDownload } from "../../lib/browser";
+import { formatBytes, getPlatformIcon } from "../../domain/download";
 
 interface ScenarioCardProps {
   scenario: ScenarioDesktopStatus;
@@ -30,12 +31,15 @@ export function ScenarioCard({ scenario, onSelect, isSelected }: ScenarioCardPro
     }
   };
 
-  const downloadPlatform = (platform?: string | null) => {
-    if (!platform) return;
-    const query = uniquePlatforms.includes(platform) ? platform : undefined;
-    if (!query) return;
-    window.open(getDownloadUrl(scenario.name, platform), '_blank');
-  };
+  const downloadPlatform = useCallback(
+    (platform?: string | null) => {
+      if (!platform) return;
+      if (!uniquePlatforms.includes(platform)) return;
+      const url = getDownloadUrl(scenario.name, platform);
+      triggerDownload({ url });
+    },
+    [scenario.name, uniquePlatforms]
+  );
 
   return (
     <Card
@@ -110,7 +114,7 @@ export function ScenarioCard({ scenario, onSelect, isSelected }: ScenarioCardPro
                   downloadPlatform(platform);
                 }}
               >
-                <span>{platformIcons[platform] || '📦'}</span>
+                <span>{getPlatformIcon(platform)}</span>
                 <Download className="h-3 w-3" />
               </Button>
             ))}

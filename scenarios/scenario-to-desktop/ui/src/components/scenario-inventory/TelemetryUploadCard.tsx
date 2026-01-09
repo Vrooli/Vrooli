@@ -1,9 +1,24 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { UploadCloud, Loader2, CheckCircle2, Info, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import {
+  UploadCloud,
+  Loader2,
+  CheckCircle2,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check
+} from "lucide-react";
 import { uploadTelemetry } from "../../lib/api";
+import { readFileAsText, writeToClipboard } from "../../lib/browser";
+import {
+  generateTelemetryPaths,
+  processTelemetryContent,
+  generateExampleEvent
+} from "../../domain/telemetry";
 
 interface TelemetryUploadCardProps {
   scenarioName: string;
@@ -17,13 +32,10 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
   const [showHelp, setShowHelp] = useState(false);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
 
+  // Use domain function for path generation
   const telemetryPaths = useMemo(() => {
-    const label = appDisplayName || scenarioName;
-    return [
-      { os: 'Windows', path: `%APPDATA%/${label}/deployment-telemetry.jsonl` },
-      { os: 'macOS', path: `~/Library/Application Support/${label}/deployment-telemetry.jsonl` },
-      { os: 'Linux', path: `~/.config/${label}/deployment-telemetry.jsonl` }
-    ];
+    const appName = appDisplayName || scenarioName;
+    return generateTelemetryPaths(appName);
   }, [appDisplayName, scenarioName]);
 
   const uploadMutation = useMutation({
@@ -32,26 +44,21 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
         throw new Error("Choose the telemetry file first");
       }
 
-      const raw = await selectedFile.text();
-      const lines = raw
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (lines.length === 0) {
-        throw new Error("File is empty");
+      // Read file content using browser seam
+      const fileResult = await readFileAsText(selectedFile);
+      if (!fileResult.success || !fileResult.content) {
+        throw new Error(fileResult.error || "Failed to read file");
       }
 
-      const events = lines.map((line, index) => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          throw new Error(`Line ${index + 1} isn't valid JSON`);
-        }
-      });
+      // Use domain function for parsing and validation
+      const result = processTelemetryContent(fileResult.content);
+      if (!result.success || !result.events) {
+        throw new Error(result.error || "Failed to process telemetry file");
+      }
 
       return uploadTelemetry({
         scenario_name: scenarioName,
-        events,
+        events: result.events
       });
     },
     onSuccess: (data) => {
@@ -61,15 +68,23 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
     onError: (err: Error) => {
       setSuccessPath(null);
       setError(err.message);
-    },
+    }
   });
 
-  const handleFileChange = (fileList: FileList | null) => {
+  const handleFileChange = useCallback((fileList: FileList | null) => {
     const file = fileList?.item(0) ?? null;
     setSelectedFile(file);
     setError(null);
     setSuccessPath(null);
-  };
+  }, []);
+
+  const handleCopyPath = useCallback(async (path: string) => {
+    const result = await writeToClipboard(path);
+    if (result.success) {
+      setCopiedPath(path);
+      setTimeout(() => setCopiedPath(null), 2000);
+    }
+  }, []);
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3 text-slate-200">
@@ -112,11 +127,7 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
                   variant="ghost"
                   size="sm"
                   className="h-6 gap-1"
-                  onClick={() => {
-                    navigator.clipboard.writeText(path);
-                    setCopiedPath(path);
-                    setTimeout(() => setCopiedPath(null), 2000);
-                  }}
+                  onClick={() => handleCopyPath(path)}
                 >
                   {copiedPath === path ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
                   Copy
@@ -134,7 +145,9 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
       <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-300">
         <p className="font-semibold text-slate-100">Need an example?</p>
         <p className="mt-1">Each line is JSON. A single entry might look like:</p>
-        <pre className="mt-2 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-slate-100">{`{"event":"api_unreachable","detail":"https://example.com","timestamp":"2025-01-01T12:00:00Z"}`}</pre>
+        <pre className="mt-2 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-slate-100">
+          {generateExampleEvent()}
+        </pre>
       </div>
       <div className="flex items-center gap-3">
         <Button
