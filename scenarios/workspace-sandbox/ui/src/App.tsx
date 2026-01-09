@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { SandboxList } from "./components/SandboxList";
@@ -34,6 +34,18 @@ export default function App() {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
+
+  // Sidebar resize state
+  const SIDEBAR_MIN_WIDTH = 200;
+  const DETAIL_MIN_WIDTH = 400;
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") return 320;
+    const stored = Number(localStorage.getItem("wsb.sidebarWidth"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 320;
+  });
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const mainRef = useRef<HTMLDivElement | null>(null);
+  const sidebarResize = useRef<{ start: number; max: number } | null>(null);
 
   // Queries
   const healthQuery = useHealth();
@@ -215,6 +227,81 @@ export default function App() {
     [selectedSandbox, execMutation, startProcessMutation]
   );
 
+  // Sidebar resize handler
+  const handleSidebarResizeStart = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      if (!mainRef.current) return;
+
+      const rect = mainRef.current.getBoundingClientRect();
+      sidebarResize.current = {
+        start: rect.left,
+        max: Math.max(SIDEBAR_MIN_WIDTH, rect.width - DETAIL_MIN_WIDTH),
+      };
+      setIsResizingSidebar(true);
+    },
+    []
+  );
+
+  // Sidebar resize mouse events
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!sidebarResize.current) return;
+      const nextWidth = event.clientX - sidebarResize.current.start;
+      const clampedWidth = Math.max(
+        SIDEBAR_MIN_WIDTH,
+        Math.min(sidebarResize.current.max, nextWidth)
+      );
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleUp = () => {
+      setIsResizingSidebar(false);
+      sidebarResize.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingSidebar]);
+
+  // Persist sidebar width to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("wsb.sidebarWidth", String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  // Constrain sidebar width when viewport shrinks
+  useEffect(() => {
+    if (!mainRef.current || typeof ResizeObserver === "undefined") return;
+
+    const clamp = () => {
+      if (!mainRef.current) return;
+      const width = mainRef.current.clientWidth;
+      const maxSidebar = Math.max(SIDEBAR_MIN_WIDTH, width - DETAIL_MIN_WIDTH);
+      if (sidebarWidth > maxSidebar) {
+        setSidebarWidth(maxSidebar);
+      }
+    };
+
+    clamp();
+    const observer = new ResizeObserver(clamp);
+    observer.observe(mainRef.current);
+    return () => observer.disconnect();
+  }, [sidebarWidth]);
+
   // Keep selected sandbox in sync with list updates
   const sandboxes = sandboxesQuery.data?.sandboxes || [];
 
@@ -255,9 +342,12 @@ export default function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" ref={mainRef}>
         {/* Sandbox List - Left Panel */}
-        <div className="w-80 flex-shrink-0 border-r border-slate-800 overflow-hidden">
+        <div
+          className="flex-shrink-0 border-r border-slate-800 overflow-hidden"
+          style={{ width: sidebarWidth }}
+        >
           <SandboxList
             sandboxes={sandboxes}
             selectedId={currentSandbox?.id}
@@ -266,8 +356,14 @@ export default function App() {
           />
         </div>
 
+        {/* Sidebar Resize Handle */}
+        <div
+          className="w-1 bg-slate-900 hover:bg-slate-700 cursor-col-resize flex-shrink-0"
+          onMouseDown={handleSidebarResizeStart}
+        />
+
         {/* Detail Panel - Right Panel */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <SandboxDetail
             sandbox={currentSandbox || undefined}
             diff={diffQuery.data}
