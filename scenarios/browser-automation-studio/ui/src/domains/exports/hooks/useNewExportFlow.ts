@@ -3,13 +3,18 @@
  *
  * Orchestrates the "New Export" flow from the Exports tab.
  * Manages the execution picker dialog and inline export dialog.
+ *
+ * Uses a testable seam for workflow API calls via WorkflowApiClient.
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { useExecutionStore, type ExecutionWithExportability, type Execution } from '@/domains/executions/store';
 import { useExportStore } from '@/domains/exports/store';
 import { useExecutionFilters, type UseExecutionFiltersReturn } from './useExecutionFilters';
-import { getConfig } from '@/config';
+import {
+  defaultWorkflowApiClient,
+  type WorkflowApiClient,
+} from '../api/workflowClient';
 import { logger } from '@utils/logger';
 
 export interface UseNewExportFlowReturn {
@@ -41,9 +46,14 @@ export interface UseNewExportFlowReturn {
 export interface UseNewExportFlowOptions {
   /** Called when an execution is selected and can be navigated to */
   onViewExecution: (executionId: string, workflowId: string) => void;
+  /** Optional workflow API client for testing. Defaults to defaultWorkflowApiClient. */
+  workflowApiClient?: WorkflowApiClient;
 }
 
-export function useNewExportFlow({ onViewExecution }: UseNewExportFlowOptions): UseNewExportFlowReturn {
+export function useNewExportFlow({
+  onViewExecution,
+  workflowApiClient = defaultWorkflowApiClient,
+}: UseNewExportFlowOptions): UseNewExportFlowReturn {
   const [isSelectDialogOpen, setIsSelectDialogOpen] = useState(false);
   const [executions, setExecutions] = useState<ExecutionWithExportability[]>([]);
   const [isLoadingExecutions, setIsLoadingExecutions] = useState(false);
@@ -104,17 +114,10 @@ export function useNewExportFlow({ onViewExecution }: UseNewExportFlowOptions): 
         await loadExecution(executionId);
         await refreshTimeline(executionId);
 
-        // Check if workflow has a project
-        const config = await getConfig();
-        const workflowResponse = await fetch(`${config.API_URL}/workflows/${workflowId}`);
-
-        if (!workflowResponse.ok) {
-          throw new Error(`Failed to fetch workflow: ${workflowResponse.status}`);
-        }
-
-        const workflowData = await workflowResponse.json();
-        const projectId = workflowData.project_id ?? workflowData.projectId;
-        const workflowName = workflowData.name ?? 'Workflow';
+        // Check if workflow has a project using the API seam
+        const workflowInfo = await workflowApiClient.fetchWorkflow(workflowId);
+        const projectId = workflowInfo.projectId;
+        const workflowName = workflowInfo.name;
 
         if (projectId) {
           // Workflow has a project - navigate to it and auto-open export dialog
@@ -140,7 +143,7 @@ export function useNewExportFlow({ onViewExecution }: UseNewExportFlowOptions): 
         setIsLoadingSelectedExecution(false);
       }
     },
-    [closeSelectDialog, loadExecution, refreshTimeline, onViewExecution, setAutoOpenExport]
+    [closeSelectDialog, loadExecution, refreshTimeline, onViewExecution, setAutoOpenExport, workflowApiClient]
   );
 
   const getExportCountForExecution = useCallback(

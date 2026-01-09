@@ -23,7 +23,8 @@ describe('ReplayPlayer', () => {
     render(<ReplayPlayer frames={frames} autoPlay={false} loop={false} />);
 
     expect(screen.getByText('Replay')).toBeInTheDocument();
-    expect(screen.getByText('https://example.com')).toBeInTheDocument();
+    // URL may appear in multiple places (address bar, tooltips, etc.)
+    expect(screen.getAllByText('https://example.com').length).toBeGreaterThan(0);
     expect(screen.getByAltText('Step 1')).toBeInTheDocument();
   });
 
@@ -47,13 +48,14 @@ describe('ReplayPlayer', () => {
         frames={frames}
         autoPlay={false}
         loop={false}
-        browserScale={0.5}
+        replayStyle={{ browserScale: 0.6 }}
         presentationDimensions={{ width: 1280, height: 720 }}
       />,
     );
 
+    // browserScale 0.6 applied to 1280x720 viewport = 768x432
     const viewport = screen.getByTestId('replay-viewport');
-    expect(viewport).toHaveStyle({ width: '640px', height: '360px' });
+    expect(viewport).toHaveStyle({ width: '768px', height: '432px' });
   });
 
   it('renders controls outside the presentation frame', () => {

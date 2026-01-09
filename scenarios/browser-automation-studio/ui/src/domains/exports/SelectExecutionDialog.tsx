@@ -13,9 +13,6 @@ import {
   AlertCircle,
   Loader2,
   RotateCcw,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Timer,
   Eye,
 } from 'lucide-react';
@@ -23,6 +20,8 @@ import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import type { ExecutionWithExportability } from '@/domains/executions/store';
 import type { UseExecutionFiltersReturn, StatusFilter } from './hooks/useExecutionFilters';
 import { formatDistanceToNowStrict } from 'date-fns';
+// Import presentation utilities from consolidated module
+import { formatExecutionDuration, getExecutionStatusConfig } from './presentation';
 
 interface SelectExecutionDialogProps {
   isOpen: boolean;
@@ -34,15 +33,6 @@ interface SelectExecutionDialogProps {
   getExportCount: (executionId: string) => number;
 }
 
-/** Format duration in a compact way */
-const formatDuration = (ms: number): string => {
-  if (ms < 1000) return '< 1s';
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.round((ms % 60000) / 1000);
-  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-};
-
 const isValidDate = (date: Date): boolean => {
   return date instanceof Date && !isNaN(date.getTime());
 };
@@ -53,13 +43,7 @@ const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: 'failed', label: 'Failed' },
 ];
 
-const statusConfig: Record<string, { icon: typeof Clock; color: string; bgColor: string; label: string }> = {
-  pending: { icon: Clock, color: 'text-gray-400', bgColor: 'bg-gray-500/10', label: 'Pending' },
-  running: { icon: Loader2, color: 'text-green-400', bgColor: 'bg-green-500/10', label: 'Running' },
-  completed: { icon: CheckCircle2, color: 'text-emerald-400', bgColor: 'bg-emerald-500/10', label: 'Completed' },
-  failed: { icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/10', label: 'Failed' },
-  cancelled: { icon: AlertCircle, color: 'text-amber-400', bgColor: 'bg-amber-500/10', label: 'Cancelled' },
-};
+// Status config is now imported from ./presentation module
 
 export const SelectExecutionDialog: React.FC<SelectExecutionDialogProps> = ({
   isOpen,
@@ -208,7 +192,7 @@ export const SelectExecutionDialog: React.FC<SelectExecutionDialogProps> = ({
           ) : (
             <div className="space-y-2">
               {filteredExecutions.map((execution) => {
-                const config = statusConfig[execution.status] || statusConfig.pending;
+                const config = getExecutionStatusConfig(execution.status);
                 const StatusIcon = config.icon;
                 const isExportable = execution.exportability?.isExportable ?? false;
                 const exportCount = getExportCount(execution.id);
@@ -277,7 +261,7 @@ export const SelectExecutionDialog: React.FC<SelectExecutionDialogProps> = ({
                               <span className="text-gray-600">·</span>
                               <span className="inline-flex items-center gap-1">
                                 <Timer size={11} />
-                                {formatDuration(durationMs)}
+                                {formatExecutionDuration(durationMs)}
                               </span>
                             </>
                           )}

@@ -23,7 +23,7 @@ import {
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,
 } from '@/domains/replay-style';
-import type { ExportRenderSource } from '@/domains/executions/viewer/exportConfig';
+import type { ExportRenderSource } from '@/domains/executions/export';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
 const PRESETS_STORAGE_KEY = `${STORAGE_PREFIX}replay.userPresets`;

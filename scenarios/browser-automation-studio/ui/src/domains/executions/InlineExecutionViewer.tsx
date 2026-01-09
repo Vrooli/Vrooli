@@ -17,7 +17,11 @@ import { useWorkflowStore } from '@stores/workflowStore';
 import { useExecutionExport } from './viewer/useExecutionExport';
 import { useReplayCustomization } from './viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import ExportDialog from './viewer/ExportDialog';
+import {
+  ExportDialog,
+  ExportDialogProvider,
+  buildExportDialogContextValue,
+} from '@/domains/executions/export';
 import { useExecutionEvents } from './hooks/useExecutionEvents';
 
 type ViewerTab = 'replay' | 'artifacts';
@@ -276,14 +280,17 @@ export function InlineExecutionViewer({
       </div>
 
       {/* Export Dialog */}
-      <ExportDialog
-        isOpen={exportController.isExportDialogOpen}
-        onClose={exportController.closeExportDialog}
-        onConfirm={exportController.confirmExport}
-        dialogTitleId="inline-export-dialog-title"
-        dialogDescriptionId="inline-export-dialog-description"
-        {...exportController.exportDialogProps}
-      />
+      <ExportDialogProvider
+        value={buildExportDialogContextValue({
+          dialogTitleId: 'inline-execution-export-dialog-title',
+          dialogDescriptionId: 'inline-execution-export-dialog-description',
+          onClose: exportController.closeExportDialog,
+          onConfirm: exportController.confirmExport,
+          ...exportController.exportDialogProps,
+        })}
+      >
+        <ExportDialog isOpen={exportController.isExportDialogOpen} />
+      </ExportDialogProvider>
     </div>
   );
 }

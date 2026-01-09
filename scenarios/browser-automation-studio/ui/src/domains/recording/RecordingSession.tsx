@@ -61,7 +61,11 @@ import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domai
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import ExportDialog from '@/domains/executions/viewer/ExportDialog';
+import {
+  ExportDialog,
+  ExportDialogProvider,
+  buildExportDialogContextValue,
+} from '@/domains/executions/export';
 import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
@@ -1317,14 +1321,17 @@ export function RecordModePage({
       />
 
       {/* Export Dialog */}
-      <ExportDialog
-        isOpen={exportController.isExportDialogOpen}
-        onClose={exportController.closeExportDialog}
-        onConfirm={exportController.confirmExport}
-        dialogTitleId={exportDialogTitleId}
-        dialogDescriptionId={exportDialogDescriptionId}
-        {...exportController.exportDialogProps}
-      />
+      <ExportDialogProvider
+        value={buildExportDialogContextValue({
+          dialogTitleId: exportDialogTitleId,
+          dialogDescriptionId: exportDialogDescriptionId,
+          onClose: exportController.closeExportDialog,
+          onConfirm: exportController.confirmExport,
+          ...exportController.exportDialogProps,
+        })}
+      >
+        <ExportDialog isOpen={exportController.isExportDialogOpen} />
+      </ExportDialogProvider>
 
       {/* Export Success Panel */}
       {exportController.showExportSuccess && exportController.lastCreatedExport && (

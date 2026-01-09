@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getConfig } from "@/config";
 import { logger } from "@utils/logger";
-import { stripApiSuffix } from "../utils/exportHelpers";
+import { stripApiSuffix } from "@utils/executionTypeMappers";
 
 /**
  * Derives the API base used by the replay composer iframe and keeps it cached on window

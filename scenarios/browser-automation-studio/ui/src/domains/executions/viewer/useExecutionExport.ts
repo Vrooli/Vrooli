@@ -7,22 +7,17 @@ import {
 } from "react";
 import type { Execution, TimelineFrame } from "../store";
 import type { Export } from "@/domains/exports";
-import type {
-  ReplayMovieFrameRect,
-  ReplayMoviePresentation,
-  ReplayMovieSpec,
-} from "@/types/export";
-import { sanitizeFileStem } from "./exportConfig";
+import type { ReplayMovieSpec } from "@/types/export";
+// Use config from the unified export domain (single source of truth)
 import {
-  DEFAULT_EXPORT_HEIGHT,
-  DEFAULT_EXPORT_WIDTH,
   DIMENSION_PRESET_CONFIG,
   EXPORT_EXTENSIONS,
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
+  sanitizeFileStem,
   type ExportDimensionPreset,
   type ExportFormat,
-} from "./exportConfig";
+} from "@/domains/executions/export";
 import { useReplayCustomization } from "./useReplayCustomization";
 import { useReplaySpec } from "./useReplaySpec";
 import { fetchExecutionExportPreview } from "./exportPreview";
@@ -30,12 +25,30 @@ import { formatSeconds } from "./useExecutionHeartbeat";
 import {
   describePreviewStatusMessage,
   normalizePreviewStatus,
-} from "../utils/exportHelpers";
+} from "@/domains/exports/presentation";
 import { resolveUrl } from "@utils/executionTypeMappers";
 import { toast } from "react-hot-toast";
-import { getConfig } from "@/config";
 import { useComposerApiBase } from "./useComposerApiBase";
 import { applyReplayStyleToSpec, normalizeReplayStyle } from "@/domains/replay-style";
+// Extracted export domain modules
+import {
+  DEFAULT_DIMENSIONS,
+  scaleMovieSpec,
+  extractCanvasDimensions,
+  resolveDimensionPreset,
+  parseDimensionInput,
+  type DimensionPresetId,
+} from "../export/transformations";
+import {
+  buildExportRequest,
+  buildExportOverrides,
+  executeBinaryExport,
+  createJsonBlob,
+  triggerBlobDownload,
+  saveWithNativeFilePicker,
+  supportsFileSystemAccess,
+} from "../export/api";
+import { useRecordedVideoStatus } from "../export/hooks";
 
 type UseExecutionExportParams = {
   execution: Execution;
@@ -109,10 +122,10 @@ export const useExecutionExport = ({
   const [dimensionPreset, setDimensionPreset] =
     useState<ExportDimensionPreset>("spec");
   const [customWidthInput, setCustomWidthInput] = useState<string>(() =>
-    String(DEFAULT_EXPORT_WIDTH),
+    String(DEFAULT_DIMENSIONS.width),
   );
   const [customHeightInput, setCustomHeightInput] = useState<string>(() =>
-    String(DEFAULT_EXPORT_HEIGHT),
+    String(DEFAULT_DIMENSIONS.height),
   );
   const [exportPreview, setExportPreview] =
     useState<ExecutionExportPreview | null>(null);
@@ -135,33 +148,24 @@ export const useExecutionExport = ({
   const [lastCreatedExport, setLastCreatedExport] = useState<Export | null>(
     null,
   );
-  const [recordedVideoStatus, setRecordedVideoStatus] = useState<{
-    available: boolean;
-    count: number;
-    loading: boolean;
-  }>({
-    available: false,
-    count: 0,
-    loading: false,
+  // Use extracted hook for recorded video status
+  const recordedVideoStatus = useRecordedVideoStatus({
+    executionId: execution.id,
   });
-  const supportsFileSystemAccess =
-    typeof window !== "undefined" &&
-    typeof (window as typeof window & { showSaveFilePicker?: unknown })
-      .showSaveFilePicker === "function";
+  const fileSystemAccessSupported = supportsFileSystemAccess();
 
   const defaultExportFileStem = useMemo(
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
     [execution.id],
   );
 
-  const specCanvasWidth =
-    movieSpec?.presentation?.canvas?.width ??
-    movieSpec?.presentation?.viewport?.width ??
-    DEFAULT_EXPORT_WIDTH;
-  const specCanvasHeight =
-    movieSpec?.presentation?.canvas?.height ??
-    movieSpec?.presentation?.viewport?.height ??
-    DEFAULT_EXPORT_HEIGHT;
+  // Use extracted function for canvas dimension extraction
+  const specDimensions = useMemo(
+    () => extractCanvasDimensions(movieSpec?.presentation),
+    [movieSpec?.presentation],
+  );
+  const specCanvasWidth = specDimensions.width;
+  const specCanvasHeight = specDimensions.height;
 
   const composerUrl = useMemo(() => {
     const embedOrigin =
@@ -209,50 +213,12 @@ export const useExecutionExport = ({
     }
   }, [exportFormat, useNativeFilePicker]);
 
+  // Fallback render source to "auto" when recorded video becomes unavailable
   useEffect(() => {
-    let isCancelled = false;
-    void (async () => {
-      setRecordedVideoStatus((prev) => ({
-        ...prev,
-        loading: true,
-      }));
-      try {
-        const { API_URL } = await getConfig();
-        const response = await fetch(
-          `${API_URL}/executions/${execution.id}/recorded-videos`,
-        );
-        if (!response.ok) {
-          throw new Error(`Recorded videos unavailable (${response.status})`);
-        }
-        const payload = (await response.json()) as {
-          videos?: unknown;
-        };
-        const videos = Array.isArray(payload?.videos) ? payload.videos : [];
-        if (isCancelled) {
-          return;
-        }
-        setRecordedVideoStatus({
-          available: videos.length > 0,
-          count: videos.length,
-          loading: false,
-        });
-        if (videos.length === 0 && replayRenderSource === "recorded_video") {
-          setReplayRenderSource("auto");
-        }
-      } catch {
-        if (!isCancelled) {
-          setRecordedVideoStatus({
-            available: false,
-            count: 0,
-            loading: false,
-          });
-        }
-      }
-    })();
-    return () => {
-      isCancelled = true;
-    };
-  }, [execution.id, replayRenderSource, setReplayRenderSource]);
+    if (!recordedVideoStatus.loading && !recordedVideoStatus.available && replayRenderSource === "recorded_video") {
+      setReplayRenderSource("auto");
+    }
+  }, [recordedVideoStatus.loading, recordedVideoStatus.available, replayRenderSource, setReplayRenderSource]);
 
   useEffect(() => {
     if (!isExportDialogOpen) {
@@ -438,149 +404,40 @@ export const useExecutionExport = ({
       {
         id: "custom" as ExportDimensionPreset,
         label: "Custom size",
-        width: Number.parseInt(customWidthInput, 10) || DEFAULT_EXPORT_WIDTH,
-        height: Number.parseInt(customHeightInput, 10) || DEFAULT_EXPORT_HEIGHT,
+        width: Number.parseInt(customWidthInput, 10) || DEFAULT_DIMENSIONS.width,
+        height: Number.parseInt(customHeightInput, 10) || DEFAULT_DIMENSIONS.height,
         description: "Set explicit pixel dimensions",
       },
     ],
     [customHeightInput, customWidthInput, specCanvasHeight, specCanvasWidth],
   );
 
-  const selectedDimensions = useMemo(() => {
-    switch (dimensionPreset) {
-      case "custom": {
-        const parsedWidth = Number.parseInt(customWidthInput, 10);
-        const parsedHeight = Number.parseInt(customHeightInput, 10);
-        return {
-          width:
-            Number.isFinite(parsedWidth) && parsedWidth > 0
-              ? parsedWidth
-              : DEFAULT_EXPORT_WIDTH,
-          height:
-            Number.isFinite(parsedHeight) && parsedHeight > 0
-              ? parsedHeight
-              : DEFAULT_EXPORT_HEIGHT,
-        };
-      }
-      case "1080p":
-      case "720p": {
-        const preset = DIMENSION_PRESET_CONFIG[dimensionPreset];
-        return { width: preset.width, height: preset.height };
-      }
-      case "spec":
-      default:
-        return { width: specCanvasWidth, height: specCanvasHeight };
-    }
-  }, [
-    customHeightInput,
-    customWidthInput,
-    dimensionPreset,
-    specCanvasHeight,
-    specCanvasWidth,
-  ]);
+  // Use extracted pure function for dimension preset resolution
+  const customDimensions = useMemo(
+    () => ({
+      width: parseDimensionInput(customWidthInput, DEFAULT_DIMENSIONS.width),
+      height: parseDimensionInput(customHeightInput, DEFAULT_DIMENSIONS.height),
+    }),
+    [customWidthInput, customHeightInput],
+  );
+  const selectedDimensions = useMemo(
+    () => resolveDimensionPreset(
+      dimensionPreset as DimensionPresetId,
+      specDimensions,
+      customDimensions,
+    ),
+    [dimensionPreset, specDimensions, customDimensions],
+  );
 
+  // Use extracted pure function for movie spec scaling
   const preparedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
     const base = decoratedMovieSpec ?? movieSpec;
     if (!base) {
       return null;
     }
-    const cloned = JSON.parse(JSON.stringify(base)) as ReplayMovieSpec;
-    const width = selectedDimensions.width;
-    const height = selectedDimensions.height;
-
-    const basePresentation: ReplayMoviePresentation | undefined =
-      cloned.presentation ?? base.presentation;
-
-    const baseCanvasWidth =
-      basePresentation?.canvas?.width && basePresentation.canvas.width > 0
-        ? basePresentation.canvas.width
-        : width;
-    const baseCanvasHeight =
-      basePresentation?.canvas?.height && basePresentation.canvas.height > 0
-        ? basePresentation.canvas.height
-        : height;
-
-    const scaleX = baseCanvasWidth > 0 ? width / baseCanvasWidth : 1;
-    const scaleY = baseCanvasHeight > 0 ? height / baseCanvasHeight : 1;
-
-    const scaleDimensions = (
-      dims?: { width?: number; height?: number },
-      fallback?: { width: number; height: number },
-    ): { width: number; height: number } => {
-      const fallbackWidth = fallback?.width ?? baseCanvasWidth;
-      const fallbackHeight = fallback?.height ?? baseCanvasHeight;
-      const sourceWidth =
-        dims?.width && dims.width > 0 ? dims.width : fallbackWidth;
-      const sourceHeight =
-        dims?.height && dims.height > 0 ? dims.height : fallbackHeight;
-      return {
-        width: Math.round(sourceWidth * scaleX),
-        height: Math.round(sourceHeight * scaleY),
-      };
-    };
-
-    const scaleFrameRect = (
-      rect?: ReplayMovieFrameRect | null,
-    ): ReplayMovieFrameRect => {
-      const source: ReplayMovieFrameRect = rect
-        ? { ...rect }
-        : {
-            x: 0,
-            y: 0,
-            width: basePresentation?.browser_frame?.width ?? baseCanvasWidth,
-            height: basePresentation?.browser_frame?.height ?? baseCanvasHeight,
-            radius: basePresentation?.browser_frame?.radius ?? 24,
-          };
-      return {
-        x: Math.round((source.x ?? 0) * scaleX),
-        y: Math.round((source.y ?? 0) * scaleY),
-        width: Math.round((source.width ?? baseCanvasWidth) * scaleX),
-        height: Math.round((source.height ?? baseCanvasHeight) * scaleY),
-        radius: source.radius ?? basePresentation?.browser_frame?.radius ?? 24,
-      };
-    };
-
-    const presentation: ReplayMoviePresentation = {
-      canvas: {
-        width,
-        height,
-      },
-      viewport: scaleDimensions(basePresentation?.viewport, {
-        width: basePresentation?.viewport?.width ?? baseCanvasWidth,
-        height: basePresentation?.viewport?.height ?? baseCanvasHeight,
-      }),
-      browser_frame: scaleFrameRect(basePresentation?.browser_frame),
-      device_scale_factor:
-        basePresentation?.device_scale_factor &&
-        basePresentation.device_scale_factor > 0
-          ? basePresentation.device_scale_factor
-          : 1,
-    };
-
-    cloned.presentation = presentation;
-
-    if (Array.isArray(cloned.frames)) {
-      cloned.frames = cloned.frames.map((frame) => ({
-        ...frame,
-        viewport: scaleDimensions(frame.viewport, {
-          width:
-            frame.viewport?.width ??
-            basePresentation?.viewport?.width ??
-            baseCanvasWidth,
-          height:
-            frame.viewport?.height ??
-            basePresentation?.viewport?.height ??
-            baseCanvasHeight,
-        }),
-      }));
-    }
-    return cloned;
-  }, [
-    decoratedMovieSpec,
-    movieSpec,
-    selectedDimensions.height,
-    selectedDimensions.width,
-  ]);
+    // Use the extracted scaleMovieSpec pure function
+    return scaleMovieSpec(base, { targetDimensions: selectedDimensions });
+  }, [decoratedMovieSpec, movieSpec, selectedDimensions]);
 
   const activeMovieSpec = preparedMovieSpec ?? decoratedMovieSpec ?? movieSpec;
 
@@ -681,61 +538,36 @@ export const useExecutionExport = ({
 
       setIsExporting(true);
       try {
-        const { API_URL } = await getConfig();
         const baselineSpec = exportPreview?.package ?? movieSpec;
         const exportSpec = preparedMovieSpec ?? baselineSpec;
-        const hasExportFrames =
-          exportSpec && Array.isArray(exportSpec.frames)
-            ? exportSpec.frames.length > 0
-            : false;
-        const requestPayload: Record<string, unknown> = {
-          format: exportFormat,
-          file_name: finalFileName,
-          render_source: replayRenderSource,
-        };
-        if (hasExportFrames && exportSpec) {
-          requestPayload.movie_spec = exportSpec;
-        } else {
-          requestPayload.overrides = {
-            theme_preset: {
-              chrome_theme: replayChromeTheme,
-              background_theme: replayBackgroundTheme,
-            },
-            cursor_preset: {
-              theme: replayCursorTheme,
-              initial_position: replayCursorInitialPosition,
-              scale: Number.isFinite(replayCursorScale) ? replayCursorScale : 1,
-              click_animation: replayCursorClickAnimation,
-            },
-          } satisfies Record<string, unknown>;
-        }
 
-        const response = await fetch(
-          `${API_URL}/executions/${execution.id}/export`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: exportFormat === "gif" ? "image/gif" : "video/mp4",
-            },
-            body: JSON.stringify(requestPayload),
-          },
-        );
+        // Build overrides for when we don't have a spec with frames
+        const overrides = buildExportOverrides({
+          chromeTheme: replayChromeTheme,
+          backgroundTheme: replayBackgroundTheme,
+          cursorTheme: replayCursorTheme,
+          cursorInitialPosition: replayCursorInitialPosition,
+          cursorScale: replayCursorScale,
+          cursorClickAnimation: replayCursorClickAnimation,
+        });
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || `Export request failed (${response.status})`);
-        }
+        // Use extracted pure function to build the request
+        const requestPayload = buildExportRequest({
+          format: exportFormat as "mp4" | "gif",
+          fileName: finalFileName,
+          renderSource: replayRenderSource,
+          movieSpec: exportSpec,
+          overrides,
+        });
 
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = downloadUrl;
-        anchor.download = finalFileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        URL.revokeObjectURL(downloadUrl);
+        // Use extracted API function for binary export
+        const { blob } = await executeBinaryExport({
+          executionId: execution.id,
+          payload: requestPayload,
+        });
+
+        // Use extracted utility for download
+        triggerBlobDownload(blob, finalFileName);
 
         const exportName = exportFileStem || `${workflowName} Export`;
         const createdExport = await createExport({
@@ -777,9 +609,9 @@ export const useExecutionExport = ({
       return;
     }
 
-    if (useNativeFilePicker && !supportsFileSystemAccess) {
+    if (useNativeFilePicker && !fileSystemAccessSupported) {
       toast.error(
-        "This browser does not support choosing a destination. Disable “Choose save location”.",
+        "This browser does not support choosing a destination. Disable \"Choose save location\".",
       );
       return;
     }
@@ -793,33 +625,18 @@ export const useExecutionExport = ({
         return;
       }
 
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
+      // Use extracted utility to create JSON blob
+      const blob = createJsonBlob(payload);
 
-      if (useNativeFilePicker && supportsFileSystemAccess) {
+      if (useNativeFilePicker && fileSystemAccessSupported) {
         try {
-          const picker = await (
-            window as typeof window & {
-              showSaveFilePicker?: (
-                options?: SaveFilePickerOptions,
-              ) => Promise<FileSystemFileHandle>;
-            }
-          ).showSaveFilePicker?.({
-            suggestedName: finalFileName,
-            types: [
-              {
-                description: "Replay export (JSON)",
-                accept: { "application/json": [".json"] },
-              },
-            ],
-          });
-          if (!picker) {
-            throw new Error("Unable to open save dialog");
-          }
-          const writable = await picker.createWritable();
-          await writable.write(blob);
-          await writable.close();
+          // Use extracted utility for native file picker
+          await saveWithNativeFilePicker(
+            blob,
+            finalFileName,
+            "Replay export (JSON)",
+            { "application/json": [".json"] },
+          );
           toast.success("Replay export saved");
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") {
@@ -835,18 +652,9 @@ export const useExecutionExport = ({
           return;
         }
       } else {
-        const url = URL.createObjectURL(blob);
-        try {
-          const anchor = document.createElement("a");
-          anchor.href = url;
-          anchor.download = finalFileName;
-          document.body.appendChild(anchor);
-          anchor.click();
-          document.body.removeChild(anchor);
-          toast.success("Replay download started");
-        } finally {
-          URL.revokeObjectURL(url);
-        }
+        // Use extracted utility for download
+        triggerBlobDownload(blob, finalFileName);
+        toast.success("Replay download started");
       }
 
       const exportName = exportFileStem || `${workflowName} Export`;
@@ -898,7 +706,7 @@ export const useExecutionExport = ({
     replayCursorTheme,
     replayRenderSource,
     replayFramesWithFallback.length,
-    supportsFileSystemAccess,
+    fileSystemAccessSupported,
     useNativeFilePicker,
     createExport,
   ]);
@@ -923,7 +731,7 @@ export const useExecutionExport = ({
     setExportFileStem,
     defaultExportFileStem,
     finalFileName,
-    supportsFileSystemAccess,
+    supportsFileSystemAccess: fileSystemAccessSupported,
     useNativeFilePicker,
     setUseNativeFilePicker,
     preparedMovieSpec,
@@ -981,23 +789,6 @@ export const useExecutionExport = ({
     },
     replayFrames: replayFramesWithFallback,
   };
-};
-
-type SaveFilePickerOptions = {
-  suggestedName?: string;
-  types?: Array<{
-    description?: string;
-    accept: Record<string, string[]>;
-  }>;
-};
-
-type FileSystemWritableFileStream = {
-  write: (data: BlobPart) => Promise<void>;
-  close: () => Promise<void>;
-};
-
-type FileSystemFileHandle = {
-  createWritable: () => Promise<FileSystemWritableFileStream>;
 };
 
 export default useExecutionExport;

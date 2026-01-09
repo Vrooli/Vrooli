@@ -3,7 +3,6 @@ import {
   Film,
   FileJson,
   Image,
-  Globe,
   Download,
   Trash2,
   Eye,
@@ -11,12 +10,11 @@ import {
   RefreshCw,
   Loader2,
   Copy,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Sparkles,
   Share2,
   Plus,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { useExportStore, type Export } from './store';
 import { useDashboardStore } from '@stores/dashboardStore';
@@ -29,6 +27,15 @@ import { TabEmptyState, ExportsEmptyPreview } from '@/views/DashboardView/previe
 import { useNewExportFlow } from './hooks/useNewExportFlow';
 import { SelectExecutionDialog } from './SelectExecutionDialog';
 import { InlineExportDialog } from './InlineExportDialog';
+// Import presentation utilities from consolidated module
+import {
+  formatFileSize,
+  formatDuration,
+  getFormatConfig,
+  getExportStatusConfig,
+} from './presentation';
+// Import download seam for testable download operations
+import { defaultDownloadClient, type DownloadClient } from './api/downloadClient';
 
 interface ExportsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
@@ -37,82 +44,11 @@ interface ExportsTabProps {
   onNavigateToHome?: () => void;
   onCreateWorkflow?: () => void;
   onOpenSettings?: (tab?: string) => void;
+  /** Optional download client for testing. Defaults to defaultDownloadClient. */
+  downloadClient?: DownloadClient;
 }
 
-const formatConfig: Record<string, {
-  icon: typeof Film;
-  color: string;
-  bgColor: string;
-  label: string;
-}> = {
-  mp4: {
-    icon: Film,
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/10',
-    label: 'MP4 Video',
-  },
-  gif: {
-    icon: Image,
-    color: 'text-pink-400',
-    bgColor: 'bg-pink-500/10',
-    label: 'Animated GIF',
-  },
-  json: {
-    icon: FileJson,
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/10',
-    label: 'JSON Package',
-  },
-  html: {
-    icon: Globe,
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/10',
-    label: 'HTML Bundle',
-  },
-};
-
-const statusConfig: Record<string, {
-  icon: typeof Clock;
-  color: string;
-  label: string;
-}> = {
-  pending: {
-    icon: Clock,
-    color: 'text-gray-400',
-    label: 'Pending',
-  },
-  processing: {
-    icon: Loader2,
-    color: 'text-yellow-400',
-    label: 'Processing',
-  },
-  completed: {
-    icon: CheckCircle2,
-    color: 'text-green-400',
-    label: 'Ready',
-  },
-  failed: {
-    icon: XCircle,
-    color: 'text-red-400',
-    label: 'Failed',
-  },
-};
-
-const formatFileSize = (bytes?: number): string => {
-  if (!bytes) return 'Unknown size';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const formatDuration = (ms?: number): string => {
-  if (!ms) return '';
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
+// Format and status configs are now imported from ./presentation module
 
 export const ExportsTab: React.FC<ExportsTabProps> = ({
   onViewExecution,
@@ -120,6 +56,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
   onNavigateToHome,
   onCreateWorkflow,
   onOpenSettings,
+  downloadClient = defaultDownloadClient,
 }) => {
   const {
     exports,
@@ -172,47 +109,37 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
       return;
     }
 
-    try {
-      const response = await fetch(export_.storageUrl);
-      if (!response.ok) throw new Error('Download failed');
+    const fileName = `${export_.name}.${export_.format}`;
+    const result = await downloadClient.downloadFromUrl(export_.storageUrl, fileName);
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${export_.name}.${export_.format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
+    if (result.success) {
       toast.success('Download started');
-    } catch (error) {
-      toast.error('Failed to download export');
+    } else {
+      toast.error(result.error ?? 'Failed to download export');
     }
-  }, []);
+  }, [downloadClient]);
 
   const handleCopyCaption = useCallback(async (caption: string) => {
-    try {
-      await navigator.clipboard.writeText(caption);
+    const result = await downloadClient.copyToClipboard(caption);
+    if (result.success) {
       toast.success('Caption copied to clipboard');
-    } catch (error) {
-      toast.error('Failed to copy caption');
+    } else {
+      toast.error(result.error ?? 'Failed to copy caption');
     }
-  }, []);
+  }, [downloadClient]);
 
   const handleCopyLink = useCallback(async (url?: string) => {
     if (!url) {
       toast.error('No link available yet');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(url);
+    const result = await downloadClient.copyToClipboard(url);
+    if (result.success) {
       toast.success('Link copied');
-    } catch (error) {
-      toast.error('Failed to copy link');
+    } else {
+      toast.error(result.error ?? 'Failed to copy link');
     }
-  }, []);
+  }, [downloadClient]);
 
   const openRenameDialog = useCallback(async (export_: Export) => {
     const newName = await prompt(
@@ -254,8 +181,8 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
   }, [confirm, deleteExport]);
 
   const renderExportCard = (export_: Export) => {
-    const formatCfg = formatConfig[export_.format] ?? formatConfig.json;
-    const statusCfg = statusConfig[export_.status] ?? statusConfig.completed;
+    const formatCfg = getFormatConfig(export_.format);
+    const statusCfg = getExportStatusConfig(export_.status);
     const FormatIcon = formatCfg.icon;
     const StatusIcon = statusCfg.icon;
 

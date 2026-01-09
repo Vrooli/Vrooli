@@ -14,7 +14,7 @@ import {
   getReplayBackgroundThemeId,
   useReplayStyle,
 } from '@/domains/replay-style';
-import type { ExportRenderSource } from './exportConfig';
+import type { ExportRenderSource } from '@/domains/executions/export';
 
 export interface ReplayCustomizationController {
   replayChromeTheme: ReplayChromeTheme;

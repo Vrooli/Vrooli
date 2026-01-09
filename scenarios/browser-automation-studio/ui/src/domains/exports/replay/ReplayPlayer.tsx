@@ -275,16 +275,6 @@ export function ReplayPlayer({
   onFrameProgressChange,
   executionStatus,
   replayStyle,
-  // Deprecated individual props (kept for backward compatibility)
-  presentationSettings: presentationSettingsProp,
-  chromeTheme: chromeThemeProp = 'aurora',
-  deviceFrameTheme: deviceFrameThemeProp = 'minimal',
-  background: backgroundProp,
-  cursorTheme: cursorThemeProp = 'white',
-  cursorInitialPosition: cursorInitialPositionProp = 'center',
-  cursorScale: cursorScaleProp = 1,
-  cursorClickAnimation: cursorClickAnimationProp = 'pulse',
-  browserScale: browserScaleProp = 1,
   cursorDefaultSpeedProfile,
   cursorDefaultPathStyle,
   exposeController,
@@ -297,16 +287,16 @@ export function ReplayPlayer({
   introCard,
   outroCard,
 }: ReplayPlayerProps) {
-  // Resolve style props: prefer replayStyle object, fall back to individual props
-  const presentationSettings = replayStyle?.presentation ?? presentationSettingsProp;
-  const chromeTheme = replayStyle?.chromeTheme ?? chromeThemeProp;
-  const deviceFrameTheme = replayStyle?.deviceFrameTheme ?? deviceFrameThemeProp;
-  const background = replayStyle?.background ?? backgroundProp;
-  const cursorTheme = replayStyle?.cursorTheme ?? cursorThemeProp;
-  const cursorInitialPosition = replayStyle?.cursorInitialPosition ?? cursorInitialPositionProp;
-  const cursorScale = replayStyle?.cursorScale ?? cursorScaleProp;
-  const cursorClickAnimation = replayStyle?.cursorClickAnimation ?? cursorClickAnimationProp;
-  const browserScale = replayStyle?.browserScale ?? browserScaleProp;
+  // Extract style props from replayStyle with defaults
+  const presentationSettings = replayStyle?.presentation;
+  const chromeTheme = replayStyle?.chromeTheme ?? 'aurora';
+  const deviceFrameTheme = replayStyle?.deviceFrameTheme ?? 'minimal';
+  const background = replayStyle?.background;
+  const cursorTheme = replayStyle?.cursorTheme ?? 'white';
+  const cursorInitialPosition = replayStyle?.cursorInitialPosition ?? 'center';
+  const cursorScale = replayStyle?.cursorScale ?? 1;
+  const cursorClickAnimation = replayStyle?.cursorClickAnimation ?? 'pulse';
+  const browserScale = replayStyle?.browserScale ?? 1;
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);

@@ -153,6 +153,27 @@ const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 const API_SUFFIX = "/api/v1";
 
+/**
+ * Strips the /api/v1 suffix from a URL to get the base origin.
+ * Used for deriving the API base for the replay composer.
+ */
+export const stripApiSuffix = (value?: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    const cleanedPath = parsed.pathname
+      .replace(/\/api\/v1\/?$/i, '')
+      .replace(/\/+$/, '');
+    return cleanedPath ? `${parsed.origin}${cleanedPath}` : parsed.origin;
+  } catch {
+    const cleaned = value.replace(/\/api\/v1\/?$/i, '').replace(/\/+$/, '');
+    return cleaned.length > 0 ? cleaned : null;
+  }
+};
+
 const isLoopbackHost = (hostname?: string | null): boolean => {
   if (!hostname) {
     return false;

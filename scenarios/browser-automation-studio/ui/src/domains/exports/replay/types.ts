@@ -257,29 +257,8 @@ export interface ReplayPlayerProps {
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
   onFrameProgressChange?: (frameIndex: number, progress: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
-  /**
-   * Consolidated style configuration. Prefer this over individual style props.
-   * When provided, individual style props are ignored.
-   */
+  /** Consolidated style configuration for all visual aspects of the replay. */
   replayStyle?: ReplayStyleProps;
-  /** @deprecated Use replayStyle.presentation instead */
-  presentationSettings?: ReplayPresentationSettings;
-  /** @deprecated Use replayStyle.chromeTheme instead */
-  chromeTheme?: ReplayChromeTheme;
-  /** @deprecated Use replayStyle.deviceFrameTheme instead */
-  deviceFrameTheme?: ReplayDeviceFrameTheme;
-  /** @deprecated Use replayStyle.background instead */
-  background?: ReplayBackgroundSource;
-  /** @deprecated Use replayStyle.cursorTheme instead */
-  cursorTheme?: ReplayCursorTheme;
-  /** @deprecated Use replayStyle.cursorInitialPosition instead */
-  cursorInitialPosition?: ReplayCursorInitialPosition;
-  /** @deprecated Use replayStyle.cursorScale instead */
-  cursorScale?: number;
-  /** @deprecated Use replayStyle.cursorClickAnimation instead */
-  cursorClickAnimation?: ReplayCursorClickAnimation;
-  /** @deprecated Use replayStyle.browserScale instead */
-  browserScale?: number;
   cursorDefaultSpeedProfile?: CursorSpeedProfile;
   cursorDefaultPathStyle?: CursorPathStyle;
   exposeController?: (controller: ReplayPlayerController | null) => void;

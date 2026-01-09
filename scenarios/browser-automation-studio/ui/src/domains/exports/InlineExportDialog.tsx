@@ -6,11 +6,15 @@
  * Used when workflows don't have an associated project.
  */
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports/store';
-import { ExportDialog } from '@/domains/executions/viewer/ExportDialog';
+import {
+  ExportDialog,
+  ExportDialogProvider,
+  buildExportDialogContextValue,
+} from '@/domains/executions/export';
 import { ExportSuccessPanel } from './ExportSuccessPanel';
 import type { Execution } from '@/domains/executions/store';
 
@@ -44,10 +48,10 @@ export const InlineExportDialog: React.FC<InlineExportDialogProps> = ({
   }, []);
 
   // Handle dialog close - also notify parent
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     exportController.closeExportDialog();
     onClose();
-  };
+  }, [exportController, onClose]);
 
   // Handle success panel dismiss
   const handleDismissSuccess = () => {
@@ -55,16 +59,24 @@ export const InlineExportDialog: React.FC<InlineExportDialogProps> = ({
     onClose();
   };
 
+  // Build context value from hook props
+  const contextValue = useMemo(
+    () =>
+      buildExportDialogContextValue({
+        dialogTitleId: 'inline-export-dialog-title',
+        dialogDescriptionId: 'inline-export-dialog-description',
+        onClose: handleClose,
+        onConfirm: exportController.confirmExport,
+        ...exportController.exportDialogProps,
+      }),
+    [handleClose, exportController.confirmExport, exportController.exportDialogProps],
+  );
+
   return (
     <>
-      <ExportDialog
-        isOpen={exportController.isExportDialogOpen}
-        onClose={handleClose}
-        onConfirm={exportController.confirmExport}
-        dialogTitleId="inline-export-dialog-title"
-        dialogDescriptionId="inline-export-dialog-description"
-        {...exportController.exportDialogProps}
-      />
+      <ExportDialogProvider value={contextValue}>
+        <ExportDialog isOpen={exportController.isExportDialogOpen} />
+      </ExportDialogProvider>
 
       {exportController.showExportSuccess && exportController.lastCreatedExport && (
         <ExportSuccessPanel

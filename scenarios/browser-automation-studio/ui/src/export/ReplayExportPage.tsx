@@ -14,152 +14,52 @@ import ReplayPlayer, {
   type CursorPathStyle,
 } from "@/domains/exports/replay/ReplayPlayer";
 import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, resolveReplayStyleFromSpec } from "@/domains/replay-style";
-import {
-  mapAssertion,
-  mapRegions,
-  mapRetryHistory,
-  mapTrail,
-  resolveUrl,
-  toBoundingBox,
-  toNumber,
-  toPoint,
-} from "../utils/executionTypeMappers";
+// toNumber is imported and used by the extracted frameMapping.ts module
 import type {
-  ExportIntroCard,
-  ExportOutroCard,
-  ExportWatermark,
   ReplayMovieAsset,
-  ReplayMovieFrame,
   ReplayMovieSpec,
-  ReplayMovieSummary,
 } from "../types/export";
-import type {
-  IntroCardSettings,
-  OutroCardSettings,
-  WatermarkPosition,
-  WatermarkSettings,
-} from "@/stores/settingsStore";
 import { logger } from "../utils/logger";
 import "../index.css";
 
-type FrameTimeline = {
-  index: number;
-  startMs: number;
-  durationMs: number;
-};
+// Import extracted utilities
+import type {
+  ExportMetadata,
+  ExportPreviewPayload,
+  FrameTimeline,
+  FrameWaiter,
+  PresentationBounds,
+} from "./types";
+import {
+  decodeExportPayload,
+  ensureBasExportBootstrap,
+  resolveBootstrapSpec,
+} from "./bootstrap";
+import {
+  buildTimeline,
+  clampProgress,
+  computeTotalDuration,
+  findFrameForTime,
+} from "./timeline";
+import {
+  mapIntroCardSettings,
+  mapOutroCardSettings,
+  mapWatermarkSettings,
+  toReplayFrame,
+} from "./frameMapping";
+import { defaultStatusMessage, normalizeStatus } from "./status";
 
-type Waiter = {
-  index: number;
-  progress: number;
-  resolve: () => void;
-  reject: (error: Error) => void;
-  timeoutId: number;
-};
+// Re-export types needed by the global augmentation (imported from types.ts)
+import "./types";
 
-type ExportMetadata = {
-  totalDurationMs: number;
-  frameCount: number;
-  timeline: FrameTimeline[];
-  width: number;
-  height: number;
-  canvasWidth: number;
-  canvasHeight: number;
-  browserFrame: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    radius?: number;
-  };
-  deviceScaleFactor?: number;
-  assetCount: number;
-  specId?: string | null;
-};
-
-type ExportPreviewPayload = {
-  status?: string | null;
-  message?: string | null;
-  package?: ReplayMovieSpec | null;
-  execution_id?: string | null;
-};
-
-type PresentationBounds = {
-  width: number;
-  height: number;
-};
-
-type BootstrapPayload = {
-  payloadJson?: string | null;
-  payloadBase64?: string | null;
-  apiBase?: string | null;
-  executionId?: string | null;
-};
-
-declare global {
-  interface Window {
-    basExport?: {
-      ready: boolean;
-      error?: string | null;
-      seekTo: (ms: number) => Promise<void>;
-      play: () => void;
-      pause: () => void;
-      getViewportRect: () => {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      };
-      getMetadata: () => ExportMetadata;
-      getCurrentState: () => { frameIndex: number; progress: number };
-    };
-    __BAS_EXPORT_API_BASE__?: string;
-    __BAS_EXPORT_BOOTSTRAP__?: BootstrapPayload | null;
-  }
-}
-
-const DEFAULT_FRAME_DURATION_MS = 1600;
+// Constants (only keeping ones specific to this component)
 const PROGRESS_EPSILON = 0.02;
 const DEFAULT_TIMEOUT_MS = 6000;
 const DEFAULT_BODY_BACKGROUND = "#020617";
 const DEFAULT_CANVAS_WIDTH = 1280;
 const DEFAULT_CANVAS_HEIGHT = 720;
 const SPEC_POLL_INTERVAL_MS = 4000;
-const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
-  enabled: false,
-  assetId: null,
-  position: "bottom-right",
-  size: 12,
-  opacity: 80,
-  margin: 16,
-};
-const DEFAULT_INTRO_CARD_SETTINGS: IntroCardSettings = {
-  enabled: false,
-  title: "",
-  subtitle: "",
-  logoAssetId: null,
-  backgroundAssetId: null,
-  backgroundColor: "#0f172a",
-  textColor: "#ffffff",
-  duration: 2000,
-};
-const DEFAULT_OUTRO_CARD_SETTINGS: OutroCardSettings = {
-  enabled: false,
-  title: "Thanks for watching!",
-  ctaText: "Learn More",
-  ctaUrl: "",
-  logoAssetId: null,
-  backgroundAssetId: null,
-  backgroundColor: "#0f172a",
-  textColor: "#ffffff",
-  duration: 3000,
-};
 
-const isWatermarkPosition = (value: unknown): value is WatermarkPosition =>
-  value === "top-left" ||
-  value === "top-right" ||
-  value === "bottom-left" ||
-  value === "bottom-right" ||
-  value === "center";
 const CURSOR_SPEED_PROFILES: CursorSpeedProfile[] = [
   "instant",
   "linear",
@@ -203,396 +103,11 @@ const asCursorPathStyle = (
   return match;
 };
 
-const ensureBasExportBootstrap = () => {
-  if (typeof window === "undefined") {
-    return;
-  }
-  if (!window.basExport) {
-    window.basExport = {
-      ready: false,
-      error: "initializing",
-      async seekTo() {
-        throw new Error("Replay export controller not ready");
-      },
-      play() {
-        throw new Error("Replay export controller not ready");
-      },
-      pause() {
-        throw new Error("Replay export controller not ready");
-      },
-      getViewportRect() {
-        return { x: 0, y: 0, width: 0, height: 0 };
-      },
-      getMetadata() {
-        return {
-          totalDurationMs: 0,
-          frameCount: 0,
-          timeline: [],
-          width: 0,
-          height: 0,
-          canvasWidth: 0,
-          canvasHeight: 0,
-          browserFrame: {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            radius: 0,
-          },
-          assetCount: 0,
-          specId: null,
-          deviceScaleFactor: 1,
-        };
-      },
-      getCurrentState() {
-        return { frameIndex: 0, progress: 0 };
-      },
-    };
-  }
-};
-
+// Initialize basExport bootstrap on module load
 ensureBasExportBootstrap();
 
-const addPadding = (base64: string): string => {
-  const padding = (4 - (base64.length % 4)) % 4;
-  if (padding === 0) {
-    return base64;
-  }
-  return `${base64}${"=".repeat(padding)}`;
-};
-
-const decodeExportPayload = (encoded: string): ReplayMovieSpec | null => {
-  if (!encoded) {
-    return null;
-  }
-  try {
-    const normalized = addPadding(
-      encoded.replace(/-/g, "+").replace(/_/g, "/"),
-    );
-    if (typeof window === "undefined" || typeof window.atob !== "function") {
-      return null;
-    }
-    const json = window.atob(normalized);
-    return JSON.parse(json) as ReplayMovieSpec;
-  } catch (error) {
-    logger.error(
-      "Failed to decode replay export payload",
-      { component: "ReplayExportPage" },
-      error,
-    );
-    return null;
-  }
-};
-
-const decodeJsonSpec = (
-  raw: string | null | undefined,
-): ReplayMovieSpec | null => {
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as ReplayMovieSpec;
-  } catch (error) {
-    logger.error(
-      "Failed to parse replay export bootstrap payload",
-      { component: "ReplayExportPage" },
-      error,
-    );
-    return null;
-  }
-};
-
-const getBootstrapPayload = (): BootstrapPayload | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const candidate = window.__BAS_EXPORT_BOOTSTRAP__;
-  if (!candidate || typeof candidate !== "object") {
-    return null;
-  }
-  const payload = candidate as BootstrapPayload;
-  return {
-    payloadJson:
-      typeof payload.payloadJson === "string" ? payload.payloadJson : undefined,
-    payloadBase64:
-      typeof payload.payloadBase64 === "string"
-        ? payload.payloadBase64
-        : undefined,
-    apiBase: typeof payload.apiBase === "string" ? payload.apiBase : undefined,
-    executionId:
-      typeof payload.executionId === "string" ? payload.executionId : undefined,
-  };
-};
-
-const resolveBootstrapSpec = () => {
-  const payload = getBootstrapPayload();
-  if (!payload) {
-    return {
-      spec: null as ReplayMovieSpec | null,
-      executionId: null as string | null,
-      apiBase: null as string | null,
-    };
-  }
-  let spec = decodeJsonSpec(payload.payloadJson);
-  if (!spec && payload.payloadBase64) {
-    spec = decodeExportPayload(payload.payloadBase64);
-  }
-  const executionId = payload.executionId?.trim() || null;
-  const apiBase = payload.apiBase?.trim() || null;
-  return { spec, executionId, apiBase };
-};
-
-const buildTimeline = (
-  frames: ReplayMovieFrame[] | undefined | null,
-): FrameTimeline[] => {
-  if (!frames || frames.length === 0) {
-    return [];
-  }
-  const sorted = [...frames].sort((a, b) => {
-    const aStart = toNumber(a.start_offset_ms) ?? 0;
-    const bStart = toNumber(b.start_offset_ms) ?? 0;
-    return aStart - bStart;
-  });
-  return sorted.map((frame, index) => {
-    const duration = toNumber(frame.duration_ms) ?? DEFAULT_FRAME_DURATION_MS;
-    const start =
-      toNumber(frame.start_offset_ms) ??
-      (index > 0 ? index * DEFAULT_FRAME_DURATION_MS : 0);
-    return {
-      index,
-      startMs: Math.max(0, start),
-      durationMs: Math.max(1, duration),
-    };
-  });
-};
-
-const computeTotalDuration = (
-  summary: ReplayMovieSummary | undefined,
-  timeline: FrameTimeline[],
-): number => {
-  if (summary?.total_duration_ms && summary.total_duration_ms > 0) {
-    return summary.total_duration_ms;
-  }
-  if (timeline.length === 0) {
-    return 0;
-  }
-  const last = timeline[timeline.length - 1];
-  return last.startMs + Math.max(1, last.durationMs);
-};
-
-const resolveAssetUrl = (
-  asset: ReplayMovieAsset | undefined,
-): string | undefined => {
-  if (!asset) {
-    return undefined;
-  }
-  const candidates = [asset.source, asset.thumbnail];
-  for (const candidate of candidates) {
-    if (!candidate || typeof candidate !== "string") {
-      continue;
-    }
-    const resolved = resolveUrl(candidate) ?? candidate;
-    if (resolved) {
-      return resolved;
-    }
-  }
-  return undefined;
-};
-
-const mapWatermarkSettings = (
-  watermark?: ExportWatermark | null,
-): WatermarkSettings | undefined => {
-  if (!watermark) {
-    return undefined;
-  }
-  const position = isWatermarkPosition(watermark.position)
-    ? watermark.position
-    : DEFAULT_WATERMARK_SETTINGS.position;
-  return {
-    ...DEFAULT_WATERMARK_SETTINGS,
-    enabled: Boolean(watermark.enabled),
-    assetId: watermark.asset_id ?? DEFAULT_WATERMARK_SETTINGS.assetId,
-    position,
-    size: watermark.size ?? DEFAULT_WATERMARK_SETTINGS.size,
-    opacity: watermark.opacity ?? DEFAULT_WATERMARK_SETTINGS.opacity,
-    margin: watermark.margin ?? DEFAULT_WATERMARK_SETTINGS.margin,
-  };
-};
-
-const mapIntroCardSettings = (
-  intro?: ExportIntroCard | null,
-): IntroCardSettings | undefined => {
-  if (!intro) {
-    return undefined;
-  }
-  return {
-    ...DEFAULT_INTRO_CARD_SETTINGS,
-    enabled: Boolean(intro.enabled),
-    title: intro.title ?? DEFAULT_INTRO_CARD_SETTINGS.title,
-    subtitle: intro.subtitle ?? DEFAULT_INTRO_CARD_SETTINGS.subtitle,
-    logoAssetId: intro.logo_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.logoAssetId,
-    backgroundAssetId:
-      intro.background_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundAssetId,
-    backgroundColor:
-      intro.background_color ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundColor,
-    textColor: intro.text_color ?? DEFAULT_INTRO_CARD_SETTINGS.textColor,
-    duration: intro.duration_ms ?? DEFAULT_INTRO_CARD_SETTINGS.duration,
-  };
-};
-
-const mapOutroCardSettings = (
-  outro?: ExportOutroCard | null,
-): OutroCardSettings | undefined => {
-  if (!outro) {
-    return undefined;
-  }
-  return {
-    ...DEFAULT_OUTRO_CARD_SETTINGS,
-    enabled: Boolean(outro.enabled),
-    title: outro.title ?? DEFAULT_OUTRO_CARD_SETTINGS.title,
-    ctaText: outro.cta_text ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaText,
-    ctaUrl: outro.cta_url ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaUrl,
-    logoAssetId: outro.logo_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.logoAssetId,
-    backgroundAssetId:
-      outro.background_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundAssetId,
-    backgroundColor:
-      outro.background_color ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundColor,
-    textColor: outro.text_color ?? DEFAULT_OUTRO_CARD_SETTINGS.textColor,
-    duration: outro.duration_ms ?? DEFAULT_OUTRO_CARD_SETTINGS.duration,
-  };
-};
-
-const toReplayFrame = (
-  frame: ReplayMovieFrame,
-  index: number,
-  assetMap: Map<string, ReplayMovieAsset>,
-): ReplayFrame => {
-  const screenshotId =
-    typeof frame.screenshot_asset_id === "string"
-      ? frame.screenshot_asset_id
-      : undefined;
-  const asset = screenshotId ? assetMap.get(screenshotId) : undefined;
-  const screenshotUrl = resolveAssetUrl(asset);
-  const durationMs = toNumber(frame.duration_ms) ?? DEFAULT_FRAME_DURATION_MS;
-  const holdMs = toNumber(frame.hold_ms) ?? 0;
-  const totalDurationMs = durationMs + holdMs;
-  const boundingBox = toBoundingBox(frame.element_bounding_box);
-  const focusedElementBox = frame.focused_element?.bounding_box;
-  const focusedBoundingBox = toBoundingBox(focusedElementBox);
-  const clickPosition = toPoint(frame.click_position);
-  const cursorTrail = mapTrail(
-    frame.cursor_trail ?? frame.normalized_cursor_trail,
-  );
-  const retry = frame.resilience;
-
-  return {
-    id: frame.index != null ? String(frame.index) : `frame-${index}`,
-    stepIndex: toNumber(frame.step_index) ?? index,
-    nodeId: typeof frame.node_id === "string" ? frame.node_id : undefined,
-    stepType: typeof frame.step_type === "string" ? frame.step_type : undefined,
-    status: typeof frame.status === "string" ? frame.status : undefined,
-    success: (frame.status ?? "").toLowerCase() !== "failed",
-    durationMs,
-    totalDurationMs,
-    progress: 0,
-    finalUrl: typeof frame.final_url === "string" ? frame.final_url : undefined,
-    error: typeof frame.error === "string" ? frame.error : undefined,
-    extractedDataPreview: undefined,
-    consoleLogCount: toNumber(frame.console_log_count),
-    networkEventCount: toNumber(frame.network_event_count),
-    screenshot: screenshotUrl
-      ? {
-          artifactId: screenshotId ?? `artifact-${index}`,
-          url: screenshotUrl,
-          thumbnailUrl: resolveAssetUrl(asset),
-          width: toNumber(asset?.width),
-          height: toNumber(asset?.height),
-          contentType:
-            typeof asset?.type === "string" ? asset?.type : undefined,
-          sizeBytes: toNumber(asset?.size_bytes),
-        }
-      : undefined,
-    highlightRegions: mapRegions(frame.highlight_regions),
-    maskRegions: mapRegions(frame.mask_regions),
-    focusedElement: focusedBoundingBox
-      ? {
-          selector:
-            typeof frame.focused_element?.selector === "string"
-              ? frame.focused_element.selector
-              : undefined,
-          boundingBox: focusedBoundingBox,
-        }
-      : null,
-    elementBoundingBox: boundingBox ?? null,
-    clickPosition: clickPosition ?? null,
-    cursorTrail,
-    zoomFactor: toNumber(frame.zoom_factor),
-    assertion: mapAssertion(frame.assertion),
-    retryAttempt: toNumber(retry?.attempt),
-    retryMaxAttempts: toNumber(retry?.max_attempts),
-    retryConfigured: toNumber(retry?.configured_retries),
-    retryDelayMs: toNumber(retry?.delay_ms),
-    retryBackoffFactor: toNumber(retry?.backoff_factor),
-    retryHistory: mapRetryHistory(retry?.history),
-    domSnapshotPreview: undefined,
-    domSnapshotHtml: undefined,
-    domSnapshotArtifactId: undefined,
-  };
-};
-
-const findFrameForTime = (
-  ms: number,
-  timeline: FrameTimeline[],
-): { index: number; progress: number } => {
-  if (timeline.length === 0) {
-    return { index: 0, progress: 0 };
-  }
-  const clamped = Math.max(0, ms);
-  for (let i = timeline.length - 1; i >= 0; i -= 1) {
-    const entry = timeline[i];
-    if (clamped >= entry.startMs || i === 0) {
-      const elapsed = clamped - entry.startMs;
-      const progress =
-        entry.durationMs > 0
-          ? Math.min(Math.max(elapsed / entry.durationMs, 0), 1)
-          : 1;
-      return { index: entry.index, progress };
-    }
-  }
-  const last = timeline[timeline.length - 1];
-  return { index: last.index, progress: 1 };
-};
-
-const clampProgress = (value: number): number => {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  if (value <= 0) {
-    return 0;
-  }
-  if (value >= 1) {
-    return 1;
-  }
-  return value;
-};
-
-const normalizeStatus = (value: string | null | undefined): string => {
-  if (!value) {
-    return "";
-  }
-  return value.trim().toLowerCase();
-};
-
-const defaultStatusMessage = (status: string): string => {
-  switch (status) {
-    case "pending":
-      return "Replay export pending – timeline frames not captured yet";
-    case "unavailable":
-      return "Replay export unavailable – execution did not capture any timeline frames";
-    default:
-      return "Replay export unavailable";
-  }
-};
+// Type alias for waiter (used locally in the component)
+type Waiter = FrameWaiter;
 
 const ReplayExportPage = () => {
   const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);

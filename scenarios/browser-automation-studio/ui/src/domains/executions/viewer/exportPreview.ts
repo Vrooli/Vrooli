@@ -3,7 +3,10 @@ import {
   ExecutionExportPreviewSchema,
 } from "@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb";
 import type { ReplayMovieSpec } from "@/types/export";
-import { mapExportStatus, type ExportStatusLabel } from "../utils/exportHelpers";
+import {
+  mapExportPreviewStatus,
+  type ExportPreviewStatusLabel,
+} from "@/domains/exports/presentation";
 import { getConfig } from "@/config";
 import { parseProtoStrict } from "@/utils/proto";
 
@@ -17,7 +20,7 @@ export const parseExportPreviewPayload = (
   raw: unknown,
 ): {
   preview: ProtoExecutionExportPreview;
-  status: ExportStatusLabel;
+  status: ExportPreviewStatusLabel;
   metrics: ExportPreviewMetrics;
   movieSpec: ReplayMovieSpec | null;
 } => {
@@ -37,7 +40,7 @@ export const parseExportPreviewPayload = (
     rawForProto,
   );
 
-  const status = mapExportStatus(preview.status);
+  const status = mapExportPreviewStatus(preview.status);
   const metrics: ExportPreviewMetrics = {
     capturedFrames: typeof preview.capturedFrameCount === "number"
       ? preview.capturedFrameCount
