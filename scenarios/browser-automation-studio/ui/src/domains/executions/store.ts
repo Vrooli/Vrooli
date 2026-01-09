@@ -202,6 +202,24 @@ export interface Execution {
 }
 
 /**
+ * Exportability info for an execution.
+ * Indicates whether the execution has content that can be exported.
+ */
+export interface ExecutionExportability {
+  hasTimeline: boolean;
+  hasScreenshots: boolean;
+  hasRecordedVideo: boolean;
+  isExportable: boolean;
+}
+
+/**
+ * Execution with its exportability info.
+ */
+export interface ExecutionWithExportability extends Execution {
+  exportability?: ExecutionExportability;
+}
+
+/**
  * Artifact collection profile names.
  * These map to preset configurations on the backend.
  */
@@ -308,6 +326,8 @@ interface ExecutionStore {
   viewerWorkflowId: string | null;
   /** Current artifact collection profile (persisted in localStorage) */
   artifactProfile: ArtifactProfile;
+  /** Flag to auto-open export dialog when loading execution from Exports tab */
+  autoOpenExport: boolean;
 
   openViewer: (workflowId: string) => void;
   closeViewer: () => void;
@@ -315,6 +335,8 @@ interface ExecutionStore {
   setArtifactProfile: (profile: ArtifactProfile) => void;
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string, projectId?: string) => Promise<void>;
+  /** Load executions with exportability info for each execution */
+  loadExecutionsWithExportability: (workflowId?: string, projectId?: string) => Promise<ExecutionWithExportability[]>;
   loadExecution: (executionId: string) => Promise<void>;
   refreshTimeline: (executionId: string) => Promise<void>;
   addScreenshot: (screenshot: Screenshot) => void;
@@ -323,6 +345,8 @@ interface ExecutionStore {
   updateProgress: (progress: number, currentStep?: string) => void;
   recordHeartbeat: (step?: string, elapsedMs?: number) => void;
   clearCurrentExecution: () => void;
+  /** Set flag to auto-open export dialog on next execution load */
+  setAutoOpenExport: (value: boolean) => void;
 }
 
 const parseExecuteWorkflowResponse = (raw: unknown) =>
@@ -596,6 +620,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   currentExecution: null,
   viewerWorkflowId: null,
   artifactProfile: loadArtifactProfile(),
+  autoOpenExport: false,
 
   openViewer: (workflowId: string) => {
     const state = get();
@@ -800,6 +825,56 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       set({ executions: normalizedExecutions });
     } catch (error) {
       logger.error('Failed to load executions', { component: 'ExecutionStore', action: 'loadExecutions', workflowId }, error);
+    }
+  },
+
+  loadExecutionsWithExportability: async (workflowId?: string, projectId?: string): Promise<ExecutionWithExportability[]> => {
+    try {
+      const config = await getConfig();
+      const params = new URLSearchParams();
+      if (workflowId) params.set('workflow_id', workflowId);
+      if (projectId) params.set('project_id', projectId);
+      params.set('include_exportability', 'true');
+      const url = `${config.API_URL}/executions?${params.toString()}`;
+      const response = await fetch(url);
+
+      if (response.status === 404) {
+        return [];
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to load executions with exportability: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const executions = Array.isArray(data?.executions) ? data.executions : [];
+      const exportabilityMap = (data?.exportability ?? {}) as Record<
+        string,
+        { has_timeline: boolean; has_screenshots: boolean; has_recorded_video: boolean; is_exportable: boolean }
+      >;
+
+      const result: ExecutionWithExportability[] = [];
+      for (const item of executions) {
+        try {
+          const execution = parseExecutionProto(item);
+          const rawExportability = exportabilityMap[execution.id];
+          const exportability: ExecutionExportability | undefined = rawExportability
+            ? {
+                hasTimeline: rawExportability.has_timeline,
+                hasScreenshots: rawExportability.has_screenshots,
+                hasRecordedVideo: rawExportability.has_recorded_video,
+                isExportable: rawExportability.is_exportable,
+              }
+            : undefined;
+          result.push({ ...execution, exportability });
+        } catch (err) {
+          logger.error('Failed to parse execution proto', { component: 'ExecutionStore', action: 'loadExecutionsWithExportability' }, err);
+        }
+      }
+      return result;
+    } catch (error) {
+      logger.error('Failed to load executions with exportability', { component: 'ExecutionStore', action: 'loadExecutionsWithExportability', workflowId }, error);
+      return [];
     }
   },
 
@@ -1012,6 +1087,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   clearCurrentExecution: () => {
     set({ currentExecution: null });
+  },
+
+  setAutoOpenExport: (value: boolean) => {
+    set({ autoOpenExport: value });
   },
 }));
 

@@ -16,6 +16,7 @@ import {
   Clock,
   Sparkles,
   Share2,
+  Plus,
 } from 'lucide-react';
 import { useExportStore, type Export } from './store';
 import { useDashboardStore } from '@stores/dashboardStore';
@@ -25,6 +26,9 @@ import { useConfirmDialog } from '@hooks/useConfirmDialog';
 import { usePromptDialog } from '@hooks/usePromptDialog';
 import { ConfirmDialog, PromptDialog } from '@shared/ui';
 import { TabEmptyState, ExportsEmptyPreview } from '@/views/DashboardView/previews';
+import { useNewExportFlow } from './hooks/useNewExportFlow';
+import { SelectExecutionDialog } from './SelectExecutionDialog';
+import { InlineExportDialog } from './InlineExportDialog';
 
 interface ExportsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
@@ -144,6 +148,9 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     close: closePrompt,
     submit: submitPrompt,
   } = usePromptDialog();
+
+  // New export flow
+  const newExportFlow = useNewExportFlow({ onViewExecution });
 
   const hasExecutions = recentExecutions.length > 0 || runningExecutions.length > 0;
   const totalRuns = recentExecutions.length + runningExecutions.length;
@@ -410,15 +417,16 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center">
-            <Sparkles size={18} className="text-amber-200" />
+            <Plus size={18} className="text-amber-200" />
           </div>
           <div>
             <div className="text-xs text-gray-400">Need a new export?</div>
             <button
-              onClick={onNavigateToExecutions ?? onNavigateToHome}
+              onClick={newExportFlow.openSelectDialog}
               className="hero-button-secondary w-full justify-center mt-1"
             >
-              Export again
+              <Plus size={14} />
+              New Export
             </button>
           </div>
         </div>
@@ -554,6 +562,36 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
         onClose={closePrompt}
         onSubmit={submitPrompt}
       />
+
+      {/* New Export Dialog */}
+      <SelectExecutionDialog
+        isOpen={newExportFlow.isSelectDialogOpen}
+        onClose={newExportFlow.closeSelectDialog}
+        executions={newExportFlow.executions}
+        isLoading={newExportFlow.isLoadingExecutions}
+        filters={newExportFlow.filters}
+        onSelectExecution={newExportFlow.handleExecutionSelected}
+        getExportCount={newExportFlow.getExportCountForExecution}
+      />
+
+      {/* Inline Export Dialog (for workflows without projects) */}
+      {newExportFlow.selectedExecution && (
+        <InlineExportDialog
+          execution={newExportFlow.selectedExecution}
+          workflowName={newExportFlow.selectedWorkflowName}
+          onClose={newExportFlow.clearSelectedExecution}
+        />
+      )}
+
+      {/* Loading overlay when fetching execution for inline export */}
+      {newExportFlow.isLoadingSelectedExecution && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
+            <Loader2 className="animate-spin text-flow-accent" size={24} />
+            <span className="text-surface">Loading execution...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

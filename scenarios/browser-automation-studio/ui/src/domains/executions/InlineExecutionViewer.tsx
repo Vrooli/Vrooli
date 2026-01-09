@@ -5,7 +5,7 @@
  * the Record page. Displays execution with two tabs: Replay and Artifacts.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Play, FileText } from 'lucide-react';
 import { InlineExecutionHeader } from './InlineExecutionHeader';
 import { ExecutionPreviewPanel } from '@/domains/recording/timeline/ExecutionPreviewPanel';
@@ -150,6 +150,8 @@ export function InlineExecutionViewer({
 
   // Get execution from store
   const currentExecution = useExecutionStore((s) => s.currentExecution);
+  const autoOpenExport = useExecutionStore((s) => s.autoOpenExport);
+  const setAutoOpenExport = useExecutionStore((s) => s.setAutoOpenExport);
 
   // Subscribe to WebSocket updates for real-time progress
   useExecutionEvents(
@@ -191,6 +193,14 @@ export function InlineExecutionViewer({
   const domSnapshots = useMemo(() => extractDomSnapshots(timeline), [timeline]);
 
   const canExport = (currentExecution?.timeline?.length ?? 0) > 0;
+
+  // Auto-open export dialog when coming from the Exports tab "New Export" flow
+  useEffect(() => {
+    if (autoOpenExport && canExport && !exportController.isExportDialogOpen) {
+      exportController.openExportDialog();
+      setAutoOpenExport(false);
+    }
+  }, [autoOpenExport, canExport, exportController, setAutoOpenExport]);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">

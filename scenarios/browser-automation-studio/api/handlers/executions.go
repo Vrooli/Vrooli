@@ -593,6 +593,11 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListExecutions handles GET /api/v1/executions
+// Query parameters:
+//   - workflow_id: Filter by workflow ID
+//   - project_id: Filter by project ID
+//   - limit, offset: Pagination
+//   - include_exportability: If "true", include exportability info for each execution
 func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := r.URL.Query().Get("workflow_id")
 	var workflowID *uuid.UUID
@@ -610,6 +615,8 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	includeExportability := strings.ToLower(r.URL.Query().Get("include_exportability")) == "true"
+
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
@@ -623,6 +630,11 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	protoExecutions := make([]proto.Message, 0, len(executions))
+	var exportabilityMap map[string]ExecutionExportability
+	if includeExportability {
+		exportabilityMap = make(map[string]ExecutionExportability, len(executions))
+	}
+
 	for idx := range executions {
 		if executions[idx] == nil {
 			continue
@@ -639,6 +651,23 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		protoExecutions = append(protoExecutions, pbExec)
+
+		// Compute exportability if requested
+		if includeExportability {
+			execID := executions[idx].ID.String()
+			exportability := checkExecutionExportability(
+				executions[idx].ResultPath,
+				h.recordingsRoot,
+				execID,
+			)
+			exportabilityMap[execID] = exportability
+		}
+	}
+
+	// If exportability was requested, use custom response format
+	if includeExportability {
+		h.respondExecutionsWithExportability(w, http.StatusOK, protoExecutions, exportabilityMap)
+		return
 	}
 
 	h.respondProtoList(w, http.StatusOK, "executions", protoExecutions)

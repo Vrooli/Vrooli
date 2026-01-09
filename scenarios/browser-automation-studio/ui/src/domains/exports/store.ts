@@ -86,6 +86,12 @@ interface ExportState {
   deleteAllExports: () => Promise<{ deleted: number; errors: string[] }>;
   setSelectedExport: (export_: Export | null) => void;
   clearError: () => void;
+
+  // Sync helpers for checking existing exports
+  /** Get exports for an execution from the current store state (sync) */
+  getExportsByExecutionId: (executionId: string) => Export[];
+  /** Check if an execution has any exports in the current store state (sync) */
+  hasExportsForExecution: (executionId: string) => boolean;
 }
 
 // Helper to normalize API response to Export interface. Expects snake_case protojson payloads.
@@ -139,7 +145,7 @@ const normalizeExport = (raw: unknown): Export | null => {
   };
 };
 
-export const useExportStore = create<ExportState>((set) => ({
+export const useExportStore = create<ExportState>((set, get) => ({
   exports: [],
   selectedExport: null,
   isLoading: false,
@@ -376,8 +382,16 @@ export const useExportStore = create<ExportState>((set) => ({
     set({ error: null });
   },
 
+  getExportsByExecutionId: (executionId: string): Export[] => {
+    return get().exports.filter((e) => e.executionId === executionId);
+  },
+
+  hasExportsForExecution: (executionId: string): boolean => {
+    return get().exports.some((e) => e.executionId === executionId);
+  },
+
   deleteAllExports: async () => {
-    const { exports } = useExportStore.getState();
+    const { exports } = get();
     const errors: string[] = [];
     let deleted = 0;
 
