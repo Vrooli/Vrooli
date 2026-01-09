@@ -25,6 +25,7 @@ interface StatusHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
+  onOpenUpstreamInfo?: () => void;
   // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
@@ -38,6 +39,7 @@ export function StatusHeader({
   isLoading,
   onRefresh,
   onOpenLayoutSettings,
+  onOpenUpstreamInfo,
   viewingCommit,
   onExitHistoryMode
 }: StatusHeaderProps) {
@@ -148,9 +150,17 @@ export function StatusHeader({
             </>
           )}
           {upstreamRef && (
-            <Badge variant={trackingMismatch ? "warning" : "default"} className="gap-1">
-              {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
-            </Badge>
+            <button
+              type="button"
+              onClick={onOpenUpstreamInfo}
+              className="rounded-md focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400/60 disabled:opacity-50"
+              aria-label={`Open upstream details for ${upstreamRef}`}
+              disabled={!onOpenUpstreamInfo}
+            >
+              <Badge variant={trackingMismatch ? "warning" : "default"} className="gap-1">
+                {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
+              </Badge>
+            </button>
           )}
         </div>
 

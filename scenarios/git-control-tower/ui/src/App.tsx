@@ -9,6 +9,7 @@ import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
+import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import {
   LayoutSettingsModal,
   type LayoutPreset,
@@ -113,6 +114,7 @@ export default function App() {
     tone: "success" | "info" | "warning";
     message: string;
   } | null>(null);
+  const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
@@ -201,6 +203,8 @@ export default function App() {
   const pushTargetRef =
     syncStatusQuery.data?.upstream ?? statusQuery.data?.branch.upstream;
   const pushSourceBranch = statusQuery.data?.branch.head;
+  const upstreamAhead = syncStatusQuery.data?.ahead ?? statusQuery.data?.branch.ahead ?? 0;
+  const upstreamBehind = syncStatusQuery.data?.behind ?? statusQuery.data?.branch.behind ?? 0;
 
   // Mutations
   const stageMutation = useStageFiles();
@@ -1586,6 +1590,7 @@ export default function App() {
           onRefresh={handleRefresh}
           onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
           onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+          onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
         />
@@ -1667,6 +1672,14 @@ export default function App() {
           }}
           onClose={() => setIsLayoutSettingsOpen(false)}
         />
+        <UpstreamInfoModal
+          isOpen={isUpstreamInfoOpen}
+          localBranch={pushSourceBranch}
+          upstreamRef={pushTargetRef}
+          ahead={upstreamAhead}
+          behind={upstreamBehind}
+          onClose={() => setIsUpstreamInfoOpen(false)}
+        />
       </div>
     );
   }
@@ -1686,6 +1699,7 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+        onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
       />
@@ -1794,6 +1808,14 @@ export default function App() {
           setStackHeight(320);
         }}
         onClose={() => setIsLayoutSettingsOpen(false)}
+      />
+      <UpstreamInfoModal
+        isOpen={isUpstreamInfoOpen}
+        localBranch={pushSourceBranch}
+        upstreamRef={pushTargetRef}
+        ahead={upstreamAhead}
+        behind={upstreamBehind}
+        onClose={() => setIsUpstreamInfoOpen(false)}
       />
     </div>
   );

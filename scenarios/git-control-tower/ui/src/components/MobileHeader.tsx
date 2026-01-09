@@ -30,6 +30,7 @@ interface MobileHeaderProps {
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
   onOpenGroupingSettings?: () => void;
+  onOpenUpstreamInfo?: () => void;
   // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
@@ -44,6 +45,7 @@ export function MobileHeader({
   onRefresh,
   onOpenLayoutSettings,
   onOpenGroupingSettings,
+  onOpenUpstreamInfo,
   viewingCommit,
   onExitHistoryMode
 }: MobileHeaderProps) {
@@ -135,12 +137,20 @@ export function MobileHeader({
                 </Badge>
               )}
               {upstreamRef && (
-                <Badge
-                  variant={trackingMismatch ? "warning" : "default"}
-                  className="gap-1 flex-shrink-0"
+                <button
+                  type="button"
+                  onClick={onOpenUpstreamInfo}
+                  className="rounded-md focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400/60 disabled:opacity-50"
+                  aria-label={`Open upstream details for ${upstreamRef}`}
+                  disabled={!onOpenUpstreamInfo}
                 >
-                  {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
-                </Badge>
+                  <Badge
+                    variant={trackingMismatch ? "warning" : "default"}
+                    className="gap-1 flex-shrink-0"
+                  >
+                    {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
+                  </Badge>
+                </button>
               )}
             </>
           )}
