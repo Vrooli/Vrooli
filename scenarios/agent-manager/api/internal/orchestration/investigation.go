@@ -28,27 +28,8 @@ const (
 	investigationApplyReportTimeout = 15 * time.Minute
 )
 
-// InvestigationDepth controls how thorough the investigation should be.
-type InvestigationDepth string
-
-const (
-	// InvestigationDepthQuick performs rapid analysis with minimal exploration.
-	InvestigationDepthQuick InvestigationDepth = "quick"
-	// InvestigationDepthStandard performs balanced analysis with targeted exploration.
-	InvestigationDepthStandard InvestigationDepth = "standard"
-	// InvestigationDepthDeep performs thorough exploration of the codebase.
-	InvestigationDepthDeep InvestigationDepth = "deep"
-)
-
-// IsValid checks if the investigation depth is valid.
-func (d InvestigationDepth) IsValid() bool {
-	switch d {
-	case InvestigationDepthQuick, InvestigationDepthStandard, InvestigationDepthDeep, "":
-		return true
-	default:
-		return false
-	}
-}
+// NOTE: InvestigationDepth type is defined in domain/investigation.go
+// Use domain.InvestigationDepth, domain.InvestigationDepthQuick, etc.
 
 // ScenarioContext contains information about a scenario being investigated.
 type ScenarioContext struct {
@@ -179,6 +160,56 @@ func buildScenarioContextAttachment(roots map[string][]uuid.UUID) domain.Context
 	}
 }
 
+// InvestigationMetadata contains dynamic investigation parameters passed as context.
+type InvestigationMetadata struct {
+	Depth           string   `json:"depth"`
+	DepthGuidance   string   `json:"depthGuidance"`
+	RunIDs          []string `json:"runIds"`
+	ScenarioCount   int      `json:"scenarioCount"`
+	TotalRunCount   int      `json:"totalRunCount"`
+	InvestigatedAt  string   `json:"investigatedAt"`
+}
+
+// buildInvestigationMetadataAttachment creates a context attachment with investigation parameters.
+// This contains all the dynamic data that used to be embedded in the prompt.
+func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.InvestigationDepth, roots map[string][]uuid.UUID) domain.ContextAttachment {
+	// Build depth guidance based on investigation depth
+	var depthGuidance string
+	switch depth {
+	case domain.InvestigationDepthQuick:
+		depthGuidance = "QUICK mode: Perform rapid behavioral analysis focusing on the most obvious agent mistakes. Time target: 2-3 minutes. Focus on the failing action and immediate decision that led to it."
+	case domain.InvestigationDepthDeep:
+		depthGuidance = "DEEP mode: Perform thorough behavioral analysis of the agent's decision-making process. Take time to understand the full context the agent had, trace its reasoning, and identify patterns."
+	default: // Standard
+		depthGuidance = "STANDARD mode: Perform balanced behavioral analysis with targeted review of key decision points."
+	}
+
+	// Convert UUIDs to strings
+	runIDStrings := make([]string, len(runIDs))
+	for i, id := range runIDs {
+		runIDStrings[i] = id.String()
+	}
+
+	metadata := InvestigationMetadata{
+		Depth:          string(depth),
+		DepthGuidance:  depthGuidance,
+		RunIDs:         runIDStrings,
+		ScenarioCount:  len(roots),
+		TotalRunCount:  len(runIDs),
+		InvestigatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+
+	content, _ := json.MarshalIndent(metadata, "", "  ")
+
+	return domain.ContextAttachment{
+		Type:    "note",
+		Key:     "investigation-metadata",
+		Label:   "Investigation Metadata",
+		Content: string(content),
+		Tags:    []string{"metadata", "investigation", "config"},
+	}
+}
+
 // extractScenarioName extracts the scenario name from a project root path.
 func extractScenarioName(projectRoot string) string {
 	// Extract scenario name from path like "/home/.../Vrooli/scenarios/agent-manager"
@@ -260,10 +291,19 @@ func (o *Orchestrator) CreateInvestigationRun(
 		return nil, domain.NewValidationError("runIds", "at least one run ID is required")
 	}
 
-	// Default depth to standard
+	// Fetch investigation settings (includes user-editable prompt template)
+	settings, err := o.GetInvestigationSettings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get investigation settings: %w", err)
+	}
+
+	// Determine depth - use request depth, fall back to settings default, then standard
 	depth := req.Depth
 	if depth == "" {
-		depth = InvestigationDepthStandard
+		depth = settings.DefaultDepth
+	}
+	if depth == "" {
+		depth = domain.InvestigationDepthStandard
 	}
 	if !depth.IsValid() {
 		return nil, domain.NewValidationError("depth", "must be 'quick', 'standard', or 'deep'")
@@ -278,18 +318,22 @@ func (o *Orchestrator) CreateInvestigationRun(
 	// Determine working directory
 	workDir := determineInvestigationWorkDir(roots, o.config.DefaultProjectRoot)
 
-	// Build attachments
+	// Build attachments - all dynamic data goes here, NOT in the prompt
 	attachments, err := o.buildInvestigationAttachments(ctx, req.RunIDs, req.CustomContext)
 	if err != nil {
 		return nil, err
 	}
 
-	// Add scenario context attachment as first attachment
+	// Add investigation metadata attachment (depth, run IDs, etc.)
+	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth, roots)
+	attachments = append([]domain.ContextAttachment{metadataAttachment}, attachments...)
+
+	// Add scenario context attachment
 	scenarioCtx := buildScenarioContextAttachment(roots)
 	attachments = append([]domain.ContextAttachment{scenarioCtx}, attachments...)
 
-	// Build directive prompt with depth awareness
-	prompt := buildInvestigationPrompt(req.RunIDs, req.CustomContext, depth, roots)
+	// Use the stored prompt template (user-editable, no variable substitution)
+	prompt := settings.PromptTemplate
 
 	// Create task with correct working directory
 	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, workDir)
@@ -512,109 +556,6 @@ func (o *Orchestrator) buildApplyAttachments(
 	return attachments, nil
 }
 
-func buildInvestigationPrompt(runIDs []uuid.UUID, customContext string, depth InvestigationDepth, roots map[string][]uuid.UUID) string {
-	var sb strings.Builder
-	sb.WriteString("# Agent-Manager Investigation\n\n")
-
-	// Set expectations based on depth
-	switch depth {
-	case InvestigationDepthQuick:
-		sb.WriteString("## Investigation Mode: QUICK\n")
-		sb.WriteString("Perform a rapid analysis focusing on the most obvious issues.\n")
-		sb.WriteString("Time target: 2-3 minutes. Focus on the error messages and immediate causes.\n\n")
-	case InvestigationDepthDeep:
-		sb.WriteString("## Investigation Mode: DEEP\n")
-		sb.WriteString("Perform a thorough investigation exploring all relevant code paths.\n")
-		sb.WriteString("Take time to understand the full context before diagnosing. Explore related files and dependencies.\n\n")
-	default: // Standard
-		sb.WriteString("## Investigation Mode: STANDARD\n")
-		sb.WriteString("Perform a balanced investigation with targeted exploration.\n\n")
-	}
-
-	// Directive instructions
-	sb.WriteString("## Your Mission\n")
-	sb.WriteString("You are an expert debugger. Your job is to ACTIVELY INVESTIGATE why the runs below failed.\n")
-	sb.WriteString("**Do NOT just analyze the provided data - EXPLORE THE CODEBASE to find root causes.**\n\n")
-
-	// Scenario locations to explore
-	sb.WriteString("## Scenario Locations to Explore\n")
-	for root, ids := range roots {
-		scenarioName := extractScenarioName(root)
-		sb.WriteString(fmt.Sprintf("### %s\n", scenarioName))
-		sb.WriteString(fmt.Sprintf("- **Path**: `%s`\n", root))
-		sb.WriteString(fmt.Sprintf("- **Runs**: %d\n", len(ids)))
-
-		// Add key files if they exist
-		keyFiles := detectKeyFiles(root)
-		if len(keyFiles) > 0 {
-			sb.WriteString(fmt.Sprintf("- **Key files**: %s\n", strings.Join(keyFiles, ", ")))
-		}
-
-		// Add structure hints
-		hints := getStructureHints(root)
-		for _, hint := range hints {
-			sb.WriteString(fmt.Sprintf("  - %s\n", hint))
-		}
-		sb.WriteString("\n")
-	}
-
-	// Runs under investigation
-	sb.WriteString("## Runs Under Investigation\n")
-	for _, id := range runIDs {
-		sb.WriteString(fmt.Sprintf("- `%s`\n", id))
-	}
-	sb.WriteString("\n")
-
-	// Active investigation steps
-	sb.WriteString("## Required Investigation Steps\n")
-	sb.WriteString("1. **Read the scenario's CLAUDE.md or README.md** to understand the project structure\n")
-	sb.WriteString("2. **Analyze the error messages** in the attached run events - find the actual failure\n")
-	sb.WriteString("3. **Trace the error to source code** - use grep/read to find the failing code path\n")
-	sb.WriteString("4. **Check related files** - look at imports, dependencies, callers, and configuration\n")
-	sb.WriteString("5. **Identify the root cause** - distinguish symptoms from underlying issues\n\n")
-
-	// Common patterns to check
-	sb.WriteString("## Common Failure Patterns to Check\n")
-	sb.WriteString("- **Log/Output Issues**: Large outputs breaking scanners, missing newlines, buffering problems\n")
-	sb.WriteString("- **Path Issues**: Relative vs absolute paths, working directory assumptions\n")
-	sb.WriteString("- **Timeout Issues**: Operations taking longer than expected\n")
-	sb.WriteString("- **Tool Issues**: Missing tools, wrong tool usage, tool not trusted by agent\n")
-	sb.WriteString("- **Prompt Issues**: Agent not understanding instructions, missing context\n")
-	sb.WriteString("- **State Issues**: Stale data, cache invalidation, missing initialization\n\n")
-
-	// How to use CLI
-	sb.WriteString("## How to Fetch Additional Run Data\n")
-	sb.WriteString("If you need full details beyond the attachments, use the agent-manager CLI:\n")
-	sb.WriteString("```bash\n")
-	sb.WriteString("agent-manager run get <run-id>      # Full run details\n")
-	sb.WriteString("agent-manager run events <run-id>  # All events with tool calls\n")
-	sb.WriteString("agent-manager run diff <run-id>    # Code changes made\n")
-	sb.WriteString("```\n\n")
-
-	// Custom context from user
-	if strings.TrimSpace(customContext) != "" {
-		sb.WriteString("## Additional Context from User\n")
-		sb.WriteString(customContext)
-		sb.WriteString("\n\n")
-	}
-
-	// Report format
-	sb.WriteString("## Required Report Format\n")
-	sb.WriteString("Provide your findings in this structure:\n\n")
-	sb.WriteString("### 1. Executive Summary\n")
-	sb.WriteString("One-paragraph summary of what went wrong and why.\n\n")
-	sb.WriteString("### 2. Root Cause Analysis\n")
-	sb.WriteString("- **Primary cause** with file:line references\n")
-	sb.WriteString("- **Contributing factors**\n")
-	sb.WriteString("- **Evidence** (run IDs, event sequences, code snippets)\n\n")
-	sb.WriteString("### 3. Recommendations\n")
-	sb.WriteString("- **Immediate fix** (copy-pasteable code if possible)\n")
-	sb.WriteString("- **Preventive measures**\n")
-	sb.WriteString("- **Monitoring suggestions**\n")
-
-	return sb.String()
-}
-
 func buildApplyPrompt(investigationRunID uuid.UUID, customContext string) string {
 	var sb strings.Builder
 	sb.WriteString("# Apply Investigation Recommendations\n\n")
@@ -660,7 +601,7 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 	return &domain.AgentProfile{
 		Name:        "Agent-Manager Investigation",
 		ProfileKey:  investigationProfileKey,
-		Description: "Agent profile for active agent-manager investigations (read-only analysis)",
+		Description: "Agent profile for behavioral analysis of failed agent runs (read-only)",
 		RunnerType:  domain.RunnerTypeCodex,
 		ModelPreset: domain.ModelPresetSmart,
 		MaxTurns:    75, // Increased for active exploration

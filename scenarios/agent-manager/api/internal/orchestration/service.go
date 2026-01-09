@@ -247,9 +247,9 @@ type ContinueRunRequest struct {
 
 // CreateInvestigationRequest contains parameters for creating an investigation run.
 type CreateInvestigationRequest struct {
-	RunIDs        []uuid.UUID        `json:"runIds"`
-	CustomContext string             `json:"customContext,omitempty"`
-	Depth         InvestigationDepth `json:"depth,omitempty"` // Defaults to "standard"
+	RunIDs        []uuid.UUID               `json:"runIds"`
+	CustomContext string                    `json:"customContext,omitempty"`
+	Depth         domain.InvestigationDepth `json:"depth,omitempty"` // Defaults to "standard"
 }
 
 // ApproveRequest contains parameters for approving a run.

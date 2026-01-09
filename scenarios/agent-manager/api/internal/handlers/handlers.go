@@ -1382,7 +1382,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate depth if provided
-	depth := orchestration.InvestigationDepth(req.Depth)
+	depth := domain.InvestigationDepth(req.Depth)
 	if !depth.IsValid() {
 		writeSimpleError(w, r, "depth", "must be 'quick', 'standard', or 'deep'")
 		return

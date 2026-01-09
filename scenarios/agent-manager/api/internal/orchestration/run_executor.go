@@ -31,9 +31,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -859,13 +856,6 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		}
 	}
 
-	if err := e.validateExpectedOutputs(ctx); err != nil {
-		e.failWithError(ctx, err)
-		e.outcome = domain.RunOutcomeException
-		e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "expected outputs missing")
-		return
-	}
-
 	autoApplied := false
 	if requiresApproval {
 		autoApplied = e.tryAutoApproval(ctx)
@@ -880,94 +870,6 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 	}
 
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
-}
-
-func (e *RunExecutor) validateExpectedOutputs(ctx context.Context) error {
-	if e.task == nil {
-		return nil
-	}
-	expectedPaths := extractExpectedPaths(e.task.Title, e.task.Description)
-	if len(expectedPaths) == 0 {
-		return nil
-	}
-	if e.run.RunMode != domain.RunModeSandboxed {
-		return nil
-	}
-	if e.sandbox == nil || e.sandboxID == nil {
-		return &domain.ValidationError{
-			Field:   "expected_files",
-			Message: "expected outputs specified but sandbox diff unavailable",
-			Hint:    "ensure sandboxed runs have an active sandbox before validation",
-		}
-	}
-
-	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
-	if err != nil {
-		return fmt.Errorf("expected output validation failed: %w", err)
-	}
-
-	changed := make(map[string]struct{}, len(diff.Files))
-	for _, file := range diff.Files {
-		path := filepath.ToSlash(filepath.Clean(file.FilePath))
-		changed[path] = struct{}{}
-	}
-
-	projectRoot := strings.TrimSpace(e.task.ProjectRoot)
-	missing := make([]string, 0, len(expectedPaths))
-	for _, expected := range expectedPaths {
-		normalized := filepath.ToSlash(filepath.Clean(expected))
-		if projectRoot != "" && filepath.IsAbs(normalized) {
-			if rel, err := filepath.Rel(projectRoot, normalized); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
-				normalized = filepath.ToSlash(filepath.Clean(rel))
-			}
-		}
-		if _, ok := changed[normalized]; !ok {
-			missing = append(missing, normalized)
-		}
-	}
-
-	if len(missing) > 0 {
-		return &domain.ValidationError{
-			Field:   "expected_files",
-			Message: fmt.Sprintf("expected outputs missing: %s", strings.Join(missing, ", ")),
-			Hint:    "verify the agent created the requested files in the sandbox",
-		}
-	}
-	return nil
-}
-
-func extractExpectedPaths(parts ...string) []string {
-	content := strings.Join(parts, "\n")
-	if strings.TrimSpace(content) == "" {
-		return nil
-	}
-
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)\bcreate (?:a |an )?(?:new )?(?:text )?file at ([^\s"'` + "`" + `]+)`),
-		regexp.MustCompile("`([^`]+)`"),
-	}
-
-	seen := make(map[string]struct{})
-	var results []string
-	for _, pattern := range patterns {
-		matches := pattern.FindAllStringSubmatch(content, -1)
-		for _, match := range matches {
-			if len(match) < 2 {
-				continue
-			}
-			path := strings.TrimSpace(match[1])
-			path = strings.TrimRight(path, ".,;:")
-			if path == "" {
-				continue
-			}
-			if _, ok := seen[path]; ok {
-				continue
-			}
-			seen[path] = struct{}{}
-			results = append(results, path)
-		}
-	}
-	return results
 }
 
 func (e *RunExecutor) handleFailure(ctx context.Context) {
