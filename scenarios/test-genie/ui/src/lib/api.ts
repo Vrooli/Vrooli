@@ -512,9 +512,9 @@ export interface BlockedCommandsResponse {
   safeBashPatterns: string[];
 }
 
-export async function fetchAgentModels(provider = "openrouter"): Promise<AgentModel[]> {
+export async function fetchAgentModels(provider?: string): Promise<AgentModel[]> {
   const url = buildApiUrl("/agents/models", { baseUrl: API_BASE });
-  const finalUrl = `${url}?provider=${encodeURIComponent(provider)}`;
+  const finalUrl = provider ? `${url}?provider=${encodeURIComponent(provider)}` : url;
   const res = await fetch(finalUrl, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"

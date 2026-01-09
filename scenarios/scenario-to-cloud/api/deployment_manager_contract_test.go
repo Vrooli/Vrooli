@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"scenario-to-cloud/internal/httputil"
 )
 
 func TestPackagerAPISurface_DeploymentManagerContract(t *testing.T) {
@@ -84,7 +86,7 @@ func TestPackagerAPISurface_DeploymentManagerContract(t *testing.T) {
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("%s status: got %d body=%s", path, resp.StatusCode, string(body))
 		}
-		var env APIErrorEnvelope
+		var env httputil.APIErrorEnvelope
 		if err := json.Unmarshal(body, &env); err != nil {
 			t.Fatalf("%s unmarshal error envelope: %v body=%s", path, err, string(body))
 		}

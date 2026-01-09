@@ -119,12 +119,25 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 ## 📚 Session Start Checklist
 1. [ ] Run `vrooli info` for the consolidated project overview
 
-## 🔧 Local Resources Setup
-**Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/service.json`
-- **First Run**: If no config exists, resource is installed by default
-- **Subsequent Runs**: Only installs resources explicitly enabled in configuration
-- **Skip Resources**: Use `--resources none` to skip all resource installation
-- **CI/CD**: Automatically defaults to `none` to prevent unwanted installations
+## 🔧 Setup Configuration
+
+**Environment Profiles** (`--environment`):
+- `development` (default): Full setup with all dev tools (bats, shellcheck, ast-grep, Go dev tools, Helm, etc.)
+- `production`: Production runtimes only, skips dev tools - ideal for VPS deployments
+- `minimal`: Only Docker + essential system deps - fastest possible setup
+
+**Resource Installation** (`--resources`):
+- `enabled` (default): Install resources marked as enabled in `.vrooli/service.json`
+- `none`: Skip all resource installation
+- `<list>`: Install only specified resources (comma-separated, e.g., `postgres,redis`)
+
+**Examples**:
+```bash
+./scripts/manage.sh setup --yes yes                           # Full dev setup
+./scripts/manage.sh setup --environment production            # Production (no dev tools)
+./scripts/manage.sh setup --environment minimal --resources none  # Fastest possible
+./scripts/manage.sh setup --resources postgres,redis          # Only specific resources
+```
 
 **Resource Management**:
 - Enable/disable resources by editing `.vrooli/service.json`

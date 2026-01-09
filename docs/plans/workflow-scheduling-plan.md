@@ -959,7 +959,7 @@ Document:
 |------------|---------|------|
 | `github.com/robfig/cron/v3` | Cron scheduling | https://pkg.go.dev/github.com/robfig/cron/v3 |
 | scenario-to-desktop | Electron templates | `scenarios/scenario-to-desktop/README.md` |
-| Bundle manifest | Desktop config | `docs/deployment/bundle-schema.desktop.v0.1.json` |
+| Bundle manifest | Desktop config | `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` |
 
 ### Related Plans
 

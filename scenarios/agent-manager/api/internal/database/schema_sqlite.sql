@@ -80,11 +80,13 @@ CREATE TABLE IF NOT EXISTS runs (
     changed_files INTEGER DEFAULT 0,
     total_size_bytes INTEGER DEFAULT 0,
     sandbox_config TEXT DEFAULT '{}',
+    session_id TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_task_id ON runs(task_id);
+CREATE INDEX IF NOT EXISTS idx_runs_session_id ON runs(session_id) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_runs_agent_profile_id ON runs(agent_profile_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);

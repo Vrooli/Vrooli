@@ -5,22 +5,32 @@
  * - Template selection and variable management
  * - Skill attachment/removal
  * - Slash command filtering
+ * - Mode-based navigation for Suggestions
+ * - Template CRUD operations
  * - State reset after message send
  */
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  TEMPLATES,
+  getAllTemplates,
   fillTemplateContent,
   validateTemplateVariables,
+  createTemplate as createTemplateStorage,
+  updateTemplate as updateTemplateStorage,
+  deleteTemplate as deleteTemplateStorage,
+  hideBuiltInTemplate,
+  unhideBuiltInTemplate,
 } from "@/data/templates";
-import { SKILLS, getSkillsByIds } from "@/data/skills";
+import { SKILLS, getSkillById, getSkillsByIds } from "@/data/skills";
 import type {
   ActiveTemplate,
   Skill,
+  SkillPayload,
   SlashCommand,
+  SlashCommandType,
   Template,
 } from "@/lib/types/templates";
+import { serializeModePath } from "@/lib/frecency";
 
 export interface UseTemplatesAndSkillsReturn {
   // Data
@@ -36,6 +46,25 @@ export interface UseTemplatesAndSkillsReturn {
   isTemplateValid: () => boolean;
   getTemplateMissingFields: () => string[];
 
+  // Template CRUD
+  createTemplate: (
+    template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
+  ) => Template;
+  updateTemplate: (id: string, updates: Partial<Template>) => Template | null;
+  deleteTemplate: (id: string) => boolean;
+  hideTemplate: (id: string) => void;
+  unhideTemplate: (id: string) => void;
+  refreshTemplates: () => void;
+
+  // Mode navigation
+  currentModePath: string[];
+  setCurrentModePath: (path: string[]) => void;
+  getTemplatesAtPath: (path: string[]) => Template[];
+  getSubmodesAtPath: (path: string[]) => string[];
+  navigateToMode: (mode: string) => void;
+  navigateBack: () => void;
+  resetModePath: () => void;
+
   // Skills state
   selectedSkillIds: string[];
   addSkill: (skillId: string) => void;
@@ -43,6 +72,7 @@ export interface UseTemplatesAndSkillsReturn {
   toggleSkill: (skillId: string) => void;
   clearSkills: () => void;
   getSelectedSkills: () => Skill[];
+  buildSkillPayloads: (skillIds: string[]) => SkillPayload[];
 
   // Slash commands
   getAllCommands: () => SlashCommand[];
@@ -53,12 +83,135 @@ export interface UseTemplatesAndSkillsReturn {
 }
 
 export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
-  // Template state
+  // Template list state (refreshable)
+  const [templates, setTemplates] = useState<Template[]>(getAllTemplates);
+
+  // Active template state
   const [activeTemplate, setActiveTemplateState] =
     useState<ActiveTemplate | null>(null);
 
+  // Mode navigation state
+  const [currentModePath, setCurrentModePath] = useState<string[]>([]);
+
   // Skills state
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+
+  // Refresh templates from storage
+  const refreshTemplates = useCallback(() => {
+    setTemplates(getAllTemplates());
+  }, []);
+
+  // Template CRUD operations
+  const createTemplate = useCallback(
+    (
+      template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
+    ): Template => {
+      const newTemplate = createTemplateStorage(template);
+      refreshTemplates();
+      return newTemplate;
+    },
+    [refreshTemplates]
+  );
+
+  const updateTemplate = useCallback(
+    (id: string, updates: Partial<Template>): Template | null => {
+      const updated = updateTemplateStorage(id, updates);
+      if (updated) {
+        refreshTemplates();
+      }
+      return updated;
+    },
+    [refreshTemplates]
+  );
+
+  const deleteTemplate = useCallback(
+    (id: string): boolean => {
+      const deleted = deleteTemplateStorage(id);
+      if (deleted) {
+        refreshTemplates();
+      }
+      return deleted;
+    },
+    [refreshTemplates]
+  );
+
+  const hideTemplate = useCallback(
+    (id: string): void => {
+      hideBuiltInTemplate(id);
+      refreshTemplates();
+    },
+    [refreshTemplates]
+  );
+
+  const unhideTemplate = useCallback(
+    (id: string): void => {
+      unhideBuiltInTemplate(id);
+      refreshTemplates();
+    },
+    [refreshTemplates]
+  );
+
+  // Mode navigation
+  const navigateToMode = useCallback((mode: string) => {
+    setCurrentModePath((prev) => [...prev, mode]);
+  }, []);
+
+  const navigateBack = useCallback(() => {
+    setCurrentModePath((prev) => prev.slice(0, -1));
+  }, []);
+
+  const resetModePath = useCallback(() => {
+    setCurrentModePath([]);
+  }, []);
+
+  // Get templates at a specific path
+  const getTemplatesAtPath = useCallback(
+    (path: string[]): Template[] => {
+      if (path.length === 0) {
+        // At root, no templates - only mode chips
+        return [];
+      }
+
+      return templates.filter((t) => {
+        if (!t.modes || t.modes.length === 0) return false;
+
+        // Check if template's modes match the path exactly or extend it
+        if (t.modes.length < path.length) return false;
+
+        // All path elements must match the template's modes
+        for (let i = 0; i < path.length; i++) {
+          if (t.modes[i] !== path[i]) return false;
+        }
+
+        // Template must be exactly at this level (modes.length === path.length)
+        // or this is the deepest level of the template
+        return t.modes.length === path.length;
+      });
+    },
+    [templates]
+  );
+
+  // Get submodes at a specific path
+  const getSubmodesAtPath = useCallback(
+    (path: string[]): string[] => {
+      const submodes = new Set<string>();
+
+      templates.forEach((t) => {
+        if (!t.modes || t.modes.length <= path.length) return;
+
+        // Check if template's modes match the path
+        for (let i = 0; i < path.length; i++) {
+          if (t.modes[i] !== path[i]) return;
+        }
+
+        // Add the next level mode
+        submodes.add(t.modes[path.length]);
+      });
+
+      return Array.from(submodes).sort();
+    },
+    [templates]
+  );
 
   // Set active template with default variable values
   const setActiveTemplate = useCallback(
@@ -171,6 +324,27 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     return getSkillsByIds(selectedSkillIds);
   }, [selectedSkillIds]);
 
+  // Build full skill payloads for sending to backend
+  const buildSkillPayloads = useCallback(
+    (skillIds: string[]): SkillPayload[] => {
+      const payloads: SkillPayload[] = [];
+      for (const id of skillIds) {
+        const skill = getSkillById(id);
+        if (!skill) continue;
+        payloads.push({
+          id: skill.id,
+          name: skill.name,
+          content: skill.content,
+          key: `skill-${skill.id}`,
+          label: skill.name,
+          tags: skill.tags,
+        });
+      }
+      return payloads;
+    },
+    []
+  );
+
   // Build all slash commands
   const getAllCommands = useCallback((): SlashCommand[] => {
     const commands: SlashCommand[] = [
@@ -203,9 +377,17 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
         description: "Enable web search",
         icon: "Globe",
       },
+      // Suggestions toggle command
+      {
+        type: "tool" as SlashCommandType,
+        id: "suggestions",
+        name: "/suggestions",
+        description: "Toggle template suggestions panel",
+        icon: "Lightbulb",
+      },
 
       // Direct template commands
-      ...TEMPLATES.map((t) => ({
+      ...templates.map((t) => ({
         type: "direct-template" as const,
         id: t.id,
         name: `/${t.id}`,
@@ -226,7 +408,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     ];
 
     return commands;
-  }, []);
+  }, [templates]);
 
   // Filter and sort commands by query relevance
   const filterCommands = useCallback(
@@ -284,7 +466,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
 
   return {
     // Data
-    templates: TEMPLATES,
+    templates,
     skills: SKILLS,
 
     // Template state
@@ -296,6 +478,23 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     isTemplateValid,
     getTemplateMissingFields,
 
+    // Template CRUD
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    hideTemplate,
+    unhideTemplate,
+    refreshTemplates,
+
+    // Mode navigation
+    currentModePath,
+    setCurrentModePath,
+    getTemplatesAtPath,
+    getSubmodesAtPath,
+    navigateToMode,
+    navigateBack,
+    resetModePath,
+
     // Skills state
     selectedSkillIds,
     addSkill,
@@ -303,6 +502,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     toggleSkill,
     clearSkills,
     getSelectedSkills,
+    buildSkillPayloads,
 
     // Slash commands
     getAllCommands,

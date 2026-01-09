@@ -52,7 +52,7 @@ const ALLOWED_BASH_COMMANDS = [
   "gofmt", "gofumpt", "golangci-lint",
   "pnpm typecheck", "pnpm run typecheck", "tsc",
   "ls", "pwd", "which", "wc", "diff",
-  "git status", "git diff", "git log", "git show", "git branch"
+  "git status", "git diff", "git log", "git show"
 ];
 
 function buildSafetyPreamble(
@@ -359,7 +359,7 @@ export function GeneratePage() {
       setModelsLoading(true);
       setModelsError(null);
       try {
-        const models = await fetchAgentModels("openrouter");
+        const models = await fetchAgentModels();
         setModelOptions(models);
         const preferred = recentModels.find((m) => models.some((opt) => opt.id === m)) || models[0]?.id || "";
         setAgentModel(preferred);

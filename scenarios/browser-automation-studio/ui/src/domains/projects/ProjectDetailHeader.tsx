@@ -15,6 +15,7 @@ import {
   Circle,
   RefreshCw,
   Loader,
+  ArrowLeft,
 } from "lucide-react";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import { usePromptDialog } from "@hooks/usePromptDialog";
@@ -460,6 +461,204 @@ export function ProjectDetailHeader({
     await fileOps.resyncFiles();
   }, [requestConfirm, fileOps, setShowNewFileMenu]);
 
+  // Info Popover content (shared between desktop and mobile)
+  const InfoPopover = () => (
+    showStatsPopover && (
+      <div
+        ref={statsPopoverRef}
+        style={statsPopoverStyles}
+        className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-surface">
+            Project Details
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowStatsPopover(false)}
+            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+            aria-label="Close project details"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Project Info Section */}
+        <div className="mb-4 pb-4 border-b border-gray-700">
+          <div className="mb-3">
+            <dt className="text-xs text-gray-400 mb-1">Project Name</dt>
+            <dd className="text-sm font-medium text-surface">{project.name}</dd>
+          </div>
+          <div className="mb-3">
+            <dt className="text-xs text-gray-400 mb-1">Description</dt>
+            <dd className="text-sm text-gray-300">
+              {project.description?.trim() ? project.description : "No description"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-gray-400 mb-1">Save Path</dt>
+            <dd className="text-sm text-gray-300 font-mono break-all">
+              {project.folder_path}
+            </dd>
+          </div>
+        </div>
+
+        {/* Metrics Section */}
+        <div className="mb-3">
+          <h4 className="text-xs font-semibold text-gray-400 mb-2">Metrics</h4>
+          <dl className="space-y-2 text-sm text-gray-300">
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-400">Workflows</dt>
+              <dd className="font-medium text-surface">{workflowCount}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-400">Total executions</dt>
+              <dd className="font-medium text-surface">{totalExecutions}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-400">Last execution</dt>
+              <dd className="font-medium text-surface">{lastExecutionLabel}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-400">Last updated</dt>
+              <dd className="font-medium text-surface">{lastUpdatedLabel}</dd>
+            </div>
+          </dl>
+        </div>
+        <p className="text-xs text-gray-500">
+          Metrics refresh automatically as your workflows run.
+        </p>
+      </div>
+    )
+  );
+
+  // More Menu content (shared between desktop and mobile)
+  const MoreMenu = () => (
+    showMoreMenu && (
+      <div
+        ref={moreMenuRef}
+        style={moreMenuStyles}
+        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+      >
+        {/* Edit Project - moved from standalone button */}
+        <button
+          data-testid={selectors.projects.editButton}
+          onClick={() => {
+            setShowEditProjectModal(true);
+            setShowMoreMenu(false);
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+        >
+          <PencilLine size={16} />
+          <span className="text-sm">Edit Project</span>
+        </button>
+        <button
+          onClick={() => {
+            toggleSelectionMode();
+            setShowMoreMenu(false);
+          }}
+          disabled={workflows.length === 0}
+          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+        >
+          <ListChecks size={16} />
+          <span className="text-sm">Manage Workflows</span>
+        </button>
+        {onStartRecording && (
+          <button
+            onClick={() => {
+              onStartRecording();
+              setShowMoreMenu(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+          >
+            <Circle size={16} className="text-red-500 fill-red-500" />
+            <span className="text-sm">Record Actions</span>
+          </button>
+        )}
+        <button
+          onClick={() => {
+            handleRecordingImportClick();
+            setShowMoreMenu(false);
+          }}
+          disabled={isImportingRecording}
+          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+        >
+          {isImportingRecording ? (
+            <Loader size={16} className="animate-spin" />
+          ) : (
+            <UploadCloud size={16} />
+          )}
+          <span className="text-sm">
+            {isImportingRecording ? "Importing..." : "Import Recording"}
+          </span>
+        </button>
+        {/* Resync From Disk - moved from New dropdown, only in tree mode */}
+        {viewMode === "tree" && (
+          <button
+            onClick={() => {
+              handleResyncFiles();
+              setShowMoreMenu(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+          >
+            <RefreshCw size={16} />
+            <span className="text-sm">Resync From Disk</span>
+          </button>
+        )}
+        <button
+          onClick={() => {
+            onDeleteProject();
+            setShowMoreMenu(false);
+          }}
+          disabled={isDeletingProject}
+          className="w-full flex items-center gap-3 px-4 py-3 text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-gray-700"
+        >
+          {isDeletingProject ? (
+            <Loader size={16} className="animate-spin" />
+          ) : (
+            <Trash2 size={16} />
+          )}
+          <span className="text-sm">
+            {isDeletingProject ? "Deleting..." : "Delete Project"}
+          </span>
+        </button>
+      </div>
+    )
+  );
+
+  // New File Menu content (for tree mode dropdown)
+  const NewFileMenu = () => (
+    showNewFileMenu && (
+      <div
+        ref={newFileMenuRef}
+        style={newFileMenuStyles}
+        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden mt-2"
+      >
+        <button
+          onClick={handleCreateFolder}
+          data-testid={selectors.projects.fileTree.createFolderButton}
+          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+        >
+          <FolderOpen size={16} />
+          <span className="text-sm">New Folder</span>
+        </button>
+        {(["action", "flow", "case"] as const).map((type) => (
+          <button
+            key={type}
+            onClick={() => handleCreateWorkflowFile(type)}
+            data-testid={selectors.projects.fileTree.createWorkflowButton}
+            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+          >
+            <FileCode size={16} />
+            <span className="text-sm">
+              New {type.charAt(0).toUpperCase() + type.slice(1)}
+            </span>
+          </button>
+        ))}
+      </div>
+    )
+  );
+
   return (
     <>
       <input
@@ -470,318 +669,182 @@ export function ProjectDetailHeader({
         onChange={handleRecordingImport}
       />
 
-      <div className="relative px-6 pt-6 border-b border-gray-800 space-y-3 md:space-y-6">
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={[
-            { label: "Dashboard", onClick: onBack },
-            { label: project.name, current: true },
-          ]}
-          className="mb-2"
-        />
-
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-surface">
-                  {project.name}
-                </h1>
-                <div className="flex items-center gap-2">
-                  {/* Info Button */}
-                  <div className="relative">
-                    <button
-                      ref={statsButtonRef}
-                      type="button"
-                      onClick={() => setShowStatsPopover(!showStatsPopover)}
-                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                      aria-label="Project details"
-                      aria-expanded={showStatsPopover}
-                    >
-                      <Info size={16} />
-                    </button>
-                    {showStatsPopover && (
-                      <div
-                        ref={statsPopoverRef}
-                        style={statsPopoverStyles}
-                        className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm font-semibold text-surface">
-                            Project Details
-                          </h3>
-                          <button
-                            type="button"
-                            onClick={() => setShowStatsPopover(false)}
-                            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                            aria-label="Close project details"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-
-                        {/* Project Info Section */}
-                        <div className="mb-4 pb-4 border-b border-gray-700">
-                          <div className="mb-3">
-                            <dt className="text-xs text-gray-400 mb-1">Project Name</dt>
-                            <dd className="text-sm font-medium text-surface">{project.name}</dd>
-                          </div>
-                          <div className="mb-3">
-                            <dt className="text-xs text-gray-400 mb-1">Description</dt>
-                            <dd className="text-sm text-gray-300">
-                              {project.description?.trim() ? project.description : "No description"}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs text-gray-400 mb-1">Save Path</dt>
-                            <dd className="text-sm text-gray-300 font-mono break-all">
-                              {project.folder_path}
-                            </dd>
-                          </div>
-                        </div>
-
-                        {/* Metrics Section */}
-                        <div className="mb-3">
-                          <h4 className="text-xs font-semibold text-gray-400 mb-2">Metrics</h4>
-                          <dl className="space-y-2 text-sm text-gray-300">
-                            <div className="flex items-center justify-between">
-                              <dt className="text-gray-400">Workflows</dt>
-                              <dd className="font-medium text-surface">{workflowCount}</dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <dt className="text-gray-400">Total executions</dt>
-                              <dd className="font-medium text-surface">{totalExecutions}</dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <dt className="text-gray-400">Last execution</dt>
-                              <dd className="font-medium text-surface">{lastExecutionLabel}</dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <dt className="text-gray-400">Last updated</dt>
-                              <dd className="font-medium text-surface">{lastUpdatedLabel}</dd>
-                            </div>
-                          </dl>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          Metrics refresh automatically as your workflows run.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Edit Button */}
-                  <button
-                    data-testid={selectors.projects.editButton}
-                    onClick={() => setShowEditProjectModal(true)}
-                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                    title="Edit project details"
-                  >
-                    <PencilLine size={16} />
-                  </button>
-
-                  {/* More Menu Button */}
-                  <div className="relative">
-                    <button
-                      ref={moreMenuButtonRef}
-                      onClick={() => setShowMoreMenu(!showMoreMenu)}
-                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                      aria-label="More options"
-                      aria-expanded={showMoreMenu}
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                    {showMoreMenu && (
-                      <div
-                        ref={moreMenuRef}
-                        style={moreMenuStyles}
-                        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
-                      >
-                        <button
-                          onClick={() => {
-                            toggleSelectionMode();
-                            setShowMoreMenu(false);
-                          }}
-                          disabled={workflows.length === 0}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                        >
-                          <ListChecks size={16} />
-                          <span className="text-sm">Manage Workflows</span>
-                        </button>
-                        {onStartRecording && (
-                          <button
-                            onClick={() => {
-                              onStartRecording();
-                              setShowMoreMenu(false);
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-                          >
-                            <Circle size={16} className="text-red-500 fill-red-500" />
-                            <span className="text-sm">Record Actions</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            handleRecordingImportClick();
-                            setShowMoreMenu(false);
-                          }}
-                          disabled={isImportingRecording}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                        >
-                          {isImportingRecording ? (
-                            <Loader size={16} className="animate-spin" />
-                          ) : (
-                            <UploadCloud size={16} />
-                          )}
-                          <span className="text-sm">
-                            {isImportingRecording ? "Importing..." : "Import Recording"}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            onDeleteProject();
-                            setShowMoreMenu(false);
-                          }}
-                          disabled={isDeletingProject}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-gray-700"
-                        >
-                          {isDeletingProject ? (
-                            <Loader size={16} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                          <span className="text-sm">
-                            {isDeletingProject ? "Deleting..." : "Delete Project"}
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* New File Menu (tree mode) or New Workflow Button (card mode) */}
-                  {viewMode === "tree" ? (
-                    <div className="relative md:ml-auto">
-                      <button
-                        ref={newFileMenuButtonRef}
-                        data-testid={selectors.workflows.newButton}
-                        onClick={() => setShowNewFileMenu(!showNewFileMenu)}
-                        className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        <Plus size={16} />
-                        <span className="hidden sm:inline">New</span>
-                      </button>
-                      {showNewFileMenu && (
-                        <div
-                          ref={newFileMenuRef}
-                          style={newFileMenuStyles}
-                          className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden mt-2"
-                        >
-                          <button
-                            onClick={handleCreateFolder}
-                            data-testid={selectors.projects.fileTree.createFolderButton}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-                          >
-                            <FolderOpen size={16} />
-                            <span className="text-sm">New Folder</span>
-                          </button>
-                          {(["action", "flow", "case"] as const).map((type) => (
-                            <button
-                              key={type}
-                              onClick={() => handleCreateWorkflowFile(type)}
-                              data-testid={selectors.projects.fileTree.createWorkflowButton}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-                            >
-                              <FileCode size={16} />
-                              <span className="text-sm">
-                                New {type.charAt(0).toUpperCase() + type.slice(1)}
-                              </span>
-                            </button>
-                          ))}
-                          <button
-                            onClick={handleResyncFiles}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left border-t border-gray-700"
-                          >
-                            <RefreshCw size={16} />
-                            <span className="text-sm">Resync From Disk</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      data-testid={selectors.workflows.newButton}
-                      onClick={onCreateWorkflow}
-                      className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
-                    >
-                      <Plus size={16} />
-                      <span>New Workflow</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p className="hidden md:block text-gray-400">
-                {project.description?.trim()
-                  ? project.description
-                  : "Add a description to keep collaborators aligned."}
-              </p>
+      <div className="relative px-6 pt-4 pb-2">
+        {/* Selection Mode Controls - shown when active */}
+        {selectionMode ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleSelectionMode}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-flow-accent text-flow-accent transition-colors"
+                title="Done"
+              >
+                <X size={14} />
+                <span className="hidden md:inline">Done</span>
+              </button>
+              <span className="text-sm text-gray-400">
+                {selectedWorkflows.size} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSelectAll}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700 text-subtle hover:border-flow-accent hover:text-surface transition-colors"
+                title={
+                  selectedWorkflows.size === filteredWorkflows.length &&
+                  filteredWorkflows.length > 0
+                    ? "Clear Selection"
+                    : "Select All"
+                }
+              >
+                {selectedWorkflows.size === filteredWorkflows.length &&
+                filteredWorkflows.length > 0 ? (
+                  <CheckSquare size={14} />
+                ) : (
+                  <Square size={14} />
+                )}
+                <span className="hidden md:inline">
+                  {selectedWorkflows.size === filteredWorkflows.length &&
+                  filteredWorkflows.length > 0
+                    ? "Clear"
+                    : "Select All"}
+                </span>
+              </button>
+              <button
+                onClick={handleBulkDeleteSelected}
+                disabled={selectedWorkflows.size === 0 || isBulkDeleting}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                  selectedWorkflows.size === 0
+                    ? "bg-red-500/20 text-red-300 opacity-60 cursor-not-allowed"
+                    : "bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                }`}
+                title="Delete Selected"
+              >
+                {isBulkDeleting ? (
+                  <Loader size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                <span className="hidden md:inline">Delete</span>
+              </button>
             </div>
           </div>
+        ) : (
+          <>
+            {/* Desktop Header - Compact single row */}
+            <div className="hidden md:flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Breadcrumbs
+                  items={[
+                    { label: "Dashboard", onClick: onBack },
+                    { label: "Projects", onClick: onBack },
+                    { label: project.name, current: true },
+                  ]}
+                />
+                {/* Info Button */}
+                <div className="relative flex-shrink-0">
+                  <button
+                    ref={statsButtonRef}
+                    type="button"
+                    onClick={() => setShowStatsPopover(!showStatsPopover)}
+                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                    aria-label="Project details"
+                    aria-expanded={showStatsPopover}
+                  >
+                    <Info size={16} />
+                  </button>
+                  <InfoPopover />
+                </div>
+                {/* More Menu Button */}
+                <div className="relative flex-shrink-0">
+                  <button
+                    ref={moreMenuButtonRef}
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                    aria-label="More options"
+                    aria-expanded={showMoreMenu}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  <MoreMenu />
+                </div>
+              </div>
 
-          {/* Selection Controls */}
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {selectionMode && (
-              <>
+              {/* New Button - Desktop only */}
+              {viewMode === "tree" ? (
+                <div className="relative flex-shrink-0">
+                  <button
+                    ref={newFileMenuButtonRef}
+                    data-testid={selectors.workflows.newButton}
+                    onClick={() => setShowNewFileMenu(!showNewFileMenu)}
+                    className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                    <span>New</span>
+                  </button>
+                  <NewFileMenu />
+                </div>
+              ) : (
                 <button
-                  onClick={toggleSelectionMode}
-                  className="flex items-center gap-2 px-3 py-1.5 md:rounded-lg rounded-full border border-flow-accent text-flow-accent transition-colors"
-                  title="Done"
+                  data-testid={selectors.workflows.newButton}
+                  onClick={onCreateWorkflow}
+                  className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0"
                 >
-                  <X size={14} />
-                  <span className="hidden md:inline">Done</span>
+                  <Plus size={16} />
+                  <span>New Workflow</span>
                 </button>
-                <button
-                  onClick={handleSelectAll}
-                  className="flex items-center gap-2 px-3 py-1.5 md:rounded-lg rounded-full border border-gray-700 text-subtle hover:border-flow-accent hover:text-surface transition-colors"
-                  title={
-                    selectedWorkflows.size === filteredWorkflows.length &&
-                    filteredWorkflows.length > 0
-                      ? "Clear Selection"
-                      : "Select All"
-                  }
-                >
-                  {selectedWorkflows.size === filteredWorkflows.length &&
-                  filteredWorkflows.length > 0 ? (
-                    <CheckSquare size={14} />
-                  ) : (
-                    <Square size={14} />
-                  )}
-                  <span className="hidden md:inline">
-                    {selectedWorkflows.size === filteredWorkflows.length &&
-                    filteredWorkflows.length > 0
-                      ? "Clear Selection"
-                      : "Select All"}
-                  </span>
-                </button>
-                <button
-                  onClick={handleBulkDeleteSelected}
-                  disabled={selectedWorkflows.size === 0 || isBulkDeleting}
-                  className={`flex items-center gap-2 px-3 py-1.5 md:rounded-lg rounded-full transition-colors ${
-                    selectedWorkflows.size === 0
-                      ? "bg-red-500/20 text-red-300 opacity-60 cursor-not-allowed"
-                      : "bg-red-500/10 text-red-300 hover:bg-red-500/20"
-                  }`}
-                  title="Delete Selected"
-                >
-                  {isBulkDeleting ? (
-                    <Loader size={14} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={14} />
-                  )}
-                  <span className="hidden md:inline">Delete Selected</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+
+            {/* Mobile Header - Compact row */}
+            <div className="flex md:hidden items-center justify-between gap-3">
+              {/* Back Button */}
+              <button
+                onClick={onBack}
+                className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={20} />
+              </button>
+
+              {/* Project Name - centered, truncated */}
+              <h1 className="text-lg font-semibold text-surface truncate flex-1 text-center">
+                {project.name}
+              </h1>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Info Button */}
+                <div className="relative">
+                  <button
+                    ref={statsButtonRef}
+                    type="button"
+                    onClick={() => setShowStatsPopover(!showStatsPopover)}
+                    className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                    aria-label="Project details"
+                    aria-expanded={showStatsPopover}
+                  >
+                    <Info size={18} />
+                  </button>
+                  <InfoPopover />
+                </div>
+                {/* More Menu Button */}
+                <div className="relative">
+                  <button
+                    ref={moreMenuButtonRef}
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                    aria-label="More options"
+                    aria-expanded={showMoreMenu}
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                  <MoreMenu />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />

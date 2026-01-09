@@ -51,7 +51,7 @@ type HistoryEntry = {
 };
 
 type NormalizedGroupingRule = GroupingRule & {
-  normalizedPrefix: string;
+  normalizedPrefixes: string[];
   label: string;
   mode: "prefix" | "segment";
 };
@@ -215,28 +215,42 @@ export function GitHistory({
   const normalizedRules = useMemo<NormalizedGroupingRule[]>(
     () =>
       groupingRules
-        .map((rule) => ({
-          ...rule,
-          mode: (rule.mode === "segment" ? "segment" : "prefix") as "prefix" | "segment",
-          normalizedPrefix: normalizePrefix(rule.prefix),
-          label: rule.label.trim() || rule.prefix.trim()
-        }))
-        .filter((rule) => rule.normalizedPrefix),
+        .map((rule) => {
+          const rawPrefixes = Array.isArray(rule.prefixes)
+            ? rule.prefixes
+            : typeof rule.prefix === "string"
+              ? [rule.prefix]
+              : [];
+          const normalizedPrefixes = rawPrefixes
+            .map((prefix) => normalizePrefix(prefix))
+            .filter((prefix) => prefix);
+          if (normalizedPrefixes.length === 0) return null;
+          const fallbackLabel = rawPrefixes.find((prefix) => prefix.trim()) ?? "";
+          return {
+            ...rule,
+            mode: (rule.mode === "segment" ? "segment" : "prefix") as "prefix" | "segment",
+            normalizedPrefixes,
+            label: rule.label.trim() || fallbackLabel.trim()
+          };
+        })
+        .filter((rule): rule is NormalizedGroupingRule => Boolean(rule)),
     [groupingRules]
   );
 
   const resolveScopeForPath = useCallback(
     (path: string) => {
       for (const rule of normalizedRules) {
-        if (!path.startsWith(rule.normalizedPrefix)) continue;
-        if (rule.mode === "segment") {
-          const rest = path.slice(rule.normalizedPrefix.length);
-          const segment = rest.split("/")[0];
-          const label = segment || rule.label;
-          const id = segment ? `${rule.id}:${segment}` : rule.id;
-          return { id, label };
+        for (const normalizedPrefix of rule.normalizedPrefixes) {
+          if (!path.startsWith(normalizedPrefix)) continue;
+          if (rule.mode === "segment") {
+            const rest = path.slice(normalizedPrefix.length);
+            const segment = rest.split("/")[0];
+            const label = segment || rule.label;
+            const id = segment ? `${rule.id}:${segment}` : rule.id;
+            return { id, label };
+          }
+          return { id: rule.id, label: rule.label };
         }
-        return { id: rule.id, label: rule.label };
       }
       return null;
     },

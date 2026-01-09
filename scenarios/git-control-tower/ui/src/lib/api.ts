@@ -50,6 +50,77 @@ export interface RepoStatusSummary {
   ignored?: number;
 }
 
+export interface BranchInfo {
+  name: string;
+  upstream?: string;
+  oid?: string;
+  last_commit_at?: string;
+  ahead?: number;
+  behind?: number;
+  is_current?: boolean;
+}
+
+export interface RepoBranchesResponse {
+  current: string;
+  locals: BranchInfo[];
+  remotes: BranchInfo[];
+  timestamp: string;
+}
+
+export interface BranchWarning {
+  message: string;
+  requires_confirmation?: boolean;
+  requires_tracking?: boolean;
+  requires_fetch?: boolean;
+  dirty_summary?: RepoStatusSummary;
+}
+
+export interface CreateBranchRequest {
+  name: string;
+  from?: string;
+  checkout?: boolean;
+  allow_dirty?: boolean;
+}
+
+export interface BranchCreateResponse {
+  success: boolean;
+  branch?: BranchInfo;
+  warning?: BranchWarning;
+  error?: string;
+  validation_errors?: string[];
+  timestamp: string;
+}
+
+export interface SwitchBranchRequest {
+  name: string;
+  allow_dirty?: boolean;
+  track_remote?: boolean;
+}
+
+export interface BranchSwitchResponse {
+  success: boolean;
+  branch?: BranchInfo;
+  warning?: BranchWarning;
+  error?: string;
+  timestamp: string;
+}
+
+export interface PublishBranchRequest {
+  remote?: string;
+  branch?: string;
+  set_upstream?: boolean;
+  fetch?: boolean;
+}
+
+export interface BranchPublishResponse {
+  success: boolean;
+  remote: string;
+  branch: string;
+  warning?: BranchWarning;
+  error?: string;
+  timestamp: string;
+}
+
 export interface RepoStatus {
   repo_dir: string;
   branch: RepoBranchStatus;
@@ -428,4 +499,43 @@ export async function fetchApprovedChangesPreview(
     body: JSON.stringify(request)
   });
   return handleResponse<ApprovedChangesResponse>(res);
+}
+
+export async function fetchBranches(): Promise<RepoBranchesResponse> {
+  const url = buildApiUrl("/repo/branches", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<RepoBranchesResponse>(res);
+}
+
+export async function createBranch(request: CreateBranchRequest): Promise<BranchCreateResponse> {
+  const url = buildApiUrl("/repo/branch/create", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<BranchCreateResponse>(res);
+}
+
+export async function switchBranch(request: SwitchBranchRequest): Promise<BranchSwitchResponse> {
+  const url = buildApiUrl("/repo/branch/switch", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<BranchSwitchResponse>(res);
+}
+
+export async function publishBranch(request: PublishBranchRequest = {}): Promise<BranchPublishResponse> {
+  const url = buildApiUrl("/repo/branch/publish", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<BranchPublishResponse>(res);
 }

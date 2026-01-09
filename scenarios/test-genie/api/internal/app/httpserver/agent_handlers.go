@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,7 +18,7 @@ import (
 )
 
 // =============================================================================
-// MODELS - Agent model listing from resource-opencode
+// MODELS - Agent model listing from agent-manager
 // =============================================================================
 
 type agentModel struct {
@@ -31,183 +30,56 @@ type agentModel struct {
 	Description string `json:"description"`
 }
 
-type listAgentModelsResponse struct {
-	Models []agentModel `json:"models"`
-	Items  []agentModel `json:"items"`
-	Data   []agentModel `json:"data"`
-}
-
 func (s *Server) handleListAgentModels(w http.ResponseWriter, r *http.Request) {
-	provider := strings.TrimSpace(r.URL.Query().Get("provider"))
-	if provider == "" {
-		provider = "openrouter"
+	if !s.agentService.IsAvailable(r.Context()) {
+		s.writeError(w, http.StatusServiceUnavailable, "agent-manager is not available")
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
 
-	models, err := listAgentModels(ctx, provider)
+	resp, err := s.agentService.GetProfileWithModels(ctx)
 	if err != nil {
-		s.log("list agent models failed", map[string]interface{}{"error": err.Error(), "provider": provider})
+		s.log("list agent models failed", map[string]interface{}{"error": err.Error()})
 		s.writeError(w, http.StatusBadGateway, fmt.Sprintf("failed to load agent models: %s", err.Error()))
 		return
 	}
+
+	models := make([]agentModel, 0, len(resp.GetAvailableModels()))
+	for _, model := range resp.GetAvailableModels() {
+		id := strings.TrimSpace(model.GetId())
+		if id == "" {
+			continue
+		}
+
+		label := strings.TrimSpace(model.GetLabel())
+		if label == "" {
+			label = id
+		}
+
+		models = append(models, agentModel{
+			ID:          id,
+			Name:        label,
+			DisplayName: label,
+			Provider:    strings.TrimSpace(model.GetProvider()),
+			Source:      "agent-manager",
+			Description: strings.TrimSpace(model.GetDescription()),
+		})
+	}
+
+	sort.Slice(models, func(i, j int) bool {
+		if models[i].Provider == models[j].Provider {
+			return models[i].ID < models[j].ID
+		}
+		return models[i].Provider < models[j].Provider
+	})
 
 	payload := map[string]interface{}{
 		"items": models,
 		"count": len(models),
 	}
 	s.writeJSON(w, http.StatusOK, payload)
-}
-
-func listAgentModels(ctx context.Context, provider string) ([]agentModel, error) {
-	path, err := exec.LookPath("resource-opencode")
-	if err != nil {
-		return nil, fmt.Errorf("resource-opencode is not installed or not on PATH")
-	}
-
-	args := []string{"models", "--provider", provider, "--json"}
-	cmd := exec.CommandContext(ctx, path, args...)
-	output, err := cmd.CombinedOutput()
-	cleaned := trimToJSON(output)
-
-	// Attempt to parse as a plain array first
-	var plain []agentModel
-	if err := json.Unmarshal(cleaned, &plain); err == nil && len(plain) > 0 {
-		return normalizeAgentModels(plain), nil
-	}
-
-	var envelope listAgentModelsResponse
-	if err := json.Unmarshal(cleaned, &envelope); err == nil {
-		switch {
-		case len(envelope.Models) > 0:
-			return normalizeAgentModels(envelope.Models), nil
-		case len(envelope.Items) > 0:
-			return normalizeAgentModels(envelope.Items), nil
-		case len(envelope.Data) > 0:
-			return normalizeAgentModels(envelope.Data), nil
-		}
-	}
-
-	// Last resort: attempt to parse slice of generic objects
-	var generic []map[string]interface{}
-	if err := json.Unmarshal(cleaned, &generic); err == nil && len(generic) > 0 {
-		mapped := make([]agentModel, 0, len(generic))
-		for _, item := range generic {
-			id, _ := item["id"].(string)
-			name, _ := item["name"].(string)
-			display, _ := item["display_name"].(string)
-			prov, _ := item["provider"].(string)
-			desc, _ := item["description"].(string)
-			src, _ := item["source"].(string)
-			mapped = append(mapped, agentModel{
-				ID:          id,
-				Name:        name,
-				DisplayName: display,
-				Provider:    prov,
-				Description: desc,
-				Source:      src,
-			})
-		}
-		return normalizeAgentModels(mapped), nil
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("resource-opencode models failed: %w: %s", err, strings.TrimSpace(string(output)))
-	}
-
-	return nil, fmt.Errorf("could not parse models response")
-}
-
-func trimToJSON(raw []byte) []byte {
-	data := strings.TrimSpace(string(raw))
-	if data == "" {
-		return raw
-	}
-
-	lines := strings.Split(data, "\n")
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "[WARNING]") ||
-			strings.HasPrefix(trimmed, "[INFO]") ||
-			strings.HasPrefix(trimmed, "[ERROR]") ||
-			strings.HasPrefix(trimmed, "[SUCCESS]") ||
-			strings.HasPrefix(trimmed, "[HEADER]") ||
-			strings.HasPrefix(trimmed, "[SECTION]") ||
-			strings.HasPrefix(trimmed, "[PROMPT]") ||
-			strings.HasPrefix(trimmed, "[DEBUG]") {
-			continue
-		}
-
-		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
-			return []byte(strings.Join(lines[i:], "\n"))
-		}
-
-		if idx := strings.IndexAny(trimmed, "{["); idx >= 0 {
-			payload := trimmed[idx:]
-			if i+1 < len(lines) {
-				payload = payload + "\n" + strings.Join(lines[i+1:], "\n")
-			}
-			return []byte(payload)
-		}
-	}
-
-	idxObj := strings.IndexRune(data, '{')
-	idxArr := strings.IndexRune(data, '[')
-
-	start := -1
-	if idxObj >= 0 && idxArr >= 0 {
-		start = idxObj
-		if idxArr < idxObj {
-			start = idxArr
-		}
-	} else if idxObj >= 0 {
-		start = idxObj
-	} else if idxArr >= 0 {
-		start = idxArr
-	}
-
-	if start > 0 {
-		return []byte(data[start:])
-	}
-	return []byte(data)
-}
-
-func normalizeAgentModels(models []agentModel) []agentModel {
-	seen := make(map[string]agentModel)
-	for _, m := range models {
-		id := strings.TrimSpace(m.ID)
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = agentModel{
-			ID:          id,
-			Name:        strings.TrimSpace(m.Name),
-			DisplayName: strings.TrimSpace(m.DisplayName),
-			Provider:    strings.TrimSpace(m.Provider),
-			Source:      strings.TrimSpace(m.Source),
-			Description: strings.TrimSpace(m.Description),
-		}
-	}
-
-	list := make([]agentModel, 0, len(seen))
-	for _, m := range seen {
-		list = append(list, m)
-	}
-
-	sort.Slice(list, func(i, j int) bool {
-		if list[i].Provider == list[j].Provider {
-			return list[i].ID < list[j].ID
-		}
-		return list[i].Provider < list[j].Provider
-	})
-	return list
 }
 
 // =============================================================================

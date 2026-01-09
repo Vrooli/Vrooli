@@ -26,6 +26,7 @@ interface ProjectDetailProps {
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
+  onImportWorkflow?: () => void;
   /** Initial preview workflow ID from URL */
   initialPreviewWorkflowId?: string;
   /** Callback when preview changes (for URL sync) */
@@ -45,6 +46,7 @@ function ProjectDetail({
   onCreateWorkflow,
   onCreateWorkflowDirect,
   onStartRecording,
+  onImportWorkflow,
   initialPreviewWorkflowId,
   onPreviewChange,
 }: ProjectDetailProps) {
@@ -240,6 +242,10 @@ function ProjectDetail({
             <ProjectFileTree
               project={project}
               onWorkflowSelect={onWorkflowSelect}
+              onCreateWorkflow={onCreateWorkflow}
+              onCreateWorkflowDirect={onCreateWorkflowDirect}
+              onStartRecording={onStartRecording}
+              onImportWorkflow={onImportWorkflow}
             />
           ) : (
             <WorkflowCardGrid
@@ -248,6 +254,7 @@ function ProjectDetail({
               onCreateWorkflow={onCreateWorkflow}
               onCreateWorkflowDirect={onCreateWorkflowDirect}
               onStartRecording={onStartRecording}
+              onImportWorkflow={onImportWorkflow}
             />
           )}
         </div>

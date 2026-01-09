@@ -22,11 +22,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -113,6 +115,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
@@ -806,8 +809,11 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	availableModels, modelPresets := h.resolveProfileModels(r.Context(), profile)
 	writeProtoJSON(w, http.StatusOK, &apipb.GetProfileResponse{
-		Profile: protoconv.AgentProfileToProto(profile),
+		Profile:         protoconv.AgentProfileToProto(profile),
+		AvailableModels: availableModels,
+		ModelPresets:    modelPresets,
 	})
 }
 
@@ -1574,6 +1580,51 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, http.StatusOK, &apipb.StopRunResponse{Status: "stopped"})
 }
 
+// ContinueRun continues an existing run's conversation with a follow-up message.
+// POST /api/v1/runs/{id}/continue
+// Body: {"message": "Please also update the tests"}
+func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req domainpb.ContinueRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Override run_id from path
+	req.RunId = idStr
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	run, err := h.svc.ContinueRun(r.Context(), orchestration.ContinueRunRequest{
+		RunID:   id,
+		Message: req.Message,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &domainpb.ContinueRunResponse{
+		Success: true,
+		Run:     protoconv.RunToProto(run),
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
 // GetRunByTag retrieves a run by its custom tag.
 func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 	tag := mux.Vars(r)["tag"]
@@ -1936,6 +1987,103 @@ func (h *Handler) UpdateRunnerModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.AgentProfile) ([]*apipb.AvailableModel, map[string]string) {
+	if profile == nil {
+		return nil, nil
+	}
+
+	registry, err := h.svc.GetModelRegistry(ctx)
+	if err != nil || registry == nil {
+		return nil, nil
+	}
+
+	statuses, _ := h.svc.GetRunnerStatus(ctx)
+
+	runnerKey := string(profile.RunnerType)
+	runnerRegistry, ok := registry.Runners[runnerKey]
+	if !ok {
+		return nil, nil
+	}
+
+	supported := make(map[string]struct{})
+	if len(statuses) > 0 {
+		for _, status := range statuses {
+			if status.Type != profile.RunnerType {
+				continue
+			}
+			for _, model := range status.Capabilities.SupportedModels {
+				trimmed := strings.TrimSpace(model)
+				if trimmed == "" {
+					continue
+				}
+				supported[trimmed] = struct{}{}
+			}
+			break
+		}
+	}
+
+	available := make([]*apipb.AvailableModel, 0, len(runnerRegistry.Models))
+	for _, model := range runnerRegistry.Models {
+		id := strings.TrimSpace(model.ID)
+		if id == "" {
+			continue
+		}
+		if len(supported) > 0 {
+			if _, ok := supported[id]; !ok {
+				continue
+			}
+		}
+
+		label, provider := splitModelID(id)
+		sources := []string{"registry"}
+		if len(supported) > 0 {
+			sources = append(sources, "capabilities")
+		}
+		available = append(available, &apipb.AvailableModel{
+			Id:          id,
+			Label:       label,
+			Description: strings.TrimSpace(model.Description),
+			Provider:    provider,
+			Sources:     sources,
+		})
+	}
+
+	sort.Slice(available, func(i, j int) bool {
+		return available[i].Id < available[j].Id
+	})
+
+	var presets map[string]string
+	for key, modelID := range runnerRegistry.Presets {
+		modelID = strings.TrimSpace(modelID)
+		if modelID == "" {
+			continue
+		}
+		if len(supported) > 0 {
+			if _, ok := supported[modelID]; !ok {
+				continue
+			}
+		}
+		if presets == nil {
+			presets = make(map[string]string)
+		}
+		presets[key] = modelID
+	}
+
+	if len(available) == 0 {
+		return nil, nil
+	}
+
+	return available, presets
+}
+
+func splitModelID(id string) (label string, provider string) {
+	parts := strings.SplitN(id, "/", 2)
+	if len(parts) == 2 {
+		return parts[1], parts[0]
+	}
+	return id, ""
 }
 
 // PurgeData deletes profiles, tasks, or runs matching a regex pattern.

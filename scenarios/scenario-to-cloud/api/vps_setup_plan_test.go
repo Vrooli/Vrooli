@@ -5,9 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/vps"
 )
 
-func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
+func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 	// [REQ:STC-P0-004] Install bundle and run setup
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "mini-vrooli.tar.gz")
@@ -15,30 +18,30 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		t.Fatalf("write bundle: %v", err)
 	}
 
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "landing-page-business-suite"},
-		Dependencies: ManifestDependencies{
+		Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"landing-page-business-suite", "vrooli-autoheal"},
 			Resources: []string{"postgres"},
 		},
-		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
-		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
+		Bundle: domain.ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
+		Ports:  domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Edge:   domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
 	}
 
-	plan, err := BuildVPSSetupPlan(manifest, bundlePath)
+	plan, err := vps.BuildSetupPlan(manifest, bundlePath)
 	if err != nil {
-		t.Fatalf("BuildVPSSetupPlan: %v", err)
+		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
 	if len(plan) < 7 {
 		t.Fatalf("expected at least 7 plan steps (mkdir, bootstrap, upload, extract, setup, autoheal, verify), got: %d", len(plan))
@@ -64,23 +67,23 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 	}
 }
 
-func TestBuildVPSSetupPlanRequiresBundlePath(t *testing.T) {
+func TestBuildSetupPlanRequiresBundlePath(t *testing.T) {
 	// [REQ:STC-P0-004] Install bundle and run setup - error case
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "test-scenario"},
+		Scenario: domain.ManifestScenario{ID: "test-scenario"},
 	}
 
-	_, err := BuildVPSSetupPlan(manifest, "")
+	_, err := vps.BuildSetupPlan(manifest, "")
 	if err == nil {
 		t.Fatal("expected error for empty bundle_path")
 	}
@@ -89,13 +92,13 @@ func TestBuildVPSSetupPlanRequiresBundlePath(t *testing.T) {
 	}
 
 	// Also test whitespace-only path
-	_, err = BuildVPSSetupPlan(manifest, "   ")
+	_, err = vps.BuildSetupPlan(manifest, "   ")
 	if err == nil {
 		t.Fatal("expected error for whitespace-only bundle_path")
 	}
 }
 
-func TestBuildVPSSetupPlanStepOrder(t *testing.T) {
+func TestBuildSetupPlanStepOrder(t *testing.T) {
 	// [REQ:STC-P0-004] Plan steps must execute in the correct order
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "mini-vrooli.tar.gz")
@@ -103,23 +106,23 @@ func TestBuildVPSSetupPlanStepOrder(t *testing.T) {
 		t.Fatalf("write bundle: %v", err)
 	}
 
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "test-scenario"},
+		Scenario: domain.ManifestScenario{ID: "test-scenario"},
 	}
 
-	plan, err := BuildVPSSetupPlan(manifest, bundlePath)
+	plan, err := vps.BuildSetupPlan(manifest, bundlePath)
 	if err != nil {
-		t.Fatalf("BuildVPSSetupPlan: %v", err)
+		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
 
 	expectedOrder := []string{"mkdir", "bootstrap", "upload", "extract", "setup", "autoheal", "verify"}
@@ -143,7 +146,7 @@ func TestBuildVPSSetupPlanStepOrder(t *testing.T) {
 	}
 }
 
-func TestBuildVPSSetupPlanSSHConfig(t *testing.T) {
+func TestBuildSetupPlanSSHConfig(t *testing.T) {
 	// [REQ:STC-P0-004] Plan should use correct SSH configuration from manifest
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.tar.gz")
@@ -179,23 +182,23 @@ func TestBuildVPSSetupPlanSSHConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manifest := CloudManifest{
+			manifest := domain.CloudManifest{
 				Version: "1.0.0",
-				Target: ManifestTarget{
+				Target: domain.ManifestTarget{
 					Type: "vps",
-					VPS: &ManifestVPS{
+					VPS: &domain.ManifestVPS{
 						Host:    tt.host,
 						Port:    tt.port,
 						User:    tt.user,
 						Workdir: "/opt/vrooli",
 					},
 				},
-				Scenario: ManifestScenario{ID: "test"},
+				Scenario: domain.ManifestScenario{ID: "test"},
 			}
 
-			plan, err := BuildVPSSetupPlan(manifest, bundlePath)
+			plan, err := vps.BuildSetupPlan(manifest, bundlePath)
 			if err != nil {
-				t.Fatalf("BuildVPSSetupPlan: %v", err)
+				t.Fatalf("vps.BuildSetupPlan: %v", err)
 			}
 
 			// Check that SSH commands reference the correct host
@@ -213,7 +216,7 @@ func TestBuildVPSSetupPlanSSHConfig(t *testing.T) {
 	}
 }
 
-func TestBuildVPSSetupPlanAutohealConfig(t *testing.T) {
+func TestBuildSetupPlanAutohealConfig(t *testing.T) {
 	// [REQ:STC-P0-010] Autoheal scope configured for mini-Vrooli
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.tar.gz")
@@ -221,31 +224,31 @@ func TestBuildVPSSetupPlanAutohealConfig(t *testing.T) {
 		t.Fatalf("write bundle: %v", err)
 	}
 
-	manifest := CloudManifest{
+	manifest := domain.CloudManifest{
 		Version: "1.0.0",
-		Target: ManifestTarget{
+		Target: domain.ManifestTarget{
 			Type: "vps",
-			VPS: &ManifestVPS{
+			VPS: &domain.ManifestVPS{
 				Host:    "203.0.113.10",
 				Port:    22,
 				User:    "root",
 				Workdir: "/root/Vrooli",
 			},
 		},
-		Scenario: ManifestScenario{ID: "my-app"},
-		Dependencies: ManifestDependencies{
+		Scenario: domain.ManifestScenario{ID: "my-app"},
+		Dependencies: domain.ManifestDependencies{
 			Scenarios: []string{"my-app", "vrooli-autoheal"},
 			Resources: []string{"postgres", "redis"},
 		},
 	}
 
-	plan, err := BuildVPSSetupPlan(manifest, bundlePath)
+	plan, err := vps.BuildSetupPlan(manifest, bundlePath)
 	if err != nil {
-		t.Fatalf("BuildVPSSetupPlan: %v", err)
+		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
 
 	// Find autoheal step
-	var autohealStep *VPSPlanStep
+	var autohealStep *domain.VPSPlanStep
 	for i, step := range plan {
 		if step.ID == "autoheal" {
 			autohealStep = &plan[i]

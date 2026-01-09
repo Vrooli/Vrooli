@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps"
 )
 
 // handleListDeployments returns all deployment records.
@@ -30,7 +35,7 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 
 	deployments, err := s.repo.ListDeployments(r.Context(), filter)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "list_deployments_failed",
 			Message: "Failed to list deployments",
 			Hint:    err.Error(),
@@ -54,7 +59,7 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 		}
 		// Extract domain and host from manifest
 		if d.Manifest != nil {
-			var manifest CloudManifest
+			var manifest domain.CloudManifest
 			if err := json.Unmarshal(d.Manifest, &manifest); err == nil {
 				summary.Domain = manifest.Edge.Domain
 				if manifest.Target.VPS != nil {
@@ -65,7 +70,7 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 		summaries[i] = summary
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"deployments": summaries,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	})
@@ -73,9 +78,9 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 
 // handleCreateDeployment creates a new deployment record from a manifest.
 func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) {
-	req, err := decodeJSON[domain.CreateDeploymentRequest](r.Body, 2<<20)
+	req, err := httputil.DecodeJSON[domain.CreateDeploymentRequest](r.Body, 2<<20)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_json",
 			Message: "Request body must be valid JSON",
 			Hint:    err.Error(),
@@ -84,9 +89,9 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Parse and validate the manifest
-	var manifest CloudManifest
-	if err := json.Unmarshal(req.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+	var m domain.CloudManifest
+	if err := json.Unmarshal(req.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_manifest",
 			Message: "Manifest is not valid JSON",
 			Hint:    err.Error(),
@@ -94,9 +99,9 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	normalized, issues := ValidateAndNormalizeManifest(manifest)
-	if hasBlockingIssues(issues) {
-		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+	normalized, issues := manifest.ValidateAndNormalize(m)
+	if manifest.HasBlockingIssues(issues) {
+		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{
 			Valid:     false,
 			Issues:    issues,
 			Manifest:  normalized,
@@ -108,7 +113,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// Re-marshal the normalized manifest
 	manifestJSON, err := json.Marshal(normalized)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "marshal_failed",
 			Message: "Failed to marshal normalized manifest",
 			Hint:    err.Error(),
@@ -123,7 +128,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 	existing, err := s.repo.GetDeploymentByHostAndScenario(r.Context(), host, normalized.Scenario.ID)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "lookup_failed",
 			Message: "Failed to check for existing deployment",
 			Hint:    err.Error(),
@@ -152,7 +157,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if err := s.repo.UpdateDeployment(r.Context(), existing); err != nil {
-			writeAPIError(w, http.StatusInternalServerError, APIError{
+			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 				Code:    "update_failed",
 				Message: "Failed to update existing deployment",
 				Hint:    err.Error(),
@@ -160,7 +165,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"deployment": existing,
 			"updated":    true,
 			"timestamp":  time.Now().UTC().Format(time.RFC3339),
@@ -194,7 +199,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.repo.CreateDeployment(r.Context(), deployment); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "create_failed",
 			Message: "Failed to create deployment",
 			Hint:    err.Error(),
@@ -209,7 +214,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		Success:   boolPtr(true),
 	})
 
-	writeJSON(w, http.StatusCreated, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusCreated, map[string]interface{}{
 		"deployment": deployment,
 		"created":    true,
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
@@ -223,7 +228,7 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"deployment": deployment,
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
@@ -240,7 +245,7 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Optionally stop the deployment on VPS first
-	var manifest CloudManifest
+	var manifest domain.CloudManifest
 	if stopOnVPS || cleanupBundles {
 		if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
 			s.log("failed to unmarshal manifest", map[string]interface{}{
@@ -282,7 +287,7 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.repo.DeleteDeployment(r.Context(), id); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "delete_failed",
 			Message: "Failed to delete deployment",
 			Hint:    err.Error(),
@@ -290,20 +295,19 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"deleted":   true,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 // cleanupDeploymentBundles removes bundle files for a deployment (local + VPS).
-func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domain.Deployment, manifest CloudManifest) {
+func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domain.Deployment, manifest domain.CloudManifest) {
 	// 1. Delete local bundle
 	if deployment.BundleSHA256 != nil && *deployment.BundleSHA256 != "" {
-		repoRoot, err := FindRepoRootFromCWD()
+		bundlesDir, err := bundle.GetLocalBundlesDir()
 		if err == nil {
-			bundlesDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
-			freedBytes, err := DeleteBundle(bundlesDir, *deployment.BundleSHA256)
+			freedBytes, err := bundle.DeleteBundle(bundlesDir, *deployment.BundleSHA256)
 			if err != nil {
 				s.log("failed to delete local bundle", map[string]interface{}{
 					"sha256": *deployment.BundleSHA256,
@@ -320,15 +324,15 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 
 	// 2. Delete VPS bundle
 	if manifest.Target.VPS != nil && deployment.BundlePath != nil && *deployment.BundlePath != "" {
-		cfg := sshConfigFromManifest(manifest)
+		cfg := ssh.ConfigFromManifest(manifest)
 		workdir := manifest.Target.VPS.Workdir
 		bundleFilename := filepath.Base(*deployment.BundlePath)
-		remoteBundlePath := safeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
+		remoteBundlePath := ssh.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
 
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		cmd := fmt.Sprintf("rm -f %s", shellQuoteSingle(remoteBundlePath))
+		cmd := fmt.Sprintf("rm -f %s", ssh.QuoteSingle(remoteBundlePath))
 		if _, err := s.sshRunner.Run(ctx, cfg, cmd); err != nil {
 			s.log("failed to delete VPS bundle", map[string]interface{}{
 				"path":  remoteBundlePath,
@@ -361,9 +365,9 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	dep, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -371,8 +375,8 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+	if dep == nil {
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -380,9 +384,9 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Parse manifest before attempting to start (fail fast on invalid manifest)
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+	var m domain.CloudManifest
+	if err := json.Unmarshal(dep.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "manifest_parse_failed",
 			Message: "Failed to parse deployment manifest",
 			Hint:    err.Error(),
@@ -390,9 +394,9 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	normalized, issues := ValidateAndNormalizeManifest(manifest)
-	if hasBlockingIssues(issues) {
-		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+	normalized, issues := manifest.ValidateAndNormalize(m)
+	if manifest.HasBlockingIssues(issues) {
+		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{
 			Valid:     false,
 			Issues:    issues,
 			Manifest:  normalized,
@@ -408,7 +412,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	// could both pass a status check and start duplicate deployments.
 	// StartDeploymentRun only succeeds if status is NOT already running.
 	if err := s.repo.StartDeploymentRun(r.Context(), id, runID); err != nil {
-		writeAPIError(w, http.StatusConflict, APIError{
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
 			Code:    "already_running",
 			Message: "Deployment is already in progress or not found",
 			Hint:    err.Error(),
@@ -422,251 +426,17 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 	})
 
 	// Start deployment in background with the run_id for tracking
-	options := ExecuteDeploymentOptions{
+	options := deployment.ExecuteOptions{
 		RunPreflight:     req.RunPreflight,
 		ForceBundleBuild: req.ForceBundleBuild,
 	}
-	go s.runDeploymentPipeline(id, runID, normalized, deployment.BundlePath, req.ProvidedSecrets, options)
+	go s.orchestrator.RunPipeline(id, runID, normalized, dep.BundlePath, req.ProvidedSecrets, options)
 
-	writeJSON(w, http.StatusAccepted, map[string]interface{}{
-		"deployment": deployment,
+	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
+		"deployment": dep,
 		"run_id":     runID,
 		"message":    "Deployment started. Subscribe to /deployments/{id}/progress for real-time updates.",
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
-	})
-}
-
-// ExecuteDeploymentOptions controls which steps run during execution.
-type ExecuteDeploymentOptions struct {
-	RunPreflight     bool
-	ForceBundleBuild bool
-}
-
-// runDeploymentPipeline executes the full deployment with progress tracking.
-// The runID parameter uniquely identifies this execution for idempotency tracking.
-func (s *Server) runDeploymentPipeline(
-	id, runID string,
-	manifest CloudManifest,
-	existingBundlePath *string,
-	providedSecrets map[string]string,
-	options ExecuteDeploymentOptions,
-) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-
-	progress := 0.0
-
-	// Helper to emit and persist progress
-	emitProgress := func(eventType, step, stepTitle string, pct float64, errMsg string) {
-		event := ProgressEvent{
-			Type:      eventType,
-			Step:      step,
-			StepTitle: stepTitle,
-			Progress:  pct,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-		if errMsg != "" {
-			event.Error = errMsg
-		}
-
-		// Broadcast to SSE clients
-		s.progressHub.Broadcast(id, event)
-
-		// Persist to database for reconnection
-		if err := s.repo.UpdateDeploymentProgress(ctx, id, step, pct); err != nil {
-			s.log("failed to persist progress", map[string]interface{}{"error": err.Error()})
-		}
-	}
-
-	// Helper for errors (used for bundle_build step which isn't in VPS runners)
-	emitError := func(step, stepTitle, errMsg string) {
-		event := ProgressEvent{
-			Type:      "deployment_error",
-			Step:      step,
-			StepTitle: stepTitle,
-			Progress:  progress,
-			Error:     errMsg,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		}
-		s.progressHub.Broadcast(id, event)
-	}
-
-	// Log the run_id for traceability
-	s.log("deployment pipeline started", map[string]interface{}{
-		"deployment_id": id,
-		"run_id":        runID,
-		"scenario_id":   manifest.Scenario.ID,
-	})
-
-	// Fetch and validate secrets
-	if err := s.ensureSecretsAvailable(ctx, &manifest, providedSecrets, id, emitError); err != nil {
-		return // Error already logged and emitted
-	}
-
-	// Step 1: Build bundle (if not already built)
-	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
-
-	bundlePath, err := s.ensureBundleBuilt(ctx, manifest, existingBundlePath, options.ForceBundleBuild, id, emitError)
-	if err != nil {
-		return // Error already logged and emitted
-	}
-
-	progress += StepWeights["bundle_build"]
-	emitProgress("step_completed", "bundle_build", "Building bundle", progress, "")
-
-	// Optional preflight checks
-	if options.RunPreflight {
-		preflightStart := time.Now()
-		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:      domain.EventPreflightStarted,
-			Timestamp: preflightStart.UTC(),
-			Message:   "Preflight checks started",
-		})
-
-		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
-		preflightResp := RunVPSPreflight(ctx, manifest, s.dnsService, s.sshRunner)
-		preflightJSON, _ := json.Marshal(preflightResp)
-		if err := s.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
-			s.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
-		}
-		s.progressHub.Broadcast(id, ProgressEvent{
-			Type:            "preflight_result",
-			Step:            "preflight",
-			StepTitle:       "Running preflight checks",
-			Progress:        progress,
-			PreflightResult: &preflightResp,
-			Timestamp:       time.Now().UTC().Format(time.RFC3339),
-		})
-		if !preflightResp.OK {
-			failCount := 0
-			for _, check := range preflightResp.Checks {
-				if check.Status == PreflightFail {
-					failCount++
-				}
-			}
-			errMsg := "Preflight checks failed"
-			if failCount > 0 {
-				errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
-			}
-			s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-				Type:       domain.EventPreflightCompleted,
-				Timestamp:  time.Now().UTC(),
-				Message:    errMsg,
-				Details:    formatPreflightFailureDetails(preflightResp),
-				DurationMs: time.Since(preflightStart).Milliseconds(),
-				Success:    boolPtr(false),
-			})
-			setDeploymentError(s.repo, ctx, id, "preflight", errMsg)
-			emitError("preflight", "Running preflight checks", errMsg)
-			return
-		}
-		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventPreflightCompleted,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Preflight checks passed",
-			DurationMs: time.Since(preflightStart).Milliseconds(),
-			Success:    boolPtr(true),
-		})
-		progress += StepWeights["preflight"]
-		emitProgress("step_completed", "preflight", "Running preflight checks", progress, "")
-	}
-
-	// Step 2: VPS Setup
-	if err := s.repo.UpdateDeploymentStatus(ctx, id, domain.StatusSetupRunning, nil, nil); err != nil {
-		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
-	}
-
-	setupStart := time.Now()
-	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:      domain.EventSetupStarted,
-		Timestamp: setupStart.UTC(),
-		Message:   "VPS setup started",
-	})
-
-	setupResult := RunVPSSetupWithProgress(ctx, manifest, bundlePath, s.sshRunner, s.scpRunner, s.progressHub, s.repo, id, &progress)
-	setupJSON, _ := json.Marshal(setupResult)
-	if err := s.repo.UpdateDeploymentSetupResult(ctx, id, setupJSON); err != nil {
-		s.log("failed to save setup result", map[string]interface{}{"error": err.Error()})
-	}
-
-	if !setupResult.OK {
-		// VPS runner already emitted deployment_error event with correct step
-		failedStep := setupResult.FailedStep
-		if failedStep == "" {
-			failedStep = "vps_setup"
-		}
-		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventSetupCompleted,
-			Timestamp:  time.Now().UTC(),
-			Message:    "VPS setup failed",
-			Details:    setupResult.Error,
-			DurationMs: time.Since(setupStart).Milliseconds(),
-			Success:    boolPtr(false),
-			StepName:   failedStep,
-		})
-		setDeploymentError(s.repo, ctx, id, failedStep, setupResult.Error)
-		return
-	}
-
-	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:       domain.EventSetupCompleted,
-		Timestamp:  time.Now().UTC(),
-		Message:    "VPS setup completed",
-		DurationMs: time.Since(setupStart).Milliseconds(),
-		Success:    boolPtr(true),
-	})
-
-	// Step 3: VPS Deploy
-	if err := s.repo.UpdateDeploymentStatus(ctx, id, domain.StatusDeploying, nil, nil); err != nil {
-		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
-	}
-
-	deployStart := time.Now()
-	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:      domain.EventDeployStarted,
-		Timestamp: deployStart.UTC(),
-		Message:   "Deployment started",
-	})
-
-	deployResult := RunVPSDeployWithProgress(ctx, manifest, s.sshRunner, s.secretsGenerator, s.progressHub, s.repo, id, &progress)
-	deployJSON, _ := json.Marshal(deployResult)
-	if err := s.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
-		s.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
-	}
-
-	if !deployResult.OK {
-		// VPS runner already emitted deployment_error event with correct step
-		failedStep := deployResult.FailedStep
-		if failedStep == "" {
-			failedStep = "vps_deploy"
-		}
-		s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-			Type:       domain.EventDeployFailed,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Deployment failed",
-			Details:    deployResult.Error,
-			DurationMs: time.Since(deployStart).Milliseconds(),
-			Success:    boolPtr(false),
-			StepName:   failedStep,
-		})
-		setDeploymentError(s.repo, ctx, id, failedStep, deployResult.Error)
-		return
-	}
-
-	s.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-		Type:       domain.EventDeployCompleted,
-		Timestamp:  time.Now().UTC(),
-		Message:    "Deployment completed",
-		DurationMs: time.Since(deployStart).Milliseconds(),
-		Success:    boolPtr(true),
-	})
-
-	// Success!
-	s.progressHub.Broadcast(id, ProgressEvent{
-		Type:      "completed",
-		Progress:  100,
-		Message:   "Deployment successful",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -680,8 +450,8 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	opts := VPSInspectOptions{TailLines: 200}
-	result := RunVPSInspect(ctx, dctx.Manifest, opts, s.sshRunner)
+	opts := vps.InspectOptions{TailLines: 200}
+	result := vps.RunInspect(ctx, dctx.Manifest, opts, s.sshRunner)
 
 	s.appendHistoryEvent(ctx, dctx.ID, domain.HistoryEvent{
 		Type:      domain.EventInspection,
@@ -698,7 +468,7 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"result":    result,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
@@ -727,7 +497,7 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 		Success:   boolPtr(result.OK),
 	})
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success":   result.OK,
 		"error":     result.Error,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -735,210 +505,26 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 }
 
 // stopDeploymentOnVPS runs the stop command on the remote VPS.
-func (s *Server) stopDeploymentOnVPS(ctx context.Context, manifest CloudManifest) VPSDeployResult {
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
-	cfg := sshConfigFromManifest(normalized)
+func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest) domain.VPSDeployResult {
+	normalized, _ := manifest.ValidateAndNormalize(m)
+	cfg := ssh.ConfigFromManifest(normalized)
 	workdir := normalized.Target.VPS.Workdir
 
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := vrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellQuoteSingle(normalized.Scenario.ID)))
+	cmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", ssh.QuoteSingle(normalized.Scenario.ID)))
 
 	_, err := s.sshRunner.Run(ctx, cfg, cmd)
 	if err != nil {
-		return VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
-	return VPSDeployResult{OK: true, Timestamp: time.Now().UTC().Format(time.RFC3339)}
-}
-
-// setDeploymentError is a helper to set error status on a deployment.
-func setDeploymentError(repo interface {
-	UpdateDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, errorMsg, errorStep *string) error
-}, ctx context.Context, id, step, errMsg string,
-) {
-	_ = repo.UpdateDeploymentStatus(ctx, id, domain.StatusFailed, &errMsg, &step)
-}
-
-// ensureSecretsAvailable fetches secrets from secrets-manager and validates user_prompt secrets.
-// Returns an error if secrets cannot be fetched or validated (error already logged and emitted).
-func (s *Server) ensureSecretsAvailable(
-	ctx context.Context,
-	manifest *CloudManifest,
-	providedSecrets map[string]string,
-	deploymentID string,
-	emitError func(step, stepTitle, errMsg string),
-) error {
-	// Fetch secrets from secrets-manager BEFORE building bundle
-	if manifest.Secrets == nil {
-		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
-		secretsResp, err := s.secretsFetcher.FetchBundleSecrets(
-			secretsCtx,
-			manifest.Scenario.ID,
-			DefaultDeploymentTier,
-			manifest.Dependencies.Resources,
-		)
-		secretsCancel()
-
-		if err != nil {
-			s.log("secrets-manager fetch failed", map[string]interface{}{
-				"scenario_id": manifest.Scenario.ID,
-				"error":       err.Error(),
-			})
-			errMsg := fmt.Sprintf("secrets-manager unavailable: %v", err)
-			setDeploymentError(s.repo, ctx, deploymentID, "secrets_fetch", errMsg)
-			emitError("secrets_fetch", "Fetching secrets", err.Error())
-			s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-				Type:      domain.EventDeployFailed,
-				Timestamp: time.Now().UTC(),
-				Message:   "Secrets fetch failed",
-				Details:   errMsg,
-				Success:   boolPtr(false),
-				StepName:  "secrets_fetch",
-			})
-			return err
-		}
-
-		manifest.Secrets = BuildManifestSecrets(secretsResp)
-		s.log("fetched secrets manifest", map[string]interface{}{
-			"scenario_id":   manifest.Scenario.ID,
-			"total_secrets": len(secretsResp.BundleSecrets),
-		})
-	}
-
-	// Validate user_prompt secrets
-	if providedSecrets == nil {
-		providedSecrets = make(map[string]string)
-	}
-	if missing, err := ValidateUserPromptSecrets(*manifest, providedSecrets); err != nil {
-		s.log("missing required user_prompt secrets", map[string]interface{}{
-			"scenario_id": manifest.Scenario.ID,
-			"missing":     missing,
-		})
-		setDeploymentError(s.repo, ctx, deploymentID, "secrets_validate", err.Error())
-		emitError("secrets_validate", "Validating secrets", err.Error())
-		s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-			Type:      domain.EventDeployFailed,
-			Timestamp: time.Now().UTC(),
-			Message:   "Secrets validation failed",
-			Details:   err.Error(),
-			Success:   boolPtr(false),
-			StepName:  "secrets_validate",
-		})
-		return err
-	}
-
-	return nil
-}
-
-// ensureBundleBuilt builds a new bundle or returns the existing bundle path.
-// Returns the bundle path or an error (error already logged and emitted).
-func (s *Server) ensureBundleBuilt(
-	ctx context.Context,
-	manifest CloudManifest,
-	existingBundlePath *string,
-	forceBundleBuild bool,
-	deploymentID string,
-	emitError func(step, stepTitle, errMsg string),
-) (string, error) {
-	// Use existing bundle if provided
-	if !forceBundleBuild && existingBundlePath != nil && *existingBundlePath != "" {
-		return *existingBundlePath, nil
-	}
-
-	// Get bundle output directory
-	repoRoot, err := FindRepoRootFromCWD()
-	if err != nil {
-		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
-		return "", err
-	}
-
-	outDir, err := GetLocalBundlesDir()
-	if err != nil {
-		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
-		return "", err
-	}
-
-	// Clean up old bundles (keep 3 newest)
-	s.cleanupOldBundles(outDir, manifest.Scenario.ID)
-
-	// Build the bundle
-	buildStart := time.Now()
-	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
-	if err != nil {
-		setDeploymentError(s.repo, ctx, deploymentID, "bundle_build", err.Error())
-		emitError("bundle_build", "Building bundle", err.Error())
-		s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-			Type:       domain.EventBundleBuilt,
-			Timestamp:  time.Now().UTC(),
-			Message:    "Bundle build failed",
-			Details:    err.Error(),
-			DurationMs: time.Since(buildStart).Milliseconds(),
-			Success:    boolPtr(false),
-		})
-		return "", err
-	}
-
-	s.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
-		Type:       domain.EventBundleBuilt,
-		Timestamp:  time.Now().UTC(),
-		Message:    "Bundle built locally",
-		Details:    fmt.Sprintf("Path: %s\nSize: %d bytes", artifact.Path, artifact.SizeBytes),
-		DurationMs: time.Since(buildStart).Milliseconds(),
-		Success:    boolPtr(true),
-		BundleHash: artifact.Sha256,
-	})
-
-	// Update database with bundle info
-	if err := s.repo.UpdateDeploymentBundle(ctx, deploymentID, artifact.Path, artifact.Sha256, artifact.SizeBytes); err != nil {
-		s.log("failed to update bundle info", map[string]interface{}{"error": err.Error()})
-	}
-
-	return artifact.Path, nil
-}
-
-// cleanupOldBundles removes old bundles for a scenario, keeping the newest N.
-func (s *Server) cleanupOldBundles(bundlesDir, scenarioID string) {
-	const retentionCount = 3
-	deleted, _, err := DeleteBundlesForScenario(bundlesDir, scenarioID, retentionCount)
-	if err != nil {
-		s.log("bundle cleanup warning", map[string]interface{}{
-			"scenario_id": scenarioID,
-			"error":       err.Error(),
-		})
-		return
-	}
-	if len(deleted) > 0 {
-		s.log("cleaned old bundles", map[string]interface{}{
-			"scenario_id": scenarioID,
-			"count":       len(deleted),
-		})
-	}
-}
-
-func pluralize(count int) string {
-	if count == 1 {
-		return ""
-	}
-	return "s"
-}
-
-type HistoryRecorder interface {
-	AppendHistoryEvent(ctx context.Context, id string, event domain.HistoryEvent) error
+	return domain.VPSDeployResult{OK: true, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 
 // appendHistoryEvent persists a history event and logs failures without impacting the request.
-// Timeline event contract (UI History > Timeline):
-// - deployment_created: when a deployment record is created
-// - preflight_started/completed: preflight checks, with success + duration
-// - bundle_built: local bundle build result (success false on build failure)
-// - setup_started/completed: VPS setup phase
-// - deploy_started/completed/failed: VPS deploy phase (step_name for failures)
-// - inspection: manual inspection runs
-// - stopped/restarted: manual lifecycle actions
+// This is used by handlers for non-pipeline events (create, inspect, stop).
 func (s *Server) appendHistoryEvent(ctx context.Context, deploymentID string, event domain.HistoryEvent) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now().UTC()
@@ -956,38 +542,7 @@ func (s *Server) appendHistoryEvent(ctx context.Context, deploymentID string, ev
 	}
 }
 
-func formatPreflightFailureDetails(resp PreflightResponse) string {
-	if len(resp.Checks) == 0 {
-		return "No preflight checks returned"
-	}
-
-	var b strings.Builder
-	for _, check := range resp.Checks {
-		if check.Status != PreflightFail {
-			continue
-		}
-		if b.Len() > 0 {
-			b.WriteString("\n")
-		}
-		b.WriteString("- ")
-		b.WriteString(check.Title)
-		if check.Details != "" {
-			b.WriteString(": ")
-			b.WriteString(check.Details)
-		}
-		if check.Hint != "" {
-			b.WriteString(" (hint: ")
-			b.WriteString(check.Hint)
-			b.WriteString(")")
-		}
-	}
-
-	if b.Len() == 0 {
-		return "Preflight failed (no failing checks reported)"
-	}
-	return b.String()
-}
-
-func boolPtr(value bool) *bool {
-	return &value
+// boolPtr returns a pointer to a bool value.
+func boolPtr(b bool) *bool {
+	return &b
 }

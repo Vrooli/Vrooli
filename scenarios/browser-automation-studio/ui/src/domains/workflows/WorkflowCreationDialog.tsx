@@ -8,11 +8,12 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader,
+  Upload,
 } from "lucide-react";
 import { useProjectStore, type Project, buildProjectFolderPath } from "@/domains/projects";
 import { ResponsiveDialog } from "@shared/layout";
 
-export type WorkflowCreationType = "record" | "ai" | "visual";
+export type WorkflowCreationType = "record" | "ai" | "visual" | "import";
 
 interface WorkflowCreationDialogProps {
   isOpen: boolean;
@@ -158,6 +159,23 @@ function WorkflowTypeSelector({ onSelect }: WorkflowTypeSelectorProps) {
             <div className="font-semibold text-white mb-1">Visual Builder</div>
             <div className="text-sm text-gray-400">
               Use the drag-and-drop interface to build workflows step by step.
+            </div>
+          </div>
+        </button>
+
+        {/* Import */}
+        <button
+          type="button"
+          onClick={() => onSelect("import")}
+          className="flex items-start gap-4 w-full p-4 rounded-xl border-2 border-gray-700 bg-gray-800/50 hover:border-green-500/60 hover:bg-gray-800 transition-all text-left group"
+        >
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-500/20 text-green-400 group-hover:bg-green-500/30 transition-colors flex-shrink-0">
+            <Upload size={20} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-white mb-1">Import</div>
+            <div className="text-sm text-gray-400">
+              Import an existing workflow file from your filesystem.
             </div>
           </div>
         </button>

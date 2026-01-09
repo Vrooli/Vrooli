@@ -21,6 +21,12 @@ import {
   FileCode,
   FileText,
   GripVertical,
+  Plus,
+  Zap,
+  GitBranch,
+  ClipboardCheck,
+  Image,
+  type LucideIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -49,30 +55,45 @@ export type FileTreeDragPayload = {
 // ============================================================================
 
 /**
- * Renders the tree prefix characters (├──, └──, │) for visual hierarchy
+ * Folder type icon mapping for semantic differentiation
  */
-export function renderTreePrefix(prefixParts: boolean[]): ReactNode {
+const FOLDER_TYPE_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
+  actions: { icon: Zap, color: "text-yellow-400" },
+  flows: { icon: GitBranch, color: "text-blue-400" },
+  workflows: { icon: GitBranch, color: "text-blue-400" },
+  cases: { icon: ClipboardCheck, color: "text-green-400" },
+  tests: { icon: ClipboardCheck, color: "text-green-400" },
+  assets: { icon: Image, color: "text-purple-400" },
+};
+
+/**
+ * Gets the appropriate icon and color for a folder based on its name
+ */
+function getFolderIcon(folderName: string): { icon: LucideIcon; color: string } {
+  const lower = folderName.toLowerCase();
+  return FOLDER_TYPE_ICONS[lower] ?? { icon: FolderOpen, color: "text-yellow-500" };
+}
+
+/**
+ * Renders VS Code-style indent guides using CSS borders
+ */
+export function TreeIndentGuides({ prefixParts }: { prefixParts: boolean[] }): ReactNode {
   if (prefixParts.length === 0) {
     return null;
   }
 
-  const prefix = prefixParts
-    .map((hasSibling, index) => {
-      const isLast = index === prefixParts.length - 1;
-      if (isLast) {
-        return hasSibling ? "├── " : "└── ";
-      }
-      return hasSibling ? "│   " : "    ";
-    })
-    .join("");
-
   return (
-    <span
-      aria-hidden="true"
-      className="font-mono text-xs leading-5 text-gray-500 whitespace-pre pointer-events-none select-none"
-    >
-      {prefix}
-    </span>
+    <div className="tree-indent-guides flex items-stretch" aria-hidden="true">
+      {prefixParts.map((hasSiblingBelow, index) => {
+        const isLast = index === prefixParts.length - 1;
+        return (
+          <div
+            key={index}
+            className={`tree-indent-segment ${hasSiblingBelow ? "has-line" : ""} ${isLast ? "has-connector" : ""}`}
+          />
+        );
+      })}
+    </div>
   );
 }
 
@@ -92,7 +113,8 @@ export function fileTypeLabelFromPath(relPath: string): string | null {
  */
 export function fileKindIcon(node: FileTreeNode): ReactNode {
   if (node.kind === "folder") {
-    return <FolderOpen size={16} className="text-yellow-500 flex-shrink-0" />;
+    const { icon: FolderIcon, color } = getFolderIcon(node.name);
+    return <FolderIcon size={16} className={`${color} flex-shrink-0`} />;
   }
   if (node.kind === "workflow_file") {
     return <FileCode size={16} className="text-green-400 flex-shrink-0" />;
@@ -109,6 +131,8 @@ export interface FileTreeItemProps {
   node: FileTreeNode;
   /** Prefix parts for rendering tree hierarchy lines */
   prefixParts?: boolean[];
+  /** Depth level in the tree (0 = top level) */
+  depth?: number;
 
   // State from parent
   /** Set of expanded folder paths */
@@ -145,6 +169,8 @@ export interface FileTreeItemProps {
   onRenameNode: (path: string) => Promise<void>;
   /** Show inline add menu for a folder */
   onShowInlineAddMenu?: (folderPath: string, e?: React.MouseEvent) => void;
+  /** Preview an asset file (single click) */
+  onPreviewAsset?: (assetPath: string) => void;
 }
 
 // ============================================================================
@@ -157,6 +183,7 @@ export interface FileTreeItemProps {
 export function FileTreeItem({
   node,
   prefixParts = [],
+  depth = 0,
   expandedFolders,
   selectedTreeFolder,
   dragSourcePath,
@@ -173,11 +200,11 @@ export function FileTreeItem({
   onDeleteNode,
   onRenameNode,
   onShowInlineAddMenu,
+  onPreviewAsset,
 }: FileTreeItemProps) {
   const isFolder = node.kind === "folder";
   const isExpanded = isFolder && expandedFolders.has(node.path);
   const children = node.children ?? [];
-  const hasChildren = isFolder && children.length > 0;
   const typeLabel = node.kind === "workflow_file" ? fileTypeLabelFromPath(node.path) : null;
   const isDropTarget = Boolean(
     dragSourcePath !== null && dropTargetFolder !== null && dropTargetFolder === node.path
@@ -277,7 +304,11 @@ export function FileTreeItem({
       handlePreviewWorkflow();
       return;
     }
-    toast("Assets are read-only in v1");
+    if (node.kind === "asset_file" && onPreviewAsset) {
+      // Single click shows asset preview
+      onPreviewAsset(node.path);
+      return;
+    }
   };
 
   const handleDoubleClick = () => {
@@ -287,8 +318,11 @@ export function FileTreeItem({
     }
   };
 
+  // Top-level folders get section header styling
+  const isTopLevel = depth === 0;
+
   return (
-    <div className="select-none">
+    <div className={`select-none ${isTopLevel ? "tree-section-header" : ""}`}>
       <div
         draggable={node.path !== ""}
         data-testid={isFolder ? "file-tree-folder" : "file-tree-file"}
@@ -298,13 +332,14 @@ export function FileTreeItem({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer transition-colors group ${
+        className={`tree-row flex items-center gap-2 rounded cursor-pointer transition-colors group min-h-[36px] ${
           isFolder && selectedTreeFolder === node.path
             ? "bg-flow-node"
             : "hover:bg-flow-node"
         } ${isDropTarget ? "ring-1 ring-flow-accent bg-flow-node" : ""} ${
           isFocused ? "ring-2 ring-flow-accent/50 bg-flow-node" : ""
-        }`}
+        } ${isTopLevel ? "font-medium" : ""}`}
+        style={{ padding: "var(--space-2) var(--space-3)" }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
       >
@@ -313,28 +348,33 @@ export function FileTreeItem({
           <GripVertical size={14} className="text-gray-500" />
         </div>
 
-        {renderTreePrefix(prefixParts)}
+        <TreeIndentGuides prefixParts={prefixParts} />
 
-        {/* Expand/collapse chevron for folders */}
+        {/* Expand/collapse chevron - always show for folders */}
         {isFolder ? (
-          hasChildren ? (
-            isExpanded ? (
-              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggle();
+            }}
+            className="flex-shrink-0 p-0.5 -ml-1 rounded hover:bg-gray-700/50 transition-colors"
+            aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+          >
+            {isExpanded ? (
+              <ChevronDown size={16} className="text-gray-400 transition-transform duration-150" />
             ) : (
-              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
-            )
-          ) : (
-            <span className="inline-block w-4" aria-hidden="true" />
-          )
+              <ChevronRight size={16} className="text-gray-400 transition-transform duration-150" />
+            )}
+          </button>
         ) : (
-          <span className="inline-block w-4" aria-hidden="true" />
+          <span className="inline-block w-5" aria-hidden="true" />
         )}
 
         {/* File/folder icon */}
         {fileKindIcon(node)}
 
         {/* Name and type badge */}
-        <span className="text-base text-gray-300 truncate">
+        <span className={`text-base truncate ${isTopLevel ? "text-flow-text-secondary" : "text-gray-300"}`}>
           {node.name}
         </span>
         {typeLabel ? (
@@ -344,7 +384,21 @@ export function FileTreeItem({
         ) : null}
 
         {/* Action buttons - positioned close to name, visible on hover */}
-        <div className="ml-3 flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="ml-auto flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+          {/* Add button for folders */}
+          {isFolder && onShowInlineAddMenu ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowInlineAddMenu(node.path, e);
+              }}
+              className="p-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-700 transition-colors"
+              title="Add new item"
+              aria-label="Add new item"
+            >
+              <Plus size={16} />
+            </button>
+          ) : null}
           {node.kind === "workflow_file" && node.workflowId ? (
             <button
               onClick={handleExecuteFromTree}
@@ -376,15 +430,16 @@ export function FileTreeItem({
 
       {/* Render children when folder is expanded */}
       {isFolder && isExpanded && (
-        <>
+        <div className="ml-1">
           {children.map((child, index) => {
-            const isLastChild = index === children.length - 1 && !onShowInlineAddMenu;
+            const isLastChild = index === children.length - 1;
             const childPrefix = [...prefixParts, !isLastChild];
             return (
               <FileTreeItem
                 key={`${child.kind}:${child.path}`}
                 node={child}
                 prefixParts={childPrefix}
+                depth={depth + 1}
                 expandedFolders={expandedFolders}
                 selectedTreeFolder={selectedTreeFolder}
                 dragSourcePath={dragSourcePath}
@@ -401,25 +456,11 @@ export function FileTreeItem({
                 onDeleteNode={onDeleteNode}
                 onRenameNode={onRenameNode}
                 onShowInlineAddMenu={onShowInlineAddMenu}
+                onPreviewAsset={onPreviewAsset}
               />
             );
           })}
-
-          {/* Inline "Add" button at the bottom of expanded folders */}
-          {onShowInlineAddMenu && (
-            <div
-              className="flex items-center gap-2 px-2 py-1.5 ml-6 rounded cursor-pointer text-gray-500 hover:text-gray-300 hover:bg-flow-node transition-colors group"
-              onClick={(e) => {
-                e.stopPropagation();
-                onShowInlineAddMenu(node.path, e);
-              }}
-            >
-              {renderTreePrefix([...prefixParts, false])}
-              <span className="inline-block w-4" aria-hidden="true" />
-              <span className="text-sm italic">+ Add new...</span>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

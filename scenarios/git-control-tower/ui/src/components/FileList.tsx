@@ -33,7 +33,8 @@ type SelectedFileEntry = { path: string; staged: boolean };
 export type GroupingRule = {
   id: string;
   label: string;
-  prefix: string;
+  prefix?: string;
+  prefixes?: string[];
   mode?: "prefix" | "segment";
 };
 
@@ -644,13 +645,25 @@ export function FileList({
   const normalizedRules = useMemo(
     () =>
       groupingRules
-        .map((rule) => ({
-          ...rule,
-          mode: rule.mode ?? "prefix",
-          normalizedPrefix: normalizePrefix(rule.prefix),
-          label: rule.label.trim() || rule.prefix.trim()
-        }))
-        .filter((rule) => rule.normalizedPrefix),
+        .map((rule) => {
+          const rawPrefixes = Array.isArray(rule.prefixes)
+            ? rule.prefixes
+            : typeof rule.prefix === "string"
+              ? [rule.prefix]
+              : [];
+          const normalizedPrefixes = rawPrefixes
+            .map((prefix) => normalizePrefix(prefix))
+            .filter((prefix) => prefix);
+          if (normalizedPrefixes.length === 0) return null;
+          const fallbackLabel = rawPrefixes.find((prefix) => prefix.trim()) ?? "";
+          return {
+            ...rule,
+            mode: rule.mode ?? "prefix",
+            normalizedPrefixes,
+            label: rule.label.trim() || fallbackLabel.trim()
+          };
+        })
+        .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule)),
     [groupingRules]
   );
   const groupingAvailable = normalizedRules.length > 0;
@@ -715,19 +728,17 @@ export function FileList({
       {
         id: string;
         label: string;
-        prefix: string;
-        displayPrefix: string;
+        displayPrefixes: Set<string>;
         files: Record<FileCategory, string[]>;
       }
     >();
     const groupOrder: string[] = [];
-    const ensureGroup = (id: string, label: string, prefix: string, displayPrefix: string) => {
+    const ensureGroup = (id: string, label: string, displayPrefix: string) => {
       if (!groupMap.has(id)) {
         groupMap.set(id, {
           id,
           label,
-          prefix,
-          displayPrefix,
+          displayPrefixes: new Set<string>(),
           files: {
             conflicts: [],
             staged: [],
@@ -737,13 +748,16 @@ export function FileList({
         });
         groupOrder.push(id);
       }
-      return groupMap.get(id)!;
+      const group = groupMap.get(id)!;
+      if (displayPrefix) {
+        group.displayPrefixes.add(displayPrefix);
+      }
+      return group;
     };
     const otherGroup = {
       id: "other",
       label: "Other",
-      prefix: "",
-      displayPrefix: "",
+      displayPrefixes: new Set<string>(),
       files: {
         conflicts: [] as string[],
         staged: [] as string[],
@@ -754,20 +768,22 @@ export function FileList({
 
     const addFile = (file: string, category: FileCategory) => {
       for (const rule of normalizedRules) {
-        if (!file.startsWith(rule.normalizedPrefix)) continue;
-        if (rule.mode === "segment") {
-          const rest = file.slice(rule.normalizedPrefix.length);
-          const segment = rest.split("/")[0];
-          const segmentLabel = segment || rule.label;
-          const segmentPrefix = segment ? `${rule.normalizedPrefix}${segment}/` : rule.normalizedPrefix;
-          const groupId = segment ? `${rule.id}:${segment}` : rule.id;
-          const group = ensureGroup(groupId, segmentLabel, segmentPrefix, segmentPrefix);
-          group.files[category].push(file);
-        } else {
-          const group = ensureGroup(rule.id, rule.label, rule.normalizedPrefix, rule.prefix.trim());
-          group.files[category].push(file);
+        for (const normalizedPrefix of rule.normalizedPrefixes) {
+          if (!file.startsWith(normalizedPrefix)) continue;
+          if (rule.mode === "segment") {
+            const rest = file.slice(normalizedPrefix.length);
+            const segment = rest.split("/")[0];
+            const segmentLabel = segment || rule.label;
+            const segmentPrefix = segment ? `${normalizedPrefix}${segment}/` : normalizedPrefix;
+            const groupId = segment ? `${rule.id}:${segment}` : rule.id;
+            const group = ensureGroup(groupId, segmentLabel, segmentPrefix);
+            group.files[category].push(file);
+          } else {
+            const group = ensureGroup(rule.id, rule.label, normalizedPrefix);
+            group.files[category].push(file);
+          }
+          return;
         }
-        return;
       }
       otherGroup.files[category].push(file);
     };
@@ -794,7 +810,25 @@ export function FileList({
         otherGroup.files.untracked.length >
       0;
 
-    return hasOther ? [...filledGroups, otherGroup] : filledGroups;
+    const formattedGroups = filledGroups.map((group) => {
+      const prefixes = Array.from(group.displayPrefixes).filter((prefix) => prefix);
+      let displayPrefix = "";
+      if (prefixes.length === 1) {
+        displayPrefix = prefixes[0];
+      } else if (prefixes.length > 1) {
+        displayPrefix = `${prefixes.length} prefixes`;
+      }
+      return { ...group, displayPrefix };
+    });
+
+    if (!hasOther) return formattedGroups;
+    return [
+      ...formattedGroups,
+      {
+        ...otherGroup,
+        displayPrefix: ""
+      }
+    ];
   }, [files, groupingActive, normalizedRules]);
 
   const handleToggleGrouping = onToggleGrouping ?? (() => {});

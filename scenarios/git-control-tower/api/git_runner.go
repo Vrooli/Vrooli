@@ -94,6 +94,21 @@ type GitRunner interface {
 	// ShowFileAtCommit returns the content of a file at a specific commit.
 	// Uses git show <commit>:<path>.
 	ShowFileAtCommit(ctx context.Context, repoDir string, commit string, path string) ([]byte, error)
+
+	// Branches returns branch metadata for local and remote refs.
+	Branches(ctx context.Context, repoDir string) ([]byte, error)
+
+	// CreateBranch creates a new branch from the specified base (or HEAD if empty).
+	CreateBranch(ctx context.Context, repoDir string, name string, from string) error
+
+	// CheckoutBranch checks out the specified branch.
+	CheckoutBranch(ctx context.Context, repoDir string, name string) error
+
+	// TrackRemoteBranch creates a local branch tracking a remote branch.
+	TrackRemoteBranch(ctx context.Context, repoDir string, remote string, name string) error
+
+	// CheckRefFormat validates a branch name using git check-ref-format.
+	CheckRefFormat(ctx context.Context, repoDir string, name string) error
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -554,7 +569,96 @@ func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 
 	exitErr := &exec.ExitError{}
 	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git show file failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		return nil, fmt.Errorf("git show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
-	return nil, fmt.Errorf("git show file failed: %w", err)
+	return nil, fmt.Errorf("git show failed: %w", err)
+}
+
+func (r *ExecGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
+	args := []string{
+		"-C", repoDir,
+		"for-each-ref",
+		"--format=" + branchRefFormat,
+		"refs/heads",
+		"refs/remotes",
+	}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git for-each-ref failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git for-each-ref failed: %w", err)
+}
+
+func (r *ExecGitRunner) CreateBranch(ctx context.Context, repoDir string, name string, from string) error {
+	args := []string{"-C", repoDir, "branch", name}
+	if strings.TrimSpace(from) != "" {
+		args = append(args, from)
+	}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git branch failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git branch failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) CheckoutBranch(ctx context.Context, repoDir string, name string) error {
+	args := []string{"-C", repoDir, "checkout", name}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git checkout failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git checkout failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) TrackRemoteBranch(ctx context.Context, repoDir string, remote string, name string) error {
+	remote = strings.TrimSpace(remote)
+	branch := strings.TrimSpace(name)
+	if remote == "" || branch == "" {
+		return fmt.Errorf("remote and branch are required")
+	}
+
+	args := []string{"-C", repoDir, "checkout", "-b", branch, "--track", fmt.Sprintf("%s/%s", remote, branch)}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git checkout --track failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git checkout --track failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("branch name is required")
+	}
+	args := []string{"-C", repoDir, "check-ref-format", "--branch", name}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git check-ref-format failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git check-ref-format failed: %w", err)
+	}
+	return nil
 }

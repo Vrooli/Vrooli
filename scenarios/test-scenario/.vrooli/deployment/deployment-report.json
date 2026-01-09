@@ -1,7 +1,7 @@
 {
   "scenario": "test-scenario",
   "report_version": 1,
-  "generated_at": "2025-12-02T17:35:28.280480982Z",
+  "generated_at": "2026-01-08T16:41:38.223182986Z",
   "dependencies": [
     {
       "name": "postgres",
@@ -24,8 +24,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-postgres",
-            "cloud-postgres"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -104,7 +104,7 @@
   },
   "bundle_manifest": {
     "scenario": "test-scenario",
-    "generated_at": "2025-12-02T17:35:28.280480982Z",
+    "generated_at": "2026-01-08T16:41:38.223182986Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -159,8 +159,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-postgres",
-              "cloud-postgres"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -173,7 +173,133 @@
           }
         }
       }
-    ]
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "test-scenario",
+        "version": "1.0.0",
+        "description": "Test scenario for Vrooli"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "test-scenario-api",
+          "type": "api-binary",
+          "description": "Bundled API process for test-scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/api/darwin-x64/test-scenario-api"
+            },
+            "linux-x64": {
+              "path": "bin/api/linux-x64/test-scenario-api"
+            },
+            "win-x64": {
+              "path": "bin/api/win-x64/test-scenario-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/api/{{platform}}/test-scenario-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${test-scenario-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "test-scenario-cli",
+          "type": "resource",
+          "description": "CLI for test-scenario scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/test-scenario"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/test-scenario"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/test-scenario.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/test-scenario{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          }
+        }
+      ]
+    }
   },
   "metadata_gaps": {
     "total_gaps": 0,

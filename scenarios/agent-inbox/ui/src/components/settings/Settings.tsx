@@ -13,20 +13,31 @@ import {
   MessageCircle,
   AlignLeft,
   Zap,
+  Lightbulb,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
+import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
 import { useYoloMode } from "../../hooks/useSettings";
+import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
+import { useModeHistory } from "../../hooks/useModeHistory";
+import {
+  getAllTemplates,
+  deleteTemplate as deleteTemplateFromStorage,
+  hideBuiltInTemplate,
+  unhideBuiltInTemplate,
+} from "../../data/templates";
 import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
+import type { Template } from "../../lib/types/templates";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "data";
+export type SettingsTab = "general" | "ai" | "templates" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -75,6 +86,7 @@ interface SettingsProps {
   models: Model[];
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  onEditTemplate?: (template: Template) => void;
 }
 
 export function Settings({
@@ -87,6 +99,7 @@ export function Settings({
   models,
   viewMode,
   onViewModeChange,
+  onEditTemplate,
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [theme, setTheme] = useState<Theme>(() => {
@@ -123,6 +136,46 @@ export function Settings({
     setApproval,
     refreshToolRegistry,
   } = useTools({ enabled: open && activeTab === "ai" });
+
+  // Suggestions and templates settings
+  const {
+    visible: suggestionsVisible,
+    setVisible: setSuggestionsVisible,
+    mergeModel,
+    setMergeModel,
+  } = useSuggestionsSettings();
+
+  const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
+
+  // Templates state - refresh when tab changes to templates
+  const [templates, setTemplates] = useState<Template[]>(() => getAllTemplates());
+
+  // Refresh templates when switching to templates tab
+  useEffect(() => {
+    if (activeTab === "templates") {
+      setTemplates(getAllTemplates());
+    }
+  }, [activeTab]);
+
+  const handleDeleteTemplate = useCallback((templateId: string) => {
+    deleteTemplateFromStorage(templateId);
+    setTemplates(getAllTemplates());
+  }, []);
+
+  const handleHideTemplate = useCallback((templateId: string) => {
+    hideBuiltInTemplate(templateId);
+    setTemplates(getAllTemplates());
+  }, []);
+
+  const handleUnhideTemplate = useCallback((templateId: string) => {
+    unhideBuiltInTemplate(templateId);
+    setTemplates(getAllTemplates());
+  }, []);
+
+  const handleEditTemplate = useCallback((template: Template) => {
+    onEditTemplate?.(template);
+    onClose();
+  }, [onEditTemplate, onClose]);
 
   const handleYoloModeToggle = useCallback(() => {
     setYoloMode(!yoloMode);
@@ -190,6 +243,12 @@ export function Settings({
               <span className="flex items-center gap-2">
                 <Cpu className="h-4 w-4" />
                 AI
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="templates">
+              <span className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Templates
               </span>
             </TabsTrigger>
             <TabsTrigger value="data">
@@ -379,6 +438,24 @@ export function Settings({
                 </div>
               )}
             </section>
+          </TabsContent>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-6">
+            <TemplatesSettingsTab
+              suggestionsVisible={suggestionsVisible}
+              onToggleSuggestions={setSuggestionsVisible}
+              mergeModel={mergeModel}
+              onMergeModelChange={setMergeModel}
+              templates={templates}
+              onEditTemplate={handleEditTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
+              onHideTemplate={handleHideTemplate}
+              onUnhideTemplate={handleUnhideTemplate}
+              modeHistory={modeHistory}
+              onClearHistory={clearModeHistory}
+              models={models}
+            />
           </TabsContent>
 
           {/* Data Tab */}

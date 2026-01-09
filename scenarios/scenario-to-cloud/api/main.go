@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -17,12 +14,20 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
+	corepreflight "github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
+	"scenario-to-cloud/investigation"
+	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/persistence"
+	"scenario-to-cloud/secrets"
+	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/vps"
+	"scenario-to-cloud/vps/preflight"
 )
 
 // Config holds minimal runtime configuration
@@ -38,19 +43,20 @@ type Server struct {
 	router           *mux.Router
 	db               *sql.DB
 	repo             *persistence.Repository
-	progressHub      *ProgressHub
+	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
-	investigationSvc *InvestigationService
-	historyRecorder  HistoryRecorder
+	investigationSvc *investigation.Service
+	historyRecorder  deployment.HistoryRecorder
+	orchestrator     *deployment.Orchestrator
 
-	// Seam: SSH command execution (defaults to ExecSSHRunner)
-	sshRunner SSHRunner
-	// Seam: SCP file transfer (defaults to ExecSCPRunner)
-	scpRunner SCPRunner
-	// Seam: Secrets fetching (defaults to NewSecretsClient())
-	secretsFetcher SecretsFetcher
-	// Seam: Secrets generation (defaults to NewSecretsGenerator())
-	secretsGenerator SecretsGeneratorFunc
+	// Seam: SSH command execution (defaults to ssh.ExecRunner)
+	sshRunner ssh.Runner
+	// Seam: SCP file transfer (defaults to ssh.ExecSCPRunner)
+	scpRunner ssh.SCPRunner
+	// Seam: Secrets fetching (defaults to secrets.NewClient())
+	secretsFetcher secrets.Fetcher
+	// Seam: Secrets generation (defaults to secrets.NewGenerator())
+	secretsGenerator secrets.GeneratorFunc
 	// Seam: DNS services (defaults to dns.NewService(dns.NetResolver{}, dns.WithTimeout(...)))
 	dnsService dns.Service
 }
@@ -76,7 +82,7 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
-	progressHub := NewProgressHub()
+	progressHub := deployment.NewHub()
 
 	// Initialize agent-manager integration
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -96,6 +102,13 @@ func NewServer() (*Server, error) {
 		cancel()
 	}
 
+	// Initialize seams with production implementations
+	sshRunner := ssh.ExecRunner{}
+	scpRunner := ssh.ExecSCPRunner{}
+	secretsFetcher := secrets.NewClient()
+	secretsGenerator := secrets.NewGenerator()
+	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
+
 	srv := &Server{
 		config:           cfg,
 		router:           mux.NewRouter(),
@@ -104,14 +117,26 @@ func NewServer() (*Server, error) {
 		progressHub:      progressHub,
 		historyRecorder:  repo,
 		agentSvc:         agentSvc,
-		investigationSvc: NewInvestigationService(repo, agentSvc, progressHub),
-		// Initialize seams with production implementations
-		sshRunner:        ExecSSHRunner{},
-		scpRunner:        ExecSCPRunner{},
-		secretsFetcher:   NewSecretsClient(),
-		secretsGenerator: NewSecretsGenerator(),
-		dnsService:       dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second)),
+		investigationSvc: investigation.NewService(repo, agentSvc, progressHub),
+		sshRunner:        sshRunner,
+		scpRunner:        scpRunner,
+		secretsFetcher:   secretsFetcher,
+		secretsGenerator: secretsGenerator,
+		dnsService:       dnsService,
 	}
+
+	// Initialize the deployment orchestrator with all dependencies
+	srv.orchestrator = deployment.NewOrchestrator(deployment.OrchestratorConfig{
+		Repo:             repo,
+		ProgressHub:      progressHub,
+		SSHRunner:        sshRunner,
+		SCPRunner:        scpRunner,
+		SecretsFetcher:   secretsFetcher,
+		SecretsGenerator: secretsGenerator,
+		DNSService:       dnsService,
+		HistoryRecorder:  repo,
+		Logger:           srv.log,
+	})
 
 	srv.setupRoutes()
 	return srv, nil
@@ -131,14 +156,19 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/validate/reachability", s.handleReachabilityCheck).Methods("POST")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
-	api.HandleFunc("/bundles", s.handleListBundles).Methods("GET")
-	api.HandleFunc("/bundles/stats", s.handleBundleStats).Methods("GET")
-	api.HandleFunc("/bundles/cleanup", s.handleBundleCleanup).Methods("POST")
-	api.HandleFunc("/bundles/vps/list", s.handleListVPSBundles).Methods("POST")
-	api.HandleFunc("/bundles/vps/delete", s.handleDeleteVPSBundle).Methods("POST")
-	api.HandleFunc("/bundles/{sha256}", s.handleDeleteBundle).Methods("DELETE")
-	api.HandleFunc("/preflight", s.handlePreflight).Methods("POST")
-	api.HandleFunc("/secrets/{scenario}", s.handleGetSecrets).Methods("GET")
+	api.HandleFunc("/bundles", bundle.HandleListBundles()).Methods("GET")
+	api.HandleFunc("/bundles/stats", bundle.HandleBundleStats()).Methods("GET")
+	api.HandleFunc("/bundles/cleanup", bundle.HandleBundleCleanup(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/bundles/vps/list", bundle.HandleListVPSBundles(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/bundles/vps/delete", bundle.HandleDeleteVPSBundle(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/bundles/{sha256}", bundle.HandleDeleteBundle()).Methods("DELETE")
+	api.HandleFunc("/preflight", preflight.HandlePreflight(preflight.HandlerDeps{
+		SSHRunner:         s.sshRunner,
+		DNSService:        s.dnsService,
+		ValidateManifest:  manifest.ValidateAndNormalize,
+		HasBlockingIssues: manifest.HasBlockingIssues,
+	})).Methods("POST")
+	api.HandleFunc("/secrets/{scenario}", secrets.HandleGetSecrets(s.secretsFetcher)).Methods("GET")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
 	api.HandleFunc("/vps/deploy/plan", s.handleVPSDeployPlan).Methods("POST")
@@ -186,19 +216,19 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
 
 	// SSH Key Management
-	api.HandleFunc("/ssh/keys", s.handleListSSHKeys).Methods("GET")
-	api.HandleFunc("/ssh/keys", s.handleDeleteSSHKey).Methods("DELETE")
-	api.HandleFunc("/ssh/keys/generate", s.handleGenerateSSHKey).Methods("POST")
-	api.HandleFunc("/ssh/keys/public", s.handleGetPublicKey).Methods("POST")
-	api.HandleFunc("/ssh/test", s.handleTestSSHConnection).Methods("POST")
-	api.HandleFunc("/ssh/copy-key", s.handleCopySSHKey).Methods("POST")
+	api.HandleFunc("/ssh/keys", ssh.HandleListKeys).Methods("GET")
+	api.HandleFunc("/ssh/keys", ssh.HandleDeleteKey).Methods("DELETE")
+	api.HandleFunc("/ssh/keys/generate", ssh.HandleGenerateKey).Methods("POST")
+	api.HandleFunc("/ssh/keys/public", ssh.HandleGetPublicKey).Methods("POST")
+	api.HandleFunc("/ssh/test", ssh.HandleTestConnection).Methods("POST")
+	api.HandleFunc("/ssh/copy-key", ssh.HandleCopyKey).Methods("POST")
 
 	// Preflight fix actions
-	api.HandleFunc("/preflight/fix/ports", s.handleStopPortServices).Methods("POST")
-	api.HandleFunc("/preflight/fix/firewall", s.handleOpenFirewallPorts).Methods("POST")
-	api.HandleFunc("/preflight/fix/stop-processes", s.handleStopScenarioProcesses).Methods("POST")
-	api.HandleFunc("/preflight/disk/usage", s.handleDiskUsage).Methods("POST")
-	api.HandleFunc("/preflight/disk/cleanup", s.handleDiskCleanup).Methods("POST")
+	api.HandleFunc("/preflight/fix/ports", preflight.HandleStopPortServices(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/fix/firewall", preflight.HandleOpenFirewallPorts(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/fix/stop-processes", preflight.HandleStopScenarioProcesses(s.sshRunner, adaptStopScenarioFunc)).Methods("POST")
+	api.HandleFunc("/preflight/disk/usage", preflight.HandleDiskUsage(s.sshRunner)).Methods("POST")
+	api.HandleFunc("/preflight/disk/cleanup", preflight.HandleDiskCleanup(s.sshRunner)).Methods("POST")
 
 	// Investigation endpoints (agent-manager integration)
 	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
@@ -212,15 +242,6 @@ func (s *Server) setupRoutes() {
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
-}
-
-// loggingMiddleware prints simple request logs
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {
@@ -247,28 +268,18 @@ func getEnvDefault(key, defaultValue string) string {
 	return value
 }
 
-func decodeJSON[T any](r io.Reader, maxBytes int64) (T, error) {
-	var zero T
-	if r == nil {
-		return zero, errors.New("missing request body")
+// adaptStopScenarioFunc adapts vps.StopExistingScenario to the preflight package interface.
+func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) preflight.StopScenarioResult {
+	result := vps.StopExistingScenario(ctx, sshRunner, cfg, workdir, scenarioID, targetPorts)
+	return preflight.StopScenarioResult{
+		OK:      result.OK,
+		Message: result.Message,
 	}
-	body := io.LimitReader(r, maxBytes)
-	dec := json.NewDecoder(body)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&zero); err != nil {
-		return zero, err
-	}
-	if err := dec.Decode(&struct{}{}); err == nil {
-		return zero, errors.New("unexpected extra JSON values")
-	} else if !errors.Is(err, io.EOF) {
-		return zero, err
-	}
-	return zero, nil
 }
 
 func main() {
 	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
+	if corepreflight.Run(corepreflight.Config{
 		ScenarioName: "scenario-to-cloud",
 	}) {
 		return // Process was re-exec'd after rebuild

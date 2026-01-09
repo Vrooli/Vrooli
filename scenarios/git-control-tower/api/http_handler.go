@@ -15,6 +15,7 @@ type HandlerContext struct {
 	RepoDir string
 	Ctx     context.Context
 	Resp    *HTTPResponse
+	Cancel  context.CancelFunc
 }
 
 // RepoOperation creates a HandlerContext for repository operations.
@@ -41,6 +42,7 @@ func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, timeou
 		RepoDir: repoDir,
 		Ctx:     ctx,
 		Resp:    resp,
+		Cancel:  cancel,
 	}
 }
 

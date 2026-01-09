@@ -33,6 +33,7 @@ import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
+import { useViewportSize } from "../hooks/useViewportSize";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -53,6 +54,7 @@ interface RunsPageProps {
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onInvestigateRuns: (runIds: string[], customContext?: string) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
+  onContinueRun: (id: string, message: string) => Promise<Run>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
@@ -90,6 +92,7 @@ export function RunsPage({
   onRejectRun,
   onInvestigateRuns,
   onApplyInvestigation,
+  onContinueRun,
   onRefresh,
   wsSubscribe,
   wsUnsubscribe,
@@ -98,6 +101,7 @@ export function RunsPage({
 }: RunsPageProps) {
   const { runId } = useParams<{ runId?: string }>();
   const navigate = useNavigate();
+  const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<RunDiff | null>(null);
@@ -378,6 +382,23 @@ export function RunsPage({
     return result;
   }, [runs, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
 
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (runId) return;
+    if (filteredAndSortedRuns.length === 0) return;
+
+    const selectedRunId = selectedRun?.id ?? null;
+    const hasSelection =
+      selectedRunId !== null &&
+      filteredAndSortedRuns.some((run) => run.id === selectedRunId);
+
+    if (!hasSelection) {
+      const firstRun = filteredAndSortedRuns[0];
+      navigate(`/runs/${firstRun.id}`, { replace: true });
+      loadRunDetails(firstRun);
+    }
+  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRun?.id]);
+
   const filters: FilterConfig[] = [
     {
       id: "status",
@@ -561,6 +582,12 @@ export function RunsPage({
           onInvestigate={handleInvestigateFromDetail}
           onApplyInvestigation={handleApplyInvestigationFromDetail}
           onDelete={handleDelete}
+          onContinue={async (message) => {
+            await onContinueRun(selectedRun.id, message);
+            // Reload events to show the new messages
+            const newEvents = await onGetEvents(selectedRun.id);
+            setEvents(newEvents);
+          }}
           deleteLoading={deleteLoading}
         />
       )}

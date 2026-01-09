@@ -31,8 +31,10 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         ...props
       }: ComponentPropsWithoutRef<"code"> & { inline?: boolean }) => {
         const codeContent = extractTextContent(children);
+        const isInline =
+          inline ?? (!codeClassName && !codeContent.includes("\n"));
 
-        if (inline) {
+        if (isInline) {
           return <InlineCode>{children}</InlineCode>;
         }
 

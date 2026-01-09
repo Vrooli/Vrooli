@@ -21,32 +21,39 @@ import (
 // This enables testing service logic without risk of affecting real repositories.
 type FakeGitRunner struct {
 	// Repository simulation state
-	Branch       FakeBranchState
-	Staged       map[string]string // path -> content
-	Unstaged     map[string]string // path -> content diff
-	Untracked    []string
-	Conflicts    []string
-	IsRepository bool   // Whether this is a valid git repo
-	GitAvailable bool   // Whether git binary is "installed"
-	RepoRoot     string // Configured repository root path
-	RemoteURL    string // Configured remote URL (for GetRemoteURL)
+	Branch         FakeBranchState
+	LocalBranches  map[string]FakeBranchRef
+	RemoteBranches map[string]FakeBranchRef
+	Staged         map[string]string // path -> content
+	Unstaged       map[string]string // path -> content diff
+	Untracked      []string
+	Conflicts      []string
+	IsRepository   bool   // Whether this is a valid git repo
+	GitAvailable   bool   // Whether git binary is "installed"
+	RepoRoot       string // Configured repository root path
+	RemoteURL      string // Configured remote URL (for GetRemoteURL)
 
 	// Error injection for testing error paths
-	StatusError    error
-	DiffError      error
-	StageError     error
-	UnstageError   error
-	CommitError    error
-	RevParseError  error
-	LookPathError  error
-	FetchError     error
-	RemoteURLError error
-	ConfigError    error
-	DiscardError   error
-	PushError      error
-	PullError      error
-	LogError       error
+	StatusError          error
+	DiffError            error
+	StageError           error
+	UnstageError         error
+	CommitError          error
+	RevParseError        error
+	LookPathError        error
+	FetchError           error
+	RemoteURLError       error
+	ConfigError          error
+	DiscardError         error
+	PushError            error
+	PullError            error
+	LogError             error
 	RemoveFromIndexError error
+	BranchesError        error
+	CreateBranchError    error
+	CheckoutBranchError  error
+	TrackRemoteError     error
+	CheckRefFormatError  error
 
 	// Commit tracking
 	LastCommitMessage     string
@@ -82,6 +89,13 @@ type FakeBranchState struct {
 	Behind   int
 }
 
+type FakeBranchRef struct {
+	Name         string
+	Upstream     string
+	OID          string
+	LastCommitAt string
+}
+
 // FakeGitCall records a call made to the fake for test verification.
 type FakeGitCall struct {
 	Method string
@@ -91,10 +105,26 @@ type FakeGitCall struct {
 // NewFakeGitRunner creates a FakeGitRunner with sensible defaults.
 // By default, it simulates a valid git repository with git available.
 func NewFakeGitRunner() *FakeGitRunner {
+	now := "2025-01-01 00:00:00 +0000"
 	return &FakeGitRunner{
 		Branch: FakeBranchState{
 			Head: "main",
 			OID:  "abc123def456",
+		},
+		LocalBranches: map[string]FakeBranchRef{
+			"main": {
+				Name:         "main",
+				Upstream:     "origin/main",
+				OID:          "abc123def456",
+				LastCommitAt: now,
+			},
+		},
+		RemoteBranches: map[string]FakeBranchRef{
+			"origin/main": {
+				Name:         "origin/main",
+				OID:          "abc123def456",
+				LastCommitAt: now,
+			},
 		},
 		Staged:       make(map[string]string),
 		Unstaged:     make(map[string]string),
@@ -523,6 +553,106 @@ func (f *FakeGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 	return []byte("line 1\nline 2\nline 3\nmodified line\nline 5\n"), nil
 }
 
+func (f *FakeGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
+	f.recordCall("Branches", repoDir)
+	if f.BranchesError != nil {
+		return nil, f.BranchesError
+	}
+
+	var lines []string
+	localNames := make([]string, 0, len(f.LocalBranches))
+	for name := range f.LocalBranches {
+		localNames = append(localNames, name)
+	}
+	sort.Strings(localNames)
+	for _, name := range localNames {
+		ref := f.LocalBranches[name]
+		line := fmt.Sprintf("refs/heads/%s|%s|%s|%s|%s", name, name, ref.Upstream, ref.OID, ref.LastCommitAt)
+		lines = append(lines, line)
+	}
+
+	remoteNames := make([]string, 0, len(f.RemoteBranches))
+	for name := range f.RemoteBranches {
+		remoteNames = append(remoteNames, name)
+	}
+	sort.Strings(remoteNames)
+	for _, name := range remoteNames {
+		ref := f.RemoteBranches[name]
+		line := fmt.Sprintf("refs/remotes/%s|%s|%s|%s|%s", name, name, ref.Upstream, ref.OID, ref.LastCommitAt)
+		lines = append(lines, line)
+	}
+
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func (f *FakeGitRunner) CreateBranch(ctx context.Context, repoDir string, name string, from string) error {
+	f.recordCall("CreateBranch", repoDir, name, from)
+	if f.CreateBranchError != nil {
+		return f.CreateBranchError
+	}
+	if _, exists := f.LocalBranches[name]; exists {
+		return fmt.Errorf("branch already exists")
+	}
+	oid := f.Branch.OID
+	if strings.TrimSpace(from) != "" {
+		oid = "from-" + from
+	}
+	f.LocalBranches[name] = FakeBranchRef{
+		Name:         name,
+		Upstream:     "",
+		OID:          oid,
+		LastCommitAt: "2025-01-01 00:00:00 +0000",
+	}
+	return nil
+}
+
+func (f *FakeGitRunner) CheckoutBranch(ctx context.Context, repoDir string, name string) error {
+	f.recordCall("CheckoutBranch", repoDir, name)
+	if f.CheckoutBranchError != nil {
+		return f.CheckoutBranchError
+	}
+	ref, exists := f.LocalBranches[name]
+	if !exists {
+		return fmt.Errorf("branch not found")
+	}
+	f.Branch.Head = name
+	f.Branch.Upstream = ref.Upstream
+	return nil
+}
+
+func (f *FakeGitRunner) TrackRemoteBranch(ctx context.Context, repoDir string, remote string, name string) error {
+	f.recordCall("TrackRemoteBranch", repoDir, remote, name)
+	if f.TrackRemoteError != nil {
+		return f.TrackRemoteError
+	}
+	remoteName := fmt.Sprintf("%s/%s", remote, name)
+	ref, exists := f.RemoteBranches[remoteName]
+	if !exists {
+		return fmt.Errorf("remote branch not found")
+	}
+	f.LocalBranches[name] = FakeBranchRef{
+		Name:         name,
+		Upstream:     remoteName,
+		OID:          ref.OID,
+		LastCommitAt: ref.LastCommitAt,
+	}
+	f.Branch.Head = name
+	f.Branch.Upstream = remoteName
+	return nil
+}
+
+func (f *FakeGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name string) error {
+	f.recordCall("CheckRefFormat", repoDir, name)
+	if f.CheckRefFormatError != nil {
+		return f.CheckRefFormatError
+	}
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || strings.Contains(trimmed, " ") {
+		return fmt.Errorf("invalid branch name")
+	}
+	return nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.
@@ -555,6 +685,39 @@ func (f *FakeGitRunner) WithBranch(head, upstream string, ahead, behind int) *Fa
 	f.Branch.Upstream = upstream
 	f.Branch.Ahead = ahead
 	f.Branch.Behind = behind
+	if _, exists := f.LocalBranches[head]; !exists {
+		f.LocalBranches[head] = FakeBranchRef{
+			Name:         head,
+			Upstream:     upstream,
+			OID:          f.Branch.OID,
+			LastCommitAt: "2025-01-01 00:00:00 +0000",
+		}
+	}
+	return f
+}
+
+func (f *FakeGitRunner) WithLocalBranch(name, upstream string, oid string) *FakeGitRunner {
+	if oid == "" {
+		oid = "abc123def456"
+	}
+	f.LocalBranches[name] = FakeBranchRef{
+		Name:         name,
+		Upstream:     upstream,
+		OID:          oid,
+		LastCommitAt: "2025-01-01 00:00:00 +0000",
+	}
+	return f
+}
+
+func (f *FakeGitRunner) WithRemoteBranch(name string, oid string) *FakeGitRunner {
+	if oid == "" {
+		oid = "abc123def456"
+	}
+	f.RemoteBranches[name] = FakeBranchRef{
+		Name:         name,
+		OID:          oid,
+		LastCommitAt: "2025-01-01 00:00:00 +0000",
+	}
 	return f
 }
 

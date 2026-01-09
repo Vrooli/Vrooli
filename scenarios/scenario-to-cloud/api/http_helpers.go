@@ -10,13 +10,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
 )
-
-type APIError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Hint    string `json:"hint,omitempty"`
-}
 
 // DeploymentContext bundles the common results of fetching and parsing a deployment.
 // This reduces cognitive load by eliminating the repeated pattern of:
@@ -29,8 +26,8 @@ type APIError struct {
 type DeploymentContext struct {
 	ID         string
 	Deployment *domain.Deployment
-	Manifest   CloudManifest
-	SSHConfig  SSHConfig
+	Manifest   domain.CloudManifest
+	SSHConfig  ssh.Config
 	Workdir    string
 }
 
@@ -43,7 +40,7 @@ func (s *Server) FetchDeploymentContext(w http.ResponseWriter, r *http.Request) 
 
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -52,16 +49,16 @@ func (s *Server) FetchDeploymentContext(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
 		return nil
 	}
 
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "manifest_parse_failed",
 			Message: "Failed to parse deployment manifest",
 			Hint:    err.Error(),
@@ -69,10 +66,10 @@ func (s *Server) FetchDeploymentContext(w http.ResponseWriter, r *http.Request) 
 		return nil
 	}
 
-	normalized, _ := ValidateAndNormalizeManifest(manifest)
+	normalized, _ := manifest.ValidateAndNormalize(m)
 
 	if normalized.Target.VPS == nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "no_vps_target",
 			Message: "Deployment does not have a VPS target",
 		})
@@ -83,7 +80,7 @@ func (s *Server) FetchDeploymentContext(w http.ResponseWriter, r *http.Request) 
 		ID:         id,
 		Deployment: deployment,
 		Manifest:   normalized,
-		SSHConfig:  sshConfigFromManifest(normalized),
+		SSHConfig:  ssh.ConfigFromManifest(normalized),
 		Workdir:    normalized.Target.VPS.Workdir,
 	}
 }
@@ -96,7 +93,7 @@ func (s *Server) FetchDeploymentOnly(w http.ResponseWriter, r *http.Request) (st
 
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -105,7 +102,7 @@ func (s *Server) FetchDeploymentOnly(w http.ResponseWriter, r *http.Request) (st
 	}
 
 	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -121,55 +118,6 @@ type DeploymentRepository interface {
 	GetDeployment(ctx context.Context, id string) (*domain.Deployment, error)
 }
 
-// writeRepoNotFoundError writes a standardized error response for when the repo root cannot be found.
-func writeRepoNotFoundError(w http.ResponseWriter, err error) {
-	writeAPIError(w, http.StatusInternalServerError, APIError{
-		Code:    "repo_not_found",
-		Message: "Could not find repository root",
-		Hint:    err.Error(),
-	})
-}
-
-// writeBundlesDirError writes a standardized error response for bundles directory errors.
-func writeBundlesDirError(w http.ResponseWriter, operation string, err error) {
-	writeAPIError(w, http.StatusInternalServerError, APIError{
-		Code:    operation + "_failed",
-		Message: "Failed to " + operation,
-		Hint:    err.Error(),
-	})
-}
-
-type APIErrorEnvelope struct {
-	Error APIError `json:"error"`
-}
-
-func writeAPIError(w http.ResponseWriter, status int, apiErr APIError) {
-	writeJSON(w, status, APIErrorEnvelope{Error: apiErr})
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
-// decodeRequestBody decodes a JSON request body into the provided pointer.
-// Returns false and writes an error response if decoding fails.
-// This consolidates the common pattern of:
-//   - json.NewDecoder(r.Body).Decode(&req)
-//   - if err != nil { writeAPIError(...); return }
-func decodeRequestBody[T any](w http.ResponseWriter, r *http.Request, dest *T) bool {
-	if err := json.NewDecoder(r.Body).Decode(dest); err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_json",
-			Message: "Invalid request body",
-			Hint:    err.Error(),
-		})
-		return false
-	}
-	return true
-}
-
 // DecodeAndValidateManifest consolidates the common pattern of:
 //   - Decoding a request body containing a manifest field
 //   - Validating and normalizing the manifest
@@ -178,28 +126,28 @@ func decodeRequestBody[T any](w http.ResponseWriter, r *http.Request, dest *T) b
 // Returns (request, normalized manifest, issues, ok). If ok is false, an error
 // response was already written and the handler should return immediately.
 // This reduces ~20 lines of repeated boilerplate per handler.
-func DecodeAndValidateManifest[T any](w http.ResponseWriter, body io.Reader, maxBytes int64, extractManifest func(T) CloudManifest) (T, CloudManifest, []ValidationIssue, bool) {
+func DecodeAndValidateManifest[T any](w http.ResponseWriter, body io.Reader, maxBytes int64, extractManifest func(T) domain.CloudManifest) (T, domain.CloudManifest, []domain.ValidationIssue, bool) {
 	var zero T
-	req, err := decodeJSON[T](body, maxBytes)
+	req, err := httputil.DecodeJSON[T](body, maxBytes)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_json",
 			Message: "Request body must be valid JSON",
 			Hint:    err.Error(),
 		})
-		return zero, CloudManifest{}, nil, false
+		return zero, domain.CloudManifest{}, nil, false
 	}
 
-	manifest := extractManifest(req)
-	normalized, issues := ValidateAndNormalizeManifest(manifest)
-	if hasBlockingIssues(issues) {
-		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+	m := extractManifest(req)
+	normalized, issues := manifest.ValidateAndNormalize(m)
+	if manifest.HasBlockingIssues(issues) {
+		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{
 			Valid:     false,
 			Issues:    issues,
 			Manifest:  normalized,
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
-		return zero, CloudManifest{}, nil, false
+		return zero, domain.CloudManifest{}, nil, false
 	}
 
 	return req, normalized, issues, true

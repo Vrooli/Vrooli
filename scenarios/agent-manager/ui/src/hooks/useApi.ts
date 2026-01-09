@@ -726,6 +726,22 @@ export function useRuns() {
     [fetchRuns]
   );
 
+  const continueRun = useCallback(
+    async (id: string, message: string): Promise<Run> => {
+      const data = await apiRequest<unknown>("/runs/" + id + "/continue", {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      });
+      const response = data as { success: boolean; run: unknown; error?: string };
+      if (!response.success && response.error) {
+        throw new Error(response.error);
+      }
+      await fetchRuns();
+      return response.run as Run;
+    },
+    [fetchRuns]
+  );
+
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
@@ -744,6 +760,7 @@ export function useRuns() {
     getRunDiff,
     approveRun,
     rejectRun,
+    continueRun,
   };
 }
 

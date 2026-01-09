@@ -60,6 +60,16 @@ type GeneratorConfig struct {
 	BinaryDetectionThreshold int
 }
 
+// GenerateOptions controls diff generation behavior.
+type GenerateOptions struct {
+	// PathPrefix is prepended to all file paths in the diff output.
+	// This is used when the sandbox scope is a subdirectory of the project root,
+	// ensuring paths in the diff are project-relative for correct git apply.
+	// Example: if scope is "/project/src/app" and project root is "/project",
+	// PathPrefix should be "src/app" so "file.go" becomes "src/app/file.go".
+	PathPrefix string
+}
+
 // DefaultGeneratorConfig returns sensible defaults.
 func DefaultGeneratorConfig() GeneratorConfig {
 	return GeneratorConfig{
@@ -123,11 +133,17 @@ func NewGeneratorWithConfigAndRunner(cfg GeneratorConfig, runner CommandRunner) 
 //   - UpperDir must exist (contains the changes)
 //   - LowerDir must exist (contains the originals for comparison)
 //
+// # Options
+//
+// The opts parameter controls diff generation behavior. Pass nil for defaults.
+// Use opts.PathPrefix when the sandbox scope is a subdirectory of the project root,
+// to ensure diff paths are project-relative for correct git apply.
+//
 // # Assumptions Guarded
 //
 // This function validates its preconditions and returns clear errors if they
 // are not met, rather than failing with confusing filesystem errors.
-func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes []*types.FileChange) (*types.DiffResult, error) {
+func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes []*types.FileChange, opts *GenerateOptions) (*types.DiffResult, error) {
 	// ASSUMPTION: Paths are initialized
 	// GUARD: Check for empty strings with clear message
 	if s.UpperDir == "" {
@@ -146,6 +162,12 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 		return nil, fmt.Errorf("sandbox lower directory does not exist: %s (project root may have moved)", s.LowerDir)
 	}
 
+	// Extract path prefix (empty string if opts is nil)
+	pathPrefix := ""
+	if opts != nil {
+		pathPrefix = opts.PathPrefix
+	}
+
 	// Sort changes for stable output
 	sortedChanges := make([]*types.FileChange, len(changes))
 	copy(sortedChanges, changes)
@@ -160,7 +182,7 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 		switch change.ChangeType {
 		case types.ChangeTypeAdded:
 			added++
-			fileDiff, err := g.diffNewFile(ctx, s.UpperDir, change.FilePath)
+			fileDiff, err := g.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff new file %s: %w", change.FilePath, err)
 			}
@@ -168,7 +190,7 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 
 		case types.ChangeTypeDeleted:
 			deleted++
-			fileDiff, err := g.diffDeletedFile(ctx, s.LowerDir, change.FilePath)
+			fileDiff, err := g.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff deleted file %s: %w", change.FilePath, err)
 			}
@@ -176,7 +198,7 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 
 		case types.ChangeTypeModified:
 			modified++
-			fileDiff, err := g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath)
+			fileDiff, err := g.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to diff modified file %s: %w", change.FilePath, err)
 			}
@@ -196,8 +218,16 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 }
 
 // diffNewFile generates a diff for a newly added file.
-func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (string, error) {
+// relPath is the scope-relative path (used for file operations).
+// pathPrefix is prepended to create project-relative paths (used in diff headers).
+func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath, pathPrefix string) (string, error) {
 	filePath := filepath.Join(upperDir, relPath)
+
+	// Compute the project-relative path for diff headers
+	diffPath := relPath
+	if pathPrefix != "" {
+		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
+	}
 
 	// Check if it's a directory
 	info, err := os.Stat(filePath)
@@ -209,13 +239,13 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 	}
 
 	if info.IsDir() {
-		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 040755\n--- /dev/null\n+++ b/%s\n",
-			relPath, relPath, relPath), nil
+		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\n--- /dev/null\n+++ b/%s\n",
+			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
 	if isSpecialFile(info) {
 		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
-			relPath, relPath, info.Mode().Perm(), relPath), nil
+			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
 	// Read file content
@@ -227,22 +257,40 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 	// Check if binary
 	if g.isBinary(content) {
 		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
-			relPath, relPath, info.Mode().Perm(), relPath), nil
+			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
 	// Create unified diff header
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", relPath, relPath))
-	builder.WriteString(fmt.Sprintf("new file mode %06o\n", info.Mode().Perm()))
+	builder.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", diffPath, diffPath))
+	builder.WriteString(fmt.Sprintf("new file mode %06o\n", gitFileMode(info)))
 	builder.WriteString("--- /dev/null\n")
-	builder.WriteString(fmt.Sprintf("+++ b/%s\n", relPath))
+	builder.WriteString(fmt.Sprintf("+++ b/%s\n", diffPath))
 
-	// Add lines
-	lines := strings.Split(string(content), "\n")
-	if len(lines) > 0 {
+	// Add lines - handle trailing newline correctly
+	// A file ending with \n should not produce an extra empty line in the diff
+	contentStr := string(content)
+	hasTrailingNewline := len(contentStr) > 0 && contentStr[len(contentStr)-1] == '\n'
+	if hasTrailingNewline {
+		contentStr = contentStr[:len(contentStr)-1]
+	}
+
+	if contentStr == "" {
+		// Empty file (or file with only a newline)
+		if hasTrailingNewline {
+			// File contains just a newline - represent as one empty line
+			builder.WriteString("@@ -0,0 +1 @@\n")
+			builder.WriteString("+\n")
+		}
+		// Truly empty file - no hunk needed
+	} else {
+		lines := strings.Split(contentStr, "\n")
 		builder.WriteString(fmt.Sprintf("@@ -0,0 +1,%d @@\n", len(lines)))
 		for _, line := range lines {
 			builder.WriteString("+" + line + "\n")
+		}
+		if !hasTrailingNewline {
+			builder.WriteString("\\ No newline at end of file\n")
 		}
 	}
 
@@ -250,8 +298,16 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 }
 
 // diffDeletedFile generates a diff for a deleted file.
-func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath string) (string, error) {
+// relPath is the scope-relative path (used for file operations).
+// pathPrefix is prepended to create project-relative paths (used in diff headers).
+func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath, pathPrefix string) (string, error) {
 	filePath := filepath.Join(lowerDir, relPath)
+
+	// Compute the project-relative path for diff headers
+	diffPath := relPath
+	if pathPrefix != "" {
+		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
+	}
 
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -259,13 +315,13 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 	}
 
 	if info.IsDir() {
-		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode 040755\n",
-			relPath, relPath), nil
+		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\n",
+			diffPath, diffPath, gitFileMode(info)), nil
 	}
 
 	if isSpecialFile(info) {
 		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
-			relPath, relPath, info.Mode().Perm(), relPath), nil
+			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
 	content, err := os.ReadFile(filePath)
@@ -275,20 +331,37 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 
 	if g.isBinary(content) {
 		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
-			relPath, relPath, info.Mode().Perm(), relPath), nil
+			diffPath, diffPath, gitFileMode(info), diffPath), nil
 	}
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", relPath, relPath))
-	builder.WriteString(fmt.Sprintf("deleted file mode %06o\n", info.Mode().Perm()))
-	builder.WriteString(fmt.Sprintf("--- a/%s\n", relPath))
+	builder.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", diffPath, diffPath))
+	builder.WriteString(fmt.Sprintf("deleted file mode %06o\n", gitFileMode(info)))
+	builder.WriteString(fmt.Sprintf("--- a/%s\n", diffPath))
 	builder.WriteString("+++ /dev/null\n")
 
-	lines := strings.Split(string(content), "\n")
-	if len(lines) > 0 {
+	// Handle trailing newline correctly
+	contentStr := string(content)
+	hasTrailingNewline := len(contentStr) > 0 && contentStr[len(contentStr)-1] == '\n'
+	if hasTrailingNewline {
+		contentStr = contentStr[:len(contentStr)-1]
+	}
+
+	if contentStr == "" {
+		// Empty file (or file with only a newline)
+		if hasTrailingNewline {
+			builder.WriteString("@@ -1 +0,0 @@\n")
+			builder.WriteString("-\n")
+		}
+		// Truly empty file - no hunk needed
+	} else {
+		lines := strings.Split(contentStr, "\n")
 		builder.WriteString(fmt.Sprintf("@@ -1,%d +0,0 @@\n", len(lines)))
 		for _, line := range lines {
 			builder.WriteString("-" + line + "\n")
+		}
+		if !hasTrailingNewline {
+			builder.WriteString("\\ No newline at end of file\n")
 		}
 	}
 
@@ -297,18 +370,27 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 
 // diffModifiedFile generates a diff for a modified file.
 // Uses the CommandRunner seam for external command execution, enabling test isolation.
-func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, relPath string) (string, error) {
+// relPath is the scope-relative path (used for file operations).
+// pathPrefix is prepended to create project-relative paths (used in diff headers).
+func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, relPath, pathPrefix string) (string, error) {
 	oldPath := filepath.Join(lowerDir, relPath)
 	newPath := filepath.Join(upperDir, relPath)
 
+	// Compute the project-relative path for diff headers
+	diffPath := relPath
+	if pathPrefix != "" {
+		diffPath = filepath.ToSlash(filepath.Join(pathPrefix, relPath))
+	}
+
 	// Use the command runner for external diff command
-	result := g.runner.Run(ctx, "", "", "diff", "-u", "--label", "a/"+relPath, "--label", "b/"+relPath, oldPath, newPath)
+	// Note: We use diffPath for labels so the diff output has correct project-relative paths
+	result := g.runner.Run(ctx, "", "", "diff", "-u", "--label", "a/"+diffPath, "--label", "b/"+diffPath, oldPath, newPath)
 
 	// diff returns exit code 1 when files differ, which is expected
 	if result.Err != nil {
 		if result.ExitCode == 1 {
 			// Files differ, output is in stdout
-			return "diff --git a/" + relPath + " b/" + relPath + "\n" + result.Stdout, nil
+			return "diff --git a/" + diffPath + " b/" + diffPath + "\n" + result.Stdout, nil
 		}
 		// Actual error or files are the same (exit code 0)
 		if result.ExitCode == 0 {
@@ -341,6 +423,35 @@ func isSpecialFile(info os.FileInfo) bool {
 		return true
 	}
 	return false
+}
+
+// gitFileMode returns the git-compatible file mode for a file.
+// Git uses a specific format where the first digits encode the file type:
+//   - 100xxx = regular file (100644 non-executable, 100755 executable)
+//   - 120000 = symbolic link
+//   - 040xxx = directory
+//   - 160000 = gitlink (submodule)
+//
+// This function converts Go's os.FileMode to git's expected format.
+func gitFileMode(info os.FileInfo) int {
+	mode := info.Mode()
+
+	// Symbolic link
+	if mode&os.ModeSymlink != 0 {
+		return 0o120000
+	}
+
+	// Directory
+	if mode.IsDir() {
+		// Directories in git are typically 040000, but we include execute bits
+		return 0o040000 | int(mode.Perm()&0o755)
+	}
+
+	// Regular file - check if executable
+	if mode.Perm()&0o111 != 0 {
+		return 0o100755
+	}
+	return 0o100644
 }
 
 // isBinaryDefault is a package-level helper for code that doesn't have a Generator.
@@ -627,16 +738,17 @@ func copyFile(src, dst string) error {
 }
 
 // GenerateFileDiff creates a diff for a single file given its ID.
-func GenerateFileDiff(ctx context.Context, s *types.Sandbox, change *types.FileChange) (string, error) {
+// pathPrefix is optional; if non-empty, it is prepended to file paths in diff headers.
+func GenerateFileDiff(ctx context.Context, s *types.Sandbox, change *types.FileChange, pathPrefix string) (string, error) {
 	gen := NewGenerator()
 
 	switch change.ChangeType {
 	case types.ChangeTypeAdded:
-		return gen.diffNewFile(ctx, s.UpperDir, change.FilePath)
+		return gen.diffNewFile(ctx, s.UpperDir, change.FilePath, pathPrefix)
 	case types.ChangeTypeDeleted:
-		return gen.diffDeletedFile(ctx, s.LowerDir, change.FilePath)
+		return gen.diffDeletedFile(ctx, s.LowerDir, change.FilePath, pathPrefix)
 	case types.ChangeTypeModified:
-		return gen.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath)
+		return gen.diffModifiedFile(ctx, s.LowerDir, s.UpperDir, change.FilePath, pathPrefix)
 	default:
 		return "", fmt.Errorf("unknown change type: %s", change.ChangeType)
 	}

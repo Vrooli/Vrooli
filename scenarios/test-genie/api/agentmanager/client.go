@@ -82,6 +82,18 @@ func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequ
 
 // GetProfile retrieves a profile by ID.
 func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
+	resp, err := c.GetProfileResponse(ctx, profileID)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	return resp.Profile, nil
+}
+
+// GetProfileResponse retrieves a profile and any attached metadata.
+func (c *Client) GetProfileResponse(ctx context.Context, profileID string) (*apipb.GetProfileResponse, error) {
 	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/profiles/%s", profileID), nil)
 	if err != nil {
 		return nil, err
@@ -99,7 +111,7 @@ func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.Ag
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}
-	return result.Profile, nil
+	return &result, nil
 }
 
 // =============================================================================

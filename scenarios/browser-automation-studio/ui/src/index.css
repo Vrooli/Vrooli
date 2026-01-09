@@ -173,6 +173,8 @@
     --card-padding: var(--space-4);
     --section-gap: var(--space-6);
     --item-gap: var(--space-3);
+    /* Tree indent guide width */
+    --tree-indent-width: 20px;
   }
 
   [data-compact="true"] {
@@ -189,6 +191,8 @@
     --card-padding: var(--space-3);
     --section-gap: var(--space-4);
     --item-gap: var(--space-2);
+    /* Tree indent guide width */
+    --tree-indent-width: 16px;
   }
 
   * {
@@ -283,6 +287,56 @@
 
   .folder-item.selected {
     @apply bg-flow-accent/20 text-flow-accent;
+  }
+
+  /* Tree indent guides (VS Code-style vertical lines) */
+  .tree-indent-guides {
+    @apply flex items-stretch pointer-events-none;
+  }
+
+  .tree-indent-segment {
+    @apply relative flex-shrink-0 h-full;
+    width: var(--tree-indent-width, 20px);
+  }
+
+  .tree-indent-segment.has-line {
+    @apply border-l border-flow-border-light/40;
+  }
+
+  /* Horizontal connector from vertical line to item */
+  .tree-indent-segment.has-connector::after {
+    content: '';
+    @apply absolute top-1/2 left-0 border-t border-flow-border-light/40;
+    width: calc(var(--tree-indent-width, 20px) / 2);
+    transform: translateY(-50%);
+  }
+
+  /* Tree row styling with increased height */
+  .tree-row {
+    @apply flex items-center rounded cursor-pointer transition-colors min-h-[36px];
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tree-row:hover {
+    @apply bg-flow-node-hover;
+  }
+
+  .tree-row.selected {
+    @apply bg-flow-accent/20 text-flow-accent;
+  }
+
+  .tree-row.focused {
+    @apply ring-2 ring-flow-accent/50 bg-flow-node;
+  }
+
+  /* Top-level folder section header styling */
+  .tree-section-header {
+    @apply font-medium text-flow-text-secondary;
+    margin-top: var(--space-4);
+  }
+
+  .tree-section-header:first-child {
+    margin-top: 0;
   }
 }
 

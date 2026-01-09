@@ -8,7 +8,9 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
 )
 
 // handleDeploymentProgress streams deployment progress events via SSE.
@@ -16,9 +18,9 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 	id := mux.Vars(r)["id"]
 
 	// Check if deployment exists
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	dep, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "get_failed",
 			Message: "Failed to get deployment",
 			Hint:    err.Error(),
@@ -26,8 +28,8 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if deployment == nil {
-		writeAPIError(w, http.StatusNotFound, APIError{
+	if dep == nil {
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
 		})
@@ -42,7 +44,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "sse_not_supported",
 			Message: "Streaming not supported",
 		})
@@ -50,16 +52,16 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 	}
 
 	// Helper to send an SSE event
-	sendEvent := func(event ProgressEvent) {
+	sendEvent := func(event deployment.Event) {
 		data, _ := json.Marshal(event)
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
 		flusher.Flush()
 	}
 
 	var preflightResult *domain.PreflightResponse
-	if deployment.PreflightResult.Valid && len(deployment.PreflightResult.Data) > 0 {
+	if dep.PreflightResult.Valid && len(dep.PreflightResult.Data) > 0 {
 		var result domain.PreflightResponse
-		if err := json.Unmarshal(deployment.PreflightResult.Data, &result); err == nil {
+		if err := json.Unmarshal(dep.PreflightResult.Data, &result); err == nil {
 			preflightResult = &result
 		}
 	}
@@ -68,21 +70,21 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 		if preflightResult == nil {
 			return
 		}
-		sendEvent(ProgressEvent{
+		sendEvent(deployment.Event{
 			Type:            "preflight_result",
 			Step:            "preflight",
 			StepTitle:       "Running preflight checks",
 			PreflightResult: preflightResult,
-			Progress:        deployment.ProgressPercent,
+			Progress:        dep.ProgressPercent,
 			Timestamp:       time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 
 	// Check if deployment is already complete
-	switch deployment.Status {
+	switch dep.Status {
 	case domain.StatusDeployed:
 		sendPreflightResult()
-		sendEvent(ProgressEvent{
+		sendEvent(deployment.Event{
 			Type:      "completed",
 			Progress:  100,
 			Message:   "Deployment complete",
@@ -93,26 +95,26 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 	case domain.StatusFailed:
 		sendPreflightResult()
 		errMsg := "Deployment failed"
-		if deployment.ErrorMessage != nil {
-			errMsg = *deployment.ErrorMessage
+		if dep.ErrorMessage != nil {
+			errMsg = *dep.ErrorMessage
 		}
 		// Include the step that failed so UI can reconstruct step states
 		step := ""
-		if deployment.ProgressStep != nil {
-			step = *deployment.ProgressStep
+		if dep.ProgressStep != nil {
+			step = *dep.ProgressStep
 		}
-		sendEvent(ProgressEvent{
+		sendEvent(deployment.Event{
 			Type:      "deployment_error",
 			Step:      step,
 			Error:     errMsg,
-			Progress:  deployment.ProgressPercent,
+			Progress:  dep.ProgressPercent,
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 		return
 
 	case domain.StatusStopped:
 		sendPreflightResult()
-		sendEvent(ProgressEvent{
+		sendEvent(deployment.Event{
 			Type:      "deployment_error",
 			Error:     "Deployment was stopped",
 			Progress:  0,
@@ -122,11 +124,11 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 	}
 
 	// Send current progress state for reconnecting clients
-	if deployment.ProgressStep != nil && *deployment.ProgressStep != "" {
-		sendEvent(ProgressEvent{
+	if dep.ProgressStep != nil && *dep.ProgressStep != "" {
+		sendEvent(deployment.Event{
 			Type:      "progress_update",
-			Step:      *deployment.ProgressStep,
-			Progress:  deployment.ProgressPercent,
+			Step:      *dep.ProgressStep,
+			Progress:  dep.ProgressPercent,
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 	}

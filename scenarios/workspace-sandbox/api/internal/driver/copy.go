@@ -266,43 +266,13 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 	return changes, nil
 }
 
-// RemoveFromUpper removes a file from the workspace after partial approval.
+// RemoveFromUpper removes a file from the workspace directory.
+// Delegates to shared helper with path traversal protection.
 func (d *CopyDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
 	if s.UpperDir == "" {
 		return fmt.Errorf("sandbox has no workspace directory configured")
 	}
-
-	// Security: ensure filePath is relative and doesn't escape
-	cleanPath := filepath.Clean(filePath)
-	if filepath.IsAbs(cleanPath) {
-		cleanPath = strings.TrimPrefix(cleanPath, "/")
-	}
-	if strings.HasPrefix(cleanPath, "..") {
-		return fmt.Errorf("path traversal not allowed: %s", filePath)
-	}
-
-	fullPath := filepath.Join(s.UpperDir, cleanPath)
-
-	// Verify path is under workspace
-	absFullPath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-	absUpperDir, err := filepath.Abs(s.UpperDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve workspace dir: %w", err)
-	}
-	if !strings.HasPrefix(absFullPath, absUpperDir) {
-		return fmt.Errorf("path escapes workspace directory: %s", filePath)
-	}
-
-	// Remove the file
-	err = os.Remove(fullPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove file from workspace: %w", err)
-	}
-
-	return nil
+	return removeFromUpperSecure(s.UpperDir, filePath)
 }
 
 // Cleanup removes all sandbox artifacts.

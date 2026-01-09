@@ -64,6 +64,7 @@ interface ProjectDetailState {
 
   // Preview pane
   previewWorkflowId: string | null;
+  previewAssetPath: string | null;
 
   // Menu states
   showWorkflowActionsFor: string | null;
@@ -119,6 +120,7 @@ interface ProjectDetailActions {
 
   // Preview pane
   setPreviewWorkflowId: (id: string | null) => void;
+  setPreviewAssetPath: (path: string | null) => void;
 
   // Menu states
   setShowWorkflowActionsFor: (id: string | null) => void;
@@ -159,6 +161,7 @@ const initialState: ProjectDetailState = {
   dropTargetFolder: null,
   focusedTreePath: null,
   previewWorkflowId: null,
+  previewAssetPath: null,
   showWorkflowActionsFor: null,
   showStatsPopover: false,
   showViewModeDropdown: false,
@@ -328,7 +331,8 @@ export const useProjectDetailStore = create<ProjectDetailState & ProjectDetailAc
   setFocusedTreePath: (path) => set({ focusedTreePath: path }),
 
   // Preview pane
-  setPreviewWorkflowId: (id) => set({ previewWorkflowId: id }),
+  setPreviewWorkflowId: (id) => set({ previewWorkflowId: id, previewAssetPath: null }),
+  setPreviewAssetPath: (path) => set({ previewAssetPath: path, previewWorkflowId: null }),
 
   // Menu states
   setShowWorkflowActionsFor: (id) => set({ showWorkflowActionsFor: id }),

@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/investigation"
 )
 
 // handleInvestigateDeployment triggers a new investigation for a failed deployment.
@@ -38,7 +39,7 @@ func (s *Server) handleInvestigateDeployment(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Trigger investigation
-	inv, err := s.investigationSvc.TriggerInvestigation(r.Context(), TriggerInvestigationRequest{
+	inv, err := s.investigationSvc.TriggerInvestigation(r.Context(), investigation.TriggerInvestigationRequest{
 		DeploymentID:    deploymentID,
 		AutoFix:         req.AutoFix,
 		Note:            req.Note,
@@ -216,7 +217,7 @@ func (s *Server) handleApplyFixes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply fixes
-	fixInv, err := s.investigationSvc.ApplyFixes(r.Context(), ApplyFixesRequest{
+	fixInv, err := s.investigationSvc.ApplyFixes(r.Context(), investigation.ApplyFixesRequest{
 		InvestigationID: invID,
 		DeploymentID:    deploymentID,
 		Immediate:       req.Immediate,

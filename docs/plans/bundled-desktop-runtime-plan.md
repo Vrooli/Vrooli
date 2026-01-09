@@ -180,11 +180,88 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
 - Ports: Manifest-specified ranges; runtime allocates sequentially and exposes map.
 - Assets/swaps: Hard fail with clear error/telemetry if required asset is missing; downloads happen before packaging, not at runtime.
 
+## Supervisor Validation Plan (Phased, with Screaming Architecture Boundaries)
+
+### Architectural Boundaries (keep these seams sharp)
+- **Domain packages** (`ports`, `secrets`, `migrations`, `health`, `env`, `assets`, `gpu`) remain pure and testable; they do not depend on supervisor orchestration.
+- **Orchestration layer** (`supervisor`, `service_launcher`, `api`) wires domain components together and owns runtime state transitions.
+- **Interface seams** are at `infra` abstractions (FS, process runner, network dialer, clock) and `api.Runtime` (control API facade).
+- **UX layer** (Electron) only consumes control API; it does not reach into domain packages or supervisor internals.
+
+### Phase 0: Planning + Fixtures (1-2 days)
+Goal: establish the scaffolding and fixtures for fast validation without packaging/install.
+- [ ] Document the supervisor validation loop in `scenarios/scenario-to-desktop/runtime/README.md` (dry-run + control API checks).
+- [ ] Define a minimal test bundle manifest (single HTTP service + worker) under a new test fixture path.
+- [ ] Decide ownership of fixtures and test harness location (prefer `scenarios/scenario-to-desktop/runtime/testutil/` or `scenarios/scenario-to-desktop/test/`).
+- [ ] Add a short "Validation FAQ" section to clarify expected outputs from `/readyz`, `/ports`, `/healthz`.
+
+### Phase 1: Fast Local Loop (1-2 days)
+Goal: a repeatable developer loop that exercises supervisor start/stop and control API.
+- [ ] Provide a documented script or make target to run `runtime --manifest <fixture> --dry-run`.
+- [ ] Validate auth token discovery (app data token + `ipc_port` file).
+- [ ] Validate readiness transitions when required secrets are missing vs provided.
+- [ ] Validate control API endpoints and shutdown behavior without service launch.
+- [ ] Define success criteria (expected HTTP responses + telemetry events).
+
+### Phase 2: Unit Tests (Mocked) (2-4 days)
+Goal: high-confidence logic validation without real processes.
+- [ ] Add tests for `Supervisor.Start` happy path (dry-run) with mocked FS/ports/telemetry.
+- [ ] Add tests for missing secrets path (no service start, statuses set to waiting).
+- [ ] Add tests for `UpdateSecrets` path (merge, persist, start services if ready).
+- [ ] Add tests for migration state loading and error handling.
+- [ ] Add tests for control API auth token creation and persistence.
+- [ ] Use `infra` mocks and `testutil` fixtures; avoid launching real binaries.
+
+### Phase 3: Integration Harness (Minimal Bundle) (3-5 days)
+Goal: run real processes with deterministic behavior.
+- [ ] Create a tiny HTTP test service binary/script and a worker that logs readiness.
+- [ ] Wire health checks (`http` + `log_match`) in the fixture manifest.
+- [ ] Validate dependency ordering and readiness sequencing.
+- [ ] Validate shutdown stops child processes and closes API server.
+- [ ] Record and assert telemetry events (startup, readiness, shutdown).
+
+### Phase 4: Contract Tests for Control API (2-3 days)
+Goal: ensure the API is stable and UX-ready.
+- [ ] Add contract tests for `/healthz`, `/readyz`, `/ports`, `/secrets`, `/shutdown`.
+- [ ] Verify auth failures return the expected status codes.
+- [ ] Validate error payloads (missing secrets, port allocation failure).
+- [ ] Add a small golden response suite with tolerant matching for dynamic fields.
+
+### Phase 5: UX Preflight Integration (3-6 days)
+Goal: integrate validation into Generate Desktop App UX without breaking boundaries.
+- [ ] Add a "Preflight" step that launches supervisor in dry-run against the generated bundle.
+- [ ] Poll `/readyz` and `/healthz` to drive a checklist UI (manifest valid, secrets present, ports allocated, migrations ready).
+- [ ] Surface missing secrets inline, submit to `/secrets`, and re-run readiness.
+- [ ] Provide a diagnostics panel: `/ports`, log tail (if available), and telemetry path.
+- [ ] Gate "Package" behind green preflight; add an "Override" action with warning.
+
+### Phase 6: CI Wiring + Regression Guardrails (2-3 days)
+Goal: keep the loop reliable and prevent regressions.
+- [ ] Run unit tests and integration harness in CI for `scenario-to-desktop` runtime.
+- [ ] Add a fast, deterministic "dry-run" contract test suite.
+- [ ] Document expected timeouts and local run commands.
+- [ ] Add a preflight checklist in the release process (manual or automated).
+
+### Acceptance Criteria
+- `runtime --manifest <fixture> --dry-run` validates core flow without packaging.
+- Control API endpoints are stable, documented, and covered by contract tests.
+- Minimal bundle integration test passes on all target platforms (or OS-gated).
+- UX preflight surfaces missing secrets and readiness issues before packaging.
+
+### Testing Seams (ensure boundaries stay clean)
+- **Supervisor state transitions**: unit tests with mocked `infra` components.
+- **Domain behavior**: unit tests inside `ports`, `secrets`, `migrations`, `health`.
+- **Control API**: contract tests via `api.Runtime` interface.
+- **UX**: UI tests only consume control API; no direct supervisor usage.
+
 ## Progress
 **Done**
-- [x] Schema + samples: Added `docs/deployment/bundle-schema.desktop.v0.1.json` and sample manifests (`desktop-happy.json`, `desktop-playwright.json`) to anchor validation and fixtures.
+- [x] Schema + samples: Added `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` and sample manifests (`desktop-happy.json`, `desktop-playwright.json`) to anchor validation and fixtures.
 - [x] Runtime core: Supervisor loads manifests, allocates ports, runs migrations, enforces readiness/health, persists secrets/migrations, records telemetry, and exposes control API + CLI shim; Playwright env defaults + asset size checks added.
 - [x] Runtime wiring to product UX: Bundled mode now consumes real manifests end-to-end (UI/CLI accept `bundle_manifest_path`, generator packages bundles/runtime, Electron launches the bundled runtime instead of blocking, and dry-run defaults to real service startup).
+- [x] Preflight UX + API: scenario-to-desktop can dry-run bundled manifests (`/api/v1/desktop/preflight`), and the Generate Desktop App flow runs preflight with a readiness checklist + override gating.
+- [x] Preflight diagnostics: optional service startup and log-tail capture exposed via preflight request + UI toggle.
+- [x] CI guardrails: GitHub Actions runs runtime integration tests plus preflight-specific API tests.
 - [x] Manifest assembly: deployment-manager now generates desktop `bundle.json` from scenario-dependency-analyzer bundle skeletons (v0.1) and merges secrets plans; exposed via `/api/v1/bundles/assemble`.
 - [x] Secrets plan + UX: secrets-manager exports bundle-ready secret plans per tier (including fallback when discovery fails); Electron bundled launches now gate on the runtime control API, prompt for `user_prompt` secrets before readiness checks, POST them to `/secrets`, and fail fast with clear messaging if required secrets are withheld.
 - [x] Telemetry/logs UX: Electron UI now renders `/readyz` `/ports` and per-service log tails in the diagnostics panel, auto-uploads telemetry when a target URL is configured, and deployment-manager surfaces ingested bundle telemetry with failure breakdowns/events.

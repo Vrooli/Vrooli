@@ -16,7 +16,11 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
 )
 
 // ScenarioInfo represents a scenario with its configuration
@@ -103,9 +107,9 @@ type ReachabilityResponse struct {
 }
 
 func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
-	repoRoot, err := FindRepoRootFromCWD()
+	repoRoot, err := bundle.FindRepoRootFromCWD()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "repo_root_not_found",
 			Message: "Unable to locate Vrooli repo root",
 			Hint:    err.Error(),
@@ -116,7 +120,7 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 	scenariosDir := filepath.Join(repoRoot, "scenarios")
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "scenarios_dir_read_failed",
 			Message: "Unable to read scenarios directory",
 			Hint:    err.Error(),
@@ -156,7 +160,7 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 		scenarios = append(scenarios, info)
 	}
 
-	writeJSON(w, http.StatusOK, ScenariosResponse{
+	httputil.WriteJSON(w, http.StatusOK, ScenariosResponse{
 		Scenarios: scenarios,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -167,16 +171,16 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 	scenarioID := vars["id"]
 
 	if scenarioID == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "missing_scenario_id",
 			Message: "Scenario ID is required",
 		})
 		return
 	}
 
-	repoRoot, err := FindRepoRootFromCWD()
+	repoRoot, err := bundle.FindRepoRootFromCWD()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "repo_root_not_found",
 			Message: "Unable to locate Vrooli repo root",
 			Hint:    err.Error(),
@@ -188,13 +192,13 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeAPIError(w, http.StatusNotFound, APIError{
+			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "scenario_not_found",
 				Message: "Scenario not found or missing service.json",
 				Hint:    "Ensure the scenario exists and has a .vrooli/service.json file.",
 			})
 		} else {
-			writeAPIError(w, http.StatusInternalServerError, APIError{
+			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 				Code:    "service_json_read_failed",
 				Message: "Unable to read service.json",
 				Hint:    err.Error(),
@@ -205,7 +209,7 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 
 	var svc ServiceJSON
 	if err := json.Unmarshal(data, &svc); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "service_json_parse_failed",
 			Message: "Unable to parse service.json",
 			Hint:    err.Error(),
@@ -213,7 +217,7 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, ScenarioPortsResponse{
+	httputil.WriteJSON(w, http.StatusOK, ScenarioPortsResponse{
 		ScenarioID: scenarioID,
 		Ports:      svc.Ports,
 		Timestamp:  time.Now().UTC().Format(time.RFC3339),
@@ -221,9 +225,9 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReachabilityCheck(w http.ResponseWriter, r *http.Request) {
-	req, err := decodeJSON[ReachabilityRequest](r.Body, 1<<16)
+	req, err := httputil.DecodeJSON[ReachabilityRequest](r.Body, 1<<16)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_json",
 			Message: "Request body must be valid JSON",
 			Hint:    err.Error(),
@@ -248,7 +252,7 @@ func (s *Server) handleReachabilityCheck(w http.ResponseWriter, r *http.Request)
 		results = append(results, result)
 	}
 
-	writeJSON(w, http.StatusOK, ReachabilityResponse{
+	httputil.WriteJSON(w, http.StatusOK, ReachabilityResponse{
 		Results:   results,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -267,20 +271,20 @@ func checkHostReachability(ctx context.Context, host string) ReachabilityResult 
 		errStr := err.Error()
 
 		// Check for IPv6-specific errors
-		if isIPv6(host) && (strings.Contains(errStr, "no route to host") ||
+		if ssh.IsIPv6(host) && (strings.Contains(errStr, "no route to host") ||
 			strings.Contains(errStr, "network is unreachable")) {
 			result.Reachable = false
 			result.Message = "IPv6 not available"
-			result.Hint = ipv6ConnectivityHint
+			result.Hint = ssh.IPv6ConnectivityHint
 			return result
 		}
 
 		// Check if it's a timeout or connection refused
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			result.Reachable = false
-			if isIPv6(host) {
+			if ssh.IsIPv6(host) {
 				result.Message = "Connection timed out (IPv6)"
-				result.Hint = ipv6ConnectivityHint
+				result.Hint = ssh.IPv6ConnectivityHint
 			} else {
 				result.Message = "Connection timed out"
 				result.Hint = "The host may be unreachable, or SSH port 22 may be blocked. You can proceed if the server is not yet configured."
@@ -311,7 +315,7 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 	scenarioID := vars["id"]
 
 	if scenarioID == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "missing_scenario_id",
 			Message: "Scenario ID is required",
 		})
@@ -326,8 +330,8 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 	if err == nil {
 		// Ensure declared dependencies from service.json are not dropped if analyzer misses them.
 		if fallback, fbErr := s.extractDependenciesFromServiceJSON(scenarioID); fbErr == nil {
-			mergedResources := stableUniqueStrings(append(deps.Resources, fallback.Resources...))
-			mergedScenarios := stableUniqueStrings(append(deps.Scenarios, fallback.Scenarios...))
+			mergedResources := manifest.StableUniqueStrings(append(deps.Resources, fallback.Resources...))
+			mergedScenarios := manifest.StableUniqueStrings(append(deps.Scenarios, fallback.Scenarios...))
 			if len(mergedResources) != len(deps.Resources) || len(mergedScenarios) != len(deps.Scenarios) {
 				s.log("merged service.json dependencies into analyzer response", map[string]interface{}{
 					"scenario_id": scenarioID,
@@ -336,7 +340,7 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 				deps.Scenarios = mergedScenarios
 			}
 		}
-		writeJSON(w, http.StatusOK, deps)
+		httputil.WriteJSON(w, http.StatusOK, deps)
 		return
 	}
 
@@ -350,13 +354,13 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 	deps, err = s.extractDependenciesFromServiceJSON(scenarioID)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeAPIError(w, http.StatusNotFound, APIError{
+			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "scenario_not_found",
 				Message: "Scenario not found or missing service.json",
 				Hint:    "Ensure the scenario exists and has a .vrooli/service.json file.",
 			})
 		} else {
-			writeAPIError(w, http.StatusInternalServerError, APIError{
+			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 				Code:    "dependencies_extraction_failed",
 				Message: "Failed to extract dependencies",
 				Hint:    err.Error(),
@@ -365,7 +369,7 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, http.StatusOK, deps)
+	httputil.WriteJSON(w, http.StatusOK, deps)
 }
 
 // fetchDependenciesFromAnalyzer tries to fetch dependencies from scenario-dependency-analyzer.
@@ -463,7 +467,7 @@ func (s *Server) fetchDependenciesFromAnalyzer(ctx context.Context, scenarioID s
 
 // extractDependenciesFromServiceJSON reads dependencies directly from service.json.
 func (s *Server) extractDependenciesFromServiceJSON(scenarioID string) (*ScenarioDependenciesResponse, error) {
-	repoRoot, err := FindRepoRootFromCWD()
+	repoRoot, err := bundle.FindRepoRootFromCWD()
 	if err != nil {
 		return nil, err
 	}

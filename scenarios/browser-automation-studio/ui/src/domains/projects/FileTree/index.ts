@@ -3,7 +3,7 @@
  */
 export {
   FileTreeItem,
-  renderTreePrefix,
+  TreeIndentGuides,
   fileTypeLabelFromPath,
   fileKindIcon,
   type FileTreeNode,

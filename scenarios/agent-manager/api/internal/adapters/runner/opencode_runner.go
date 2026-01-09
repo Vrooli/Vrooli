@@ -33,12 +33,13 @@ const OpenCodeResourceCommand = "resource-opencode"
 
 // OpenCodeRunner implements the Runner interface for OpenCode CLI.
 type OpenCodeRunner struct {
-	binaryPath  string
-	available   bool
-	message     string
-	installHint string
-	mu          sync.Mutex
-	runs        map[uuid.UUID]*exec.Cmd
+	binaryPath    string
+	available     bool
+	message       string
+	installHint   string
+	mu            sync.Mutex
+	runs          map[uuid.UUID]*exec.Cmd
+	runSessionIDs map[uuid.UUID]string // Session IDs for conversation continuation
 }
 
 // NewOpenCodeRunner creates a new OpenCode runner.
@@ -56,10 +57,11 @@ func NewOpenCodeRunner() (*OpenCodeRunner, error) {
 
 	// Verify the resource is healthy by checking status
 	runner := &OpenCodeRunner{
-		binaryPath: binaryPath,
-		available:  true,
-		message:    "resource-opencode available",
-		runs:       make(map[uuid.UUID]*exec.Cmd),
+		binaryPath:    binaryPath,
+		available:     true,
+		message:       "resource-opencode available",
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runSessionIDs: make(map[uuid.UUID]string),
 	}
 
 	// Quick health check via status command
@@ -105,7 +107,8 @@ func (r *OpenCodeRunner) Capabilities() Capabilities {
 		SupportsCostTracking: false, // OpenCode may not track costs the same way
 		SupportsStreaming:    false,
 		SupportsCancellation: true,
-		MaxTurns:             0, // unlimited
+		SupportsContinuation: true, // OpenCode supports --session for session continuation
+		MaxTurns:             0,    // unlimited
 		SupportedModels: []string{
 			"anthropic/claude-sonnet-4-5",
 			"anthropic/claude-opus-4-5",
@@ -213,6 +216,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
 	var errorOutput strings.Builder
+	var capturedSessionID string
 	stepFinished := false
 
 	// Read stderr in background
@@ -243,8 +247,8 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			continue
 		}
 
-		// Parse the streaming event(s)
-		events, err := r.parseStreamEvents(req.RunID, line)
+		// Parse the streaming event(s) and capture session ID
+		events, sessionID, err := r.parseStreamEventsWithSessionID(req.RunID, line)
 		if err != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
@@ -255,6 +259,12 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 				))
 			}
 			continue
+		}
+
+		// Track session ID when we first see it
+		if sessionID != "" && capturedSessionID == "" {
+			capturedSessionID = sessionID
+			r.trackSessionID(req.RunID, sessionID)
 		}
 
 		// Skip silently if parseStreamEvents returned no events (non-JSON lines)
@@ -312,8 +322,9 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 	// Determine result
 	result := &ExecuteResult{
-		Duration: duration,
-		Metrics:  metrics,
+		Duration:  duration,
+		Metrics:   metrics,
+		SessionID: capturedSessionID,
 	}
 
 	if err != nil {
@@ -542,6 +553,30 @@ func (r *OpenCodeRunner) InstallHint() string {
 	return r.installHint
 }
 
+// trackSessionID stores the session ID for a run.
+func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
+	if sessionID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.runSessionIDs[runID] = sessionID
+}
+
+// clearSessionID removes the session ID tracking for a run.
+func (r *OpenCodeRunner) clearSessionID(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.runSessionIDs, runID)
+}
+
+// sessionIDForRun returns the session ID for a run, if tracked.
+func (r *OpenCodeRunner) sessionIDForRun(runID uuid.UUID) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.runSessionIDs[runID]
+}
+
 // buildArgs constructs command-line arguments for resource-opencode run.
 func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// resource-opencode run passes through to opencode CLI
@@ -706,41 +741,64 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 // parseStreamEvents parses a single line from OpenCode's JSON output into one or more events.
 // Returns an empty slice for lines that should be silently skipped (non-JSON startup output).
 func (r *OpenCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
+	events, _, err := r.parseStreamEventsWithSessionID(runID, line)
+	return events, err
+}
+
+// parseStreamEventsWithSessionID parses a single line from OpenCode's JSON output into one or more events.
+// Also returns the session ID if found in the event.
+// Returns an empty slice for lines that should be silently skipped (non-JSON startup output).
+func (r *OpenCodeRunner) parseStreamEventsWithSessionID(runID uuid.UUID, line string) ([]*domain.RunEvent, string, error) {
 	// Skip empty lines
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	// Quick check: valid JSON must start with '{' or '['
 	// This avoids logging warnings for non-JSON startup output
 	if len(line) > 0 && line[0] != '{' && line[0] != '[' {
 		// Silently skip non-JSON lines (startup messages, etc.)
-		return nil, nil
+		return nil, "", nil
 	}
 
 	if line[0] == '[' {
 		var streamEvents []OpenCodeStreamEvent
 		if err := json.Unmarshal([]byte(line), &streamEvents); err != nil {
-			return nil, domain.NewInternalError("invalid opencode JSON", err)
+			return nil, "", domain.NewInternalError("invalid opencode JSON", err)
 		}
 		events := []*domain.RunEvent{}
+		var sessionID string
 		for _, streamEvent := range streamEvents {
+			// Capture session ID from any event that has it
+			if streamEvent.SessionID != "" && sessionID == "" {
+				sessionID = streamEvent.SessionID
+			}
+			if streamEvent.Part != nil && streamEvent.Part.SessionID != "" && sessionID == "" {
+				sessionID = streamEvent.Part.SessionID
+			}
 			parsed, err := r.parseOpenCodeStreamEvent(runID, streamEvent)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			events = append(events, parsed...)
 		}
-		return events, nil
+		return events, sessionID, nil
 	}
 
 	var streamEvent OpenCodeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
-		return nil, domain.NewInternalError("invalid opencode JSON", err)
+		return nil, "", domain.NewInternalError("invalid opencode JSON", err)
 	}
 
-	return r.parseOpenCodeStreamEvent(runID, streamEvent)
+	// Extract session ID from the event
+	sessionID := streamEvent.SessionID
+	if sessionID == "" && streamEvent.Part != nil {
+		sessionID = streamEvent.Part.SessionID
+	}
+
+	events, err := r.parseOpenCodeStreamEvent(runID, streamEvent)
+	return events, sessionID, err
 }
 
 func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent OpenCodeStreamEvent) ([]*domain.RunEvent, error) {
@@ -1126,4 +1184,285 @@ func isLikelyHash(value string) bool {
 		}
 	}
 	return true
+}
+
+// Continue continues a previous conversation in the same session.
+// OpenCode supports session continuation via the --session flag.
+func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	if !r.available {
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeOpenCode,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
+	}
+
+	if req.SessionID == "" {
+		return nil, ErrSessionExpired
+	}
+
+	startTime := time.Now()
+
+	// Build command arguments for session continuation
+	// Syntax: resource-opencode run run <message> --session <session-id> --format json
+	args := []string{
+		"run",        // resource-opencode subcommand
+		"run",        // opencode subcommand
+		req.Prompt,   // The follow-up message
+		"--session", req.SessionID,
+		"--format", "json",
+	}
+
+	// Create command using resource-opencode
+	tag := fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	if req.WorkingDir != "" {
+		cmd.Dir = req.WorkingDir
+	}
+
+	// Set environment
+	env := os.Environ()
+	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
+	for key, value := range req.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+	cmd.Env = env
+
+	// Track the running command for cancellation
+	r.mu.Lock()
+	r.runs[req.RunID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, req.RunID)
+		r.mu.Unlock()
+	}()
+
+	// Create pipes for stdout/stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Create stdin pipe and close it immediately
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Start command
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "continue",
+			Cause:      err,
+		}
+	}
+
+	// Close stdin immediately - we pass prompt via command line args
+	stdin.Close()
+
+	// Emit starting event
+	if req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			string(domain.RunStatusRunning),
+			"OpenCode continuation started",
+		))
+	}
+
+	// Process streaming JSON output
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+	var capturedSessionID string
+	stepFinished := false
+
+	// Read stderr in background
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			errorOutput.WriteString(scanner.Text())
+			errorOutput.WriteString("\n")
+		}
+	}()
+
+	// Parse streaming JSON output
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		// Check for step_finish event
+		if strings.Contains(line, `"type":"step_finish"`) {
+			stepFinished = r.handleStepFinish(req.RunID, line, &metrics, &lastAssistantMessage, req.EventSink)
+			if stepFinished {
+				break
+			}
+			continue
+		}
+
+		// Parse the streaming event(s) and capture session ID
+		events, sessionID, parseErr := r.parseStreamEventsWithSessionID(req.RunID, line)
+		if parseErr != nil {
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(domain.NewLogEvent(
+					req.RunID,
+					"warn",
+					fmt.Sprintf("Failed to parse event: %v", parseErr),
+				))
+			}
+			continue
+		}
+
+		// Track session ID when we first see it (should match the one we passed)
+		if sessionID != "" && capturedSessionID == "" {
+			capturedSessionID = sessionID
+		}
+
+		if len(events) == 0 {
+			continue
+		}
+
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
+		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID,
+			"warn",
+			fmt.Sprintf("OpenCode output scan error: %v", scanErr),
+		))
+	}
+
+	// If step finished but process is still running, terminate it gracefully
+	if stepFinished && cmd.Process != nil {
+		time.Sleep(100 * time.Millisecond)
+		_ = cmd.Process.Signal(os.Interrupt)
+		done := make(chan error, 1)
+		go func() { done <- cmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+		}
+	}
+
+	// Wait for command to complete (if not already done above)
+	if !stepFinished {
+		err = cmd.Wait()
+	} else {
+		err = nil
+	}
+	duration := time.Since(startTime)
+
+	// Determine result - use original session ID for continuation
+	result := &ExecuteResult{
+		Duration:  duration,
+		Metrics:   metrics,
+		SessionID: req.SessionID, // Keep the same session ID
+	}
+
+	if err != nil {
+		errorMessage := strings.TrimSpace(errorOutput.String())
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "continuation cancelled"
+		} else if exitErr, ok := err.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			if errorMessage == "" {
+				errorMessage = exitErr.Error()
+			}
+			if fallback := resolveOpenCodeLogError(); errorMessage == "" || strings.Contains(errorMessage, "exit status") {
+				if fallback != "" {
+					errorMessage = fallback
+				}
+			}
+			result.ErrorMessage = errorMessage
+			// Check for session-related errors
+			if strings.Contains(errorMessage, "session") && (strings.Contains(errorMessage, "not found") || strings.Contains(errorMessage, "expired") || strings.Contains(errorMessage, "invalid")) {
+				return nil, ErrSessionExpired
+			}
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			if errorMessage == "" {
+				errorMessage = err.Error()
+			}
+			result.ErrorMessage = errorMessage
+		}
+		if req.EventSink != nil && strings.TrimSpace(result.ErrorMessage) != "" {
+			_ = req.EventSink.Emit(domain.NewErrorEvent(
+				req.RunID,
+				"continuation_error",
+				result.ErrorMessage,
+				false,
+			))
+		}
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+		if lastAssistantMessage == "" {
+			lastAssistantMessage = "OpenCode continuation completed."
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", lastAssistantMessage))
+			}
+		}
+		result.Summary = &domain.RunSummary{
+			Description:  lastAssistantMessage,
+			TurnsUsed:    metrics.TurnsUsed,
+			TokensUsed:   TotalTokens(metrics),
+			CostEstimate: metrics.CostEstimateUSD,
+		}
+	}
+
+	// Emit completion event
+	if req.EventSink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
+			req.RunID,
+			string(domain.RunStatusRunning),
+			finalStatus,
+			"OpenCode continuation completed",
+		))
+	}
+
+	return result, nil
 }

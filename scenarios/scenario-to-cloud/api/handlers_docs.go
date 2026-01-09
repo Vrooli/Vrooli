@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"scenario-to-cloud/internal/httputil"
 )
 
 // DocsManifest represents the structure of the docs manifest.json file
@@ -48,7 +50,7 @@ func (s *Server) handleGetDocsManifest(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeAPIError(w, http.StatusNotFound, APIError{
+			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "docs_not_found",
 				Message: "Documentation manifest not found",
 				Hint:    "Ensure docs/manifest.json exists in the scenario directory",
@@ -56,7 +58,7 @@ func (s *Server) handleGetDocsManifest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.log("failed to read docs manifest", map[string]interface{}{"error": err.Error()})
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "read_error",
 			Message: "Failed to read documentation manifest",
 		})
@@ -66,21 +68,21 @@ func (s *Server) handleGetDocsManifest(w http.ResponseWriter, r *http.Request) {
 	var manifest DocsManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		s.log("failed to parse docs manifest", map[string]interface{}{"error": err.Error()})
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "parse_error",
 			Message: "Invalid documentation manifest format",
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, manifest)
+	httputil.WriteJSON(w, http.StatusOK, manifest)
 }
 
 // handleGetDocContent serves the content of a specific doc file
 func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "missing_path",
 			Message: "Path parameter is required",
 			Hint:    "Provide ?path=QUICKSTART.md",
@@ -91,7 +93,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 	// Prevent directory traversal attacks
 	cleanPath := filepath.Clean(path)
 	if filepath.IsAbs(cleanPath) || containsParentRef(cleanPath) {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_path",
 			Message: "Invalid document path",
 			Hint:    "Path cannot be absolute or contain parent references",
@@ -106,7 +108,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 	absDocsDir, _ := filepath.Abs(docsDir)
 	absFullPath, _ := filepath.Abs(fullPath)
 	if len(absFullPath) < len(absDocsDir) || absFullPath[:len(absDocsDir)] != absDocsDir {
-		writeAPIError(w, http.StatusBadRequest, APIError{
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_path",
 			Message: "Invalid document path",
 		})
@@ -116,7 +118,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeAPIError(w, http.StatusNotFound, APIError{
+			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "doc_not_found",
 				Message: "Document not found",
 				Hint:    "Check that the path matches a document in the manifest",
@@ -127,7 +129,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 			"path":  path,
 			"error": err.Error(),
 		})
-		writeAPIError(w, http.StatusInternalServerError, APIError{
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "read_error",
 			Message: "Failed to read document",
 		})
@@ -139,7 +141,7 @@ func (s *Server) handleGetDocContent(w http.ResponseWriter, r *http.Request) {
 		Content: string(data),
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // getDocsDir returns the path to the docs directory

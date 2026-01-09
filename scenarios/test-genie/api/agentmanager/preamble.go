@@ -158,8 +158,6 @@ func getDefaultAllowedCommands() []string {
 		"git diff",
 		"git log",
 		"git show",
-		"git branch",
-		"git remote",
 	}
 }
 

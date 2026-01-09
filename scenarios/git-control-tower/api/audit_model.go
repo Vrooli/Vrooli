@@ -7,13 +7,16 @@ import "time"
 type AuditOperation string
 
 const (
-	AuditOpStage   AuditOperation = "stage"
-	AuditOpUnstage AuditOperation = "unstage"
-	AuditOpCommit  AuditOperation = "commit"
-	AuditOpDiscard AuditOperation = "discard"
-	AuditOpIgnore  AuditOperation = "ignore"
-	AuditOpPush    AuditOperation = "push"
-	AuditOpPull    AuditOperation = "pull"
+	AuditOpStage         AuditOperation = "stage"
+	AuditOpUnstage       AuditOperation = "unstage"
+	AuditOpCommit        AuditOperation = "commit"
+	AuditOpDiscard       AuditOperation = "discard"
+	AuditOpIgnore        AuditOperation = "ignore"
+	AuditOpPush          AuditOperation = "push"
+	AuditOpPull          AuditOperation = "pull"
+	AuditOpBranchCreate  AuditOperation = "branch_create"
+	AuditOpBranchSwitch  AuditOperation = "branch_switch"
+	AuditOpBranchPublish AuditOperation = "branch_publish"
 )
 
 // AuditEntry represents a single audit log entry.

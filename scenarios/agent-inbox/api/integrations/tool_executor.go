@@ -333,7 +333,17 @@ func (h *agentManagerHandler) spawnCodingAgent(ctx context.Context, client *Agen
 		timeoutMinutes = int(tm)
 	}
 
-	return client.SpawnCodingAgent(ctx, task, runnerType, workspacePath, timeoutMinutes)
+	// Extract context attachments from injected skills
+	var contextAttachments []map[string]interface{}
+	if attachments, ok := args["_context_attachments"].([]interface{}); ok {
+		for _, a := range attachments {
+			if attachment, ok := a.(map[string]interface{}); ok {
+				contextAttachments = append(contextAttachments, attachment)
+			}
+		}
+	}
+
+	return client.SpawnCodingAgent(ctx, task, runnerType, workspacePath, timeoutMinutes, contextAttachments)
 }
 
 func (h *agentManagerHandler) checkAgentStatus(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {

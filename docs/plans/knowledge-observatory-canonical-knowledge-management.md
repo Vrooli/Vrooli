@@ -2,7 +2,7 @@
 
 **Goal**: Make `scenarios/knowledge-observatory/api` the canonical control-plane for “knowledge generation and management” across Vrooli: ingestion → chunking → embedding (Ollama) → persistence (Qdrant vectors + Postgres metadata) → retrieval (search) → derived health/metrics/graph.
 
-**Status**: In Progress
+**Status**: Implemented (Phases 0–4), ongoing hardening
 **Created**: 2025-12-17
 **Target Scenario**: `scenarios/knowledge-observatory`
 **Key Constraint**: Keep using existing resources (Qdrant, Postgres, Ollama, etc.); centralize logic in KO rather than replacing resources.
@@ -219,29 +219,32 @@ CLI must not embed vectors nor call Qdrant directly; it calls KO’s HTTP API.
 
 ### Phase 0 — Establish seams (low risk)
 
-- [ ] Introduce application services and ports (interfaces) in KO API.
-- [ ] Keep existing search endpoint behavior intact while refactoring internals.
+- [x] Introduce application services and ports (interfaces) in KO API. (`scenarios/knowledge-observatory/api/internal/ports/ports.go`)
+- [x] Keep existing search endpoint behavior intact while refactoring internals. (`scenarios/knowledge-observatory/api/search.go`, `scenarios/knowledge-observatory/api/internal/services/search/service.go`)
 
 ### Phase 1 — Canonical write path (sync)
 
-- [ ] Add `POST /api/v1/knowledge/records/upsert`.
-- [ ] Implement Ollama embedding orchestration with consistent errors/timeouts.
-- [ ] Implement Qdrant upsert + ensure-collection logic.
-- [ ] Persist ingest metadata in Postgres (`knowledge_metadata`, and/or new ledger tables).
+- [x] Add `POST /api/v1/knowledge/records/upsert`. (`scenarios/knowledge-observatory/api/ingest.go`)
+- [x] Implement Ollama embedding orchestration with consistent errors/timeouts. (`scenarios/knowledge-observatory/api/internal/adapters/embedder/ollama.go`)
+- [x] Implement Qdrant upsert + ensure-collection logic. (`scenarios/knowledge-observatory/api/internal/adapters/vectorstore/qdrant.go`)
+- [x] Persist ingest metadata in Postgres (`knowledge_metadata`, ingest ledger/history). (`scenarios/knowledge-observatory/api/internal/adapters/metadatastore/postgres.go`, `scenarios/knowledge-observatory/initialization/postgres/schema.sql`)
+- [x] Idempotency: content-hash IDs + external ID mappings. (`scenarios/knowledge-observatory/api/ingest.go`, `scenarios/knowledge-observatory/api/document_ingest.go`, `scenarios/knowledge-observatory/initialization/postgres/schema.sql`)
 
 ### Phase 2 — CLI support
 
-- [ ] Add `knowledge-observatory ingest ...`
-- [ ] Add `knowledge-observatory search ...` (stopgap until UI uses it)
+- [x] Add `knowledge-observatory ingest ...` (thin client calling KO API). (`scenarios/knowledge-observatory/cli/knowledge-observatory`)
+- [x] Add `knowledge-observatory search ...` (thin client calling KO API). (`scenarios/knowledge-observatory/cli/knowledge-observatory`)
+- [x] Add `knowledge-observatory health|metrics` and `knowledge-observatory graph` (thin client calling KO API). (`scenarios/knowledge-observatory/cli/knowledge-observatory`)
 
 ### Phase 3 — Async ingestion + chunking
 
-- [ ] Add job tables and worker.
-- [ ] Add `documents/ingest` with chunking strategy.
+- [x] Add job tables and worker (Postgres-backed, no new deps). (`scenarios/knowledge-observatory/api/jobs.go`, `scenarios/knowledge-observatory/api/internal/services/ingestjobs/runner.go`)
+- [x] Add `documents/ingest` with chunking strategy. (`scenarios/knowledge-observatory/api/document_ingest.go`, `scenarios/knowledge-observatory/api/internal/services/ingest/chunking.go`)
 
 ### Phase 4 — Derived views
 
-- [ ] Materialize graph edges and quality metrics from KO-governed payload schema.
+- [x] Materialize graph edges + quality metrics from KO-governed payload schema (best-effort, periodic). (`scenarios/knowledge-observatory/api/metrics.go`, `scenarios/knowledge-observatory/api/server.go`)
+- [x] Record search history for analytics (best-effort). (`scenarios/knowledge-observatory/api/internal/services/search/service.go`, `scenarios/knowledge-observatory/initialization/postgres/schema.sql`)
 
 ---
 
@@ -272,4 +275,3 @@ CLI must not embed vectors nor call Qdrant directly; it calls KO’s HTTP API.
 - Service definition: `scenarios/knowledge-observatory/.vrooli/service.json`
 - Existing search endpoint: `scenarios/knowledge-observatory/api/search.go`
 - Existing health endpoint: `scenarios/knowledge-observatory/api/metrics.go`
-

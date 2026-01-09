@@ -9,10 +9,20 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
+)
+
+// Continuation errors
+var (
+	// ErrSessionExpired indicates the session no longer exists or has expired.
+	ErrSessionExpired = errors.New("session no longer exists or has expired")
+
+	// ErrContinuationNotSupported indicates the runner doesn't support session continuation.
+	ErrContinuationNotSupported = errors.New("runner does not support session continuation")
 )
 
 // -----------------------------------------------------------------------------
@@ -33,6 +43,12 @@ type Runner interface {
 	// This is a blocking call that returns when the agent completes.
 	// Events are streamed to the provided EventSink during execution.
 	Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
+
+	// Continue resumes an existing session with a follow-up message.
+	// Uses the stored session_id to continue the conversation.
+	// Returns ErrSessionExpired if the session no longer exists.
+	// Returns ErrContinuationNotSupported if the runner doesn't support this.
+	Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
 
 	// Stop attempts to gracefully stop a running agent.
 	// Returns an error if the agent cannot be stopped.
@@ -59,6 +75,9 @@ type Capabilities struct {
 
 	// SupportsCancellation indicates the runner supports mid-execution cancellation.
 	SupportsCancellation bool
+
+	// SupportsContinuation indicates the runner can resume previous sessions.
+	SupportsContinuation bool
 
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
@@ -122,6 +141,27 @@ func (r *ExecuteRequest) GetConfig() *domain.RunConfig {
 	return domain.DefaultRunConfig()
 }
 
+// ContinueRequest contains parameters for continuing an existing session.
+type ContinueRequest struct {
+	// RunID identifies the run being continued (for tracking).
+	RunID uuid.UUID
+
+	// SessionID is the runner-specific session identifier to resume.
+	SessionID string
+
+	// Prompt is the follow-up message to send to the agent.
+	Prompt string
+
+	// WorkingDir is the directory where the agent should execute.
+	WorkingDir string
+
+	// EventSink receives events as they occur during execution.
+	EventSink EventSink
+
+	// Environment contains additional environment variables.
+	Environment map[string]string
+}
+
 // ExecuteResult contains the outcome of an agent execution.
 type ExecuteResult struct {
 	// Success indicates whether the agent completed without errors.
@@ -141,6 +181,10 @@ type ExecuteResult struct {
 
 	// Metrics contains execution metrics.
 	Metrics ExecutionMetrics
+
+	// SessionID is the runner-specific session identifier for conversation continuation.
+	// Populated from runner stream events (session_id, thread_id, sessionID).
+	SessionID string
 }
 
 // ExecutionMetrics contains statistics about the execution.

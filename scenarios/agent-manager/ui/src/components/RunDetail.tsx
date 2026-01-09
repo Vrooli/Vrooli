@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
-  Copy,
   DollarSign,
   FileCode,
   File,
@@ -42,6 +41,7 @@ import { KPICard } from "../features/stats/components/kpi/KPICard";
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { ModelCostComparison } from "./ModelCostComparison";
+import { ChatInterface } from "./ChatInterface";
 
 interface RunDetailProps {
   run: Run;
@@ -58,6 +58,7 @@ interface RunDetailProps {
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
   onDelete: (run: Run) => Promise<void>;
+  onContinue: (message: string) => Promise<void>;
   deleteLoading: boolean;
 }
 
@@ -76,6 +77,7 @@ export function RunDetail({
   onInvestigate,
   onApplyInvestigation,
   onDelete,
+  onContinue,
   deleteLoading,
 }: RunDetailProps) {
   const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "response" | "cost">("events");
@@ -84,9 +86,7 @@ export function RunDetail({
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
-  const finalResponse = getFinalResponse(events);
   const costTotals = getCostTotals(events);
   const durationMs =
     run.endedAt && run.startedAt ? timestampMs(run.endedAt) - timestampMs(run.startedAt) : null;
@@ -164,19 +164,6 @@ export function RunDetail({
       console.error("Failed to reject run:", err);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleCopyResponse = async () => {
-    if (!finalResponse?.content) return;
-    try {
-      await navigator.clipboard.writeText(finalResponse.content);
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    } catch (err) {
-      console.error("Failed to copy response:", err);
-      setCopyStatus("error");
-      setTimeout(() => setCopyStatus("idle"), 2000);
     }
   };
 
@@ -461,36 +448,12 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "response" ? (
-            eventsLoading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Loading response...
-              </div>
-            ) : !finalResponse ? (
-              <div className="py-8 text-center text-muted-foreground">
-                No response available
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Final Response</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyResponse}
-                    className="gap-2"
-                  >
-                    <Copy className="h-3 w-3" />
-                    {copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Copy failed" : "Copy"}
-                  </Button>
-                </div>
-                <div className="rounded-lg border border-border bg-card/50 p-4 text-sm">
-                  <MarkdownRenderer content={finalResponse.content} />
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {formatDate(finalResponse.timestamp)}
-                </div>
-              </div>
-            )
+            <ChatInterface
+              run={run}
+              events={events}
+              eventsLoading={eventsLoading}
+              onContinue={onContinue}
+            />
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
@@ -1028,29 +991,6 @@ type CostTotals = {
   serviceTiers: string[];
   events: number;
 };
-
-type FinalResponse = {
-  content: string;
-  timestamp: Date;
-};
-
-function getFinalResponse(events: RunEvent[]): FinalResponse | null {
-  const messageEvents = events.filter((event) => event.data.case === "message");
-  if (messageEvents.length === 0) return null;
-
-  const assistantMessages = messageEvents.filter((event) => {
-    const payload = event.data.value as any;
-    return (payload.role || "").toLowerCase() === "assistant";
-  });
-  const targetEvents = assistantMessages.length > 0 ? assistantMessages : messageEvents;
-  const lastEvent = targetEvents[targetEvents.length - 1];
-  const payload = lastEvent.data.value as any;
-
-  return {
-    content: payload.content || "",
-    timestamp: lastEvent.timestamp ? new Date(timestampMs(lastEvent.timestamp)) : new Date(),
-  };
-}
 
 function getCostTotals(events: RunEvent[]): CostTotals {
   const models = new Set<string>();
