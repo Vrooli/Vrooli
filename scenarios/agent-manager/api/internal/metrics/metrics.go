@@ -22,10 +22,10 @@ type Metrics struct {
 	RunStopDuration *prometheus.HistogramVec
 
 	// Task metrics
-	TasksTotal       *prometheus.CounterVec
-	TasksActive      prometheus.Gauge
-	TasksByStatus    *prometheus.GaugeVec
-	TaskProcessing   *prometheus.HistogramVec
+	TasksTotal     *prometheus.CounterVec
+	TasksActive    prometheus.Gauge
+	TasksByStatus  *prometheus.GaugeVec
+	TaskProcessing *prometheus.HistogramVec
 
 	// Runner metrics
 	RunnerAvailability *prometheus.GaugeVec

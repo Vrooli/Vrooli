@@ -398,6 +398,24 @@ type TimeSeriesBucket struct {
 	AvgDurationMs int64     `json:"avgDurationMs" db:"avg_duration_ms"`
 }
 
+// -----------------------------------------------------------------------------
+// InvestigationSettingsRepository - Investigation settings persistence
+// -----------------------------------------------------------------------------
+
+// InvestigationSettingsRepository provides persistence for investigation settings.
+// This is a singleton table - only one row exists.
+type InvestigationSettingsRepository interface {
+	// Get retrieves the current investigation settings.
+	// Returns default settings if none exist.
+	Get(ctx context.Context) (*domain.InvestigationSettings, error)
+
+	// Update modifies the investigation settings.
+	Update(ctx context.Context, settings *domain.InvestigationSettings) error
+
+	// Reset restores settings to defaults.
+	Reset(ctx context.Context) error
+}
+
 // StatsRepository provides aggregation queries for analytics.
 // This is the primary SEAM for testing stats functionality.
 type StatsRepository interface {

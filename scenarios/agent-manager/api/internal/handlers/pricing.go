@@ -112,21 +112,21 @@ type CreateAliasRequest struct {
 
 // SettingsResponse is the HTTP response for pricing settings.
 type SettingsResponse struct {
-	HistoricalAverageDays  int `json:"historicalAverageDays"`
+	HistoricalAverageDays   int `json:"historicalAverageDays"`
 	ProviderCacheTTLSeconds int `json:"providerCacheTtlSeconds"`
 }
 
 // UpdateSettingsRequest is the HTTP request for updating settings.
 type UpdateSettingsRequest struct {
-	HistoricalAverageDays  *int `json:"historicalAverageDays,omitempty"`
+	HistoricalAverageDays   *int `json:"historicalAverageDays,omitempty"`
 	ProviderCacheTTLSeconds *int `json:"providerCacheTtlSeconds,omitempty"`
 }
 
 // CacheStatusResponse is the HTTP response for cache status.
 type CacheStatusResponse struct {
-	TotalModels  int                         `json:"totalModels"`
-	ExpiredCount int                         `json:"expiredCount"`
-	Providers    []ProviderCacheStatusItem   `json:"providers"`
+	TotalModels  int                       `json:"totalModels"`
+	ExpiredCount int                       `json:"expiredCount"`
+	Providers    []ProviderCacheStatusItem `json:"providers"`
 }
 
 // ProviderCacheStatusItem represents a single provider's cache status.
@@ -397,7 +397,7 @@ func (h *PricingHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:  settings.HistoricalAverageDays,
+		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }
@@ -446,7 +446,7 @@ func (h *PricingHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:  settings.HistoricalAverageDays,
+		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }

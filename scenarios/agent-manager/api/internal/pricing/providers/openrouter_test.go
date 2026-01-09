@@ -19,8 +19,8 @@ type mockOpenRouterResponse struct {
 }
 
 type mockOpenRouterModel struct {
-	ID      string                   `json:"id"`
-	Pricing mockOpenRouterPricing    `json:"pricing"`
+	ID      string                `json:"id"`
+	Pricing mockOpenRouterPricing `json:"pricing"`
 }
 
 type mockOpenRouterPricing struct {
@@ -340,9 +340,9 @@ func TestOpenRouterProvider_FetchAllPricing_ZeroPriceOmitted(t *testing.T) {
 	require.Len(t, pricingList, 1)
 
 	mp := pricingList[0]
-	assert.NotNil(t, mp.InputTokenPrice)     // Has value
-	assert.Nil(t, mp.OutputTokenPrice)       // Zero price omitted
-	assert.Nil(t, mp.CacheReadPrice)         // Empty string omitted
+	assert.NotNil(t, mp.InputTokenPrice) // Has value
+	assert.Nil(t, mp.OutputTokenPrice)   // Zero price omitted
+	assert.Nil(t, mp.CacheReadPrice)     // Empty string omitted
 }
 
 func TestOpenRouterProvider_FetchAllPricing_SkipsEmptyModelID(t *testing.T) {

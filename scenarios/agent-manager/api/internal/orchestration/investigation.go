@@ -19,11 +19,13 @@ import (
 )
 
 const (
-	investigationTag           = "agent-manager-investigation"
-	investigationApplyTag      = "agent-manager-investigation-apply"
-	investigationProfileKey    = "agent-manager-investigation"
-	investigationEventLimit    = 500
-	investigationReportTimeout = 10 * time.Minute
+	investigationTag                = "agent-manager-investigation"
+	investigationApplyTag           = "agent-manager-investigation-apply"
+	investigationProfileKey         = "agent-manager-investigation"
+	investigationApplyProfileKey    = "agent-manager-investigation-apply"
+	investigationEventLimit         = 500
+	investigationReportTimeout      = 10 * time.Minute
+	investigationApplyReportTimeout = 15 * time.Minute
 )
 
 // InvestigationDepth controls how thorough the investigation should be.
@@ -295,7 +297,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 		return nil, err
 	}
 
-	return o.createInvestigationRun(ctx, task.ID, investigationTag)
+	return o.createInvestigationRunWithProfile(ctx, task.ID, investigationTag, investigationProfileRef())
 }
 
 // CreateInvestigationApplyRun creates a new run that applies investigation recommendations.
@@ -329,7 +331,8 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
-	return o.createInvestigationRun(ctx, applyTask.ID, investigationApplyTag)
+	// Apply runs use a different profile with write capabilities
+	return o.createInvestigationRunWithProfile(ctx, applyTask.ID, investigationApplyTag, applyInvestigationProfileRef())
 }
 
 func (o *Orchestrator) createInvestigationTask(
@@ -359,7 +362,7 @@ func (o *Orchestrator) createInvestigationTask(
 	return o.CreateTask(ctx, task)
 }
 
-func (o *Orchestrator) createInvestigationRun(ctx context.Context, taskID uuid.UUID, tag string) (*domain.Run, error) {
+func (o *Orchestrator) createInvestigationRunWithProfile(ctx context.Context, taskID uuid.UUID, tag string, profileRef *ProfileRef) (*domain.Run, error) {
 	sandboxConfig := &domain.SandboxConfig{NoLock: true}
 	if o.config.DefaultSandboxConfig != nil {
 		clone := *o.config.DefaultSandboxConfig
@@ -369,7 +372,7 @@ func (o *Orchestrator) createInvestigationRun(ctx context.Context, taskID uuid.U
 
 	return o.CreateRun(ctx, CreateRunRequest{
 		TaskID:        taskID,
-		ProfileRef:    investigationProfileRef(),
+		ProfileRef:    profileRef,
 		Tag:           tag,
 		Force:         true,
 		SandboxConfig: sandboxConfig,
@@ -646,11 +649,18 @@ func investigationProfileRef() *ProfileRef {
 	}
 }
 
+func applyInvestigationProfileRef() *ProfileRef {
+	return &ProfileRef{
+		ProfileKey: investigationApplyProfileKey,
+		Defaults:   defaultApplyInvestigationProfile(),
+	}
+}
+
 func defaultInvestigationProfile() *domain.AgentProfile {
 	return &domain.AgentProfile{
 		Name:        "Agent-Manager Investigation",
 		ProfileKey:  investigationProfileKey,
-		Description: "Agent profile for active agent-manager investigations",
+		Description: "Agent profile for active agent-manager investigations (read-only analysis)",
 		RunnerType:  domain.RunnerTypeCodex,
 		ModelPreset: domain.ModelPresetSmart,
 		MaxTurns:    75, // Increased for active exploration
@@ -671,6 +681,40 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
 		RequiresApproval:     false,
+		CreatedBy:            "agent-manager",
+	}
+}
+
+func defaultApplyInvestigationProfile() *domain.AgentProfile {
+	return &domain.AgentProfile{
+		Name:        "Agent-Manager Apply Investigation",
+		ProfileKey:  investigationApplyProfileKey,
+		Description: "Agent profile for applying investigation recommendations (has write capabilities)",
+		RunnerType:  domain.RunnerTypeCodex,
+		ModelPreset: domain.ModelPresetSmart,
+		MaxTurns:    100, // More turns for implementing fixes
+		Timeout:     investigationApplyReportTimeout,
+		AllowedTools: []string{
+			// File exploration (same as investigation)
+			"read_file",
+			"list_files",
+			"glob",
+			"grep",
+			// Code analysis
+			"analyze_code",
+			// Command execution
+			"execute_command",
+			// Search capabilities
+			"web_search",
+			// Write capabilities (NEW - for applying fixes)
+			"edit_file",
+			"write_file",
+			"create_file",
+			"delete_file",
+		},
+		SkipPermissionPrompt: true,
+		RequiresSandbox:      true,
+		RequiresApproval:     true, // Require approval for changes
 		CreatedBy:            "agent-manager",
 	}
 }

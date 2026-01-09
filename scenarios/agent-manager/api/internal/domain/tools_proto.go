@@ -5,8 +5,8 @@
 package domain
 
 import (
-	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

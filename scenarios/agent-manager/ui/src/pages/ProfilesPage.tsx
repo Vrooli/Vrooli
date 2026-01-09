@@ -122,6 +122,7 @@ export function ProfilesPage({
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const profileIdParam = searchParams.get("profileId");
+  const profileKeyParam = searchParams.get("profileKey");
 
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -153,11 +154,18 @@ export function ProfilesPage({
     [profiles, selectedProfileId]
   );
 
+  // Handle deep-linking via profileId or profileKey query params
   useEffect(() => {
     if (profileIdParam) {
       setSelectedProfileId(profileIdParam);
+    } else if (profileKeyParam && profiles.length > 0) {
+      // Find profile by key
+      const profileByKey = profiles.find((p) => p.profileKey === profileKeyParam);
+      if (profileByKey) {
+        setSelectedProfileId(profileByKey.id);
+      }
     }
-  }, [profileIdParam]);
+  }, [profileIdParam, profileKeyParam, profiles]);
 
   const resetForm = () => {
     setFormData({

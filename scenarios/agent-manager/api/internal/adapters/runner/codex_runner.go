@@ -970,7 +970,6 @@ func (r *CodexRunner) buildCodexCostEvent(runID uuid.UUID, usage *CodexUsage) *d
 	}
 }
 
-
 // updateCodexMetrics updates execution metrics based on parsed events.
 func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *ExecutionMetrics, lastAssistant *string) {
 	if event == nil {

@@ -13,12 +13,12 @@ import (
 type PricingComponent string
 
 const (
-	ComponentInputTokens    PricingComponent = "input_tokens"
-	ComponentOutputTokens   PricingComponent = "output_tokens"
-	ComponentCacheRead      PricingComponent = "cache_read"
-	ComponentCacheCreation  PricingComponent = "cache_creation"
-	ComponentWebSearch      PricingComponent = "web_search"
-	ComponentServerToolUse  PricingComponent = "server_tool_use"
+	ComponentInputTokens   PricingComponent = "input_tokens"
+	ComponentOutputTokens  PricingComponent = "output_tokens"
+	ComponentCacheRead     PricingComponent = "cache_read"
+	ComponentCacheCreation PricingComponent = "cache_creation"
+	ComponentWebSearch     PricingComponent = "web_search"
+	ComponentServerToolUse PricingComponent = "server_tool_use"
 )
 
 // AllComponents returns all pricing components for iteration.
@@ -224,12 +224,12 @@ func (o *ManualPriceOverride) IsExpired() bool {
 
 // HistoricalPricing contains averaged pricing calculated from historical run data.
 type HistoricalPricing struct {
-	CanonicalModel        string   `json:"canonicalModel"`
-	InputTokenAvgPrice    *float64 `json:"inputTokenAvgPrice,omitempty"`
-	OutputTokenAvgPrice   *float64 `json:"outputTokenAvgPrice,omitempty"`
-	CacheReadAvgPrice     *float64 `json:"cacheReadAvgPrice,omitempty"`
-	CacheCreationAvgPrice *float64 `json:"cacheCreationAvgPrice,omitempty"`
-	SampleCount           int      `json:"sampleCount"`
+	CanonicalModel        string    `json:"canonicalModel"`
+	InputTokenAvgPrice    *float64  `json:"inputTokenAvgPrice,omitempty"`
+	OutputTokenAvgPrice   *float64  `json:"outputTokenAvgPrice,omitempty"`
+	CacheReadAvgPrice     *float64  `json:"cacheReadAvgPrice,omitempty"`
+	CacheCreationAvgPrice *float64  `json:"cacheCreationAvgPrice,omitempty"`
+	SampleCount           int       `json:"sampleCount"`
 	Since                 time.Time `json:"since"`
 }
 
@@ -336,9 +336,9 @@ type PricingHistory struct {
 
 // ModelPricingListItem is used for API responses when listing models with pricing.
 type ModelPricingListItem struct {
-	Model         string  `json:"model"`         // Runner model name
-	CanonicalName string  `json:"canonicalName"` // Canonical model name
-	Provider      string  `json:"provider"`
+	Model         string `json:"model"`         // Runner model name
+	CanonicalName string `json:"canonicalName"` // Canonical model name
+	Provider      string `json:"provider"`
 
 	// Prices per 1M tokens for display
 	InputPricePer1M       float64 `json:"inputPricePer1M"`

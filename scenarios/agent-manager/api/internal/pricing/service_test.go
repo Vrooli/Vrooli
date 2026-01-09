@@ -92,9 +92,9 @@ func TestCalculateCost_NoProviderData(t *testing.T) {
 func TestCalculateCost_WithProviderPricing(t *testing.T) {
 	provider := newMockProvider("openrouter")
 
-	inputPrice := 0.000003   // $3 per 1M tokens
-	outputPrice := 0.000015  // $15 per 1M tokens
-	cacheRead := 0.0000015   // $1.50 per 1M tokens
+	inputPrice := 0.000003  // $3 per 1M tokens
+	outputPrice := 0.000015 // $15 per 1M tokens
+	cacheRead := 0.0000015  // $1.50 per 1M tokens
 
 	provider.SetPricing("anthropic/claude-3-opus", &ModelPricing{
 		CanonicalModelName: "anthropic/claude-3-opus",
@@ -131,9 +131,9 @@ func TestCalculateCost_WithProviderPricing(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, calc)
 
-	expectedInputCost := float64(1000) * inputPrice      // 0.003
-	expectedOutputCost := float64(500) * outputPrice     // 0.0075
-	expectedCacheReadCost := float64(2000) * cacheRead   // 0.003
+	expectedInputCost := float64(1000) * inputPrice    // 0.003
+	expectedOutputCost := float64(500) * outputPrice   // 0.0075
+	expectedCacheReadCost := float64(2000) * cacheRead // 0.003
 	expectedTotal := expectedInputCost + expectedOutputCost + expectedCacheReadCost
 
 	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
@@ -187,7 +187,7 @@ func TestCalculateCost_ManualOverrideTakesPriority(t *testing.T) {
 	require.NotNil(t, calc)
 
 	// Input should use manual override, output should use provider
-	expectedInputCost := float64(1000) * manualInputPrice   // 0.005
+	expectedInputCost := float64(1000) * manualInputPrice    // 0.005
 	expectedOutputCost := float64(500) * providerOutputPrice // 0.0075
 
 	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
@@ -574,13 +574,13 @@ func TestRefreshPricing_ClearsCache(t *testing.T) {
 
 func TestTokensToMillion(t *testing.T) {
 	tests := []struct {
-		perToken    float64
-		perMillion  float64
+		perToken   float64
+		perMillion float64
 	}{
-		{0.000003, 3.0},      // $3/1M
-		{0.000015, 15.0},     // $15/1M
-		{0.0000015, 1.5},     // $1.50/1M
-		{0.0000001, 0.1},     // $0.10/1M
+		{0.000003, 3.0},  // $3/1M
+		{0.000015, 15.0}, // $15/1M
+		{0.0000015, 1.5}, // $1.50/1M
+		{0.0000001, 0.1}, // $0.10/1M
 	}
 
 	for _, tc := range tests {

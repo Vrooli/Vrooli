@@ -66,9 +66,9 @@ type RunnerModelRegistry struct {
 
 // Registry contains model catalog data for all runners.
 type Registry struct {
-	Version int                            `json:"version"`
-	FallbackRunnerTypes []string           `json:"fallbackRunnerTypes,omitempty"`
-	Runners map[string]RunnerModelRegistry `json:"runners"`
+	Version             int                            `json:"version"`
+	FallbackRunnerTypes []string                       `json:"fallbackRunnerTypes,omitempty"`
+	Runners             map[string]RunnerModelRegistry `json:"runners"`
 }
 
 func (r *Registry) Clone() *Registry {

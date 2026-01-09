@@ -20,8 +20,8 @@ func (m *mockPricingService) CalculateCost(ctx context.Context, req PricingCostR
 	// Look up by canonical model first
 	if calc, ok := m.pricing[req.Model]; ok {
 		// Calculate costs based on token counts and pricing
-		inputPrice := 0.00000025  // Default input price per token
-		outputPrice := 0.000002   // Default output price per token
+		inputPrice := 0.00000025 // Default input price per token
+		outputPrice := 0.000002  // Default output price per token
 		cacheReadPrice := 0.000000025
 
 		return &PricingCostCalculation{
@@ -474,7 +474,6 @@ func TestCodexRunner_ParseStreamEvent_UnknownType(t *testing.T) {
 func TestCodexStreamEvent_Unmarshal(t *testing.T) {
 	var event CodexStreamEvent
 	err := json.Unmarshal([]byte(codexSamples["file_change"]), &event)
-
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -504,7 +503,6 @@ func TestCodexStreamEvent_Unmarshal(t *testing.T) {
 func TestCodexStreamEvent_UnmarshalUsage(t *testing.T) {
 	var event CodexStreamEvent
 	err := json.Unmarshal([]byte(codexSamples["turn.completed"]), &event)
-
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}

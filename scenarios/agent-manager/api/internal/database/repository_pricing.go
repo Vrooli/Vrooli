@@ -30,9 +30,9 @@ var _ pricing.Repository = (*pricingRepository)(nil)
 // --- Row Types ---
 
 type modelPricingRow struct {
-	ID                  string       `db:"id"`
-	CanonicalModelName  string       `db:"canonical_model_name"`
-	Provider            string       `db:"provider"`
+	ID                  string          `db:"id"`
+	CanonicalModelName  string          `db:"canonical_model_name"`
+	Provider            string          `db:"provider"`
 	InputTokenPrice     sql.NullFloat64 `db:"input_token_price"`
 	OutputTokenPrice    sql.NullFloat64 `db:"output_token_price"`
 	CacheReadPrice      sql.NullFloat64 `db:"cache_read_price"`
@@ -45,11 +45,11 @@ type modelPricingRow struct {
 	CacheCreationSource sql.NullString  `db:"cache_creation_source"`
 	WebSearchSource     sql.NullString  `db:"web_search_source"`
 	ServerToolUseSource sql.NullString  `db:"server_tool_use_source"`
-	FetchedAt           SQLiteTime   `db:"fetched_at"`
-	ExpiresAt           SQLiteTime   `db:"expires_at"`
+	FetchedAt           SQLiteTime      `db:"fetched_at"`
+	ExpiresAt           SQLiteTime      `db:"expires_at"`
 	PricingVersion      sql.NullString  `db:"pricing_version"`
-	CreatedAt           SQLiteTime   `db:"created_at"`
-	UpdatedAt           SQLiteTime   `db:"updated_at"`
+	CreatedAt           SQLiteTime      `db:"created_at"`
+	UpdatedAt           SQLiteTime      `db:"updated_at"`
 }
 
 func (row *modelPricingRow) toDomain() *pricing.ModelPricing {

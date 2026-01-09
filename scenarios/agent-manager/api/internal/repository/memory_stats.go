@@ -32,19 +32,19 @@ type MemoryStatsRepository struct {
 	EventRepo EventRepository
 
 	// Seeded responses for testing - when set, these take precedence
-	SeededStatusCounts    *RunStatusCounts
-	SeededSuccessRate     *float64
-	SeededDurationStats   *DurationStats
-	SeededCostStats       *CostStats
-	SeededRunnerBreakdown []*RunnerBreakdown
+	SeededStatusCounts     *RunStatusCounts
+	SeededSuccessRate      *float64
+	SeededDurationStats    *DurationStats
+	SeededCostStats        *CostStats
+	SeededRunnerBreakdown  []*RunnerBreakdown
 	SeededProfileBreakdown []*ProfileBreakdown
-	SeededModelBreakdown  []*ModelBreakdown
-	SeededToolUsage       []*ToolUsageStats
-	SeededModelRunUsage   []*ModelRunUsage
-	SeededToolRunUsage    []*ToolRunUsage
-	SeededToolUsageModels []*ToolUsageModelBreakdown
-	SeededErrorPatterns   []*ErrorPattern
-	SeededTimeSeries      []*TimeSeriesBucket
+	SeededModelBreakdown   []*ModelBreakdown
+	SeededToolUsage        []*ToolUsageStats
+	SeededModelRunUsage    []*ModelRunUsage
+	SeededToolRunUsage     []*ToolRunUsage
+	SeededToolUsageModels  []*ToolUsageModelBreakdown
+	SeededErrorPatterns    []*ErrorPattern
+	SeededTimeSeries       []*TimeSeriesBucket
 }
 
 // NewMemoryStatsRepository creates a new in-memory stats repository.

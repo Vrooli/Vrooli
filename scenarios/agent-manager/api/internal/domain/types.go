@@ -147,7 +147,7 @@ type SandboxAcceptanceConfig struct {
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
-	NoLock     bool                   `json:"noLock,omitempty"`
+	NoLock     bool                    `json:"noLock,omitempty"`
 }
 
 // -----------------------------------------------------------------------------

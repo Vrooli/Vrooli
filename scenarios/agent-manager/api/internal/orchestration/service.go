@@ -96,6 +96,12 @@ type Service interface {
 
 	// --- Maintenance Operations ---
 	PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error)
+
+	// --- Investigation Settings Operations ---
+	GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error)
+	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
+	ResetInvestigationSettings(ctx context.Context) error
+	DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -330,11 +336,12 @@ type ProbeResult struct {
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
 	// Repositories (persistence)
-	profiles    repository.ProfileRepository
-	tasks       repository.TaskRepository
-	runs        repository.RunRepository
-	checkpoints repository.CheckpointRepository  // For resumption support
-	idempotency repository.IdempotencyRepository // For replay safety
+	profiles              repository.ProfileRepository
+	tasks                 repository.TaskRepository
+	runs                  repository.RunRepository
+	checkpoints           repository.CheckpointRepository            // For resumption support
+	idempotency           repository.IdempotencyRepository           // For replay safety
+	investigationSettings repository.InvestigationSettingsRepository // For investigation config
 
 	// Adapters (external integrations)
 	runners   runner.Registry
@@ -474,6 +481,13 @@ func WithStorageLabel(label string) Option {
 func WithModelRegistry(store *modelregistry.Store) Option {
 	return func(o *Orchestrator) {
 		o.modelRegistry = store
+	}
+}
+
+// WithInvestigationSettings sets the investigation settings repository.
+func WithInvestigationSettings(repo repository.InvestigationSettingsRepository) Option {
+	return func(o *Orchestrator) {
+		o.investigationSettings = repo
 	}
 }
 
@@ -2289,4 +2303,131 @@ func valueOrDefault(ptr *domain.RunMode, def domain.RunMode) domain.RunMode {
 		return *ptr
 	}
 	return def
+}
+
+// -----------------------------------------------------------------------------
+// Investigation Settings Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error) {
+	if o.investigationSettings == nil {
+		// Return defaults if no repository configured
+		return domain.DefaultInvestigationSettings(), nil
+	}
+	return o.investigationSettings.Get(ctx)
+}
+
+func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error {
+	if o.investigationSettings == nil {
+		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
+	}
+
+	// Validate settings
+	if strings.TrimSpace(settings.PromptTemplate) == "" {
+		return domain.NewValidationError("promptTemplate", "cannot be empty")
+	}
+	if !settings.DefaultDepth.IsValid() {
+		return domain.NewValidationError("defaultDepth", "invalid depth value")
+	}
+
+	return o.investigationSettings.Update(ctx, settings)
+}
+
+func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
+	if o.investigationSettings == nil {
+		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
+	}
+	return o.investigationSettings.Reset(ctx)
+}
+
+// DetectScenariosForRuns analyzes runs and returns detected scenario information.
+func (o *Orchestrator) DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error) {
+	if len(runIDs) == 0 {
+		return nil, nil
+	}
+
+	// Map to track scenarios and their run counts
+	scenarioMap := make(map[string]*domain.DetectedScenario)
+
+	for _, runID := range runIDs {
+		run, err := o.GetRun(ctx, runID)
+		if err != nil {
+			continue // Skip runs we can't find
+		}
+
+		task, err := o.GetTask(ctx, run.TaskID)
+		if err != nil {
+			continue
+		}
+
+		// Extract scenario from project root
+		projectRoot := strings.TrimSpace(task.ProjectRoot)
+		if projectRoot == "" {
+			continue
+		}
+
+		// Try to detect scenario from path pattern: .../scenarios/<scenario-name>/...
+		scenarioName, scenarioRoot := extractScenarioFromPath(projectRoot)
+		if scenarioName == "" {
+			continue
+		}
+
+		if existing, ok := scenarioMap[scenarioRoot]; ok {
+			existing.RunCount++
+		} else {
+			scenarioMap[scenarioRoot] = &domain.DetectedScenario{
+				Name:        scenarioName,
+				ProjectRoot: scenarioRoot,
+				KeyFiles:    findKeyFiles(scenarioRoot),
+				RunCount:    1,
+			}
+		}
+	}
+
+	// Convert map to slice
+	result := make([]*domain.DetectedScenario, 0, len(scenarioMap))
+	for _, scenario := range scenarioMap {
+		result = append(result, scenario)
+	}
+
+	return result, nil
+}
+
+// extractScenarioFromPath extracts the scenario name and root from a path.
+// Returns empty strings if not in a scenarios directory.
+func extractScenarioFromPath(path string) (name, root string) {
+	// Look for /scenarios/<name> pattern
+	parts := strings.Split(filepath.ToSlash(path), "/")
+	for i, part := range parts {
+		if part == "scenarios" && i+1 < len(parts) {
+			scenarioName := parts[i+1]
+			// Reconstruct the scenario root path
+			scenarioRoot := strings.Join(parts[:i+2], "/")
+			// Convert back to native path separators
+			scenarioRoot = filepath.FromSlash(scenarioRoot)
+			return scenarioName, scenarioRoot
+		}
+	}
+	return "", ""
+}
+
+// findKeyFiles looks for important documentation files in a scenario directory.
+func findKeyFiles(scenarioRoot string) []string {
+	keyFileNames := []string{
+		"CLAUDE.md",
+		"README.md",
+		"Makefile",
+		"service.json",
+		"go.mod",
+		"package.json",
+	}
+
+	var found []string
+	for _, name := range keyFileNames {
+		path := filepath.Join(scenarioRoot, name)
+		if _, err := os.Stat(path); err == nil {
+			found = append(found, name)
+		}
+	}
+	return found
 }

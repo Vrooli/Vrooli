@@ -884,7 +884,6 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 		Prompt:         "Force this run",
 		Force:          true,
 	})
-
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		if _, ok := err.(*domain.CapacityExceededError); ok {
@@ -1007,7 +1006,6 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should succeed (capacity-wise)",
 	})
-
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError
@@ -1065,7 +1063,6 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 		AgentProfileID: &profile.ID,
 		Prompt:         "No limit test",
 	})
-
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError

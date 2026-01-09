@@ -1207,9 +1207,9 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 	// Build command arguments for session continuation
 	// Syntax: resource-opencode run run <message> --session <session-id> --format json
 	args := []string{
-		"run",        // resource-opencode subcommand
-		"run",        // opencode subcommand
-		req.Prompt,   // The follow-up message
+		"run",      // resource-opencode subcommand
+		"run",      // opencode subcommand
+		req.Prompt, // The follow-up message
 		"--session", req.SessionID,
 		"--format", "json",
 	}

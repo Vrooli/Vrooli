@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -15,29 +16,31 @@ import (
 
 // Repositories holds all PostgreSQL repository implementations.
 type Repositories struct {
-	Profiles       repository.ProfileRepository
-	Tasks          repository.TaskRepository
-	Runs           repository.RunRepository
-	Events         repository.EventRepository
-	Checkpoints    repository.CheckpointRepository
-	Idempotency    repository.IdempotencyRepository
-	Policies       repository.PolicyRepository
-	Locks          repository.LockRepository
-	Stats          repository.StatsRepository
+	Profiles              repository.ProfileRepository
+	Tasks                 repository.TaskRepository
+	Runs                  repository.RunRepository
+	Events                repository.EventRepository
+	Checkpoints           repository.CheckpointRepository
+	Idempotency           repository.IdempotencyRepository
+	Policies              repository.PolicyRepository
+	Locks                 repository.LockRepository
+	Stats                 repository.StatsRepository
+	InvestigationSettings repository.InvestigationSettingsRepository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
 func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 	return &Repositories{
-		Profiles:       &profileRepository{db: db, log: log},
-		Tasks:          &taskRepository{db: db, log: log},
-		Runs:           &runRepository{db: db, log: log},
-		Events:         &eventRepository{db: db, log: log},
-		Checkpoints:    &checkpointRepository{db: db, log: log},
-		Idempotency:    &idempotencyRepository{db: db, log: log},
-		Policies:       &policyRepository{db: db, log: log},
-		Locks:          &lockRepository{db: db, log: log},
-		Stats:          &statsRepository{db: db, log: log},
+		Profiles:              &profileRepository{db: db, log: log},
+		Tasks:                 &taskRepository{db: db, log: log},
+		Runs:                  &runRepository{db: db, log: log},
+		Events:                &eventRepository{db: db, log: log},
+		Checkpoints:           &checkpointRepository{db: db, log: log},
+		Idempotency:           &idempotencyRepository{db: db, log: log},
+		Policies:              &policyRepository{db: db, log: log},
+		Locks:                 &lockRepository{db: db, log: log},
+		Stats:                 &statsRepository{db: db, log: log},
+		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
 	}
 }
 
@@ -68,27 +71,27 @@ var _ repository.ProfileRepository = (*profileRepository)(nil)
 
 // profileRow is the database row representation for agent_profiles.
 type profileRow struct {
-	ID                   uuid.UUID      `db:"id"`
-	Name                 string         `db:"name"`
-	ProfileKey           string         `db:"profile_key"`
-	Description          string         `db:"description"`
-	RunnerType           string         `db:"runner_type"`
-	Model                string         `db:"model"`
-	ModelPreset          sql.NullString `db:"model_preset"`
-	MaxTurns             int            `db:"max_turns"`
-	TimeoutMs            int64          `db:"timeout_ms"`
-	FallbackRunnerTypes  StringSlice    `db:"fallback_runner_types"`
-	AllowedTools         StringSlice    `db:"allowed_tools"`
-	DeniedTools          StringSlice    `db:"denied_tools"`
-	SkipPermissionPrompt bool           `db:"skip_permission_prompt"`
-	RequiresSandbox      bool           `db:"requires_sandbox"`
-	RequiresApproval     bool           `db:"requires_approval"`
+	ID                   uuid.UUID             `db:"id"`
+	Name                 string                `db:"name"`
+	ProfileKey           string                `db:"profile_key"`
+	Description          string                `db:"description"`
+	RunnerType           string                `db:"runner_type"`
+	Model                string                `db:"model"`
+	ModelPreset          sql.NullString        `db:"model_preset"`
+	MaxTurns             int                   `db:"max_turns"`
+	TimeoutMs            int64                 `db:"timeout_ms"`
+	FallbackRunnerTypes  StringSlice           `db:"fallback_runner_types"`
+	AllowedTools         StringSlice           `db:"allowed_tools"`
+	DeniedTools          StringSlice           `db:"denied_tools"`
+	SkipPermissionPrompt bool                  `db:"skip_permission_prompt"`
+	RequiresSandbox      bool                  `db:"requires_sandbox"`
+	RequiresApproval     bool                  `db:"requires_approval"`
 	SandboxConfig        NullableSandboxConfig `db:"sandbox_config"`
-	AllowedPaths         StringSlice    `db:"allowed_paths"`
-	DeniedPaths          StringSlice    `db:"denied_paths"`
-	CreatedBy            string         `db:"created_by"`
-	CreatedAt            SQLiteTime     `db:"created_at"`
-	UpdatedAt            SQLiteTime     `db:"updated_at"`
+	AllowedPaths         StringSlice           `db:"allowed_paths"`
+	DeniedPaths          StringSlice           `db:"denied_paths"`
+	CreatedBy            string                `db:"created_by"`
+	CreatedAt            SQLiteTime            `db:"created_at"`
+	UpdatedAt            SQLiteTime            `db:"updated_at"`
 }
 
 func (r *profileRow) toDomain() *domain.AgentProfile {
@@ -443,4 +446,116 @@ func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return wrapDBError("delete", "Task", id.String(), err)
 	}
 	return nil
+}
+
+// ============================================================================
+// InvestigationSettingsRepository Implementation
+// ============================================================================
+
+type investigationSettingsRepository struct {
+	db  *DB
+	log *logrus.Logger
+}
+
+var _ repository.InvestigationSettingsRepository = (*investigationSettingsRepository)(nil)
+
+// investigationSettingsRow is the database row representation for investigation_settings.
+type investigationSettingsRow struct {
+	PromptTemplate string                        `db:"prompt_template"`
+	DefaultDepth   string                        `db:"default_depth"`
+	DefaultContext InvestigationContextFlagsJSON `db:"default_context"`
+	UpdatedAt      SQLiteTime                    `db:"updated_at"`
+}
+
+// InvestigationContextFlagsJSON handles JSON serialization for context flags.
+type InvestigationContextFlagsJSON domain.InvestigationContextFlags
+
+func (j InvestigationContextFlagsJSON) Value() (interface{}, error) {
+	return json.Marshal(domain.InvestigationContextFlags(j))
+}
+
+func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
+	if src == nil {
+		*j = InvestigationContextFlagsJSON(domain.DefaultInvestigationContextFlags())
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		*j = InvestigationContextFlagsJSON(domain.DefaultInvestigationContextFlags())
+		return nil
+	}
+
+	var flags domain.InvestigationContextFlags
+	if err := json.Unmarshal(data, &flags); err != nil {
+		// On error, return defaults
+		*j = InvestigationContextFlagsJSON(domain.DefaultInvestigationContextFlags())
+		return nil
+	}
+	*j = InvestigationContextFlagsJSON(flags)
+	return nil
+}
+
+func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
+	return &domain.InvestigationSettings{
+		PromptTemplate: row.PromptTemplate,
+		DefaultDepth:   domain.InvestigationDepth(row.DefaultDepth),
+		DefaultContext: domain.InvestigationContextFlags(row.DefaultContext),
+		UpdatedAt:      row.UpdatedAt.Time(),
+	}
+}
+
+func (r *investigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
+	query := `SELECT prompt_template, default_depth, default_context, updated_at
+		FROM investigation_settings WHERE id = 1`
+
+	var row investigationSettingsRow
+	if err := r.db.GetContext(ctx, &row, query); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return defaults if no settings exist
+			return domain.DefaultInvestigationSettings(), nil
+		}
+		return nil, wrapDBError("get", "InvestigationSettings", "singleton", err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *investigationSettingsRepository) Update(ctx context.Context, settings *domain.InvestigationSettings) error {
+	settings.UpdatedAt = time.Now()
+
+	contextJSON, err := json.Marshal(settings.DefaultContext)
+	if err != nil {
+		return wrapDBError("update", "InvestigationSettings", "singleton", err)
+	}
+
+	query := r.db.Rebind(`
+		INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context, updated_at)
+		VALUES (1, ?, ?, ?, ?)
+		ON CONFLICT (id) DO UPDATE SET
+			prompt_template = EXCLUDED.prompt_template,
+			default_depth = EXCLUDED.default_depth,
+			default_context = EXCLUDED.default_context,
+			updated_at = EXCLUDED.updated_at
+	`)
+
+	_, err = r.db.ExecContext(ctx, query,
+		settings.PromptTemplate,
+		string(settings.DefaultDepth),
+		contextJSON,
+		time.Now(),
+	)
+	if err != nil {
+		return wrapDBError("update", "InvestigationSettings", "singleton", err)
+	}
+	return nil
+}
+
+func (r *investigationSettingsRepository) Reset(ctx context.Context) error {
+	defaults := domain.DefaultInvestigationSettings()
+	return r.Update(ctx, defaults)
 }

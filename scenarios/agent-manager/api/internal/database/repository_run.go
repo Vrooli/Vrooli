@@ -28,29 +28,29 @@ var _ repository.RunRepository = (*runRepository)(nil)
 
 // runRow is the database row representation for runs.
 type runRow struct {
-	ID               uuid.UUID          `db:"id"`
-	TaskID           uuid.UUID          `db:"task_id"`
-	AgentProfileID   NullableUUID       `db:"agent_profile_id"`
-	Tag              string             `db:"tag"`
-	SandboxID        NullableUUID       `db:"sandbox_id"`
-	RunMode          string             `db:"run_mode"`
-	Status           string             `db:"status"`
-	StartedAt        NullableTime       `db:"started_at"`
-	EndedAt          NullableTime       `db:"ended_at"`
-	Phase            string             `db:"phase"`
-	LastCheckpointID NullableUUID       `db:"last_checkpoint_id"`
-	LastHeartbeat    NullableTime       `db:"last_heartbeat"`
-	ProgressPercent  int                `db:"progress_percent"`
-	IdempotencyKey   sql.NullString     `db:"idempotency_key"`
-	Summary          NullableRunSummary `db:"summary"`
-	ErrorMsg         string             `db:"error_msg"`
-	ExitCode         sql.NullInt32      `db:"exit_code"`
-	ApprovalState    string             `db:"approval_state"`
-	ApprovedBy       string             `db:"approved_by"`
-	ApprovedAt       NullableTime       `db:"approved_at"`
-	ResolvedConfig   NullableRunConfig  `db:"resolved_config"`
-	DiffPath         string             `db:"diff_path"`
-	LogPath          string             `db:"log_path"`
+	ID               uuid.UUID             `db:"id"`
+	TaskID           uuid.UUID             `db:"task_id"`
+	AgentProfileID   NullableUUID          `db:"agent_profile_id"`
+	Tag              string                `db:"tag"`
+	SandboxID        NullableUUID          `db:"sandbox_id"`
+	RunMode          string                `db:"run_mode"`
+	Status           string                `db:"status"`
+	StartedAt        NullableTime          `db:"started_at"`
+	EndedAt          NullableTime          `db:"ended_at"`
+	Phase            string                `db:"phase"`
+	LastCheckpointID NullableUUID          `db:"last_checkpoint_id"`
+	LastHeartbeat    NullableTime          `db:"last_heartbeat"`
+	ProgressPercent  int                   `db:"progress_percent"`
+	IdempotencyKey   sql.NullString        `db:"idempotency_key"`
+	Summary          NullableRunSummary    `db:"summary"`
+	ErrorMsg         string                `db:"error_msg"`
+	ExitCode         sql.NullInt32         `db:"exit_code"`
+	ApprovalState    string                `db:"approval_state"`
+	ApprovedBy       string                `db:"approved_by"`
+	ApprovedAt       NullableTime          `db:"approved_at"`
+	ResolvedConfig   NullableRunConfig     `db:"resolved_config"`
+	DiffPath         string                `db:"diff_path"`
+	LogPath          string                `db:"log_path"`
 	ChangedFiles     int                   `db:"changed_files"`
 	TotalSizeBytes   int64                 `db:"total_size_bytes"`
 	SandboxConfig    NullableSandboxConfig `db:"sandbox_config"`

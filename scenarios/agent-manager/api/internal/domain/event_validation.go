@@ -107,17 +107,17 @@ func validateMetricEvent(evt *RunEvent) {
 
 // EventValidationStats tracks validation statistics for a set of events.
 type EventValidationStats struct {
-	TotalEvents      int
-	ToolCallCount    int
-	ToolResultCount  int
-	MessageCount     int
-	MetricCount      int
-	ErrorCount       int
-	LogCount         int
-	WarningCount     int
-	EmptyToolNames   int
-	EmptyInputs      int
-	EmptyMessages    int
+	TotalEvents     int
+	ToolCallCount   int
+	ToolResultCount int
+	MessageCount    int
+	MetricCount     int
+	ErrorCount      int
+	LogCount        int
+	WarningCount    int
+	EmptyToolNames  int
+	EmptyInputs     int
+	EmptyMessages   int
 }
 
 // ValidateEvents validates a slice of events and returns statistics.

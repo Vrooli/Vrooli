@@ -43,17 +43,17 @@ type Config struct {
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config                 *Config
-	db                     *database.DB
-	logger                 *logrus.Logger
-	router                 *mux.Router
-	orchestrator           orchestration.Service
-	statsService           orchestration.StatsService
-	statsRepo              repository.StatsRepository
-	pricingService         pricing.Service
-	wsHub                  *handlers.WebSocketHub
-	reconciler             *orchestration.Reconciler
-	toolRegistry           *toolregistry.Registry
+	config         *Config
+	db             *database.DB
+	logger         *logrus.Logger
+	router         *mux.Router
+	orchestrator   orchestration.Service
+	statsService   orchestration.StatsService
+	statsRepo      repository.StatsRepository
+	pricingService pricing.Service
+	wsHub          *handlers.WebSocketHub
+	reconciler     *orchestration.Reconciler
+	toolRegistry   *toolregistry.Registry
 }
 
 // NewServer initializes configuration, database, and routes
@@ -100,17 +100,17 @@ func NewServer() (*Server, error) {
 	// as-is instead of decoding to /). This is required for model names containing slashes
 	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
-		config:               cfg,
-		db:                   db,
-		logger:               logger,
-		router:               mux.NewRouter().UseEncodedPath(),
-		orchestrator:         deps.orchestrator,
-		statsService:         deps.statsService,
-		statsRepo:            deps.statsRepo,
-		pricingService:       deps.pricingService,
-		wsHub:                wsHub,
-		reconciler:           deps.reconciler,
-		toolRegistry:         toolReg,
+		config:         cfg,
+		db:             db,
+		logger:         logger,
+		router:         mux.NewRouter().UseEncodedPath(),
+		orchestrator:   deps.orchestrator,
+		statsService:   deps.statsService,
+		statsRepo:      deps.statsRepo,
+		pricingService: deps.pricingService,
+		wsHub:          wsHub,
+		reconciler:     deps.reconciler,
+		toolRegistry:   toolReg,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -126,11 +126,11 @@ func NewServer() (*Server, error) {
 
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
-	orchestrator         orchestration.Service
-	statsService         orchestration.StatsService
-	statsRepo            repository.StatsRepository
-	pricingService       pricing.Service
-	reconciler           *orchestration.Reconciler
+	orchestrator   orchestration.Service
+	statsService   orchestration.StatsService
+	statsRepo      repository.StatsRepository
+	pricingService pricing.Service
+	reconciler     *orchestration.Reconciler
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
@@ -142,12 +142,12 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	// Create repositories
 	var (
-		profileRepo       repository.ProfileRepository
-		taskRepo          repository.TaskRepository
-		runRepo           repository.RunRepository
-		checkpointRepo    repository.CheckpointRepository
-		idempotencyRepo   repository.IdempotencyRepository
-		statsRepo         repository.StatsRepository
+		profileRepo     repository.ProfileRepository
+		taskRepo        repository.TaskRepository
+		runRepo         repository.RunRepository
+		checkpointRepo  repository.CheckpointRepository
+		idempotencyRepo repository.IdempotencyRepository
+		statsRepo       repository.StatsRepository
 	)
 
 	// Create event store - use PostgreSQL when database is available
@@ -350,11 +350,11 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
 	return orchestratorDeps{
-		orchestrator:         orch,
-		statsService:         statsSvc,
-		statsRepo:            statsRepo,
-		pricingService:       pricingSvc,
-		reconciler:           reconciler,
+		orchestrator:   orch,
+		statsService:   statsSvc,
+		statsRepo:      statsRepo,
+		pricingService: pricingSvc,
+		reconciler:     reconciler,
 	}
 }
 

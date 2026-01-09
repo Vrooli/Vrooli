@@ -1,4 +1,4 @@
-// Settings dialog with Model Registry and Maintenance tabs
+// Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
 
 import { useCallback, useState } from "react";
 import { Button } from "../../ui/button";
@@ -13,11 +13,12 @@ import {
 } from "../../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
+import { InvestigationTab } from "./InvestigationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
 import { ModelRegistryTab } from "./ModelRegistryTab";
 import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
-import { useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 interface SettingsDialogProps {
@@ -37,6 +38,7 @@ export function SettingsDialog({
   const modelRegistry = useModelRegistry();
   const runners = useRunners();
   const maintenance = useMaintenance();
+  const investigationSettings = useInvestigationSettings();
 
   // Model registry editor
   const editor = useModelRegistryEditor({
@@ -102,9 +104,10 @@ export function SettingsDialog({
           </DialogHeader>
           <DialogBody className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="models">Model Registry</TabsTrigger>
                 <TabsTrigger value="pricing">Model Pricing</TabsTrigger>
+                <TabsTrigger value="investigation">Investigation</TabsTrigger>
                 <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               </TabsList>
               <TabsContent value="models" className="mt-4">
@@ -129,6 +132,15 @@ export function SettingsDialog({
               </TabsContent>
               <TabsContent value="pricing" className="mt-4">
                 <ModelPricingTab />
+              </TabsContent>
+              <TabsContent value="investigation" className="mt-4">
+                <InvestigationTab
+                  settings={investigationSettings.data}
+                  loading={investigationSettings.loading}
+                  error={investigationSettings.error}
+                  onSave={investigationSettings.updateSettings}
+                  onReset={investigationSettings.resetSettings}
+                />
               </TabsContent>
               <TabsContent value="maintenance" className="mt-4">
                 <MaintenanceTab

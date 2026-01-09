@@ -129,6 +129,12 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Maintenance endpoints
 	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
+
+	// Investigation Settings endpoints
+	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
+	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
+	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")
+	r.HandleFunc("/api/v1/runs/detect-scenarios", h.DetectScenariosForRuns).Methods("POST")
 }
 
 // =============================================================================
@@ -2169,4 +2175,126 @@ func normalizeActor(raw string) string {
 		return "unknown"
 	}
 	return trimmed
+}
+
+// =============================================================================
+// INVESTIGATION SETTINGS HANDLERS
+// =============================================================================
+
+// GetInvestigationSettings returns the current investigation settings.
+func (h *Handler) GetInvestigationSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.svc.GetInvestigationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"promptTemplate": settings.PromptTemplate,
+		"defaultDepth":   string(settings.DefaultDepth),
+		"defaultContext": settings.DefaultContext,
+		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
+}
+
+// UpdateInvestigationSettings updates the investigation settings.
+func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PromptTemplate string                            `json:"promptTemplate"`
+		DefaultDepth   string                            `json:"defaultDepth"`
+		DefaultContext *domain.InvestigationContextFlags `json:"defaultContext"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Get current settings to merge with updates
+	current, err := h.svc.GetInvestigationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Apply updates
+	if req.PromptTemplate != "" {
+		current.PromptTemplate = req.PromptTemplate
+	}
+	if req.DefaultDepth != "" {
+		depth := domain.InvestigationDepth(req.DefaultDepth)
+		if !depth.IsValid() {
+			writeSimpleError(w, r, "defaultDepth", "must be 'quick', 'standard', or 'deep'")
+			return
+		}
+		current.DefaultDepth = depth
+	}
+	if req.DefaultContext != nil {
+		current.DefaultContext = *req.DefaultContext
+	}
+
+	if err := h.svc.UpdateInvestigationSettings(r.Context(), current); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"promptTemplate": current.PromptTemplate,
+		"defaultDepth":   string(current.DefaultDepth),
+		"defaultContext": current.DefaultContext,
+		"updatedAt":      current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
+}
+
+// ResetInvestigationSettings resets the investigation settings to defaults.
+func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.ResetInvestigationSettings(r.Context()); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Return the default settings
+	settings, err := h.svc.GetInvestigationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"promptTemplate": settings.PromptTemplate,
+		"defaultDepth":   string(settings.DefaultDepth),
+		"defaultContext": settings.DefaultContext,
+		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
+}
+
+// DetectScenariosForRuns detects scenarios from run data.
+func (h *Handler) DetectScenariosForRuns(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RunIDs []string `json:"runIds"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
+	for _, idStr := range req.RunIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			writeSimpleError(w, r, "runIds", "invalid UUID format: "+idStr)
+			return
+		}
+		runIDs = append(runIDs, id)
+	}
+
+	scenarios, err := h.svc.DetectScenariosForRuns(r.Context(), runIDs)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"scenarios": scenarios,
+	})
 }

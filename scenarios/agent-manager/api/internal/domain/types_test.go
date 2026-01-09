@@ -1028,10 +1028,10 @@ func TestEventPayload_Interface(t *testing.T) {
 		EventTypeMetric,
 		EventTypeArtifact,
 		EventTypeError,
-		EventTypeError, // RateLimitEventData returns EventTypeError
+		EventTypeError,  // RateLimitEventData returns EventTypeError
 		EventTypeMetric, // CostEventData returns EventTypeMetric
 		EventTypeStatus, // ProgressEventData returns EventTypeStatus
-		EventTypeLog,   // Legacy defaults
+		EventTypeLog,    // Legacy defaults
 	}
 
 	for i, payload := range payloads {

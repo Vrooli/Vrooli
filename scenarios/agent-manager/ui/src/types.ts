@@ -148,6 +148,65 @@ export interface ApplyInvestigationRunRequest {
 }
 
 // =============================================================================
+// Investigation Settings Types
+// =============================================================================
+
+/** Context flags for investigation - what to include as context attachments */
+export interface InvestigationContextFlags {
+  /** Include run summary data (always lightweight) */
+  runSummaries: boolean;
+  /** Include run events (can be large but essential for debugging) */
+  runEvents: boolean;
+  /** Include code changes made during runs */
+  runDiffs: boolean;
+  /** Include scenario documentation (CLAUDE.md, README) */
+  scenarioDocs: boolean;
+  /** Include full run logs (can be very large) */
+  fullLogs: boolean;
+}
+
+/** Investigation settings - configuration for investigation agents */
+export interface InvestigationSettings {
+  /** Plain text prompt template - no variables/templating */
+  promptTemplate: string;
+  /** Default investigation depth */
+  defaultDepth: InvestigationDepth;
+  /** Default context flags */
+  defaultContext: InvestigationContextFlags;
+  /** When settings were last modified */
+  updatedAt: string;
+}
+
+/** Detected scenario from run analysis */
+export interface DetectedScenario {
+  /** Scenario name (e.g., "agent-manager") */
+  name: string;
+  /** Full path to the scenario */
+  projectRoot: string;
+  /** Important files found (CLAUDE.md, README.md, etc.) */
+  keyFiles: string[];
+  /** Number of selected runs from this scenario */
+  runCount: number;
+}
+
+/** Default context flags */
+export const DEFAULT_INVESTIGATION_CONTEXT: InvestigationContextFlags = {
+  runSummaries: true,
+  runEvents: true,
+  runDiffs: true,
+  scenarioDocs: true,
+  fullLogs: false,
+};
+
+// Update the investigation run request to include context flags
+export interface CreateInvestigationRunRequestV2 extends CreateInvestigationRunRequest {
+  /** Context flags - what to include in the investigation */
+  context?: InvestigationContextFlags;
+  /** Manual scenario path override */
+  scenarioOverride?: string;
+}
+
+// =============================================================================
 // Pricing Types
 // =============================================================================
 

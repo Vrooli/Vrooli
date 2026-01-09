@@ -287,6 +287,75 @@ VALUES (1, 7, 21600)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
+-- Investigation Settings - Configuration for investigation agents (singleton)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS investigation_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    -- Prompt template is plain text (no variables/templating)
+    -- Dynamic content like depth, scenarios, runs are context attachments
+    prompt_template TEXT NOT NULL,
+    -- Default depth: "quick", "standard", "deep"
+    default_depth VARCHAR(20) NOT NULL DEFAULT 'standard',
+    -- Default context selections (what to include in investigations)
+    default_context JSONB NOT NULL DEFAULT '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}',
+
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default settings with the default investigation prompt
+INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context)
+VALUES (
+    1,
+    '# Agent-Manager Investigation
+
+You are an expert debugger. Your job is to ACTIVELY INVESTIGATE why the runs provided in context failed.
+
+**Do NOT just analyze the provided data - EXPLORE THE CODEBASE to find root causes.**
+
+## Required Investigation Steps
+1. **Read the scenario''s CLAUDE.md or README.md** to understand the project structure
+2. **Analyze the error messages** in the attached run events - find the actual failure
+3. **Trace the error to source code** - use grep/read to find the failing code path
+4. **Check related files** - look at imports, dependencies, callers, and configuration
+5. **Identify the root cause** - distinguish symptoms from underlying issues
+
+## Common Failure Patterns to Check
+- **Log/Output Issues**: Large outputs breaking scanners, missing newlines, buffering problems
+- **Path Issues**: Relative vs absolute paths, working directory assumptions
+- **Timeout Issues**: Operations taking longer than expected
+- **Tool Issues**: Missing tools, wrong tool usage, tool not trusted by agent
+- **Prompt Issues**: Agent not understanding instructions, missing context
+- **State Issues**: Stale data, cache invalidation, missing initialization
+
+## How to Fetch Additional Run Data
+If you need full details beyond the attachments, use the agent-manager CLI:
+```bash
+agent-manager run get <run-id>      # Full run details
+agent-manager run events <run-id>  # All events with tool calls
+agent-manager run diff <run-id>    # Code changes made
+```
+
+## Required Report Format
+Provide your findings in this structure:
+
+### 1. Executive Summary
+One-paragraph summary of what went wrong and why.
+
+### 2. Root Cause Analysis
+- **Primary cause** with file:line references
+- **Contributing factors**
+- **Evidence** (run IDs, event sequences, code snippets)
+
+### 3. Recommendations
+- **Immediate fix** (copy-pasteable code if possible)
+- **Preventive measures**
+- **Monitoring suggestions**',
+    'standard',
+    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
 -- Triggers for automatic updated_at
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -345,6 +414,13 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_pricing_settings_updated_at') THEN
         CREATE TRIGGER update_pricing_settings_updated_at
             BEFORE UPDATE ON pricing_settings
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+
+    -- Investigation Settings
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_investigation_settings_updated_at') THEN
+        CREATE TRIGGER update_investigation_settings_updated_at
+            BEFORE UPDATE ON investigation_settings
             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END;

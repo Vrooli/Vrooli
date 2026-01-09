@@ -168,12 +168,12 @@ func TestTerminator_calculateBackoff(t *testing.T) {
 		attempt  int
 		expected time.Duration
 	}{
-		{1, 500 * time.Millisecond},  // 500ms * 2^0 = 500ms
-		{2, 1 * time.Second},          // 500ms * 2^1 = 1s
-		{3, 2 * time.Second},          // 500ms * 2^2 = 2s
-		{4, 4 * time.Second},          // 500ms * 2^3 = 4s
-		{5, 5 * time.Second},          // 500ms * 2^4 = 8s, capped at 5s
-		{10, 5 * time.Second},         // Would be huge, capped at 5s
+		{1, 500 * time.Millisecond}, // 500ms * 2^0 = 500ms
+		{2, 1 * time.Second},        // 500ms * 2^1 = 1s
+		{3, 2 * time.Second},        // 500ms * 2^2 = 2s
+		{4, 4 * time.Second},        // 500ms * 2^3 = 4s
+		{5, 5 * time.Second},        // 500ms * 2^4 = 8s, capped at 5s
+		{10, 5 * time.Second},       // Would be huge, capped at 5s
 	}
 
 	for _, tt := range tests {

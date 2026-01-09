@@ -717,3 +717,54 @@ func (r *MemoryIdempotencyRepository) CleanupExpired(ctx context.Context) (int, 
 
 // Verify interface compliance
 var _ IdempotencyRepository = (*MemoryIdempotencyRepository)(nil)
+
+// =============================================================================
+// In-Memory Investigation Settings Repository
+// =============================================================================
+
+// MemoryInvestigationSettingsRepository is an in-memory implementation of InvestigationSettingsRepository.
+type MemoryInvestigationSettingsRepository struct {
+	mu       sync.RWMutex
+	settings *domain.InvestigationSettings
+}
+
+// NewMemoryInvestigationSettingsRepository creates a new in-memory investigation settings repository.
+func NewMemoryInvestigationSettingsRepository() *MemoryInvestigationSettingsRepository {
+	return &MemoryInvestigationSettingsRepository{
+		settings: domain.DefaultInvestigationSettings(),
+	}
+}
+
+func (r *MemoryInvestigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if r.settings == nil {
+		return domain.DefaultInvestigationSettings(), nil
+	}
+
+	// Return a copy
+	copy := *r.settings
+	return &copy, nil
+}
+
+func (r *MemoryInvestigationSettingsRepository) Update(ctx context.Context, settings *domain.InvestigationSettings) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	settings.UpdatedAt = time.Now()
+	copy := *settings
+	r.settings = &copy
+	return nil
+}
+
+func (r *MemoryInvestigationSettingsRepository) Reset(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.settings = domain.DefaultInvestigationSettings()
+	return nil
+}
+
+// Verify interface compliance
+var _ InvestigationSettingsRepository = (*MemoryInvestigationSettingsRepository)(nil)

@@ -6,7 +6,11 @@ import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
+  DetectedScenario,
   HealthResponse,
+  InvestigationContextFlags,
+  InvestigationDepth,
+  InvestigationSettings,
   ModelRegistry,
   ProfileFormData,
   ProbeResult,
@@ -846,6 +850,83 @@ export async function probeRunner(runnerType: RunnerType): Promise<ProbeResult> 
   });
   const message = parseProto<any>(ProbeRunnerResponseSchema, data);
   return message.result as ProbeResult;
+}
+
+// Investigation Settings hook
+export function useInvestigationSettings() {
+  const state = useApiState<InvestigationSettings | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    state.setLoading(true);
+    state.setError(null);
+    try {
+      const data = await apiRequest<InvestigationSettings>("/investigation-settings");
+      state.setData(data);
+    } catch (err) {
+      state.setError((err as Error).message);
+    } finally {
+      state.setLoading(false);
+    }
+  }, []);
+
+  const updateSettings = useCallback(async (settings: Partial<{
+    promptTemplate: string;
+    defaultDepth: InvestigationDepth;
+    defaultContext: InvestigationContextFlags;
+  }>): Promise<InvestigationSettings> => {
+    state.setLoading(true);
+    state.setError(null);
+    try {
+      const data = await apiRequest<InvestigationSettings>("/investigation-settings", {
+        method: "PUT",
+        body: JSON.stringify(settings),
+      });
+      state.setData(data);
+      return data;
+    } catch (err) {
+      state.setError((err as Error).message);
+      throw err;
+    } finally {
+      state.setLoading(false);
+    }
+  }, []);
+
+  const resetSettings = useCallback(async (): Promise<InvestigationSettings> => {
+    state.setLoading(true);
+    state.setError(null);
+    try {
+      const data = await apiRequest<InvestigationSettings>("/investigation-settings/reset", {
+        method: "POST",
+      });
+      state.setData(data);
+      return data;
+    } catch (err) {
+      state.setError((err as Error).message);
+      throw err;
+    } finally {
+      state.setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  return {
+    ...state,
+    refetch: fetchSettings,
+    updateSettings,
+    resetSettings,
+  };
+}
+
+// Detect scenarios for runs (standalone function)
+export async function detectScenariosForRuns(runIds: string[]): Promise<DetectedScenario[]> {
+  const data = await apiRequest<{ scenarios: DetectedScenario[] }>("/runs/detect-scenarios", {
+    method: "POST",
+    body: JSON.stringify({ runIds }),
+  });
+  return data.scenarios ?? [];
 }
 
 // Maintenance hook

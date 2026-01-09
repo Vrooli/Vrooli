@@ -15,15 +15,15 @@ import (
 
 // StatsSummary contains all stats data for a single API response.
 type StatsSummary struct {
-	StatusCounts     *repository.RunStatusCounts   `json:"statusCounts"`
-	SuccessRate      float64                       `json:"successRate"`
-	Duration         *repository.DurationStats     `json:"duration"`
-	Cost             *repository.CostStats         `json:"cost"`
-	RunnerBreakdown  []*repository.RunnerBreakdown `json:"runnerBreakdown"`
+	StatusCounts     *repository.RunStatusCounts    `json:"statusCounts"`
+	SuccessRate      float64                        `json:"successRate"`
+	Duration         *repository.DurationStats      `json:"duration"`
+	Cost             *repository.CostStats          `json:"cost"`
+	RunnerBreakdown  []*repository.RunnerBreakdown  `json:"runnerBreakdown"`
 	ProfileBreakdown []*repository.ProfileBreakdown `json:"profileBreakdown,omitempty"`
-	ModelBreakdown   []*repository.ModelBreakdown  `json:"modelBreakdown,omitempty"`
-	ToolUsage        []*repository.ToolUsageStats  `json:"toolUsage,omitempty"`
-	ErrorPatterns    []*repository.ErrorPattern    `json:"errorPatterns,omitempty"`
+	ModelBreakdown   []*repository.ModelBreakdown   `json:"modelBreakdown,omitempty"`
+	ToolUsage        []*repository.ToolUsageStats   `json:"toolUsage,omitempty"`
+	ErrorPatterns    []*repository.ErrorPattern     `json:"errorPatterns,omitempty"`
 }
 
 // TimePreset defines common time window presets.
@@ -150,9 +150,9 @@ func (o *statsOrchestrator) GetSummary(ctx context.Context, filter repository.St
 		toolUsage        []*repository.ToolUsageStats
 		errorPatterns    []*repository.ErrorPattern
 
-		statusErr, successErr, durationErr, costErr    error
-		runnerErr, profileErr, modelErr                error
-		toolErr, errorErr                              error
+		statusErr, successErr, durationErr, costErr error
+		runnerErr, profileErr, modelErr             error
+		toolErr, errorErr                           error
 	)
 
 	wg.Add(9)
