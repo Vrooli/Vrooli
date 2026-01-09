@@ -30,6 +30,7 @@ import {
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
 import { selectors } from "@constants/selectors";
 import { WorkflowPreviewPane } from "./WorkflowPreviewPane";
+import { AssetPreviewPane } from "./AssetPreviewPane";
 import { EmptyWorkflowState } from "./EmptyWorkflowState";
 
 interface ProjectFileTreeProps {
@@ -94,6 +95,7 @@ export function ProjectFileTree({
   const dropTargetFolder = useProjectDetailStore((s) => s.dropTargetFolder);
   const focusedTreePath = useProjectDetailStore((s) => s.focusedTreePath);
   const previewWorkflowId = useProjectDetailStore((s) => s.previewWorkflowId);
+  const previewAssetPath = useProjectDetailStore((s) => s.previewAssetPath);
   const workflows = useProjectDetailStore((s) => s.workflows);
 
   // Store actions
@@ -104,6 +106,7 @@ export function ProjectFileTree({
   const setDropTargetFolder = useProjectDetailStore((s) => s.setDropTargetFolder);
   const setFocusedTreePath = useProjectDetailStore((s) => s.setFocusedTreePath);
   const setPreviewWorkflowId = useProjectDetailStore((s) => s.setPreviewWorkflowId);
+  const setPreviewAssetPath = useProjectDetailStore((s) => s.setPreviewAssetPath);
   const setExecutionInProgress = useProjectDetailStore((s) => s.setExecutionInProgress);
   const setActiveTab = useProjectDetailStore((s) => s.setActiveTab);
   const fetchProjectEntries = useProjectDetailStore((s) => s.fetchProjectEntries);
@@ -396,6 +399,14 @@ export function ProjectFileTree({
       setPreviewWorkflowId(workflowId);
     },
     [setPreviewWorkflowId],
+  );
+
+  // Handler for preview asset (single click on asset file)
+  const handlePreviewAsset = useCallback(
+    (assetPath: string) => {
+      setPreviewAssetPath(assetPath);
+    },
+    [setPreviewAssetPath],
   );
 
   // Handler for inline add menu - takes event to anchor popover
@@ -744,7 +755,7 @@ export function ProjectFileTree({
       <div
         ref={treeContainerRef}
         className="overflow-auto p-4 flex-shrink-0"
-        style={{ width: previewedWorkflow ? `${treeWidthPercent}%` : "100%" }}
+        style={{ width: `${treeWidthPercent}%` }}
         tabIndex={0}
       >
         <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
@@ -823,6 +834,7 @@ export function ProjectFileTree({
                   onDeleteNode={handleDeleteTreeNode}
                   onRenameNode={handleRenameTreeNode}
                   onShowInlineAddMenu={handleShowInlineAddMenu}
+                  onPreviewAsset={handlePreviewAsset}
                 />
               );
             })}
@@ -881,28 +893,41 @@ export function ProjectFileTree({
       </div>
 
       {/* Resize Handle */}
-      {previewedWorkflow && (
-        <div
-          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-flow-accent/50 active:bg-flow-accent transition-colors ${
-            isResizingDivider ? "bg-flow-accent" : "bg-gray-700"
-          }`}
-          onMouseDown={handleDividerResizeStart}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize preview pane"
-        />
-      )}
+      <div
+        className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-flow-accent/50 active:bg-flow-accent transition-colors ${
+          isResizingDivider ? "bg-flow-accent" : "bg-gray-700"
+        }`}
+        onMouseDown={handleDividerResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize preview pane"
+      />
 
-      {/* Right: Preview Pane */}
-      {previewedWorkflow && (
-        <div className="flex-1 overflow-hidden p-4">
+      {/* Right: Preview Pane - Always visible with conditional content */}
+      <div className="flex-1 overflow-hidden p-4">
+        {previewedWorkflow ? (
           <WorkflowPreviewPane
             workflow={previewedWorkflow}
             onClose={() => setPreviewWorkflowId(null)}
             onOpenEditor={handleOpenWorkflowFile}
           />
-        </div>
-      )}
+        ) : previewAssetPath ? (
+          <AssetPreviewPane
+            path={previewAssetPath}
+            projectId={project.id}
+            onClose={() => setPreviewAssetPath(null)}
+          />
+        ) : (
+          <EmptyWorkflowState
+            error={null}
+            onCreateWorkflow={onCreateWorkflow}
+            onCreateWorkflowDirect={onCreateWorkflowDirect}
+            onStartRecording={onStartRecording}
+            onImportWorkflow={onImportWorkflow}
+            inPane
+          />
+        )}
+      </div>
 
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
       <PromptDialog

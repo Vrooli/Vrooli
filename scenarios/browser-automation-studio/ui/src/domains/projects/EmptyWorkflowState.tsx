@@ -13,6 +13,8 @@ interface EmptyWorkflowStateProps {
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
   onImportWorkflow?: () => void;
+  /** When rendered in the narrower right pane, use container queries for responsive layout */
+  inPane?: boolean;
 }
 
 /**
@@ -26,11 +28,12 @@ export function EmptyWorkflowState({
   onCreateWorkflowDirect,
   onStartRecording,
   onImportWorkflow,
+  inPane,
 }: EmptyWorkflowStateProps) {
-  return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-2xl mx-auto pt-8">
-        <div className="text-center mb-8">
+  const content = (
+    <div className={`flex-1 overflow-auto ${inPane ? "@container" : ""}`}>
+      <div className={`mx-auto ${inPane ? "p-4" : "max-w-2xl p-6 pt-8"}`}>
+        <div className={`text-center ${inPane ? "mb-4" : "mb-8"}`}>
           <div className="mb-5 flex items-center justify-center">
             <div className="p-4 bg-green-500/20 rounded-2xl">
               {error ? (
@@ -53,7 +56,11 @@ export function EmptyWorkflowState({
         {!error && (
           <>
             {/* Quick Actions - Order: Record, AI-Assisted, Visual Builder, Import */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className={`grid gap-4 ${inPane ? "mb-4" : "mb-8"} ${
+              inPane
+                ? "grid-cols-1 @[400px]:grid-cols-2"  // Container query: 2 cols when pane >= 400px
+                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"  // Original responsive
+            }`}>
               {/* Record - Primary workflow creation method */}
               {onStartRecording && (
                 <button
@@ -123,19 +130,32 @@ export function EmptyWorkflowState({
               )}
             </div>
 
-            {/* Workflow ideas */}
-            <div className="text-center text-sm text-gray-500">
-              <p className="mb-2">Try automating:</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Form submissions</span>
-                <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">UI testing</span>
-                <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Data extraction</span>
-                <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Screenshots</span>
+            {/* Workflow ideas - hidden in pane mode to save space */}
+            {!inPane && (
+              <div className="text-center text-sm text-gray-500">
+                <p className="mb-2">Try automating:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Form submissions</span>
+                  <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">UI testing</span>
+                  <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Data extraction</span>
+                  <span className="px-2 py-1 bg-gray-800 rounded text-gray-400">Screenshots</span>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
     </div>
   );
+
+  // When in pane mode, wrap in a styled container matching other panes
+  if (inPane) {
+    return (
+      <div className="bg-flow-node border border-gray-700 rounded-lg h-full flex flex-col">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

@@ -169,6 +169,8 @@ export interface FileTreeItemProps {
   onRenameNode: (path: string) => Promise<void>;
   /** Show inline add menu for a folder */
   onShowInlineAddMenu?: (folderPath: string, e?: React.MouseEvent) => void;
+  /** Preview an asset file (single click) */
+  onPreviewAsset?: (assetPath: string) => void;
 }
 
 // ============================================================================
@@ -198,6 +200,7 @@ export function FileTreeItem({
   onDeleteNode,
   onRenameNode,
   onShowInlineAddMenu,
+  onPreviewAsset,
 }: FileTreeItemProps) {
   const isFolder = node.kind === "folder";
   const isExpanded = isFolder && expandedFolders.has(node.path);
@@ -301,7 +304,11 @@ export function FileTreeItem({
       handlePreviewWorkflow();
       return;
     }
-    toast("Assets are read-only in v1");
+    if (node.kind === "asset_file" && onPreviewAsset) {
+      // Single click shows asset preview
+      onPreviewAsset(node.path);
+      return;
+    }
   };
 
   const handleDoubleClick = () => {
@@ -449,6 +456,7 @@ export function FileTreeItem({
                 onDeleteNode={onDeleteNode}
                 onRenameNode={onRenameNode}
                 onShowInlineAddMenu={onShowInlineAddMenu}
+                onPreviewAsset={onPreviewAsset}
               />
             );
           })}
