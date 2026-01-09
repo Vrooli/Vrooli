@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -250,6 +251,9 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 	if raw != "" {
 		lines = strings.Split(raw, "\n")
 	}
+	if len(lines) > 0 {
+		lines = filterHistoryLines(lines)
+	}
 
 	history := &RepoHistory{
 		RepoDir:   repoDir,
@@ -268,6 +272,18 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 	}
 
 	return history, nil
+}
+
+var commitHashPattern = regexp.MustCompile(`[0-9a-f]{7,}`)
+
+func filterHistoryLines(lines []string) []string {
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if commitHashPattern.MatchString(line) {
+			filtered = append(filtered, line)
+		}
+	}
+	return filtered
 }
 
 func parseHistoryDetails(out []byte) []RepoHistoryEntry {

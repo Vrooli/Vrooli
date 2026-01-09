@@ -56,20 +56,10 @@ type NormalizedGroupingRule = GroupingRule & {
   mode: "prefix" | "segment";
 };
 
-function parseHistoryLine(line: string) {
+function parseHistoryLine(line: string): HistoryEntry | null {
   const hashMatch = line.match(/[0-9a-f]{7,}/);
   if (!hashMatch || hashMatch.index === undefined) {
-    return {
-      raw: line,
-      graph: line,
-      hash: undefined,
-      message: line.trim(),
-      decorations: [] as string[],
-      headBranch: undefined,
-      remoteBranches: [] as string[],
-      isHead: false,
-      isRemote: false
-    };
+    return null;
   }
 
   const hashIndex = hashMatch.index;
@@ -171,13 +161,14 @@ export function GitHistory({
     },
     [entries, onSelectCommit, selectedCommitHash]
   );
-  const hasLines = lines.length > 0;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isLoadingMoreRef = useRef(false);
   const historyEntries = useMemo(() => {
     let remoteSeen = false;
     let firstRemoteIndex = -1;
-    const parsed = lines.map((line) => parseHistoryLine(line));
+    const parsed = lines
+      .map((line) => parseHistoryLine(line))
+      .filter((entry): entry is HistoryEntry => Boolean(entry));
     parsed.forEach((entry, index) => {
       if (entry.isRemote && firstRemoteIndex < 0) {
         firstRemoteIndex = index;
@@ -196,6 +187,8 @@ export function GitHistory({
       } as HistoryEntry;
     });
   }, [lines]);
+  const totalLines = historyEntries.length;
+  const hasLines = totalLines > 0;
 
   const handleScroll = useCallback(() => {
     if (!scrollRef.current || !onLoadMore || !hasMore) return;
@@ -363,8 +356,8 @@ export function GitHistory({
   ]);
 
   const countLabel = hasActiveFilters
-    ? `${visibleEntries.length}/${lines.length}`
-    : `${lines.length}`;
+    ? `${visibleEntries.length}/${totalLines}`
+    : `${totalLines}`;
   const hasVisibleEntries = visibleEntries.length > 0;
   const showScopeFilters = scopeOptions.length > 0;
   const detailsPending = hasActiveFilters && filterNeedsDetails && !detailsAvailable && hasLines;
