@@ -16,6 +16,7 @@ import {
 } from "./components/LayoutSettingsModal";
 import { useIsMobile } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
+import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode } from "./lib/api";
 
 /** State for viewing a historical commit (read-only mode) */
@@ -197,6 +198,9 @@ export default function App() {
     viewingCommit?.hash,
     viewMode
   );
+  const pushTargetRef =
+    syncStatusQuery.data?.upstream ?? statusQuery.data?.branch.upstream;
+  const pushSourceBranch = statusQuery.data?.branch.head;
 
   // Mutations
   const stageMutation = useStageFiles();
@@ -675,42 +679,70 @@ export default function App() {
   }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
   const handlePush = useCallback(() => {
-    pushMutation.mutate(
-      {},
-      {
-        onSuccess: (result) => {
-          if (result.verification_error) {
-            setPushNotice({
-              tone: "warning",
-              message: `Push reported success, but verification failed: ${result.verification_error}`
-            });
-            return;
-          }
-          if (result.up_to_date) {
-            setPushNotice({
-              tone: "info",
-              message: `Already up to date with ${result.remote}/${result.branch}`
-            });
-            return;
-          }
-          if (result.pushed) {
-            setPushNotice({
-              tone: "success",
-              message: `Pushed to ${result.remote}/${result.branch}`
-            });
-            return;
-          }
+    setPushNotice(null);
+    fetchSyncStatus(true)
+      .then((freshStatus) => {
+        queryClient.setQueryData(queryKeys.syncStatus, freshStatus);
+        if (freshStatus.fetch_error) {
           setPushNotice({
             tone: "warning",
-            message: "Push completed but could not be verified."
+            message: `Push preflight could not refresh remote: ${freshStatus.fetch_error}`
           });
-        },
-        onError: () => {
-          setPushNotice(null);
+          return;
         }
-      }
-    );
-  }, [pushMutation]);
+        if (freshStatus.behind > 0) {
+          setPushNotice({
+            tone: "warning",
+            message: `Remote has ${freshStatus.behind} new commit${
+              freshStatus.behind !== 1 ? "s" : ""
+            }. Pull before pushing.`
+          });
+          return;
+        }
+        pushMutation.mutate(
+          {},
+          {
+            onSuccess: (result) => {
+              const localBranch = statusQuery.data?.branch.head;
+              const targetRef = `${result.remote}/${result.branch}`;
+              const sourceSuffix =
+                localBranch && localBranch !== result.branch ? ` (from ${localBranch})` : "";
+              if (result.verification_error) {
+                setPushNotice({
+                  tone: "warning",
+                  message: `Push to ${targetRef}${sourceSuffix} reported success, but verification failed: ${result.verification_error}`
+                });
+                return;
+              }
+              if (result.up_to_date) {
+                setPushNotice({
+                  tone: "info",
+                  message: `Already up to date with ${targetRef}${sourceSuffix}`
+                });
+                return;
+              }
+              if (result.pushed) {
+                setPushNotice({
+                  tone: "success",
+                  message: `Pushed to ${targetRef}${sourceSuffix}`
+                });
+                return;
+              }
+              setPushNotice({
+                tone: "warning",
+                message: `Push to ${targetRef}${sourceSuffix} completed but could not be verified.`
+              });
+            },
+            onError: () => {
+              setPushNotice(null);
+            }
+          }
+        );
+      })
+      .catch(() => {
+        pushMutation.mutate({});
+      });
+  }, [pushMutation, queryClient, statusQuery.data?.branch.head]);
 
   const handlePull = useCallback(() => {
     pullMutation.mutate({});
@@ -1266,6 +1298,8 @@ export default function App() {
             isPushing={pushMutation.isPending}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
+            pushTarget={pushTargetRef}
+            sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
           />
         );
@@ -1475,6 +1509,8 @@ export default function App() {
             isPushing={pushMutation.isPending}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
+            pushTarget={pushTargetRef}
+            sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
           />
         );

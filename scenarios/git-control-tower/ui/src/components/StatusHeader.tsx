@@ -44,6 +44,12 @@ export function StatusHeader({
   const isHealthy = health?.readiness ?? false;
   const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
   const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
+  const branchName = syncStatus?.branch ?? status?.branch.head ?? "";
+  const upstreamRef = syncStatus?.upstream ?? status?.branch.upstream ?? "";
+  const upstreamBranch = upstreamRef ? upstreamRef.split("/").slice(1).join("/") : "";
+  const trackingMismatch = Boolean(
+    branchName && upstreamBranch && branchName !== upstreamBranch
+  );
   const isHistoryMode = Boolean(viewingCommit);
   const cleanDetails = [
     ahead > 0 ? `${ahead} ahead` : "",
@@ -140,6 +146,11 @@ export function StatusHeader({
                 </Badge>
               )}
             </>
+          )}
+          {upstreamRef && (
+            <Badge variant={trackingMismatch ? "warning" : "default"} className="gap-1">
+              {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
+            </Badge>
           )}
         </div>
 

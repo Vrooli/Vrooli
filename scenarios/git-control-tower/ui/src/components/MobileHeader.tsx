@@ -52,6 +52,12 @@ export function MobileHeader({
   const isHealthy = health?.readiness ?? false;
   const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
   const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
+  const branchName = syncStatus?.branch ?? status?.branch.head ?? "";
+  const upstreamRef = syncStatus?.upstream ?? status?.branch.upstream ?? "";
+  const upstreamBranch = upstreamRef ? upstreamRef.split("/").slice(1).join("/") : "";
+  const trackingMismatch = Boolean(
+    branchName && upstreamBranch && branchName !== upstreamBranch
+  );
   const stagedCount = status?.summary.staged ?? 0;
   const unstagedCount = status?.summary.unstaged ?? 0;
   const untrackedCount = status?.summary.untracked ?? 0;
@@ -126,6 +132,14 @@ export function MobileHeader({
                 <Badge variant="warning" className="gap-0.5 flex-shrink-0">
                   <ArrowDown className="h-3 w-3" />
                   {behind}
+                </Badge>
+              )}
+              {upstreamRef && (
+                <Badge
+                  variant={trackingMismatch ? "warning" : "default"}
+                  className="gap-1 flex-shrink-0"
+                >
+                  {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
                 </Badge>
               )}
             </>

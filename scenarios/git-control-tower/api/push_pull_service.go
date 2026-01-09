@@ -23,24 +23,37 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 		return nil, fmt.Errorf("repo dir is required")
 	}
 
-	remote := req.Remote
-	if remote == "" {
-		remote = "origin"
-	}
+	remote := strings.TrimSpace(req.Remote)
 
 	// Get current branch if not specified
 	branch := req.Branch
+	remoteFromUpstream := ""
+	branchFromUpstream := ""
 	if branch == "" {
 		status, err := GetRepoStatus(ctx, RepoStatusDeps{
 			Git:     deps.Git,
 			RepoDir: repoDir,
 		})
 		if err == nil {
-			branch = status.Branch.Head
+			remoteFromUpstream, branchFromUpstream = parseUpstream(status.Branch.Upstream)
+			if branchFromUpstream != "" {
+				branch = branchFromUpstream
+			} else {
+				branch = status.Branch.Head
+			}
 		}
 	}
 
 	branch = strings.TrimSpace(branch)
+	if remote == "" && remoteFromUpstream != "" {
+		remote = remoteFromUpstream
+	}
+	if branch == "" && branchFromUpstream != "" {
+		branch = branchFromUpstream
+	}
+	if remote == "" {
+		remote = "origin"
+	}
 	if branch == "" {
 		return &PushResponse{
 			Success:   false,
@@ -174,6 +187,21 @@ func buildRemoteRef(remote string, branch string) string {
 		return branch
 	}
 	return fmt.Sprintf("%s/%s", remote, branch)
+}
+
+func parseUpstream(upstream string) (string, string) {
+	trimmed := strings.TrimSpace(upstream)
+	if trimmed == "" {
+		return "", ""
+	}
+	trimmed = strings.TrimPrefix(trimmed, "refs/remotes/")
+	parts := strings.Split(trimmed, "/")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	remote := parts[0]
+	branch := strings.Join(parts[1:], "/")
+	return remote, branch
 }
 
 func verifyPushResult(

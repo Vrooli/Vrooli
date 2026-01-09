@@ -36,6 +36,8 @@ interface CommitPanelProps {
   isPushing?: boolean;
   canPush?: boolean;
   aheadCount?: number;
+  pushTarget?: string;
+  sourceBranch?: string;
   // History mode - disables the panel
   isHistoryMode?: boolean;
 }
@@ -60,6 +62,8 @@ export function CommitPanel({
   isPushing = false,
   canPush = false,
   aheadCount = 0,
+  pushTarget,
+  sourceBranch,
   isHistoryMode = false
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
@@ -72,6 +76,11 @@ export function CommitPanel({
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
+  const pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
+  const sourceLabel =
+    sourceBranch && pushTarget && !pushTarget.endsWith(`/${sourceBranch}`)
+      ? `from ${sourceBranch}`
+      : undefined;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -281,6 +290,12 @@ export function CommitPanel({
                   )}
                 </div>
               )}
+              {showPushAction && pushTargetLabel && (
+                <div className="mt-2 text-[11px] text-slate-500">
+                  {pushTargetLabel}
+                  {sourceLabel ? ` (${sourceLabel})` : ""}
+                </div>
+              )}
             </div>
           )}
 
@@ -318,6 +333,12 @@ export function CommitPanel({
                   <span className="text-xs text-amber-400">Pull required first</span>
                 )}
               </div>
+            </div>
+          )}
+          {!lastCommitHash && !commitError && showPushAction && pushTargetLabel && (
+            <div className="mt-2 text-[11px] text-slate-500">
+              {pushTargetLabel}
+              {sourceLabel ? ` (${sourceLabel})` : ""}
             </div>
           )}
 

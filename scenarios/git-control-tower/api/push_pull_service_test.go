@@ -92,3 +92,27 @@ func TestPushToRemote_DetectsRemoteNotUpdated(t *testing.T) {
 		t.Fatalf("expected error message when remote did not update")
 	}
 }
+
+func TestPushToRemote_UsesUpstreamWhenAvailable(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.Branch.Head = "agi"
+	fake.Branch.OID = "local123"
+	fake.Branch.Upstream = "origin/master"
+	fake.RemoteBranches["origin/master"] = FakeBranchRef{Name: "origin/master", OID: "old999"}
+
+	resp, err := PushToRemote(context.Background(), PushPullDeps{
+		Git:     fake,
+		RepoDir: fake.RepoRoot,
+	}, PushRequest{})
+	if err != nil {
+		t.Fatalf("PushToRemote returned error: %v", err)
+	}
+	if resp.Remote != "origin" || resp.Branch != "master" {
+		t.Fatalf("expected upstream origin/master, got %s/%s", resp.Remote, resp.Branch)
+	}
+	if !resp.Pushed {
+		t.Fatalf("expected pushed=true when upstream updated")
+	}
+}
