@@ -4,6 +4,7 @@ import {
   FolderTree,
   Circle,
   Sparkles,
+  Upload,
 } from "lucide-react";
 
 interface EmptyWorkflowStateProps {
@@ -11,6 +12,7 @@ interface EmptyWorkflowStateProps {
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
+  onImportWorkflow?: () => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function EmptyWorkflowState({
   onCreateWorkflow,
   onCreateWorkflowDirect,
   onStartRecording,
+  onImportWorkflow,
 }: EmptyWorkflowStateProps) {
   return (
     <div className="flex-1 overflow-auto p-6">
@@ -49,8 +52,8 @@ export function EmptyWorkflowState({
 
         {!error && (
           <>
-            {/* Quick Actions - Order: Record, AI-Assisted, Visual Builder */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {/* Quick Actions - Order: Record, AI-Assisted, Visual Builder, Import */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {/* Record - Primary workflow creation method */}
               {onStartRecording && (
                 <button
@@ -100,6 +103,24 @@ export function EmptyWorkflowState({
                   Use the drag-and-drop interface to build workflows step by step.
                 </p>
               </button>
+
+              {/* Import */}
+              {onImportWorkflow && (
+                <button
+                  onClick={onImportWorkflow}
+                  className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-green-500/60 hover:shadow-lg hover:shadow-green-500/10 transition-all group"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-500/20 rounded-lg group-hover:bg-green-500/30 transition-colors">
+                      <Upload size={20} className="text-green-400" />
+                    </div>
+                    <h4 className="font-medium text-surface">Import</h4>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Import an existing workflow file from your filesystem.
+                  </p>
+                </button>
+              )}
             </div>
 
             {/* Workflow ideas */}

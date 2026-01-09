@@ -284,6 +284,7 @@ export default function ProjectDetailView() {
           onCreateWorkflow={handleCreateWorkflow}
           onCreateWorkflowDirect={handleCreateWorkflowDirect}
           onStartRecording={handleStartRecording}
+          onImportWorkflow={() => setShowRoutineImportModal(true)}
           initialPreviewWorkflowId={initialPreviewWorkflowId}
           onPreviewChange={handlePreviewChange}
         />

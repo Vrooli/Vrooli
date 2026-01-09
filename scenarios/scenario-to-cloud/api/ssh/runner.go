@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -24,6 +25,8 @@ type SCPRunner interface {
 // ExecRunner implements Runner using os/exec.
 type ExecRunner struct{}
 
+const maxSSHOutputBytes = 512 * 1024
+
 // Run executes an SSH command and returns the result.
 func (ExecRunner) Run(ctx context.Context, cfg Config, command string) (Result, error) {
 	args := []string{
@@ -41,9 +44,10 @@ func (ExecRunner) Run(ctx context.Context, cfg Config, command string) (Result, 
 	args = append(args, target, "--", command)
 
 	cmd := exec.CommandContext(ctx, "ssh", args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := newBoundedBuffer(maxSSHOutputBytes)
+	stderr := newBoundedBuffer(maxSSHOutputBytes)
+	cmd.Stdout = io.MultiWriter(stdout)
+	cmd.Stderr = io.MultiWriter(stderr)
 
 	err := cmd.Run()
 	exitCode := 0
@@ -89,4 +93,38 @@ func (ExecSCPRunner) Copy(ctx context.Context, cfg Config, localPath, remotePath
 
 	cmd := exec.CommandContext(copyCtx, "scp", args...)
 	return cmd.Run()
+}
+
+type boundedBuffer struct {
+	buf       bytes.Buffer
+	remaining int
+	truncated bool
+}
+
+func newBoundedBuffer(limit int) *boundedBuffer {
+	return &boundedBuffer{remaining: limit}
+}
+
+func (b *boundedBuffer) Write(p []byte) (int, error) {
+	if b.remaining <= 0 {
+		b.truncated = true
+		return len(p), nil
+	}
+	if len(p) > b.remaining {
+		b.truncated = true
+		p = p[:b.remaining]
+	}
+	_, _ = b.buf.Write(p)
+	b.remaining -= len(p)
+	return len(p), nil
+}
+
+func (b *boundedBuffer) String() string {
+	if !b.truncated {
+		return b.buf.String()
+	}
+	if b.buf.Len() == 0 {
+		return "[output truncated]"
+	}
+	return b.buf.String() + "\n[output truncated]"
 }

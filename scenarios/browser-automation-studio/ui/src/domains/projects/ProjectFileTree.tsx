@@ -38,6 +38,7 @@ interface ProjectFileTreeProps {
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
+  onImportWorkflow?: () => void;
 }
 
 /**
@@ -49,6 +50,7 @@ export function ProjectFileTree({
   onCreateWorkflow,
   onCreateWorkflowDirect,
   onStartRecording,
+  onImportWorkflow,
 }: ProjectFileTreeProps) {
   // Local state for inline add menu
   const [inlineAddMenuFolder, setInlineAddMenuFolder] = useState<string | null>(null);
@@ -706,6 +708,7 @@ export function ProjectFileTree({
         onCreateWorkflow={onCreateWorkflow}
         onCreateWorkflowDirect={onCreateWorkflowDirect}
         onStartRecording={onStartRecording}
+        onImportWorkflow={onImportWorkflow}
       />
     );
   }

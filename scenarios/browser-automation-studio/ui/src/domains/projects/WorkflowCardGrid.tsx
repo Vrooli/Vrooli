@@ -21,6 +21,7 @@ interface WorkflowCardGridProps {
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
+  onImportWorkflow?: () => void;
 }
 
 /**
@@ -32,6 +33,7 @@ export function WorkflowCardGrid({
   onCreateWorkflow,
   onCreateWorkflowDirect,
   onStartRecording,
+  onImportWorkflow,
 }: WorkflowCardGridProps) {
   // Store state
   const isLoading = useProjectDetailStore((s) => s.isLoading);
@@ -179,6 +181,7 @@ export function WorkflowCardGrid({
           onCreateWorkflow={onCreateWorkflow}
           onCreateWorkflowDirect={onCreateWorkflowDirect}
           onStartRecording={onStartRecording}
+          onImportWorkflow={onImportWorkflow}
         />
         <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
         <PromptDialog {...promptDialogProps} />
