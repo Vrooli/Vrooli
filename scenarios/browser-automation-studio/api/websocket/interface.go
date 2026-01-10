@@ -71,6 +71,10 @@ type HubInterface interface {
 	// This enables live preview of workflow execution.
 	BroadcastExecutionFrame(executionID string, frame *ExecutionFrame)
 
+	// BroadcastExportProgress sends export progress updates to subscribed clients.
+	// Clients can subscribe to either a specific export ID or an execution ID.
+	BroadcastExportProgress(progress *ExportProgress)
+
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

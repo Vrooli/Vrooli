@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   X,
-  Download,
+  FolderOpen,
   Pencil,
   Trash2,
   Copy,
@@ -26,6 +26,17 @@ import {
 } from './presentation';
 import { defaultDownloadClient, type DownloadClient } from './api/downloadClient';
 import { format } from 'date-fns';
+
+/**
+ * Truncates a file path for display, keeping the end portion visible.
+ * @param path - The full path to truncate
+ * @param maxLength - Maximum characters to display (default 40)
+ * @returns Truncated path with ellipsis prefix if needed
+ */
+const truncatePath = (path: string, maxLength = 40): string => {
+  if (!path || path.length <= maxLength) return path;
+  return '...' + path.slice(-maxLength + 3);
+};
 
 interface ExportDetailsModalProps {
   /** The export to display details for */
@@ -58,45 +69,44 @@ export const ExportDetailsModal: React.FC<ExportDetailsModalProps> = ({
 
   const isCompleted = export_.status === 'completed';
   const hasStorageUrl = Boolean(export_.storageUrl);
-  const canDownload = isCompleted && hasStorageUrl;
+  const canOpenFolder = isCompleted && hasStorageUrl;
 
-  // Determine why download is disabled
-  const getDownloadDisabledReason = (): string | null => {
-    if (canDownload) return null;
+  // Determine why open folder is disabled
+  const getOpenFolderDisabledReason = (): string | null => {
+    if (canOpenFolder) return null;
     if (export_.status === 'pending') return 'Export is pending';
     if (export_.status === 'processing') return 'Export is still processing';
     if (export_.status === 'failed') return 'Export failed';
     if (!hasStorageUrl) return 'Export file not available';
-    return 'Download unavailable';
+    return 'File location unavailable';
   };
-  const downloadDisabledReason = getDownloadDisabledReason();
+  const openFolderDisabledReason = getOpenFolderDisabledReason();
 
-  const handleDownload = useCallback(async () => {
+  const handleOpenFolder = useCallback(async () => {
     if (!export_.storageUrl) {
       toast.error('Export file not available');
       return;
     }
 
-    const fileName = `${export_.name}.${export_.format}`;
-    const result = await downloadClient.downloadFromUrl(export_.storageUrl, fileName);
+    const result = await downloadClient.revealFile(export_.id);
 
     if (result.success) {
-      toast.success('Download started');
+      toast.success('Opened in file manager');
     } else {
-      toast.error(result.error ?? 'Failed to download export');
+      toast.error(result.error ?? 'Failed to open folder');
     }
-  }, [export_.storageUrl, export_.name, export_.format, downloadClient]);
+  }, [export_.id, export_.storageUrl, downloadClient]);
 
-  const handleCopyLink = useCallback(async () => {
+  const handleCopyPath = useCallback(async () => {
     if (!export_.storageUrl) {
-      toast.error('No link available yet');
+      toast.error('No path available');
       return;
     }
     const result = await downloadClient.copyToClipboard(export_.storageUrl);
     if (result.success) {
-      toast.success('Link copied');
+      toast.success('Path copied');
     } else {
-      toast.error(result.error ?? 'Failed to copy link');
+      toast.error(result.error ?? 'Failed to copy path');
     }
   }, [export_.storageUrl, downloadClient]);
 
@@ -234,6 +244,13 @@ export const ExportDetailsModal: React.FC<ExportDetailsModalProps> = ({
                 value={export_.workflowName}
               />
             )}
+            <DetailItem
+              icon={<FolderOpen size={14} />}
+              label="Location"
+              value={export_.storageUrl ? truncatePath(export_.storageUrl) : 'Downloaded to browser'}
+              valueClass={export_.storageUrl ? "text-gray-300 font-mono text-xs" : "text-gray-400 italic"}
+              title={export_.storageUrl || 'File was downloaded directly to your browser'}
+            />
           </div>
 
           {/* Error section (for failed exports) */}
@@ -298,16 +315,16 @@ export const ExportDetailsModal: React.FC<ExportDetailsModalProps> = ({
           {/* Primary action */}
           <div>
             <button
-              onClick={handleDownload}
-              disabled={!canDownload}
+              onClick={handleOpenFolder}
+              disabled={!canOpenFolder}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid={selectors.exports.detailsModal.downloadButton}
             >
-              <Download size={16} />
-              Download
+              <FolderOpen size={16} />
+              Show in Folder
             </button>
-            {downloadDisabledReason && (
-              <p className="text-xs text-gray-500 text-center mt-1">{downloadDisabledReason}</p>
+            {openFolderDisabledReason && (
+              <p className="text-xs text-gray-500 text-center mt-1">{openFolderDisabledReason}</p>
             )}
           </div>
 
@@ -322,13 +339,13 @@ export const ExportDetailsModal: React.FC<ExportDetailsModalProps> = ({
               Edit
             </button>
             <button
-              onClick={handleCopyLink}
+              onClick={handleCopyPath}
               disabled={!hasStorageUrl}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-gray-300 hover:text-white border border-gray-700 hover:border-gray-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid={selectors.exports.detailsModal.copyLinkButton}
             >
               <Copy size={14} />
-              Copy Link
+              Copy Path
             </button>
             <button
               onClick={onDelete}
@@ -349,14 +366,21 @@ interface DetailItemProps {
   label: string;
   value: string;
   valueClass?: string;
+  /** Full value shown as tooltip on hover */
+  title?: string;
 }
 
-const DetailItem: React.FC<DetailItemProps> = ({ icon, label, value, valueClass }) => (
+const DetailItem: React.FC<DetailItemProps> = ({ icon, label, value, valueClass, title }) => (
   <div className="flex items-start gap-2">
     <div className="text-gray-500 mt-0.5">{icon}</div>
-    <div>
+    <div className="min-w-0 flex-1">
       <div className="text-xs text-gray-500">{label}</div>
-      <div className={`text-sm ${valueClass ?? 'text-gray-300'}`}>{value}</div>
+      <div
+        className={`text-sm truncate ${valueClass ?? 'text-gray-300'}`}
+        title={title}
+      >
+        {value}
+      </div>
     </div>
   </div>
 );

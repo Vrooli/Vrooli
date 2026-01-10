@@ -45,13 +45,10 @@ import {
 import {
   buildExportRequest,
   buildExportOverrides,
-  executeBinaryExport,
-  createJsonBlob,
-  triggerBlobDownload,
-  saveWithNativeFilePicker,
-  supportsFileSystemAccess,
+  executeServerExport,
+  getLastOutputDir,
 } from "../export/api";
-import { useRecordedVideoStatus } from "../export/hooks";
+import { useRecordedVideoStatus, useExportProgress } from "../export/hooks";
 
 /**
  * Initial settings for pre-populating the export dialog (used when editing an existing export).
@@ -94,9 +91,9 @@ type ExecutionExportPreview = {
 export const useExecutionExport = ({
   execution,
   replayFrames,
-  workflowName,
+  workflowName: _workflowName,
   replayCustomization,
-  createExport,
+  createExport: _createExport,
   initialSettings,
 }: UseExecutionExportParams) => {
   const {
@@ -137,7 +134,10 @@ export const useExecutionExport = ({
   const [exportFileStem, setExportFileStem] = useState<string>(
     () => initialSettings?.fileStem ?? `browser-automation-replay-${execution.id.slice(0, 8)}`,
   );
-  const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
+  // Output directory for server-side exports (loaded from localStorage)
+  const [outputDir, setOutputDir] = useState<string>(() => getLastOutputDir());
+  // Track active export ID for progress subscription
+  const [activeExportId, setActiveExportId] = useState<string | null>(null);
   const [dimensionPreset, setDimensionPreset] =
     useState<ExportDimensionPreset>("spec");
   const [customWidthInput, setCustomWidthInput] = useState<string>(() =>
@@ -171,7 +171,23 @@ export const useExecutionExport = ({
   const recordedVideoStatus = useRecordedVideoStatus({
     executionId: execution.id,
   });
-  const fileSystemAccessSupported = supportsFileSystemAccess();
+
+  // Export progress tracking via WebSocket
+  const { progress: exportProgress, reset: resetExportProgress } = useExportProgress({
+    exportId: activeExportId,
+    executionId: activeExportId ? undefined : execution.id,
+    onComplete: (progress) => {
+      toast.success(`Export saved to ${progress.storage_url}`);
+      setIsExportDialogOpen(false);
+      setActiveExportId(null);
+      setIsExporting(false);
+    },
+    onError: (error) => {
+      toast.error(error);
+      setActiveExportId(null);
+      setIsExporting(false);
+    },
+  });
 
   // Stylization state - defaults to "stylized" to match current behavior
   const [stylization, setStylization] = useState<ExportStylization>("stylized");
@@ -227,14 +243,9 @@ export const useExecutionExport = ({
     setExportPreviewExecutionId(null);
     setExportPreviewError(null);
     setExportFileStem(defaultExportFileStem);
-    setUseNativeFilePicker(false);
-  }, [defaultExportFileStem]);
-
-  useEffect(() => {
-    if (exportFormat !== "json" && useNativeFilePicker) {
-      setUseNativeFilePicker(false);
-    }
-  }, [exportFormat, useNativeFilePicker]);
+    setActiveExportId(null);
+    resetExportProgress();
+  }, [defaultExportFileStem, resetExportProgress]);
 
   // Fallback render source to "auto" when recorded video becomes unavailable
   useEffect(() => {
@@ -561,172 +572,70 @@ export const useExecutionExport = ({
     }
     setExportFormat("mp4");
     setExportFileStem(defaultExportFileStem);
-    setUseNativeFilePicker(false);
+    setOutputDir(getLastOutputDir());
+    setActiveExportId(null);
+    resetExportProgress();
     setIsExportDialogOpen(true);
-  }, [defaultExportFileStem, replayFramesWithFallback.length]);
+  }, [defaultExportFileStem, replayFramesWithFallback.length, resetExportProgress]);
 
   const handleCloseExportDialog = useCallback(() => {
     setIsExportDialogOpen(false);
   }, []);
 
   const handleConfirmExport = useCallback(async () => {
-    if (exportFormat !== "json") {
-      if (replayFramesWithFallback.length === 0) {
-        toast.error("Replay not ready to export yet");
-        return;
-      }
-
-      setIsExporting(true);
-      try {
-        const baselineSpec = exportPreview?.package ?? movieSpec;
-        const exportSpec = preparedMovieSpec ?? baselineSpec;
-
-        // Build overrides only when stylization is enabled
-        const overrides = isStylized
-          ? buildExportOverrides({
-              chromeTheme: replayChromeTheme,
-              backgroundTheme: replayBackgroundTheme,
-              cursorTheme: replayCursorTheme,
-              cursorInitialPosition: replayCursorInitialPosition,
-              cursorScale: replayCursorScale,
-              cursorClickAnimation: replayCursorClickAnimation,
-            })
-          : undefined;
-
-        // Use extracted pure function to build the request
-        const requestPayload = buildExportRequest({
-          format: exportFormat as "mp4" | "gif",
-          fileName: finalFileName,
-          renderSource: replayRenderSource,
-          movieSpec: exportSpec,
-          overrides,
-        });
-
-        // Use extracted API function for binary export
-        const { blob } = await executeBinaryExport({
-          executionId: execution.id,
-          payload: requestPayload,
-        });
-
-        // Use extracted utility for download
-        triggerBlobDownload(blob, finalFileName);
-
-        const exportName = exportFileStem || `${workflowName} Export`;
-        const createdExport = await createExport({
-          executionId: execution.id,
-          workflowId: execution.workflowId,
-          name: exportName,
-          format: exportFormat as "mp4" | "gif" | "json" | "html",
-          settings: {
-            chromeTheme: replayChromeTheme,
-            background: replayBackground,
-            cursorTheme: replayCursorTheme,
-            cursorScale: replayCursorScale,
-            browserScale: replayBrowserScale,
-            renderSource: replayRenderSource,
-          },
-          fileSizeBytes: blob.size,
-          durationMs: exportPreview?.totalDurationMs,
-          frameCount: exportPreview?.capturedFrameCount,
-        });
-
-        if (createdExport) {
-          setLastCreatedExport(createdExport);
-          setShowExportSuccess(true);
-        }
-        toast.success("Replay export ready");
-        setIsExportDialogOpen(false);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to export replay";
-        toast.error(message);
-      } finally {
-        setIsExporting(false);
-      }
-      return;
-    }
-
     if (replayFramesWithFallback.length === 0) {
       toast.error("Replay not ready to export yet");
       return;
     }
 
-    if (useNativeFilePicker && !fileSystemAccessSupported) {
-      toast.error(
-        "This browser does not support choosing a destination. Disable \"Choose save location\".",
-      );
+    if (!outputDir.trim()) {
+      toast.error("Please specify an output directory");
       return;
     }
 
     setIsExporting(true);
     try {
-      const payload = preparedMovieSpec ?? exportPreview?.package ?? movieSpec;
-      if (!payload) {
-        toast.error("Replay not ready to export yet");
-        setIsExporting(false);
-        return;
-      }
+      const baselineSpec = exportPreview?.package ?? movieSpec;
+      const exportSpec = preparedMovieSpec ?? baselineSpec;
 
-      // Use extracted utility to create JSON blob
-      const blob = createJsonBlob(payload);
+      // Build overrides only when stylization is enabled and it's a binary format
+      const isBinaryFormat = exportFormat === "mp4" || exportFormat === "gif";
+      const overrides = isStylized && isBinaryFormat
+        ? buildExportOverrides({
+            chromeTheme: replayChromeTheme,
+            backgroundTheme: replayBackgroundTheme,
+            cursorTheme: replayCursorTheme,
+            cursorInitialPosition: replayCursorInitialPosition,
+            cursorScale: replayCursorScale,
+            cursorClickAnimation: replayCursorClickAnimation,
+          })
+        : undefined;
 
-      if (useNativeFilePicker && fileSystemAccessSupported) {
-        try {
-          // Use extracted utility for native file picker
-          await saveWithNativeFilePicker(
-            blob,
-            finalFileName,
-            "Replay export (JSON)",
-            { "application/json": [".json"] },
-          );
-          toast.success("Replay export saved");
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            setIsExporting(false);
-            return;
-          }
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Failed to save replay export";
-          toast.error(message);
-          setIsExporting(false);
-          return;
-        }
-      } else {
-        // Use extracted utility for download
-        triggerBlobDownload(blob, finalFileName);
-        toast.success("Replay download started");
-      }
-
-      const exportName = exportFileStem || `${workflowName} Export`;
-      const createdExport = await createExport({
-        executionId: execution.id,
-        workflowId: execution.workflowId,
-        name: exportName,
-        format: "json",
-        settings: {
-          chromeTheme: replayChromeTheme,
-          background: replayBackground,
-          cursorTheme: replayCursorTheme,
-          cursorScale: replayCursorScale,
-        },
-        fileSizeBytes: blob.size,
-        durationMs: exportPreview?.totalDurationMs,
-        frameCount: exportPreview?.capturedFrameCount,
+      // Build the request with output_dir for server-side saving
+      const requestPayload = buildExportRequest({
+        format: exportFormat,
+        fileName: finalFileName,
+        renderSource: replayRenderSource,
+        movieSpec: exportSpec,
+        overrides,
+        outputDir: outputDir.trim(),
       });
 
-      if (createdExport) {
-        setLastCreatedExport(createdExport);
-        setShowExportSuccess(true);
-      }
+      // Execute server-side export (returns immediately for binary formats)
+      const result = await executeServerExport({
+        executionId: execution.id,
+        payload: requestPayload,
+      });
 
-      setIsExportDialogOpen(false);
+      // Set active export ID to subscribe to progress updates
+      setActiveExportId(result.export_id);
+      toast.success("Export started...");
+
+      // Note: Dialog stays open to show progress. It will close when onComplete fires.
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to export replay";
+        error instanceof Error ? error.message : "Failed to start export";
       toast.error(message);
-    } finally {
       setIsExporting(false);
     }
   }, [
@@ -734,12 +643,9 @@ export const useExecutionExport = ({
     exportFormat,
     exportPreview,
     execution.id,
-    execution.workflowId,
-    workflowName,
-    exportFileStem,
     finalFileName,
     movieSpec,
-    replayBackground,
+    outputDir,
     replayBackgroundTheme,
     replayChromeTheme,
     replayCursorClickAnimation,
@@ -748,9 +654,6 @@ export const useExecutionExport = ({
     replayCursorTheme,
     replayRenderSource,
     replayFramesWithFallback.length,
-    fileSystemAccessSupported,
-    useNativeFilePicker,
-    createExport,
     isStylized,
   ]);
 
@@ -780,10 +683,12 @@ export const useExecutionExport = ({
     setExportFileStem,
     defaultExportFileStem,
     finalFileName,
-    supportsFileSystemAccess: fileSystemAccessSupported,
-    useNativeFilePicker,
-    setUseNativeFilePicker,
+    outputDir,
+    setOutputDir,
     preparedMovieSpec,
+    // Export progress state
+    exportProgress,
+    activeExportId,
     // New preview state for ReplayPlayer
     replayFrames: replayFramesWithFallback,
     replayStyle,

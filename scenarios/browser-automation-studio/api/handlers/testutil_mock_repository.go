@@ -668,6 +668,37 @@ func (r *MockRepository) DeleteExport(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, status string, errorMessage string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	export, ok := r.exports[id]
+	if !ok {
+		return database.ErrNotFound
+	}
+	export.Status = status
+	export.UpdatedAt = time.Now()
+	if errorMessage != "" {
+		export.Error = errorMessage
+	}
+	return nil
+}
+
+func (r *MockRepository) UpdateExportComplete(_ context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	export, ok := r.exports[id]
+	if !ok {
+		return database.ErrNotFound
+	}
+	export.Status = "completed"
+	export.StorageURL = storageURL
+	export.FileSizeBytes = &fileSizeBytes
+	export.UpdatedAt = time.Now()
+	return nil
+}
+
 func (r *MockRepository) ListExports(_ context.Context, limit, offset int) ([]*database.ExportIndex, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

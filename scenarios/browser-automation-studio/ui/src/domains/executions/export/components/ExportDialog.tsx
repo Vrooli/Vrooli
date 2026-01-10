@@ -8,7 +8,7 @@
  */
 
 import { useMemo } from "react";
-import { Download, Loader, X } from "lucide-react";
+import { Download, FolderOpen, Loader, X } from "lucide-react";
 import clsx from "clsx";
 import { ResponsiveDialog } from "@shared/layout";
 import { selectors } from "@constants/selectors";
@@ -443,10 +443,12 @@ function DimensionsSection() {
 
 function FileNameSection() {
   const { formats } = useExportFormatState();
-  const { fileStem, setFileStem, defaultFileStem } = useExportFileState();
+  const { fileStem, setFileStem, defaultFileStem, outputDir } = useExportFileState();
 
-  // Build list of all files that will be created
-  const filesToCreate = formats.map((fmt) => `${fileStem || defaultFileStem}.${EXPORT_EXTENSIONS[fmt]}`);
+  // Build list of all files that will be created with full paths
+  const effectiveStem = fileStem || defaultFileStem;
+  const dir = outputDir.endsWith('/') ? outputDir.slice(0, -1) : outputDir;
+  const filesToShow = formats.map((fmt) => `${dir}/${effectiveStem}.${EXPORT_EXTENSIONS[fmt]}`);
 
   return (
     <section className="space-y-3">
@@ -464,11 +466,10 @@ function FileNameSection() {
         placeholder={defaultFileStem}
       />
       <div className="space-y-1">
-        <p className="text-xs text-gray-500">Will create:</p>
         <ul className="space-y-0.5">
-          {filesToCreate.map((fileName) => (
-            <li key={fileName} className="text-xs text-gray-300 font-mono pl-2">
-              {fileName}
+          {filesToShow.map((filePath) => (
+            <li key={filePath} className="text-xs text-gray-300 font-mono truncate" title={filePath}>
+              {filePath}
             </li>
           ))}
         </ul>
@@ -478,73 +479,29 @@ function FileNameSection() {
 }
 
 function DestinationSection() {
-  const { formats, isBinaryExport } = useExportFormatState();
-  const { supportsFileSystemAccess, useNativeFilePicker, setUseNativeFilePicker } =
-    useExportFileState();
-
-  const hasJsonFormat = formats.includes("json");
+  const { outputDir, setOutputDir } = useExportFileState();
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">Export process</h3>
+        <h3 className="text-sm font-semibold text-white">Save location</h3>
+        <span className="text-[10px] uppercase tracking-wider text-gray-500">Server</span>
       </div>
 
-      <div className="space-y-3">
-        {/* JSON export info */}
-        {hasJsonFormat && (
-          <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-white">JSON Package</span>
-              <span className="text-[10px] uppercase tracking-wider text-gray-500">Browser</span>
-            </div>
-            <p className="text-xs text-slate-400 mb-3">
-              Exports directly from your browser as a downloadable file.
-            </p>
-            <label
-              className={clsx(
-                "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition cursor-pointer",
-                useNativeFilePicker && supportsFileSystemAccess
-                  ? "border-flow-accent/60 bg-flow-accent/10 text-white"
-                  : "border-white/10 bg-slate-900/70 text-slate-300",
-                !supportsFileSystemAccess && "opacity-60 cursor-not-allowed",
-              )}
-            >
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-flow-accent focus:ring-flow-accent"
-                checked={useNativeFilePicker && supportsFileSystemAccess}
-                onChange={(event) => setUseNativeFilePicker(event.target.checked)}
-                disabled={!supportsFileSystemAccess}
-              />
-              <div className="flex flex-col">
-                <span className="text-xs font-medium">
-                  {supportsFileSystemAccess
-                    ? "Choose save location"
-                    : "Browser default download folder"}
-                </span>
-                {!supportsFileSystemAccess && (
-                  <span className="text-[10px] text-amber-400">
-                    File System Access API not supported
-                  </span>
-                )}
-              </div>
-            </label>
-          </div>
-        )}
-
-        {/* Binary export info */}
-        {isBinaryExport && (
-          <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-white">Video Formats</span>
-              <span className="text-[10px] uppercase tracking-wider text-gray-500">Server</span>
-            </div>
-            <p className="text-xs text-slate-400">
-              MP4 and GIF files are rendered on the server. Downloads automatically when complete.
-            </p>
-          </div>
-        )}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <FolderOpen size={14} className="text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={outputDir}
+            onChange={(event) => setOutputDir(event.target.value)}
+            placeholder="data/exports"
+            className="flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white font-mono placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 pl-6">
+          Enter the path where exports should be saved. Directory will be created if it doesn't exist.
+        </p>
       </div>
     </section>
   );
@@ -591,6 +548,86 @@ function SummarySection() {
             </div>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Export progress bar - shows real-time progress during export rendering.
+ */
+function ExportProgressSection() {
+  const { isExporting, exportProgress, activeExportId } = useExportProgressState();
+
+  // Only show when actively exporting
+  if (!isExporting || !activeExportId) {
+    return null;
+  }
+
+  const stage = exportProgress?.stage ?? "preparing";
+  const percent = exportProgress?.progress_percent ?? 0;
+  const status = exportProgress?.status ?? "processing";
+
+  // Stage labels for display
+  const stageLabels: Record<string, string> = {
+    preparing: "Preparing export…",
+    capturing: "Capturing frames…",
+    encoding: "Encoding video…",
+    finalizing: "Finalizing…",
+    completed: "Export complete",
+    failed: "Export failed",
+  };
+
+  const stageLabel = stageLabels[stage] ?? "Processing…";
+  const isComplete = status === "completed";
+  const isFailed = status === "failed";
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white">Export progress</h3>
+        <span className="text-xs text-gray-500">
+          {isComplete ? "Done" : isFailed ? "Error" : `${Math.round(percent)}%`}
+        </span>
+      </div>
+
+      <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+        {/* Progress bar */}
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800">
+          <div
+            className={clsx(
+              "absolute left-0 top-0 h-full rounded-full transition-all duration-300",
+              isComplete
+                ? "bg-green-500"
+                : isFailed
+                  ? "bg-red-500"
+                  : "bg-flow-accent",
+            )}
+            style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+          />
+        </div>
+
+        {/* Stage label */}
+        <div className="mt-3 flex items-center justify-between">
+          <span className={clsx(
+            "text-sm",
+            isComplete ? "text-green-400" : isFailed ? "text-red-400" : "text-slate-300",
+          )}>
+            {stageLabel}
+          </span>
+          {exportProgress?.error && (
+            <span className="text-xs text-red-400 max-w-xs truncate" title={exportProgress.error}>
+              {exportProgress.error}
+            </span>
+          )}
+        </div>
+
+        {/* File info when complete */}
+        {isComplete && exportProgress?.storage_url && (
+          <div className="mt-2 text-xs text-slate-400 font-mono truncate" title={exportProgress.storage_url}>
+            Saved to: {exportProgress.storage_url}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -686,6 +723,7 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
           <FileNameSection />
           <DestinationSection />
           <SummarySection />
+          <ExportProgressSection />
         </div>
       </div>
 

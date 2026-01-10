@@ -3,7 +3,8 @@ import {
   Film,
   FileJson,
   Image,
-  Download,
+  FolderOpen,
+  HardDrive,
   Trash2,
   Eye,
   Pencil,
@@ -100,19 +101,18 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     setIsRefreshing(false);
   }, [fetchExports]);
 
-  const handleDownload = useCallback(async (export_: Export) => {
+  const handleOpenFolder = useCallback(async (export_: Export) => {
     if (!export_.storageUrl) {
       toast.error('Export file not available');
       return;
     }
 
-    const fileName = `${export_.name}.${export_.format}`;
-    const result = await downloadClient.downloadFromUrl(export_.storageUrl, fileName);
+    const result = await downloadClient.revealFile(export_.id);
 
     if (result.success) {
-      toast.success('Download started');
+      toast.success('Opened in file manager');
     } else {
-      toast.error(result.error ?? 'Failed to download export');
+      toast.error(result.error ?? 'Failed to open folder');
     }
   }, [downloadClient]);
 
@@ -125,16 +125,16 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     }
   }, [downloadClient]);
 
-  const handleCopyLink = useCallback(async (url?: string) => {
-    if (!url) {
-      toast.error('No link available yet');
+  const handleCopyPath = useCallback(async (path?: string) => {
+    if (!path) {
+      toast.error('No path available');
       return;
     }
-    const result = await downloadClient.copyToClipboard(url);
+    const result = await downloadClient.copyToClipboard(path);
     if (result.success) {
-      toast.success('Link copied');
+      toast.success('Path copied');
     } else {
-      toast.error(result.error ?? 'Failed to copy link');
+      toast.error(result.error ?? 'Failed to copy path');
     }
   }, [downloadClient]);
 
@@ -187,11 +187,11 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           <div className="absolute inset-0 bg-gray-900/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             {export_.status === 'completed' && export_.storageUrl && (
               <button
-                onClick={() => handleDownload(export_)}
+                onClick={() => handleOpenFolder(export_)}
                 className="p-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-                title="Download"
+                title="Show in folder"
               >
-                <Download size={18} />
+                <FolderOpen size={18} />
               </button>
             )}
             <button
@@ -216,9 +216,9 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
               <Trash2 size={18} />
             </button>
             <button
-              onClick={() => handleCopyLink(export_.storageUrl)}
+              onClick={() => handleCopyPath(export_.storageUrl)}
               className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
-              title="Copy link"
+              title="Copy path"
             >
               <Copy size={18} />
             </button>
@@ -307,7 +307,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/40 flex items-center justify-center">
-            <Download size={18} className="text-blue-200" />
+            <HardDrive size={18} className="text-blue-200" />
           </div>
           <div>
             <div className="text-xs text-gray-400">Last export size</div>

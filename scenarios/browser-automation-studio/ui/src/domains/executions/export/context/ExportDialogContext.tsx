@@ -79,15 +79,16 @@ export interface ExportDimensionState {
 
 /**
  * File naming and destination state.
+ * Note: All exports are server-side only (no browser downloads).
  */
 export interface ExportFileState {
   fileStem: string;
   setFileStem: (stem: string) => void;
   defaultFileStem: string;
   finalFileName: string;
-  supportsFileSystemAccess: boolean;
-  useNativeFilePicker: boolean;
-  setUseNativeFilePicker: (use: boolean) => void;
+  /** Output directory for server-side exports */
+  outputDir: string;
+  setOutputDir: (dir: string) => void;
 }
 
 /**
@@ -151,6 +152,19 @@ export interface ExportProgressState {
   isExporting: boolean;
   isPreviewLoading: boolean;
   statusMessage: string;
+  /** Active export ID (for WebSocket progress subscription) */
+  activeExportId: string | null;
+  /** Real-time export progress from WebSocket */
+  exportProgress: {
+    export_id: string;
+    execution_id: string;
+    stage: "preparing" | "capturing" | "encoding" | "finalizing" | "completed" | "failed";
+    progress_percent: number;
+    status: "processing" | "completed" | "failed";
+    storage_url?: string;
+    file_size_bytes?: number;
+    error?: string;
+  } | null;
 }
 
 /**
@@ -361,9 +375,9 @@ export interface BuildExportDialogContextOptions {
   setExportFileStem: (stem: string) => void;
   defaultExportFileStem: string;
   finalFileName: string;
-  supportsFileSystemAccess: boolean;
-  useNativeFilePicker: boolean;
-  setUseNativeFilePicker: (use: boolean) => void;
+  /** Output directory for server-side exports */
+  outputDir: string;
+  setOutputDir: (dir: string) => void;
 
   // Render source state
   renderSource: ExportRenderSource;
@@ -398,6 +412,19 @@ export interface BuildExportDialogContextOptions {
   isExporting: boolean;
   isExportPreviewLoading: boolean;
   exportStatusMessage: string;
+  /** Active export ID for WebSocket progress subscription */
+  activeExportId: string | null;
+  /** Real-time export progress from WebSocket */
+  exportProgress: {
+    export_id: string;
+    execution_id: string;
+    stage: "preparing" | "capturing" | "encoding" | "finalizing" | "completed" | "failed";
+    progress_percent: number;
+    status: "processing" | "completed" | "failed";
+    storage_url?: string;
+    file_size_bytes?: number;
+    error?: string;
+  } | null;
 
   // Metrics state
   replayFramesLength: number;
@@ -455,9 +482,8 @@ export function buildExportDialogContextValue(
       setFileStem: options.setExportFileStem,
       defaultFileStem: options.defaultExportFileStem,
       finalFileName: options.finalFileName,
-      supportsFileSystemAccess: options.supportsFileSystemAccess,
-      useNativeFilePicker: options.useNativeFilePicker,
-      setUseNativeFilePicker: options.setUseNativeFilePicker,
+      outputDir: options.outputDir,
+      setOutputDir: options.setOutputDir,
     },
 
     renderSourceState: {
@@ -496,6 +522,8 @@ export function buildExportDialogContextValue(
       isExporting: options.isExporting,
       isPreviewLoading: options.isExportPreviewLoading,
       statusMessage: options.exportStatusMessage,
+      activeExportId: options.activeExportId,
+      exportProgress: options.exportProgress,
     },
 
     metricsState: {

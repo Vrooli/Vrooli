@@ -740,6 +740,8 @@ func (m *MockHub) Run() {}
 
 func (m *MockHub) CloseExecution(executionID uuid.UUID) {}
 
+func (m *MockHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
+
 // ============================================================================
 // Mock Storage
 // ============================================================================

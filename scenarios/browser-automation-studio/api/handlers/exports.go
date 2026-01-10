@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -391,6 +394,49 @@ func (h *Handler) DeleteExport(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetExportStatus handles GET /api/v1/exports/{id}/status
+// Returns the current status of an export for reconnection scenarios.
+func (h *Handler) GetExportStatus(w http.ResponseWriter, r *http.Request) {
+	exportID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExportID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	export, err := h.repo.GetExport(ctx, exportID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrExportNotFound)
+			return
+		}
+		h.log.WithError(err).WithField("export_id", exportID).Error("Failed to get export status")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_export_status"}))
+		return
+	}
+
+	response := map[string]any{
+		"export_id":    export.ID.String(),
+		"execution_id": export.ExecutionID.String(),
+		"status":       export.Status,
+		"format":       export.Format,
+		"name":         export.Name,
+	}
+
+	if export.StorageURL != "" {
+		response["storage_url"] = export.StorageURL
+	}
+	if export.FileSizeBytes != nil && *export.FileSizeBytes > 0 {
+		response["file_size_bytes"] = *export.FileSizeBytes
+	}
+	if export.Error != "" {
+		response["error"] = export.Error
+	}
+
+	h.respondSuccess(w, http.StatusOK, response)
+}
+
 // GenerateExportCaption handles POST /api/v1/exports/{id}/generate-caption
 func (h *Handler) GenerateExportCaption(w http.ResponseWriter, r *http.Request) {
 	exportID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExportID)
@@ -508,4 +554,161 @@ Return ONLY the caption text, nothing else.`,
 		"caption":   caption,
 		"export":    export,
 	})
+}
+
+// RevealExportRequest represents the request to reveal an export in file manager
+type RevealExportRequest struct {
+	// Path to reveal (if empty, uses export's storage_url)
+	Path string `json:"path,omitempty"`
+}
+
+// RevealExport handles POST /api/v1/exports/{id}/reveal
+// Opens the file manager and highlights/selects the export file.
+func (h *Handler) RevealExport(w http.ResponseWriter, r *http.Request) {
+	exportID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExportID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	// Get export to find the storage path
+	export, err := h.repo.GetExport(ctx, exportID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrExportNotFound)
+			return
+		}
+		h.log.WithError(err).WithField("export_id", exportID).Error("Failed to get export for reveal")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_export"}))
+		return
+	}
+
+	if export.StorageURL == "" {
+		h.respondError(w, &APIError{
+			Status:  http.StatusBadRequest,
+			Code:    "NO_STORAGE_PATH",
+			Message: "Export does not have a storage path",
+		})
+		return
+	}
+
+	// The storage URL is a file path on the local filesystem
+	filePath := export.StorageURL
+
+	// Reveal the file in the system file manager
+	if err := revealInFileManager(filePath); err != nil {
+		h.log.WithError(err).WithFields(logrus.Fields{
+			"export_id": exportID,
+			"path":      filePath,
+		}).Error("Failed to reveal export in file manager")
+		h.respondError(w, &APIError{
+			Status:  http.StatusInternalServerError,
+			Code:    "REVEAL_FAILED",
+			Message: fmt.Sprintf("Failed to open file manager: %v", err),
+		})
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"export_id": exportID,
+		"path":      filePath,
+		"status":    "revealed",
+	})
+}
+
+// OpenExportFolder handles POST /api/v1/exports/{id}/open-folder
+// Opens the containing folder in the file manager (without selecting the file).
+func (h *Handler) OpenExportFolder(w http.ResponseWriter, r *http.Request) {
+	exportID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExportID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	// Get export to find the storage path
+	export, err := h.repo.GetExport(ctx, exportID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrExportNotFound)
+			return
+		}
+		h.log.WithError(err).WithField("export_id", exportID).Error("Failed to get export for open-folder")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_export"}))
+		return
+	}
+
+	if export.StorageURL == "" {
+		h.respondError(w, &APIError{
+			Status:  http.StatusBadRequest,
+			Code:    "NO_STORAGE_PATH",
+			Message: "Export does not have a storage path",
+		})
+		return
+	}
+
+	// Get the directory containing the file
+	folderPath := filepath.Dir(export.StorageURL)
+
+	// Open the folder in the system file manager
+	if err := openFolder(folderPath); err != nil {
+		h.log.WithError(err).WithFields(logrus.Fields{
+			"export_id": exportID,
+			"path":      folderPath,
+		}).Error("Failed to open folder in file manager")
+		h.respondError(w, &APIError{
+			Status:  http.StatusInternalServerError,
+			Code:    "OPEN_FOLDER_FAILED",
+			Message: fmt.Sprintf("Failed to open folder: %v", err),
+		})
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"export_id": exportID,
+		"folder":    folderPath,
+		"status":    "opened",
+	})
+}
+
+// revealInFileManager opens the file manager and selects/highlights the specified file.
+// This is equivalent to "Reveal in Finder" (macOS) or "Show in Explorer" (Windows).
+func revealInFileManager(filePath string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS: Use 'open -R' to reveal (select) the file in Finder
+		cmd = exec.Command("open", "-R", filePath)
+	case "windows":
+		// Windows: Use 'explorer /select,' to select the file in Explorer
+		cmd = exec.Command("explorer", "/select,", filePath)
+	default:
+		// Linux and others: Use xdg-open on the parent directory
+		// Note: Most Linux file managers don't support selecting a specific file,
+		// so we open the containing folder instead
+		dir := filepath.Dir(filePath)
+		cmd = exec.Command("xdg-open", dir)
+	}
+
+	return cmd.Run()
+}
+
+// openFolder opens the specified folder in the system file manager.
+func openFolder(folderPath string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", folderPath)
+	case "windows":
+		cmd = exec.Command("explorer", folderPath)
+	default:
+		cmd = exec.Command("xdg-open", folderPath)
+	}
+
+	return cmd.Run()
 }

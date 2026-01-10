@@ -66,6 +66,8 @@ type Repository interface {
 	CreateExport(ctx context.Context, export *ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
 	UpdateExport(ctx context.Context, export *ExportIndex) error
+	UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error
+	UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error
 	DeleteExport(ctx context.Context, id uuid.UUID) error
 	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
 	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error)
@@ -673,6 +675,30 @@ func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) erro
 	_, err := r.db.NamedExecContext(ctx, query, export)
 	if err != nil {
 		return fmt.Errorf("failed to update export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error {
+	query := r.db.Rebind("UPDATE exports SET status = ?, error = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, status, errorMessage, id)
+	if err != nil {
+		return fmt.Errorf("failed to update export status: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
+	query := r.db.Rebind("UPDATE exports SET status = 'completed', storage_url = ?, file_size_bytes = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, storageURL, fileSizeBytes, id)
+	if err != nil {
+		return fmt.Errorf("failed to update export completion: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

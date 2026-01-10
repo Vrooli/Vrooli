@@ -83,29 +83,25 @@ export {
 export {
   // Types
   type BuildExportRequestOptions,
-  type ExecuteBinaryExportOptions,
-  type ExecuteBinaryExportResult,
   type ExportApiClient,
-  type ExportOverrides,
+  type ExportProgress,
   type ExportRequestPayload,
   type ExportResult,
-  type FileSystemFileHandle,
-  type FileSystemWritableFileStream,
+  type ExportStatusResponse,
   type RecordedVideo,
   type RecordedVideoStatus,
   type RenderSource,
-  type SaveFilePickerOptions,
+  type ServerExportResponse,
   // Pure functions
   buildExportOverrides,
   buildExportRequest,
-  createJsonBlob,
   // API functions
   createMockExportApiClient,
   defaultExportApiClient,
-  executeBinaryExport,
-  saveWithNativeFilePicker,
-  supportsFileSystemAccess,
-  triggerBlobDownload,
+  executeServerExport,
+  getExportStatus,
+  getLastOutputDir,
+  saveOutputDir,
 } from "./api";
 
 // Hooks (React state management)
@@ -119,6 +115,10 @@ export {
   useRecordedVideoStatus,
   type UseRecordedVideoStatusOptions,
   type UseRecordedVideoStatusResult,
+  // useExportProgress
+  useExportProgress,
+  type UseExportProgressOptions,
+  type UseExportProgressResult,
 } from "./hooks";
 
 // Context (for ExportDialog state management)

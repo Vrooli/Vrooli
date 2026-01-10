@@ -14,18 +14,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
-// allowedOutputDirs defines safe base directories for folder exports.
-var allowedOutputDirs = []string{
-	"coverage",
-	"data",
-	"tmp",
-	"temp",
-	"log",
-	"logs",
-	"artifact",
-	"artifacts",
-}
-
 // ExportToFolder exports execution timeline and all related artifacts to a structured folder.
 func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
 	// Validate and prepare output directory
@@ -175,22 +163,7 @@ func validateAndPrepareOutputDir(outputDir string) error {
 		return fmt.Errorf("directory traversal not allowed")
 	}
 
-	// Check if path is under one of the allowed base directories
-	allowed := false
-	for _, allowedDir := range allowedOutputDirs {
-		// Check if path contains the allowed directory
-		if strings.Contains(cleanPath, string(filepath.Separator)+allowedDir+string(filepath.Separator)) ||
-			strings.HasSuffix(cleanPath, string(filepath.Separator)+allowedDir) {
-			allowed = true
-			break
-		}
-	}
-
-	if !allowed {
-		return fmt.Errorf("output directory must be within one of: %s", strings.Join(allowedOutputDirs, ", "))
-	}
-
-	// Check for dangerous paths
+	// Check for dangerous system paths
 	dangerousPaths := []string{
 		"/",
 		"/bin",

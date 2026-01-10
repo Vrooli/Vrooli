@@ -23,6 +23,20 @@ type Client struct {
 	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
 	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
 	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
+	ExportSubscriptionID   *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
+}
+
+// ExportProgress represents progress updates during export rendering.
+// Sent to clients subscribed to export progress via WebSocket.
+type ExportProgress struct {
+	ExportID        string  `json:"export_id"`
+	ExecutionID     string  `json:"execution_id"`
+	Stage           string  `json:"stage"`            // preparing, capturing, encoding, finalizing, completed, failed
+	ProgressPercent float64 `json:"progress_percent"` // 0-100
+	Status          string  `json:"status"`           // processing, completed, failed
+	StorageURL      string  `json:"storage_url,omitempty"`
+	FileSizeBytes   int64   `json:"file_size_bytes,omitempty"`
+	Error           string  `json:"error,omitempty"`
 }
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
@@ -413,6 +427,51 @@ func (h *Hub) BroadcastPageSwitch(sessionID, activePageID string) {
 	}
 }
 
+// BroadcastExportProgress sends export progress updates to subscribed clients.
+// Clients can subscribe to either a specific export ID or an execution ID.
+func (h *Hub) BroadcastExportProgress(progress *ExportProgress) {
+	if progress == nil {
+		return
+	}
+
+	message := map[string]any{
+		"type":             "export_progress",
+		"export_id":        progress.ExportID,
+		"execution_id":     progress.ExecutionID,
+		"stage":            progress.Stage,
+		"progress_percent": progress.ProgressPercent,
+		"status":           progress.Status,
+		"timestamp":        getCurrentTimestamp(),
+	}
+
+	if progress.StorageURL != "" {
+		message["storage_url"] = progress.StorageURL
+	}
+	if progress.FileSizeBytes > 0 {
+		message["file_size_bytes"] = progress.FileSizeBytes
+	}
+	if progress.Error != "" {
+		message["error"] = progress.Error
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Send to clients subscribed to this export or execution
+		if client.ExportSubscriptionID != nil {
+			subID := *client.ExportSubscriptionID
+			if subID == progress.ExportID || subID == progress.ExecutionID {
+				select {
+				case client.Send <- message:
+				default:
+					// Client buffer full, skip (non-blocking)
+				}
+			}
+		}
+	}
+}
+
 // BroadcastDriverStatus sends driver health status to clients subscribed to driver status updates.
 // This enables real-time visibility into the playwright-driver sidecar health.
 func (h *Hub) BroadcastDriverStatus(driverHealth health.DriverHealth) {
@@ -617,6 +676,34 @@ func (c *Client) readPump() {
 			case "unsubscribe_driver_status":
 				c.DriverStatusSubscribed = false
 				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from driver status")
+			case "subscribe_export":
+				// Subscribe to export progress updates
+				// Can subscribe by export_id or execution_id
+				var subID string
+				if exportID, ok := msg["export_id"].(string); ok && exportID != "" {
+					subID = exportID
+				} else if execID, ok := msg["execution_id"].(string); ok && execID != "" {
+					subID = execID
+				}
+				if subID != "" {
+					c.ExportSubscriptionID = &subID
+					c.Hub.log.WithFields(logrus.Fields{
+						"client_id":       c.ID,
+						"subscription_id": subID,
+					}).Info("Client subscribed to export progress")
+					// Send confirmation
+					select {
+					case c.Send <- map[string]any{
+						"type":            "export_subscribed",
+						"subscription_id": subID,
+						"timestamp":       getCurrentTimestamp(),
+					}:
+					default:
+					}
+				}
+			case "unsubscribe_export":
+				c.ExportSubscriptionID = nil
+				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from export progress")
 			}
 		}
 	}
