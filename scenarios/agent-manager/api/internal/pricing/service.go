@@ -65,7 +65,6 @@ type Service interface {
 type pricingService struct {
 	repo      Repository
 	providers map[string]Provider
-	settings  *PricingSettings
 	log       *logrus.Logger
 
 	// In-memory cache for hot path

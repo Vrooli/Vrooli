@@ -563,20 +563,6 @@ func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
 	r.runSessionIDs[runID] = sessionID
 }
 
-// clearSessionID removes the session ID tracking for a run.
-func (r *OpenCodeRunner) clearSessionID(runID uuid.UUID) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.runSessionIDs, runID)
-}
-
-// sessionIDForRun returns the session ID for a run, if tracked.
-func (r *OpenCodeRunner) sessionIDForRun(runID uuid.UUID) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.runSessionIDs[runID]
-}
-
 // buildArgs constructs command-line arguments for resource-opencode run.
 func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// resource-opencode run passes through to opencode CLI

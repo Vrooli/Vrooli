@@ -231,18 +231,6 @@ func parseQueryInt(r *http.Request, keys ...string) (int, bool) {
 	return value, true
 }
 
-func parseQueryInt64(r *http.Request, keys ...string) (int64, bool) {
-	raw := queryFirst(r, keys...)
-	if raw == "" {
-		return 0, false
-	}
-	value, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return value, true
-}
-
 func parseQueryIntStrict(r *http.Request, keys ...string) (int, bool, error) {
 	raw := queryFirst(r, keys...)
 	if raw == "" {
@@ -276,10 +264,7 @@ func parseRunnerType(raw string) (domain.RunnerType, bool) {
 		parsed := protoconv.RunnerTypeFromProto(domainpb.RunnerType(numeric))
 		return parsed, parsed.IsValid()
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "RUNNER_TYPE_") {
-		normalized = strings.TrimPrefix(normalized, "RUNNER_TYPE_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "RUNNER_TYPE_")
 	normalized = strings.ToLower(normalized)
 	if strings.Contains(normalized, "_") {
 		normalized = strings.ReplaceAll(normalized, "_", "-")
@@ -300,10 +285,7 @@ func parseTaskStatus(raw string) (domain.TaskStatus, bool) {
 		parsed := protoconv.TaskStatusFromProto(domainpb.TaskStatus(numeric))
 		return parsed, parsed != ""
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "TASK_STATUS_") {
-		normalized = strings.TrimPrefix(normalized, "TASK_STATUS_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "TASK_STATUS_")
 	status := domain.TaskStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.TaskStatusQueued,
@@ -328,10 +310,7 @@ func parseRunStatus(raw string) (domain.RunStatus, bool) {
 		parsed := protoconv.RunStatusFromProto(domainpb.RunStatus(numeric))
 		return parsed, parsed != ""
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "RUN_STATUS_") {
-		normalized = strings.TrimPrefix(normalized, "RUN_STATUS_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "RUN_STATUS_")
 	status := domain.RunStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.RunStatusPending,

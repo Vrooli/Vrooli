@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 
 import { ImportSourceSelector } from '../components/ImportSourceSelector';
 import { StatusBadge, AlertBox } from '../components/ValidationStatus';
+import { ValidationAccordion } from '../components/ValidationAccordion';
 import { useRoutineImport, type InspectRoutineResponse } from '../hooks/useRoutineImport';
 import type { RoutineImportModalProps, FolderEntry, SelectedFile } from '../types';
 import { WORKFLOW_EXTENSIONS } from '../constants';
@@ -353,38 +354,35 @@ function PreviewStep({
         </p>
       </div>
 
-      {/* Status Badges */}
-      <div className="flex flex-wrap gap-2 mb-5">
-        <StatusBadge
-          success={inspectResult.is_valid}
-          label="Valid workflow"
-          warningLabel="Invalid workflow"
-        />
-        {preview && (
-          <>
+      {/* Validation Accordion */}
+      <div className="mb-5">
+        {inspectResult.validation ? (
+          <ValidationAccordion validation={inspectResult.validation} />
+        ) : (
+          /* Fallback for legacy API responses without validation */
+          <div className="flex flex-wrap gap-2">
             <StatusBadge
-              success={preview.has_start_node}
-              label="Has start node"
-              warningLabel="No start node"
+              success={inspectResult.is_valid}
+              label="Valid workflow"
+              warningLabel="Invalid workflow"
             />
-            <StatusBadge
-              success={(preview.node_count || 0) > 0}
-              label={`${preview.node_count} nodes`}
-              warningLabel="No nodes"
-            />
-          </>
+            {preview && (
+              <>
+                <StatusBadge
+                  success={preview.has_start_node}
+                  label="Has start node"
+                  warningLabel="No start node"
+                />
+                <StatusBadge
+                  success={(preview.node_count || 0) > 0}
+                  label={`${preview.node_count} nodes`}
+                  warningLabel="No nodes"
+                />
+              </>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Already indexed warning */}
-      {inspectResult.already_indexed && (
-        <AlertBox
-          type="warning"
-          title="Workflow already indexed"
-          message="This workflow is already registered. Enable overwrite to replace it."
-          className="mb-5"
-        />
-      )}
 
       {/* Workflow Name Input */}
       <div className="mb-4">

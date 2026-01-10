@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -113,6 +114,7 @@ func (o *Orchestrator) extractRecommendationsSync(ctx context.Context, run *doma
 	if err := o.runs.Update(ctx, run); err != nil {
 		// Log but don't fail - the extraction succeeded, just caching failed
 		// Next time the modal opens, it will re-extract (not ideal but functional)
+		log.Printf("[recommendation] Failed to persist recommendation result for run %s: %v", run.ID, err)
 	}
 
 	// Broadcast the update so UI gets real-time notification

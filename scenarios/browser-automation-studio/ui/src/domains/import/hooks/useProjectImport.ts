@@ -10,6 +10,7 @@ import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
 import { parseProject } from '../../../utils/projectProto';
 import type { Project } from '../../projects/store';
+import type { ValidationSummary } from '../types';
 
 export interface InspectFolderResponse {
   folder_path: string;
@@ -22,6 +23,12 @@ export interface InspectFolderResponse {
   indexed_project_id?: string;
   suggested_name?: string;
   suggested_description?: string;
+  /** Structured validation checks with status, labels, and descriptions */
+  validation?: ValidationSummary;
+  /** Number of workflow files detected */
+  workflow_count?: number;
+  /** Relative paths to detected workflow files */
+  workflow_locations?: string[];
 }
 
 export interface ImportProjectRequest {

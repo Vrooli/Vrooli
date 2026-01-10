@@ -464,7 +464,7 @@ func (p *WorkspaceSandboxProvider) parseError(operation string, sandboxID *uuid.
 	return &domain.SandboxError{
 		SandboxID:   sandboxID,
 		Operation:   operation,
-		Cause:       errors.New(fmt.Sprintf("request failed with status %d", resp.StatusCode)),
+		Cause:       fmt.Errorf("request failed with status %d", resp.StatusCode),
 		IsTransient: resp.StatusCode >= http.StatusInternalServerError,
 	}
 }

@@ -44,10 +44,11 @@ func (s *Service) InspectFile(ctx context.Context, projectID uuid.UUID, filePath
 	}
 
 	response := &InspectRoutineResponse{
-		FilePath: filePath,
+		FilePath:   filePath,
+		Validation: shared.NewValidationSummary(),
 	}
 
-	// Check if file exists
+	// Check 1: File exists
 	exists, err := s.scanner.Exists(ctx, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check file: %w", err)
@@ -55,26 +56,111 @@ func (s *Service) InspectFile(ctx context.Context, projectID uuid.UUID, filePath
 	response.Exists = exists
 
 	if !exists {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "file_exists",
+			Status:      shared.ValidationStatusError,
+			Label:       "File not found",
+			Description: "The specified file path does not exist.",
+		})
+		response.Validation.ComputeOverallStatus()
 		return response, nil
 	}
 
-	// Read file content
+	response.Validation.AddCheck(shared.ValidationCheck{
+		ID:          "file_exists",
+		Status:      shared.ValidationStatusPass,
+		Label:       "File exists",
+		Description: "The specified file path exists on the filesystem.",
+	})
+
+	// Check 2: Read file content
 	content, err := s.scanner.ReadFile(ctx, filePath)
 	if err != nil {
 		response.ValidationError = fmt.Sprintf("Failed to read file: %v", err)
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "file_readable",
+			Status:      shared.ValidationStatusError,
+			Label:       "Cannot read file",
+			Description: fmt.Sprintf("Failed to read file contents: %v", err),
+		})
+		response.Validation.ComputeOverallStatus()
 		return response, nil
 	}
 
-	// Validate workflow
+	response.Validation.AddCheck(shared.ValidationCheck{
+		ID:          "file_readable",
+		Status:      shared.ValidationStatusPass,
+		Label:       "File readable",
+		Description: "File contents were successfully read.",
+	})
+
+	// Check 3: Validate workflow JSON
 	validation, err := s.validator.ValidateWorkflowJSON(content)
 	if err != nil {
 		response.ValidationError = fmt.Sprintf("Validation error: %v", err)
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "valid_json",
+			Status:      shared.ValidationStatusError,
+			Label:       "Invalid JSON",
+			Description: fmt.Sprintf("File is not valid JSON: %v", err),
+		})
+		response.Validation.ComputeOverallStatus()
 		return response, nil
 	}
 
 	response.IsValid = validation.IsValid
 	if !validation.IsValid && len(validation.Errors) > 0 {
 		response.ValidationError = validation.Errors[0].Message
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "valid_json",
+			Status:      shared.ValidationStatusError,
+			Label:       "Invalid workflow",
+			Description: validation.Errors[0].Message,
+		})
+	} else {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "valid_json",
+			Status:      shared.ValidationStatusPass,
+			Label:       "Valid JSON",
+			Description: "File contains valid JSON structure.",
+		})
+	}
+
+	// Check 4: Has nodes array
+	if validation.NodeCount > 0 {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_nodes",
+			Status:      shared.ValidationStatusPass,
+			Label:       "Has nodes",
+			Description: fmt.Sprintf("Workflow contains %d node(s).", validation.NodeCount),
+			Context: map[string]any{
+				"count": validation.NodeCount,
+			},
+		})
+	} else {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_nodes",
+			Status:      shared.ValidationStatusWarn,
+			Label:       "No nodes",
+			Description: "Workflow has no nodes defined. You may want to add nodes after import.",
+		})
+	}
+
+	// Check 5: Has start node
+	if validation.HasStartNode {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_start_node",
+			Status:      shared.ValidationStatusPass,
+			Label:       "Has start node",
+			Description: "Workflow contains a start or trigger node.",
+		})
+	} else {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_start_node",
+			Status:      shared.ValidationStatusInfo,
+			Label:       "No start node",
+			Description: "No explicit start/trigger node found. This may be intentional for subflows.",
+		})
 	}
 
 	// Extract preview
@@ -85,7 +171,7 @@ func (s *Service) InspectFile(ctx context.Context, projectID uuid.UUID, filePath
 		response.Preview = preview
 	}
 
-	// Check if already indexed
+	// Check 6: Already indexed
 	// Use the filename to check against existing workflows in the project
 	filename := filepath.Base(filePath)
 	relPath := filepath.Join(shared.WorkflowsDir, filename)
@@ -94,8 +180,18 @@ func (s *Service) InspectFile(ctx context.Context, projectID uuid.UUID, filePath
 	if err == nil && existing != nil {
 		response.AlreadyIndexed = true
 		response.IndexedID = existing.ID.String()
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "already_indexed",
+			Status:      shared.ValidationStatusWarn,
+			Label:       "Already indexed",
+			Description: "This workflow is already registered. Enable overwrite to replace it.",
+			Context: map[string]any{
+				"workflow_id": existing.ID.String(),
+			},
+		})
 	}
 
+	response.Validation.ComputeOverallStatus()
 	return response, nil
 }
 

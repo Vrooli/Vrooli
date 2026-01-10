@@ -1,6 +1,8 @@
 // Package routines provides the routine/workflow import usecase.
 package routines
 
+import "github.com/vrooli/browser-automation-studio/usecases/import/shared"
+
 // InspectRoutineRequest is the request for inspecting a workflow file before import.
 type InspectRoutineRequest struct {
 	// FilePath is the absolute path to the workflow file
@@ -23,6 +25,8 @@ type InspectRoutineResponse struct {
 	IndexedID string `json:"indexed_id,omitempty"`
 	// Preview contains workflow metadata for preview
 	Preview *WorkflowPreview `json:"preview,omitempty"`
+	// Validation contains structured validation checks with status, labels, and descriptions
+	Validation *shared.ValidationSummary `json:"validation,omitempty"`
 }
 
 // WorkflowPreview contains workflow metadata for display before import.

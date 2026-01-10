@@ -61,6 +61,28 @@ export interface ValidationWarning {
   field?: string;
 }
 
+/** Validation check status from API */
+export type ValidationCheckStatus = 'pass' | 'warn' | 'error' | 'info';
+
+/** Single validation check from API */
+export interface ValidationCheck {
+  id: string;
+  status: ValidationCheckStatus;
+  label: string;
+  description: string;
+  context?: Record<string, unknown>;
+}
+
+/** Validation summary from API - single source of truth for all validation info */
+export interface ValidationSummary {
+  overall_status: ValidationCheckStatus;
+  pass_count: number;
+  warn_count: number;
+  error_count: number;
+  info_count: number;
+  checks: ValidationCheck[];
+}
+
 /** File information after selection */
 export interface SelectedFile {
   file: File;

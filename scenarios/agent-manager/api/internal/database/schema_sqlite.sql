@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS runs (
     total_size_bytes INTEGER DEFAULT 0,
     sandbox_config TEXT DEFAULT '{}',
     session_id TEXT,
+    recommendation_status TEXT DEFAULT 'none',
+    recommendation_result TEXT,
+    recommendation_attempts INTEGER DEFAULT 0,
+    recommendation_error TEXT,
+    recommendation_queued_at TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -94,6 +99,9 @@ CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
 
 -- Stats query indexes
 CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
+CREATE INDEX IF NOT EXISTS idx_runs_recommendation_pending
+    ON runs(recommendation_status, recommendation_queued_at)
+    WHERE recommendation_status IN ('pending', 'failed');
 
 -- ============================================================================
 -- Run Events - Append-only event stream

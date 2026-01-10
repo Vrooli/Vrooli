@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 
 import { ImportSourceSelector } from '../components/ImportSourceSelector';
 import { StatusBadge, AlertBox } from '../components/ValidationStatus';
+import { ValidationAccordion } from '../components/ValidationAccordion';
 import { useProjectImport, type InspectFolderResponse } from '../hooks/useProjectImport';
 import { getApiBase } from '../../../config';
 import type { ProjectImportModalProps, FolderEntry } from '../types';
@@ -406,43 +407,29 @@ function PreviewStep({
         </p>
       </div>
 
-      {/* Status Badges */}
+      {/* Validation Accordion */}
       <div
-        className="flex flex-wrap gap-2 mb-5"
+        className="mb-5"
         data-testid={selectors.dialogs.projectImport.preview.section}
       >
-        <StatusBadge
-          success={inspectResult.has_bas_metadata}
-          label="Has project metadata"
-          warningLabel="No project metadata"
-        />
-        <StatusBadge
-          success={inspectResult.has_workflows}
-          label="Workflows detected"
-          warningLabel="No workflows found"
-        />
+        {inspectResult.validation ? (
+          <ValidationAccordion validation={inspectResult.validation} />
+        ) : (
+          /* Fallback for legacy API responses without validation */
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge
+              success={inspectResult.has_bas_metadata}
+              label="Has project metadata"
+              warningLabel="No project metadata"
+            />
+            <StatusBadge
+              success={inspectResult.has_workflows}
+              label="Workflows detected"
+              warningLabel="No workflows found"
+            />
+          </div>
+        )}
       </div>
-
-      {/* Already indexed warning */}
-      {inspectResult.already_indexed && (
-        <AlertBox
-          type="warning"
-          title="Project already indexed"
-          message="This folder is already registered. Importing will return the existing project."
-          className="mb-5"
-          data-testid={selectors.dialogs.projectImport.preview.alreadyIndexedWarning}
-        />
-      )}
-
-      {/* Metadata error warning */}
-      {inspectResult.metadata_error && (
-        <AlertBox
-          type="warning"
-          title="Metadata parsing issue"
-          message={inspectResult.metadata_error}
-          className="mb-5"
-        />
-      )}
 
       {/* Name Input */}
       <div className="mb-4">

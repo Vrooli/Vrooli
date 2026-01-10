@@ -1,5 +1,7 @@
 package projects
 
+import "github.com/vrooli/browser-automation-studio/usecases/import/shared"
+
 // InspectProjectRequest is the request for inspecting a project folder.
 type InspectProjectRequest struct {
 	FolderPath string `json:"folder_path"`
@@ -17,6 +19,12 @@ type InspectProjectResponse struct {
 	IndexedProjectID     string `json:"indexed_project_id,omitempty"`
 	SuggestedName        string `json:"suggested_name,omitempty"`
 	SuggestedDescription string `json:"suggested_description,omitempty"`
+	// Validation contains structured validation checks with status, labels, and descriptions
+	Validation *shared.ValidationSummary `json:"validation,omitempty"`
+	// WorkflowCount is the number of workflow files detected
+	WorkflowCount int `json:"workflow_count,omitempty"`
+	// WorkflowLocations contains relative paths to detected workflow files
+	WorkflowLocations []string `json:"workflow_locations,omitempty"`
 }
 
 // ImportProjectRequest is the request for importing a project.

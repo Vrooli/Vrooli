@@ -2,6 +2,7 @@ package projects
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -58,29 +59,81 @@ func (s *Service) readProjectMetadata(folderPath string) (*basprojects.Project, 
 	return &meta, ""
 }
 
-// hasWorkflowFiles checks if a folder contains workflow files.
-func (s *Service) hasWorkflowFiles(folderPath string) bool {
-	workflowsRoot := filepath.Join(folderPath, "workflows")
-	info, err := os.Stat(workflowsRoot)
-	if err != nil || !info.IsDir() {
-		return false
+// WorkflowDetectionResult contains the results of workflow detection.
+type WorkflowDetectionResult struct {
+	Found     bool
+	Count     int
+	Locations []string
+}
+
+// detectWorkflows searches for workflow JSON files in any directory up to maxDepth levels.
+// A JSON file is considered a workflow if it contains a "nodes" array.
+func (s *Service) detectWorkflows(folderPath string, maxDepth int) *WorkflowDetectionResult {
+	result := &WorkflowDetectionResult{
+		Locations: []string{},
 	}
 
-	found := false
-	_ = filepath.WalkDir(workflowsRoot, func(path string, d os.DirEntry, walkErr error) error {
+	if maxDepth <= 0 {
+		maxDepth = 4
+	}
+
+	_ = filepath.WalkDir(folderPath, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if d.IsDir() {
-			return nil
-		}
-		if shared.IsWorkflowFile(d.Name()) {
-			found = true
+
+		// Skip hidden directories
+		if d.IsDir() && strings.HasPrefix(d.Name(), ".") {
 			return filepath.SkipDir
 		}
+
+		// Calculate depth
+		relPath, err := filepath.Rel(folderPath, path)
+		if err != nil {
+			return nil
+		}
+
+		// Enforce depth limit for directories
+		depth := strings.Count(relPath, string(os.PathSeparator))
+		if d.IsDir() && depth >= maxDepth {
+			return filepath.SkipDir
+		}
+
+		// Check JSON files
+		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
+			if s.isWorkflowJSONFile(path) {
+				result.Count++
+				result.Locations = append(result.Locations, relPath)
+				result.Found = true
+			}
+		}
+
 		return nil
 	})
-	return found
+
+	return result
+}
+
+// isWorkflowJSONFile checks if a JSON file contains a "nodes" array (workflow structure).
+func (s *Service) isWorkflowJSONFile(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+
+	var content map[string]interface{}
+	if err := json.Unmarshal(data, &content); err != nil {
+		return false
+	}
+
+	// Check for "nodes" array - the key indicator of a workflow file
+	if nodes, ok := content["nodes"]; ok {
+		if _, isArray := nodes.([]interface{}); isArray {
+			return true
+		}
+	}
+
+	return false
 }
 
 // InspectFolder inspects a project folder for import.
@@ -97,21 +150,35 @@ func (s *Service) InspectFolder(ctx context.Context, folderPath string) (*Inspec
 
 	response := &InspectProjectResponse{
 		FolderPath: absPath,
+		Validation: shared.NewValidationSummary(),
 	}
 
-	// Check if folder exists
+	// Check 1: Folder exists
 	exists, err := s.scanner.Exists(ctx, absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check folder: %w", err)
 	}
 
 	if !exists {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "folder_exists",
+			Status:      shared.ValidationStatusError,
+			Label:       "Folder not found",
+			Description: "The specified folder path does not exist on the filesystem.",
+		})
+		response.Validation.ComputeOverallStatus()
 		return response, nil
 	}
 
 	response.Exists = true
+	response.Validation.AddCheck(shared.ValidationCheck{
+		ID:          "folder_exists",
+		Status:      shared.ValidationStatusPass,
+		Label:       "Folder exists",
+		Description: "The specified folder path exists on the filesystem.",
+	})
 
-	// Check if it's a directory
+	// Check 2: Is directory
 	info, err := os.Stat(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat folder: %w", err)
@@ -119,24 +186,80 @@ func (s *Service) InspectFolder(ctx context.Context, folderPath string) (*Inspec
 
 	response.IsDir = info.IsDir()
 	if !response.IsDir {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "is_directory",
+			Status:      shared.ValidationStatusError,
+			Label:       "Not a directory",
+			Description: "The path must point to a directory, not a file.",
+		})
+		response.Validation.ComputeOverallStatus()
 		return response, nil
 	}
 
-	// Read project metadata
+	response.Validation.AddCheck(shared.ValidationCheck{
+		ID:          "is_directory",
+		Status:      shared.ValidationStatusPass,
+		Label:       "Is directory",
+		Description: "The path points to a valid directory.",
+	})
+
+	// Check 3: Project metadata (.bas/project.json)
 	meta, metaErr := s.readProjectMetadata(absPath)
 	if metaErr != "" {
 		response.HasBasMetadata = true
 		response.MetadataError = metaErr
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "project_metadata",
+			Status:      shared.ValidationStatusWarn,
+			Label:       "Metadata parse error",
+			Description: fmt.Sprintf("Found .bas/project.json but failed to parse: %s", metaErr),
+		})
 	} else if meta != nil {
 		response.HasBasMetadata = true
 		response.SuggestedName = strings.TrimSpace(meta.Name)
 		response.SuggestedDescription = strings.TrimSpace(meta.Description)
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "project_metadata",
+			Status:      shared.ValidationStatusPass,
+			Label:       "Project metadata",
+			Description: "Found valid .bas/project.json with project configuration.",
+		})
+	} else {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "project_metadata",
+			Status:      shared.ValidationStatusInfo,
+			Label:       "No project metadata",
+			Description: "No .bas/project.json found. This is optional - one can be created during import.",
+		})
 	}
 
-	// Check for workflow files
-	response.HasWorkflows = s.hasWorkflowFiles(absPath)
+	// Check 4: Workflow detection (using improved detection)
+	workflowResult := s.detectWorkflows(absPath, 4)
+	response.HasWorkflows = workflowResult.Found
+	response.WorkflowCount = workflowResult.Count
+	response.WorkflowLocations = workflowResult.Locations
 
-	// Check if already indexed
+	if workflowResult.Found {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_workflows",
+			Status:      shared.ValidationStatusPass,
+			Label:       "Workflows detected",
+			Description: fmt.Sprintf("Found %d workflow file(s) with valid structure.", workflowResult.Count),
+			Context: map[string]any{
+				"count":     workflowResult.Count,
+				"locations": workflowResult.Locations,
+			},
+		})
+	} else {
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "has_workflows",
+			Status:      shared.ValidationStatusInfo,
+			Label:       "No workflows found",
+			Description: "No workflow files detected. You can create workflows after import.",
+		})
+	}
+
+	// Check 5: Already indexed
 	existing, err := s.projecter.GetProjectByFolderPath(ctx, absPath)
 	if err == nil && existing != nil {
 		response.AlreadyIndexed = true
@@ -144,8 +267,18 @@ func (s *Service) InspectFolder(ctx context.Context, folderPath string) (*Inspec
 		if strings.TrimSpace(response.SuggestedName) == "" {
 			response.SuggestedName = existing.Name
 		}
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "already_indexed",
+			Status:      shared.ValidationStatusWarn,
+			Label:       "Already indexed",
+			Description: "This folder is already registered as a project. Importing will return the existing project.",
+			Context: map[string]any{
+				"project_id": existing.ID.String(),
+			},
+		})
 	}
 
+	response.Validation.ComputeOverallStatus()
 	return response, nil
 }
 

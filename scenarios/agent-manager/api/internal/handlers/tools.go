@@ -68,7 +68,7 @@ func (h *ToolsHandler) GetTools(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=60") // Cache for 1 minute
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // GetTool handles GET /api/v1/tools/{name}
@@ -104,7 +104,7 @@ func (h *ToolsHandler) GetTool(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // extractPathParam extracts the parameter after a prefix from the URL path.
@@ -120,5 +120,5 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	// Use simple JSON for error responses
-	w.Write([]byte(`{"error":"` + http.StatusText(status) + `","message":"` + message + `"}`))
+	_, _ = w.Write([]byte(`{"error":"` + http.StatusText(status) + `","message":"` + message + `"}`))
 }

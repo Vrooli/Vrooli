@@ -475,7 +475,7 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		e.failWithError(ctx, &domain.RunnerError{
 			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
-			Cause:       errors.New(fmt.Sprintf("execution exceeded timeout of %v", e.config.Timeout)),
+			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
 			IsTransient: false,
 		})
 		e.outcome = domain.RunOutcomeTimeout

@@ -8,6 +8,7 @@
 import { useState, useCallback } from 'react';
 import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
+import type { ValidationSummary } from '../types';
 
 /** Response from inspecting a routine file */
 export interface InspectRoutineResponse {
@@ -18,6 +19,8 @@ export interface InspectRoutineResponse {
   already_indexed: boolean;
   indexed_id?: string;
   preview?: WorkflowPreview;
+  /** Structured validation checks with status, labels, and descriptions */
+  validation?: ValidationSummary;
 }
 
 /** Workflow preview data */
