@@ -3,10 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { SandboxList } from "./components/SandboxList";
 import { SandboxDetail } from "./components/SandboxDetail";
+import { FileTree } from "./components/FileTree";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { CommitPendingDialog } from "./components/CommitPendingDialog";
 import { LaunchAgentDialog, type LaunchConfig } from "./components/LaunchAgentDialog";
+import type { HunkSelection } from "./components/DiffViewer";
 import {
   useHealth,
   useSandboxes,
@@ -34,6 +36,11 @@ export default function App() {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
+
+  // Review mode state (lifted from SandboxDetail for sidebar coordination)
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [selectedHunks, setSelectedHunks] = useState<HunkSelection[]>([]);
 
   // Sidebar resize state
   const SIDEBAR_MIN_WIDTH = 200;
@@ -206,6 +213,24 @@ export default function App() {
     [selectedSandbox, discardMutation]
   );
 
+  // Scroll to a specific file in the diff viewer
+  const handleScrollToFile = useCallback((filePath: string) => {
+    // Find the file element by data-file-path attribute and scroll to it
+    const fileElement = document.querySelector(
+      `[data-testid="diff-file-item"][data-file-path="${filePath}"]`
+    );
+    if (fileElement) {
+      fileElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  // Exit review mode and clear selections
+  const handleExitReviewMode = useCallback(() => {
+    setIsReviewMode(false);
+    setSelectedFileIds([]);
+    setSelectedHunks([]);
+  }, []);
+
   const handleLaunch = useCallback(
     (config: LaunchConfig) => {
       if (!selectedSandbox) return;
@@ -374,17 +399,39 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden" ref={mainRef}>
-        {/* Sandbox List - Left Panel */}
+        {/* Left Panel - Sandbox List or File Tree (in review mode) */}
         <div
           className="flex-shrink-0 border-r border-slate-800 overflow-hidden"
           style={{ width: sidebarWidth }}
         >
-          <SandboxList
-            sandboxes={sandboxes}
-            selectedId={currentSandbox?.id}
-            onSelect={handleSelectSandbox}
-            isLoading={sandboxesQuery.isLoading}
-          />
+          {isReviewMode && currentSandbox ? (
+            <FileTree
+              diff={diffQuery.data}
+              sandboxPath={(() => {
+                if (
+                  currentSandbox.noLock &&
+                  (!currentSandbox.reservedPaths || currentSandbox.reservedPaths.length === 0) &&
+                  !currentSandbox.reservedPath
+                ) {
+                  return "No lock";
+                }
+                const reserved = currentSandbox.reservedPaths?.length
+                  ? currentSandbox.reservedPaths
+                  : [currentSandbox.reservedPath || currentSandbox.scopePath || "/"];
+                return reserved[0] || "/";
+              })()}
+              selectedHunks={selectedHunks}
+              onFileClick={handleScrollToFile}
+              onExitReview={handleExitReviewMode}
+            />
+          ) : (
+            <SandboxList
+              sandboxes={sandboxes}
+              selectedId={currentSandbox?.id}
+              onSelect={handleSelectSandbox}
+              isLoading={sandboxesQuery.isLoading}
+            />
+          )}
         </div>
 
         {/* Sidebar Resize Handle */}
@@ -415,6 +462,13 @@ export default function App() {
             isStarting={startMutation.isPending}
             isDeleting={deleteMutation.isPending}
             isDiscarding={discardMutation.isPending}
+            // Review mode state (lifted)
+            isReviewMode={isReviewMode}
+            onReviewModeChange={setIsReviewMode}
+            selectedFileIds={selectedFileIds}
+            onSelectedFileIdsChange={setSelectedFileIds}
+            selectedHunks={selectedHunks}
+            onSelectedHunksChange={setSelectedHunks}
           />
         </div>
       </div>

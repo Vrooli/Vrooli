@@ -17,6 +17,8 @@ import {
   Trash2,
   Terminal,
   MousePointerClick,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -49,6 +51,13 @@ interface SandboxDetailProps {
   isStarting: boolean;
   isDeleting: boolean;
   isDiscarding?: boolean;
+  // Review mode state (lifted to parent)
+  isReviewMode: boolean;
+  onReviewModeChange: (enabled: boolean) => void;
+  selectedFileIds: string[];
+  onSelectedFileIdsChange: (ids: string[]) => void;
+  selectedHunks: HunkSelection[];
+  onSelectedHunksChange: (hunks: HunkSelection[]) => void;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; variant: Status }> = {
@@ -154,19 +163,32 @@ export function SandboxDetail({
   isStarting,
   isDeleting,
   isDiscarding,
+  isReviewMode,
+  onReviewModeChange,
+  selectedFileIds,
+  onSelectedFileIdsChange,
+  selectedHunks,
+  onSelectedHunksChange,
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveAllConfirm, setShowApproveAllConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
-  // Selection mode state for partial approval
-  const [showSelectionMode, setShowSelectionMode] = useState(false);
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [selectedHunks, setSelectedHunks] = useState<HunkSelection[]>([]);
-
   // Check if any hunks are selected (file selection is now derived from hunk selection)
   const hasSelection = selectedHunks.length > 0;
+
+  // Collapsed state for details section (persisted in localStorage)
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("wsb.detailsCollapsed") === "true";
+  });
+
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("wsb.detailsCollapsed", String(isDetailsCollapsed));
+  }, [isDetailsCollapsed]);
 
   // Header resize state
   const HEADER_MIN_HEIGHT = 200;
@@ -282,22 +304,52 @@ export function SandboxDetail({
       {/* Details Panel */}
       <div
         className="flex-shrink-0"
-        style={{ height: headerHeight }}
+        style={isDetailsCollapsed ? undefined : { height: headerHeight }}
       >
-        <Card className="h-full flex flex-col">
-          <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+        <Card className={isDetailsCollapsed ? "" : "h-full flex flex-col"}>
+          <CardHeader
+            className="flex-row items-center justify-between space-y-0 py-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
+            onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+            data-testid={SELECTORS.detailsCollapseToggle}
+          >
             <CardTitle className="flex items-center gap-2">
+              {isDetailsCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              )}
               <Box className="h-4 w-4 text-slate-500" />
               Details
             </CardTitle>
-            <Badge variant={statusConfig.variant}>
-              <span className="flex items-center gap-1.5">
-                {statusConfig.icon}
-                {statusConfig.label}
-              </span>
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={statusConfig.variant}>
+                <span className="flex items-center gap-1.5">
+                  {statusConfig.icon}
+                  {statusConfig.label}
+                </span>
+              </Badge>
+              {/* Show sandbox path summary in header when collapsed */}
+              {isDetailsCollapsed && (
+                <span className="text-xs text-slate-500 font-mono truncate max-w-[200px]">
+                  {(() => {
+                    if (
+                      sandbox.noLock &&
+                      (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                      !sandbox.reservedPath
+                    ) {
+                      return "No lock";
+                    }
+                    const reserved = sandbox.reservedPaths?.length
+                      ? sandbox.reservedPaths
+                      : [sandbox.reservedPath || sandbox.scopePath || "/"];
+                    return reserved[0] || "/";
+                  })()}
+                </span>
+              )}
+            </div>
           </CardHeader>
 
+          {!isDetailsCollapsed && (
           <CardContent className="flex-1 p-0 overflow-hidden">
             <ScrollArea className="h-full px-3 py-3">
               {/* Sandbox Path & ID */}
@@ -431,10 +483,16 @@ export function SandboxDetail({
               </div>
             </div>
           )}
+            </ScrollArea>
+          </CardContent>
+          )}
 
-          {/* Actions - show workflow actions for non-terminal, delete for non-deleted */}
+          {/* Actions - always visible, even when collapsed */}
           {(sandbox.status !== "deleted") && (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div
+              className="px-3 py-3 border-t border-slate-800 flex flex-wrap gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
               {canStop && (
                 <Button
                   variant="outline"
@@ -481,28 +539,29 @@ export function SandboxDetail({
                 </Button>
               )}
 
-              {/* Selection mode toggle */}
+              {/* Review mode toggle */}
               {canApproveReject && onApproveSelected && (
                 <Button
-                  variant={showSelectionMode ? "default" : "outline"}
+                  variant={isReviewMode ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
-                    setShowSelectionMode(!showSelectionMode);
-                    if (showSelectionMode) {
-                      // Clear selections when exiting selection mode
-                      setSelectedFileIds([]);
-                      setSelectedHunks([]);
+                    const newMode = !isReviewMode;
+                    onReviewModeChange(newMode);
+                    if (!newMode) {
+                      // Clear selections when exiting review mode
+                      onSelectedFileIdsChange([]);
+                      onSelectedHunksChange([]);
                     }
                   }}
                   data-testid="selection-mode-toggle"
                 >
                   <MousePointerClick className="h-3.5 w-3.5 mr-1.5" />
-                  {showSelectionMode ? "Exit Selection" : "Select Changes"}
+                  {isReviewMode ? "Exit Review" : "Review"}
                 </Button>
               )}
 
               {/* Approve Selected button - shows when hunks are selected */}
-              {canApproveReject && showSelectionMode && hasSelection && onApproveSelected && (
+              {canApproveReject && isReviewMode && hasSelection && onApproveSelected && (
                 <Button
                   variant="success"
                   size="sm"
@@ -515,8 +574,8 @@ export function SandboxDetail({
                       })),
                     });
                     // Clear selections after approval
-                    setSelectedFileIds([]);
-                    setSelectedHunks([]);
+                    onSelectedFileIdsChange([]);
+                    onSelectedHunksChange([]);
                   }}
                   disabled={isApproving}
                   data-testid="approve-selected-button"
@@ -753,16 +812,16 @@ export function SandboxDetail({
               </div>
             </div>
           )}
-            </ScrollArea>
-          </CardContent>
         </Card>
       </div>
 
-      {/* Header/Diff Resize Handle */}
-      <div
-        className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
-        onMouseDown={handleHeaderResizeStart}
-      />
+      {/* Header/Diff Resize Handle - only show when details expanded */}
+      {!isDetailsCollapsed && (
+        <div
+          className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
+          onMouseDown={handleHeaderResizeStart}
+        />
+      )}
 
       {/* Diff Viewer */}
       <div className="flex-1 min-h-0">
@@ -773,13 +832,13 @@ export function SandboxDetail({
           showFileActions={canApproveReject && !!onDiscardFile}
           onRejectFile={onDiscardFile}
           // File selection props for partial approval
-          showFileSelection={showSelectionMode && canApproveReject}
+          showFileSelection={isReviewMode && canApproveReject}
           selectedFiles={selectedFileIds}
-          onFileSelectionChange={setSelectedFileIds}
+          onFileSelectionChange={onSelectedFileIdsChange}
           // Hunk selection props for partial approval
-          showHunkSelection={showSelectionMode && canApproveReject}
+          showHunkSelection={isReviewMode && canApproveReject}
           selectedHunks={selectedHunks}
-          onHunkSelectionChange={setSelectedHunks}
+          onHunkSelectionChange={onSelectedHunksChange}
         />
       </div>
     </div>

@@ -400,6 +400,7 @@ export const SELECTORS = {
   // Detail panel
   detailPanel: "detail-panel",
   detailEmpty: "detail-empty-state",
+  detailsCollapseToggle: "details-collapse-toggle",
 
   // Diff viewer
   diffViewer: "diff-viewer",
