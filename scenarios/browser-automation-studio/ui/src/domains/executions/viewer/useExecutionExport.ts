@@ -15,6 +15,7 @@ import {
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
   EXPORT_STYLIZATION_OPTIONS,
+  isBinaryFormat,
   sanitizeFileStem,
   type ExportDimensionPreset,
   type ExportFormat,
@@ -519,7 +520,8 @@ export const useExecutionExport = ({
     null;
   const estimatedDurationSeconds =
     estimatedTotalDurationMs != null ? estimatedTotalDurationMs / 1000 : null;
-  const isBinaryExport = exportFormat !== "json";
+  // Check if ANY selected format is binary (mp4/gif) - used for stylization applicability
+  const isBinaryExport = exportFormats.some((f) => isBinaryFormat(f));
 
   // Toggle format in the multi-select array
   const toggleExportFormat = useCallback((format: ExportFormat) => {
