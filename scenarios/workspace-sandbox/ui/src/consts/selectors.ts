@@ -423,6 +423,13 @@ export const SELECTORS = {
   confirmReject: "confirm-reject",
   cancelAction: "cancel-action",
 
+  // Selection mode
+  selectionModeToggle: "selection-mode-toggle",
+  selectAllButton: "select-all-button",
+  approveSelectedButton: "approve-selected-button",
+  fileCheckbox: (fileId: string) => `file-checkbox-${fileId}`,
+  hunkCheckbox: (fileId: string, hunkIndex: number) => `hunk-checkbox-${fileId}-${hunkIndex}`,
+
   // Create dialog
   createDialog: "create-sandbox-dialog",
   scopePathInput: "scope-path-input",

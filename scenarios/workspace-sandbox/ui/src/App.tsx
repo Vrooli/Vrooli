@@ -143,6 +143,37 @@ export default function App() {
     );
   }, [selectedSandbox, approveMutation, queryClient]);
 
+  const handleApproveSelected = useCallback(
+    (options: {
+      hunkRanges?: Array<{ fileId: string; startLine: number; endLine: number }>;
+    }) => {
+      if (!selectedSandbox || !options.hunkRanges?.length) return;
+
+      approveMutation.mutate(
+        {
+          id: selectedSandbox.id,
+          options: {
+            mode: "hunks",
+            hunkRanges: options.hunkRanges,
+            overrideAcceptance: true, // Selected items bypass acceptance rules
+          },
+        },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.sandbox(selectedSandbox.id),
+            });
+            queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.diff(selectedSandbox.id),
+            });
+          },
+        }
+      );
+    },
+    [selectedSandbox, approveMutation, queryClient]
+  );
+
   const handleReject = useCallback(() => {
     if (!selectedSandbox) return;
     rejectMutation.mutate(
@@ -377,6 +408,7 @@ export default function App() {
             onDelete={handleDelete}
             onDiscardFile={handleDiscardFile}
             onLaunchAgent={() => setLaunchDialogOpen(true)}
+            onApproveSelected={handleApproveSelected}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
             isStopping={stopMutation.isPending}

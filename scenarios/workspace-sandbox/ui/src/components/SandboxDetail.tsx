@@ -16,12 +16,13 @@ import {
   Check,
   Trash2,
   Terminal,
+  MousePointerClick,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
-import { DiffViewer } from "./DiffViewer";
+import { DiffViewer, type HunkSelection } from "./DiffViewer";
 import type { Sandbox, DiffResult, Status } from "../lib/api";
 import { formatBytes, formatRelativeTime } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
@@ -39,6 +40,9 @@ interface SandboxDetailProps {
   onDelete: () => void;
   onDiscardFile?: (fileId: string) => void;
   onLaunchAgent?: () => void;
+  onApproveSelected?: (options: {
+    hunkRanges: Array<{ fileId: string; startLine: number; endLine: number }>;
+  }) => void;
   isApproving: boolean;
   isRejecting: boolean;
   isStopping: boolean;
@@ -143,6 +147,7 @@ export function SandboxDetail({
   onDelete,
   onDiscardFile,
   onLaunchAgent,
+  onApproveSelected,
   isApproving,
   isRejecting,
   isStopping,
@@ -154,6 +159,14 @@ export function SandboxDetail({
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveAllConfirm, setShowApproveAllConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+
+  // Selection mode state for partial approval
+  const [showSelectionMode, setShowSelectionMode] = useState(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [selectedHunks, setSelectedHunks] = useState<HunkSelection[]>([]);
+
+  // Check if any hunks are selected (file selection is now derived from hunk selection)
+  const hasSelection = selectedHunks.length > 0;
 
   // Header resize state
   const HEADER_MIN_HEIGHT = 200;
@@ -261,6 +274,8 @@ export function SandboxDetail({
     sandbox.status === "approved" ||
     sandbox.status === "rejected" ||
     sandbox.status === "deleted";
+  // When noLock is true, acceptance rules don't apply - show simplified "Approve All" button
+  const isNoLock = sandbox.noLock === true;
 
   return (
     <div className="h-full flex flex-col" data-testid={SELECTORS.detailPanel} ref={containerRef}>
@@ -466,66 +481,71 @@ export function SandboxDetail({
                 </Button>
               )}
 
+              {/* Selection mode toggle */}
+              {canApproveReject && onApproveSelected && (
+                <Button
+                  variant={showSelectionMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowSelectionMode(!showSelectionMode);
+                    if (showSelectionMode) {
+                      // Clear selections when exiting selection mode
+                      setSelectedFileIds([]);
+                      setSelectedHunks([]);
+                    }
+                  }}
+                  data-testid="selection-mode-toggle"
+                >
+                  <MousePointerClick className="h-3.5 w-3.5 mr-1.5" />
+                  {showSelectionMode ? "Exit Selection" : "Select Changes"}
+                </Button>
+              )}
+
+              {/* Approve Selected button - shows when hunks are selected */}
+              {canApproveReject && showSelectionMode && hasSelection && onApproveSelected && (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={() => {
+                    onApproveSelected({
+                      hunkRanges: selectedHunks.map((h) => ({
+                        fileId: h.fileId,
+                        startLine: h.startLine,
+                        endLine: h.endLine,
+                      })),
+                    });
+                    // Clear selections after approval
+                    setSelectedFileIds([]);
+                    setSelectedHunks([]);
+                  }}
+                  disabled={isApproving}
+                  data-testid="approve-selected-button"
+                >
+                  {isApproving ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Approve Selected ({selectedHunks.length} {selectedHunks.length === 1 ? "hunk" : "hunks"})
+                </Button>
+              )}
+
               {canApproveReject && (
                 <>
-                  {/* Approve reserved changes (default) */}
-                  {showApproveConfirm ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400 mr-1">Approve accepted changes?</span>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => {
-                          onApprove();
-                          setShowApproveConfirm(false);
-                        }}
-                        disabled={isApproving}
-                        data-testid={SELECTORS.confirmApprove}
-                      >
-                        {isApproving ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          "Yes"
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowApproveConfirm(false)}
-                        data-testid={SELECTORS.cancelAction}
-                      >
-                        No
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => {
-                        setShowApproveAllConfirm(false);
-                        setShowApproveConfirm(true);
-                      }}
-                      disabled={isApproving}
-                      data-testid={SELECTORS.approveButton}
-                    >
-                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                      Approve Accepted
-                    </Button>
-                  )}
-
-                  {/* Override acceptance rules */}
-                  {onOverrideAcceptance &&
-                    (showApproveAllConfirm ? (
+                  {/* When noLock is true, show single "Approve All" button */}
+                  {isNoLock ? (
+                    showApproveAllConfirm ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400 mr-1">Override acceptance rules?</span>
+                        <span className="text-xs text-slate-400 mr-1">Approve all changes?</span>
                         <Button
                           variant="success"
                           size="sm"
                           onClick={() => {
-                            onOverrideAcceptance();
+                            (onOverrideAcceptance || onApprove)();
                             setShowApproveAllConfirm(false);
                           }}
                           disabled={isApproving}
+                          data-testid={SELECTORS.confirmApprove}
                         >
                           {isApproving ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -537,24 +557,114 @@ export function SandboxDetail({
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowApproveAllConfirm(false)}
+                          data-testid={SELECTORS.cancelAction}
                         >
                           No
                         </Button>
                       </div>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant="success"
                         size="sm"
-                        onClick={() => {
-                          setShowApproveConfirm(false);
-                          setShowApproveAllConfirm(true);
-                        }}
+                        onClick={() => setShowApproveAllConfirm(true)}
                         disabled={isApproving}
+                        data-testid={SELECTORS.approveButton}
                       >
                         <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                        Override Acceptance
+                        Approve All
                       </Button>
-                    ))}
+                    )
+                  ) : (
+                    <>
+                      {/* Approve reserved changes (default) */}
+                      {showApproveConfirm ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-400 mr-1">Approve accepted changes?</span>
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => {
+                              onApprove();
+                              setShowApproveConfirm(false);
+                            }}
+                            disabled={isApproving}
+                            data-testid={SELECTORS.confirmApprove}
+                          >
+                            {isApproving ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              "Yes"
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowApproveConfirm(false)}
+                            data-testid={SELECTORS.cancelAction}
+                          >
+                            No
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => {
+                            setShowApproveAllConfirm(false);
+                            setShowApproveConfirm(true);
+                          }}
+                          disabled={isApproving}
+                          data-testid={SELECTORS.approveButton}
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                          Approve Accepted
+                        </Button>
+                      )}
+
+                      {/* Override acceptance rules */}
+                      {onOverrideAcceptance &&
+                        (showApproveAllConfirm ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-slate-400 mr-1">Override acceptance rules?</span>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => {
+                                onOverrideAcceptance();
+                                setShowApproveAllConfirm(false);
+                              }}
+                              disabled={isApproving}
+                            >
+                              {isApproving ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Yes"
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowApproveAllConfirm(false)}
+                            >
+                              No
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowApproveConfirm(false);
+                              setShowApproveAllConfirm(true);
+                            }}
+                            disabled={isApproving}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Override Acceptance
+                          </Button>
+                        ))}
+                    </>
+                  )}
 
                   {/* Reject button with confirmation */}
                   {showRejectConfirm ? (
@@ -662,6 +772,14 @@ export function SandboxDetail({
           error={diffError}
           showFileActions={canApproveReject && !!onDiscardFile}
           onRejectFile={onDiscardFile}
+          // File selection props for partial approval
+          showFileSelection={showSelectionMode && canApproveReject}
+          selectedFiles={selectedFileIds}
+          onFileSelectionChange={setSelectedFileIds}
+          // Hunk selection props for partial approval
+          showHunkSelection={showSelectionMode && canApproveReject}
+          selectedHunks={selectedHunks}
+          onHunkSelectionChange={setSelectedHunks}
         />
       </div>
     </div>

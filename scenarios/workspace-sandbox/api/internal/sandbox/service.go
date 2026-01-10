@@ -978,6 +978,14 @@ func applyAcceptanceInfo(sandbox *types.Sandbox, changes []*types.FileChange) {
 }
 
 func evaluateAcceptance(sandbox *types.Sandbox, change *types.FileChange) *types.AcceptanceInfo {
+	// When noLock is true, all files are automatically accepted (no acceptance rules apply)
+	if sandbox.NoLock {
+		return &types.AcceptanceInfo{
+			Status: types.AcceptanceStatusAccepted,
+			Reason: "no acceptance rules (noLock sandbox)",
+		}
+	}
+
 	behavior := normalizeBehavior(sandbox.Behavior)
 	acceptance := behavior.Acceptance
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   FileDiff,
   FilePlus,
@@ -35,6 +35,10 @@ interface DiffViewerProps {
   onApproveFile?: (fileId: string) => void;
   onRejectFile?: (fileId: string) => void;
   showFileActions?: boolean;
+  // File-level selection props for partial approval
+  showFileSelection?: boolean;
+  selectedFiles?: string[];
+  onFileSelectionChange?: (fileIds: string[]) => void;
   // Hunk-level selection props [OT-P1-001]
   showHunkSelection?: boolean;
   selectedHunks?: HunkSelection[];
@@ -223,6 +227,11 @@ interface FileDiffSectionProps {
   onApprove?: () => void;
   onReject?: () => void;
   showActions?: boolean;
+  // File-level selection props
+  showFileSelection?: boolean;
+  isFileSelected?: boolean;
+  isFileIndeterminate?: boolean;
+  onToggleFileSelection?: () => void;
   // Hunk selection props [OT-P1-001]
   showHunkSelection?: boolean;
   selectedHunkIndices?: Set<number>;
@@ -235,11 +244,23 @@ function FileDiffSection({
   onApprove,
   onReject,
   showActions,
+  showFileSelection,
+  isFileSelected,
+  isFileIndeterminate,
+  onToggleFileSelection,
   showHunkSelection,
   selectedHunkIndices,
   onToggleHunkSelection,
 }: FileDiffSectionProps) {
   const [expanded, setExpanded] = useState(true);
+  const fileCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Set indeterminate state on checkbox (can't be set via attribute)
+  useEffect(() => {
+    if (fileCheckboxRef.current) {
+      fileCheckboxRef.current.indeterminate = isFileIndeterminate ?? false;
+    }
+  }, [isFileIndeterminate]);
 
   const changeIcon = {
     added: <FilePlus className="h-4 w-4 text-emerald-400" />,
@@ -285,6 +306,22 @@ function FileDiffSection({
         className="flex items-center gap-2 px-3 py-2 bg-slate-800/30 cursor-pointer hover:bg-slate-800/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
+        {/* File-level selection checkbox */}
+        {showFileSelection && (
+          <label
+            className="flex items-center cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`file-checkbox-${fileChange?.id || file.path}`}
+          >
+            <input
+              ref={fileCheckboxRef}
+              type="checkbox"
+              checked={isFileSelected}
+              onChange={onToggleFileSelection}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+            />
+          </label>
+        )}
         {expanded ? (
           <ChevronDown className="h-4 w-4 text-slate-500" />
         ) : (
@@ -383,6 +420,9 @@ export function DiffViewer({
   onApproveFile,
   onRejectFile,
   showFileActions = false,
+  showFileSelection = false,
+  selectedFiles = [],
+  onFileSelectionChange,
   showHunkSelection = false,
   selectedHunks = [],
   onHunkSelectionChange,
@@ -404,6 +444,9 @@ export function DiffViewer({
     return map;
   }, [diff?.files]);
 
+  // Build a set of selected file IDs for quick lookup
+  const selectedFileSet = useMemo(() => new Set(selectedFiles), [selectedFiles]);
+
   // Build a map of file path -> set of selected hunk indices [OT-P1-001]
   const selectedHunksByFile = useMemo(() => {
     const map = new Map<string, Set<number>>();
@@ -415,9 +458,45 @@ export function DiffViewer({
     return map;
   }, [selectedHunks]);
 
-  // Handle toggling hunk selection
-  const handleToggleHunk = (filePath: string, fileId: string, hunkIndex: number, hunk: ParsedHunk) => {
-    if (!onHunkSelectionChange) return;
+  // Handle toggling file selection - also selects/deselects all hunks
+  const handleToggleFile = (filePath: string, fileId: string, hunks: ParsedHunk[]) => {
+    if (!onFileSelectionChange || !onHunkSelectionChange) return;
+
+    const currentHunkSelection = selectedHunksByFile.get(filePath);
+    const selectedCount = currentHunkSelection?.size ?? 0;
+    const totalHunks = hunks.length;
+
+    // If all hunks selected (or file is selected), deselect all
+    // If no hunks or partial, select all
+    const shouldSelectAll = selectedCount < totalHunks;
+
+    if (shouldSelectAll) {
+      // Add file to selection
+      if (!selectedFileSet.has(fileId)) {
+        onFileSelectionChange([...selectedFiles, fileId]);
+      }
+      // Add all hunks that aren't already selected
+      const hunksToAdd = hunks
+        .map((hunk, index) => ({
+          fileId,
+          filePath,
+          startLine: hunk.newStart,
+          endLine: hunk.newStart + hunk.newCount - 1,
+          hunkIndex: index,
+        }))
+        .filter((h) => !currentHunkSelection?.has(h.hunkIndex));
+      onHunkSelectionChange([...selectedHunks, ...hunksToAdd]);
+    } else {
+      // Remove file from selection
+      onFileSelectionChange(selectedFiles.filter((id) => id !== fileId));
+      // Remove all hunks for this file
+      onHunkSelectionChange(selectedHunks.filter((h) => h.filePath !== filePath));
+    }
+  };
+
+  // Handle toggling hunk selection - also updates file selection when all hunks selected/deselected
+  const handleToggleHunk = (filePath: string, fileId: string, hunkIndex: number, hunk: ParsedHunk, totalHunks: number) => {
+    if (!onHunkSelectionChange || !onFileSelectionChange) return;
 
     const isCurrentlySelected = selectedHunks.some(
       (s) => s.filePath === filePath && s.hunkIndex === hunkIndex
@@ -425,14 +504,19 @@ export function DiffViewer({
 
     if (isCurrentlySelected) {
       // Remove this hunk from selection
-      onHunkSelectionChange(
-        selectedHunks.filter(
-          (s) => !(s.filePath === filePath && s.hunkIndex === hunkIndex)
-        )
+      const newHunkSelection = selectedHunks.filter(
+        (s) => !(s.filePath === filePath && s.hunkIndex === hunkIndex)
       );
+      onHunkSelectionChange(newHunkSelection);
+
+      // If no more hunks selected for this file, also remove file from selection
+      const remainingHunksForFile = newHunkSelection.filter((h) => h.filePath === filePath);
+      if (remainingHunksForFile.length === 0 && selectedFileSet.has(fileId)) {
+        onFileSelectionChange(selectedFiles.filter((id) => id !== fileId));
+      }
     } else {
       // Add this hunk to selection
-      onHunkSelectionChange([
+      const newHunkSelection = [
         ...selectedHunks,
         {
           fileId,
@@ -441,7 +525,14 @@ export function DiffViewer({
           endLine: hunk.newStart + hunk.newCount - 1,
           hunkIndex,
         },
-      ]);
+      ];
+      onHunkSelectionChange(newHunkSelection);
+
+      // If all hunks now selected, also add file to selection
+      const newHunksForFile = newHunkSelection.filter((h) => h.filePath === filePath);
+      if (newHunksForFile.length === totalHunks && !selectedFileSet.has(fileId)) {
+        onFileSelectionChange([...selectedFiles, fileId]);
+      }
     }
   };
 
@@ -457,6 +548,59 @@ export function DiffViewer({
 
         {diff && hasChanges && (
           <div className="flex items-center gap-3" data-testid={SELECTORS.diffStats}>
+            {/* Bulk select controls */}
+            {showFileSelection && diff.files && diff.files.length > 0 && (
+              <>
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded hover:bg-slate-800"
+                  onClick={() => {
+                    if (!onFileSelectionChange || !onHunkSelectionChange || !diff.files) return;
+                    const allFileIds = diff.files.map((f) => f.id);
+                    // Check if all hunks are selected (fully selected state)
+                    const totalHunks = parsedFiles.reduce((sum, f) => sum + f.hunks.length, 0);
+                    const isAllSelected = selectedHunks.length === totalHunks && totalHunks > 0;
+
+                    if (isAllSelected) {
+                      // Deselect all files and hunks
+                      onFileSelectionChange([]);
+                      onHunkSelectionChange([]);
+                    } else {
+                      // Select all files and all hunks
+                      onFileSelectionChange(allFileIds);
+                      const allHunks: HunkSelection[] = [];
+                      parsedFiles.forEach((file) => {
+                        const fileChange = fileChangeMap.get(file.path);
+                        const fileId = fileChange?.id ?? "";
+                        file.hunks.forEach((hunk, index) => {
+                          allHunks.push({
+                            fileId,
+                            filePath: file.path,
+                            startLine: hunk.newStart,
+                            endLine: hunk.newStart + hunk.newCount - 1,
+                            hunkIndex: index,
+                          });
+                        });
+                      });
+                      onHunkSelectionChange(allHunks);
+                    }
+                  }}
+                  data-testid="select-all-button"
+                >
+                  {(() => {
+                    const totalHunks = parsedFiles.reduce((sum, f) => sum + f.hunks.length, 0);
+                    return selectedHunks.length === totalHunks && totalHunks > 0
+                      ? "Deselect All"
+                      : "Select All";
+                  })()}
+                </button>
+                {selectedHunks.length > 0 && (
+                  <span className="text-xs text-emerald-500">
+                    {selectedHunks.length} hunks selected
+                  </span>
+                )}
+                <span className="text-slate-700">|</span>
+              </>
+            )}
             <span className="flex items-center gap-1 text-xs text-emerald-500">
               <Plus className="h-3 w-3" />
               {diff.totalAdded}
@@ -516,6 +660,12 @@ export function DiffViewer({
               {parsedFiles.map((file) => {
                 const fileChange = fileChangeMap.get(file.path);
                 const fileId = fileChange?.id ?? "";
+                const totalHunks = file.hunks.length;
+                const selectedHunkCount = selectedHunksByFile.get(file.path)?.size ?? 0;
+                // File is fully selected if all hunks are selected
+                const isFileFullySelected = totalHunks > 0 && selectedHunkCount === totalHunks;
+                // File is indeterminate if some (but not all) hunks are selected
+                const isFileIndeterminate = selectedHunkCount > 0 && selectedHunkCount < totalHunks;
                 return (
                   <FileDiffSection
                     key={file.path}
@@ -532,12 +682,21 @@ export function DiffViewer({
                         ? () => onRejectFile(fileChange.id)
                         : undefined
                     }
+                    // File selection props
+                    showFileSelection={showFileSelection}
+                    isFileSelected={isFileFullySelected}
+                    isFileIndeterminate={isFileIndeterminate}
+                    onToggleFileSelection={
+                      onFileSelectionChange && onHunkSelectionChange
+                        ? () => handleToggleFile(file.path, fileId, file.hunks)
+                        : undefined
+                    }
                     // Hunk selection props [OT-P1-001]
                     showHunkSelection={showHunkSelection}
                     selectedHunkIndices={selectedHunksByFile.get(file.path)}
                     onToggleHunkSelection={
-                      onHunkSelectionChange
-                        ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk)
+                      onHunkSelectionChange && onFileSelectionChange
+                        ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk, totalHunks)
                         : undefined
                     }
                   />
