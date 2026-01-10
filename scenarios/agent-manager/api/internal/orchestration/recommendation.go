@@ -180,8 +180,9 @@ func (o *Orchestrator) getInvestigationText(ctx context.Context, run *domain.Run
 	}
 
 	events, err := o.events.Get(ctx, run.ID, event.GetOptions{
-		EventTypes: []domain.RunEventType{domain.EventTypeMessage},
-		Limit:      100,
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeMessage},
+		Limit:         100,
 	})
 	if err != nil || len(events) == 0 {
 		return "", "events"

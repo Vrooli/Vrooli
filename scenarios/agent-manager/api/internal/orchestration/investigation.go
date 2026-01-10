@@ -287,7 +287,10 @@ func (o *Orchestrator) buildInvestigationAttachments(
 		))
 
 		if o.events != nil {
-			events, err := o.GetRunEvents(ctx, runID, event.GetOptions{Limit: investigationEventLimit})
+			events, err := o.GetRunEvents(ctx, runID, event.GetOptions{
+				AfterSequence: -1,
+				Limit:         investigationEventLimit,
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -352,7 +355,10 @@ func (o *Orchestrator) buildApplyAttachments(
 	))
 
 	if o.events != nil {
-		events, err := o.GetRunEvents(ctx, investigationRun.ID, event.GetOptions{Limit: investigationEventLimit})
+		events, err := o.GetRunEvents(ctx, investigationRun.ID, event.GetOptions{
+			AfterSequence: -1,
+			Limit:         investigationEventLimit,
+		})
 		if err != nil {
 			return nil, err
 		}

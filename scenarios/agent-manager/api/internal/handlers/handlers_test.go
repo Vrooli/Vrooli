@@ -1260,16 +1260,35 @@ func TestGetRunEvents_Success(t *testing.T) {
 
 	// Create a run first
 	profile := createTestProfile(t, router)
-	task := createTestTask(t, router)
+	prompt := "Summarize the task and list next steps."
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "test-task-" + uuid.New().String()[:8],
+			Description: prompt,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("failed to create test task: %d %s", rr.Code, rr.Body.String())
+	}
+
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+	task := taskResp.Task
 
 	agentProfileID := profile.Id
-	body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         task.Id,
 		AgentProfileId: &agentProfileID,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
+	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
 	var createdRunResp apipb.CreateRunResponse
@@ -1288,7 +1307,21 @@ func TestGetRunEvents_Success(t *testing.T) {
 	// Verify response contains events array
 	var response apipb.GetRunEventsResponse
 	decodeProtoJSON(t, rr.Body.Bytes(), &response)
-	// Events may be empty for a fresh run, that's OK
+	if len(response.Events) == 0 {
+		t.Fatalf("expected events for run, got none")
+	}
+
+	found := false
+	for _, evt := range response.Events {
+		msg := evt.GetMessage()
+		if msg != nil && msg.Role == "user" && msg.Content == prompt {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected initial user prompt event with content %q", prompt)
+	}
 }
 
 // TestGetRunEvents_NotFound tests getting events for non-existent run.

@@ -1730,7 +1730,7 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		req.Limit = &value
 	}
 
-	opts := event.GetOptions{}
+	opts := event.GetOptions{AfterSequence: -1}
 	eventTypesRaw := r.URL.Query()["event_types"]
 	if len(eventTypesRaw) == 0 {
 		eventTypesRaw = r.URL.Query()["eventTypes"]
