@@ -167,8 +167,10 @@ export interface InvestigationContextFlags {
 
 /** Investigation settings - configuration for investigation agents */
 export interface InvestigationSettings {
-  /** Plain text prompt template - no variables/templating */
+  /** Plain text prompt template for Investigation agents - no variables/templating */
   promptTemplate: string;
+  /** Plain text prompt template for Apply Investigation agents - no variables/templating */
+  applyPromptTemplate: string;
   /** Default investigation depth */
   defaultDepth: InvestigationDepth;
   /** Default context flags */

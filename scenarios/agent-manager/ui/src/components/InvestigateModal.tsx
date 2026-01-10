@@ -38,6 +38,8 @@ interface InvestigateModalProps {
   confirmLabel: string;
   /** Run IDs to investigate - used for scenario detection */
   runIds?: string[];
+  /** Hide the depth selector (used for Apply Investigation which inherits depth) */
+  hideDepthSelector?: boolean;
   onSubmit: (
     customContext: string,
     depth: InvestigationDepth,
@@ -93,6 +95,7 @@ export function InvestigateModal({
   description,
   confirmLabel,
   runIds,
+  hideDepthSelector = false,
   onSubmit,
   loading = false,
   error = null,
@@ -270,42 +273,44 @@ export function InvestigateModal({
             </div>
           )}
 
-          {/* Investigation Depth */}
-          <div className="space-y-2">
-            <Label>Investigation Depth</Label>
-            <div className="grid gap-2">
-              {depthOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                    depth === option.value
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="depth"
-                    value={option.value}
-                    checked={depth === option.value}
-                    onChange={(e) =>
-                      setDepth(e.target.value as InvestigationDepth)
-                    }
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 font-medium">
-                      {option.icon}
-                      {option.label}
+          {/* Investigation Depth - hidden for Apply Investigation */}
+          {!hideDepthSelector && (
+            <div className="space-y-2">
+              <Label>Investigation Depth</Label>
+              <div className="grid gap-2">
+                {depthOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                      depth === option.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="depth"
+                      value={option.value}
+                      checked={depth === option.value}
+                      onChange={(e) =>
+                        setDepth(e.target.value as InvestigationDepth)
+                      }
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        {option.icon}
+                        {option.label}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {option.description}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {option.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Context Selection (collapsible) */}
           <div className="space-y-2">

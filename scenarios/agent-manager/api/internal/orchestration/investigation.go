@@ -363,12 +363,24 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
+	// Fetch investigation settings to get the configurable apply prompt template
+	var settings *domain.InvestigationSettings
+	if o.investigationSettings != nil {
+		settings, err = o.investigationSettings.Get(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get investigation settings: %w", err)
+		}
+	}
+	if settings == nil {
+		settings = domain.DefaultInvestigationSettings()
+	}
+
 	attachments, err := o.buildApplyAttachments(ctx, run, task, customContext)
 	if err != nil {
 		return nil, err
 	}
 
-	prompt := buildApplyPrompt(investigationRunID, customContext)
+	prompt := buildApplyPrompt(settings.ApplyPromptTemplate, investigationRunID, customContext)
 	// Use the original task's project root for the apply run
 	applyTask, err := o.createInvestigationTask(ctx, "Apply Investigation", prompt, attachments, task.ProjectRoot)
 	if err != nil {
@@ -556,29 +568,26 @@ func (o *Orchestrator) buildApplyAttachments(
 	return attachments, nil
 }
 
-func buildApplyPrompt(investigationRunID uuid.UUID, customContext string) string {
+func buildApplyPrompt(template string, investigationRunID uuid.UUID, customContext string) string {
 	var sb strings.Builder
-	sb.WriteString("# Apply Investigation Recommendations\n\n")
-	sb.WriteString("You are applying recommendations from a prior investigation run.\n\n")
-	sb.WriteString(fmt.Sprintf("Investigation Run ID: %s\n\n", investigationRunID))
 
-	sb.WriteString("## How to Fetch Full Investigation Data\n")
-	sb.WriteString("If you need full details beyond the attachments, use the agent-manager CLI:\n")
-	sb.WriteString(fmt.Sprintf("- agent-manager run get %s\n", investigationRunID))
-	sb.WriteString(fmt.Sprintf("- agent-manager run events %s\n", investigationRunID))
-	sb.WriteString(fmt.Sprintf("- agent-manager run diff %s\n\n", investigationRunID))
+	// Use the configurable template as the base
+	sb.WriteString(template)
+	sb.WriteString("\n\n")
 
+	// Add dynamic investigation run reference
+	sb.WriteString("---\n\n")
+	sb.WriteString("## Investigation Run Reference\n\n")
+	sb.WriteString(fmt.Sprintf("**Investigation Run ID:** `%s`\n\n", investigationRunID))
+	sb.WriteString("Use these commands to fetch additional investigation data:\n")
+	sb.WriteString(fmt.Sprintf("```bash\nagent-manager run get %s\nagent-manager run events %s\nagent-manager run diff %s\n```\n\n", investigationRunID, investigationRunID, investigationRunID))
+
+	// Add custom context if provided
 	if strings.TrimSpace(customContext) != "" {
-		sb.WriteString("## Additional Context\n")
+		sb.WriteString("## User-Provided Context\n\n")
 		sb.WriteString(customContext)
-		sb.WriteString("\n\n")
+		sb.WriteString("\n")
 	}
-
-	sb.WriteString("## Your Task\n")
-	sb.WriteString("1. Review the investigation report output.\n")
-	sb.WriteString("2. Apply the recommended fixes explicitly called out by the user context.\n")
-	sb.WriteString("3. If a fix requires code changes, implement them.\n")
-	sb.WriteString("4. Summarize what you changed and why.\n")
 
 	return sb.String()
 }
@@ -657,6 +666,19 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 		RequiresSandbox:      true,
 		RequiresApproval:     true, // Require approval for changes
 		CreatedBy:            "agent-manager",
+	}
+}
+
+// getBuiltInProfileDefaults returns built-in default profile settings for known profile keys.
+// Returns nil if the profile key is not a known built-in profile.
+func getBuiltInProfileDefaults(profileKey string) *domain.AgentProfile {
+	switch profileKey {
+	case investigationProfileKey:
+		return defaultInvestigationProfile()
+	case investigationApplyProfileKey:
+		return defaultApplyInvestigationProfile()
+	default:
+		return nil
 	}
 }
 

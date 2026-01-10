@@ -294,6 +294,8 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
     -- Prompt template is plain text (no variables/templating)
     -- Dynamic content like depth, scenarios, runs are context attachments
     prompt_template TEXT NOT NULL,
+    -- Apply prompt template for apply investigation agents
+    apply_prompt_template TEXT,
     -- Default depth: "quick", "standard", "deep"
     default_depth VARCHAR(20) NOT NULL DEFAULT 'standard',
     -- Default context selections (what to include in investigations)
@@ -301,6 +303,18 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
 
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add apply_prompt_template column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'investigation_settings' AND column_name = 'apply_prompt_template'
+    ) THEN
+        ALTER TABLE investigation_settings ADD COLUMN apply_prompt_template TEXT;
+    END IF;
+END;
+$$;
 
 -- Insert default settings with the default investigation prompt
 INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context)

@@ -589,12 +589,17 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 		return &EnsureProfileResult{Profile: existing}, nil
 	}
 
-	if req.Defaults == nil {
+	// Use built-in defaults for known profile keys if no defaults provided
+	defaults := req.Defaults
+	if defaults == nil {
+		defaults = getBuiltInProfileDefaults(key)
+	}
+	if defaults == nil {
 		return nil, domain.NewValidationErrorWithHint("defaults", "field is required",
 			"Provide default profile settings to create a new profile")
 	}
 
-	candidate := *req.Defaults
+	candidate := *defaults
 	candidate.ProfileKey = key
 	if strings.TrimSpace(candidate.Name) == "" {
 		candidate.Name = key

@@ -2190,19 +2190,21 @@ func (h *Handler) GetInvestigationSettings(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": settings.PromptTemplate,
-		"defaultDepth":   string(settings.DefaultDepth),
-		"defaultContext": settings.DefaultContext,
-		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":      settings.PromptTemplate,
+		"applyPromptTemplate": settings.ApplyPromptTemplate,
+		"defaultDepth":        string(settings.DefaultDepth),
+		"defaultContext":      settings.DefaultContext,
+		"updatedAt":           settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
 // UpdateInvestigationSettings updates the investigation settings.
 func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		PromptTemplate string                            `json:"promptTemplate"`
-		DefaultDepth   string                            `json:"defaultDepth"`
-		DefaultContext *domain.InvestigationContextFlags `json:"defaultContext"`
+		PromptTemplate      string                            `json:"promptTemplate"`
+		ApplyPromptTemplate string                            `json:"applyPromptTemplate"`
+		DefaultDepth        string                            `json:"defaultDepth"`
+		DefaultContext      *domain.InvestigationContextFlags `json:"defaultContext"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2220,6 +2222,9 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	// Apply updates
 	if req.PromptTemplate != "" {
 		current.PromptTemplate = req.PromptTemplate
+	}
+	if req.ApplyPromptTemplate != "" {
+		current.ApplyPromptTemplate = req.ApplyPromptTemplate
 	}
 	if req.DefaultDepth != "" {
 		depth := domain.InvestigationDepth(req.DefaultDepth)
@@ -2239,10 +2244,11 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": current.PromptTemplate,
-		"defaultDepth":   string(current.DefaultDepth),
-		"defaultContext": current.DefaultContext,
-		"updatedAt":      current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":      current.PromptTemplate,
+		"applyPromptTemplate": current.ApplyPromptTemplate,
+		"defaultDepth":        string(current.DefaultDepth),
+		"defaultContext":      current.DefaultContext,
+		"updatedAt":           current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
@@ -2261,10 +2267,11 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": settings.PromptTemplate,
-		"defaultDepth":   string(settings.DefaultDepth),
-		"defaultContext": settings.DefaultContext,
-		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":      settings.PromptTemplate,
+		"applyPromptTemplate": settings.ApplyPromptTemplate,
+		"defaultDepth":        string(settings.DefaultDepth),
+		"defaultContext":      settings.DefaultContext,
+		"updatedAt":           settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 

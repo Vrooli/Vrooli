@@ -461,10 +461,11 @@ var _ repository.InvestigationSettingsRepository = (*investigationSettingsReposi
 
 // investigationSettingsRow is the database row representation for investigation_settings.
 type investigationSettingsRow struct {
-	PromptTemplate string                        `db:"prompt_template"`
-	DefaultDepth   string                        `db:"default_depth"`
-	DefaultContext InvestigationContextFlagsJSON `db:"default_context"`
-	UpdatedAt      SQLiteTime                    `db:"updated_at"`
+	PromptTemplate      string                        `db:"prompt_template"`
+	ApplyPromptTemplate sql.NullString                `db:"apply_prompt_template"`
+	DefaultDepth        string                        `db:"default_depth"`
+	DefaultContext      InvestigationContextFlagsJSON `db:"default_context"`
+	UpdatedAt           SQLiteTime                    `db:"updated_at"`
 }
 
 // InvestigationContextFlagsJSON handles JSON serialization for context flags.
@@ -502,16 +503,23 @@ func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
 }
 
 func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
+	// Use default if apply prompt template is NULL or empty
+	applyPrompt := row.ApplyPromptTemplate.String
+	if !row.ApplyPromptTemplate.Valid || applyPrompt == "" {
+		applyPrompt = domain.DefaultApplyInvestigationPromptTemplate
+	}
+
 	return &domain.InvestigationSettings{
-		PromptTemplate: row.PromptTemplate,
-		DefaultDepth:   domain.InvestigationDepth(row.DefaultDepth),
-		DefaultContext: domain.InvestigationContextFlags(row.DefaultContext),
-		UpdatedAt:      row.UpdatedAt.Time(),
+		PromptTemplate:      row.PromptTemplate,
+		ApplyPromptTemplate: applyPrompt,
+		DefaultDepth:        domain.InvestigationDepth(row.DefaultDepth),
+		DefaultContext:      domain.InvestigationContextFlags(row.DefaultContext),
+		UpdatedAt:           row.UpdatedAt.Time(),
 	}
 }
 
 func (r *investigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
-	query := `SELECT prompt_template, default_depth, default_context, updated_at
+	query := `SELECT prompt_template, apply_prompt_template, default_depth, default_context, updated_at
 		FROM investigation_settings WHERE id = 1`
 
 	var row investigationSettingsRow
@@ -533,11 +541,18 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)
 	}
 
+	// Handle apply_prompt_template: store NULL if empty to use default
+	var applyPrompt sql.NullString
+	if settings.ApplyPromptTemplate != "" {
+		applyPrompt = sql.NullString{String: settings.ApplyPromptTemplate, Valid: true}
+	}
+
 	query := r.db.Rebind(`
-		INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context, updated_at)
-		VALUES (1, ?, ?, ?, ?)
+		INSERT INTO investigation_settings (id, prompt_template, apply_prompt_template, default_depth, default_context, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			prompt_template = EXCLUDED.prompt_template,
+			apply_prompt_template = EXCLUDED.apply_prompt_template,
 			default_depth = EXCLUDED.default_depth,
 			default_context = EXCLUDED.default_context,
 			updated_at = EXCLUDED.updated_at
@@ -545,6 +560,7 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 
 	_, err = r.db.ExecContext(ctx, query,
 		settings.PromptTemplate,
+		applyPrompt,
 		string(settings.DefaultDepth),
 		contextJSON,
 		time.Now(),

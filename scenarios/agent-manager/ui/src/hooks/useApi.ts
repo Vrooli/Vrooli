@@ -39,6 +39,7 @@ import {
   CreateRunResponseSchema,
   CreateTaskRequestSchema,
   CreateTaskResponseSchema,
+  EnsureProfileResponseSchema,
   UpdateTaskRequestSchema,
   UpdateTaskResponseSchema,
   GetRunDiffResponseSchema,
@@ -927,6 +928,17 @@ export async function detectScenariosForRuns(runIds: string[]): Promise<Detected
     body: JSON.stringify({ runIds }),
   });
   return data.scenarios ?? [];
+}
+
+// Ensure profile exists (standalone function)
+// Creates the profile with defaults if it doesn't exist, returns existing profile otherwise
+export async function ensureProfile(profileKey: string): Promise<AgentProfile> {
+  const data = await apiRequest<unknown>("/profiles/ensure", {
+    method: "POST",
+    body: JSON.stringify({ profileKey }),
+  });
+  const message = parseProto<any>(EnsureProfileResponseSchema, data);
+  return message.profile as AgentProfile;
 }
 
 // Maintenance hook

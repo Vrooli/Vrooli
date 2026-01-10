@@ -647,6 +647,7 @@ export function RunsPage({
         title="Apply Investigation Fixes"
         description="Apply recommendations from the selected investigation run."
         confirmLabel="Apply Fixes"
+        hideDepthSelector
         onSubmit={handleApplyInvestigation}
         loading={applyLoading}
         error={applyError}
