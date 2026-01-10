@@ -30,6 +30,7 @@ import { Textarea } from "./ui/textarea";
 import { cn, formatDate, formatDuration, runnerTypeLabel } from "../lib/utils";
 import type {
   ApproveFormData,
+  ContextAttachmentData,
   RejectFormData,
   Run,
   RunDiff,
@@ -42,6 +43,7 @@ import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { ModelCostComparison } from "./ModelCostComparison";
 import { ChatInterface } from "./ChatInterface";
+import { ContextAttachmentModal } from "./ContextAttachmentModal";
 
 interface RunDetailProps {
   run: Run;
@@ -727,6 +729,8 @@ function taskStatusLabel(status: TaskStatus): string {
 }
 
 function TaskSummary({ task }: { task: Task }) {
+  const [selectedAttachment, setSelectedAttachment] = useState<ContextAttachmentData | null>(null);
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -781,7 +785,8 @@ function TaskSummary({ task }: { task: Task }) {
               {task.contextAttachments.map((att, index) => (
                 <div
                   key={`${att.key || att.label || att.type}-${index}`}
-                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm"
+                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm cursor-pointer hover:bg-muted/70 transition-colors"
+                  onClick={() => setSelectedAttachment(att as ContextAttachmentData)}
                 >
                   {att.type === "file" && <File className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
                   {att.type === "link" && <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
@@ -820,6 +825,12 @@ function TaskSummary({ task }: { task: Task }) {
           </div>
         )}
       </div>
+
+      <ContextAttachmentModal
+        attachment={selectedAttachment}
+        open={selectedAttachment !== null}
+        onOpenChange={(open) => !open && setSelectedAttachment(null)}
+      />
     </div>
   );
 }
