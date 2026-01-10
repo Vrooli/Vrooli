@@ -433,6 +433,7 @@ export const SELECTORS = {
 
   // Create dialog
   createDialog: "create-sandbox-dialog",
+  nameInput: "sandbox-name-input",
   scopePathInput: "scope-path-input",
   projectRootInput: "project-root-input",
   ownerInput: "owner-input",

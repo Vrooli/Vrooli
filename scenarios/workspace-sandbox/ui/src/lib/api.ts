@@ -18,6 +18,7 @@ export interface MountHealth {
 
 export interface Sandbox {
   id: string;
+  name?: string;
   scopePath: string;
   reservedPath: string;
   reservedPaths?: string[];
@@ -162,6 +163,7 @@ export interface DiscardResult {
 }
 
 export interface CreateRequest {
+  name?: string;
   scopePath: string;
   reservedPath?: string;
   reservedPaths?: string[];
@@ -188,6 +190,7 @@ export interface ApprovalRequest {
 }
 
 export interface ListFilter {
+  name?: string;
   status?: Status[];
   owner?: string;
   projectRoot?: string;
@@ -276,6 +279,7 @@ export async function listSandboxes(filter?: ListFilter): Promise<ListResult> {
   if (filter?.status) {
     filter.status.forEach((s) => params.append("status", s));
   }
+  if (filter?.name) params.set("name", filter.name);
   if (filter?.owner) params.set("owner", filter.owner);
   if (filter?.projectRoot) params.set("projectRoot", filter.projectRoot);
   if (filter?.scopePath) params.set("scopePath", filter.scopePath);

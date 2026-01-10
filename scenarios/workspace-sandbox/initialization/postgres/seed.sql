@@ -58,6 +58,14 @@ EXCEPTION
     WHEN undefined_table THEN NULL;
 END $$;
 
+-- Add name column for human-readable sandbox identification.
+DO $$ BEGIN
+    ALTER TABLE sandboxes
+        ADD COLUMN IF NOT EXISTS name TEXT;
+EXCEPTION
+    WHEN undefined_table THEN NULL;
+END $$;
+
 -- ============================================================================
 -- SANDBOXES TABLE
 -- ============================================================================

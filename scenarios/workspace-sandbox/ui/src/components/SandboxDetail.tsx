@@ -19,6 +19,7 @@ import {
   MousePointerClick,
   ChevronDown,
   ChevronRight,
+  Tag,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -414,6 +415,13 @@ export function SandboxDetail({
                 )
               }
             />
+            {sandbox.name && (
+              <MetadataRow
+                icon={<Tag className="h-3.5 w-3.5" />}
+                label="Name"
+                value={sandbox.name}
+              />
+            )}
             <MetadataRow
               icon={<FolderOpen className="h-3.5 w-3.5" />}
               label="Scope"

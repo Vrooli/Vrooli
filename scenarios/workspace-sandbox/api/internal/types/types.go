@@ -140,6 +140,7 @@ const (
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
+	Name          string     `json:"name,omitempty" db:"name"`
 	ScopePath     string     `json:"scopePath" db:"scope_path"`
 	ReservedPath  string     `json:"reservedPath" db:"reserved_path"`
 	ReservedPaths []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
@@ -254,6 +255,7 @@ type AuditEvent struct {
 //
 // If no IdempotencyKey is provided, each request creates a new sandbox.
 type CreateRequest struct {
+	Name          string                 `json:"name,omitempty"`
 	ScopePath     string                 `json:"scopePath"`
 	ReservedPath  string                 `json:"reservedPath,omitempty"`
 	ReservedPaths []string               `json:"reservedPaths,omitempty"`
@@ -273,6 +275,7 @@ type CreateRequest struct {
 
 // ListFilter contains filters for listing sandboxes.
 type ListFilter struct {
+	Name        string    `json:"name,omitempty"`
 	Status      []Status  `json:"status,omitempty"`
 	Owner       string    `json:"owner,omitempty"`
 	ProjectRoot string    `json:"projectRoot,omitempty"`

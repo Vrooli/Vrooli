@@ -95,26 +95,49 @@ function SandboxGroup({
                 data-sandbox-id={sandbox.id}
                 onClick={() => onSelect(sandbox)}
               >
-                {/* Sandbox reserved path */}
+                {/* Primary label - name or reserved path */}
                 <div className="flex items-center gap-2 min-w-0">
                   <FolderOpen className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-                  <span className="font-mono text-xs text-slate-200 truncate">
-                    {(() => {
-                      if (
-                        sandbox.noLock &&
-                        (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                        !sandbox.reservedPath
-                      ) {
-                        return "No lock";
-                      }
-                      const reserved = sandbox.reservedPaths?.length
-                        ? sandbox.reservedPaths
-                        : [sandbox.reservedPath || sandbox.scopePath || "/"];
-                      const head = reserved[0] || "/";
-                      return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
-                    })()}
+                  <span className={`text-xs text-slate-200 truncate ${sandbox.name ? "font-medium" : "font-mono"}`}>
+                    {sandbox.name ||
+                      (() => {
+                        if (
+                          sandbox.noLock &&
+                          (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                          !sandbox.reservedPath
+                        ) {
+                          return "No lock";
+                        }
+                        const reserved = sandbox.reservedPaths?.length
+                          ? sandbox.reservedPaths
+                          : [sandbox.reservedPath || sandbox.scopePath || "/"];
+                        const head = reserved[0] || "/";
+                        return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
+                      })()}
                   </span>
                 </div>
+
+                {/* Path as secondary when name exists */}
+                {sandbox.name && (
+                  <div className="flex items-center gap-2 mt-0.5 min-w-0 pl-5">
+                    <span className="font-mono text-[10px] text-slate-500 truncate">
+                      {(() => {
+                        if (
+                          sandbox.noLock &&
+                          (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+                          !sandbox.reservedPath
+                        ) {
+                          return "No lock";
+                        }
+                        const reserved = sandbox.reservedPaths?.length
+                          ? sandbox.reservedPaths
+                          : [sandbox.reservedPath || sandbox.scopePath || "/"];
+                        const head = reserved[0] || "/";
+                        return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
+                      })()}
+                    </span>
+                  </div>
+                )}
 
                 {/* Metadata row */}
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">

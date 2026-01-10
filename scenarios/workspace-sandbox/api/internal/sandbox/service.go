@@ -393,6 +393,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	}
 	sandbox := &types.Sandbox{
 		ID:             uuid.New(),
+		Name:           req.Name,
 		ScopePath:      normalizedScopePath,
 		ReservedPath:   primaryReserved,
 		ReservedPaths:  normalizedReservedPaths,
