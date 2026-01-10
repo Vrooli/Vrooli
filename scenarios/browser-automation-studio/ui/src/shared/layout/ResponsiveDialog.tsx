@@ -3,7 +3,7 @@ import { HTMLAttributes, PointerEvent, ReactNode, Ref, useEffect } from "react";
 import "./ResponsiveDialog.css";
 import { selectors } from "@constants/selectors";
 
-type ResponsiveDialogSize = "default" | "wide" | "xl";
+type ResponsiveDialogSize = "default" | "wide" | "xl" | "export";
 
 type ResponsiveDialogProps = {
   isOpen: boolean;
@@ -21,6 +21,7 @@ const sizeClassMap: Record<ResponsiveDialogSize, string | null> = {
   default: null,
   wide: "responsive-dialog__content--wide",
   xl: "responsive-dialog__content--xl",
+  export: "responsive-dialog__content--export",
 };
 
 export default function ResponsiveDialog({

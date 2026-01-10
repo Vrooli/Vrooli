@@ -16,6 +16,7 @@ export {
   type ExportPreviewState,
   type ExportProgressState,
   type ExportRenderSourceState,
+  type ExportStylizationState,
   // Context & Provider
   ExportDialogProvider,
   // Hooks
@@ -28,6 +29,7 @@ export {
   useExportPreviewState,
   useExportProgressState,
   useExportRenderSourceState,
+  useExportStylizationState,
   // Builder
   buildExportDialogContextValue,
 } from "./ExportDialogContext";

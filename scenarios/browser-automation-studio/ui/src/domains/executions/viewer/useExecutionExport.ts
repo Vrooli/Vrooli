@@ -14,9 +14,11 @@ import {
   EXPORT_EXTENSIONS,
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
+  EXPORT_STYLIZATION_OPTIONS,
   sanitizeFileStem,
   type ExportDimensionPreset,
   type ExportFormat,
+  type ExportStylization,
 } from "@/domains/executions/export";
 import { useReplayCustomization } from "./useReplayCustomization";
 import { useReplaySpec } from "./useReplaySpec";
@@ -115,6 +117,7 @@ export const useExecutionExport = ({
   const { composerApiBase, setComposerApiBase } = useComposerApiBase(execution.id);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("mp4");
+  const [exportFormats, setExportFormats] = useState<ExportFormat[]>(["mp4"]);
   const [exportFileStem, setExportFileStem] = useState<string>(
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
   );
@@ -153,6 +156,10 @@ export const useExecutionExport = ({
     executionId: execution.id,
   });
   const fileSystemAccessSupported = supportsFileSystemAccess();
+
+  // Stylization state - defaults to "stylized" to match current behavior
+  const [stylization, setStylization] = useState<ExportStylization>("stylized");
+  const isStylized = stylization === "stylized";
 
   const defaultExportFileStem = useMemo(
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
@@ -514,6 +521,22 @@ export const useExecutionExport = ({
     estimatedTotalDurationMs != null ? estimatedTotalDurationMs / 1000 : null;
   const isBinaryExport = exportFormat !== "json";
 
+  // Toggle format in the multi-select array
+  const toggleExportFormat = useCallback((format: ExportFormat) => {
+    setExportFormats((prev) => {
+      if (prev.includes(format)) {
+        // Don't allow removing the last format
+        if (prev.length === 1) {
+          return prev;
+        }
+        return prev.filter((f) => f !== format);
+      }
+      return [...prev, format];
+    });
+    // Also update the single format to the first selected (for backwards compatibility)
+    setExportFormat(format);
+  }, []);
+
   const handleOpenExportDialog = useCallback(() => {
     if (replayFramesWithFallback.length === 0) {
       toast.error("Replay not ready to export yet");
@@ -541,15 +564,17 @@ export const useExecutionExport = ({
         const baselineSpec = exportPreview?.package ?? movieSpec;
         const exportSpec = preparedMovieSpec ?? baselineSpec;
 
-        // Build overrides for when we don't have a spec with frames
-        const overrides = buildExportOverrides({
-          chromeTheme: replayChromeTheme,
-          backgroundTheme: replayBackgroundTheme,
-          cursorTheme: replayCursorTheme,
-          cursorInitialPosition: replayCursorInitialPosition,
-          cursorScale: replayCursorScale,
-          cursorClickAnimation: replayCursorClickAnimation,
-        });
+        // Build overrides only when stylization is enabled
+        const overrides = isStylized
+          ? buildExportOverrides({
+              chromeTheme: replayChromeTheme,
+              backgroundTheme: replayBackgroundTheme,
+              cursorTheme: replayCursorTheme,
+              cursorInitialPosition: replayCursorInitialPosition,
+              cursorScale: replayCursorScale,
+              cursorClickAnimation: replayCursorClickAnimation,
+            })
+          : undefined;
 
         // Use extracted pure function to build the request
         const requestPayload = buildExportRequest({
@@ -709,16 +734,23 @@ export const useExecutionExport = ({
     fileSystemAccessSupported,
     useNativeFilePicker,
     createExport,
+    isStylized,
   ]);
 
   const exportDialogProps = {
     exportFormat,
     setExportFormat,
+    exportFormats,
+    toggleExportFormat,
     isBinaryExport,
     exportFormatOptions: EXPORT_FORMAT_OPTIONS,
     exportRenderSourceOptions: EXPORT_RENDER_SOURCE_OPTIONS,
     renderSource: replayRenderSource,
     setRenderSource: setReplayRenderSource,
+    stylization,
+    setStylization,
+    isStylized,
+    exportStylizationOptions: EXPORT_STYLIZATION_OPTIONS,
     dimensionPresetOptions,
     dimensionPreset,
     setDimensionPreset,
@@ -735,6 +767,10 @@ export const useExecutionExport = ({
     useNativeFilePicker,
     setUseNativeFilePicker,
     preparedMovieSpec,
+    // New preview state for ReplayPlayer
+    replayFrames: replayFramesWithFallback,
+    replayStyle,
+    recordedVideoUrl: null as string | null, // TODO: Fetch from recorded video status
     composerPreviewUrl,
     firstFramePreviewUrl,
     firstFrameLabel,

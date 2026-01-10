@@ -52,6 +52,12 @@
   max-height: calc(100vh - 48px);
 }
 
+.responsive-dialog__content--export {
+  width: min(1440px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+}
+
 @media (max-width: 768px) {
   .responsive-dialog__overlay {
     padding: 24px 12px;
@@ -86,7 +92,8 @@
   }
 
   .responsive-dialog__content--wide,
-  .responsive-dialog__content--xl {
+  .responsive-dialog__content--xl,
+  .responsive-dialog__content--export {
     width: 100%;
     max-width: 100%;
   }

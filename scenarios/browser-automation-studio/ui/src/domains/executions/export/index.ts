@@ -29,12 +29,15 @@ export {
   type ExportRenderSourceOption,
   type ExportStatus,
   type ExportStatusConfig,
+  type ExportStylization,
+  type ExportStylizationOption,
   // Constants
   DEFAULT_EXPORT_DIMENSIONS,
   DIMENSION_PRESET_CONFIG,
   EXPORT_EXTENSIONS,
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
+  EXPORT_STYLIZATION_OPTIONS,
   // Format/status display config (re-exported from presentation module)
   EXPORT_STATUS_CONFIG,
   FORMAT_CONFIG,
@@ -131,6 +134,7 @@ export {
   type ExportPreviewState,
   type ExportProgressState,
   type ExportRenderSourceState,
+  type ExportStylizationState,
   // Context & Provider
   ExportDialogProvider,
   // Hooks
@@ -143,6 +147,7 @@ export {
   useExportPreviewState,
   useExportProgressState,
   useExportRenderSourceState,
+  useExportStylizationState,
   // Builder
   buildExportDialogContextValue,
 } from "./context";
