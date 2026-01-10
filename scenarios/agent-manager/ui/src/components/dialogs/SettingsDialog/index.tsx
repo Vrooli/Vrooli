@@ -96,8 +96,8 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} contentClassName="max-w-7xl">
-        <DialogContent>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg lg:max-w-[90vw] xl:max-w-7xl">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>Manage model registry configuration and maintenance actions.</DialogDescription>

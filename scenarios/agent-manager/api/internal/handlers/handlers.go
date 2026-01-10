@@ -2208,21 +2208,23 @@ func (h *Handler) GetInvestigationSettings(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate":      settings.PromptTemplate,
-		"applyPromptTemplate": settings.ApplyPromptTemplate,
-		"defaultDepth":        string(settings.DefaultDepth),
-		"defaultContext":      settings.DefaultContext,
-		"updatedAt":           settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            settings.PromptTemplate,
+		"applyPromptTemplate":       settings.ApplyPromptTemplate,
+		"defaultDepth":              string(settings.DefaultDepth),
+		"defaultContext":            settings.DefaultContext,
+		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
+		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
 // UpdateInvestigationSettings updates the investigation settings.
 func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		PromptTemplate      string                            `json:"promptTemplate"`
-		ApplyPromptTemplate string                            `json:"applyPromptTemplate"`
-		DefaultDepth        string                            `json:"defaultDepth"`
-		DefaultContext      *domain.InvestigationContextFlags `json:"defaultContext"`
+		PromptTemplate            string                            `json:"promptTemplate"`
+		ApplyPromptTemplate       string                            `json:"applyPromptTemplate"`
+		DefaultDepth              string                            `json:"defaultDepth"`
+		DefaultContext            *domain.InvestigationContextFlags `json:"defaultContext"`
+		InvestigationTagAllowlist *[]domain.InvestigationTagRule    `json:"investigationTagAllowlist"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2255,6 +2257,13 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	if req.DefaultContext != nil {
 		current.DefaultContext = *req.DefaultContext
 	}
+	if req.InvestigationTagAllowlist != nil {
+		if err := domain.ValidateInvestigationTagAllowlist(*req.InvestigationTagAllowlist); err != nil {
+			writeSimpleError(w, r, "investigationTagAllowlist", err.Error())
+			return
+		}
+		current.InvestigationTagAllowlist = *req.InvestigationTagAllowlist
+	}
 
 	if err := h.svc.UpdateInvestigationSettings(r.Context(), current); err != nil {
 		writeError(w, r, err)
@@ -2262,11 +2271,12 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate":      current.PromptTemplate,
-		"applyPromptTemplate": current.ApplyPromptTemplate,
-		"defaultDepth":        string(current.DefaultDepth),
-		"defaultContext":      current.DefaultContext,
-		"updatedAt":           current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            current.PromptTemplate,
+		"applyPromptTemplate":       current.ApplyPromptTemplate,
+		"defaultDepth":              string(current.DefaultDepth),
+		"defaultContext":            current.DefaultContext,
+		"investigationTagAllowlist": current.InvestigationTagAllowlist,
+		"updatedAt":                 current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
@@ -2285,10 +2295,11 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate":      settings.PromptTemplate,
-		"applyPromptTemplate": settings.ApplyPromptTemplate,
-		"defaultDepth":        string(settings.DefaultDepth),
-		"defaultContext":      settings.DefaultContext,
-		"updatedAt":           settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            settings.PromptTemplate,
+		"applyPromptTemplate":       settings.ApplyPromptTemplate,
+		"defaultDepth":              string(settings.DefaultDepth),
+		"defaultContext":            settings.DefaultContext,
+		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
+		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }

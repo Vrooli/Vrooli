@@ -526,6 +526,11 @@ func getQuickSystemStatus(ctx context.Context) (appCount int, resourceCount int,
 	return appCount, resourceCount, uptimeSeconds, status
 }
 
+func getOrchestratorUptime(ctx context.Context) (float64, error) {
+	_ = ctx
+	return 0, fmt.Errorf("orchestrator uptime unavailable")
+}
+
 // GetResources returns the status of all resources with caching
 func (h *SystemHandler) GetResources(c *gin.Context) {
 	// Check cache first (cache valid for 20 seconds)

@@ -119,6 +119,9 @@ type RunExecutor struct {
 	result  *runner.ExecuteResult
 	execErr error
 
+	// Recommendation extraction gate
+	shouldQueueRecommendations func(*domain.Run) bool
+
 	// Resumption state
 	isResuming bool
 
@@ -150,6 +153,9 @@ func NewRunExecutor(
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
+		shouldQueueRecommendations: func(run *domain.Run) bool {
+			return run.IsInvestigationRun()
+		},
 	}
 }
 
@@ -172,6 +178,14 @@ func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *
 		e.workDir = workDir
 	}
 	e.checkpoint = e.checkpoint.WithSandbox(sandboxID, workDir)
+	return e
+}
+
+// WithRecommendationQueueFilter sets a custom filter for recommendation extraction.
+func (e *RunExecutor) WithRecommendationQueueFilter(filter func(*domain.Run) bool) *RunExecutor {
+	if filter != nil {
+		e.shouldQueueRecommendations = filter
+	}
 	return e
 }
 
@@ -906,7 +920,7 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 
 	// Queue recommendation extraction for investigation runs
 	// The background RecommendationWorker will pick this up and extract recommendations
-	if e.run.IsInvestigationRun() {
+	if e.shouldQueueRecommendations != nil && e.shouldQueueRecommendations(e.run) {
 		now := time.Now()
 		e.run.RecommendationStatus = domain.RecommendationStatusPending
 		e.run.RecommendationQueuedAt = &now

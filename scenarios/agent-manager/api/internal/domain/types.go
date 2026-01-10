@@ -271,6 +271,9 @@ type Run struct {
 	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
 	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
 
+	// Action availability (computed, not persisted)
+	Actions *RunActions `json:"actions,omitempty"`
+
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`

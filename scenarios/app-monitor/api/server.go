@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -86,7 +87,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 // setupRouter configures all routes and middleware
-func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) *gin.Engine {
+func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 	// Set Gin mode based on environment
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)

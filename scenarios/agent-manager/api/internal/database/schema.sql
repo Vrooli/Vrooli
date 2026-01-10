@@ -322,6 +322,8 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
     default_depth VARCHAR(20) NOT NULL DEFAULT 'standard',
     -- Default context selections (what to include in investigations)
     default_context JSONB NOT NULL DEFAULT '{"runSummaries":true,"runEvents":true,"runDiffs":true,"fullLogs":false}',
+    -- Allowlist for which run tags are eligible for Apply Fixes and recommendation extraction
+    investigation_tag_allowlist JSONB NOT NULL DEFAULT '[{"pattern":"investigation","isRegex":false,"caseSensitive":false},{"pattern":"*-investigation","isRegex":false,"caseSensitive":false}]',
 
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -338,8 +340,21 @@ BEGIN
 END;
 $$;
 
+-- Add investigation_tag_allowlist column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'investigation_settings' AND column_name = 'investigation_tag_allowlist'
+    ) THEN
+        ALTER TABLE investigation_settings
+            ADD COLUMN investigation_tag_allowlist JSONB NOT NULL DEFAULT '[{"pattern":"investigation","isRegex":false,"caseSensitive":false},{"pattern":"*-investigation","isRegex":false,"caseSensitive":false}]';
+    END IF;
+END;
+$$;
+
 -- Insert default settings with the default investigation prompt
-INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context)
+INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context, investigation_tag_allowlist)
 VALUES (
     1,
     '# Agent-Manager Investigation
@@ -387,7 +402,8 @@ One-paragraph summary of what went wrong and why.
 - **Preventive measures**
 - **Monitoring suggestions**',
     'standard',
-    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"fullLogs":false}'
+    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"fullLogs":false}',
+    '[{"pattern":"investigation","isRegex":false,"caseSensitive":false},{"pattern":"*-investigation","isRegex":false,"caseSensitive":false}]'
 )
 ON CONFLICT (id) DO NOTHING;
 

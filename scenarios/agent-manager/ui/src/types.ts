@@ -37,6 +37,7 @@ export type {
 
 export type {
   Run,
+  RunActions,
   RunSummary,
   RunnerStatus,
   ProbeResult,
@@ -177,9 +178,18 @@ export interface InvestigationSettings {
   defaultDepth: InvestigationDepth;
   /** Default context flags */
   defaultContext: InvestigationContextFlags;
+  /** Allowlist for which run tags are eligible for Apply Fixes and recommendation extraction */
+  investigationTagAllowlist: InvestigationTagRule[];
   /** When settings were last modified */
   updatedAt: string;
 }
+
+export interface InvestigationTagRule {
+  pattern: string;
+  isRegex: boolean;
+  caseSensitive: boolean;
+}
+
 
 /** Default context flags */
 export const DEFAULT_INVESTIGATION_CONTEXT: InvestigationContextFlags = {

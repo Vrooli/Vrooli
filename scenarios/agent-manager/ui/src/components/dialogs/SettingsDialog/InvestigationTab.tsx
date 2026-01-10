@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Microscope, RotateCcw, Settings, Wrench, Zap } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
+import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Textarea } from "../../ui/textarea";
 import { Checkbox } from "../../ui/checkbox";
@@ -12,6 +13,7 @@ import type {
   InvestigationContextFlags,
   InvestigationDepth,
   InvestigationSettings,
+  InvestigationTagRule,
 } from "../../../types";
 import { DEFAULT_INVESTIGATION_CONTEXT } from "../../../types";
 
@@ -26,6 +28,7 @@ interface InvestigationTabProps {
     applyPromptTemplate: string;
     defaultDepth: InvestigationDepth;
     defaultContext: InvestigationContextFlags;
+    investigationTagAllowlist: InvestigationTagRule[];
   }>) => Promise<InvestigationSettings | void>;
   onReset: () => Promise<InvestigationSettings | void>;
 }
@@ -98,6 +101,7 @@ export function InvestigationTab({
   const [draftContext, setDraftContext] = useState<InvestigationContextFlags>(DEFAULT_INVESTIGATION_CONTEXT);
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftApplyPrompt, setDraftApplyPrompt] = useState("");
+  const [draftTagAllowlist, setDraftTagAllowlist] = useState<InvestigationTagRule[]>([]);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -110,6 +114,7 @@ export function InvestigationTab({
       setDraftContext(settings.defaultContext);
       setDraftPrompt(settings.promptTemplate);
       setDraftApplyPrompt(settings.applyPromptTemplate);
+      setDraftTagAllowlist(settings.investigationTagAllowlist || []);
     }
   }, [settings]);
 
@@ -117,7 +122,8 @@ export function InvestigationTab({
     draftDepth !== settings.defaultDepth ||
     draftPrompt !== settings.promptTemplate ||
     draftApplyPrompt !== settings.applyPromptTemplate ||
-    JSON.stringify(draftContext) !== JSON.stringify(settings.defaultContext)
+    JSON.stringify(draftContext) !== JSON.stringify(settings.defaultContext) ||
+    JSON.stringify(draftTagAllowlist) !== JSON.stringify(settings.investigationTagAllowlist)
   );
 
   const handleSave = useCallback(async () => {
@@ -129,13 +135,14 @@ export function InvestigationTab({
         applyPromptTemplate: draftApplyPrompt,
         defaultDepth: draftDepth,
         defaultContext: draftContext,
+        investigationTagAllowlist: draftTagAllowlist,
       });
     } catch (err) {
       setLocalError((err as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [onSave, draftPrompt, draftApplyPrompt, draftDepth, draftContext]);
+  }, [onSave, draftPrompt, draftApplyPrompt, draftDepth, draftContext, draftTagAllowlist]);
 
   const handleReset = useCallback(async () => {
     setResetting(true);
@@ -151,6 +158,23 @@ export function InvestigationTab({
 
   const handleContextChange = (key: keyof InvestigationContextFlags, checked: boolean) => {
     setDraftContext(prev => ({ ...prev, [key]: checked }));
+  };
+
+  const handleAddTagRule = () => {
+    setDraftTagAllowlist(prev => ([
+      ...prev,
+      { pattern: "", isRegex: false, caseSensitive: false },
+    ]));
+  };
+
+  const handleUpdateTagRule = (index: number, update: Partial<InvestigationTagRule>) => {
+    setDraftTagAllowlist(prev => prev.map((rule, idx) => (
+      idx === index ? { ...rule, ...update } : rule
+    )));
+  };
+
+  const handleRemoveTagRule = (index: number) => {
+    setDraftTagAllowlist(prev => prev.filter((_, idx) => idx !== index));
   };
 
   // Open profile with auto-creation if it doesn't exist
@@ -337,6 +361,75 @@ export function InvestigationTab({
                   Base instruction for apply investigation agents. The investigation run ID and
                   CLI commands are injected automatically.
                 </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Apply Fixes Tag Allowlist */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Apply Fixes Tag Allowlist
+            </h3>
+            <Card>
+              <CardContent className="space-y-3 py-4">
+                <p className="text-xs text-muted-foreground">
+                  Only runs with tags matching these rules will show Apply Fixes and trigger recommendation
+                  extraction. Use glob patterns unless Regex is enabled (e.g., "investigation", "*-investigation").
+                </p>
+                {draftTagAllowlist.length === 0 && (
+                  <div className="rounded-md border border-dashed border-muted-foreground/40 px-3 py-2 text-xs text-muted-foreground">
+                    No tag rules defined. Defaults will apply on save.
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {draftTagAllowlist.map((rule, index) => (
+                    <div
+                      key={`${rule.pattern}-${index}`}
+                      className="rounded-md border border-border p-3 space-y-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={rule.pattern}
+                          onChange={(e) => handleUpdateTagRule(index, { pattern: e.target.value })}
+                          placeholder="Tag pattern (glob or regex)"
+                          className="flex-1 text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveTagRule(index)}
+                          className="text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={rule.isRegex}
+                            onCheckedChange={(checked) =>
+                              handleUpdateTagRule(index, { isRegex: checked === true })
+                            }
+                          />
+                          Regex
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={rule.caseSensitive}
+                            onCheckedChange={(checked) =>
+                              handleUpdateTagRule(index, { caseSensitive: checked === true })
+                            }
+                          />
+                          Case sensitive
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddTagRule}>
+                  Add tag rule
+                </Button>
               </CardContent>
             </Card>
           </div>

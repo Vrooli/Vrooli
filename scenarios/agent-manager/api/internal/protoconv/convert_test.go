@@ -381,6 +381,12 @@ func TestRunRoundTrip(t *testing.T) {
 		StartedAt:       &startedAt,
 		CreatedAt:       time.Now().Truncate(time.Second),
 		UpdatedAt:       time.Now().Truncate(time.Second),
+		Actions: &domain.RunActions{
+			CanInvestigate:        true,
+			CanDelete:             true,
+			CanContinue:           true,
+			CanApplyInvestigation: false,
+		},
 	}
 
 	proto := RunToProto(original)
@@ -403,6 +409,9 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 	if result.ProgressPercent != original.ProgressPercent {
 		t.Errorf("ProgressPercent: expected %v, got %v", original.ProgressPercent, result.ProgressPercent)
+	}
+	if result.Actions == nil || result.Actions.CanDelete != original.Actions.CanDelete {
+		t.Errorf("Actions.CanDelete: expected %v, got %v", original.Actions.CanDelete, result.Actions)
 	}
 }
 

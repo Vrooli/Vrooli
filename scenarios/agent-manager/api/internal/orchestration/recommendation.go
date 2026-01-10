@@ -24,14 +24,8 @@ func (o *Orchestrator) ExtractRecommendations(ctx context.Context, runID uuid.UU
 		return nil, err
 	}
 
-	// Validate it's an investigation run (not an apply run)
-	if !run.IsInvestigationRun() {
-		return nil, domain.NewValidationError("run_id", "run is not an investigation")
-	}
-
-	// Validate status is COMPLETE
-	if run.Status != domain.RunStatusComplete {
-		return nil, domain.NewValidationError("run_id", "investigation is not complete")
+	if allowed, reason := domain.CanExtractRecommendations(run, o.investigationTagAllowlist(ctx)); !allowed {
+		return nil, domain.NewValidationError("run_id", reason)
 	}
 
 	// Check for cached result from passive extraction
@@ -134,14 +128,8 @@ func (o *Orchestrator) RegenerateRecommendations(ctx context.Context, runID uuid
 		return err
 	}
 
-	// Validate it's an investigation run (not an apply run)
-	if !run.IsInvestigationRun() {
-		return domain.NewValidationError("run_id", "run is not an investigation")
-	}
-
-	// Validate status is COMPLETE
-	if run.Status != domain.RunStatusComplete {
-		return domain.NewValidationError("run_id", "investigation is not complete")
+	if allowed, reason := domain.CanRegenerateRecommendations(run, o.investigationTagAllowlist(ctx)); !allowed {
+		return domain.NewValidationError("run_id", reason)
 	}
 
 	// Reset extraction state to trigger re-extraction

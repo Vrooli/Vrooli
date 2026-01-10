@@ -27,8 +27,7 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 		return nil, err
 	}
 
-	// Check if approvable using domain decision helper
-	if allowed, reason := run.IsApprovable(); !allowed {
+	if allowed, reason := domain.CanApproveRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "approve", reason)
 	}
 
@@ -63,8 +62,7 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 		return err
 	}
 
-	// Check if rejectable using domain decision helper
-	if allowed, rejectReason := run.IsRejectable(); !allowed {
+	if allowed, rejectReason := domain.CanRejectRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "reject", rejectReason)
 	}
 
@@ -97,8 +95,7 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 		return nil, err
 	}
 
-	// Check if approvable (same rules as full approval)
-	if allowed, reason := run.IsApprovable(); !allowed {
+	if allowed, reason := domain.CanApproveRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "partial_approve", reason)
 	}
 

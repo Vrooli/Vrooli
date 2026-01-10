@@ -60,14 +60,8 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
 
   // Check if continuation is available
   const canContinue = useMemo(() => {
-    // Must have a session ID
-    if (!run.sessionId) return false;
-    // Must not be currently running
-    if (isGenerating) {
-      return false;
-    }
-    return true;
-  }, [run.sessionId, isGenerating]);
+    return run.actions?.canContinue ?? false;
+  }, [run.actions?.canContinue]);
 
   // Auto-scroll when generating state changes (show skeleton)
   useEffect(() => {

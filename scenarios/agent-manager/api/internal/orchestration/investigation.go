@@ -167,7 +167,11 @@ func (o *Orchestrator) CreateInvestigationRun(
 		return nil, err
 	}
 
-	return o.createInvestigationRunWithProfile(ctx, task.ID, investigationTag, investigationProfileRef())
+	run, err := o.createInvestigationRunWithProfile(ctx, task.ID, investigationTag, investigationProfileRef())
+	if err != nil {
+		return nil, err
+	}
+	return o.attachRunActions(ctx, run), nil
 }
 
 // CreateInvestigationApplyRun creates a new run that applies investigation recommendations.
@@ -180,8 +184,8 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if err != nil {
 		return nil, err
 	}
-	if run.Tag != investigationTag {
-		return nil, domain.NewValidationError("investigationRunId", "run is not an investigation run")
+	if allowed, reason := domain.CanApplyInvestigationRun(run, o.investigationTagAllowlist(ctx)); !allowed {
+		return nil, domain.NewValidationError("investigationRunId", reason)
 	}
 
 	task, err := o.GetTask(ctx, run.TaskID)
@@ -214,7 +218,26 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	}
 
 	// Apply runs use a different profile with write capabilities
-	return o.createInvestigationRunWithProfile(ctx, applyTask.ID, investigationApplyTag, applyInvestigationProfileRef())
+	applyRun, err := o.createInvestigationRunWithProfile(ctx, applyTask.ID, investigationApplyTag, applyInvestigationProfileRef())
+	if err != nil {
+		return nil, err
+	}
+	return o.attachRunActions(ctx, applyRun), nil
+}
+
+func (o *Orchestrator) investigationTagAllowlist(ctx context.Context) []domain.InvestigationTagRule {
+	settings, err := o.GetInvestigationSettings(ctx)
+	if err != nil || settings == nil {
+		return domain.DefaultInvestigationTagAllowlist()
+	}
+	return domain.NormalizeInvestigationTagAllowlist(settings.InvestigationTagAllowlist)
+}
+
+func (o *Orchestrator) recommendationQueueFilter(ctx context.Context) func(*domain.Run) bool {
+	allowlist := o.investigationTagAllowlist(ctx)
+	return func(run *domain.Run) bool {
+		return domain.MatchesInvestigationTag(run.Tag, allowlist)
+	}
 }
 
 func (o *Orchestrator) createInvestigationTask(

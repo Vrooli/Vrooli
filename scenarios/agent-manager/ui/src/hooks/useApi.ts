@@ -11,6 +11,7 @@ import type {
   InvestigationContextFlags,
   InvestigationDepth,
   InvestigationSettings,
+  InvestigationTagRule,
   ModelRegistry,
   ProfileFormData,
   ProbeResult,
@@ -874,8 +875,10 @@ export function useInvestigationSettings() {
 
   const updateSettings = useCallback(async (settings: Partial<{
     promptTemplate: string;
+    applyPromptTemplate: string;
     defaultDepth: InvestigationDepth;
     defaultContext: InvestigationContextFlags;
+    investigationTagAllowlist: InvestigationTagRule[];
   }>): Promise<InvestigationSettings> => {
     state.setLoading(true);
     state.setError(null);

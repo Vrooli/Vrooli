@@ -263,6 +263,21 @@ func RunToProto(r *domain.Run) *pb.Run {
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
 	}
+	if r.Actions != nil {
+		run.Actions = &pb.RunActions{
+			CanInvestigate:               r.Actions.CanInvestigate,
+			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
+			CanDelete:                    r.Actions.CanDelete,
+			CanStop:                      r.Actions.CanStop,
+			CanRetry:                     r.Actions.CanRetry,
+			CanContinue:                  r.Actions.CanContinue,
+			CanApprove:                   r.Actions.CanApprove,
+			CanReject:                    r.Actions.CanReject,
+			CanReview:                    r.Actions.CanReview,
+			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
+			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+		}
+	}
 
 	return run
 }
@@ -335,6 +350,21 @@ func RunFromProto(r *pb.Run) *domain.Run {
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigFromProto(r.ResolvedConfig)
+	}
+	if r.Actions != nil {
+		run.Actions = &domain.RunActions{
+			CanInvestigate:               r.Actions.CanInvestigate,
+			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
+			CanDelete:                    r.Actions.CanDelete,
+			CanStop:                      r.Actions.CanStop,
+			CanRetry:                     r.Actions.CanRetry,
+			CanContinue:                  r.Actions.CanContinue,
+			CanApprove:                   r.Actions.CanApprove,
+			CanReject:                    r.Actions.CanReject,
+			CanReview:                    r.Actions.CanReview,
+			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
+			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+		}
 	}
 
 	return run

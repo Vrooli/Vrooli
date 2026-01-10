@@ -1002,7 +1002,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Start execution asynchronously
 	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
 
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunMode, existingSandboxID *uuid.UUID) error {
@@ -1304,11 +1304,11 @@ func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, e
 	if run == nil {
 		return nil, domain.NewNotFoundError("Run", id)
 	}
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
-	return o.runs.List(ctx, repository.RunListFilter{
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
 		ListFilter: repository.ListFilter{
 			Limit:  opts.Limit,
 			Offset: opts.Offset,
@@ -1318,6 +1318,10 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		Status:         opts.Status,
 		TagPrefix:      opts.TagPrefix,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return o.attachRunActionsList(ctx, runs), nil
 }
 
 func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
@@ -1325,10 +1329,8 @@ func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	if run.Status == domain.RunStatusPending ||
-		run.Status == domain.RunStatusStarting ||
-		run.Status == domain.RunStatusRunning {
-		return domain.NewStateError("Run", string(run.Status), "delete", "stop the run before deleting it")
+	if allowed, reason := domain.CanDeleteRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "delete", reason)
 	}
 	return o.runs.Delete(ctx, id)
 }
@@ -1347,7 +1349,7 @@ func (o *Orchestrator) GetRunByTag(ctx context.Context, tag string) (*domain.Run
 	// Find exact match
 	for _, run := range runs {
 		if run.GetTag() == tag {
-			return run, nil
+			return o.attachRunActions(ctx, run), nil
 		}
 	}
 
@@ -1423,8 +1425,8 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	if run.Status != domain.RunStatusRunning && run.Status != domain.RunStatusStarting {
-		return domain.NewStateError("Run", string(run.Status), "stop", "can only stop running or starting runs")
+	if allowed, reason := domain.CanStopRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "stop", reason)
 	}
 
 	// Get the runner type from resolved config or profile
@@ -1468,16 +1470,8 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 
-	// Validate run has a session ID
-	if run.SessionID == "" {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"run has no session ID - continuation not available for this run")
-	}
-
-	// Validate run is in a continuable state (completed or failed, not running)
-	if run.Status == domain.RunStatusRunning || run.Status == domain.RunStatusStarting {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"cannot continue a run that is still in progress")
+	if allowed, reason := domain.CanContinueRun(run); !allowed {
+		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
 
 	// Get the runner type from resolved config
@@ -1569,7 +1563,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	// Execute continuation asynchronously
 	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir)
 
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 // executeContinuation handles the actual continuation execution (runs in background).
@@ -1660,6 +1654,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
 	}
+	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)
 }
 
@@ -1724,7 +1719,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	// Start execution asynchronously with resumption
 	go o.resumeRun(context.Background(), run, task, profile, checkpoint)
 
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 // resumeRun handles the actual agent resumption (runs in background).
@@ -1748,6 +1743,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
 	}
+	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithResumeFrom(checkpoint)
 
 	executor.Execute(ctx)

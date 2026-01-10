@@ -465,6 +465,7 @@ type investigationSettingsRow struct {
 	ApplyPromptTemplate sql.NullString                `db:"apply_prompt_template"`
 	DefaultDepth        string                        `db:"default_depth"`
 	DefaultContext      InvestigationContextFlagsJSON `db:"default_context"`
+	TagAllowlist        InvestigationTagAllowlistJSON `db:"investigation_tag_allowlist"`
 	UpdatedAt           SQLiteTime                    `db:"updated_at"`
 }
 
@@ -473,6 +474,42 @@ type InvestigationContextFlagsJSON domain.InvestigationContextFlags
 
 func (j InvestigationContextFlagsJSON) Value() (interface{}, error) {
 	return json.Marshal(domain.InvestigationContextFlags(j))
+}
+
+// InvestigationTagAllowlistJSON handles JSON serialization for tag allowlist rules.
+type InvestigationTagAllowlistJSON []domain.InvestigationTagRule
+
+func (j InvestigationTagAllowlistJSON) Value() (interface{}, error) {
+	return json.Marshal([]domain.InvestigationTagRule(j))
+}
+
+func (j *InvestigationTagAllowlistJSON) Scan(src interface{}) error {
+	if src == nil {
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+
+	var rules []domain.InvestigationTagRule
+	if err := json.Unmarshal(data, &rules); err != nil {
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+	if len(rules) == 0 {
+		rules = domain.DefaultInvestigationTagAllowlist()
+	}
+	*j = InvestigationTagAllowlistJSON(rules)
+	return nil
 }
 
 func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
@@ -510,16 +547,17 @@ func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
 	}
 
 	return &domain.InvestigationSettings{
-		PromptTemplate:      row.PromptTemplate,
-		ApplyPromptTemplate: applyPrompt,
-		DefaultDepth:        domain.InvestigationDepth(row.DefaultDepth),
-		DefaultContext:      domain.InvestigationContextFlags(row.DefaultContext),
-		UpdatedAt:           row.UpdatedAt.Time(),
+		PromptTemplate:            row.PromptTemplate,
+		ApplyPromptTemplate:       applyPrompt,
+		DefaultDepth:              domain.InvestigationDepth(row.DefaultDepth),
+		DefaultContext:            domain.InvestigationContextFlags(row.DefaultContext),
+		InvestigationTagAllowlist: []domain.InvestigationTagRule(row.TagAllowlist),
+		UpdatedAt:                 row.UpdatedAt.Time(),
 	}
 }
 
 func (r *investigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
-	query := `SELECT prompt_template, apply_prompt_template, default_depth, default_context, updated_at
+	query := `SELECT prompt_template, apply_prompt_template, default_depth, default_context, investigation_tag_allowlist, updated_at
 		FROM investigation_settings WHERE id = 1`
 
 	var row investigationSettingsRow
@@ -540,6 +578,10 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 	if err != nil {
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)
 	}
+	allowlistJSON, err := json.Marshal(domain.NormalizeInvestigationTagAllowlist(settings.InvestigationTagAllowlist))
+	if err != nil {
+		return wrapDBError("update", "InvestigationSettings", "singleton", err)
+	}
 
 	// Handle apply_prompt_template: store NULL if empty to use default
 	var applyPrompt sql.NullString
@@ -548,13 +590,14 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 	}
 
 	query := r.db.Rebind(`
-		INSERT INTO investigation_settings (id, prompt_template, apply_prompt_template, default_depth, default_context, updated_at)
-		VALUES (1, ?, ?, ?, ?, ?)
+		INSERT INTO investigation_settings (id, prompt_template, apply_prompt_template, default_depth, default_context, investigation_tag_allowlist, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			prompt_template = EXCLUDED.prompt_template,
 			apply_prompt_template = EXCLUDED.apply_prompt_template,
 			default_depth = EXCLUDED.default_depth,
 			default_context = EXCLUDED.default_context,
+			investigation_tag_allowlist = EXCLUDED.investigation_tag_allowlist,
 			updated_at = EXCLUDED.updated_at
 	`)
 
@@ -563,6 +606,7 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 		applyPrompt,
 		string(settings.DefaultDepth),
 		contextJSON,
+		allowlistJSON,
 		time.Now(),
 	)
 	if err != nil {

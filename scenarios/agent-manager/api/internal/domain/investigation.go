@@ -1,7 +1,12 @@
 // Package domain provides investigation-related domain types.
 package domain
 
-import "time"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+)
 
 // =============================================================================
 // INVESTIGATION TAG CONSTANTS
@@ -47,6 +52,8 @@ type InvestigationSettings struct {
 
 	// DefaultContext defines which context types are included by default
 	DefaultContext InvestigationContextFlags `json:"defaultContext" db:"default_context"`
+	// InvestigationTagAllowlist defines which run tags are eligible for Apply Fixes and recommendation extraction.
+	InvestigationTagAllowlist []InvestigationTagRule `json:"investigationTagAllowlist" db:"investigation_tag_allowlist"`
 
 	// UpdatedAt is when these settings were last modified
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
@@ -94,6 +101,104 @@ func DefaultInvestigationContextFlags() InvestigationContextFlags {
 		RunDiffs:     true,
 		FullLogs:     false,
 	}
+}
+
+// InvestigationTagRule defines a single allowlist rule for investigation tags.
+type InvestigationTagRule struct {
+	// Pattern is a glob or regex pattern used to match run tags.
+	Pattern string `json:"pattern"`
+	// IsRegex controls whether Pattern is treated as a regex. If false, Pattern is treated as a glob.
+	IsRegex bool `json:"isRegex"`
+	// CaseSensitive controls whether matching is case-sensitive.
+	CaseSensitive bool `json:"caseSensitive"`
+}
+
+// DefaultInvestigationTagAllowlist returns the default tag allowlist rules.
+func DefaultInvestigationTagAllowlist() []InvestigationTagRule {
+	return []InvestigationTagRule{
+		{
+			Pattern:       "investigation",
+			IsRegex:       false,
+			CaseSensitive: false,
+		},
+		{
+			Pattern:       "*-investigation",
+			IsRegex:       false,
+			CaseSensitive: false,
+		},
+	}
+}
+
+// NormalizeInvestigationTagAllowlist returns a usable allowlist (defaults if empty).
+func NormalizeInvestigationTagAllowlist(rules []InvestigationTagRule) []InvestigationTagRule {
+	if len(rules) == 0 {
+		return DefaultInvestigationTagAllowlist()
+	}
+	return rules
+}
+
+// ValidateInvestigationTagAllowlist ensures regex patterns compile.
+func ValidateInvestigationTagAllowlist(rules []InvestigationTagRule) error {
+	for _, rule := range NormalizeInvestigationTagAllowlist(rules) {
+		if strings.TrimSpace(rule.Pattern) == "" {
+			continue
+		}
+		if rule.IsRegex {
+			if _, err := compileInvestigationTagPattern(rule); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// MatchesInvestigationTag returns true if tag matches any allowlist rule.
+func MatchesInvestigationTag(tag string, rules []InvestigationTagRule) bool {
+	for _, rule := range NormalizeInvestigationTagAllowlist(rules) {
+		if strings.TrimSpace(rule.Pattern) == "" {
+			continue
+		}
+		re, err := compileInvestigationTagPattern(rule)
+		if err != nil {
+			continue
+		}
+		if re.MatchString(tag) {
+			return true
+		}
+	}
+	return false
+}
+
+func compileInvestigationTagPattern(rule InvestigationTagRule) (*regexp.Regexp, error) {
+	pattern := rule.Pattern
+	if !rule.IsRegex {
+		pattern = globToRegex(pattern)
+	}
+	if !rule.CaseSensitive {
+		pattern = "(?i)" + pattern
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid investigation tag pattern %q: %w", rule.Pattern, err)
+	}
+	return re, nil
+}
+
+func globToRegex(pattern string) string {
+	var builder strings.Builder
+	builder.WriteString("^")
+	for _, r := range pattern {
+		switch r {
+		case '*':
+			builder.WriteString(".*")
+		case '?':
+			builder.WriteString(".")
+		default:
+			builder.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	builder.WriteString("$")
+	return builder.String()
 }
 
 // =============================================================================
@@ -328,10 +433,11 @@ Any additional steps needed:
 // DefaultInvestigationSettings returns the default investigation settings.
 func DefaultInvestigationSettings() *InvestigationSettings {
 	return &InvestigationSettings{
-		PromptTemplate:      DefaultInvestigationPromptTemplate,
-		ApplyPromptTemplate: DefaultApplyInvestigationPromptTemplate,
-		DefaultDepth:        InvestigationDepthStandard,
-		DefaultContext:      DefaultInvestigationContextFlags(),
-		UpdatedAt:           time.Now(),
+		PromptTemplate:            DefaultInvestigationPromptTemplate,
+		ApplyPromptTemplate:       DefaultApplyInvestigationPromptTemplate,
+		DefaultDepth:              InvestigationDepthStandard,
+		DefaultContext:            DefaultInvestigationContextFlags(),
+		InvestigationTagAllowlist: DefaultInvestigationTagAllowlist(),
+		UpdatedAt:                 time.Now(),
 	}
 }

@@ -275,11 +275,6 @@ export function RunsPage({
     }
   };
 
-  const canDeleteRun = (run: Run | null): boolean => {
-    if (!run) return false;
-    return ![RunStatus.PENDING, RunStatus.STARTING, RunStatus.RUNNING].includes(run.status);
-  };
-
   const handleDelete = async (run: Run) => {
     if (!confirm("Delete this run? This removes its history and events.")) return;
     setDeleteLoading(true);
@@ -561,7 +556,7 @@ export function RunsPage({
               >
                 {runStatusLabel(run.status).replace("_", " ")}
               </Badge>
-              {(run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING) && (
+              {run.actions?.canStop && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -575,7 +570,7 @@ export function RunsPage({
                   <Square className="h-3 w-3" />
                 </Button>
               )}
-              {canDeleteRun(run) && (
+              {run.actions?.canDelete && (
                 <Button
                   variant="ghost"
                   size="icon"

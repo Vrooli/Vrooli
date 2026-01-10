@@ -28,7 +28,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { cn, formatDate, formatDuration, runnerTypeLabel, buildSandboxReviewUrl } from "../lib/utils";
+import { buildSandboxReviewUrl, cn, formatDate, formatDuration, runnerTypeLabel } from "../lib/utils";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -194,9 +194,9 @@ export function RunDetail({
     costTotals.cacheCreationTokens +
     costTotals.cacheReadTokens;
 
-  const canDeleteRun = ![RunStatus.PENDING, RunStatus.STARTING, RunStatus.RUNNING].includes(run.status);
-  const isInvestigationRun = run.tag === "agent-manager-investigation";
-  const canApplyFixes = isInvestigationRun && run.status === RunStatus.COMPLETE;
+  const actions = run.actions;
+  const canDeleteRun = actions?.canDelete ?? false;
+  const canApplyFixes = actions?.canApplyInvestigation ?? false;
   const runVariant = getRunVariant(run.status);
 
   const eventCounts = useMemo(() => {
@@ -417,15 +417,17 @@ export function RunDetail({
           className="px-4 py-3 border-t border-border flex flex-wrap items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onInvestigate(run.id)}
-            className="gap-1"
-          >
-            <Search className="h-3 w-3" />
-            Investigate
-          </Button>
+          {actions?.canInvestigate && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onInvestigate(run.id)}
+              className="gap-1"
+            >
+              <Search className="h-3 w-3" />
+              Investigate
+            </Button>
+          )}
           {canApplyFixes && (
             <Button
               variant="outline"
@@ -437,8 +439,7 @@ export function RunDetail({
               Apply Fixes
             </Button>
           )}
-          {([RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.COMPLETE].includes(run.status) ||
-            [ApprovalState.APPROVED, ApprovalState.REJECTED].includes(run.approvalState)) && (
+          {actions?.canRetry && (
             <Button
               variant="outline"
               size="sm"
@@ -451,7 +452,7 @@ export function RunDetail({
           )}
 
           {/* Review button - opens sandbox in workspace-sandbox UI */}
-          {run.status === RunStatus.NEEDS_REVIEW && run.sandboxId && (
+          {actions?.canReview && (
             <Button
               variant="outline"
               size="sm"
@@ -467,7 +468,7 @@ export function RunDetail({
           )}
 
           {/* Approval buttons - for NEEDS_REVIEW runs */}
-          {run.status === RunStatus.NEEDS_REVIEW && (
+          {(actions?.canApprove || actions?.canReject) && (
             <>
               <Button
                 variant="success"
@@ -476,7 +477,7 @@ export function RunDetail({
                   setShowApprovalForm(true);
                   setShowRejectConfirm(false);
                 }}
-                disabled={submitting}
+                disabled={submitting || !actions?.canApprove}
                 className="gap-1"
               >
                 <Check className="h-3 w-3" />
@@ -493,7 +494,7 @@ export function RunDetail({
                     reason: "",
                   });
                 }}
-                disabled={submitting}
+                disabled={submitting || !actions?.canReject}
                 className="gap-1"
               >
                 <X className="h-3 w-3" />

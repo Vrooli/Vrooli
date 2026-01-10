@@ -136,6 +136,26 @@ message Run {
 
   // When the run was last updated.
   google.protobuf.Timestamp updated_at = 27;
+
+  // Action availability for this run (computed).
+  RunActions actions = 29;
+}
+
+// RunActions captures which operations are currently allowed for a run.
+//
+// @usage Run.actions
+message RunActions {
+  bool can_investigate = 1;
+  bool can_apply_investigation = 2;
+  bool can_delete = 3;
+  bool can_stop = 4;
+  bool can_retry = 5;
+  bool can_continue = 6;
+  bool can_approve = 7;
+  bool can_reject = 8;
+  bool can_review = 9;
+  bool can_extract_recommendations = 10;
+  bool can_regenerate_recommendations = 11;
 }
 
 // =============================================================================
