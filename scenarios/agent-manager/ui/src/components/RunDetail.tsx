@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
@@ -86,8 +86,103 @@ export function RunDetail({
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
+
+  // Collapsed state for details section (persisted in localStorage)
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("agm.runDetailsCollapsed") === "true";
+  });
+
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("agm.runDetailsCollapsed", String(isDetailsCollapsed));
+  }, [isDetailsCollapsed]);
+
+  // Details section resize state
+  const DETAILS_MIN_HEIGHT = 200;
+  const TABS_MIN_HEIGHT = 200;
+  const [detailsHeight, setDetailsHeight] = useState(() => {
+    if (typeof window === "undefined") return 350;
+    const stored = Number(localStorage.getItem("agm.runDetailsHeight"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 350;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeRef = useRef<{ top: number; height: number } | null>(null);
+
+  // Resize handler
+  const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    resizeRef.current = {
+      top: rect.top,
+      height: rect.height,
+    };
+    setIsResizing(true);
+  };
+
+  // Resize mouse events
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const nextHeight = event.clientY - resizeRef.current.top;
+      const maxHeight = resizeRef.current.height - TABS_MIN_HEIGHT;
+      const clampedHeight = Math.max(DETAILS_MIN_HEIGHT, Math.min(maxHeight, nextHeight));
+      setDetailsHeight(clampedHeight);
+    };
+
+    const handleUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
+
+  // Persist details height to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("agm.runDetailsHeight", String(detailsHeight));
+  }, [detailsHeight]);
+
+  // Constrain details height when container shrinks
+  useEffect(() => {
+    if (!containerRef.current || typeof ResizeObserver === "undefined") return;
+
+    const clamp = () => {
+      if (!containerRef.current) return;
+      const height = containerRef.current.clientHeight;
+      const maxDetails = Math.max(DETAILS_MIN_HEIGHT, height - TABS_MIN_HEIGHT);
+      if (detailsHeight > maxDetails) {
+        setDetailsHeight(maxDetails);
+      }
+    };
+
+    clamp();
+    const observer = new ResizeObserver(clamp);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [detailsHeight]);
 
   const costTotals = getCostTotals(events);
   const durationMs =
@@ -170,16 +265,26 @@ export function RunDetail({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Run Overview */}
-      <div className="rounded-lg border border-border bg-card/50 p-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Run Overview</p>
-            <h3 className="text-lg font-semibold">{taskTitle}</h3>
-            <p className="text-sm text-muted-foreground">{profileName}</p>
+    <div className="h-full flex flex-col" ref={containerRef}>
+      {/* Details Section (collapsible) */}
+      <div
+        className="flex-shrink-0 flex flex-col border-b border-border"
+        style={isDetailsCollapsed ? undefined : { height: detailsHeight }}
+      >
+        {/* Header - always visible, clickable to toggle */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+        >
+          <div className="flex items-center gap-2">
+            {isDetailsCollapsed ? (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="font-semibold text-sm">Details</span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <Badge
               variant={
                 runStatusLabel(run.status) as
@@ -197,39 +302,192 @@ export function RunDetail({
             {run.approvalState !== ApprovalState.NONE && (
               <Badge variant="outline">{approvalStateLabel(run.approvalState)}</Badge>
             )}
+            {/* Show task title summary when collapsed */}
+            {isDetailsCollapsed && (
+              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                {taskTitle}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Content - hidden when collapsed */}
+        {!isDetailsCollapsed && (
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            {/* Run Overview */}
+            <div className="rounded-lg border border-border bg-card/50 p-4">
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Run Overview</p>
+                <h3 className="text-lg font-semibold">{taskTitle}</h3>
+                <p className="text-sm text-muted-foreground">{profileName}</p>
+              </div>
+
+              {run.errorMsg && (
+                <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-medium">Failure reason</p>
+                      <p className="break-words text-xs text-destructive/90">
+                        {run.errorMsg}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-muted-foreground">Mode: </span>
+                  {runModeLabel(run.runMode)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Phase: </span>
+                  {runPhaseLabel(run.phase).replace("_", " ")}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Progress: </span>
+                  {run.progressPercent}%
+                </div>
+                {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
+                  <div>
+                    <span className="text-muted-foreground">Fallbacks: </span>
+                    {run.resolvedConfig.fallbackRunnerTypes
+                      .map((runnerType) => runnerTypeLabel(runnerType))
+                      .join(", ")}
+                  </div>
+                ) : null}
+                {run.sandboxId && (
+                  <div>
+                    <span className="text-muted-foreground">Sandbox: </span>
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      {run.sandboxId}
+                    </code>
+                  </div>
+                )}
+                {run.changedFiles > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Files: </span>
+                    {run.changedFiles} changed
+                  </div>
+                )}
+                {durationMs !== null && (
+                  <div>
+                    <span className="text-muted-foreground">Duration: </span>
+                    {formatDuration(durationMs)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Highlights */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <KPICard
+                title="Status"
+                value={runStatusLabel(run.status).replace("_", " ")}
+                subtitle={runPhaseLabel(run.phase).replace("_", " ")}
+                icon={<Activity className="h-4 w-4" />}
+                variant={runVariant}
+              />
+              <KPICard
+                title="Duration"
+                value={durationMs !== null ? formatDuration(durationMs) : "In progress"}
+                subtitle={run.startedAt ? formatDate(run.startedAt) : "Not started"}
+                icon={<Clock className="h-4 w-4" />}
+              />
+              <KPICard
+                title="Total Cost"
+                value={costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}
+                subtitle={`${totalTokens.toLocaleString()} tokens`}
+                icon={<DollarSign className="h-4 w-4" />}
+              />
+              <KPICard
+                title="Changes"
+                value={run.changedFiles > 0 ? `${run.changedFiles} files` : "No changes"}
+                subtitle={diff?.files?.length ? `${diff.files.length} files in diff` : "Diff pending"}
+                icon={<FileCode className="h-4 w-4" />}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Actions bar - ALWAYS VISIBLE */}
+        <div
+          className="px-4 py-3 border-t border-border flex flex-wrap items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onInvestigate(run.id)}
+            className="gap-1"
+          >
+            <Search className="h-3 w-3" />
+            Investigate
+          </Button>
+          {canApplyFixes && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onInvestigate(run.id)}
+              onClick={() => onApplyInvestigation(run.id)}
               className="gap-1"
             >
-              <Search className="h-3 w-3" />
-              Investigate
+              <Wrench className="h-3 w-3" />
+              Apply Fixes
             </Button>
-            {canApplyFixes && (
+          )}
+          {([RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.COMPLETE].includes(run.status) ||
+            [ApprovalState.APPROVED, ApprovalState.REJECTED].includes(run.approvalState)) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onRetry(run)}
+              className="gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Re-run
+            </Button>
+          )}
+
+          {/* Approval buttons - for NEEDS_REVIEW runs */}
+          {run.status === RunStatus.NEEDS_REVIEW && (
+            <>
               <Button
-                variant="outline"
+                variant="success"
                 size="sm"
-                onClick={() => onApplyInvestigation(run.id)}
+                onClick={() => {
+                  setShowApprovalForm(true);
+                  setShowRejectConfirm(false);
+                }}
+                disabled={submitting}
                 className="gap-1"
               >
-                <Wrench className="h-3 w-3" />
-                Apply Fixes
+                <Check className="h-3 w-3" />
+                Approve
               </Button>
-            )}
-            {([RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.COMPLETE].includes(run.status) ||
-              [ApprovalState.APPROVED, ApprovalState.REJECTED].includes(run.approvalState)) && (
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
-                onClick={() => onRetry(run)}
+                onClick={() => {
+                  setShowRejectConfirm(true);
+                  setShowApprovalForm(false);
+                  setRejectForm({
+                    actor: approvalForm.actor,
+                    reason: "",
+                  });
+                }}
+                disabled={submitting}
                 className="gap-1"
               >
-                <RotateCcw className="h-3 w-3" />
-                Re-run
+                <X className="h-3 w-3" />
+                Reject
               </Button>
-            )}
-            {canDeleteRun && (
+            </>
+          )}
+
+          {/* Delete button - right aligned */}
+          {canDeleteRun && (
+            <div className="ml-auto">
               <Button
                 variant="ghost"
                 size="sm"
@@ -240,164 +498,203 @@ export function RunDetail({
                 <Trash2 className="h-3 w-3" />
                 Delete
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {run.errorMsg && (
-          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-              <div className="space-y-1">
-                <p className="font-medium">Failure reason</p>
-                <p className="break-words text-xs text-destructive/90">
-                  {run.errorMsg}
-                </p>
+        {/* Inline approval form - shown when approve clicked */}
+        {showApprovalForm && (
+          <div className="px-4 py-3 border-t border-border bg-muted/30 space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="approveActor">Your Name (optional)</Label>
+                <Input
+                  id="approveActor"
+                  value={approvalForm.actor}
+                  onChange={(e) =>
+                    setApprovalForm({
+                      ...approvalForm,
+                      actor: e.target.value,
+                    })
+                  }
+                  placeholder="Leave blank to approve anonymously"
+                />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="commitMsg">Commit Message</Label>
+                <Input
+                  id="commitMsg"
+                  value={approvalForm.commitMsg}
+                  onChange={(e) =>
+                    setApprovalForm({
+                      ...approvalForm,
+                      commitMsg: e.target.value,
+                    })
+                  }
+                  placeholder="Optional custom message"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="success"
+                size="sm"
+                onClick={handleApprove}
+                disabled={submitting}
+                className="gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Confirm Approval
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowApprovalForm(false)}
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         )}
 
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <span className="text-muted-foreground">Mode: </span>
-            {runModeLabel(run.runMode)}
+        {/* Inline rejection form - shown when reject clicked */}
+        {showRejectConfirm && (
+          <div className="px-4 py-3 border-t border-border bg-destructive/5 space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="rejectActor">Your Name (optional)</Label>
+                <Input
+                  id="rejectActor"
+                  value={rejectForm.actor}
+                  onChange={(e) =>
+                    setRejectForm({
+                      ...rejectForm,
+                      actor: e.target.value,
+                    })
+                  }
+                  placeholder="Leave blank for anonymous"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rejectReason">Rejection Reason</Label>
+                <Textarea
+                  id="rejectReason"
+                  value={rejectForm.reason}
+                  onChange={(e) =>
+                    setRejectForm({
+                      ...rejectForm,
+                      reason: e.target.value,
+                    })
+                  }
+                  placeholder="Why are you rejecting these changes?"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleReject}
+                disabled={submitting}
+              >
+                Confirm Rejection
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRejectForm({ actor: "", reason: "" });
+                  setShowRejectConfirm(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
-          <div>
-            <span className="text-muted-foreground">Phase: </span>
-            {runPhaseLabel(run.phase).replace("_", " ")}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Progress: </span>
-            {run.progressPercent}%
-          </div>
-          {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
-            <div>
-              <span className="text-muted-foreground">Fallbacks: </span>
-              {run.resolvedConfig.fallbackRunnerTypes
-                .map((runnerType) => runnerTypeLabel(runnerType))
-                .join(", ")}
-            </div>
-          ) : null}
-          {run.sandboxId && (
-            <div>
-              <span className="text-muted-foreground">Sandbox: </span>
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                {run.sandboxId}
-              </code>
-            </div>
-          )}
-          {run.changedFiles > 0 && (
-            <div>
-              <span className="text-muted-foreground">Files: </span>
-              {run.changedFiles} changed
-            </div>
-          )}
-          {durationMs !== null && (
-            <div>
-              <span className="text-muted-foreground">Duration: </span>
-              {formatDuration(durationMs)}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Highlights */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          title="Status"
-          value={runStatusLabel(run.status).replace("_", " ")}
-          subtitle={runPhaseLabel(run.phase).replace("_", " ")}
-          icon={<Activity className="h-4 w-4" />}
-          variant={runVariant}
+      {/* Resize handle - only when expanded */}
+      {!isDetailsCollapsed && (
+        <div
+          className="h-1.5 bg-border hover:bg-primary/50 cursor-row-resize flex-shrink-0"
+          onMouseDown={handleResizeStart}
         />
-        <KPICard
-          title="Duration"
-          value={durationMs !== null ? formatDuration(durationMs) : "In progress"}
-          subtitle={run.startedAt ? formatDate(run.startedAt) : "Not started"}
-          icon={<Clock className="h-4 w-4" />}
-        />
-        <KPICard
-          title="Total Cost"
-          value={costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}
-          subtitle={`${totalTokens.toLocaleString()} tokens`}
-          icon={<DollarSign className="h-4 w-4" />}
-        />
-        <KPICard
-          title="Changes"
-          value={run.changedFiles > 0 ? `${run.changedFiles} files` : "No changes"}
-          subtitle={diff?.files?.length ? `${diff.files.length} files in diff` : "Diff pending"}
-          icon={<FileCode className="h-4 w-4" />}
-        />
-      </div>
+      )}
 
-      {/* Tab Selector */}
-      <div className="rounded-lg border border-border bg-card/50">
-        <div className="flex border-b border-border overflow-x-auto">
-          <button
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "task"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setActiveTab("task")}
-          >
-            <File className="h-4 w-4 inline mr-2" />
-            Task
-          </button>
-          <button
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "events"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setActiveTab("events")}
-          >
-            <Terminal className="h-4 w-4 inline mr-2" />
-            Events ({events.length})
-          </button>
-          <button
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "messages"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setActiveTab("messages")}
-          >
-            <MessageSquare className="h-4 w-4 inline mr-2" />
-            Messages
-          </button>
-          <button
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "diff"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setActiveTab("diff")}
-          >
-            <FileCode className="h-4 w-4 inline mr-2" />
-            Diff
-          </button>
-          <button
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-              activeTab === "cost"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => setActiveTab("cost")}
-          >
-            <DollarSign className="h-4 w-4 inline mr-2" />
-            Cost
-          </button>
-        </div>
+      {/* Tabs Section - fills remaining space */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="h-full rounded-lg border border-border bg-card/50 flex flex-col overflow-hidden">
+          <div className="flex border-b border-border overflow-x-auto overflow-y-hidden shrink-0">
+            <button
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                activeTab === "task"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("task")}
+            >
+              <File className="h-4 w-4 inline mr-2" />
+              Task
+            </button>
+            <button
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                activeTab === "events"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("events")}
+            >
+              <Terminal className="h-4 w-4 inline mr-2" />
+              Events ({events.length})
+            </button>
+            <button
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                activeTab === "messages"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("messages")}
+            >
+              <MessageSquare className="h-4 w-4 inline mr-2" />
+              Messages
+            </button>
+            <button
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                activeTab === "diff"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("diff")}
+            >
+              <FileCode className="h-4 w-4 inline mr-2" />
+              Diff
+            </button>
+            <button
+              className={cn(
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                activeTab === "cost"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("cost")}
+            >
+              <DollarSign className="h-4 w-4 inline mr-2" />
+              Cost
+            </button>
+          </div>
 
-        <div className="p-4">
-          {activeTab === "task" ? (
+          {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
+          <div className={cn(
+            "flex-1 min-h-0",
+            activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-4"
+          )}>
+            {activeTab === "task" ? (
             task ? (
               <TaskSummary task={task} />
             ) : (
@@ -450,13 +747,15 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "messages" ? (
-            <ChatInterface
-              run={run}
-              events={events}
-              eventsLoading={eventsLoading}
-              onContinue={onContinue}
-              initialPrompt={task?.description}
-            />
+            <div className="flex-1 min-h-0 p-4">
+              <ChatInterface
+                run={run}
+                events={events}
+                eventsLoading={eventsLoading}
+                onContinue={onContinue}
+                initialPrompt={task?.description}
+              />
+            </div>
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
@@ -513,108 +812,8 @@ export function RunDetail({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Approval Actions */}
-      {run.status === RunStatus.NEEDS_REVIEW && (
-        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-4">
-          <h4 className="font-semibold text-sm">Review Actions</h4>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="approveActor">Your Name (optional)</Label>
-              <Input
-                id="approveActor"
-                value={approvalForm.actor}
-                onChange={(e) =>
-                  setApprovalForm({
-                    ...approvalForm,
-                    actor: e.target.value,
-                  })
-                }
-                placeholder="Leave blank to approve anonymously"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="commitMsg">Commit Message</Label>
-              <Input
-                id="commitMsg"
-                value={approvalForm.commitMsg}
-                onChange={(e) =>
-                  setApprovalForm({
-                    ...approvalForm,
-                    commitMsg: e.target.value,
-                  })
-                }
-                placeholder="Optional custom message"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="success"
-              onClick={handleApprove}
-              disabled={submitting}
-              className="gap-2"
-            >
-              <Check className="h-4 w-4" />
-              Approve & Apply
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setRejectForm({
-                  actor: approvalForm.actor,
-                  reason: "",
-                });
-                setShowRejectConfirm(true);
-              }}
-              disabled={submitting}
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              Reject
-            </Button>
-          </div>
-
-          {showRejectConfirm && (
-            <div className="space-y-2 p-3 bg-destructive/10 rounded-lg">
-              <Label htmlFor="rejectReason">Rejection Reason</Label>
-              <Textarea
-                id="rejectReason"
-                value={rejectForm.reason}
-                onChange={(e) =>
-                  setRejectForm({
-                    ...rejectForm,
-                    reason: e.target.value,
-                  })
-                }
-                placeholder="Why are you rejecting these changes?"
-                rows={2}
-              />
-              <div className="flex gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleReject}
-                  disabled={submitting}
-                >
-                  Confirm Rejection
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setRejectForm({ actor: "", reason: "" });
-                    setShowRejectConfirm(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -560,6 +560,7 @@ export function RunsPage({
     <DetailPanel
       title="Run Details"
       hasSelection={!!selectedRun}
+      hideHeader
       empty={
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Eye className="h-12 w-12 mb-3 opacity-50" />

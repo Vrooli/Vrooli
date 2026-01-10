@@ -141,7 +141,7 @@ export function ChatInterface({ run, events, eventsLoading, onContinue, initialP
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-[500px]">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
         {messages.map((message) => (
           <div
             key={message.id}
