@@ -8,6 +8,7 @@ import { AppHeader } from "./components/layout/AppHeader";
 import { MobileNav, type NavSection } from "./components/layout/MobileNav";
 import { StatusDialog } from "./components/dialogs/StatusDialog";
 import { SettingsDialog } from "./components/dialogs/SettingsDialog";
+import { QuickRunDialog } from "./components/QuickRunDialog";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
@@ -27,6 +28,7 @@ export default function App() {
 
   const [statusOpen, setStatusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [quickRunOpen, setQuickRunOpen] = useState(false);
 
   // Derive active section from current path
   const getActiveSection = useCallback((): NavSection => {
@@ -90,6 +92,7 @@ export default function App() {
           onSectionChange={handleSectionChange}
           onStatusClick={() => setStatusOpen(true)}
           onSettingsClick={() => setSettingsOpen(true)}
+          onQuickRunClick={() => setQuickRunOpen(true)}
         />
 
         <StatusDialog
@@ -106,6 +109,21 @@ export default function App() {
           onPurgeComplete={handlePurgeComplete}
         />
 
+        <QuickRunDialog
+          open={quickRunOpen}
+          onOpenChange={setQuickRunOpen}
+          profiles={profiles.data || []}
+          runners={runners.data ?? undefined}
+          modelRegistry={modelRegistry.data ?? undefined}
+          onCreateTask={tasks.createTask}
+          onCreateRun={runs.createRun}
+          onRunCreated={(run) => {
+            runs.refetch();
+            tasks.refetch();
+            navigate(`/runs/${run.id}`);
+          }}
+        />
+
         {/* Main Content */}
         <main
           className={`flex-1 min-h-0 overflow-hidden ${isMobile ? "pb-16" : ""}`}
@@ -116,23 +134,13 @@ export default function App() {
               element={
                 <DashboardPage
                   health={health.data}
-                  profiles={profiles.data || []}
                   tasks={tasks.data || []}
                   runs={runs.data || []}
-                  runners={runners.data ?? undefined}
-                  modelRegistry={modelRegistry.data ?? undefined}
                   onRefresh={() => {
                     health.refetch();
                     profiles.refetch();
                     tasks.refetch();
                     runs.refetch();
-                  }}
-                  onCreateTask={tasks.createTask}
-                  onCreateRun={runs.createRun}
-                  onRunCreated={(run) => {
-                    runs.refetch();
-                    tasks.refetch();
-                    navigate(`/runs/${run.id}`);
                   }}
                   onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
                 />

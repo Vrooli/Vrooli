@@ -8,8 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,148 +29,49 @@ const (
 // NOTE: InvestigationDepth type is defined in domain/investigation.go
 // Use domain.InvestigationDepth, domain.InvestigationDepthQuick, etc.
 
-// ScenarioContext contains information about a scenario being investigated.
-type ScenarioContext struct {
-	ProjectRoot    string   `json:"projectRoot"`
-	ScenarioName   string   `json:"scenarioName,omitempty"`
-	RunIDs         []string `json:"runIds"`
-	KeyFiles       []string `json:"keyFiles,omitempty"`
-	StructureHints []string `json:"structureHints,omitempty"`
+// InvestigationContext contains information about the investigation scope.
+type InvestigationContext struct {
+	ProjectRoot string   `json:"projectRoot"`
+	ScopePaths  []string `json:"scopePaths,omitempty"`
+	RunIDs      []string `json:"runIds"`
 }
 
-// extractScenarioRoots extracts unique project roots from the investigated runs' tasks.
-// Returns a map of projectRoot -> list of runIDs that use that root.
-func (o *Orchestrator) extractScenarioRoots(ctx context.Context, runIDs []uuid.UUID) (map[string][]uuid.UUID, error) {
-	roots := make(map[string][]uuid.UUID)
-
-	for _, runID := range runIDs {
-		run, err := o.GetRun(ctx, runID)
-		if err != nil {
-			return nil, err
-		}
-
-		task, err := o.GetTask(ctx, run.TaskID)
-		if err != nil {
-			return nil, err
-		}
-
-		projectRoot := task.ProjectRoot
-		if projectRoot == "" {
-			projectRoot = o.config.DefaultProjectRoot // Fallback
-		}
-
-		roots[projectRoot] = append(roots[projectRoot], runID)
+// buildInvestigationContextAttachment creates a context attachment describing the investigation scope.
+func buildInvestigationContextAttachment(projectRoot string, scopePaths []string, runIDs []uuid.UUID) domain.ContextAttachment {
+	runIDStrings := make([]string, len(runIDs))
+	for i, id := range runIDs {
+		runIDStrings[i] = id.String()
 	}
 
-	return roots, nil
-}
-
-// determineInvestigationWorkDir determines the appropriate working directory for investigation.
-// If all runs share the same projectRoot, use that. Otherwise, use the common ancestor.
-func determineInvestigationWorkDir(roots map[string][]uuid.UUID, fallback string) string {
-	if len(roots) == 0 {
-		return fallback
+	ctx := InvestigationContext{
+		ProjectRoot: projectRoot,
+		ScopePaths:  scopePaths,
+		RunIDs:      runIDStrings,
 	}
 
-	// If single root, use it directly
-	if len(roots) == 1 {
-		for root := range roots {
-			return root
-		}
-	}
-
-	// Multiple roots - find common ancestor
-	var paths []string
-	for root := range roots {
-		paths = append(paths, root)
-	}
-
-	return findCommonAncestor(paths, fallback)
-}
-
-// findCommonAncestor finds the common ancestor directory of multiple paths.
-func findCommonAncestor(paths []string, fallback string) string {
-	if len(paths) == 0 {
-		return fallback
-	}
-
-	parts := strings.Split(paths[0], string(os.PathSeparator))
-
-	for _, path := range paths[1:] {
-		otherParts := strings.Split(path, string(os.PathSeparator))
-		minLen := len(parts)
-		if len(otherParts) < minLen {
-			minLen = len(otherParts)
-		}
-
-		commonLen := 0
-		for i := 0; i < minLen; i++ {
-			if parts[i] == otherParts[i] {
-				commonLen = i + 1
-			} else {
-				break
-			}
-		}
-		parts = parts[:commonLen]
-	}
-
-	if len(parts) == 0 {
-		return fallback
-	}
-
-	return strings.Join(parts, string(os.PathSeparator))
-}
-
-// buildScenarioContextAttachment creates a context attachment describing the scenarios.
-func buildScenarioContextAttachment(roots map[string][]uuid.UUID) domain.ContextAttachment {
-	var contexts []ScenarioContext
-
-	for root, runIDs := range roots {
-		scenarioCtx := ScenarioContext{
-			ProjectRoot: root,
-			RunIDs:      make([]string, len(runIDs)),
-		}
-
-		for i, id := range runIDs {
-			scenarioCtx.RunIDs[i] = id.String()
-		}
-
-		// Extract scenario name from path
-		scenarioCtx.ScenarioName = extractScenarioName(root)
-
-		// Add key files to explore
-		scenarioCtx.KeyFiles = detectKeyFiles(root)
-
-		// Add structure hints
-		scenarioCtx.StructureHints = getStructureHints(root)
-
-		contexts = append(contexts, scenarioCtx)
-	}
-
-	content, _ := json.MarshalIndent(contexts, "", "  ")
+	content, _ := json.MarshalIndent(ctx, "", "  ")
 
 	return domain.ContextAttachment{
 		Type:    "note",
-		Key:     "scenario-context",
-		Label:   "Scenario Context",
+		Key:     "investigation-context",
+		Label:   "Investigation Context",
 		Content: string(content),
-		Tags:    []string{"scenario", "context", "investigation"},
+		Tags:    []string{"context", "investigation"},
 	}
 }
 
 // InvestigationMetadata contains dynamic investigation parameters passed as context.
 type InvestigationMetadata struct {
-	Depth           string   `json:"depth"`
-	DepthGuidance   string   `json:"depthGuidance"`
-	RunIDs          []string `json:"runIds"`
-	ScenarioCount   int      `json:"scenarioCount"`
-	TotalRunCount   int      `json:"totalRunCount"`
-	InvestigatedAt  string   `json:"investigatedAt"`
+	Depth          string   `json:"depth"`
+	DepthGuidance  string   `json:"depthGuidance"`
+	RunIDs         []string `json:"runIds"`
+	TotalRunCount  int      `json:"totalRunCount"`
+	InvestigatedAt string   `json:"investigatedAt"`
 }
 
 // buildInvestigationMetadataAttachment creates a context attachment with investigation parameters.
 // This contains all the dynamic data that used to be embedded in the prompt.
-func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.InvestigationDepth, roots map[string][]uuid.UUID) domain.ContextAttachment {
+func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.InvestigationDepth) domain.ContextAttachment {
 	// Build depth guidance based on investigation depth
 	var depthGuidance string
 	switch depth {
@@ -194,7 +93,6 @@ func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.Inves
 		Depth:          string(depth),
 		DepthGuidance:  depthGuidance,
 		RunIDs:         runIDStrings,
-		ScenarioCount:  len(roots),
 		TotalRunCount:  len(runIDs),
 		InvestigatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -208,78 +106,6 @@ func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.Inves
 		Content: string(content),
 		Tags:    []string{"metadata", "investigation", "config"},
 	}
-}
-
-// extractScenarioName extracts the scenario name from a project root path.
-func extractScenarioName(projectRoot string) string {
-	// Extract scenario name from path like "/home/.../Vrooli/scenarios/agent-manager"
-	parts := strings.Split(projectRoot, string(os.PathSeparator))
-	for i, part := range parts {
-		if part == "scenarios" && i+1 < len(parts) {
-			return parts[i+1]
-		}
-	}
-	// Fallback to last path component
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return "unknown"
-}
-
-// detectKeyFiles finds important files in a project root.
-func detectKeyFiles(projectRoot string) []string {
-	keyFiles := []string{
-		"CLAUDE.md",
-		"README.md",
-		"service.json",
-		"Makefile",
-		".vrooli/service.json",
-	}
-
-	var found []string
-	for _, file := range keyFiles {
-		path := filepath.Join(projectRoot, file)
-		if _, err := os.Stat(path); err == nil {
-			found = append(found, file)
-		}
-	}
-
-	// Check for common subdirectories
-	for _, subdir := range []string{"api", "ui", "cli", "docs"} {
-		path := filepath.Join(projectRoot, subdir)
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			found = append(found, subdir+"/")
-		}
-	}
-
-	return found
-}
-
-// getStructureHints provides hints about the project structure.
-func getStructureHints(projectRoot string) []string {
-	var hints []string
-
-	// Check for Go API
-	if _, err := os.Stat(filepath.Join(projectRoot, "api", "main.go")); err == nil {
-		hints = append(hints, "Go API in api/ - check api/internal/ for handlers and services")
-	}
-
-	// Check for React UI
-	if _, err := os.Stat(filepath.Join(projectRoot, "ui", "package.json")); err == nil {
-		hints = append(hints, "React UI in ui/ - check ui/src/ for components and hooks")
-	}
-
-	// Check for CLI
-	if _, err := os.Stat(filepath.Join(projectRoot, "cli")); err == nil {
-		hints = append(hints, "CLI in cli/ - check for command implementations")
-	}
-
-	// Check for CLAUDE.md
-	if _, err := os.Stat(filepath.Join(projectRoot, "CLAUDE.md")); err == nil {
-		hints = append(hints, "Has CLAUDE.md - read this first for project context")
-	}
-
-	return hints
 }
 
 // CreateInvestigationRun creates a new investigation run for the given run IDs.
@@ -309,14 +135,11 @@ func (o *Orchestrator) CreateInvestigationRun(
 		return nil, domain.NewValidationError("depth", "must be 'quick', 'standard', or 'deep'")
 	}
 
-	// Extract scenario roots from investigated runs
-	roots, err := o.extractScenarioRoots(ctx, req.RunIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract scenario roots: %w", err)
+	// Use explicit ProjectRoot from request, falling back to config default
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = o.config.DefaultProjectRoot
 	}
-
-	// Determine working directory
-	workDir := determineInvestigationWorkDir(roots, o.config.DefaultProjectRoot)
 
 	// Build attachments - all dynamic data goes here, NOT in the prompt
 	attachments, err := o.buildInvestigationAttachments(ctx, req.RunIDs, req.CustomContext)
@@ -325,18 +148,18 @@ func (o *Orchestrator) CreateInvestigationRun(
 	}
 
 	// Add investigation metadata attachment (depth, run IDs, etc.)
-	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth, roots)
+	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth)
 	attachments = append([]domain.ContextAttachment{metadataAttachment}, attachments...)
 
-	// Add scenario context attachment
-	scenarioCtx := buildScenarioContextAttachment(roots)
-	attachments = append([]domain.ContextAttachment{scenarioCtx}, attachments...)
+	// Add investigation context attachment (explicit project root and scope paths)
+	investigationCtx := buildInvestigationContextAttachment(projectRoot, req.ScopePaths, req.RunIDs)
+	attachments = append([]domain.ContextAttachment{investigationCtx}, attachments...)
 
 	// Use the stored prompt template (user-editable, no variable substitution)
 	prompt := settings.PromptTemplate
 
-	// Create task with correct working directory
-	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, workDir)
+	// Create task with explicit project root
+	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, projectRoot)
 	if err != nil {
 		return nil, err
 	}

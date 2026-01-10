@@ -10,7 +10,6 @@ import {
   Copy,
   Check,
   Loader2,
-  Play,
   RefreshCw,
   Server,
   Shield,
@@ -21,41 +20,27 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
-import { QuickRunDialog } from "../components/QuickRunDialog";
 import { probeRunner } from "../hooks/useApi";
 import { formatRelativeTime, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ModelRegistry, ProbeResult, Run, RunnerStatus, RunnerType, Task, TaskFormData, RunFormData, HealthResponse, JsonValue } from "../types";
+import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } from "../types";
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
-  profiles: AgentProfile[];
   tasks: Task[];
   runs: Run[];
-  runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
   onRefresh: () => void;
-  onCreateTask: (task: TaskFormData) => Promise<Task>;
-  onCreateRun: (run: RunFormData) => Promise<Run>;
-  onRunCreated?: (run: Run) => void;
   onNavigateToRun?: (runId: string) => void;
 }
 
 export function DashboardPage({
   health,
-  profiles,
   tasks,
   runs,
-  runners,
-  modelRegistry,
   onRefresh,
-  onCreateTask,
-  onCreateRun,
-  onRunCreated,
   onNavigateToRun,
 }: DashboardPageProps) {
-  const [showQuickRun, setShowQuickRun] = useState(false);
   const activeRuns = runs.filter(
     (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
   );
@@ -78,32 +63,14 @@ export function DashboardPage({
             Overview of agent orchestration system status
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setShowQuickRun(true)} className="gap-2">
-            <Play className="h-4 w-4" />
-            Quick Run
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Quick Run Dialog */}
-      <QuickRunDialog
-        open={showQuickRun}
-        onOpenChange={setShowQuickRun}
-        profiles={profiles}
-        runners={runners}
-        modelRegistry={modelRegistry}
-        onCreateTask={onCreateTask}
-        onCreateRun={onCreateRun}
-        onRunCreated={onRunCreated}
-      />
-
       {/* Status Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatusCard
           title="Active Runs"
           value={activeRuns.length}
@@ -117,13 +84,6 @@ export function DashboardPage({
           icon={<Clock className="h-5 w-5" />}
           description="Awaiting approval"
           variant={pendingReview.length > 0 ? "warning" : "muted"}
-        />
-        <StatusCard
-          title="Agent Profiles"
-          value={profiles.length}
-          icon={<Bot className="h-5 w-5" />}
-          description="Configured agents"
-          variant="muted"
         />
         <StatusCard
           title="Total Tasks"

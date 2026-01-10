@@ -140,6 +140,10 @@ export interface CreateInvestigationRunRequest {
   customContext?: string;
   /** Investigation depth: quick (fast analysis), standard (balanced), or deep (thorough) */
   depth?: InvestigationDepth;
+  /** Project root - where the agent can look at code (explicit, no guessing) */
+  projectRoot?: string;
+  /** Scope paths - where the agent can make changes */
+  scopePaths?: string[];
 }
 
 export interface ApplyInvestigationRunRequest {
@@ -159,8 +163,6 @@ export interface InvestigationContextFlags {
   runEvents: boolean;
   /** Include code changes made during runs */
   runDiffs: boolean;
-  /** Include scenario documentation (CLAUDE.md, README) */
-  scenarioDocs: boolean;
   /** Include full run logs (can be very large) */
   fullLogs: boolean;
 }
@@ -179,24 +181,11 @@ export interface InvestigationSettings {
   updatedAt: string;
 }
 
-/** Detected scenario from run analysis */
-export interface DetectedScenario {
-  /** Scenario name (e.g., "agent-manager") */
-  name: string;
-  /** Full path to the scenario */
-  projectRoot: string;
-  /** Important files found (CLAUDE.md, README.md, etc.) */
-  keyFiles: string[];
-  /** Number of selected runs from this scenario */
-  runCount: number;
-}
-
 /** Default context flags */
 export const DEFAULT_INVESTIGATION_CONTEXT: InvestigationContextFlags = {
   runSummaries: true,
   runEvents: true,
   runDiffs: true,
-  scenarioDocs: true,
   fullLogs: false,
 };
 

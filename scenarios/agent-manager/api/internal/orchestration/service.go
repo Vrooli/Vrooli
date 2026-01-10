@@ -102,7 +102,6 @@ type Service interface {
 	GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error)
 	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
 	ResetInvestigationSettings(ctx context.Context) error
-	DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error)
 
 	// --- Recommendation Extraction Operations ---
 	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
@@ -253,7 +252,9 @@ type ContinueRunRequest struct {
 type CreateInvestigationRequest struct {
 	RunIDs        []uuid.UUID               `json:"runIds"`
 	CustomContext string                    `json:"customContext,omitempty"`
-	Depth         domain.InvestigationDepth `json:"depth,omitempty"` // Defaults to "standard"
+	Depth         domain.InvestigationDepth `json:"depth,omitempty"`       // Defaults to "standard"
+	ProjectRoot   string                    `json:"projectRoot,omitempty"` // Root directory for investigation (explicit, no guessing)
+	ScopePaths    []string                  `json:"scopePaths,omitempty"`  // Paths where agent can make changes
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -2357,96 +2358,4 @@ func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
 	return o.investigationSettings.Reset(ctx)
-}
-
-// DetectScenariosForRuns analyzes runs and returns detected scenario information.
-func (o *Orchestrator) DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error) {
-	if len(runIDs) == 0 {
-		return nil, nil
-	}
-
-	// Map to track scenarios and their run counts
-	scenarioMap := make(map[string]*domain.DetectedScenario)
-
-	for _, runID := range runIDs {
-		run, err := o.GetRun(ctx, runID)
-		if err != nil {
-			continue // Skip runs we can't find
-		}
-
-		task, err := o.GetTask(ctx, run.TaskID)
-		if err != nil {
-			continue
-		}
-
-		// Extract scenario from project root
-		projectRoot := strings.TrimSpace(task.ProjectRoot)
-		if projectRoot == "" {
-			continue
-		}
-
-		// Try to detect scenario from path pattern: .../scenarios/<scenario-name>/...
-		scenarioName, scenarioRoot := extractScenarioFromPath(projectRoot)
-		if scenarioName == "" {
-			continue
-		}
-
-		if existing, ok := scenarioMap[scenarioRoot]; ok {
-			existing.RunCount++
-		} else {
-			scenarioMap[scenarioRoot] = &domain.DetectedScenario{
-				Name:        scenarioName,
-				ProjectRoot: scenarioRoot,
-				KeyFiles:    findKeyFiles(scenarioRoot),
-				RunCount:    1,
-			}
-		}
-	}
-
-	// Convert map to slice
-	result := make([]*domain.DetectedScenario, 0, len(scenarioMap))
-	for _, scenario := range scenarioMap {
-		result = append(result, scenario)
-	}
-
-	return result, nil
-}
-
-// extractScenarioFromPath extracts the scenario name and root from a path.
-// Returns empty strings if not in a scenarios directory.
-func extractScenarioFromPath(path string) (name, root string) {
-	// Look for /scenarios/<name> pattern
-	parts := strings.Split(filepath.ToSlash(path), "/")
-	for i, part := range parts {
-		if part == "scenarios" && i+1 < len(parts) {
-			scenarioName := parts[i+1]
-			// Reconstruct the scenario root path
-			scenarioRoot := strings.Join(parts[:i+2], "/")
-			// Convert back to native path separators
-			scenarioRoot = filepath.FromSlash(scenarioRoot)
-			return scenarioName, scenarioRoot
-		}
-	}
-	return "", ""
-}
-
-// findKeyFiles looks for important documentation files in a scenario directory.
-func findKeyFiles(scenarioRoot string) []string {
-	keyFileNames := []string{
-		"CLAUDE.md",
-		"README.md",
-		"Makefile",
-		"service.json",
-		"go.mod",
-		"package.json",
-	}
-
-	var found []string
-	for _, name := range keyFileNames {
-		path := filepath.Join(scenarioRoot, name)
-		if _, err := os.Stat(path); err == nil {
-			found = append(found, name)
-		}
-	}
-	return found
 }

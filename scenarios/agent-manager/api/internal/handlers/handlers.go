@@ -135,7 +135,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
 	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")
-	r.HandleFunc("/api/v1/runs/detect-scenarios", h.DetectScenariosForRuns).Methods("POST")
 }
 
 // =============================================================================
@@ -1366,6 +1365,8 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		RunIDs        []string `json:"runIds"`
 		CustomContext string   `json:"customContext,omitempty"`
 		Depth         string   `json:"depth,omitempty"` // quick, standard, or deep
+		ProjectRoot   string   `json:"projectRoot,omitempty"`
+		ScopePaths    []string `json:"scopePaths,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -1393,6 +1394,8 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		RunIDs:        runIDs,
 		CustomContext: req.CustomContext,
 		Depth:         depth,
+		ProjectRoot:   req.ProjectRoot,
+		ScopePaths:    req.ScopePaths,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -2290,36 +2293,5 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 		"defaultDepth":        string(settings.DefaultDepth),
 		"defaultContext":      settings.DefaultContext,
 		"updatedAt":           settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	})
-}
-
-// DetectScenariosForRuns detects scenarios from run data.
-func (h *Handler) DetectScenariosForRuns(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		RunIDs []string `json:"runIds"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeSimpleError(w, r, "body", "invalid JSON request body")
-		return
-	}
-
-	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
-	for _, idStr := range req.RunIDs {
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			writeSimpleError(w, r, "runIds", "invalid UUID format: "+idStr)
-			return
-		}
-		runIDs = append(runIDs, id)
-	}
-
-	scenarios, err := h.svc.DetectScenariosForRuns(r.Context(), runIDs)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"scenarios": scenarios,
 	})
 }

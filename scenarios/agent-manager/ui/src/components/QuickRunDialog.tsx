@@ -24,6 +24,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "./ModelConfigSelector";
+import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { cn, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
@@ -97,12 +98,16 @@ export function QuickRunDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Step 1: Task data
-  const [taskData, setTaskData] = useState<TaskFormData>({
+  const [taskData, setTaskData] = useState<{
+    title: string;
+    description: string;
+    projectRoot: string;
+  }>({
     title: "",
     description: "",
-    scopePath: ".",
     projectRoot: "",
   });
+  const [scopePaths, setScopePaths] = useState<string[]>([]);
 
   // Step 2: Agent config
   const [agentConfig, setAgentConfig] = useState<AgentConfigData>({
@@ -148,9 +153,9 @@ export function QuickRunDialog({
     setTaskData({
       title: "",
       description: "",
-      scopePath: ".",
       projectRoot: "",
     });
+    setScopePaths([]);
     setAgentConfig({
       mode: profiles.length > 0 ? "profile" : "custom",
       profileId: "",
@@ -172,7 +177,8 @@ export function QuickRunDialog({
   };
 
   const canProceedStep1 = (): boolean => {
-    return taskData.title.trim().length > 0 && taskData.scopePath.trim().length > 0;
+    // Title and project root are required; scope paths can be empty for read-only access
+    return taskData.title.trim().length > 0 && taskData.projectRoot.trim().length > 0;
   };
 
   const canProceedStep2 = (): boolean => {
@@ -242,10 +248,13 @@ export function QuickRunDialog({
 
     try {
       // Step 1: Create the task
+      // Join scope paths with ":" for the backend (which expects a single string)
+      // Empty array means "." (current directory / read-only)
+      const scopePath = scopePaths.length > 0 ? scopePaths.join(":") : ".";
       const task = await onCreateTask({
         title: taskData.title,
         description: taskData.description || undefined,
-        scopePath: taskData.scopePath,
+        scopePath,
         projectRoot: taskData.projectRoot || undefined,
       });
 
@@ -373,33 +382,15 @@ export function QuickRunDialog({
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="scopePath">Scope Path *</Label>
-                  <Input
-                    id="scopePath"
-                    value={taskData.scopePath}
-                    onChange={(e) =>
-                      setTaskData({ ...taskData, scopePath: e.target.value })
-                    }
-                    placeholder="e.g., src/auth"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Directory scope where the agent can operate
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="projectRoot">Project Root</Label>
-                  <Input
-                    id="projectRoot"
-                    value={taskData.projectRoot}
-                    onChange={(e) =>
-                      setTaskData({ ...taskData, projectRoot: e.target.value })
-                    }
-                    placeholder="Optional: /path/to/project"
-                  />
-                </div>
-              </div>
+              <ScopePathsManager
+                projectRoot={taskData.projectRoot}
+                onProjectRootChange={(value) =>
+                  setTaskData({ ...taskData, projectRoot: value })
+                }
+                scopePaths={scopePaths}
+                onScopePathsChange={setScopePaths}
+                scopePathsHelp="Directories where the agent can make changes. Leave empty for read-only access."
+              />
             </div>
           )}
 
@@ -693,21 +684,29 @@ export function QuickRunDialog({
                       </span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <FolderOpen className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Scope: </span>
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {taskData.scopePath}
-                    </code>
-                  </div>
                   {taskData.projectRoot && (
-                    <div>
+                    <div className="flex items-center gap-1">
+                      <FolderOpen className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Project Root: </span>
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">
                         {taskData.projectRoot}
                       </code>
                     </div>
                   )}
+                  <div>
+                    <span className="text-muted-foreground">Scope Paths: </span>
+                    {scopePaths.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {scopePaths.map((path) => (
+                          <code key={path} className="text-xs bg-muted px-1 py-0.5 rounded">
+                            {path}
+                          </code>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Read-only (no write access)</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -299,7 +299,7 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
     -- Default depth: "quick", "standard", "deep"
     default_depth VARCHAR(20) NOT NULL DEFAULT 'standard',
     -- Default context selections (what to include in investigations)
-    default_context JSONB NOT NULL DEFAULT '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}',
+    default_context JSONB NOT NULL DEFAULT '{"runSummaries":true,"runEvents":true,"runDiffs":true,"fullLogs":false}',
 
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -365,7 +365,7 @@ One-paragraph summary of what went wrong and why.
 - **Preventive measures**
 - **Monitoring suggestions**',
     'standard',
-    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}'
+    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"fullLogs":false}'
 )
 ON CONFLICT (id) DO NOTHING;
 

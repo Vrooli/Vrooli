@@ -53,7 +53,7 @@ interface RunsPageProps {
   onGetDiff: (id: string) => Promise<RunDiff>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
-  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep") => Promise<Run>;
+  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
   onContinueRun: (id: string, message: string) => Promise<Run>;
   onRefresh: () => void;
@@ -315,11 +315,23 @@ export function RunsPage({
     setSelectionMode(!selectionMode);
   };
 
-  const handleInvestigate = async (customContext: string, depth: "quick" | "standard" | "deep") => {
+  const handleInvestigate = async (
+    customContext: string,
+    depth: "quick" | "standard" | "deep",
+    _context?: unknown, // ignored - context flags handled server-side
+    projectRoot?: string,
+    scopePaths?: string[]
+  ) => {
     setInvestigateLoading(true);
     setInvestigateError(null);
     try {
-      const created = await onInvestigateRuns(Array.from(selectedRunIds), customContext || undefined, depth);
+      const created = await onInvestigateRuns(
+        Array.from(selectedRunIds),
+        customContext || undefined,
+        depth,
+        projectRoot,
+        scopePaths
+      );
       setInvestigateModalOpen(false);
       setSelectedRunIds(new Set());
       setSelectionMode(false);
@@ -632,6 +644,28 @@ export function RunsPage({
         title={`Investigate ${selectedRunIds.size} Run${selectedRunIds.size !== 1 ? "s" : ""}`}
         description="Analyze the selected runs to identify issues and recommendations."
         confirmLabel="Start Investigation"
+        defaultProjectRoot={(() => {
+          // Get project root from the first selected run's task
+          const firstRunId = Array.from(selectedRunIds)[0];
+          const firstRun = runs.find((r) => r.id === firstRunId);
+          if (firstRun) {
+            const task = tasks.find((t) => t.id === firstRun.taskId);
+            return task?.projectRoot || "";
+          }
+          return "";
+        })()}
+        defaultScopePaths={(() => {
+          // Get scope paths from the first selected run's task
+          const firstRunId = Array.from(selectedRunIds)[0];
+          const firstRun = runs.find((r) => r.id === firstRunId);
+          if (firstRun) {
+            const task = tasks.find((t) => t.id === firstRun.taskId);
+            // scopePath may be colon-separated or single
+            const scopePath = task?.scopePath || "";
+            return scopePath ? scopePath.split(":").filter(Boolean) : [];
+          }
+          return [];
+        })()}
         onSubmit={handleInvestigate}
         loading={investigateLoading}
         error={investigateError}

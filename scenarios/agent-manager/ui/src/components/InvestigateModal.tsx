@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
-  Folder,
-  RefreshCw,
   Search,
   Zap,
   Settings,
@@ -22,13 +20,13 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
+import { ScopePathsManager } from "./ScopePathsManager";
 import type {
-  DetectedScenario,
   InvestigationContextFlags,
   InvestigationDepth,
 } from "../types";
 import { DEFAULT_INVESTIGATION_CONTEXT } from "../types";
-import { detectScenariosForRuns, useInvestigationSettings } from "../hooks/useApi";
+import { useInvestigationSettings } from "../hooks/useApi";
 
 interface InvestigateModalProps {
   open: boolean;
@@ -36,15 +34,18 @@ interface InvestigateModalProps {
   title: string;
   description?: string;
   confirmLabel: string;
-  /** Run IDs to investigate - used for scenario detection */
-  runIds?: string[];
+  /** Default project root from the run being investigated */
+  defaultProjectRoot?: string;
+  /** Default scope paths from the run being investigated */
+  defaultScopePaths?: string[];
   /** Hide the depth selector (used for Apply Investigation which inherits depth) */
   hideDepthSelector?: boolean;
   onSubmit: (
     customContext: string,
     depth: InvestigationDepth,
     context?: InvestigationContextFlags,
-    scenarioOverride?: string
+    projectRoot?: string,
+    scopePaths?: string[]
   ) => Promise<void>;
   loading?: boolean;
   error?: string | null;
@@ -84,8 +85,35 @@ const contextOptions: {
   { key: "runSummaries", label: "Run summaries", shortDesc: "Summary data" },
   { key: "runEvents", label: "Run events", shortDesc: "Essential for debugging" },
   { key: "runDiffs", label: "Run diffs", shortDesc: "Code changes" },
-  { key: "scenarioDocs", label: "Scenario docs", shortDesc: "CLAUDE.md, README" },
   { key: "fullLogs", label: "Full logs", shortDesc: "Can be large" },
+];
+
+/** Suggestion cards for common agent issues */
+const suggestionCards: {
+  label: string;
+  description: string;
+  context: string;
+}[] = [
+  {
+    label: "Agent crashed",
+    description: "Focus on error traces and final state",
+    context: "The agent crashed or errored out. Please focus on the error traces, final state, and what action triggered the failure.",
+  },
+  {
+    label: "Slow / excessive tokens",
+    description: "Focus on turn counts and timing",
+    context: "The agent was slow or used excessive tokens. Please analyze turn counts, timing patterns, and identify any loops or redundant work.",
+  },
+  {
+    label: "Went off-topic",
+    description: "Focus on task vs actual behavior",
+    context: "The agent went off-topic or worked on the wrong thing. Please compare the original task instructions to what the agent actually did.",
+  },
+  {
+    label: "Stopped early",
+    description: "Focus on stop reasons and completion",
+    context: "The agent stopped before completing the task. Please analyze why it stopped, what signals it may have misinterpreted as completion.",
+  },
 ];
 
 export function InvestigateModal({
@@ -94,7 +122,8 @@ export function InvestigateModal({
   title,
   description,
   confirmLabel,
-  runIds,
+  defaultProjectRoot = "",
+  defaultScopePaths = [],
   hideDepthSelector = false,
   onSubmit,
   loading = false,
@@ -107,11 +136,9 @@ export function InvestigateModal({
   );
   const [showContext, setShowContext] = useState(false);
 
-  // Scenario detection
-  const [detectedScenarios, setDetectedScenarios] = useState<DetectedScenario[]>([]);
-  const [scenariosLoading, setScenariosLoading] = useState(false);
-  const [selectedScenario, setSelectedScenario] = useState<string | undefined>();
-  const [showScenarioDropdown, setShowScenarioDropdown] = useState(false);
+  // Project and scope paths
+  const [projectRoot, setProjectRoot] = useState(defaultProjectRoot);
+  const [scopePaths, setScopePaths] = useState<string[]>(defaultScopePaths);
 
   // Get default settings
   const { data: settings } = useInvestigationSettings();
@@ -121,11 +148,10 @@ export function InvestigateModal({
     if (!open) {
       setCustomContext("");
       setShowContext(false);
-      setDetectedScenarios([]);
-      setSelectedScenario(undefined);
-      setShowScenarioDropdown(false);
+      setProjectRoot(defaultProjectRoot);
+      setScopePaths(defaultScopePaths);
     }
-  }, [open]);
+  }, [open, defaultProjectRoot, defaultScopePaths]);
 
   // Apply defaults from settings when they load or modal opens
   useEffect(() => {
@@ -135,27 +161,13 @@ export function InvestigateModal({
     }
   }, [open, settings]);
 
-  // Detect scenarios when modal opens with run IDs
+  // Sync project root and scope paths when defaults change
   useEffect(() => {
-    if (open && runIds && runIds.length > 0) {
-      setScenariosLoading(true);
-      detectScenariosForRuns(runIds)
-        .then((scenarios) => {
-          setDetectedScenarios(scenarios);
-          // Auto-select the scenario with most runs
-          if (scenarios.length > 0) {
-            const sorted = [...scenarios].sort((a, b) => b.runCount - a.runCount);
-            setSelectedScenario(sorted[0].projectRoot);
-          }
-        })
-        .catch(() => {
-          setDetectedScenarios([]);
-        })
-        .finally(() => {
-          setScenariosLoading(false);
-        });
+    if (open) {
+      setProjectRoot(defaultProjectRoot);
+      setScopePaths(defaultScopePaths);
     }
-  }, [open, runIds]);
+  }, [open, defaultProjectRoot, defaultScopePaths]);
 
   const handleContextChange = (
     key: keyof InvestigationContextFlags,
@@ -171,13 +183,24 @@ export function InvestigateModal({
     }
   }, [settings]);
 
-  const handleSubmit = async () => {
-    await onSubmit(customContext.trim(), depth, contextFlags, selectedScenario);
+  const handleSuggestionClick = (suggestion: string) => {
+    setCustomContext((prev) => {
+      if (prev.trim()) {
+        return `${prev.trim()}\n\n${suggestion}`;
+      }
+      return suggestion;
+    });
   };
 
-  const primaryScenario = detectedScenarios.find(
-    (s) => s.projectRoot === selectedScenario
-  );
+  const handleSubmit = async () => {
+    await onSubmit(
+      customContext.trim(),
+      depth,
+      contextFlags,
+      projectRoot.trim() || undefined,
+      scopePaths.length > 0 ? scopePaths : undefined
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,85 +214,36 @@ export function InvestigateModal({
         </DialogHeader>
 
         <DialogBody className="space-y-5">
-          {/* Detected Scenario */}
-          {runIds && runIds.length > 0 && (
-            <div className="space-y-2">
-              <Label>Detected Scenario</Label>
-              {scenariosLoading ? (
-                <div className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Detecting scenario...
-                </div>
-              ) : detectedScenarios.length === 0 ? (
-                <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                  No scenario detected from selected runs
-                </div>
-              ) : (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowScenarioDropdown(!showScenarioDropdown)}
-                    className="flex w-full items-center justify-between rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Folder className="h-4 w-4 text-primary" />
-                      <div>
-                        <div className="text-sm font-medium">
-                          {primaryScenario?.name ?? "Unknown"}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[280px]">
-                          {primaryScenario?.projectRoot ?? "No path"}
-                        </div>
-                        {primaryScenario?.keyFiles &&
-                          primaryScenario.keyFiles.length > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              Key files: {primaryScenario.keyFiles.slice(0, 3).join(", ")}
-                              {primaryScenario.keyFiles.length > 3 && "..."}
-                            </div>
-                          )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {primaryScenario?.runCount ?? 0} run
-                        {(primaryScenario?.runCount ?? 0) !== 1 ? "s" : ""}
-                      </span>
-                      {detectedScenarios.length > 1 && (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </button>
+          {/* Investigation Scope */}
+          <ScopePathsManager
+            projectRoot={projectRoot}
+            onProjectRootChange={setProjectRoot}
+            scopePaths={scopePaths}
+            onScopePathsChange={setScopePaths}
+            defaultProjectRoot={defaultProjectRoot}
+            defaultScopePaths={defaultScopePaths}
+            scopePathsHelp="Directories where the investigation agent can make changes. Leave empty for read-only analysis."
+          />
 
-                  {/* Scenario dropdown */}
-                  {showScenarioDropdown && detectedScenarios.length > 1 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-popover shadow-md">
-                      {detectedScenarios.map((scenario) => (
-                        <button
-                          key={scenario.projectRoot}
-                          type="button"
-                          onClick={() => {
-                            setSelectedScenario(scenario.projectRoot);
-                            setShowScenarioDropdown(false);
-                          }}
-                          className={`flex w-full items-center justify-between px-3 py-2 text-left transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted ${
-                            selectedScenario === scenario.projectRoot
-                              ? "bg-primary/5"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Folder className="h-4 w-4 text-primary" />
-                            <span className="text-sm">{scenario.name}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {scenario.runCount} run{scenario.runCount !== 1 ? "s" : ""}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+          {/* Suggestion Cards */}
+          {!hideDepthSelector && (
+            <div className="space-y-2">
+              <Label>Quick Focus (click to add)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {suggestionCards.map((card) => (
+                  <button
+                    key={card.label}
+                    type="button"
+                    onClick={() => handleSuggestionClick(card.context)}
+                    className="flex flex-col items-start gap-1 rounded-lg border border-border p-2 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+                  >
+                    <span className="text-sm font-medium">{card.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {card.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

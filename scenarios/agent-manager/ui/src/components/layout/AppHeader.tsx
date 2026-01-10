@@ -29,6 +29,7 @@ interface AppHeaderProps {
   onSectionChange: (section: NavSection) => void;
   onStatusClick: () => void;
   onSettingsClick: () => void;
+  onQuickRunClick: () => void;
 }
 
 const navItems: Array<{
@@ -51,6 +52,7 @@ export function AppHeader({
   onSectionChange,
   onStatusClick,
   onSettingsClick,
+  onQuickRunClick,
 }: AppHeaderProps) {
   const isHealthy = health?.status === HealthStatus.HEALTHY;
   const healthLabel = health ? (isHealthy ? "Healthy" : "Degraded") : "Unknown";
@@ -135,6 +137,18 @@ export function AppHeader({
             })}
           </nav>
         )}
+
+        {/* Quick Run button */}
+        <Button
+          variant="default"
+          size="sm"
+          onClick={onQuickRunClick}
+          className="gap-2"
+          aria-label="Quick Run"
+        >
+          <Play className="h-4 w-4" />
+          <span className="hidden sm:inline">Quick Run</span>
+        </Button>
 
         {/* Settings icon button */}
         <Button

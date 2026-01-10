@@ -6,7 +6,6 @@ import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
-  DetectedScenario,
   ExtractionResult,
   HealthResponse,
   InvestigationContextFlags,
@@ -633,11 +632,13 @@ export function useRuns() {
     async (
       runIds: string[],
       customContext?: string,
-      depth?: "quick" | "standard" | "deep"
+      depth?: "quick" | "standard" | "deep",
+      projectRoot?: string,
+      scopePaths?: string[]
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
-        body: JSON.stringify({ runIds, customContext, depth }),
+        body: JSON.stringify({ runIds, customContext, depth, projectRoot, scopePaths }),
       });
       const message = parseProto<any>(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
@@ -920,15 +921,6 @@ export function useInvestigationSettings() {
     updateSettings,
     resetSettings,
   };
-}
-
-// Detect scenarios for runs (standalone function)
-export async function detectScenariosForRuns(runIds: string[]): Promise<DetectedScenario[]> {
-  const data = await apiRequest<{ scenarios: DetectedScenario[] }>("/runs/detect-scenarios", {
-    method: "POST",
-    body: JSON.stringify({ runIds }),
-  });
-  return data.scenarios ?? [];
 }
 
 // Ensure profile exists (standalone function)

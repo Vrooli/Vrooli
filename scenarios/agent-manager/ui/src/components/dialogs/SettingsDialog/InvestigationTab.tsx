@@ -77,11 +77,6 @@ const contextOptions: {
     description: "Include code changes made during runs",
   },
   {
-    key: "scenarioDocs",
-    label: "Scenario docs",
-    description: "Include CLAUDE.md, README, etc.",
-  },
-  {
     key: "fullLogs",
     label: "Full logs",
     description: "Include complete run logs (can be large)",

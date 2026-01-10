@@ -60,8 +60,6 @@ type InvestigationContextFlags struct {
 	RunEvents bool `json:"runEvents"`
 	// RunDiffs includes code changes made during runs
 	RunDiffs bool `json:"runDiffs"`
-	// ScenarioDocs includes scenario documentation (CLAUDE.md, README)
-	ScenarioDocs bool `json:"scenarioDocs"`
 	// FullLogs includes full run logs (can be very large)
 	FullLogs bool `json:"fullLogs"`
 }
@@ -72,26 +70,8 @@ func DefaultInvestigationContextFlags() InvestigationContextFlags {
 		RunSummaries: true,
 		RunEvents:    true,
 		RunDiffs:     true,
-		ScenarioDocs: true,
 		FullLogs:     false,
 	}
-}
-
-// =============================================================================
-// DETECTED SCENARIO
-// =============================================================================
-
-// DetectedScenario represents a scenario detected from run data.
-// Used when presenting investigation creation options to the user.
-type DetectedScenario struct {
-	// Name is the scenario name (e.g., "agent-manager")
-	Name string `json:"name"`
-	// ProjectRoot is the full path to the scenario
-	ProjectRoot string `json:"projectRoot"`
-	// KeyFiles are important files found in the scenario (CLAUDE.md, README.md, etc.)
-	KeyFiles []string `json:"keyFiles"`
-	// RunCount is how many of the selected runs are from this scenario
-	RunCount int `json:"runCount"`
 }
 
 // =============================================================================
