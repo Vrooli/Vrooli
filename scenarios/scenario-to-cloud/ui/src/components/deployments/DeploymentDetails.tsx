@@ -81,6 +81,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   } | null>(null);
   const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
   const redeployRunId = deployment?.run_id ?? null;
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const lastBundleRefreshRunRef = useRef<string | null>(null);
   const [redeployPreflightResult, setRedeployPreflightResult] = useState<PreflightResponse | null>(null);
   const [redeployPreflightError, setRedeployPreflightError] = useState<string | null>(null);
@@ -91,7 +92,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     isConnected: redeployConnected,
     connectionError: redeployConnectionError,
     reset: resetRedeployProgress,
-  } = useDeploymentProgress(redeployActive ? deploymentId : null, { runId: redeployRunId });
+  } = useDeploymentProgress(redeployActive ? deploymentId : null, { runId: activeRunId ?? redeployRunId });
 
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
@@ -365,6 +366,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     setBuildNewBundle(!hasExistingBundle);
     setRunPreflight(false);
     setRedeployActive(false);
+    setActiveRunId(null);
     setRedeployOptionsSnapshot(null);
     setRedeployViewStep(null);
     resetRedeployProgress();
@@ -380,7 +382,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const startRedeploy = () => {
     const snapshot = { runPreflight, forceBundleBuild: buildNewBundle };
     setRedeployOptionsSnapshot(snapshot);
-    setRedeployActive(true);
+    // Reset state to disconnect any existing SSE and show loading state
+    // This handles the case where user clicks Re-deploy again after a previous deployment
+    setRedeployActive(false);
+    setActiveRunId(null);
+    resetRedeployProgress();
     try {
       sessionStorage.setItem(`stc.redeploy.options.${deploymentId}`, JSON.stringify(snapshot));
     } catch {
@@ -395,6 +401,10 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         },
       },
       {
+        onSuccess: (data) => {
+          setActiveRunId(data.run_id);
+          setRedeployActive(true);
+        },
         onError: () => {
           setRedeployActive(false);
         },
@@ -719,12 +729,17 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                 {displayedStepId === "deploy" && (
                   <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Deployment</p>
-                    {redeployActive || executeMutation.isPending ? (
+                    {redeployActive ? (
                       <DeploymentProgressView
                         progress={redeployProgress}
                         isConnected={redeployConnected}
                         connectionError={redeployConnectionError}
                       />
+                    ) : executeMutation.isPending ? (
+                      <div className="flex items-center justify-center py-6 text-slate-400">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        Starting deployment...
+                      </div>
                     ) : (
                       <Alert variant="info" title="Ready to deploy">
                         Start the redeploy to stream live deployment progress here.

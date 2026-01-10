@@ -378,6 +378,14 @@ export function RunDetail({
                     {formatDuration(durationMs)}
                   </div>
                 )}
+                <div>
+                  <span className="text-muted-foreground">Tag: </span>
+                  {run.tag ? (
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">{run.tag}</code>
+                  ) : (
+                    <span className="text-muted-foreground">None</span>
+                  )}
+                </div>
               </div>
             </div>
 

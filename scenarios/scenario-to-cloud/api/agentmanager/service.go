@@ -171,6 +171,8 @@ func (s *AgentService) GetProfileID() string {
 type ExecuteRequest struct {
 	// Unique ID for this execution (used for tagging)
 	InvestigationID string
+	// Optional additional tag for investigation classification.
+	AdditionalTag string
 	// Prompt to send to the agent
 	Prompt string
 	// Working directory for execution
@@ -218,7 +220,7 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 	}
 
 	// Create run with tag for tracking
-	tag := fmt.Sprintf("scenario-to-cloud-%s", req.InvestigationID)
+	tag := buildRunTag(req.InvestigationID, req.AdditionalTag)
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: s.defaultProfileRef(),
@@ -304,7 +306,7 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 	}
 
 	// Create run
-	tag := fmt.Sprintf("scenario-to-cloud-%s", req.InvestigationID)
+	tag := buildRunTag(req.InvestigationID, req.AdditionalTag)
 	runReq := &apipb.CreateRunRequest{
 		TaskId:     createdTask.Id,
 		ProfileRef: s.defaultProfileRef(),
@@ -353,4 +355,12 @@ func (s *AgentService) GetRunEvents(ctx context.Context, runID string) ([]*domai
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 	return s.client.GetRunEvents(ctx, runID, 0)
+}
+
+func buildRunTag(investigationID, additionalTag string) string {
+	baseTag := fmt.Sprintf("scenario-to-cloud-%s", investigationID)
+	if strings.TrimSpace(additionalTag) == "" {
+		return baseTag
+	}
+	return fmt.Sprintf("%s|%s", baseTag, additionalTag)
 }

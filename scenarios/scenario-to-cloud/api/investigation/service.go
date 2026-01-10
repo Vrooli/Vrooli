@@ -146,6 +146,7 @@ func (s *Service) runInvestigation(
 
 	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
 		InvestigationID:    invID,
+		AdditionalTag:      "scenario-to-cloud-investigation",
 		Prompt:             prompt,
 		WorkingDir:         workingDir,
 		ContextAttachments: contextAttachments,
@@ -467,6 +468,7 @@ func (s *Service) runFixApplication(
 
 	runID, err := s.agentSvc.ExecuteAsync(execCtx, agentmanager.ExecuteRequest{
 		InvestigationID: fixInvID,
+		AdditionalTag:   "scenario-to-cloud-apply-investigation",
 		Prompt:          prompt,
 		WorkingDir:      workingDir,
 	})
