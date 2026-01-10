@@ -29,7 +29,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
-	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/export/render"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -64,7 +64,7 @@ type Dependencies struct {
 
 // ReplayRenderer is the interface for rendering replay videos.
 type ReplayRenderer interface {
-	Render(ctx context.Context, spec *replay.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
+	Render(ctx context.Context, spec *render.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
 }
 
 // Config holds configuration for dependency construction.
@@ -149,7 +149,7 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 		WorkflowValidator: validatorInstance,
 		Storage:           storageClient,
 		RecordingsRoot:    recordingsRoot,
-		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
+		ReplayRenderer:    render.NewReplayRenderer(log, recordingsRoot),
 		SessionProfiles:   sessionProfiles,
 		UXMetricsRepo:     cfg.UXMetricsRepo,
 	}, nil

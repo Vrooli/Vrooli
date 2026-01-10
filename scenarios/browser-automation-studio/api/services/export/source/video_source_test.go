@@ -1,4 +1,4 @@
-package handlers
+package source
 
 import (
 	"context"
@@ -9,26 +9,37 @@ import (
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
-	"github.com/vrooli/browser-automation-studio/services/export/source"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 func TestNormalizeRenderSource(t *testing.T) {
-	if result, ok := source.NormalizeRenderSource(""); !ok || result != source.RenderSourceAuto {
-		t.Fatalf("expected auto render source, got %q (ok=%v)", result, ok)
+	tests := []struct {
+		input    string
+		expected string
+		ok       bool
+	}{
+		{"", RenderSourceAuto, true},
+		{"auto", RenderSourceAuto, true},
+		{"recorded_video", RenderSourceRecordedVideo, true},
+		{"replay_frames", RenderSourceReplayFrames, true},
+		{"RECORDED_VIDEO", RenderSourceRecordedVideo, true},
+		{"  replay_frames  ", RenderSourceReplayFrames, true},
+		{"invalid", "", false},
+		{"nope", "", false},
 	}
-	if result, ok := source.NormalizeRenderSource("recorded_video"); !ok || result != source.RenderSourceRecordedVideo {
-		t.Fatalf("expected recorded_video render source, got %q (ok=%v)", result, ok)
-	}
-	if result, ok := source.NormalizeRenderSource("replay_frames"); !ok || result != source.RenderSourceReplayFrames {
-		t.Fatalf("expected replay_frames render source, got %q (ok=%v)", result, ok)
-	}
-	if _, ok := source.NormalizeRenderSource("nope"); ok {
-		t.Fatalf("expected invalid render source to fail")
+
+	for _, tc := range tests {
+		source, ok := NormalizeRenderSource(tc.input)
+		if ok != tc.ok {
+			t.Errorf("NormalizeRenderSource(%q): expected ok=%v, got ok=%v", tc.input, tc.ok, ok)
+		}
+		if source != tc.expected {
+			t.Errorf("NormalizeRenderSource(%q): expected %q, got %q", tc.input, tc.expected, source)
+		}
 	}
 }
 
-func TestResolveRecordedVideoSource_Path(t *testing.T) {
+func TestResolveVideoSource_Path(t *testing.T) {
 	tmp, err := os.CreateTemp("", "bas-video-*.webm")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
@@ -52,19 +63,19 @@ func TestResolveRecordedVideoSource_Path(t *testing.T) {
 		},
 	}
 
-	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	source, err := ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if videoSource == nil || videoSource.Path != tmp.Name() {
-		t.Fatalf("expected video source path %q, got %#v", tmp.Name(), videoSource)
+	if source == nil || source.Path != tmp.Name() {
+		t.Fatalf("expected video source path %q, got %#v", tmp.Name(), source)
 	}
-	if videoSource.ContentType != "video/webm" {
-		t.Fatalf("expected content type video/webm, got %q", videoSource.ContentType)
+	if source.ContentType != "video/webm" {
+		t.Fatalf("expected content type video/webm, got %q", source.ContentType)
 	}
 }
 
-func TestResolveRecordedVideoSource_Inline(t *testing.T) {
+func TestResolveVideoSource_Inline(t *testing.T) {
 	payload := map[string]any{
 		"inline":       true,
 		"base64":       base64.StdEncoding.EncodeToString([]byte("fake-video-inline")),
@@ -75,40 +86,40 @@ func TestResolveRecordedVideoSource_Inline(t *testing.T) {
 		Payload:      payload,
 	}
 
-	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	source, err := ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if videoSource == nil {
+	if source == nil {
 		t.Fatalf("expected non-nil source")
 	}
-	if _, statErr := os.Stat(videoSource.Path); statErr != nil {
+	if _, statErr := os.Stat(source.Path); statErr != nil {
 		t.Fatalf("expected inline file to exist, got error: %v", statErr)
 	}
-	if videoSource.Cleanup == nil {
+	if source.Cleanup == nil {
 		t.Fatalf("expected cleanup for inline video source")
 	}
-	videoSource.Cleanup()
-	if _, statErr := os.Stat(videoSource.Path); !os.IsNotExist(statErr) {
+	source.Cleanup()
+	if _, statErr := os.Stat(source.Path); !os.IsNotExist(statErr) {
 		t.Fatalf("expected inline file to be removed, got error: %v", statErr)
 	}
 }
 
-func TestResolveRecordedVideoSource_Missing(t *testing.T) {
+func TestResolveVideoSource_Missing(t *testing.T) {
 	artifact := executionwriter.ArtifactData{
 		ArtifactType: "video_meta",
 		Payload:      map[string]any{"path": "/nope/video.webm"},
 	}
-	_, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	_, err := ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err == nil {
 		t.Fatalf("expected error for missing video")
 	}
-	if !errors.Is(err, source.ErrVideoNotFound) {
+	if !errors.Is(err, ErrVideoNotFound) {
 		t.Fatalf("expected ErrVideoNotFound, got %v", err)
 	}
 }
 
-func TestResolveRecordedVideoSource_StorageURL(t *testing.T) {
+func TestResolveVideoSource_StorageURL(t *testing.T) {
 	tmp, err := os.CreateTemp("", "bas-video-*.webm")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
@@ -137,18 +148,56 @@ func TestResolveRecordedVideoSource_StorageURL(t *testing.T) {
 		Payload:      map[string]any{},
 	}
 
-	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, store)
+	source, err := ResolveVideoSource([]executionwriter.ArtifactData{artifact}, store)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if videoSource == nil {
+	if source == nil {
 		t.Fatalf("expected non-nil source")
 	}
-	if _, statErr := os.Stat(videoSource.Path); statErr != nil {
+	if _, statErr := os.Stat(source.Path); statErr != nil {
 		t.Fatalf("expected downloaded file to exist, got error: %v", statErr)
 	}
-	if videoSource.Cleanup == nil {
+	if source.Cleanup == nil {
 		t.Fatalf("expected cleanup for downloaded video source")
 	}
-	videoSource.Cleanup()
+	source.Cleanup()
+}
+
+func TestDetectVideoContentType(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected string
+	}{
+		{"video.mp4", "video/mp4"},
+		{"video.webm", "video/webm"},
+		{"video", "video/webm"},
+		{"", "video/webm"},
+	}
+
+	for _, tc := range tests {
+		result := DetectVideoContentType(tc.path)
+		if result != tc.expected {
+			t.Errorf("DetectVideoContentType(%q): expected %q, got %q", tc.path, tc.expected, result)
+		}
+	}
+}
+
+func TestExtensionForContentType(t *testing.T) {
+	tests := []struct {
+		contentType string
+		expected    string
+	}{
+		{"video/mp4", ".mp4"},
+		{"video/webm", ".webm"},
+		{"image/gif", ".gif"},
+		{"application/octet-stream", ""},
+	}
+
+	for _, tc := range tests {
+		result := ExtensionForContentType(tc.contentType)
+		if result != tc.expected {
+			t.Errorf("ExtensionForContentType(%q): expected %q, got %q", tc.contentType, tc.expected, result)
+		}
+	}
 }

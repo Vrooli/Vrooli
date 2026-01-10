@@ -1,6 +1,6 @@
 //go:build integration
 
-package replay
+package render
 
 import (
 	"context"

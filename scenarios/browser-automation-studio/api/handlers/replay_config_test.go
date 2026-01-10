@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/handlers/export"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
@@ -93,15 +94,15 @@ func TestReplayConfigOverridePrecedence(t *testing.T) {
 			"id":   "nebula",
 		},
 	}
-	applyExportOverrides(spec, replayConfigToOverrides(config))
+	export.Apply(spec, replayConfigToOverrides(config))
 
-	requestOverrides := &executionExportOverrides{
-		ThemePreset: &themePresetOverride{
+	requestOverrides := &export.Overrides{
+		ThemePreset: &export.ThemePreset{
 			ChromeTheme:     "solar",
 			BackgroundTheme: "dawn",
 		},
 	}
-	applyExportOverrides(spec, requestOverrides)
+	export.Apply(spec, requestOverrides)
 
 	if spec.Decor.ChromeTheme != "solar" {
 		t.Fatalf("expected chrome theme solar, got %s", spec.Decor.ChromeTheme)

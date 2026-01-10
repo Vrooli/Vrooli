@@ -1,4 +1,4 @@
-package replay
+package render
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 )
 
-// Package-level accessors for config values used across the replay package.
+// Package-level accessors for config values used across the render package.
 // These provide the values from the control surface for use in rendering and encoding.
 var (
 	defaultCaptureInterval    = config.Load().Replay.CaptureIntervalMs

@@ -1,4 +1,4 @@
-// Package replay provides rendering capabilities for browser automation replay artifacts.
+// Package render provides rendering capabilities for browser automation replay artifacts.
 //
 // The ReplayRenderer orchestrates video and GIF generation from replay movie specifications.
 // It delegates to specialized modules for capture (Playwright), media processing (FFmpeg),
@@ -10,7 +10,7 @@
 //   - utils.go: Filename sanitization and timeout estimation
 //   - config.go: Configuration and constructor
 //   - playwright_client.go: Playwright capture client (desktop engine)
-package replay
+package render
 
 import (
 	"context"

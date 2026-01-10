@@ -74,9 +74,10 @@ type ExportData struct {
 
 // Service provides unified export capabilities.
 type Service struct {
-	repo    ExecutionRepository
-	formats map[ExportFormatType]ExportFormat
-	mu      sync.RWMutex
+	repo           ExecutionRepository
+	timelineLoader *TimelineLoader
+	formats        map[ExportFormatType]ExportFormat
+	mu             sync.RWMutex
 }
 
 // ExecutionRepository defines the data access interface for exports.
@@ -85,22 +86,23 @@ type ExecutionRepository interface {
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.WorkflowIndex, error)
 }
 
-// TimelineBuilder constructs timeline data from execution records.
-type TimelineBuilder interface {
-	BuildTimeline(ctx context.Context, executionID uuid.UUID) (*ExecutionTimeline, error)
-}
-
 // NewService creates a new export service.
 func NewService(repo ExecutionRepository) *Service {
 	s := &Service{
-		repo:    repo,
-		formats: make(map[ExportFormatType]ExportFormat),
+		repo:           repo,
+		timelineLoader: NewTimelineLoader(repo),
+		formats:        make(map[ExportFormatType]ExportFormat),
 	}
 	// Register built-in formats
 	s.RegisterFormat(&movieSpecFormat{})
 	s.RegisterFormat(&timelineFormat{})
 	s.RegisterFormat(&markdownSummaryFormat{})
 	return s
+}
+
+// LoadTimeline loads the timeline for an execution using the TimelineLoader.
+func (s *Service) LoadTimeline(ctx context.Context, executionID uuid.UUID) (*ExecutionTimeline, error) {
+	return s.timelineLoader.LoadTimeline(ctx, executionID)
 }
 
 // RegisterFormat adds a format strategy to the service.
@@ -154,12 +156,16 @@ func (s *Service) fetchExportData(ctx context.Context, executionID uuid.UUID) (*
 		workflow = wf
 	}
 
-	// Timeline will be built by the format that needs it
-	// This avoids unnecessary work for formats that don't need timeline
+	// Load timeline using the timeline loader
+	timeline, err := s.timelineLoader.LoadTimeline(ctx, executionID)
+	if err != nil {
+		return nil, fmt.Errorf("load timeline: %w", err)
+	}
+
 	return &ExportData{
 		Execution: execution,
 		Workflow:  workflow,
-		Timeline:  nil, // Lazy loaded
+		Timeline:  timeline,
 	}, nil
 }
 

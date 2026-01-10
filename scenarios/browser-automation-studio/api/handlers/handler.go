@@ -28,7 +28,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
-	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/export/render"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -40,7 +40,7 @@ import (
 
 // Handler contains all HTTP handlers
 type replayRenderer interface {
-	Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
+	Render(ctx context.Context, spec *export.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
 }
 
 // RecordModeService defines the interface for live recording session management.
@@ -259,7 +259,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		RecordingService:   recordingService,
 		RecordModeService:  recordModeSvc,
 		RecordingsRoot:     recordingsRoot,
-		ReplayRenderer:     replay.NewReplayRenderer(log, recordingsRoot),
+		ReplayRenderer:     render.NewReplayRenderer(log, recordingsRoot),
 		SessionProfiles:    sessionProfiles,
 		UXMetricsRepo:      opts.UXMetricsRepo,
 		EntitlementService: opts.EntitlementService,
