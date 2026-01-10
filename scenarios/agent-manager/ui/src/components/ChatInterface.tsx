@@ -20,29 +20,17 @@ interface ChatInterfaceProps {
   events: RunEvent[];
   eventsLoading: boolean;
   onContinue: (message: string) => Promise<void>;
-  /** The initial task prompt that started this run */
-  initialPrompt?: string;
 }
 
-export function ChatInterface({ run, events, eventsLoading, onContinue, initialPrompt }: ChatInterfaceProps) {
+export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatInterfaceProps) {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Extract all messages from events, with initial prompt as first message
+  // Extract all messages from events
   const messages = useMemo(() => {
     const result: ChatMessage[] = [];
-
-    // Add the initial task prompt as the first user message
-    if (initialPrompt) {
-      result.push({
-        id: "initial-prompt",
-        role: "user",
-        content: initialPrompt,
-        timestamp: run.createdAt ? new Date(timestampMs(run.createdAt)) : new Date(),
-      });
-    }
 
     for (const event of events) {
       if (event.data.case !== "message") continue;
@@ -58,7 +46,7 @@ export function ChatInterface({ run, events, eventsLoading, onContinue, initialP
       });
     }
     return result;
-  }, [events, initialPrompt, run.createdAt]);
+  }, [events]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

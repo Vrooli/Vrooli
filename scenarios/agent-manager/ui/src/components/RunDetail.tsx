@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   DollarSign,
+  ExternalLink,
   FileCode,
   File,
   FolderOpen,
@@ -27,7 +28,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { cn, formatDate, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { cn, formatDate, formatDuration, runnerTypeLabel, buildSandboxReviewUrl } from "../lib/utils";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -449,6 +450,22 @@ export function RunDetail({
             </Button>
           )}
 
+          {/* Review button - opens sandbox in workspace-sandbox UI */}
+          {run.status === RunStatus.NEEDS_REVIEW && run.sandboxId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = buildSandboxReviewUrl(run.sandboxId!);
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+              className="gap-1"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Review
+            </Button>
+          )}
+
           {/* Approval buttons - for NEEDS_REVIEW runs */}
           {run.status === RunStatus.NEEDS_REVIEW && (
             <>
@@ -753,7 +770,6 @@ export function RunDetail({
                 events={events}
                 eventsLoading={eventsLoading}
                 onContinue={onContinue}
-                initialPrompt={task?.description}
               />
             </div>
           ) : activeTab === "diff" ? (

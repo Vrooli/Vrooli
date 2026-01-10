@@ -987,6 +987,18 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		prompt = domain.BuildPromptWithContext(prompt, task.ContextAttachments)
 	}
 
+	// Emit the initial user prompt as the first message event
+	if o.events != nil && strings.TrimSpace(prompt) != "" {
+		userEvent := domain.NewMessageEvent(run.ID, "user", prompt)
+		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
+			// Log but don't fail
+			_ = err
+		}
+		if o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(userEvent)
+		}
+	}
+
 	// Start execution asynchronously
 	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
 

@@ -126,3 +126,35 @@ export function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen - 3) + "...";
 }
+
+/**
+ * Get the workspace-sandbox UI URL for opening sandbox reviews.
+ * Uses VITE_WORKSPACE_SANDBOX_UI_URL environment variable if set,
+ * otherwise defaults to localhost:35001 (standard workspace-sandbox UI port).
+ */
+export function getWorkspaceSandboxUiUrl(): string {
+  // Check for explicit UI URL configuration
+  const configuredUrl = import.meta.env.VITE_WORKSPACE_SANDBOX_UI_URL;
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, ""); // Remove trailing slash
+  }
+
+  // Default to standard workspace-sandbox UI port on same host
+  const host = window.location.hostname;
+  return `http://${host}:35001`;
+}
+
+/**
+ * Build a URL to open a specific sandbox in workspace-sandbox UI.
+ * @param sandboxId - The sandbox ID to open
+ * @param autoReview - Whether to automatically enter review mode
+ */
+export function buildSandboxReviewUrl(sandboxId: string, autoReview = true): string {
+  const baseUrl = getWorkspaceSandboxUiUrl();
+  const params = new URLSearchParams();
+  params.set("sandbox", sandboxId);
+  if (autoReview) {
+    params.set("review", "true");
+  }
+  return `${baseUrl}?${params.toString()}`;
+}
