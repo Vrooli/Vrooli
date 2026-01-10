@@ -95,6 +95,28 @@ CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
 
+-- Recommendation extraction fields (for investigation runs)
+-- These columns are added via migration for existing databases
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'runs' AND column_name = 'recommendation_status'
+    ) THEN
+        ALTER TABLE runs ADD COLUMN recommendation_status VARCHAR(20) DEFAULT 'none';
+        ALTER TABLE runs ADD COLUMN recommendation_result JSONB;
+        ALTER TABLE runs ADD COLUMN recommendation_attempts INTEGER DEFAULT 0;
+        ALTER TABLE runs ADD COLUMN recommendation_error TEXT;
+        ALTER TABLE runs ADD COLUMN recommendation_queued_at TIMESTAMPTZ;
+    END IF;
+END;
+$$;
+
+-- Index for querying pending recommendation extractions
+CREATE INDEX IF NOT EXISTS idx_runs_recommendation_pending
+    ON runs(recommendation_status, recommendation_queued_at)
+    WHERE recommendation_status IN ('pending', 'failed');
+
 -- Stats query indexes
 CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at DESC, status);
 CREATE INDEX IF NOT EXISTS idx_runs_runner_type ON runs((resolved_config->>'runnerType'));

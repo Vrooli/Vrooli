@@ -123,7 +123,7 @@ export function RunsPage({
   const [investigateLoading, setInvestigateLoading] = useState(false);
   const [investigateError, setInvestigateError] = useState<string | null>(null);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [applyInvestigationId, setApplyInvestigationId] = useState<string | null>(null);
+  const [applyInvestigationRun, setApplyInvestigationRun] = useState<Run | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
@@ -152,26 +152,45 @@ export function RunsPage({
     };
   }, [selectedRun?.id, wsSubscribe, wsUnsubscribe]);
 
+  // Subscribe to WebSocket events for the investigation run when Apply modal is open
+  // This ensures we get updates when recommendation extraction completes
+  useEffect(() => {
+    if (!applyInvestigationRun || !applyModalOpen) return;
+    wsSubscribe(applyInvestigationRun.id);
+    return () => {
+      wsUnsubscribe(applyInvestigationRun.id);
+    };
+  }, [applyInvestigationRun?.id, applyModalOpen, wsSubscribe, wsUnsubscribe]);
+
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
     const handleMessage: MessageHandler = (message: WebSocketMessage) => {
-      if (!selectedRun || message.runId !== selectedRun.id) return;
-
-      switch (message.type) {
-        case "run_event": {
-          const newEvent = message.payload as RunEvent;
-          setEvents((prev) => {
-            if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
-              return prev;
-            }
-            return [...prev, newEvent];
-          });
-          break;
+      // Handle messages for selectedRun
+      if (selectedRun && message.runId === selectedRun.id) {
+        switch (message.type) {
+          case "run_event": {
+            const newEvent = message.payload as RunEvent;
+            setEvents((prev) => {
+              if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
+                return prev;
+              }
+              return [...prev, newEvent];
+            });
+            break;
+          }
+          case "run_status": {
+            const statusUpdate = message.payload as Partial<Run>;
+            setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+            break;
+          }
         }
-        case "run_status": {
+      }
+
+      // Handle messages for applyInvestigationRun (for recommendation extraction updates)
+      if (applyInvestigationRun && message.runId === applyInvestigationRun.id) {
+        if (message.type === "run_status") {
           const statusUpdate = message.payload as Partial<Run>;
-          setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
-          break;
+          setApplyInvestigationRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
         }
       }
     };
@@ -180,7 +199,7 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRun?.id, wsAddMessageHandler, wsRemoveMessageHandler]);
+  }, [selectedRun?.id, applyInvestigationRun?.id, wsAddMessageHandler, wsRemoveMessageHandler]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
@@ -225,6 +244,16 @@ export function RunsPage({
       setSelectedRun(updatedRun);
     }
   }, [runs, selectedRun]);
+
+  // Sync applyInvestigationRun with the runs list when it updates
+  // This ensures the modal sees WebSocket updates (e.g., recommendation extraction status)
+  useEffect(() => {
+    if (!applyInvestigationRun) return;
+    const updatedRun = runs.find((r) => r.id === applyInvestigationRun.id);
+    if (updatedRun && updatedRun !== applyInvestigationRun) {
+      setApplyInvestigationRun(updatedRun);
+    }
+  }, [runs, applyInvestigationRun]);
 
   // Load run from URL params when component mounts or runId changes
   useEffect(() => {
@@ -349,18 +378,22 @@ export function RunsPage({
   };
 
   const handleApplyInvestigationFromDetail = (runId: string) => {
-    setApplyInvestigationId(runId);
-    setApplyModalOpen(true);
+    // Find the run object from the runs list
+    const run = runs.find((r) => r.id === runId);
+    if (run) {
+      setApplyInvestigationRun(run);
+      setApplyModalOpen(true);
+    }
   };
 
   const handleApplyInvestigation = async (customContext: string) => {
-    if (!applyInvestigationId) return;
+    if (!applyInvestigationRun) return;
     setApplyLoading(true);
     setApplyError(null);
     try {
-      const created = await onApplyInvestigation(applyInvestigationId, customContext || undefined);
+      const created = await onApplyInvestigation(applyInvestigationRun.id, customContext || undefined);
       setApplyModalOpen(false);
-      setApplyInvestigationId(null);
+      setApplyInvestigationRun(null);
       navigate(`/runs/${created.id}`);
     } catch (err) {
       setApplyError((err as Error).message);
@@ -676,11 +709,11 @@ export function RunsPage({
         onOpenChange={(open) => {
           setApplyModalOpen(open);
           if (!open) {
-            setApplyInvestigationId(null);
+            setApplyInvestigationRun(null);
             setApplyError(null);
           }
         }}
-        investigationRunId={applyInvestigationId ?? ""}
+        investigationRun={applyInvestigationRun}
         onSubmit={handleApplyInvestigation}
         loading={applyLoading}
         error={applyError}

@@ -23,17 +23,24 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { RecommendationItem } from "./RecommendationItem";
-import { extractRecommendations } from "../hooks/useApi";
+import { extractRecommendations, regenerateRecommendations } from "../hooks/useApi";
 import type {
   ExtractionResult,
   Recommendation,
   RecommendationCategory,
+  RecommendationStatus,
+  Run,
+  RunWithRecommendations,
 } from "../types";
+
+/** Extended Run type that includes recommendation fields */
+type InvestigationRun = Run & RunWithRecommendations;
 
 interface ApplyInvestigationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  investigationRunId: string;
+  /** The full investigation run object with cached recommendation data */
+  investigationRun: InvestigationRun | null;
   onSubmit: (customContext: string) => Promise<void>;
   loading?: boolean;
   error?: string | null;
@@ -70,7 +77,7 @@ function serializeRecommendations(categories: RecommendationCategory[]): string 
 export function ApplyInvestigationModal({
   open,
   onOpenChange,
-  investigationRunId,
+  investigationRun,
   onSubmit,
   loading = false,
   error = null,
@@ -89,36 +96,109 @@ export function ApplyInvestigationModal({
   const [showRawOutput, setShowRawOutput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
-  // Fetch recommendations when modal opens
+  // Helper to apply extraction result to state
+  const applyExtractionResult = useCallback((result: ExtractionResult) => {
+    setRawText(result.rawText || "");
+    setExtractedFrom(result.extractedFrom === "pending" ? "summary" : result.extractedFrom);
+
+    if (result.success && result.categories.length > 0) {
+      setCategories(result.categories);
+      // Expand all categories by default
+      setExpandedCategories(new Set(result.categories.map((c) => c.id)));
+      setState("success");
+    } else {
+      setExtractionError(result.error || "No recommendations found");
+      setFallbackText(result.rawText || "");
+      setState("fallback");
+    }
+  }, []);
+
+  // Load recommendations when modal opens, using cached data when available
   useEffect(() => {
-    if (!open || !investigationRunId) return;
+    if (!open || !investigationRun) return;
 
+    const status = investigationRun.recommendationStatus as RecommendationStatus | undefined;
+
+    // Check cached recommendation status
+    if (status === "complete" && investigationRun.recommendationResult) {
+      // Use cached result directly - no API call needed
+      applyExtractionResult(investigationRun.recommendationResult);
+      return;
+    }
+
+    if (status === "pending" || status === "extracting") {
+      // Extraction in progress - show loading and wait for WebSocket update
+      setState("loading");
+      setExtractionError(null);
+      return;
+    }
+
+    if (status === "failed") {
+      // Extraction failed - show fallback with regenerate option
+      setState("fallback");
+      setExtractionError(investigationRun.recommendationError || "Recommendation extraction failed");
+      setFallbackText("");
+      return;
+    }
+
+    // Fallback: status is "none" or undefined - fetch via API (backward compat)
     setState("loading");
     setExtractionError(null);
 
-    extractRecommendations(investigationRunId)
+    extractRecommendations(investigationRun.id)
       .then((result: ExtractionResult) => {
-        setRawText(result.rawText || "");
-        setExtractedFrom(result.extractedFrom);
-
-        if (result.success && result.categories.length > 0) {
-          setCategories(result.categories);
-          // Expand all categories by default
-          setExpandedCategories(new Set(result.categories.map((c) => c.id)));
-          setState("success");
-        } else {
-          setExtractionError(result.error || "No recommendations found");
-          setFallbackText(result.rawText || "");
-          setState("fallback");
+        // Handle "pending" response from API (extraction in progress)
+        if (result.extractedFrom === "pending") {
+          setState("loading");
+          setExtractionError(null);
+          return;
         }
+        applyExtractionResult(result);
       })
       .catch((err) => {
         setExtractionError(err.message);
         setFallbackText("");
         setState("fallback");
       });
-  }, [open, investigationRunId]);
+  }, [open, investigationRun, applyExtractionResult]);
+
+  // Handle WebSocket updates when run changes (extraction completes)
+  useEffect(() => {
+    if (!open || !investigationRun) return;
+
+    const status = investigationRun.recommendationStatus as RecommendationStatus | undefined;
+
+    // If we're loading and extraction just completed, apply the result
+    if (state === "loading" && status === "complete" && investigationRun.recommendationResult) {
+      applyExtractionResult(investigationRun.recommendationResult);
+    }
+
+    // If extraction failed, show fallback
+    if (state === "loading" && status === "failed") {
+      setState("fallback");
+      setExtractionError(investigationRun.recommendationError || "Recommendation extraction failed");
+      setFallbackText("");
+    }
+  }, [open, investigationRun, state, applyExtractionResult]);
+
+  // Handle regenerate button click
+  const handleRegenerate = async () => {
+    if (!investigationRun) return;
+
+    setRegenerating(true);
+    try {
+      await regenerateRecommendations(investigationRun.id);
+      // Reset to loading state - WebSocket will notify when extraction completes
+      setState("loading");
+      setExtractionError(null);
+    } catch (err) {
+      setExtractionError((err as Error).message);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   // Reset state when modal closes
   useEffect(() => {
@@ -284,26 +364,47 @@ export function ApplyInvestigationModal({
           {state === "loading" && (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <RefreshCw className="h-8 w-8 animate-spin mb-3" />
-              <p className="text-sm">Extracting recommendations...</p>
+              <p className="text-sm">
+                {investigationRun?.recommendationStatus === "extracting"
+                  ? "Extracting recommendations..."
+                  : investigationRun?.recommendationStatus === "pending"
+                  ? "Waiting in queue..."
+                  : "Extracting recommendations..."}
+              </p>
               <p className="text-xs mt-1">
-                Using local LLM to analyze investigation output
+                {investigationRun?.recommendationStatus === "pending"
+                  ? "Another extraction is in progress"
+                  : "Using local LLM to analyze investigation output"}
               </p>
             </div>
           )}
 
           {state === "fallback" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm">
-                <Info className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
-                <div>
-                  <p className="font-medium text-amber-600">
-                    Could not extract structured recommendations
-                  </p>
-                  <p className="text-muted-foreground text-xs mt-1">
-                    {extractionError ||
-                      "The investigation output will be passed directly to the apply agent."}
-                  </p>
+              <div className="flex items-start justify-between gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <Info className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-600">
+                      Could not extract structured recommendations
+                    </p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      {extractionError ||
+                        "The investigation output will be passed directly to the apply agent."}
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={regenerating}
+                  className="shrink-0 gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${regenerating ? "animate-spin" : ""}`} />
+                  {regenerating ? "Regenerating..." : "Retry"}
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -359,6 +460,18 @@ export function ApplyInvestigationModal({
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>Source: {extractedFrom}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRegenerate}
+                    disabled={regenerating}
+                    className="h-6 px-2 gap-1"
+                    title="Re-extract recommendations"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`} />
+                    {regenerating ? "..." : "Refresh"}
+                  </Button>
                 </div>
               </div>
 

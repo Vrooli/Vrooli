@@ -299,6 +299,14 @@ export interface CacheStatusResponse {
 // Recommendation Extraction Types
 // =============================================================================
 
+/** Status of recommendation extraction for investigation runs */
+export type RecommendationStatus =
+  | "none"       // Not applicable (non-investigation run or not yet complete)
+  | "pending"    // Awaiting extraction (queued for background processing)
+  | "extracting" // Extraction in progress
+  | "complete"   // Successfully extracted and cached
+  | "failed";    // Extraction failed after max retries
+
 /** A single recommendation extracted from an investigation */
 export interface Recommendation {
   id: string;
@@ -326,6 +334,19 @@ export interface ExtractionResult {
   success: boolean;
   categories: RecommendationCategory[];
   rawText: string;
-  extractedFrom: "summary" | "events";
+  extractedFrom: "summary" | "events" | "pending"; // "pending" indicates in-progress
   error?: string;
+}
+
+/**
+ * Extended Run type with recommendation extraction fields.
+ * The base Run type comes from proto-types, but these fields are added
+ * by the backend when returning run data.
+ */
+export interface RunWithRecommendations {
+  recommendationStatus?: RecommendationStatus;
+  recommendationResult?: ExtractionResult;
+  recommendationError?: string;
+  recommendationAttempts?: number;
+  recommendationQueuedAt?: string;
 }

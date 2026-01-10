@@ -55,8 +55,14 @@ type runRow struct {
 	TotalSizeBytes   int64                 `db:"total_size_bytes"`
 	SandboxConfig    NullableSandboxConfig `db:"sandbox_config"`
 	SessionID        sql.NullString        `db:"session_id"`
-	CreatedAt        SQLiteTime            `db:"created_at"`
-	UpdatedAt        SQLiteTime            `db:"updated_at"`
+	// Recommendation extraction fields (for investigation runs)
+	RecommendationStatus   sql.NullString           `db:"recommendation_status"`
+	RecommendationResult   NullableExtractionResult `db:"recommendation_result"`
+	RecommendationAttempts int                      `db:"recommendation_attempts"`
+	RecommendationError    sql.NullString           `db:"recommendation_error"`
+	RecommendationQueuedAt NullableTime             `db:"recommendation_queued_at"`
+	CreatedAt              SQLiteTime               `db:"created_at"`
+	UpdatedAt              SQLiteTime               `db:"updated_at"`
 }
 
 func (row *runRow) toDomain() *domain.Run {
@@ -87,8 +93,14 @@ func (row *runRow) toDomain() *domain.Run {
 		TotalSizeBytes:   row.TotalSizeBytes,
 		SandboxConfig:    row.SandboxConfig.V,
 		SessionID:        row.SessionID.String,
-		CreatedAt:        row.CreatedAt.Time(),
-		UpdatedAt:        row.UpdatedAt.Time(),
+		// Recommendation extraction fields
+		RecommendationStatus:   domain.RecommendationStatus(row.RecommendationStatus.String),
+		RecommendationResult:   row.RecommendationResult.V,
+		RecommendationAttempts: row.RecommendationAttempts,
+		RecommendationError:    row.RecommendationError.String,
+		RecommendationQueuedAt: row.RecommendationQueuedAt.ToPtr(),
+		CreatedAt:              row.CreatedAt.Time(),
+		UpdatedAt:              row.UpdatedAt.Time(),
 	}
 	if row.ExitCode.Valid {
 		exitCode := int(row.ExitCode.Int32)
@@ -125,8 +137,14 @@ func runFromDomain(r *domain.Run) *runRow {
 		TotalSizeBytes:   r.TotalSizeBytes,
 		SandboxConfig:    NullableSandboxConfig{V: r.SandboxConfig},
 		SessionID:        sql.NullString{String: r.SessionID, Valid: r.SessionID != ""},
-		CreatedAt:        SQLiteTime(r.CreatedAt),
-		UpdatedAt:        SQLiteTime(r.UpdatedAt),
+		// Recommendation extraction fields
+		RecommendationStatus:   sql.NullString{String: string(r.RecommendationStatus), Valid: r.RecommendationStatus != ""},
+		RecommendationResult:   NullableExtractionResult{V: r.RecommendationResult},
+		RecommendationAttempts: r.RecommendationAttempts,
+		RecommendationError:    sql.NullString{String: r.RecommendationError, Valid: r.RecommendationError != ""},
+		RecommendationQueuedAt: NewNullableTime(r.RecommendationQueuedAt),
+		CreatedAt:              SQLiteTime(r.CreatedAt),
+		UpdatedAt:              SQLiteTime(r.UpdatedAt),
 	}
 	if r.ExitCode != nil {
 		row.ExitCode = sql.NullInt32{Int32: int32(*r.ExitCode), Valid: true}
@@ -137,7 +155,9 @@ func runFromDomain(r *domain.Run) *runRow {
 const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
-	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id, created_at, updated_at`
+	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
+	created_at, updated_at`
 
 func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	if run.ID == uuid.Nil {
@@ -151,11 +171,15 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 		started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 		idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
-		resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id, created_at, updated_at)
+		resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+		recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
+		created_at, updated_at)
 		VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
 		:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 		:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
-		:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id, :created_at, :updated_at)`
+		:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
+		:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
+		:created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -240,7 +264,11 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
 		changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
-		session_id = :session_id, updated_at = :updated_at
+		session_id = :session_id,
+		recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
+		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
+		recommendation_queued_at = :recommendation_queued_at,
+		updated_at = :updated_at
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -266,6 +294,116 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 		return 0, wrapDBError("count_by_status", "Run", string(status), err)
 	}
 	return count, nil
+}
+
+// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
+// Returns investigation runs with status=pending or status=failed (with attempts < maxRetries),
+// ordered by queued_at ascending (oldest first).
+func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error) {
+	// Query for runs that:
+	// 1. Are investigation runs (tag starts with 'agent-manager-investigation' but not '-apply')
+	// 2. Have recommendation_status = 'pending' OR (status = 'failed' AND attempts < maxRetries)
+	// Ordered by queued_at ascending (oldest first)
+	query := r.db.Rebind(fmt.Sprintf(`
+		SELECT %s FROM runs
+		WHERE tag LIKE 'agent-manager-investigation%%'
+		  AND tag NOT LIKE '%%apply'
+		  AND (
+		      recommendation_status = ?
+		      OR (recommendation_status = ? AND recommendation_attempts < ?)
+		  )
+		ORDER BY recommendation_queued_at ASC NULLS LAST
+		LIMIT ?
+	`, runColumns))
+
+	args := []interface{}{
+		string(domain.RecommendationStatusPending),
+		string(domain.RecommendationStatusFailed),
+		maxRetries,
+		limit,
+	}
+
+	var rows []runRow
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("list_pending_recommendation_extractions", "Run", "", err)
+	}
+
+	result := make([]*domain.Run, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+// ClaimRecommendationExtraction atomically marks a run as "extracting".
+// Returns true if claim succeeded (no concurrent extractor got it first).
+// Uses optimistic locking via WHERE clause to prevent race conditions.
+func (r *runRepository) ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error) {
+	// Atomic UPDATE: only succeeds if status is still pending or failed
+	query := r.db.Rebind(`
+		UPDATE runs
+		SET recommendation_status = ?, updated_at = ?
+		WHERE id = ?
+		  AND (recommendation_status = ? OR recommendation_status = ?)
+	`)
+
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, query,
+		string(domain.RecommendationStatusExtracting),
+		now,
+		runID,
+		string(domain.RecommendationStatusPending),
+		string(domain.RecommendationStatusFailed),
+	)
+	if err != nil {
+		return false, wrapDBError("claim_recommendation_extraction", "Run", runID.String(), err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("claim_recommendation_extraction_rows", "Run", runID.String(), err)
+	}
+
+	return rowsAffected > 0, nil
+}
+
+// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
+// recommendations extracted yet (status is empty, NULL, or "none").
+// Used on startup to seed the extraction queue with existing runs.
+// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
+func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error) {
+	// Query for runs that:
+	// 1. Are investigation runs (tag starts with tagPrefix but not '-apply')
+	// 2. Are complete (status = 'complete')
+	// 3. Have recommendation_status = '' OR NULL OR 'none'
+	// Ordered by created_at DESC (most recent first)
+	query := r.db.Rebind(fmt.Sprintf(`
+		SELECT %s FROM runs
+		WHERE tag LIKE ?
+		  AND tag NOT LIKE '%%apply'
+		  AND status = ?
+		  AND (recommendation_status = '' OR recommendation_status IS NULL OR recommendation_status = ?)
+		ORDER BY created_at DESC
+		LIMIT ?
+	`, runColumns))
+
+	args := []interface{}{
+		tagPrefix + "%",
+		string(domain.RunStatusComplete),
+		string(domain.RecommendationStatusNone),
+		limit,
+	}
+
+	var rows []runRow
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("list_unextracted_investigation_runs", "Run", "", err)
+	}
+
+	result := make([]*domain.Run, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
 }
 
 // ============================================================================

@@ -105,6 +105,7 @@ type Service interface {
 
 	// --- Recommendation Extraction Operations ---
 	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
+	RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error
 }
 
 // -----------------------------------------------------------------------------

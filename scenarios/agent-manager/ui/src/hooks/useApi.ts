@@ -950,6 +950,14 @@ export async function extractRecommendations(runId: string): Promise<ExtractionR
   }
 }
 
+// Regenerate recommendations for an investigation run (standalone function)
+// Resets extraction state and queues for background processing
+export async function regenerateRecommendations(runId: string): Promise<void> {
+  await apiRequest<{ success: boolean }>(`/runs/${runId}/regenerate-recommendations`, {
+    method: "POST",
+  });
+}
+
 // Maintenance hook
 export function useMaintenance() {
   const previewPurge = useCallback(async (pattern: string, targets: PurgeTarget[]): Promise<PurgeCounts> => {

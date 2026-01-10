@@ -904,6 +904,14 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		e.run.ApprovalState = domain.ApprovalStateNone
 	}
 
+	// Queue recommendation extraction for investigation runs
+	// The background RecommendationWorker will pick this up and extract recommendations
+	if e.run.IsInvestigationRun() {
+		now := time.Now()
+		e.run.RecommendationStatus = domain.RecommendationStatusPending
+		e.run.RecommendationQueuedAt = &now
+	}
+
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
 }
 

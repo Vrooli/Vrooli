@@ -4,6 +4,28 @@ package domain
 import "time"
 
 // =============================================================================
+// INVESTIGATION TAG CONSTANTS
+// =============================================================================
+
+// Tag constants for identifying investigation runs.
+// These are used across packages to identify investigation and apply runs.
+const (
+	// InvestigationTagPrefix is the prefix for investigation run tags.
+	// Investigation runs have tags like "agent-manager-investigation" (exact match).
+	InvestigationTagPrefix = "agent-manager-investigation"
+
+	// InvestigationApplyTagSuffix is the suffix that distinguishes apply runs from investigation runs.
+	// Apply runs have tags like "agent-manager-investigation-apply".
+	InvestigationApplyTagSuffix = "-apply"
+
+	// InvestigationTag is the exact tag for investigation runs (not apply).
+	InvestigationTag = InvestigationTagPrefix
+
+	// InvestigationApplyTag is the exact tag for apply investigation runs.
+	InvestigationApplyTag = InvestigationTagPrefix + InvestigationApplyTagSuffix
+)
+
+// =============================================================================
 // INVESTIGATION SETTINGS
 // =============================================================================
 

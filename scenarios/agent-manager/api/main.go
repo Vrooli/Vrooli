@@ -44,17 +44,18 @@ type Config struct {
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config         *Config
-	db             *database.DB
-	logger         *logrus.Logger
-	router         *mux.Router
-	orchestrator   orchestration.Service
-	statsService   orchestration.StatsService
-	statsRepo      repository.StatsRepository
-	pricingService pricing.Service
-	wsHub          *handlers.WebSocketHub
-	reconciler     *orchestration.Reconciler
-	toolRegistry   *toolregistry.Registry
+	config               *Config
+	db                   *database.DB
+	logger               *logrus.Logger
+	router               *mux.Router
+	orchestrator         orchestration.Service
+	statsService         orchestration.StatsService
+	statsRepo            repository.StatsRepository
+	pricingService       pricing.Service
+	wsHub                *handlers.WebSocketHub
+	reconciler           *orchestration.Reconciler
+	recommendationWorker *orchestration.RecommendationWorker
+	toolRegistry         *toolregistry.Registry
 }
 
 // NewServer initializes configuration, database, and routes
@@ -101,17 +102,18 @@ func NewServer() (*Server, error) {
 	// as-is instead of decoding to /). This is required for model names containing slashes
 	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
-		config:         cfg,
-		db:             db,
-		logger:         logger,
-		router:         mux.NewRouter().UseEncodedPath(),
-		orchestrator:   deps.orchestrator,
-		statsService:   deps.statsService,
-		statsRepo:      deps.statsRepo,
-		pricingService: deps.pricingService,
-		wsHub:          wsHub,
-		reconciler:     deps.reconciler,
-		toolRegistry:   toolReg,
+		config:               cfg,
+		db:                   db,
+		logger:               logger,
+		router:               mux.NewRouter().UseEncodedPath(),
+		orchestrator:         deps.orchestrator,
+		statsService:         deps.statsService,
+		statsRepo:            deps.statsRepo,
+		pricingService:       deps.pricingService,
+		wsHub:                wsHub,
+		reconciler:           deps.reconciler,
+		recommendationWorker: deps.recommendationWorker,
+		toolRegistry:         toolReg,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -121,17 +123,25 @@ func NewServer() (*Server, error) {
 		}
 	}
 
+	// Start the recommendation worker for passive extraction from investigation runs
+	if srv.recommendationWorker != nil {
+		if err := srv.recommendationWorker.Start(context.Background()); err != nil {
+			log.Printf("Warning: Failed to start recommendation worker: %v", err)
+		}
+	}
+
 	srv.setupRoutes()
 	return srv, nil
 }
 
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
-	orchestrator   orchestration.Service
-	statsService   orchestration.StatsService
-	statsRepo      repository.StatsRepository
-	pricingService pricing.Service
-	reconciler     *orchestration.Reconciler
+	orchestrator         orchestration.Service
+	statsService         orchestration.StatsService
+	statsRepo            repository.StatsRepository
+	pricingService       pricing.Service
+	reconciler           *orchestration.Reconciler
+	recommendationWorker *orchestration.RecommendationWorker
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
@@ -339,6 +349,20 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithReconcilerBroadcaster(wsHub),
 	)
 
+	// Create recommendation worker for passive extraction from investigation runs
+	recommendationWorker := orchestration.NewRecommendationWorker(
+		runRepo,
+		eventStore,
+		recommendationExtractor,
+		orchestration.WithRecommendationWorkerConfig(orchestration.RecommendationWorkerConfig{
+			Interval:      30 * time.Second,
+			MaxRetries:    3,
+			RetryBackoff:  1 * time.Minute,
+			MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
+		}),
+		orchestration.WithRecommendationWorkerBroadcaster(wsHub),
+	)
+
 	// Create stats service for analytics
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
 
@@ -355,11 +379,12 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
 	return orchestratorDeps{
-		orchestrator:   orch,
-		statsService:   statsSvc,
-		statsRepo:      statsRepo,
-		pricingService: pricingSvc,
-		reconciler:     reconciler,
+		orchestrator:         orch,
+		statsService:         statsSvc,
+		statsRepo:            statsRepo,
+		pricingService:       pricingSvc,
+		reconciler:           reconciler,
+		recommendationWorker: recommendationWorker,
 	}
 }
 
@@ -444,6 +469,13 @@ func (s *Server) Cleanup() error {
 	if s.reconciler != nil {
 		if err := s.reconciler.Stop(); err != nil {
 			s.log("reconciler shutdown failed", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	// Stop the recommendation worker
+	if s.recommendationWorker != nil {
+		if err := s.recommendationWorker.Stop(); err != nil {
+			s.log("recommendation worker shutdown failed", map[string]interface{}{"error": err.Error()})
 		}
 	}
 

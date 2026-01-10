@@ -9,6 +9,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -262,6 +263,14 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Recommendation extraction state (for investigation runs)
+	// Recommendations are extracted passively after investigation runs complete.
+	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`
+	RecommendationResult   *ExtractionResult    `json:"recommendationResult,omitempty" db:"recommendation_result"`
+	RecommendationAttempts int                  `json:"recommendationAttempts,omitempty" db:"recommendation_attempts"`
+	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
+	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
+
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
@@ -307,6 +316,13 @@ func (r *Run) UpdateProgress(phase RunPhase, percent int) {
 	r.UpdatedAt = now
 }
 
+// IsInvestigationRun returns true if this run is an investigation run (not an apply run).
+// Investigation runs have a tag starting with "agent-manager-investigation" but not ending in "-apply".
+func (r *Run) IsInvestigationRun() bool {
+	return strings.HasPrefix(r.Tag, "agent-manager-investigation") &&
+		!strings.HasSuffix(r.Tag, "-apply")
+}
+
 // RunMode indicates whether the run uses sandbox isolation.
 type RunMode string
 
@@ -337,6 +353,26 @@ const (
 	ApprovalStatePartiallyApproved ApprovalState = "partially_approved"
 	ApprovalStateApproved          ApprovalState = "approved"
 	ApprovalStateRejected          ApprovalState = "rejected"
+)
+
+// RecommendationStatus represents the state of recommendation extraction for investigation runs.
+type RecommendationStatus string
+
+const (
+	// RecommendationStatusNone - Not applicable (non-investigation run or not yet complete)
+	RecommendationStatusNone RecommendationStatus = "none"
+
+	// RecommendationStatusPending - Awaiting extraction (queued for background processing)
+	RecommendationStatusPending RecommendationStatus = "pending"
+
+	// RecommendationStatusExtracting - Extraction in progress
+	RecommendationStatusExtracting RecommendationStatus = "extracting"
+
+	// RecommendationStatusComplete - Successfully extracted and cached
+	RecommendationStatusComplete RecommendationStatus = "complete"
+
+	// RecommendationStatusFailed - Extraction failed after max retries
+	RecommendationStatusFailed RecommendationStatus = "failed"
 )
 
 // RunSummary contains the structured summary from an agent run.

@@ -176,6 +176,40 @@ type NullableSandboxConfig struct {
 	V *domain.SandboxConfig
 }
 
+// NullableExtractionResult wraps *domain.ExtractionResult for JSONB scanning.
+type NullableExtractionResult struct {
+	V *domain.ExtractionResult
+}
+
+// Scan implements sql.Scanner for NullableExtractionResult.
+func (n *NullableExtractionResult) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableExtractionResult", src)
+	}
+
+	n.V = &domain.ExtractionResult{}
+	return wrapScanError("NullableExtractionResult", json.Unmarshal(data, n.V))
+}
+
+// Value implements driver.Valuer for NullableExtractionResult.
+func (n NullableExtractionResult) Value() (driver.Value, error) {
+	if n.V == nil {
+		return nil, nil
+	}
+	return json.Marshal(n.V)
+}
+
 // Scan implements sql.Scanner for NullableSandboxConfig.
 func (n *NullableSandboxConfig) Scan(src interface{}) error {
 	if src == nil {

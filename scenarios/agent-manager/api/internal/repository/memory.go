@@ -429,6 +429,71 @@ func (r *MemoryRunRepository) CountByStatus(ctx context.Context, status domain.R
 	return count, nil
 }
 
+func (r *MemoryRunRepository) ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.Run
+	for _, run := range r.runs {
+		// Check if pending or failed with retries remaining
+		if run.RecommendationStatus == domain.RecommendationStatusPending ||
+			(run.RecommendationStatus == domain.RecommendationStatusFailed && run.RecommendationAttempts < maxRetries) {
+			copy := *run
+			result = append(result, &copy)
+			if limit > 0 && len(result) >= limit {
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+func (r *MemoryRunRepository) ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	run, exists := r.runs[runID]
+	if !exists {
+		return false, nil
+	}
+
+	// Only claim if still pending or failed
+	if run.RecommendationStatus != domain.RecommendationStatusPending &&
+		run.RecommendationStatus != domain.RecommendationStatusFailed {
+		return false, nil
+	}
+
+	run.RecommendationStatus = domain.RecommendationStatusExtracting
+	return true, nil
+}
+
+func (r *MemoryRunRepository) ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.Run
+	for _, run := range r.runs {
+		// Check if investigation run (tag matches prefix but not -apply)
+		if !strings.HasPrefix(run.Tag, tagPrefix) || strings.HasSuffix(run.Tag, "-apply") {
+			continue
+		}
+		// Must be complete
+		if run.Status != domain.RunStatusComplete {
+			continue
+		}
+		// Must have empty/none recommendation status
+		if run.RecommendationStatus != "" && run.RecommendationStatus != domain.RecommendationStatusNone {
+			continue
+		}
+		copy := *run
+		result = append(result, &copy)
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+	}
+	return result, nil
+}
+
 // Verify interface compliance
 var _ RunRepository = (*MemoryRunRepository)(nil)
 

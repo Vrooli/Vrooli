@@ -113,6 +113,22 @@ type RunRepository interface {
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
+
+	// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
+	// Returns runs with status=pending or status=failed (with attempts < maxRetries),
+	// ordered by queued_at ascending (oldest first).
+	ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error)
+
+	// ClaimRecommendationExtraction atomically marks a run as "extracting".
+	// Returns true if claim succeeded (no concurrent extractor got it first).
+	// This prevents duplicate extraction if multiple workers exist.
+	ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error)
+
+	// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
+	// recommendations extracted yet (status is empty or "none").
+	// Used on startup to seed the extraction queue with existing runs.
+	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
+	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
 }
 
 // -----------------------------------------------------------------------------

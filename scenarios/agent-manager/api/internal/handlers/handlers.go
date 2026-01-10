@@ -121,6 +121,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/extract-recommendations", h.ExtractRecommendations).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/regenerate-recommendations", h.RegenerateRecommendations).Methods("POST")
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
@@ -1939,6 +1940,23 @@ func (h *Handler) ExtractRecommendations(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// RegenerateRecommendations forces re-extraction of recommendations for an investigation run.
+// This resets the extraction state and queues the run for background processing.
+func (h *Handler) RegenerateRecommendations(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	if err := h.svc.RegenerateRecommendations(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // GetRunnerStatus returns status of all runners.

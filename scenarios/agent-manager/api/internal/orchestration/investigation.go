@@ -17,10 +17,13 @@ import (
 )
 
 const (
-	investigationTag                = "agent-manager-investigation"
-	investigationApplyTag           = "agent-manager-investigation-apply"
-	investigationProfileKey         = "agent-manager-investigation"
-	investigationApplyProfileKey    = "agent-manager-investigation-apply"
+	// Use domain constants for tag values to ensure consistency across packages.
+	// See domain.InvestigationTag and domain.InvestigationApplyTag.
+	investigationTag             = domain.InvestigationTag
+	investigationApplyTag        = domain.InvestigationApplyTag
+	investigationProfileKey      = domain.InvestigationTag      // Profile key matches tag
+	investigationApplyProfileKey = domain.InvestigationApplyTag // Profile key matches tag
+
 	investigationEventLimit         = 500
 	investigationReportTimeout      = 10 * time.Minute
 	investigationApplyReportTimeout = 15 * time.Minute
