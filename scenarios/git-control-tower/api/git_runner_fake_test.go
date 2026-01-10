@@ -298,7 +298,13 @@ func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	f.Staged = make(map[string]string)
 
 	// Track commit
-	f.LastCommitMessage = message
+	if options.NoEdit {
+		if f.LastCommitMessage == "" {
+			f.LastCommitMessage = message
+		}
+	} else {
+		f.LastCommitMessage = message
+	}
 	f.LastCommitAuthorName = options.AuthorName
 	f.LastCommitAuthorEmail = options.AuthorEmail
 	f.CommitCount++
@@ -356,6 +362,15 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 	}
 
 	return []byte(""), nil
+}
+
+// LastCommitMessage returns the simulated last commit subject.
+func (f *FakeGitRunner) LastCommitMessage(ctx context.Context, repoDir string) (string, error) {
+	f.recordCall("LastCommitMessage", repoDir)
+	if strings.TrimSpace(f.LastCommitMessage) == "" {
+		return "", fmt.Errorf("no commits")
+	}
+	return f.LastCommitMessage, nil
 }
 
 // LookPath simulates checking for the git binary.

@@ -26,7 +26,7 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	}
 
 	message := strings.TrimSpace(req.Message)
-	if message == "" {
+	if message == "" && !req.Amend {
 		return &CommitResponse{
 			Success:          false,
 			ValidationErrors: []string{"commit message is required"},
@@ -34,8 +34,32 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 		}, nil
 	}
 
+	if req.Amend {
+		status, err := GetRepoStatus(ctx, RepoStatusDeps{
+			Git:     deps.Git,
+			RepoDir: repoDir,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(status.Branch.Upstream) == "" {
+			return &CommitResponse{
+				Success:          false,
+				ValidationErrors: []string{"upstream not configured; set upstream before amending"},
+				Timestamp:        time.Now().UTC(),
+			}, nil
+		}
+		if status.Branch.Ahead <= 0 {
+			return &CommitResponse{
+				Success:          false,
+				ValidationErrors: []string{"last commit already on upstream; amend is blocked"},
+				Timestamp:        time.Now().UTC(),
+			}, nil
+		}
+	}
+
 	// DECISION BOUNDARY: Validate conventional commit format if requested
-	if req.ValidateConventional {
+	if req.ValidateConventional && message != "" {
 		validationErrors := ValidateConventionalCommit(message)
 		if len(validationErrors) > 0 {
 			return &CommitResponse{
@@ -47,9 +71,12 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	}
 
 	// Attempt to create the commit
+	noEdit := req.Amend && message == ""
 	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
 		AuthorName:  strings.TrimSpace(req.AuthorName),
 		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
+		Amend:       req.Amend,
+		NoEdit:      noEdit,
 	})
 	if err != nil {
 		return &CommitResponse{
@@ -59,10 +86,21 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 		}, nil
 	}
 
+	finalMessage := message
+	if noEdit {
+		if lastMessage, err := deps.Git.LastCommitMessage(ctx, repoDir); err == nil {
+			lastMessage = strings.TrimSpace(lastMessage)
+			if lastMessage != "" {
+				finalMessage = lastMessage
+			}
+		}
+	}
+
 	return &CommitResponse{
 		Success:   true,
 		Hash:      hash,
-		Message:   message,
+		Message:   finalMessage,
+		Amended:   req.Amend,
 		Timestamp: time.Now().UTC(),
 	}, nil
 }

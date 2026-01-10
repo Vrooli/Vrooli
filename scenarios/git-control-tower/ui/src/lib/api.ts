@@ -225,6 +225,7 @@ export interface UnstageResponse {
 export interface CommitRequest {
   message: string;
   validate_conventional?: boolean;
+  amend?: boolean;
   author_name?: string;
   author_email?: string;
 }
@@ -232,6 +233,7 @@ export interface CommitRequest {
 export interface CommitResponse {
   success: boolean;
   hash?: string;
+  amended?: boolean;
   error?: string;
   validation_errors?: string[];
   timestamp: string;

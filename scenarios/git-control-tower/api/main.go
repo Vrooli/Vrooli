@@ -361,10 +361,14 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 	}, req)
 
 	// [REQ:GCT-OT-P0-007] Audit logging for commit operation
+	commitMessage := req.Message
+	if result != nil && strings.TrimSpace(result.Message) != "" {
+		commitMessage = result.Message
+	}
 	auditEntry := AuditEntry{
 		Operation:     AuditOpCommit,
 		RepoDir:       repoDir,
-		CommitMessage: req.Message,
+		CommitMessage: commitMessage,
 		Success:       result != nil && result.Success,
 	}
 	if err != nil {

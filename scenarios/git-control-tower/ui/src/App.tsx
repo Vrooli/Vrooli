@@ -205,6 +205,14 @@ export default function App() {
   const pushSourceBranch = statusQuery.data?.branch.head;
   const upstreamAhead = syncStatusQuery.data?.ahead ?? statusQuery.data?.branch.ahead ?? 0;
   const upstreamBehind = syncStatusQuery.data?.behind ?? statusQuery.data?.branch.behind ?? 0;
+  const hasUpstream =
+    syncStatusQuery.data?.has_upstream ?? Boolean(statusQuery.data?.branch.upstream);
+  const canAmend = hasUpstream && upstreamAhead > 0;
+  const amendDisabledReason = hasUpstream
+    ? upstreamAhead > 0
+      ? undefined
+      : "Last commit already on upstream"
+    : "Set upstream before amending";
 
   // Mutations
   const stageMutation = useStageFiles();
@@ -629,7 +637,7 @@ export default function App() {
   const handleCommit = useCallback(
     (
       message: string,
-      options: { conventional: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
     ) => {
       setCommitError(undefined);
       setLastCommitHash(undefined);
@@ -638,6 +646,7 @@ export default function App() {
         {
           message,
           validate_conventional: options.conventional,
+          amend: options.amend,
           author_name: options.authorName,
           author_email: options.authorEmail
         },
@@ -1295,6 +1304,8 @@ export default function App() {
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
+            canAmend={canAmend}
+            amendDisabledReason={amendDisabledReason}
             collapsed={commitCollapsed}
             onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
             fillHeight={isMain || !commitCollapsed}
@@ -1507,6 +1518,8 @@ export default function App() {
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
+            canAmend={canAmend}
+            amendDisabledReason={amendDisabledReason}
             collapsed={false}
             fillHeight={true}
             onPush={handlePush}

@@ -46,6 +46,67 @@ func TestCreateCommit_RequiresMessage(t *testing.T) {
 	}
 }
 
+func TestCreateCommit_AmendRequiresUpstream(t *testing.T) {
+	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
+	fakeGit.Branch.Upstream = ""
+	fakeGit.Branch.Ahead = 1
+	result, err := CreateCommit(context.Background(), CommitDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, CommitRequest{Message: "fix: adjust config", Amend: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Fatalf("expected success=false when upstream missing")
+	}
+	if len(result.ValidationErrors) == 0 {
+		t.Fatalf("expected validation error when upstream missing")
+	}
+}
+
+func TestCreateCommit_AmendBlockedWhenPushed(t *testing.T) {
+	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
+	fakeGit.Branch.Upstream = "origin/main"
+	fakeGit.Branch.Ahead = 0
+	result, err := CreateCommit(context.Background(), CommitDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, CommitRequest{Message: "fix: adjust config", Amend: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Fatalf("expected success=false when last commit is pushed")
+	}
+	if len(result.ValidationErrors) == 0 {
+		t.Fatalf("expected validation error when last commit is pushed")
+	}
+}
+
+func TestCreateCommit_AmendNoEditKeepsMessage(t *testing.T) {
+	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
+	fakeGit.Branch.Upstream = "origin/main"
+	fakeGit.Branch.Ahead = 1
+	fakeGit.LastCommitMessage = "feat: previous message"
+	result, err := CreateCommit(context.Background(), CommitDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, CommitRequest{Message: "", Amend: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success=true, got error=%q", result.Error)
+	}
+	if result.Message != "feat: previous message" {
+		t.Fatalf("expected previous message, got %q", result.Message)
+	}
+	if !result.Amended {
+		t.Fatalf("expected Amended=true")
+	}
+}
+
 func TestCreateCommit_WithFakeGit(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
 	result, err := CreateCommit(context.Background(), CommitDeps{

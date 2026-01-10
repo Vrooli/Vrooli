@@ -21,13 +21,15 @@ interface CommitPanelProps {
   isUsingApprovedMessage?: boolean;
   onCommit: (
     message: string,
-    options: { conventional: boolean; authorName?: string; authorEmail?: string }
+    options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
   ) => void;
   isCommitting: boolean;
   lastCommitHash?: string;
   commitError?: string;
   defaultAuthorName?: string;
   defaultAuthorEmail?: string;
+  canAmend?: boolean;
+  amendDisabledReason?: string;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
@@ -55,6 +57,8 @@ export function CommitPanel({
   commitError,
   defaultAuthorName,
   defaultAuthorEmail,
+  canAmend = false,
+  amendDisabledReason,
   collapsed = false,
   onToggleCollapse,
   fillHeight = false,
@@ -71,8 +75,10 @@ export function CommitPanel({
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [authorTouched, setAuthorTouched] = useState(false);
+  const [amendLast, setAmendLast] = useState(false);
 
-  const canCommit = stagedCount > 0 && commitMessage.trim().length > 0 && !isCommitting;
+  const trimmedMessage = commitMessage.trim();
+  const canCommit = stagedCount > 0 && !isCommitting && (trimmedMessage.length > 0 || amendLast);
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
@@ -86,8 +92,9 @@ export function CommitPanel({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (canCommit) {
-      onCommit(commitMessage, {
-        conventional: useConventional,
+      onCommit(trimmedMessage, {
+        conventional: useConventional && trimmedMessage.length > 0,
+        amend: amendLast,
         authorName: authorName.trim() || defaultAuthorName || undefined,
         authorEmail: authorEmail.trim() || defaultAuthorEmail || undefined
       });
@@ -103,6 +110,12 @@ export function CommitPanel({
       setAuthorEmail(defaultAuthorEmail);
     }
   }, [authorTouched, defaultAuthorName, defaultAuthorEmail]);
+
+  useEffect(() => {
+    if (!canAmend && amendLast) {
+      setAmendLast(false);
+    }
+  }, [amendLast, canAmend]);
 
   return (
     <Card
@@ -144,7 +157,9 @@ export function CommitPanel({
             <textarea
               value={commitMessage}
               onChange={(e) => onCommitMessageChange(e.target.value)}
-              placeholder="Commit message..."
+              placeholder={
+                amendLast ? "Commit message (leave empty to keep previous)..." : "Commit message..."
+              }
               className="w-full h-20 px-3 py-2 text-sm bg-slate-800/50 border border-slate-700 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
               disabled={isCommitting}
               data-testid="commit-message-input"
@@ -203,7 +218,8 @@ export function CommitPanel({
                 <span className="flex items-center min-w-0">
                   <GitCommit className="h-3 w-3 mr-1" />
                   <span className="truncate">
-                    Commit ({stagedCount} file{stagedCount !== 1 ? "s" : ""})
+                    {amendLast ? "Amend" : "Commit"} ({stagedCount} file
+                    {stagedCount !== 1 ? "s" : ""})
                   </span>
                 </span>
               )}
@@ -223,6 +239,24 @@ export function CommitPanel({
                 />
                 Conventional commit format
               </label>
+
+              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={amendLast}
+                  onChange={(e) => setAmendLast(e.target.checked)}
+                  disabled={isCommitting || !canAmend}
+                  className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                  data-testid="amend-commit-checkbox"
+                />
+                Amend last commit (unpushed only)
+              </label>
+              {!canAmend && amendDisabledReason && (
+                <p className="text-xs text-amber-400">{amendDisabledReason}</p>
+              )}
+              {amendLast && trimmedMessage.length === 0 && (
+                <p className="text-xs text-slate-500">Using previous commit message</p>
+              )}
 
               <div className="space-y-2">
                 <p className="text-xs text-slate-500">Commit identity (overrides local git config)</p>

@@ -40,6 +40,9 @@ type GitRunner interface {
 	// Used for repository validation (e.g., --is-inside-work-tree).
 	RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error)
 
+	// LastCommitMessage returns the subject of the last commit.
+	LastCommitMessage(ctx context.Context, repoDir string) (string, error)
+
 	// LookPath checks if the git binary is available.
 	// Returns the full path to git if found, or an error if not.
 	LookPath() (string, error)
@@ -118,6 +121,8 @@ type GitRunner interface {
 type CommitOptions struct {
 	AuthorName  string
 	AuthorEmail string
+	Amend       bool
+	NoEdit      bool
 }
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -214,7 +219,15 @@ func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 
 func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
 	// Create the commit
-	args := []string{"-C", repoDir, "commit", "-m", message}
+	args := []string{"-C", repoDir, "commit"}
+	if options.Amend {
+		args = append(args, "--amend")
+	}
+	if options.NoEdit {
+		args = append(args, "--no-edit")
+	} else {
+		args = append(args, "-m", message)
+	}
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 	if options.AuthorName != "" || options.AuthorEmail != "" {
 		env := os.Environ()
@@ -266,6 +279,19 @@ func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 		return nil, fmt.Errorf("git rev-parse failed: %w", err)
 	}
 	return out, nil
+}
+
+func (r *ExecGitRunner) LastCommitMessage(ctx context.Context, repoDir string) (string, error) {
+	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "log", "-1", "--pretty=%s")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("git log failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return "", fmt.Errorf("git log failed: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func (r *ExecGitRunner) LookPath() (string, error) {

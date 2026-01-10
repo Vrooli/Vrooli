@@ -389,12 +389,14 @@ func (a *App) cmdUnstage(args []string) error {
 type commitRequest struct {
 	Message              string `json:"message"`
 	ValidateConventional bool   `json:"validate_conventional,omitempty"`
+	Amend                bool   `json:"amend,omitempty"`
 }
 
 type commitResponse struct {
 	Success          bool     `json:"success"`
 	Hash             string   `json:"hash,omitempty"`
 	Message          string   `json:"message,omitempty"`
+	Amended          bool     `json:"amended,omitempty"`
 	ValidationErrors []string `json:"validation_errors,omitempty"`
 	Error            string   `json:"error,omitempty"`
 }
@@ -402,6 +404,7 @@ type commitResponse struct {
 func (a *App) cmdCommit(args []string) error {
 	var message string
 	var conventional bool
+	var amend bool
 
 	for i, arg := range args {
 		switch {
@@ -413,16 +416,19 @@ func (a *App) cmdCommit(args []string) error {
 			message = strings.TrimPrefix(arg, "--message=")
 		case arg == "--conventional":
 			conventional = true
+		case arg == "--amend":
+			amend = true
 		}
 	}
 
-	if message == "" {
-		return fmt.Errorf("usage: commit -m MESSAGE [--conventional]")
+	if message == "" && !amend {
+		return fmt.Errorf("usage: commit [-m MESSAGE] [--conventional] [--amend]")
 	}
 
 	req := commitRequest{
 		Message:              message,
 		ValidateConventional: conventional,
+		Amend:                amend,
 	}
 
 	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/commit"), nil, req)
@@ -433,7 +439,11 @@ func (a *App) cmdCommit(args []string) error {
 	var parsed commitResponse
 	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
 		if parsed.Success {
-			fmt.Printf("Committed: %s\n", parsed.Hash)
+			action := "Committed"
+			if parsed.Amended {
+				action = "Amended"
+			}
+			fmt.Printf("%s: %s\n", action, parsed.Hash)
 			fmt.Printf("Message: %s\n", parsed.Message)
 		} else {
 			fmt.Println("Commit failed:")
