@@ -63,6 +63,9 @@ type Provider interface {
 
 // CreateRequest contains parameters for sandbox creation.
 type CreateRequest struct {
+	// Name is an optional human-readable name for the sandbox.
+	Name string
+
 	// ScopePath is the relative path within the project to scope the sandbox.
 	ScopePath string
 

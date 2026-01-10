@@ -527,6 +527,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
 
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
+		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
 		NoLock:         e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock,
 		ProjectRoot:    e.task.ProjectRoot,
@@ -590,6 +591,40 @@ func (e *RunExecutor) useInPlaceWorkspace() error {
 	}
 	e.workDir = e.task.ProjectRoot
 	return nil
+}
+
+// buildSandboxName constructs a descriptive name for the sandbox.
+// Priority: run.Tag > task.Title > scope path
+// Profile name is appended when available for context.
+func (e *RunExecutor) buildSandboxName() string {
+	// Use run tag if explicitly set
+	if tag := e.run.GetTag(); tag != "" {
+		return tag
+	}
+
+	// Get profile name for context
+	profileName := ""
+	if e.profile != nil && e.profile.Name != "" {
+		profileName = e.profile.Name
+	}
+
+	// Use task title if available
+	if e.task.Title != "" {
+		if profileName != "" {
+			return fmt.Sprintf("%s (%s)", e.task.Title, profileName)
+		}
+		return e.task.Title
+	}
+
+	// Fall back to scope path
+	scope := e.task.ScopePath
+	if scope == "" {
+		scope = "/"
+	}
+	if profileName != "" {
+		return fmt.Sprintf("%s (%s)", scope, profileName)
+	}
+	return scope
 }
 
 // =============================================================================
