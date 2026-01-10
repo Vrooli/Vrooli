@@ -46,7 +46,7 @@ export function Dialog({ open, onOpenChange, children, contentClassName }: Dialo
       {/* Content */}
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg mx-4 animate-in fade-in-0 zoom-in-95 duration-200",
+          "relative z-50 w-full mx-4 animate-in fade-in-0 zoom-in-95 duration-200",
           contentClassName
         )}
       >
@@ -70,6 +70,7 @@ export function DialogContent({
       className={cn(
         "relative rounded-lg border border-border bg-card shadow-xl",
         "max-h-[85vh] overflow-y-auto",
+        "max-w-lg mx-auto", // Default width + centered, width can be overridden via className
         className
       )}
       {...props}

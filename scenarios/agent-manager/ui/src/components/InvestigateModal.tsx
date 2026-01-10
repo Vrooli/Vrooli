@@ -204,7 +204,8 @@ export function InvestigateModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      {/* Wide modal for 2-column layout on large screens */}
+      <DialogContent className="max-w-lg lg:max-w-[90vw] xl:max-w-7xl">
         <DialogHeader onClose={() => onOpenChange(false)}>
           <DialogTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
@@ -213,151 +214,165 @@ export function InvestigateModal({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <DialogBody className="space-y-5">
-          {/* Investigation Scope */}
-          <ScopePathsManager
-            projectRoot={projectRoot}
-            onProjectRootChange={setProjectRoot}
-            scopePaths={scopePaths}
-            onScopePathsChange={setScopePaths}
-            defaultProjectRoot={defaultProjectRoot}
-            defaultScopePaths={defaultScopePaths}
-            scopePathsHelp="Directories where the investigation agent can make changes. Leave empty for read-only analysis."
-          />
+        <DialogBody>
+          {/* 2-column layout: options left, context right on large screens */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Left Column: Main Options */}
+            <div className="space-y-5">
+              {/* Investigation Scope */}
+              <ScopePathsManager
+                projectRoot={projectRoot}
+                onProjectRootChange={setProjectRoot}
+                scopePaths={scopePaths}
+                onScopePathsChange={setScopePaths}
+                defaultProjectRoot={defaultProjectRoot}
+                defaultScopePaths={defaultScopePaths}
+                scopePathsHelp="Directories where the investigation agent can make changes. Leave empty for read-only analysis."
+              />
 
-          {/* Suggestion Cards */}
-          {!hideDepthSelector && (
-            <div className="space-y-2">
-              <Label>Quick Focus (click to add)</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {suggestionCards.map((card) => (
-                  <button
-                    key={card.label}
-                    type="button"
-                    onClick={() => handleSuggestionClick(card.context)}
-                    className="flex flex-col items-start gap-1 rounded-lg border border-border p-2 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
-                  >
-                    <span className="text-sm font-medium">{card.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {card.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Investigation Depth - hidden for Apply Investigation */}
+              {!hideDepthSelector && (
+                <div className="space-y-2">
+                  <Label>Investigation Depth</Label>
+                  <div className="grid gap-2">
+                    {depthOptions.map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                          depth === option.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="depth"
+                          value={option.value}
+                          checked={depth === option.value}
+                          onChange={(e) =>
+                            setDepth(e.target.value as InvestigationDepth)
+                          }
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 font-medium">
+                            {option.icon}
+                            {option.label}
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Investigation Depth - hidden for Apply Investigation */}
-          {!hideDepthSelector && (
-            <div className="space-y-2">
-              <Label>Investigation Depth</Label>
-              <div className="grid gap-2">
-                {depthOptions.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                      depth === option.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="depth"
-                      value={option.value}
-                      checked={depth === option.value}
-                      onChange={(e) =>
-                        setDepth(e.target.value as InvestigationDepth)
-                      }
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 font-medium">
-                        {option.icon}
-                        {option.label}
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {option.description}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Context Selection (collapsible) */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setShowContext(!showContext)}
-              className="flex w-full items-center justify-between text-left"
-            >
-              <Label className="cursor-pointer">Context to Include</Label>
-              <div className="flex items-center gap-2">
-                <Button
+              {/* Context Selection (collapsible) */}
+              <div className="space-y-2">
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleUseDefaults();
-                  }}
-                  className="h-6 text-xs"
+                  onClick={() => setShowContext(!showContext)}
+                  className="flex w-full items-center justify-between text-left"
                 >
-                  Use Defaults
-                </Button>
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    showContext ? "rotate-180" : ""
-                  }`}
-                />
-              </div>
-            </button>
-
-            {showContext && (
-              <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">
-                {contextOptions.map((option) => (
-                  <label
-                    key={option.key}
-                    className="flex cursor-pointer items-center gap-2"
-                  >
-                    <Checkbox
-                      checked={contextFlags[option.key]}
-                      onCheckedChange={(checked) =>
-                        handleContextChange(option.key, checked === true)
-                      }
+                  <Label className="cursor-pointer">Context to Include</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUseDefaults();
+                      }}
+                      className="h-6 text-xs"
+                    >
+                      Use Defaults
+                    </Button>
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform ${
+                        showContext ? "rotate-180" : ""
+                      }`}
                     />
-                    <div>
-                      <span className="text-sm">{option.label}</span>
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        ({option.shortDesc})
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+                  </div>
+                </button>
 
-          {/* Custom Context */}
-          <div className="space-y-2">
-            <Label htmlFor="customContext">Additional Context (optional)</Label>
-            <Textarea
-              id="customContext"
-              value={customContext}
-              onChange={(e) => setCustomContext(e.target.value)}
-              placeholder="Provide any additional context for this investigation..."
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground">
-              Share any extra details, suspected causes, or specific areas to
-              investigate.
-            </p>
+                {showContext && (
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">
+                    {contextOptions.map((option) => (
+                      <label
+                        key={option.key}
+                        className="flex cursor-pointer items-center gap-2"
+                      >
+                        <Checkbox
+                          checked={contextFlags[option.key]}
+                          onCheckedChange={(checked) =>
+                            handleContextChange(option.key, checked === true)
+                          }
+                        />
+                        <div>
+                          <span className="text-sm">{option.label}</span>
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({option.shortDesc})
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Additional Context + Quick Focus */}
+            <div className="flex flex-col space-y-4">
+              {/* Additional Context (larger textarea) */}
+              <div className="flex flex-col space-y-2 flex-1">
+                <Label htmlFor="customContext">Additional Context (optional)</Label>
+                <Textarea
+                  id="customContext"
+                  value={customContext}
+                  onChange={(e) => setCustomContext(e.target.value)}
+                  placeholder="Provide any additional context for this investigation...
+
+Examples:
+• Suspected root cause or hypothesis
+• Specific files or functions to examine
+• Related issues or previous attempts
+• Business context or constraints"
+                  className="flex-1 min-h-[120px] lg:min-h-[200px] resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Share any extra details, suspected causes, or specific areas to investigate.
+                </p>
+              </div>
+
+              {/* Quick Focus Suggestion Cards */}
+              {!hideDepthSelector && (
+                <div className="space-y-2">
+                  <Label>Quick Focus (click to add)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {suggestionCards.map((card) => (
+                      <button
+                        key={card.label}
+                        type="button"
+                        onClick={() => handleSuggestionClick(card.context)}
+                        className="flex flex-col items-start gap-1 rounded-lg border border-border p-2 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      >
+                        <span className="text-sm font-medium">{card.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {card.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4" />
               <span>{error}</span>
             </div>
