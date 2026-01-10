@@ -84,6 +84,8 @@ interface ExportState {
   updateExport: (id: string, input: UpdateExportInput) => Promise<Export | null>;
   deleteExport: (id: string) => Promise<boolean>;
   deleteAllExports: () => Promise<{ deleted: number; errors: string[] }>;
+  /** Replace an export: create new export, then delete the old one */
+  replaceExport: (oldId: string, input: CreateExportInput) => Promise<Export | null>;
   setSelectedExport: (export_: Export | null) => void;
   clearError: () => void;
 
@@ -380,6 +382,35 @@ export const useExportStore = create<ExportState>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  replaceExport: async (oldId: string, input: CreateExportInput) => {
+    // Create new export first (don't delete old one until we have a valid replacement)
+    const newExport = await get().createExport(input);
+    if (!newExport) {
+      return null;
+    }
+
+    // Now delete the old export
+    // Note: we don't use deleteExport() because it sets isDeleting state
+    // and we want this to be atomic from the user's perspective
+    try {
+      const config = await getConfig();
+      await fetch(`${config.API_URL}/exports/${oldId}`, {
+        method: 'DELETE',
+      });
+
+      // Remove old export from state
+      set((state) => ({
+        exports: state.exports.filter((e: Export) => e.id !== oldId),
+        selectedExport: state.selectedExport?.id === oldId ? null : state.selectedExport,
+      }));
+    } catch (error) {
+      logger.error('Failed to delete old export during replace', { component: 'ExportStore', action: 'replaceExport', oldId }, error);
+      // Note: new export was already created, so we don't fail the whole operation
+    }
+
+    return newExport;
   },
 
   getExportsByExecutionId: (executionId: string): Export[] => {

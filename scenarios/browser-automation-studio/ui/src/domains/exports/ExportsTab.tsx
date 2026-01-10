@@ -21,12 +21,13 @@ import { useDashboardStore } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { useConfirmDialog } from '@hooks/useConfirmDialog';
-import { usePromptDialog } from '@hooks/usePromptDialog';
-import { ConfirmDialog, PromptDialog } from '@shared/ui';
+import { ConfirmDialog } from '@shared/ui';
 import { TabEmptyState, ExportsEmptyPreview } from '@/views/DashboardView/previews';
 import { useNewExportFlow } from './hooks/useNewExportFlow';
+import { useEditExportFlow } from './hooks/useEditExportFlow';
 import { SelectExecutionDialog } from './SelectExecutionDialog';
 import { InlineExportDialog } from './InlineExportDialog';
+import { ExportDetailsModal } from './ExportDetailsModal';
 // Import presentation utilities from consolidated module
 import {
   formatFileSize,
@@ -63,7 +64,6 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     isLoading,
     fetchExports,
     deleteExport,
-    updateExport,
   } = useExportStore();
   const {
     recentWorkflows,
@@ -71,6 +71,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     runningExecutions,
   } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [detailsExport, setDetailsExport] = useState<Export | null>(null);
 
   // Dialog hooks
   const {
@@ -78,16 +79,12 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     confirm,
     close: closeConfirm,
   } = useConfirmDialog();
-  const {
-    dialogState: promptDialogState,
-    prompt,
-    setValue: setPromptValue,
-    close: closePrompt,
-    submit: submitPrompt,
-  } = usePromptDialog();
 
   // New export flow
   const newExportFlow = useNewExportFlow({ onViewExecution });
+
+  // Edit export flow
+  const editExportFlow = useEditExportFlow();
 
   const hasExecutions = recentExecutions.length > 0 || runningExecutions.length > 0;
   const totalRuns = recentExecutions.length + runningExecutions.length;
@@ -140,29 +137,6 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
       toast.error(result.error ?? 'Failed to copy link');
     }
   }, [downloadClient]);
-
-  const openRenameDialog = useCallback(async (export_: Export) => {
-    const newName = await prompt(
-      {
-        title: 'Rename Export',
-        label: 'Export name',
-        defaultValue: export_.name,
-        placeholder: 'Enter export name...',
-        submitLabel: 'Save',
-      },
-      {
-        validate: (value) => value.trim() ? null : 'Name is required',
-        normalize: (value) => value.trim(),
-      }
-    );
-
-    if (newName) {
-      const result = await updateExport(export_.id, { name: newName });
-      if (result) {
-        toast.success('Export renamed');
-      }
-    }
-  }, [prompt, updateExport]);
 
   const openDeleteDialog = useCallback(async (export_: Export) => {
     const confirmed = await confirm({
@@ -221,16 +195,16 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
               </button>
             )}
             <button
-              onClick={() => onViewExecution(export_.executionId, export_.workflowId ?? '')}
+              onClick={() => setDetailsExport(export_)}
               className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
-              title="View execution"
+              title="View details"
             >
               <Eye size={18} />
             </button>
             <button
-              onClick={() => openRenameDialog(export_)}
+              onClick={() => editExportFlow.openEditDialog(export_)}
               className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
-              title="Rename"
+              title="Edit"
             >
               <Pencil size={18} />
             </button>
@@ -483,12 +457,6 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
 
       {/* Dialogs */}
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirm} />
-      <PromptDialog
-        state={promptDialogState}
-        onValueChange={setPromptValue}
-        onClose={closePrompt}
-        onSubmit={submitPrompt}
-      />
 
       {/* New Export Dialog */}
       <SelectExecutionDialog
@@ -516,6 +484,47 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
             <Loader2 className="animate-spin text-flow-accent" size={24} />
             <span className="text-surface">Loading execution...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Export Details Modal */}
+      {detailsExport && (
+        <ExportDetailsModal
+          export_={detailsExport}
+          onClose={() => setDetailsExport(null)}
+          onEdit={() => {
+            editExportFlow.openEditDialog(detailsExport);
+            setDetailsExport(null);
+          }}
+          onDelete={() => {
+            openDeleteDialog(detailsExport);
+            setDetailsExport(null);
+          }}
+          downloadClient={downloadClient}
+        />
+      )}
+
+      {/* Inline Export Dialog for Edit mode */}
+      {editExportFlow.executionForEdit && editExportFlow.exportToEdit && (
+        <InlineExportDialog
+          execution={editExportFlow.executionForEdit}
+          workflowName={editExportFlow.workflowNameForEdit}
+          onClose={editExportFlow.clearEditState}
+          exportToEdit={editExportFlow.exportToEdit}
+          onExportUpdated={() => {
+            editExportFlow.clearEditState();
+            void fetchExports();
+          }}
+        />
+      )}
+
+      {/* Loading overlay when fetching execution for edit */}
+      {editExportFlow.isLoadingExecution && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
+            <Loader2 className="animate-spin text-flow-accent" size={24} />
+            <span className="text-surface">Loading export...</span>
           </div>
         </div>
       )}

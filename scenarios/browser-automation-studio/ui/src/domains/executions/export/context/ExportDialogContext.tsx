@@ -184,6 +184,9 @@ export interface ExportDialogContextValue {
   titleId: string;
   descriptionId: string;
 
+  /** Whether the dialog is in edit mode (editing an existing export) */
+  isEditMode: boolean;
+
   /** Grouped state */
   formatState: ExportFormatState;
   dimensionState: ExportDimensionState;
@@ -326,6 +329,9 @@ export interface BuildExportDialogContextOptions {
   dialogTitleId: string;
   dialogDescriptionId: string;
 
+  /** Whether the dialog is in edit mode (editing an existing export) */
+  isEditMode?: boolean;
+
   // Format state
   exportFormat: ExportFormat;
   setExportFormat: (format: ExportFormat) => void;
@@ -422,6 +428,7 @@ export function buildExportDialogContextValue(
   return {
     titleId: options.dialogTitleId,
     descriptionId: options.dialogDescriptionId,
+    isEditMode: options.isEditMode ?? false,
 
     formatState: {
       format: options.exportFormat,

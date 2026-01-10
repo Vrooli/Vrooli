@@ -614,7 +614,7 @@ interface ExportDialogProps {
  * in ExportDialogProvider.
  */
 export function ExportDialog({ isOpen }: ExportDialogProps) {
-  const { titleId, descriptionId } = useExportDialogContext();
+  const { titleId, descriptionId, isEditMode } = useExportDialogContext();
   const { formats, isBinaryExport } = useExportFormatState();
   const { isStylized } = useExportStylizationState();
   const { isExporting, isPreviewLoading } = useExportProgressState();
@@ -647,10 +647,12 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
           </span>
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-white">
-              Export replay
+              {isEditMode ? 'Edit export' : 'Export replay'}
             </h2>
             <p id={descriptionId} className="text-sm text-gray-400">
-              Choose format, naming, and destination for this execution.
+              {isEditMode
+                ? 'Modify settings and re-export. A new file will be generated.'
+                : 'Choose format, naming, and destination for this execution.'}
             </p>
           </div>
         </div>

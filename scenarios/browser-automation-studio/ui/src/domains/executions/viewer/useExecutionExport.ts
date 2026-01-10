@@ -53,6 +53,14 @@ import {
 } from "../export/api";
 import { useRecordedVideoStatus } from "../export/hooks";
 
+/**
+ * Initial settings for pre-populating the export dialog (used when editing an existing export).
+ */
+type InitialExportSettings = {
+  format?: ExportFormat;
+  fileStem?: string;
+};
+
 type UseExecutionExportParams = {
   execution: Execution;
   replayFrames: TimelineFrame[];
@@ -68,6 +76,8 @@ type UseExecutionExportParams = {
     durationMs?: number | null;
     frameCount?: number | null;
   }) => Promise<Export | null>;
+  /** Optional initial settings for pre-populating the export dialog (used when editing). */
+  initialSettings?: InitialExportSettings;
 };
 
 type ExecutionExportPreview = {
@@ -87,6 +97,7 @@ export const useExecutionExport = ({
   workflowName,
   replayCustomization,
   createExport,
+  initialSettings,
 }: UseExecutionExportParams) => {
   const {
     replayChromeTheme,
@@ -117,10 +128,14 @@ export const useExecutionExport = ({
   });
   const { composerApiBase, setComposerApiBase } = useComposerApiBase(execution.id);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("mp4");
-  const [exportFormats, setExportFormats] = useState<ExportFormat[]>(["mp4"]);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>(
+    () => initialSettings?.format ?? "mp4",
+  );
+  const [exportFormats, setExportFormats] = useState<ExportFormat[]>(
+    () => initialSettings?.format ? [initialSettings.format] : ["mp4"],
+  );
   const [exportFileStem, setExportFileStem] = useState<string>(
-    () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
+    () => initialSettings?.fileStem ?? `browser-automation-replay-${execution.id.slice(0, 8)}`,
   );
   const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
   const [dimensionPreset, setDimensionPreset] =

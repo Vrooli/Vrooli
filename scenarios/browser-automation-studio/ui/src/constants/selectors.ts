@@ -615,6 +615,19 @@ const literalSelectors = {
   // Landing Manager Admin Portal selectors
   // Note: These are data-testid selector values, NOT actual credentials
   // nosec: These string literals are DOM test selectors, not secrets
+  exports: {
+    detailsModal: {
+      root: "export-details-modal",
+      thumbnail: "export-details-thumbnail",
+      downloadButton: "export-details-download-button",
+      editButton: "export-details-edit-button",
+      deleteButton: "export-details-delete-button",
+      copyLinkButton: "export-details-copy-link-button",
+      closeButton: "export-details-close-button",
+      generateCaptionButton: "export-details-generate-caption-button",
+      copyCaptionButton: "export-details-copy-caption-button",
+    },
+  },
   landingManager: {
     admin: {
       login: {
