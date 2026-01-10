@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { useMenuPositioning } from './useMenuPositioning';
+import { useAnchoredPopover, type PopoverPlacement } from '@/components/popover/AnchoredPopover';
 
 export type MenuId = string;
 
@@ -18,10 +18,9 @@ export interface UseToolbarMenuReturn {
   popoverRef: React.RefObject<HTMLDivElement>;
   firstItemRef: React.RefObject<HTMLButtonElement>;
 
-  // Positioning (from useMenuPositioning)
+  // Positioning (from anchored popover)
   menuStyle: CSSProperties | undefined;
-  setAnchorRect: (rect: DOMRect | null) => void;
-  setMenuStyle: (style: CSSProperties | undefined) => void;
+  placement: PopoverPlacement;
 
   // Actions
   open: () => void;
@@ -31,8 +30,8 @@ export interface UseToolbarMenuReturn {
 
 interface UseToolbarMenuOptions {
   id: MenuId;
-  computeMenuStyle: (anchorRect: DOMRect, popover: HTMLDivElement | null) => CSSProperties | undefined;
   onOpenChange?: (id: MenuId, isOpen: boolean) => void;
+  placement?: PopoverPlacement;
 }
 
 /**
@@ -41,14 +40,13 @@ interface UseToolbarMenuOptions {
  * @example
  * const lifecycleMenu = useToolbarMenu({
  *   id: 'lifecycle',
- *   computeMenuStyle,
  *   onOpenChange: handleMenuOpenChange
  * });
  */
 export const useToolbarMenu = ({
   id,
-  computeMenuStyle,
   onOpenChange,
+  placement,
 }: UseToolbarMenuOptions): UseToolbarMenuReturn => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -58,26 +56,11 @@ export const useToolbarMenu = ({
   const popoverRef = useRef<HTMLDivElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
 
-  // Anchor update callback
-  const updateAnchor = useCallback(() => {
-    const button = buttonRef.current;
-    if (!button) {
-      return null;
-    }
-    return button.getBoundingClientRect();
-  }, []);
-
-  // Use positioning hook
-  const {
-    menuStyle,
-    setAnchorRect,
-    setMenuStyle,
-  } = useMenuPositioning({
+  const { style: menuStyle, placement: resolvedPlacement } = useAnchoredPopover({
     isOpen,
-    buttonRef,
+    anchorRef: buttonRef,
     popoverRef,
-    updateAnchor,
-    computeMenuStyle,
+    placement,
   });
 
   // Actions
@@ -88,10 +71,8 @@ export const useToolbarMenu = ({
 
   const close = useCallback(() => {
     setIsOpen(false);
-    setAnchorRect(null);
-    setMenuStyle(undefined);
     onOpenChange?.(id, false);
-  }, [id, onOpenChange, setAnchorRect, setMenuStyle]);
+  }, [id, onOpenChange]);
 
   const toggle = useCallback(() => {
     if (isOpen) {
@@ -108,8 +89,7 @@ export const useToolbarMenu = ({
     popoverRef,
     firstItemRef,
     menuStyle,
-    setAnchorRect,
-    setMenuStyle,
+    placement: resolvedPlacement,
     open,
     close,
     toggle,

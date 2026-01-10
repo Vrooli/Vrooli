@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type {
   ChangeEvent,
   CSSProperties,
@@ -32,6 +31,7 @@ import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useFloatingPosition } from '@/hooks/useFloatingPosition';
 import { useToolbarMenu, useMenuCoordinator, useMenuAutoFocus, useMenuOutsideClick } from '@/hooks/useToolbarMenu';
 import { PREVIEW_UI } from './views/previewConstants';
+import { AnchoredPopover } from './popover/AnchoredPopover';
 
 import './AppPreviewToolbar.css';
 
@@ -397,7 +397,7 @@ const AppPreviewToolbar = ({
   previewInteractionSignal,
   issueCaptureCount,
 }: AppPreviewToolbarProps) => {
-  const { clampPosition, computeMenuStyle, computeBottomRightPosition } = useFloatingPosition();
+  const { clampPosition, computeBottomRightPosition } = useFloatingPosition();
 
   // Coordinate mutually-exclusive menus
   const { handleMenuOpenChange, closeAll: closeMenus, registerMenu } = useMenuCoordinator();
@@ -405,19 +405,16 @@ const AppPreviewToolbar = ({
   // Create menu instances with consolidated hook
   const lifecycleMenu = useToolbarMenu({
     id: 'lifecycle',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
   const devMenu = useToolbarMenu({
     id: 'dev',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
   const navMenu = useToolbarMenu({
     id: 'nav',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
@@ -434,8 +431,7 @@ const AppPreviewToolbar = ({
     ? `${issueCaptureCount} capture${issueCaptureCount === 1 ? '' : 's'} staged`
     : null;
 
-  // Note: updateAnchor callbacks and useMenuPositioning calls removed
-  // These are now handled inside useToolbarMenu hook
+  // Note: anchor measurement and flip logic live in the shared popover hook.
 
   const detailsButtonLabel = hasDetailsWarning
     ? 'Application details (localhost references detected)'
@@ -598,47 +594,47 @@ const AppPreviewToolbar = ({
               >
                 <Navigation2 aria-hidden size={18} />
               </button>
-            {portalHost && navMenu.isOpen && navMenu.menuStyle && createPortal(
-                <div
-                  className="preview-toolbar__menu-popover"
-                  role="menu"
-                  ref={navMenu.popoverRef}
-                  style={navMenu.menuStyle}
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    ref={navMenu.firstItemRef}
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('back')}
-                    disabled={!canGoBack}
-                  >
-                    <ArrowLeft aria-hidden size={16} />
-                    <span>Go back</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('forward')}
-                    disabled={!canGoForward}
-                  >
-                    <ArrowRight aria-hidden size={16} />
-                    <span>Go forward</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('refresh')}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
-                    <span>Refresh</span>
-                  </button>
-                </div>,
-                portalHost,
-              )}
+            <AnchoredPopover
+              isOpen={navMenu.isOpen}
+              portalHost={portalHost}
+              popoverRef={navMenu.popoverRef}
+              style={navMenu.menuStyle}
+              placement={navMenu.placement}
+              className="preview-toolbar__menu-popover"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                ref={navMenu.firstItemRef}
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('back')}
+                disabled={!canGoBack}
+              >
+                <ArrowLeft aria-hidden size={16} />
+                <span>Go back</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('forward')}
+                disabled={!canGoForward}
+              >
+                <ArrowRight aria-hidden size={16} />
+                <span>Go forward</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('refresh')}
+                disabled={isRefreshing}
+              >
+                <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
+                <span>Refresh</span>
+              </button>
+            </AnchoredPopover>
             </div>
             {isFullView && (
               <button
@@ -780,41 +776,41 @@ const AppPreviewToolbar = ({
               <Power aria-hidden size={18} />
             )}
           </button>
-          {portalHost && lifecycleMenu.isOpen && lifecycleMenu.menuStyle && createPortal(
-            <div
-              className="preview-toolbar__menu-popover"
-              role="menu"
-              ref={lifecycleMenu.popoverRef}
-              style={lifecycleMenu.menuStyle}
+          <AnchoredPopover
+            isOpen={lifecycleMenu.isOpen}
+            portalHost={portalHost}
+            popoverRef={lifecycleMenu.popoverRef}
+            style={lifecycleMenu.menuStyle}
+            placement={lifecycleMenu.placement}
+            className="preview-toolbar__menu-popover"
+            role="menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              ref={lifecycleMenu.firstItemRef}
+              className="preview-toolbar__menu-item"
+              onClick={() => handleLifecycleAction('toggle')}
+              disabled={!hasCurrentApp || actionInProgress}
             >
-              <button
-                type="button"
-                role="menuitem"
-                ref={lifecycleMenu.firstItemRef}
-                className="preview-toolbar__menu-item"
-                onClick={() => handleLifecycleAction('toggle')}
-                disabled={!hasCurrentApp || actionInProgress}
-              >
-                <Power aria-hidden size={16} />
-                <span>{toggleActionLabel}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={() => handleLifecycleAction('restart')}
-                disabled={!hasCurrentApp || !isAppRunning || actionInProgress || pendingAction === 'restart'}
-              >
-                {pendingAction === 'restart' ? (
-                  <Loader2 aria-hidden size={16} className="spinning" />
-                ) : (
-                  <RotateCcw aria-hidden size={16} />
-                )}
-                <span>{restartActionLabel}</span>
-              </button>
-            </div>,
-            portalHost,
-          )}
+              <Power aria-hidden size={16} />
+              <span>{toggleActionLabel}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="preview-toolbar__menu-item"
+              onClick={() => handleLifecycleAction('restart')}
+              disabled={!hasCurrentApp || !isAppRunning || actionInProgress || pendingAction === 'restart'}
+            >
+              {pendingAction === 'restart' ? (
+                <Loader2 aria-hidden size={16} className="spinning" />
+              ) : (
+                <RotateCcw aria-hidden size={16} />
+              )}
+              <span>{restartActionLabel}</span>
+            </button>
+          </AnchoredPopover>
         </div>
         <div
           className={clsx('preview-toolbar__menu', devMenu.isOpen && 'preview-toolbar__menu--open')}
@@ -840,92 +836,92 @@ const AppPreviewToolbar = ({
               <span className="preview-toolbar__badge" aria-hidden>{captureBadgeLabel}</span>
             )}
           </button>
-          {portalHost && devMenu.isOpen && devMenu.menuStyle && createPortal(
-            <div
-              className="preview-toolbar__menu-popover"
-              role="menu"
-              ref={devMenu.popoverRef}
-              style={devMenu.menuStyle}
+          <AnchoredPopover
+            isOpen={devMenu.isOpen}
+            portalHost={portalHost}
+            popoverRef={devMenu.popoverRef}
+            style={devMenu.menuStyle}
+            placement={devMenu.placement}
+            className="preview-toolbar__menu-popover"
+            role="menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              ref={devMenu.firstItemRef}
+              className="preview-toolbar__menu-item"
+              onClick={handleToggleFullscreen}
+              disabled={!hasCurrentApp}
             >
-              <button
-                type="button"
-                role="menuitem"
-                ref={devMenu.firstItemRef}
-                className="preview-toolbar__menu-item"
-                onClick={handleToggleFullscreen}
-                disabled={!hasCurrentApp}
-              >
-                {isFullView ? (
-                  <Minimize2 aria-hidden size={16} />
-                ) : (
-                  <Maximize2 aria-hidden size={16} />
-                )}
-                <span>{fullscreenActionLabel}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={onToggleDeviceEmulation}
-                disabled={!hasCurrentApp}
-              >
-                <MonitorSmartphone aria-hidden size={16} />
-                <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={clsx(
-                  'preview-toolbar__menu-item',
-                  isInspecting && 'preview-toolbar__menu-item--active',
-                  !hasCurrentApp || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
-                )}
-                onClick={() => {
-                  closeMenus();
-                  onToggleInspect();
-                }}
-                aria-pressed={isInspecting}
-                aria-disabled={(!hasCurrentApp || !canInspect) || undefined}
-                disabled={!hasCurrentApp || !canInspect}
-                title={( !hasCurrentApp || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
-              >
-                <span className="preview-toolbar__menu-item-label">
-                  <Crosshair aria-hidden size={16} />
-                  <span>{isInspecting ? 'Exit inspect mode' : 'Inspect element'}</span>
-                </span>
-                {(!hasCurrentApp || !canInspect) && inspectModeDisabledReason && (
-                  <span className="preview-toolbar__menu-item-note">{inspectModeDisabledReason}</span>
-                )}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={clsx('preview-toolbar__menu-item', areLogsVisible && 'preview-toolbar__menu-item--active')}
-                onClick={handleToggleLogs}
-                aria-pressed={areLogsVisible}
-                disabled={!hasCurrentApp}
-              >
-                <ScrollText aria-hidden size={16} />
-                <span>{areLogsVisible ? 'Hide logs' : 'Show logs'}</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="preview-toolbar__menu-item"
-                onClick={handleReportIssue}
-                disabled={!hasCurrentApp}
-              >
-                <span className="preview-toolbar__menu-item-label">
-                  <Bug aria-hidden size={16} />
-                  <span>Report an issue</span>
-                </span>
-                {showCaptureBadge && (
-                  <span className="preview-toolbar__menu-item-badge" aria-hidden>{captureBadgeLabel}</span>
-                )}
-              </button>
-            </div>,
-            portalHost,
-          )}
+              {isFullView ? (
+                <Minimize2 aria-hidden size={16} />
+              ) : (
+                <Maximize2 aria-hidden size={16} />
+              )}
+              <span>{fullscreenActionLabel}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="preview-toolbar__menu-item"
+              onClick={onToggleDeviceEmulation}
+              disabled={!hasCurrentApp}
+            >
+              <MonitorSmartphone aria-hidden size={16} />
+              <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={clsx(
+                'preview-toolbar__menu-item',
+                isInspecting && 'preview-toolbar__menu-item--active',
+                !hasCurrentApp || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
+              )}
+              onClick={() => {
+                closeMenus();
+                onToggleInspect();
+              }}
+              aria-pressed={isInspecting}
+              aria-disabled={(!hasCurrentApp || !canInspect) || undefined}
+              disabled={!hasCurrentApp || !canInspect}
+              title={( !hasCurrentApp || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
+            >
+              <span className="preview-toolbar__menu-item-label">
+                <Crosshair aria-hidden size={16} />
+                <span>{isInspecting ? 'Exit inspect mode' : 'Inspect element'}</span>
+              </span>
+              {(!hasCurrentApp || !canInspect) && inspectModeDisabledReason && (
+                <span className="preview-toolbar__menu-item-note">{inspectModeDisabledReason}</span>
+              )}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={clsx('preview-toolbar__menu-item', areLogsVisible && 'preview-toolbar__menu-item--active')}
+              onClick={handleToggleLogs}
+              aria-pressed={areLogsVisible}
+              disabled={!hasCurrentApp}
+            >
+              <ScrollText aria-hidden size={16} />
+              <span>{areLogsVisible ? 'Hide logs' : 'Show logs'}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="preview-toolbar__menu-item"
+              onClick={handleReportIssue}
+              disabled={!hasCurrentApp}
+            >
+              <span className="preview-toolbar__menu-item-label">
+                <Bug aria-hidden size={16} />
+                <span>Report an issue</span>
+              </span>
+              {showCaptureBadge && (
+                <span className="preview-toolbar__menu-item-badge" aria-hidden>{captureBadgeLabel}</span>
+              )}
+            </button>
+          </AnchoredPopover>
         </div>
       </div>
     </div>

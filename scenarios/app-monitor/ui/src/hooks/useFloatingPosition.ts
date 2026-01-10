@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import type { CSSProperties } from 'react';
 import { PREVIEW_UI } from '@/components/views/previewConstants';
 
 interface FloatingDimensions {
@@ -15,8 +14,6 @@ interface ViewportDimensions {
 interface FloatingPositionOptions {
   /** Margin from viewport edges in pixels */
   floatingMargin?: number;
-  /** Offset from anchor element in pixels */
-  menuOffset?: number;
 }
 
 /**
@@ -24,7 +21,6 @@ interface FloatingPositionOptions {
  */
 export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
   const floatingMargin = options.floatingMargin ?? PREVIEW_UI.FLOATING_MARGIN;
-  const menuOffset = options.menuOffset ?? PREVIEW_UI.MENU_OFFSET;
 
   /**
    * Clamps a position to keep element within viewport bounds
@@ -49,66 +45,6 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
   }, [floatingMargin]);
 
   /**
-   * Computes optimal menu/popover positioning relative to an anchor element
-   * with automatic flip to avoid viewport overflow
-   */
-  const computeMenuStyle = useCallback((
-    anchorRect: DOMRect | null,
-    popover: HTMLDivElement | null,
-    viewport?: ViewportDimensions,
-  ): CSSProperties | undefined => {
-    if (!anchorRect) {
-      return undefined;
-    }
-
-    const viewportWidth = viewport?.width ?? (typeof window !== 'undefined' ? window.innerWidth : undefined);
-    const viewportHeight = viewport?.height ?? (typeof window !== 'undefined' ? window.innerHeight : undefined);
-    const popRect = popover?.getBoundingClientRect();
-    const popHeight = popRect?.height ?? 0;
-    const popWidth = popRect?.width ?? 0;
-
-    // Vertical positioning with flip
-    let top = anchorRect.bottom + menuOffset;
-    let placeBelow = true;
-    if (typeof viewportHeight === 'number') {
-      const anchorCenterY = anchorRect.top + anchorRect.height / 2;
-      const wouldOverflowBottom = anchorRect.bottom + menuOffset + popHeight + floatingMargin > viewportHeight;
-      const wouldOverflowTop = anchorRect.top - menuOffset - popHeight - floatingMargin < 0;
-
-      if (wouldOverflowBottom && !wouldOverflowTop) {
-        placeBelow = false;
-      } else if (!wouldOverflowBottom && wouldOverflowTop) {
-        placeBelow = true;
-      } else {
-        placeBelow = anchorCenterY < viewportHeight / 2;
-      }
-
-      top = placeBelow
-        ? anchorRect.bottom + menuOffset
-        : anchorRect.top - menuOffset - popHeight;
-
-      const maxTop = viewportHeight - floatingMargin - popHeight;
-      const minTop = floatingMargin;
-      top = Math.min(Math.max(top, minTop), maxTop);
-    }
-
-    // Horizontal positioning
-    let left = anchorRect.right;
-    if (typeof viewportWidth === 'number') {
-      const maxLeft = viewportWidth - floatingMargin;
-      const minLeft = popWidth > 0 ? popWidth + floatingMargin : floatingMargin;
-      left = Math.min(Math.max(left, minLeft), maxLeft);
-    }
-
-    return {
-      top: `${Math.round(top)}px`,
-      left: `${Math.round(left)}px`,
-      transform: 'translateX(-100%)',
-      transformOrigin: placeBelow ? 'top right' : 'bottom right',
-    } satisfies CSSProperties;
-  }, [floatingMargin, menuOffset]);
-
-  /**
    * Computes bottom-right position for a floating element
    */
   const computeBottomRightPosition = useCallback((
@@ -128,9 +64,8 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
 
   return useMemo(() => ({
     clampPosition,
-    computeMenuStyle,
     computeBottomRightPosition,
-  }), [clampPosition, computeMenuStyle, computeBottomRightPosition]);
+  }), [clampPosition, computeBottomRightPosition]);
 };
 
 export type UseFloatingPositionReturn = ReturnType<typeof useFloatingPosition>;
