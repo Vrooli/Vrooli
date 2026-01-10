@@ -305,3 +305,38 @@ export interface CacheStatusResponse {
   expiredCount: number;
   providers: ProviderCacheStatus[];
 }
+
+// =============================================================================
+// Recommendation Extraction Types
+// =============================================================================
+
+/** A single recommendation extracted from an investigation */
+export interface Recommendation {
+  id: string;
+  text: string;
+  selected: boolean;
+  /** User-added note (appended inline when serializing) */
+  note?: string;
+  /** Indicates this is a newly added item */
+  isNew?: boolean;
+  /** Indicates text was edited */
+  isEdited?: boolean;
+}
+
+/** A category grouping related recommendations */
+export interface RecommendationCategory {
+  id: string;
+  name: string;
+  recommendations: Recommendation[];
+  /** Indicates this is a newly added category */
+  isNew?: boolean;
+}
+
+/** Result of extracting recommendations from an investigation run */
+export interface ExtractionResult {
+  success: boolean;
+  categories: RecommendationCategory[];
+  rawText: string;
+  extractedFrom: "summary" | "events";
+  error?: string;
+}

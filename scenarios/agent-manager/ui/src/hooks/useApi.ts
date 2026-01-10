@@ -7,6 +7,7 @@ import type {
   ApproveFormData,
   ApproveResult,
   DetectedScenario,
+  ExtractionResult,
   HealthResponse,
   InvestigationContextFlags,
   InvestigationDepth,
@@ -939,6 +940,22 @@ export async function ensureProfile(profileKey: string): Promise<AgentProfile> {
   });
   const message = parseProto<any>(EnsureProfileResponseSchema, data);
   return message.profile as AgentProfile;
+}
+
+// Extract recommendations from an investigation run (standalone function)
+// Uses a longer timeout (120s) since LLM extraction can take time
+export async function extractRecommendations(runId: string): Promise<ExtractionResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
+  try {
+    return await apiRequest<ExtractionResult>(`/runs/${runId}/extract-recommendations`, {
+      method: "POST",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Maintenance hook

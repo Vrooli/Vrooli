@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	agentconfig "agent-manager/internal/config"
@@ -302,6 +303,9 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		}
 	}
 
+	// Create recommendation extractor for investigation outputs
+	recommendationExtractor := recommendation.NewOllamaExtractor()
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
@@ -317,6 +321,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
 		orchestration.WithModelRegistry(modelRegistryStore),
+		orchestration.WithRecommendationExtractor(recommendationExtractor),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
@@ -545,6 +550,9 @@ func main() {
 
 	if err := server.Run(server.Config{
 		Handler: srv.Router(),
+		// Extended timeouts for LLM-based operations (e.g., recommendation extraction)
+		WriteTimeout: 3 * time.Minute,
+		ReadTimeout:  1 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

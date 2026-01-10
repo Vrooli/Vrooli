@@ -31,6 +31,7 @@ import type {
 } from "../types";
 import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
+import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
@@ -635,7 +636,7 @@ export function RunsPage({
         error={investigateError}
       />
 
-      <InvestigateModal
+      <ApplyInvestigationModal
         open={applyModalOpen}
         onOpenChange={(open) => {
           setApplyModalOpen(open);
@@ -644,10 +645,7 @@ export function RunsPage({
             setApplyError(null);
           }
         }}
-        title="Apply Investigation Fixes"
-        description="Apply recommendations from the selected investigation run."
-        confirmLabel="Apply Fixes"
-        hideDepthSelector
+        investigationRunId={applyInvestigationId ?? ""}
         onSubmit={handleApplyInvestigation}
         loading={applyLoading}
         error={applyError}

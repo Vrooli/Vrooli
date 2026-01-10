@@ -23,6 +23,7 @@ import (
 
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
@@ -102,6 +103,9 @@ type Service interface {
 	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
 	ResetInvestigationSettings(ctx context.Context) error
 	DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error)
+
+	// --- Recommendation Extraction Operations ---
+	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -369,6 +373,9 @@ type Orchestrator struct {
 
 	// Model registry for runner model catalogs and presets.
 	modelRegistry *modelregistry.Store
+
+	// Recommendation extractor for investigation outputs.
+	recommendationExtractor recommendation.Extractor
 }
 
 // OrchestratorConfig holds service configuration.
@@ -488,6 +495,13 @@ func WithModelRegistry(store *modelregistry.Store) Option {
 func WithInvestigationSettings(repo repository.InvestigationSettingsRepository) Option {
 	return func(o *Orchestrator) {
 		o.investigationSettings = repo
+	}
+}
+
+// WithRecommendationExtractor sets the recommendation extractor for investigation outputs.
+func WithRecommendationExtractor(extractor recommendation.Extractor) Option {
+	return func(o *Orchestrator) {
+		o.recommendationExtractor = extractor
 	}
 }
 

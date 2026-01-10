@@ -213,6 +213,12 @@
         "enabled": true,
         "required": false,
         "description": "Runner adapter for open-source code model execution"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "Local LLM for recommendation extraction from investigation outputs"
       }
     },
     "scenarios": {
