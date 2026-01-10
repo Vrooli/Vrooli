@@ -69,15 +69,15 @@ type WorkflowIndexer interface {
 
 // WorkflowIndexData represents workflow index information.
 type WorkflowIndexData struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	Name        string
-	Description string
-	FilePath    string // Relative path within project
-	Version     int
-	NodeCount   int
-	EdgeCount   int
-	Tags        []string
+	ID          uuid.UUID `json:"id"`
+	ProjectID   uuid.UUID `json:"project_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	FilePath    string    `json:"file_path"` // Relative path within project
+	Version     int       `json:"version"`
+	NodeCount   int       `json:"node_count"`
+	EdgeCount   int       `json:"edge_count"`
+	Tags        []string  `json:"tags"`
 }
 
 // ProjectIndexer abstracts database operations for project indexing.
@@ -97,10 +97,10 @@ type ProjectIndexer interface {
 
 // ProjectIndexData represents project index information.
 type ProjectIndexData struct {
-	ID          uuid.UUID
-	Name        string
-	Description string
-	FolderPath  string
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	FolderPath  string    `json:"folder_path"`
 }
 
 // WorkflowSyncer abstracts workflow synchronization operations.

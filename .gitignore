@@ -442,3 +442,4 @@ scenarios/git-control-tower/api/git-control-tower
 scenarios/scenario-to-cloud/cli/cli
 scenarios/test-scenario/signing/public-key.asc
 scenarios/tidiness-manager/api/report/jscpd-report.json
+scenarios/agent-manager/cli/cli

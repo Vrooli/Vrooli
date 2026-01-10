@@ -12,6 +12,7 @@ import type { HunkSelection } from "./components/DiffViewer";
 import {
   useHealth,
   useSandboxes,
+  useSandbox,
   useDiff,
   useCreateSandbox,
   useDeleteSandbox,
@@ -27,8 +28,26 @@ import {
 import { computeStats, type Sandbox, type CreateRequest } from "./lib/api";
 import { SELECTORS } from "./consts/selectors";
 
+/**
+ * Parse URL parameters for deep-linking support.
+ * Supported parameters:
+ * - sandbox: Sandbox ID to auto-select
+ * - review: Set to "true" to auto-enter review mode
+ */
+function getUrlParams(): { sandboxId: string | null; autoReview: boolean } {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    sandboxId: params.get("sandbox"),
+    autoReview: params.get("review") === "true",
+  };
+}
+
 export default function App() {
   const queryClient = useQueryClient();
+
+  // URL parameters for deep-linking
+  const urlParams = useMemo(() => getUrlParams(), []);
+  const [deepLinkProcessed, setDeepLinkProcessed] = useState(false);
 
   // Local state
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
@@ -58,6 +77,37 @@ export default function App() {
   const healthQuery = useHealth();
   const sandboxesQuery = useSandboxes();
   const diffQuery = useDiff(selectedSandbox?.id);
+
+  // Deep-link sandbox query - only fetch if we have a sandbox ID in URL params
+  const deepLinkSandboxQuery = useSandbox(
+    !deepLinkProcessed && urlParams.sandboxId ? urlParams.sandboxId : undefined
+  );
+
+  // Process deep-link when sandbox data is available
+  useEffect(() => {
+    if (deepLinkProcessed) return;
+    if (!urlParams.sandboxId) {
+      setDeepLinkProcessed(true);
+      return;
+    }
+
+    // Wait for the deep-link sandbox query to complete
+    if (deepLinkSandboxQuery.isLoading) return;
+
+    if (deepLinkSandboxQuery.data) {
+      setSelectedSandbox(deepLinkSandboxQuery.data);
+      if (urlParams.autoReview) {
+        setIsReviewMode(true);
+      }
+    }
+    setDeepLinkProcessed(true);
+  }, [
+    deepLinkProcessed,
+    urlParams.sandboxId,
+    urlParams.autoReview,
+    deepLinkSandboxQuery.isLoading,
+    deepLinkSandboxQuery.data,
+  ]);
 
   // Mutations
   const createMutation = useCreateSandbox();

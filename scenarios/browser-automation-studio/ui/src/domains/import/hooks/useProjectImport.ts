@@ -113,6 +113,11 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
 
       const data = await response.json();
       const project = parseProject(data);
+      if (!project) {
+        logger.error('Failed to parse project response', { data });
+        setError('Failed to parse project data from server');
+        return null;
+      }
       return project;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to import project';
