@@ -93,6 +93,9 @@ func (e *OllamaExtractor) Extract(ctx context.Context, req domain.ExtractionRequ
 		}, nil
 	}
 
+	// Sanitize JSON to fix common LLM issues (unescaped newlines in strings)
+	jsonStr = sanitizeJSONString(jsonStr)
+
 	// Parse the extracted JSON
 	var data extractedData
 	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
@@ -163,6 +166,53 @@ Rules:
 3. Group under logical category names discovered in the text
 4. If no categories exist, use a single "Recommendations" category
 5. Do NOT include background context or explanations
+6. Return valid JSON only - no markdown code blocks, no extra text
+
+## Examples
+
+### Example 1
+Input:
+---
+The agent failed because it tried to read a 50MB log file without checking the size first.
+
+Recommendations:
+- Add a file size check before reading files
+- Set a maximum file size limit of 1MB
+- Log a warning when files are skipped due to size
+---
+
+Output:
+{"categories": [{"name": "File Handling", "recommendations": [{"text": "Add a file size check before reading files"}, {"text": "Set a maximum file size limit of 1MB"}, {"text": "Log a warning when files are skipped due to size"}]}]}
+
+### Example 2
+Input:
+---
+## Behavioral Analysis
+The agent got stuck in an infinite loop trying to fix a syntax error.
+
+## Recommendations
+### Prompt Changes
+- Add explicit instruction to limit retry attempts to 3
+- Include example of when to give up and report failure
+
+### Guardrails
+- Implement loop detection in the runner
+- Add timeout for individual operations
+---
+
+Output:
+{"categories": [{"name": "Prompt Changes", "recommendations": [{"text": "Add explicit instruction to limit retry attempts to 3"}, {"text": "Include example of when to give up and report failure"}]}, {"name": "Guardrails", "recommendations": [{"text": "Implement loop detection in the runner"}, {"text": "Add timeout for individual operations"}]}]}
+
+### Example 3 (No clear categories)
+Input:
+---
+The investigation found that the agent should validate inputs, add error handling, and improve logging.
+---
+
+Output:
+{"categories": [{"name": "Recommendations", "recommendations": [{"text": "Validate inputs"}, {"text": "Add error handling"}, {"text": "Improve logging"}]}]}
+
+## Now extract from this investigation:
 
 Investigation Output:
 ---
@@ -171,35 +221,66 @@ Investigation Output:
 }
 
 // extractJSON attempts to find valid JSON in the response text.
-// It handles cases where JSON is wrapped in markdown code blocks.
+// It handles cases where JSON is wrapped in markdown code blocks and
+// properly isolates the JSON object even with surrounding text.
+// It correctly handles braces inside JSON strings.
 func extractJSON(text string) string {
 	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
 
-	// Try to find JSON wrapped in code blocks
+	// Try to find JSON wrapped in code blocks first (most reliable)
 	if start := strings.Index(text, "```json"); start != -1 {
 		text = text[start+7:]
 		if end := strings.Index(text, "```"); end != -1 {
 			text = text[:end]
 		}
+		text = strings.TrimSpace(text)
 	} else if start := strings.Index(text, "```"); start != -1 {
 		text = text[start+3:]
 		if end := strings.Index(text, "```"); end != -1 {
 			text = text[:end]
 		}
+		text = strings.TrimSpace(text)
 	}
 
-	text = strings.TrimSpace(text)
-
-	// Verify it's valid JSON starting with {
-	if strings.HasPrefix(text, "{") {
-		return text
+	// Find the first { to start JSON extraction
+	start := strings.Index(text, "{")
+	if start == -1 {
+		return ""
 	}
 
-	// Try to extract JSON object from anywhere in the text
-	if start := strings.Index(text, "{"); start != -1 {
-		depth := 0
-		for i := start; i < len(text); i++ {
-			switch text[i] {
+	// Extract JSON object with proper string handling
+	// This correctly ignores braces inside JSON strings
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := start; i < len(text); i++ {
+		c := text[i]
+
+		if escaped {
+			// Previous character was a backslash, skip this character
+			escaped = false
+			continue
+		}
+
+		if c == '\\' && inString {
+			// Start of escape sequence inside string
+			escaped = true
+			continue
+		}
+
+		if c == '"' {
+			// Toggle string state
+			inString = !inString
+			continue
+		}
+
+		if !inString {
+			// Only count braces outside of strings
+			switch c {
 			case '{':
 				depth++
 			case '}':
@@ -211,5 +292,69 @@ func extractJSON(text string) string {
 		}
 	}
 
+	// Unclosed JSON object - return empty
 	return ""
+}
+
+// sanitizeJSONString escapes unescaped control characters in JSON string values.
+// LLMs often produce JSON with literal newlines inside strings instead of \n.
+func sanitizeJSONString(jsonStr string) string {
+	if jsonStr == "" {
+		return jsonStr
+	}
+
+	var result strings.Builder
+	result.Grow(len(jsonStr) + 100) // Pre-allocate with some extra space
+
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(jsonStr); i++ {
+		c := jsonStr[i]
+
+		if escaped {
+			// Previous character was a backslash, this is an escape sequence
+			result.WriteByte(c)
+			escaped = false
+			continue
+		}
+
+		if c == '\\' && inString {
+			// Start of escape sequence
+			result.WriteByte(c)
+			escaped = true
+			continue
+		}
+
+		if c == '"' {
+			// Toggle string state (unless escaped, handled above)
+			inString = !inString
+			result.WriteByte(c)
+			continue
+		}
+
+		if inString {
+			// Inside a string - escape control characters
+			switch c {
+			case '\n':
+				result.WriteString("\\n")
+			case '\r':
+				result.WriteString("\\r")
+			case '\t':
+				result.WriteString("\\t")
+			default:
+				if c < 32 {
+					// Escape other control characters as \uXXXX
+					result.WriteString(fmt.Sprintf("\\u%04x", c))
+				} else {
+					result.WriteByte(c)
+				}
+			}
+		} else {
+			// Outside string - keep as-is (whitespace between elements is fine)
+			result.WriteByte(c)
+		}
+	}
+
+	return result.String()
 }

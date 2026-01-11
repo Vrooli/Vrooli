@@ -153,12 +153,13 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	// Create repositories
 	var (
-		profileRepo     repository.ProfileRepository
-		taskRepo        repository.TaskRepository
-		runRepo         repository.RunRepository
-		checkpointRepo  repository.CheckpointRepository
-		idempotencyRepo repository.IdempotencyRepository
-		statsRepo       repository.StatsRepository
+		profileRepo               repository.ProfileRepository
+		taskRepo                  repository.TaskRepository
+		runRepo                   repository.RunRepository
+		checkpointRepo            repository.CheckpointRepository
+		idempotencyRepo           repository.IdempotencyRepository
+		statsRepo                 repository.StatsRepository
+		investigationSettingsRepo repository.InvestigationSettingsRepository
 	)
 
 	// Create event store - use PostgreSQL when database is available
@@ -177,6 +178,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		checkpointRepo = repository.NewMemoryCheckpointRepository()
 		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
 		statsRepo = repository.NewMemoryStatsRepositoryWithRepos(memRunRepo, nil)
+		investigationSettingsRepo = repository.NewMemoryInvestigationSettingsRepository()
 	} else {
 		// PostgreSQL persistence
 		log.Printf("Using PostgreSQL persistence")
@@ -189,6 +191,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		checkpointRepo = repos.Checkpoints
 		idempotencyRepo = repos.Idempotency
 		statsRepo = repos.Stats
+		investigationSettingsRepo = repos.InvestigationSettings
 	}
 
 	// Create runner registry
@@ -332,6 +335,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithStorageLabel(storageLabel),
 		orchestration.WithModelRegistry(modelRegistryStore),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
+		orchestration.WithInvestigationSettings(investigationSettingsRepo),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
@@ -350,6 +354,8 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	)
 
 	// Create recommendation worker for passive extraction from investigation runs
+	// Uses the investigation settings repository for tag allowlist filtering
+	allowlistProvider := orchestration.NewSettingsAllowlistProvider(investigationSettingsRepo)
 	recommendationWorker := orchestration.NewRecommendationWorker(
 		runRepo,
 		eventStore,
@@ -361,6 +367,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 			MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
 		}),
 		orchestration.WithRecommendationWorkerBroadcaster(wsHub),
+		orchestration.WithRecommendationWorkerAllowlist(allowlistProvider),
 	)
 
 	// Create stats service for analytics

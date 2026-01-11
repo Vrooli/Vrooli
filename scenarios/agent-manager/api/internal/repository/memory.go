@@ -494,6 +494,31 @@ func (r *MemoryRunRepository) ListUnextractedInvestigationRuns(ctx context.Conte
 	return result, nil
 }
 
+func (r *MemoryRunRepository) ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	cutoff := time.Now().Add(-staleTimeout)
+	var result []*domain.Run
+
+	for _, run := range r.runs {
+		// Must be in extracting status
+		if run.RecommendationStatus != domain.RecommendationStatusExtracting {
+			continue
+		}
+		// Must have been updated before the cutoff (stale)
+		if run.UpdatedAt.After(cutoff) {
+			continue
+		}
+		copy := *run
+		result = append(result, &copy)
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+	}
+	return result, nil
+}
+
 // Verify interface compliance
 var _ RunRepository = (*MemoryRunRepository)(nil)
 

@@ -129,6 +129,11 @@ type RunRepository interface {
 	// Used on startup to seed the extraction queue with existing runs.
 	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
 	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
+
+	// ListStaleExtractions returns runs that have been stuck in "extracting" status
+	// for longer than the stale timeout. These are likely from crashed workers.
+	// Used by the worker to recover stuck extractions.
+	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
 }
 
 // -----------------------------------------------------------------------------

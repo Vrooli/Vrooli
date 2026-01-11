@@ -297,16 +297,18 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 }
 
 // ListPendingRecommendationExtractions returns runs that need recommendation extraction.
-// Returns investigation runs with status=pending or status=failed (with attempts < maxRetries),
+// Returns runs with status=pending or status=failed (with attempts < maxRetries),
 // ordered by queued_at ascending (oldest first).
+// NOTE: This uses a broad filter (tag contains 'investigation' and not 'apply').
+// The caller should apply additional filtering using the configurable allowlist.
 func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error) {
 	// Query for runs that:
-	// 1. Are investigation runs (tag starts with 'agent-manager-investigation' but not '-apply')
+	// 1. Tag contains 'investigation' but not 'apply' (broad filter, caller filters precisely)
 	// 2. Have recommendation_status = 'pending' OR (status = 'failed' AND attempts < maxRetries)
 	// Ordered by queued_at ascending (oldest first)
 	query := r.db.Rebind(fmt.Sprintf(`
 		SELECT %s FROM runs
-		WHERE tag LIKE 'agent-manager-investigation%%'
+		WHERE tag LIKE '%%investigation%%'
 		  AND tag NOT LIKE '%%apply'
 		  AND (
 		      recommendation_status = ?
@@ -371,12 +373,21 @@ func (r *runRepository) ClaimRecommendationExtraction(ctx context.Context, runID
 // recommendations extracted yet (status is empty, NULL, or "none").
 // Used on startup to seed the extraction queue with existing runs.
 // Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
+// NOTE: If tagPrefix is empty, uses a broad filter (tag contains 'investigation').
+// The caller should apply additional filtering using the configurable allowlist.
 func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error) {
 	// Query for runs that:
-	// 1. Are investigation runs (tag starts with tagPrefix but not '-apply')
+	// 1. Tag matches pattern (broad filter, caller filters precisely)
 	// 2. Are complete (status = 'complete')
 	// 3. Have recommendation_status = '' OR NULL OR 'none'
 	// Ordered by created_at DESC (most recent first)
+
+	// Use broad filter if no prefix specified, otherwise use prefix
+	tagPattern := "%investigation%"
+	if tagPrefix != "" {
+		tagPattern = tagPrefix + "%"
+	}
+
 	query := r.db.Rebind(fmt.Sprintf(`
 		SELECT %s FROM runs
 		WHERE tag LIKE ?
@@ -388,7 +399,7 @@ func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, ta
 	`, runColumns))
 
 	args := []interface{}{
-		tagPrefix + "%",
+		tagPattern,
 		string(domain.RunStatusComplete),
 		string(domain.RecommendationStatusNone),
 		limit,
@@ -397,6 +408,40 @@ func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, ta
 	var rows []runRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("list_unextracted_investigation_runs", "Run", "", err)
+	}
+
+	result := make([]*domain.Run, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+// ListStaleExtractions returns runs that have been stuck in "extracting" status
+// for longer than the stale timeout. These are likely from crashed workers.
+func (r *runRepository) ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error) {
+	// Query for runs that:
+	// 1. Have recommendation_status = 'extracting'
+	// 2. Were updated more than staleTimeout ago (indicating a stuck worker)
+	cutoff := time.Now().Add(-staleTimeout)
+
+	query := r.db.Rebind(fmt.Sprintf(`
+		SELECT %s FROM runs
+		WHERE recommendation_status = ?
+		  AND updated_at < ?
+		ORDER BY updated_at ASC
+		LIMIT ?
+	`, runColumns))
+
+	args := []interface{}{
+		string(domain.RecommendationStatusExtracting),
+		cutoff,
+		limit,
+	}
+
+	var rows []runRow
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("list_stale_extractions", "Run", "", err)
 	}
 
 	result := make([]*domain.Run, len(rows))

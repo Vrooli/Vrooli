@@ -13,10 +13,10 @@ import (
 )
 
 // ExtractRecommendations extracts structured recommendations from an investigation run.
-// This method now checks for cached results first (from passive background extraction).
+// This method checks for cached results first (from passive background extraction).
 // If cached results are available, returns them immediately without LLM call.
 // If extraction is in progress, returns a status indicator.
-// Falls back to sync extraction for backward compatibility if status is "none".
+// If status is "none", queues the run for background extraction and returns pending.
 func (o *Orchestrator) ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error) {
 	// Get the run
 	run, err := o.runs.Get(ctx, runID)
@@ -35,7 +35,7 @@ func (o *Orchestrator) ExtractRecommendations(ctx context.Context, runID uuid.UU
 		if run.RecommendationResult != nil {
 			return run.RecommendationResult, nil
 		}
-		// Cached status but no result - fall through to sync extraction
+		// Cached status but no result - queue for extraction below
 
 	case domain.RecommendationStatusPending, domain.RecommendationStatusExtracting:
 		// Extraction is in progress - return status indicator
@@ -57,13 +57,43 @@ func (o *Orchestrator) ExtractRecommendations(ctx context.Context, runID uuid.UU
 		}, nil
 	}
 
-	// Fallback: sync extraction (for backward compatibility or if status is "none")
-	return o.extractRecommendationsSync(ctx, run)
+	// Status is "none" or empty - queue for background extraction
+	// This avoids blocking the API request with a synchronous LLM call
+	if err := o.queueRecommendationExtraction(ctx, run); err != nil {
+		log.Printf("[recommendation] Failed to queue extraction for run %s: %v", run.ID, err)
+		// Return error but don't fail - the background worker will eventually pick it up
+	}
+
+	return &domain.ExtractionResult{
+		Success:       false,
+		ExtractedFrom: "pending",
+		Error:         "extraction queued",
+	}, nil
 }
 
-// extractRecommendationsSync performs synchronous extraction (the original behavior).
-// Used for backward compatibility when passive extraction hasn't run yet.
-// After successful extraction, the result is saved to the database for caching.
+// queueRecommendationExtraction queues a run for background recommendation extraction.
+func (o *Orchestrator) queueRecommendationExtraction(ctx context.Context, run *domain.Run) error {
+	now := time.Now()
+	run.RecommendationStatus = domain.RecommendationStatusPending
+	run.RecommendationQueuedAt = &now
+	run.UpdatedAt = now
+
+	if err := o.runs.Update(ctx, run); err != nil {
+		return err
+	}
+
+	// Broadcast status change so UI knows extraction is queued
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
+	}
+
+	return nil
+}
+
+// extractRecommendationsSync performs synchronous extraction.
+// DEPRECATED: This is no longer used by the main API flow. Extraction is now always
+// done asynchronously by the background worker to avoid blocking HTTP requests.
+// Kept for potential use in testing or debugging scenarios.
 func (o *Orchestrator) extractRecommendationsSync(ctx context.Context, run *domain.Run) (*domain.ExtractionResult, error) {
 	// Check if extractor is available
 	if o.recommendationExtractor == nil {

@@ -30,6 +30,35 @@ import (
 	"agent-manager/internal/repository"
 )
 
+// AllowlistProvider provides access to the investigation tag allowlist.
+// This abstraction allows the worker to get the current allowlist without
+// depending on the full orchestrator or settings repository directly.
+type AllowlistProvider interface {
+	GetAllowlist(ctx context.Context) []domain.InvestigationTagRule
+}
+
+// SettingsAllowlistProvider wraps an InvestigationSettingsRepository to provide allowlist access.
+type SettingsAllowlistProvider struct {
+	settings repository.InvestigationSettingsRepository
+}
+
+// NewSettingsAllowlistProvider creates a new provider from an InvestigationSettingsRepository.
+func NewSettingsAllowlistProvider(settings repository.InvestigationSettingsRepository) *SettingsAllowlistProvider {
+	return &SettingsAllowlistProvider{settings: settings}
+}
+
+// GetAllowlist returns the current investigation tag allowlist from settings.
+func (p *SettingsAllowlistProvider) GetAllowlist(ctx context.Context) []domain.InvestigationTagRule {
+	if p.settings == nil {
+		return domain.DefaultInvestigationTagAllowlist()
+	}
+	settings, err := p.settings.Get(ctx)
+	if err != nil || settings == nil {
+		return domain.DefaultInvestigationTagAllowlist()
+	}
+	return domain.NormalizeInvestigationTagAllowlist(settings.InvestigationTagAllowlist)
+}
+
 // RecommendationWorkerConfig holds configuration for the extraction worker.
 type RecommendationWorkerConfig struct {
 	// Interval is how often to poll for pending extractions
@@ -43,16 +72,26 @@ type RecommendationWorkerConfig struct {
 
 	// MaxConcurrent is the number of extractions to process at once (1 = serial)
 	MaxConcurrent int
+
+	// StaleTimeout is how long an extraction can be "extracting" before being
+	// considered stuck and reset to pending. This handles worker crashes.
+	StaleTimeout time.Duration
+
+	// ExtractionTimeout is the maximum time allowed for a single extraction.
+	// This prevents indefinite hangs when calling the LLM.
+	ExtractionTimeout time.Duration
 }
 
 // DefaultRecommendationWorkerConfig returns sensible defaults.
 // Serial processing (MaxConcurrent=1) avoids overloading local Ollama.
 func DefaultRecommendationWorkerConfig() RecommendationWorkerConfig {
 	return RecommendationWorkerConfig{
-		Interval:      30 * time.Second,
-		MaxRetries:    3,
-		RetryBackoff:  1 * time.Minute,
-		MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
+		Interval:          30 * time.Second,
+		MaxRetries:        3,
+		RetryBackoff:      1 * time.Minute,
+		MaxConcurrent:     1,                // Serial processing to avoid overloading Ollama
+		StaleTimeout:      5 * time.Minute,  // Recover stuck extractions after 5 minutes
+		ExtractionTimeout: 3 * time.Minute,  // Max time for a single LLM extraction
 	}
 }
 
@@ -63,6 +102,9 @@ type RecommendationWorker struct {
 	extractor recommendation.Extractor
 
 	config RecommendationWorkerConfig
+
+	// Allowlist provider for filtering eligible runs
+	allowlistProvider AllowlistProvider
 
 	// State
 	mu          sync.Mutex
@@ -124,6 +166,14 @@ func WithRecommendationWorkerConfig(cfg RecommendationWorkerConfig) Recommendati
 func WithRecommendationWorkerBroadcaster(b EventBroadcaster) RecommendationWorkerOption {
 	return func(w *RecommendationWorker) {
 		w.broadcaster = b
+	}
+}
+
+// WithRecommendationWorkerAllowlist sets the allowlist provider.
+// This is required for proper filtering of eligible investigation runs.
+func WithRecommendationWorkerAllowlist(p AllowlistProvider) RecommendationWorkerOption {
+	return func(w *RecommendationWorker) {
+		w.allowlistProvider = p
 	}
 }
 
@@ -209,6 +259,21 @@ func (w *RecommendationWorker) loop(ctx context.Context) {
 	}
 }
 
+// getAllowlist returns the current investigation tag allowlist.
+// Falls back to defaults if no provider is configured.
+func (w *RecommendationWorker) getAllowlist(ctx context.Context) []domain.InvestigationTagRule {
+	if w.allowlistProvider != nil {
+		return w.allowlistProvider.GetAllowlist(ctx)
+	}
+	return domain.DefaultInvestigationTagAllowlist()
+}
+
+// isEligibleForExtraction checks if a run is eligible for recommendation extraction.
+func (w *RecommendationWorker) isEligibleForExtraction(ctx context.Context, run *domain.Run) bool {
+	allowlist := w.getAllowlist(ctx)
+	return domain.MatchesInvestigationTag(run.Tag, allowlist)
+}
+
 // updateStats updates the last run statistics.
 func (w *RecommendationWorker) updateStats(stats RecommendationWorkerStats) {
 	w.mu.Lock()
@@ -224,10 +289,56 @@ func (w *RecommendationWorker) updateStats(stats RecommendationWorkerStats) {
 	}
 }
 
+// recoverStaleExtractions finds runs stuck in "extracting" status and resets them to pending.
+// This handles cases where a worker crashed mid-extraction.
+func (w *RecommendationWorker) recoverStaleExtractions(ctx context.Context) int {
+	if w.config.StaleTimeout <= 0 {
+		return 0
+	}
+
+	stale, err := w.runs.ListStaleExtractions(ctx, w.config.StaleTimeout, 50)
+	if err != nil {
+		log.Printf("[recommendation-worker] Failed to list stale extractions: %v", err)
+		return 0
+	}
+
+	recovered := 0
+	now := time.Now()
+	for _, run := range stale {
+		// Reset to pending for retry
+		run.RecommendationStatus = domain.RecommendationStatusPending
+		run.RecommendationQueuedAt = &now
+		run.RecommendationError = "recovered from stale extraction (worker crash or timeout)"
+		run.UpdatedAt = now
+
+		if err := w.runs.Update(ctx, run); err != nil {
+			log.Printf("[recommendation-worker] Failed to recover stale run %s: %v", run.ID, err)
+			continue
+		}
+
+		recovered++
+		log.Printf("[recommendation-worker] Recovered stale extraction for run %s (was extracting for >%v)",
+			run.ID, w.config.StaleTimeout)
+
+		// Broadcast status update
+		if w.broadcaster != nil {
+			w.broadcaster.BroadcastRunStatus(run)
+		}
+	}
+
+	return recovered
+}
+
 // processQueue processes pending extraction requests.
 func (w *RecommendationWorker) processQueue(ctx context.Context) RecommendationWorkerStats {
 	start := time.Now()
 	stats := RecommendationWorkerStats{Timestamp: start}
+
+	// First, recover any stale extractions from crashed workers
+	recovered := w.recoverStaleExtractions(ctx)
+	if recovered > 0 {
+		log.Printf("[recommendation-worker] Recovered %d stale extractions", recovered)
+	}
 
 	// Check if extractor is available
 	if w.extractor == nil || !w.extractor.IsAvailable(ctx) {
@@ -236,19 +347,29 @@ func (w *RecommendationWorker) processQueue(ctx context.Context) RecommendationW
 		return stats
 	}
 
-	// Get pending extractions
-	pending, err := w.runs.ListPendingRecommendationExtractions(ctx, w.config.MaxRetries, w.config.MaxConcurrent)
+	// Get pending extractions (database uses broad filter, we filter precisely here)
+	// Request more than MaxConcurrent to account for filtering
+	pending, err := w.runs.ListPendingRecommendationExtractions(ctx, w.config.MaxRetries, w.config.MaxConcurrent*10)
 	if err != nil {
 		stats.Errors = append(stats.Errors, "failed to list pending: "+err.Error())
 		stats.Duration = time.Since(start)
 		return stats
 	}
 
-	// Process each pending run
+	// Filter runs using the configurable allowlist and limit to MaxConcurrent
+	processed := 0
 	for _, run := range pending {
+		if processed >= w.config.MaxConcurrent {
+			break
+		}
+		// Filter using the configurable allowlist (database query is intentionally broad)
+		if !w.isEligibleForExtraction(ctx, run) {
+			continue
+		}
 		if err := w.processRun(ctx, run, &stats); err != nil {
 			stats.Errors = append(stats.Errors, err.Error())
 		}
+		processed++
 	}
 
 	stats.Duration = time.Since(start)
@@ -355,12 +476,29 @@ func (w *RecommendationWorker) extractRecommendations(ctx context.Context, run *
 		text = text[:maxLen]
 	}
 
-	// Call extractor adapter
-	result, err := w.extractor.Extract(ctx, domain.ExtractionRequest{
+	// Create a timeout context for the extraction to prevent indefinite hangs
+	extractCtx := ctx
+	if w.config.ExtractionTimeout > 0 {
+		var cancel context.CancelFunc
+		extractCtx, cancel = context.WithTimeout(ctx, w.config.ExtractionTimeout)
+		defer cancel()
+	}
+
+	// Call extractor adapter with timeout
+	result, err := w.extractor.Extract(extractCtx, domain.ExtractionRequest{
 		InvestigationText: text,
 		MaxLength:         maxLen,
 	})
 	if err != nil {
+		// Check if timeout occurred
+		if extractCtx.Err() == context.DeadlineExceeded {
+			return &domain.ExtractionResult{
+				Success:       false,
+				RawText:       text,
+				ExtractedFrom: source,
+				Error:         "extraction timed out after " + w.config.ExtractionTimeout.String(),
+			}, nil
+		}
 		return nil, err
 	}
 
@@ -415,8 +553,9 @@ func (w *RecommendationWorker) getInvestigationText(ctx context.Context, run *do
 func (w *RecommendationWorker) seedExistingRuns(ctx context.Context) int {
 	const maxSeedLimit = 100
 
-	// Find unextracted investigation runs
-	runs, err := w.runs.ListUnextractedInvestigationRuns(ctx, domain.InvestigationTagPrefix, maxSeedLimit)
+	// Find unextracted investigation runs (uses broad database filter)
+	// We pass empty string to get all runs with "investigation" in the tag
+	runs, err := w.runs.ListUnextractedInvestigationRuns(ctx, "", maxSeedLimit*2)
 	if err != nil {
 		log.Printf("[recommendation-worker] Failed to list unextracted runs: %v", err)
 		return 0
@@ -426,10 +565,19 @@ func (w *RecommendationWorker) seedExistingRuns(ctx context.Context) int {
 		return 0
 	}
 
-	// Queue each run for extraction by setting status to pending
+	// Queue each eligible run for extraction by setting status to pending
+	// Filter using the configurable allowlist (database query is intentionally broad)
 	now := time.Now()
 	seeded := 0
 	for _, run := range runs {
+		if seeded >= maxSeedLimit {
+			break
+		}
+		// Filter using the configurable allowlist
+		if !w.isEligibleForExtraction(ctx, run) {
+			continue
+		}
+
 		run.RecommendationStatus = domain.RecommendationStatusPending
 		run.RecommendationQueuedAt = &now
 		run.UpdatedAt = now
