@@ -80,6 +80,5 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 		"api":       probe(request.APIURL),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }

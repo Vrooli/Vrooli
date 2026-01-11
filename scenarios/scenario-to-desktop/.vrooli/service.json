@@ -93,14 +93,8 @@
             ]
           },
           {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
+            "type": "file",
+            "path": "ui/package.json"
           }
         ]
       },
@@ -117,7 +111,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install --ignore-workspace",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -194,25 +188,26 @@
   },
   "dependencies": {
     "resources": {
-      "required": [],
-      "optional": [
-        "browserless",
-        "postgres",
-        "redis"
-      ],
-      "details": {
-        "browserless": {
-          "purpose": "Desktop application testing and screenshot validation",
-          "fallback": "Manual testing workflow"
-        },
-        "postgres": {
-          "purpose": "Store desktop application templates and build history",
-          "fallback": "File-based template storage"
-        },
-        "redis": {
-          "purpose": "Cache compiled applications and build artifacts",
-          "fallback": "Local filesystem caching"
-        }
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "purpose": "Desktop application testing and screenshot validation",
+        "description": "Fallback: Manual testing workflow"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store desktop application templates and build history",
+        "description": "Fallback: File-based template storage"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache compiled applications and build artifacts",
+        "description": "Fallback: Local filesystem caching"
       }
     }
   },

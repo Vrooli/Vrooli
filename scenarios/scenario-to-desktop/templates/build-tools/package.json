@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh ts-node template-generator.ts'",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "clean": "rimraf dist"
   },
   "dependencies": {

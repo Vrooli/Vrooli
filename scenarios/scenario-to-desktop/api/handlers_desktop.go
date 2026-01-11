@@ -31,6 +31,14 @@ type quickGenerateRequest struct {
 	Platforms        []string `json:"platforms"`
 }
 
+func writeJSONResponse(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
+}
+
 // Quick generate desktop handler - auto-detects scenario configuration
 func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var request quickGenerateRequest
@@ -116,9 +124,7 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildStatus.BuildID),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusCreated, response)
 }
 
 // Generate desktop application handler
@@ -158,9 +164,7 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildStatus.BuildID),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusCreated, response)
 }
 
 // Preflight handlers moved to handlers_preflight.go
@@ -288,8 +292,7 @@ func (s *Server) getBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	writeJSONResponse(w, http.StatusOK, status)
 }
 
 // Build scenario desktop application by name (simplified endpoint)
@@ -350,9 +353,7 @@ func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Requ
 		"status_url":   fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusCreated, response)
 }
 
 // Download desktop application package
@@ -495,9 +496,7 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		"message":         message,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (s *Server) prepareBundledConfig(config *DesktopConfig) (*bundlemanifest.Manifest, error) {
@@ -653,9 +652,7 @@ func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		"status_url": fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusCreated, response)
 }
 
 // Test desktop application handler
@@ -680,8 +677,7 @@ func (s *Server) testDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp":    time.Now(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // Package desktop application handler
@@ -721,8 +717,7 @@ func (s *Server) packageDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		response["size_warning"] = result.SizeWarning
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // Build complete webhook handler
@@ -755,8 +750,7 @@ func (s *Server) buildCompleteWebhookHandler(w http.ResponseWriter, r *http.Requ
 		"status", result["status"],
 		"has_error", result["error"] != nil)
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "received"})
+	writeJSONResponse(w, http.StatusOK, map[string]string{"status": "received"})
 }
 
 func (s *Server) validateAndPrepareBundle(config *DesktopConfig) error {

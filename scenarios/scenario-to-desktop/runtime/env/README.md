@@ -16,10 +16,10 @@ Services need environment variables configured with runtime-specific values: dat
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `${data}` | App data directory | `/home/user/.config/myapp` |
-| `${bundle}` | Bundle root path | `/opt/myapp` |
+| `${data}` | App data directory | `$HOME/.config/myapp` |
+| `${bundle}` | Bundle root path | `./bundle` |
 | `${svc.port}` | Allocated port for service | `${api.http}` → `47001` |
-| `${env.VAR}` | System environment variable | `${env.HOME}` → `/home/user` |
+| `${env.VAR}` | System environment variable | `${env.HOME}` → `$HOME` |
 
 ## Usage
 
@@ -29,11 +29,11 @@ renderer := env.NewRenderer(appData, bundlePath, portAllocator, envReader)
 
 // Render a single value
 path := renderer.RenderValue("${data}/logs")
-// → "/home/user/.config/myapp/logs"
+// → "$HOME/.config/myapp/logs"
 
 // Render command arguments
 args := renderer.RenderArgs([]string{"--port", "${api.http}", "--data", "${data}"})
-// → ["--port", "47001", "--data", "/home/user/.config/myapp"]
+// → ["--port", "47001", "--data", "$HOME/.config/myapp"]
 
 // Render full environment map for a service
 envMap, err := renderer.RenderEnvMap(service, binary)

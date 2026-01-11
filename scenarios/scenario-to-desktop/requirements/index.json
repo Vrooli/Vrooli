@@ -26,7 +26,7 @@
     {
       "id": "STD-FUNC-001",
       "category": "template-generation",
-      "prd_ref": "Functional Requirements > Must Have > Generate complete Electron desktop applications",
+      "prd_ref": "OT-P0-001",
       "title": "Electron template generation for all template types",
       "description": "Validates that all 4 Electron templates (basic, advanced, multi-window, kiosk) generate correctly with proper structure, dependencies, and configuration.",
       "status": "complete",
@@ -40,7 +40,7 @@
     {
       "id": "STD-FUNC-002",
       "category": "framework-support",
-      "prd_ref": "Functional Requirements > Must Have > Multi-framework support",
+      "prd_ref": "OT-P0-002",
       "title": "Multi-framework desktop generation (Electron, Tauri, Neutralino)",
       "description": "Tracks support for multiple desktop frameworks. Currently only Electron is implemented.",
       "status": "partial",
@@ -54,7 +54,7 @@
     {
       "id": "STD-FUNC-003",
       "category": "scenario-integration",
-      "prd_ref": "Functional Requirements > Must Have > Integration with scenario APIs",
+      "prd_ref": "OT-P0-005",
       "title": "Desktop apps integrate with scenario APIs and React UIs",
       "description": "Validates that generated desktop apps can load scenario UIs, connect to APIs, and provide native OS features.",
       "status": "in_progress",
@@ -67,7 +67,7 @@
     {
       "id": "STD-FUNC-004",
       "category": "e2e-validation",
-      "prd_ref": "Quality Gates > Generated applications launch successfully",
+      "prd_ref": "OT-P0-004",
       "title": "End-to-end desktop generation and launch validation",
       "description": "Ensures E2E tests exist that generate desktop apps, verify structure, install dependencies, and optionally test launch.",
       "status": "in_progress",
@@ -81,7 +81,7 @@
     {
       "id": "STD-FUNC-005",
       "category": "native-features",
-      "prd_ref": "Functional Requirements > Must Have > Native OS features",
+      "prd_ref": "OT-P0-006",
       "title": "Native OS integration (menus, tray, file dialogs, notifications)",
       "description": "Validates that templates include native OS features and can be tested in runtime environment.",
       "status": "partial",
@@ -96,7 +96,7 @@
     {
       "id": "STD-FUNC-006",
       "category": "cross-platform",
-      "prd_ref": "Functional Requirements > Must Have > Cross-platform packaging",
+      "prd_ref": "OT-P0-003",
       "title": "Cross-platform build and packaging (Windows, macOS, Linux)",
       "description": "Validates that desktop apps can be built and packaged for all major platforms.",
       "status": "partial",
@@ -106,6 +106,60 @@
         "STD-PLATFORM-MACOS",
         "STD-PLATFORM-LINUX"
       ]
+    },
+    {
+      "id": "STD-FUNC-007",
+      "category": "auto-updater",
+      "prd_ref": "OT-P0-007",
+      "title": "Auto-updater hooks present in templates",
+      "description": "Templates include electron-updater wiring and configuration placeholders for release channels.",
+      "status": "complete",
+      "notes": "Runtime publishing pipeline pending; templates include updater scaffolding."
+    },
+    {
+      "id": "STD-P1-001",
+      "category": "signing",
+      "prd_ref": "OT-P1-001",
+      "title": "Code signing and notarization workflows",
+      "description": "Automated signing steps for Windows/macOS installers and notarization where required.",
+      "status": "planned",
+      "notes": "Requires certificates and CI integration."
+    },
+    {
+      "id": "STD-P1-002",
+      "category": "app-store",
+      "prd_ref": "OT-P1-002",
+      "title": "App store submission automation",
+      "description": "Automated packaging and submission for Microsoft Store and Mac App Store.",
+      "status": "planned",
+      "notes": "Dependent on signing and platform CI runners."
+    },
+    {
+      "id": "STD-P1-003",
+      "category": "multi-window",
+      "prd_ref": "OT-P1-003",
+      "title": "Multi-window workflows and state management",
+      "description": "Advanced window orchestration, state persistence, and workflow tooling.",
+      "status": "planned",
+      "notes": "Multi-window template exists; workflow tooling still pending."
+    },
+    {
+      "id": "STD-P1-004",
+      "category": "analytics",
+      "prd_ref": "OT-P1-004",
+      "title": "Performance monitoring and analytics",
+      "description": "Runtime performance metrics and telemetry dashboards for deployed apps.",
+      "status": "planned",
+      "notes": "Telemetry ingestion exists; analytics views pending."
+    },
+    {
+      "id": "STD-P1-005",
+      "category": "enterprise-deploy",
+      "prd_ref": "OT-P1-005",
+      "title": "Enterprise deployment features",
+      "description": "MSI/PKG installers, silent install flows, and fleet distribution.",
+      "status": "planned",
+      "notes": "Requires platform-specific packaging automation."
     }
   ],
   "reporting": {

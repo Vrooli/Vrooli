@@ -3,8 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,21 +12,13 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/gorilla/mux"
 )
-
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalOutput *os.File
-	cleanup        func()
-}
 
 // setupTestLogger initializes a test logger that suppresses verbose output
 func setupTestLogger() func() {
 	// Redirect log output to null during tests unless verbose flag is set
 	if !testing.Verbose() {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 		return func() { log.SetOutput(os.Stderr) }
 	}
 	return func() {}
@@ -43,7 +34,7 @@ type TestEnvironment struct {
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "scenario-to-desktop-test-*")
+	tempDir, err := os.MkdirTemp("", "scenario-to-desktop-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -86,7 +77,9 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		OriginalWD: originalWD,
 		Server:     server,
 		Cleanup: func() {
-			os.Chdir(originalWD)
+			if err := os.Chdir(originalWD); err != nil {
+				log.Printf("failed to restore working directory: %v", err)
+			}
 			os.RemoveAll(tempDir)
 		},
 	}
@@ -102,8 +95,11 @@ func createSampleTemplates(templateDir string) error {
 		"type":        "basic",
 		"features":    []string{"native-menus", "auto-updater"},
 	}
-	basicJSON, _ := json.MarshalIndent(basicTemplate, "", "  ")
-	if err := ioutil.WriteFile(filepath.Join(templateDir, "advanced", "basic.json"), basicJSON, 0644); err != nil {
+	basicJSON, err := json.MarshalIndent(basicTemplate, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "basic.json"), basicJSON, 0644); err != nil {
 		return err
 	}
 
@@ -115,8 +111,11 @@ func createSampleTemplates(templateDir string) error {
 		"type":        "advanced",
 		"features":    []string{"system-tray", "notifications", "global-shortcuts"},
 	}
-	advancedJSON, _ := json.MarshalIndent(advancedTemplate, "", "  ")
-	if err := ioutil.WriteFile(filepath.Join(templateDir, "advanced", "advanced.json"), advancedJSON, 0644); err != nil {
+	advancedJSON, err := json.MarshalIndent(advancedTemplate, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "advanced.json"), advancedJSON, 0644); err != nil {
 		return err
 	}
 
@@ -128,8 +127,11 @@ func createSampleTemplates(templateDir string) error {
 		"type":        "multi_window",
 		"features":    []string{"window-management", "inter-window-communication"},
 	}
-	multiWindowJSON, _ := json.MarshalIndent(multiWindowTemplate, "", "  ")
-	if err := ioutil.WriteFile(filepath.Join(templateDir, "advanced", "multi_window.json"), multiWindowJSON, 0644); err != nil {
+	multiWindowJSON, err := json.MarshalIndent(multiWindowTemplate, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "multi_window.json"), multiWindowJSON, 0644); err != nil {
 		return err
 	}
 
@@ -144,50 +146,6 @@ type HTTPTestRequest struct {
 	Headers     map[string]string
 	URLVars     map[string]string
 	QueryParams map[string]string
-}
-
-// makeHTTPRequest creates an HTTP request for testing
-func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, error) {
-	var bodyReader *bytes.Buffer
-	if req.Body != nil {
-		jsonBody, err := json.Marshal(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
-		}
-		bodyReader = bytes.NewBuffer(jsonBody)
-	} else {
-		bodyReader = &bytes.Buffer{}
-	}
-
-	httpReq, err := http.NewRequest(req.Method, req.Path, bodyReader)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set default content type
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	// Set custom headers
-	for key, value := range req.Headers {
-		httpReq.Header.Set(key, value)
-	}
-
-	// Add URL variables to request context
-	if len(req.URLVars) > 0 {
-		httpReq = mux.SetURLVars(httpReq, req.URLVars)
-	}
-
-	// Add query parameters
-	if len(req.QueryParams) > 0 {
-		q := httpReq.URL.Query()
-		for key, value := range req.QueryParams {
-			q.Add(key, value)
-		}
-		httpReq.URL.RawQuery = q.Encode()
-	}
-
-	w := httptest.NewRecorder()
-	return w, nil
 }
 
 // assertJSONResponse validates JSON response structure
@@ -247,54 +205,6 @@ func assertFieldValue(t *testing.T, response map[string]interface{}, fieldName s
 	}
 }
 
-// TestDesktopConfig provides a valid desktop configuration for testing
-type TestDesktopConfig struct {
-	Config  *DesktopConfig
-	Cleanup func()
-}
-
-// setupTestDesktopConfig creates a valid desktop configuration for testing
-func setupTestDesktopConfig(t *testing.T, appName string) *TestDesktopConfig {
-	tempDir, err := ioutil.TempDir("", "desktop-output-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp output dir: %v", err)
-	}
-
-	config := &DesktopConfig{
-		AppName:          appName,
-		AppDisplayName:   appName + " Display",
-		AppDescription:   "Test desktop application",
-		Version:          "1.0.0",
-		Author:           "Test Author",
-		License:          "MIT",
-		AppID:            "com.test." + strings.ToLower(strings.ReplaceAll(appName, " ", "")),
-		AppURL:           "https://example.com",
-		ServerType:       "node",
-		ServerPort:       3000,
-		ServerPath:       "./server",
-		APIEndpoint:      "http://localhost:3000",
-		ScenarioPath:     "./dist",
-		ScenarioName:     appName,
-		AutoManageVrooli: false,
-		VrooliBinaryPath: "vrooli",
-		DeploymentMode:   "external-server",
-		Framework:        "electron",
-		TemplateType:     "basic",
-		Features:         map[string]interface{}{},
-		Window:           map[string]interface{}{},
-		Platforms:        []string{"win", "mac", "linux"},
-		OutputPath:       tempDir,
-		Styling:          map[string]interface{}{},
-	}
-
-	return &TestDesktopConfig{
-		Config: config,
-		Cleanup: func() {
-			os.RemoveAll(tempDir)
-		},
-	}
-}
-
 // createTestBuildStatus creates a test build status
 func createTestBuildStatus(buildID, status string) *BuildStatus {
 	return &BuildStatus{
@@ -311,20 +221,6 @@ func createTestBuildStatus(buildID, status string) *BuildStatus {
 		Artifacts:    make(map[string]string),
 		Metadata:     make(map[string]interface{}),
 	}
-}
-
-// waitForBuildStatus waits for a build to reach a specific status
-func waitForBuildStatus(server *Server, buildID string, expectedStatus string, timeout time.Duration) (*BuildStatus, error) {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if status, exists := server.builds.Get(buildID); exists {
-			if status.Status == expectedStatus {
-				return status, nil
-			}
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return nil, fmt.Errorf("timeout waiting for build status '%s'", expectedStatus)
 }
 
 // assertBuildStatusExists checks that a build status exists
@@ -390,7 +286,10 @@ func createValidGenerateRequest() map[string]interface{} {
 func createJSONRequest(method, path string, body interface{}) *http.Request {
 	var bodyReader *bytes.Buffer
 	if body != nil {
-		jsonBody, _ := json.Marshal(body)
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			jsonBody = []byte("{}")
+		}
 		bodyReader = bytes.NewBuffer(jsonBody)
 	} else {
 		bodyReader = &bytes.Buffer{}

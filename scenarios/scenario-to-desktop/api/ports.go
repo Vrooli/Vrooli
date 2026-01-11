@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -44,6 +43,5 @@ func (s *Server) getScenarioPortHandler(w http.ResponseWriter, r *http.Request) 
 		URL:      fmt.Sprintf("http://127.0.0.1:%d", port),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSONResponse(w, http.StatusOK, resp)
 }

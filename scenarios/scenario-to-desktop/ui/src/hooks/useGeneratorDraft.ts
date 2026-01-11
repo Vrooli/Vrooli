@@ -9,7 +9,7 @@ import {
   saveGeneratorDraft,
   clearGeneratorDraft
 } from "../lib/draftStorage";
-import type { BundlePreflightResponse } from "../lib/api";
+import type { BundlePreflightResponse, ProbeResponse } from "../lib/api";
 import type { DeploymentMode, ServerType } from "../domain/deployment";
 import type { OutputLocation, PlatformSelection } from "../domain/generator";
 
@@ -36,7 +36,7 @@ export type GeneratorDraftState = {
   localApiEndpoint: string;
   autoManageTier1: boolean;
   vrooliBinaryPath: string;
-  connectionResult: unknown | null;
+  connectionResult: ProbeResponse | null;
   connectionError: string | null;
   preflightResult: BundlePreflightResponse | null;
   preflightError: string | null;

@@ -71,8 +71,7 @@ func (s *Server) telemetryIngestHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"status":          "ok",
 		"events_ingested": len(request.Events),
 		"output_path":     filePath,

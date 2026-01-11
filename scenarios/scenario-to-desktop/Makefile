@@ -50,22 +50,21 @@ BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 # ============================================================================
 
 start: ## Start scenario-to-desktop (via Vrooli lifecycle)
-	@echo "$(BLUE)🚀 Starting Scenario-to-Desktop Converter...$(RESET)"
-	@echo "$(BLUE)Converting scenarios to desktop applications$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Alias for 'make start'
 
 stop: ## Stop scenario-to-desktop
-	@echo "$(YELLOW)⏹️  Stopping Scenario-to-Desktop Converter...$(RESET)"
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
 dev: ## Start in development mode with hot reload
-	@echo "$(BLUE)🔧 Starting in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 logs: ## Show recent logs
-	@echo "$(BLUE)📜 Recent Scenario-to-Desktop logs:$(RESET)"
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 logs-follow: ## Follow logs in real-time
@@ -73,7 +72,7 @@ logs-follow: ## Follow logs in real-time
 	@vrooli scenario logs $(SCENARIO_NAME) --follow
 
 status: ## Check if scenario is running
-	@echo "$(BLUE)📊 Scenario-to-Desktop Status:$(RESET)"
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 # ============================================================================

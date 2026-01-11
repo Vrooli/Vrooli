@@ -29,8 +29,7 @@ func (s *Server) proxyHintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hints := s.collectProxyHints(scenario)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	writeJSONResponse(w, http.StatusOK, map[string]any{
 		"scenario": scenario,
 		"hints":    hints,
 	})

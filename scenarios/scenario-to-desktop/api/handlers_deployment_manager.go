@@ -136,8 +136,7 @@ func (s *Server) exportBundleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	exportResp.ManifestPath = manifestPath
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(exportResp)
+	writeJSONResponse(w, http.StatusOK, exportResp)
 }
 
 // deploymentManagerAutoBuildHandler proxies auto-build requests to deployment-manager.

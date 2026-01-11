@@ -97,15 +97,10 @@ func (sa *ScenarioAnalyzer) AnalyzeScenario(scenarioName string) (*ScenarioMetad
 	}
 
 	// Read .vrooli/service.json
-	if err := sa.readServiceJSON(metadata); err != nil {
-		// Not critical - service.json might not exist for all scenarios
-		// Continue with defaults
-	}
+	_ = sa.readServiceJSON(metadata)
 
 	// Read ui/package.json if it exists
-	if err := sa.readUIPackageJSON(metadata); err != nil {
-		// Not critical - some scenarios don't have UI
-	}
+	_ = sa.readUIPackageJSON(metadata)
 
 	// Check for built UI
 	sa.checkUIBuild(metadata)
@@ -161,16 +156,18 @@ func (sa *ScenarioAnalyzer) readServiceJSON(metadata *ScenarioMetadata) error {
 		parts := strings.Split(serviceJSON.Ports.API.Range, "-")
 		if len(parts) == 2 {
 			var port int
-			fmt.Sscanf(parts[0], "%d", &port)
-			metadata.APIPort = port
+			if _, err := fmt.Sscanf(parts[0], "%d", &port); err == nil {
+				metadata.APIPort = port
+			}
 		}
 	}
 	if serviceJSON.Ports.UI.Range != "" {
 		parts := strings.Split(serviceJSON.Ports.UI.Range, "-")
 		if len(parts) == 2 {
 			var port int
-			fmt.Sscanf(parts[0], "%d", &port)
-			metadata.UIPort = port
+			if _, err := fmt.Sscanf(parts[0], "%d", &port); err == nil {
+				metadata.UIPort = port
+			}
 		}
 	}
 

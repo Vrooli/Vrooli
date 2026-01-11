@@ -117,7 +117,7 @@ func TestFileRepository_Save_SetsSchemaVersion(t *testing.T) {
 	// Verify schema version was set
 	savedData, _ := fs.ReadFile("/home/user/Vrooli/scenarios/test-scenario/signing.json")
 	var savedConfig types.SigningConfig
-	json.Unmarshal(savedData, &savedConfig)
+	require.NoError(t, json.Unmarshal(savedData, &savedConfig))
 	assert.Equal(t, types.SchemaVersion, savedConfig.SchemaVersion)
 }
 

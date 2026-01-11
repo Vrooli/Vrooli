@@ -11,11 +11,17 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/vrooli/api-core/preflight"
+
 	bundleruntime "scenario-to-desktop-runtime"
 	"scenario-to-desktop-runtime/manifest"
 )
 
 func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-desktop"}) {
+		return
+	}
+
 	var manifestPath string
 	var appData string
 	var bundleRoot string

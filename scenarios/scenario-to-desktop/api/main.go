@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net/http"
@@ -30,19 +31,17 @@ func init() {
 
 // Server represents the API server
 type Server struct {
-	router           *mux.Router
-	port             int
-	builds           *BuildStore
-	records          *DesktopRecordStore
-	wineInstalls     map[string]*WineInstallStatus
-	wineInstallMux   sync.RWMutex
-	templateDir      string
-	logger           *slog.Logger
-	telemetryMux     sync.Mutex
-	preflightMux     sync.Mutex
-	preflight        map[string]*preflightSession
-	preflightJobs    map[string]*preflightJob
-	preflightJobsMux sync.Mutex
+	router            *mux.Router
+	port              int
+	builds            *BuildStore
+	records           *DesktopRecordStore
+	wineInstalls      map[string]*WineInstallStatus
+	wineInstallMux    sync.RWMutex
+	templateDir       string
+	logger            *slog.Logger
+	telemetryMux      sync.Mutex
+	preflightSessions PreflightSessionStore
+	preflightJobs     PreflightJobStore
 }
 
 // NewServer creates a new server instance
@@ -64,15 +63,15 @@ func NewServer(port int) *Server {
 	}))
 
 	server := &Server{
-		router:        mux.NewRouter(),
-		port:          port,
-		builds:        NewBuildStore(),
-		records:       recordStore,
-		wineInstalls:  make(map[string]*WineInstallStatus),
-		templateDir:   "../templates", // Templates are in parent directory when running from api/
-		logger:        logger,
-		preflight:     make(map[string]*preflightSession),
-		preflightJobs: make(map[string]*preflightJob),
+		router:            mux.NewRouter(),
+		port:              port,
+		builds:            NewBuildStore(),
+		records:           recordStore,
+		wineInstalls:      make(map[string]*WineInstallStatus),
+		templateDir:       "../templates", // Templates are in parent directory when running from api/
+		logger:            logger,
+		preflightSessions: NewInMemorySessionStore(),
+		preflightJobs:     NewInMemoryJobStore(),
 	}
 
 	server.startPreflightJanitor()
@@ -83,8 +82,14 @@ func NewServer(port int) *Server {
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
 	// Health check - use api-core/health for standardized response
-	healthHandler := health.New().
+	healthHandler := health.New("scenario-to-desktop-api").
 		Version("1.0.0").
+		Check(health.CheckerFunc(func(ctx context.Context) health.CheckResult {
+			return health.CheckResult{
+				Name:      "database",
+				Connected: true,
+			}
+		}), health.Optional).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")

@@ -18,6 +18,13 @@ export interface UsePreflightSessionOptions {
   isBundled: boolean;
   initialSessionId?: string | null;
   initialSessionExpiresAt?: string | null;
+  initialResult?: BundlePreflightResponse | null;
+  initialError?: string | null;
+  initialOverride?: boolean;
+  initialSecrets?: Record<string, string>;
+  initialSessionTTL?: number;
+  initialStartServices?: boolean;
+  initialAutoRefresh?: boolean;
 }
 
 export interface UsePreflightSessionResult {
@@ -45,6 +52,7 @@ export interface UsePreflightSessionResult {
   setSessionTTL: (ttl: number) => void;
   setOverride: (override: boolean) => void;
   setSecret: (id: string, value: string) => void;
+  setSecrets: (secrets: Record<string, string>) => void;
   setAutoRefresh: (autoRefresh: boolean) => void;
   setStartServices: (startServices: boolean) => void;
   runPreflight: (secretsOverride?: Record<string, string>, manifestPathOverride?: string) => Promise<void>;
@@ -62,11 +70,18 @@ export function usePreflightSession({
   bundleManifestPath,
   isBundled,
   initialSessionId = null,
-  initialSessionExpiresAt = null
+  initialSessionExpiresAt = null,
+  initialResult = null,
+  initialError = null,
+  initialOverride = false,
+  initialSecrets = {},
+  initialSessionTTL = DEFAULT_SESSION_TTL,
+  initialStartServices = true,
+  initialAutoRefresh = true
 }: UsePreflightSessionOptions): UsePreflightSessionResult {
   // Core state
-  const [result, setResult] = useState<BundlePreflightResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<BundlePreflightResponse | null>(initialResult);
+  const [error, setError] = useState<string | null>(initialError);
   const [pending, setPending] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<BundlePreflightJobStatusResponse | null>(null);
@@ -74,13 +89,13 @@ export function usePreflightSession({
   // Session state
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(initialSessionExpiresAt);
-  const [sessionTTL, setSessionTTL] = useState(DEFAULT_SESSION_TTL);
+  const [sessionTTL, setSessionTTL] = useState(initialSessionTTL);
 
   // Configuration state
-  const [override, setOverride] = useState(false);
-  const [secrets, setSecrets] = useState<Record<string, string>>({});
-  const [startServices, setStartServices] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [override, setOverride] = useState(initialOverride);
+  const [secrets, setSecrets] = useState<Record<string, string>>(initialSecrets);
+  const [startServices, setStartServices] = useState(initialStartServices);
+  const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
 
   // Ref for interval callback to avoid stale closures
   const refreshStatusRef = useRef<(() => Promise<void>) | null>(null);
@@ -95,6 +110,31 @@ export function usePreflightSession({
   const readinessOk = Boolean(result?.ready?.ready);
   const secretsOk = missingSecrets.length === 0;
   const preflightOk = Boolean(result) && validationOk && readinessOk && secretsOk;
+
+  useEffect(() => {
+    setSessionId(initialSessionId ?? null);
+    setSessionExpiresAt(initialSessionExpiresAt ?? null);
+  }, [initialSessionId, initialSessionExpiresAt]);
+
+  useEffect(() => {
+    setResult(initialResult ?? null);
+    setError(initialError ?? null);
+    setOverride(initialOverride);
+    setSecrets(initialSecrets);
+    if (typeof initialSessionTTL === "number") {
+      setSessionTTL(initialSessionTTL);
+    }
+    setStartServices(initialStartServices);
+    setAutoRefresh(initialAutoRefresh);
+  }, [
+    initialResult,
+    initialError,
+    initialOverride,
+    initialSecrets,
+    initialSessionTTL,
+    initialStartServices,
+    initialAutoRefresh
+  ]);
 
   // Reset state when bundleManifestPath changes or bundled mode is disabled
   useEffect(() => {
@@ -331,6 +371,10 @@ export function usePreflightSession({
     setSecrets((prev) => ({ ...prev, [id]: value }));
   }, []);
 
+  const replaceSecrets = useCallback((nextSecrets: Record<string, string>) => {
+    setSecrets(nextSecrets);
+  }, []);
+
   return {
     // State
     result,
@@ -356,6 +400,7 @@ export function usePreflightSession({
     setSessionTTL,
     setOverride,
     setSecret,
+    setSecrets: replaceSecrets,
     setAutoRefresh,
     setStartServices,
     runPreflight,

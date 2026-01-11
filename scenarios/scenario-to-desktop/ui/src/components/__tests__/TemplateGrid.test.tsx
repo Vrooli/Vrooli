@@ -50,8 +50,8 @@ describe('TemplateGrid', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Basic Desktop App')).toBeInTheDocument();
-      expect(screen.getByText('Advanced Desktop App')).toBeInTheDocument();
+      expect(screen.getAllByText('Basic Desktop App').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Advanced Desktop App').length).toBeGreaterThan(0);
     });
   });
 

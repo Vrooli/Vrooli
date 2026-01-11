@@ -44,8 +44,7 @@ func (s *Server) listDesktopRecordsHandler(w http.ResponseWriter, _ *http.Reques
 		results = append(results, item)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"records": results,
 	})
 }
@@ -138,8 +137,7 @@ func (s *Server) moveDesktopRecordHandler(w http.ResponseWriter, r *http.Request
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"record_id": recordID,
 		"from":      absSrc,
 		"to":        absDest,

@@ -164,8 +164,7 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"scenarios": scenarios,
 		"stats": map[string]int{
 			"total":        len(scenarios),

@@ -4,7 +4,13 @@
 
 # Setup function runs before each test
 setup() {
-    # Use lifecycle-allocated API_PORT if available, otherwise fallback to default
+    # Prefer lifecycle-allocated API_PORT if available, otherwise fallback to default
+    if command -v vrooli >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+        detected_port="$(vrooli scenario status scenario-to-desktop --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // empty')"
+        if [ -n "$detected_port" ] && [ "$detected_port" != "null" ]; then
+            export API_PORT="$detected_port"
+        fi
+    fi
     export API_PORT="${API_PORT:-15200}"
     export API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT}}"
     export CLI_PATH="${BATS_TEST_DIRNAME}/scenario-to-desktop"

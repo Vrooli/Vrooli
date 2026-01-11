@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/preflight"
 )
 
 type config struct {
@@ -25,6 +27,10 @@ type config struct {
 }
 
 func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-desktop"}) {
+		return
+	}
+
 	var cfg config
 	flag.StringVar(&cfg.host, "host", "127.0.0.1", "Runtime host")
 	flag.IntVar(&cfg.port, "port", 47710, "Runtime port")

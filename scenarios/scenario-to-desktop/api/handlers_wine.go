@@ -111,8 +111,7 @@ func (s *Server) checkWineHandler(w http.ResponseWriter, r *http.Request) {
 		response.InstallMethods = methods
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // installWineHandler initiates Wine installation process
@@ -170,8 +169,7 @@ func (s *Server) installWineHandler(w http.ResponseWriter, r *http.Request) {
 		s.wineInstallMux.Unlock()
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, http.StatusOK, map[string]string{
 		"install_id": installID,
 		"status":     status.Status,
 		"method":     request.Method,
@@ -193,8 +191,7 @@ func (s *Server) getWineInstallStatusHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	writeJSONResponse(w, http.StatusOK, status)
 }
 
 // performWineInstallation performs the actual Wine installation via Flatpak
@@ -308,7 +305,7 @@ exec flatpak run org.winehq.Wine "$@"
 	if output, err := cmd.Output(); err != nil {
 		addError(fmt.Sprintf("Wine wrapper created but verification failed: %v", err))
 		addLog("Wine is installed but may not be in PATH. Add to PATH with:")
-		addLog(fmt.Sprintf("  export PATH=\"$HOME/.local/bin:$PATH\""))
+		addLog("  export PATH=\"$HOME/.local/bin:$PATH\"")
 		addLog("Add this line to ~/.bashrc or ~/.zshrc to make it permanent")
 	} else {
 		version := strings.TrimSpace(string(output))

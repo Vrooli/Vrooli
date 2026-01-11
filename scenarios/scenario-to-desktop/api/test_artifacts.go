@@ -40,7 +40,7 @@ func testArtifactPaths() []string {
 
 func sizeOfPath(root string) int64 {
 	var total int64
-	filepath.WalkDir(root, func(_ string, d os.DirEntry, err error) error {
+	if err := filepath.WalkDir(root, func(_ string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -48,7 +48,9 @@ func sizeOfPath(root string) int64 {
 			total += info.Size()
 		}
 		return nil
-	})
+	}); err != nil {
+		return total
+	}
 	return total
 }
 
@@ -78,7 +80,9 @@ func summarizeTestArtifacts(maxPaths int) TestArtifactSummary {
 func (s *Server) listTestArtifactsHandler(w http.ResponseWriter, _ *http.Request) {
 	summary := summarizeTestArtifacts(5)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(summary)
+	if err := json.NewEncoder(w).Encode(summary); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // cleanupTestArtifactsHandler deletes CI/test artifact directories from /tmp.
@@ -93,5 +97,7 @@ func (s *Server) cleanupTestArtifactsHandler(w http.ResponseWriter, _ *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }

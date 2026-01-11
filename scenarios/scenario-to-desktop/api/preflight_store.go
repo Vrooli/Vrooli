@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
 	bundleruntime "scenario-to-desktop-runtime"
+	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
 // PreflightSessionStore defines the interface for preflight session management.
@@ -60,15 +64,15 @@ type PreflightJobStore interface {
 
 // inMemorySessionStore is the default in-memory implementation of PreflightSessionStore.
 type inMemorySessionStore struct {
-	sessions     map[string]*preflightSession
-	mux          sync.Mutex
+	sessions         map[string]*preflightSession
+	mux              sync.Mutex
 	createSupervisor func(manifest *bundlemanifest.Manifest, bundleRoot, appData string) (*bundleruntime.Supervisor, error)
 }
 
 // NewInMemorySessionStore creates a new in-memory session store.
 func NewInMemorySessionStore() *inMemorySessionStore {
 	return &inMemorySessionStore{
-		sessions: make(map[string]*preflightSession),
+		sessions:         make(map[string]*preflightSession),
 		createSupervisor: defaultCreateSupervisor,
 	}
 }
@@ -107,12 +111,40 @@ func (s *inMemorySessionStore) Create(manifest *bundlemanifest.Manifest, bundleR
 		return nil, err
 	}
 
+	fileTimeout := 5 * time.Second
+	tokenPath := bundlemanifest.ResolvePath(appData, manifest.IPC.AuthTokenRel)
+	tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
+	if err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("read auth token: %w", err)
+	}
+	token := strings.TrimSpace(string(tokenBytes))
+
+	portPath := filepath.Join(appData, "runtime", "ipc_port")
+	port, err := readPortFileWithRetry(portPath, fileTimeout)
+	if err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, fmt.Errorf("read ipc_port: %w", err)
+	}
+
+	baseURL := fmt.Sprintf("http://%s:%d", manifest.IPC.Host, port)
+	client := &http.Client{Timeout: 2 * time.Second}
+	if err := waitForRuntimeHealth(client, baseURL, 10*time.Second); err != nil {
+		_ = supervisor.Shutdown(context.Background())
+		_ = os.RemoveAll(appData)
+		return nil, err
+	}
+
 	session := &preflightSession{
 		id:         uuid.NewString(),
 		manifest:   manifest,
 		bundleDir:  bundleRoot,
 		appData:    appData,
 		supervisor: supervisor,
+		baseURL:    baseURL,
+		token:      token,
 		createdAt:  time.Now(),
 		expiresAt:  time.Now().Add(time.Duration(ttlSeconds) * time.Second),
 	}

@@ -139,7 +139,7 @@ check_api_health() {
     local response
     response=$(api_call "GET" "/api/v1/health" 2>/dev/null) || {
         error "Cannot connect to scenario-to-desktop API at $API_BASE_URL"
-        echo "Please ensure the API server is running:"
+        echo "API connection failed. Please ensure the API server is running:"
         echo "  cd api && make run"
         exit 1
     }
@@ -226,18 +226,6 @@ EOF
 
 cmd_status() {
 	check_api_health
-
-	if [ "$server_type" = "external" ]; then
-		if [ -z "$server_url" ] || [ -z "$api_url" ]; then
-			error "Thin clients require --server-url and --api-url so the desktop wrapper knows where to connect."
-			exit 1
-		fi
-	fi
-
-	if [ "$deployment_mode" != "external-server" ]; then
-		warn "Deployment mode '$deployment_mode' isn't supported yet. Using thin client (external-server)."
-		deployment_mode="external-server"
-	fi
     
     local response
     response=$(api_call "GET" "/api/v1/status")

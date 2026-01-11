@@ -21,11 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
-	runtimeapi "scenario-to-desktop-runtime/api"
 	bundleruntime "scenario-to-desktop-runtime"
+	runtimeapi "scenario-to-desktop-runtime/api"
+	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
 // ============================================================================
@@ -91,8 +89,7 @@ func (s *Server) preflightBundleHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // preflightStartHandler starts an async preflight job.
@@ -106,8 +103,7 @@ func (s *Server) preflightStartHandler(w http.ResponseWriter, r *http.Request) {
 	job := s.createPreflightJob()
 	go s.runPreflightJob(job.id, request)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(BundlePreflightJobStartResponse{JobID: job.id})
+	writeJSONResponse(w, http.StatusOK, BundlePreflightJobStartResponse{JobID: job.id})
 }
 
 // preflightStatusHandler returns the status of an async preflight job.
@@ -155,8 +151,7 @@ func (s *Server) preflightStatusHandler(w http.ResponseWriter, r *http.Request) 
 		UpdatedAt: job.updatedAt.Format(time.RFC3339),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	writeJSONResponse(w, http.StatusOK, resp)
 }
 
 // preflightHealthHandler proxies health checks to a running preflight session.
@@ -176,8 +171,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 
 	svc, ok := findManifestService(session.manifest, serviceID)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id": serviceID,
 			"supported":  false,
 			"message":    "service not found in manifest",
@@ -187,8 +181,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Check if service has HTTP health check configured
 	if svc.Health.Type != "http" {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id":  serviceID,
 			"supported":   false,
 			"health_type": svc.Health.Type,
@@ -197,8 +190,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if svc.Health.PortName == "" {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id": serviceID,
 			"supported":  false,
 			"message":    "health port_name is required",
@@ -208,8 +200,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 
 	healthPath := strings.TrimSpace(svc.Health.Path)
 	if healthPath == "" {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id": serviceID,
 			"supported":  false,
 			"message":    "health path is required",
@@ -230,8 +221,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 		Services map[string]map[string]int `json:"services"`
 	}
 	if _, err := fetchJSON(client, session.baseURL, session.token, "/ports", http.MethodGet, nil, &portsResp, nil); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id": serviceID,
 			"supported":  true,
 			"message":    fmt.Sprintf("failed to fetch ports: %v", err),
@@ -240,8 +230,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	port := portsResp.Services[serviceID][svc.Health.PortName]
 	if port == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id": serviceID,
 			"supported":  true,
 			"message":    fmt.Sprintf("port not found: %s", svc.Health.PortName),
@@ -253,8 +242,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 	start := time.Now()
 	resp, err := client.Get(healthURL)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 			"service_id":  serviceID,
 			"supported":   true,
 			"health_type": svc.Health.Type,
@@ -289,8 +277,7 @@ func (s *Server) preflightHealthHandler(w http.ResponseWriter, r *http.Request) 
 		"elapsed_ms":   time.Since(start).Milliseconds(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // bundleManifestHandler loads and returns a bundle manifest for UI display.
@@ -327,8 +314,7 @@ func (s *Server) bundleManifestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(BundleManifestResponse{
+	writeJSONResponse(w, http.StatusOK, BundleManifestResponse{
 		Path:     manifestPath,
 		Manifest: manifest,
 	})
@@ -534,7 +520,7 @@ func (s *Server) runBundlePreflight(request BundlePreflightRequest) (*BundlePref
 		return nil, fmt.Errorf("fetch telemetry: %w", err)
 	}
 
-	logTails := collectLogTails(client, baseURL, token, session.manifest, request)
+	logTails := collectLogTails(client, baseURL, token, m, request)
 	checks := buildPreflightChecks(m, validation, &ready, secretsResp.Secrets, portsResp.Services, &telemetryResp, logTails, request)
 
 	sessionID := ""
@@ -808,7 +794,7 @@ func (s *Server) runPreflightJob(jobID string, request BundlePreflightRequest) {
 		return
 	}
 
-	logTails := collectLogTails(client, baseURL, token, session.manifest, request)
+	logTails := collectLogTails(client, baseURL, token, m, request)
 	checks := buildPreflightChecks(m, validation, &ready, secretsResp.Secrets, portsResp.Services, &telemetryResp, logTails, request)
 
 	s.setPreflightJobResult(jobID, func(prev *BundlePreflightResponse) *BundlePreflightResponse {
@@ -847,130 +833,22 @@ func (s *Server) runPreflightJob(jobID string, request BundlePreflightRequest) {
 
 // createPreflightSession creates a new persistent preflight session with running services.
 func (s *Server) createPreflightSession(manifest *bundlemanifest.Manifest, bundleRoot string, ttlSeconds int) (*preflightSession, error) {
-	if ttlSeconds <= 0 {
-		ttlSeconds = 120
-	}
-	if ttlSeconds > 900 {
-		ttlSeconds = 900
-	}
-
-	appData, err := os.MkdirTemp("", "s2d-preflight-*")
-	if err != nil {
-		return nil, fmt.Errorf("create preflight app data: %w", err)
-	}
-
-	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
-		Manifest:   manifest,
-		BundlePath: bundleRoot,
-		AppDataDir: appData,
-		DryRun:     false,
-	})
-	if err != nil {
-		_ = os.RemoveAll(appData)
-		return nil, fmt.Errorf("init runtime: %w", err)
-	}
-
-	ctx := context.Background()
-	if err := supervisor.Start(ctx); err != nil {
-		_ = os.RemoveAll(appData)
-		return nil, fmt.Errorf("start runtime: %w", err)
-	}
-
-	fileTimeout := 5 * time.Second
-	tokenPath := bundlemanifest.ResolvePath(appData, manifest.IPC.AuthTokenRel)
-	tokenBytes, err := readFileWithRetry(tokenPath, fileTimeout)
-	if err != nil {
-		_ = supervisor.Shutdown(context.Background())
-		_ = os.RemoveAll(appData)
-		return nil, fmt.Errorf("read auth token: %w", err)
-	}
-	token := strings.TrimSpace(string(tokenBytes))
-
-	portPath := filepath.Join(appData, "runtime", "ipc_port")
-	port, err := readPortFileWithRetry(portPath, fileTimeout)
-	if err != nil {
-		_ = supervisor.Shutdown(context.Background())
-		_ = os.RemoveAll(appData)
-		return nil, fmt.Errorf("read ipc_port: %w", err)
-	}
-
-	baseURL := fmt.Sprintf("http://%s:%d", manifest.IPC.Host, port)
-	client := &http.Client{Timeout: 2 * time.Second}
-	if err := waitForRuntimeHealth(client, baseURL, 10*time.Second); err != nil {
-		_ = supervisor.Shutdown(context.Background())
-		_ = os.RemoveAll(appData)
-		return nil, err
-	}
-
-	session := &preflightSession{
-		id:         uuid.NewString(),
-		manifest:   manifest,
-		bundleDir:  bundleRoot,
-		appData:    appData,
-		supervisor: supervisor,
-		baseURL:    baseURL,
-		token:      token,
-		createdAt:  time.Now(),
-		expiresAt:  time.Now().Add(time.Duration(ttlSeconds) * time.Second),
-	}
-	s.preflightMux.Lock()
-	s.preflight[session.id] = session
-	s.preflightMux.Unlock()
-
-	return session, nil
+	return s.preflightSessions.Create(manifest, bundleRoot, ttlSeconds)
 }
 
 // getPreflightSession retrieves a preflight session by ID, checking expiry.
 func (s *Server) getPreflightSession(id string) (*preflightSession, bool) {
-	s.preflightMux.Lock()
-	defer s.preflightMux.Unlock()
-	session, ok := s.preflight[id]
-	if !ok {
-		return nil, false
-	}
-	if time.Now().After(session.expiresAt) {
-		delete(s.preflight, id)
-		go s.shutdownPreflightSession(session)
-		return nil, false
-	}
-	return session, true
+	return s.preflightSessions.Get(id)
 }
 
 // refreshPreflightSession extends the TTL of an existing session.
 func (s *Server) refreshPreflightSession(session *preflightSession, ttlSeconds int) {
-	if ttlSeconds <= 0 {
-		return
-	}
-	maxTTL := 900
-	if ttlSeconds > maxTTL {
-		ttlSeconds = maxTTL
-	}
-	s.preflightMux.Lock()
-	defer s.preflightMux.Unlock()
-	session.expiresAt = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
+	s.preflightSessions.Refresh(session, ttlSeconds)
 }
 
 // stopPreflightSession stops and cleans up a preflight session.
 func (s *Server) stopPreflightSession(id string) bool {
-	s.preflightMux.Lock()
-	session, ok := s.preflight[id]
-	if ok {
-		delete(s.preflight, id)
-	}
-	s.preflightMux.Unlock()
-	if ok {
-		s.shutdownPreflightSession(session)
-	}
-	return ok
-}
-
-// shutdownPreflightSession cleans up session resources.
-func (s *Server) shutdownPreflightSession(session *preflightSession) {
-	if session == nil {
-		return
-	}
-	_ = session.supervisor.Shutdown(context.Background())
-	_ = os.RemoveAll(session.appData)
+	return s.preflightSessions.Stop(id)
 }
 
 // ============================================================================
@@ -979,71 +857,28 @@ func (s *Server) shutdownPreflightSession(session *preflightSession) {
 
 // createPreflightJob creates a new async preflight job.
 func (s *Server) createPreflightJob() *preflightJob {
-	job := &preflightJob{
-		id:     uuid.NewString(),
-		status: "running",
-		steps: map[string]BundlePreflightStep{
-			"validation":  {ID: "validation", Name: "Load bundle + validate", State: "pending"},
-			"runtime":     {ID: "runtime", Name: "Start runtime control API", State: "pending"},
-			"secrets":     {ID: "secrets", Name: "Apply secrets", State: "pending"},
-			"services":    {ID: "services", Name: "Start services", State: "pending"},
-			"diagnostics": {ID: "diagnostics", Name: "Collect diagnostics", State: "pending"},
-		},
-		startedAt: time.Now(),
-		updatedAt: time.Now(),
-	}
-	s.preflightJobsMux.Lock()
-	s.preflightJobs[job.id] = job
-	s.preflightJobsMux.Unlock()
-	return job
+	return s.preflightJobs.Create()
 }
 
 // getPreflightJob retrieves a preflight job by ID.
 func (s *Server) getPreflightJob(id string) (*preflightJob, bool) {
-	s.preflightJobsMux.Lock()
-	defer s.preflightJobsMux.Unlock()
-	job, ok := s.preflightJobs[id]
-	return job, ok
+	return s.preflightJobs.Get(id)
 }
 
 // updatePreflightJob updates a preflight job with a modifier function.
-func (s *Server) updatePreflightJob(id string, fn func(job *preflightJob)) {
-	s.preflightJobsMux.Lock()
-	defer s.preflightJobsMux.Unlock()
-	job, ok := s.preflightJobs[id]
-	if !ok {
-		return
-	}
-	fn(job)
-	job.updatedAt = time.Now()
-}
-
 // setPreflightJobStep updates the state of a specific step in a job.
 func (s *Server) setPreflightJobStep(id, stepID, state, detail string) {
-	s.updatePreflightJob(id, func(job *preflightJob) {
-		step, ok := job.steps[stepID]
-		if !ok {
-			step = BundlePreflightStep{ID: stepID, Name: stepID}
-		}
-		step.State = state
-		step.Detail = detail
-		job.steps[stepID] = step
-	})
+	s.preflightJobs.SetStep(id, stepID, state, detail)
 }
 
 // setPreflightJobResult updates the result of a preflight job.
 func (s *Server) setPreflightJobResult(id string, updater func(prev *BundlePreflightResponse) *BundlePreflightResponse) {
-	s.updatePreflightJob(id, func(job *preflightJob) {
-		job.result = updater(job.result)
-	})
+	s.preflightJobs.SetResult(id, updater)
 }
 
 // finishPreflightJob marks a job as complete with final status.
 func (s *Server) finishPreflightJob(id string, status, errMsg string) {
-	s.updatePreflightJob(id, func(job *preflightJob) {
-		job.status = status
-		job.err = errMsg
-	})
+	s.preflightJobs.Finish(id, status, errMsg)
 }
 
 // startPreflightJanitor starts the background cleanup goroutine.
@@ -1052,46 +887,10 @@ func (s *Server) startPreflightJanitor() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			s.cleanupPreflightSessions()
-			s.cleanupPreflightJobs()
+			s.preflightSessions.Cleanup()
+			s.preflightJobs.Cleanup()
 		}
 	}()
-}
-
-// cleanupPreflightSessions removes expired sessions.
-func (s *Server) cleanupPreflightSessions() {
-	var expired []*preflightSession
-	now := time.Now()
-	s.preflightMux.Lock()
-	for id, session := range s.preflight {
-		if now.After(session.expiresAt) {
-			expired = append(expired, session)
-			delete(s.preflight, id)
-		}
-	}
-	s.preflightMux.Unlock()
-	for _, session := range expired {
-		s.shutdownPreflightSession(session)
-	}
-}
-
-// cleanupPreflightJobs removes completed jobs older than 15 minutes.
-func (s *Server) cleanupPreflightJobs() {
-	expiration := 15 * time.Minute
-	now := time.Now()
-	var expired []string
-
-	s.preflightJobsMux.Lock()
-	for id, job := range s.preflightJobs {
-		if job.status == "running" {
-			continue
-		}
-		if now.Sub(job.updatedAt) > expiration {
-			expired = append(expired, id)
-			delete(s.preflightJobs, id)
-		}
-	}
-	s.preflightJobsMux.Unlock()
 }
 
 // ============================================================================
@@ -1109,17 +908,6 @@ func findManifestService(manifest *bundlemanifest.Manifest, serviceID string) (*
 		}
 	}
 	return nil, false
-}
-
-func resolvePortPlaceholders(urlStr string, portMap map[string]int) string {
-	result := urlStr
-	for name, port := range portMap {
-		result = strings.ReplaceAll(result, fmt.Sprintf("${%s}", name), fmt.Sprintf("%d", port))
-		result = strings.ReplaceAll(result, fmt.Sprintf("$%s", name), fmt.Sprintf("%d", port))
-	}
-	result = strings.ReplaceAll(result, "$PORT", fmt.Sprintf("%d", portMap["http"]))
-	result = strings.ReplaceAll(result, "${PORT}", fmt.Sprintf("%d", portMap["http"]))
-	return result
 }
 
 func buildPreflightChecks(manifest *bundlemanifest.Manifest, validation *runtimeapi.BundleValidationResult, ready *BundlePreflightReady, secrets []BundlePreflightSecret, ports map[string]map[string]int, telemetry *BundlePreflightTelemetry, logTails []BundlePreflightLogTail, request BundlePreflightRequest) []BundlePreflightCheck {

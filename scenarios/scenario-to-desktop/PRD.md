@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+## 🎯 Overview
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
@@ -23,29 +23,28 @@ This capability fundamentally expands the deployment scope of what Vrooli scenar
 4. **Creative Professional Tools**: Scenarios for designers, developers, and content creators that need high-performance desktop interfaces
 5. **Kiosk and Embedded Systems**: Scenarios that run on dedicated hardware in retail, industrial, or public settings
 
-## 📊 Success Metrics
+## 🎯 Operational Targets
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [x] **Generate complete Electron desktop applications** - ✅ COMPLETE: API generates template files successfully, 4 templates available, E2E test validates full generation workflow (26/26 tests passing)
-  - [x] **Multi-framework support (Electron primary)** - ✅ COMPLETE: Electron fully implemented with all features. Tauri/Neutralino marked as P2 future enhancements
-  - [ ] **Cross-platform packaging** - ⚠️ PARTIAL: Structure and configuration exist in templates. Full builds require electron-builder in target environment
-  - [x] **Development tooling** - ✅ COMPLETE: Make targets, CLI commands, comprehensive test infrastructure (40/40 tests passing: 27 API + 8 CLI + 5 business), E2E validation, UI tests (7/7)
-  - [x] **Integration with scenario APIs** - ✅ COMPLETE: Templates include full API integration patterns with secure IPC, documented in generated files and templates
-  - [x] **Native OS features** - ✅ COMPLETE: All features implemented in templates (system tray, notifications, file dialogs, menus, auto-updater hooks). Code verified in main.ts/preload.ts
-  - [x] **Auto-updater integration** - ✅ COMPLETE: Included in all templates with electron-updater integration. Runtime deployment requires update server configuration
-  
-- **Should Have (P1)**
-  - [ ] Code signing and notarization for security and distribution
-  - [ ] App store submission automation (Microsoft Store, Mac App Store)
-  - [ ] Multi-window support for complex desktop applications
-  - [ ] Performance monitoring and analytics for deployed applications
-  - [ ] Enterprise deployment features (MSI installers, silent installs)
-  
-- **Nice to Have (P2)**
-  - [ ] Visual desktop app builder with drag-and-drop interface
-  - [ ] Plugin architecture for extending desktop app functionality
-  - [ ] Kiosk mode for dedicated hardware deployments
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
+- [x] OT-P0-002 | Multi-framework scaffolding with Electron primary | Electron fully implemented; Tauri/Neutralino tracked as P2 enhancements
+- [ ] OT-P0-003 | Cross-platform packaging | Template configs exist; full builds require electron-builder in target environments
+- [x] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
+- [x] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
+- [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
+- [x] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows
+- [ ] OT-P1-002 | App store submission automation | Microsoft Store + Mac App Store pipelines
+- [ ] OT-P1-003 | Multi-window workflows | Advanced window orchestration and state persistence
+- [ ] OT-P1-004 | Performance monitoring + analytics | In-app metrics and build telemetry dashboards
+- [ ] OT-P1-005 | Enterprise deployment features | MSI/PKG installers and silent install flows
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Visual desktop app builder | Drag-and-drop configuration UI
+- [ ] OT-P2-002 | Plugin architecture for templates | Extensible template + feature packs
+- [ ] OT-P2-003 | Kiosk mode enhancements | Dedicated hardware management and remote controls
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -63,7 +62,7 @@ This capability fundamentally expands the deployment scope of what Vrooli scenar
 - [x] Development workflow supports hot reload and debugging - ✅ npm run dev, DevTools enabled
 - [x] Complete documentation for desktop app development patterns - ✅ README, PRD, templates/README, requirements tracking
 
-## 🏗️ Technical Architecture
+## 🧱 Tech Direction Snapshot
 
 ### Resource Dependencies
 ```yaml
@@ -225,6 +224,25 @@ consumed_events:
     action: Start desktop app testing pipeline
 ```
 
+## 🤝 Dependencies & Launch Plan
+
+**Required resources**:
+- None mandatory; optional resources include browserless (UI testing), postgres (template/build history), and redis (build cache)
+
+**Scenario dependencies**:
+- deployment-manager for bundled builds and tier-2 automation
+- app-monitor for proxy URL discovery and external access
+
+**Operational risks**:
+- Cross-platform packaging requires electron-builder plus Wine/macOS CI runners
+- Bundled mode remains in progress; thin-client is the supported default
+
+**Launch sequencing**:
+1. Start scenario-to-desktop (`make start` or `vrooli scenario start scenario-to-desktop`)
+2. Configure proxy URL for target scenario + validate connectivity
+3. Generate wrapper and build installers for target platforms
+4. Distribute installers and ingest telemetry for feedback loops
+
 ## 🖥️ CLI Interface Contract
 
 ### Command Structure
@@ -359,7 +377,7 @@ consumes_from:
     fallback: CLI output only
 ```
 
-## 🎨 Style and Branding Requirements
+## 🎨 UX & Branding
 
 ### UI/UX Style Guidelines
 ```yaml
@@ -610,7 +628,7 @@ tests:
 - **Sandboxing**: Enable sandboxing where possible without breaking scenario functionality
 - **Update Security**: Implement secure auto-update mechanisms with signature verification
 
-## 🔗 References
+## 📎 Appendix
 
 ### Documentation
 - README.md - Desktop application generation overview and quick start

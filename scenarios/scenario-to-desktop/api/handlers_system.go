@@ -69,8 +69,7 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
 // List templates handler
@@ -118,8 +117,7 @@ func (s *Server) listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"templates": templates,
 		"count":     len(templates),
 	})
@@ -160,6 +158,5 @@ func (s *Server) getTemplateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(templateConfig)
+	writeJSONResponse(w, http.StatusOK, templateConfig)
 }

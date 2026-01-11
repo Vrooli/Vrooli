@@ -192,7 +192,6 @@ scenario-to-desktop generate <scenario> \
 ```
 
 Full walkthroughs: see `docs/QUICKSTART.md` and `docs/deployment-modes.md`.
-```
 
 ### 4. Build Desktop Packages
 
@@ -919,9 +918,9 @@ cd ui && npm install && npm start
 - [PRD.md](./PRD.md) - Comprehensive product requirements
 - **[Desktop Wrapper Guide](./templates/DESKTOP_WRAPPER_GUIDE.md) - Universal wrapper principles and patterns** ⭐ **NEW**
 - [Templates README](./templates/README.md) - Template system details
-- [API Documentation](./api/README.md) - REST API reference
-- [CLI Reference](./cli/README.md) - Command-line usage
-- [Build Tools](./templates/build-tools/README.md) - Generation system
+- [API Documentation](./docs/desktop-integration-guide.md) - REST API reference
+- [CLI Reference](./docs/QUICKSTART.md) - Command-line usage
+- [Build Tools](./docs/build-and-packaging.md) - Generation system
 
 ## 💡 Examples Gallery
 
@@ -939,7 +938,7 @@ cd ui && npm install && npm start
 
 ## 🔗 Links
 
-- **Homepage**: https://vrooli.com/scenarios/scenario-to-desktop
+- **Homepage**: https://github.com/Vrooli/Vrooli
 - **Documentation**: https://docs.vrooli.com/scenarios/scenario-to-desktop
 - **API Reference**: Check allocated port via `vrooli scenario status scenario-to-desktop`
 - **Web Interface**: Check allocated port via `vrooli scenario status scenario-to-desktop`
@@ -948,7 +947,7 @@ cd ui && npm install && npm start
 
 ---
 
-**Built with ❤️ by the [Vrooli Platform](https://vrooli.com)**
+**Built with ❤️ by the [Vrooli Platform](https://github.com/Vrooli/Vrooli)**
 
 *scenario-to-desktop is part of Vrooli's recursive intelligence system, where every capability built becomes a permanent tool for building even more advanced capabilities. Each desktop app generated contributes to the ever-expanding intelligence of the platform.*
 
