@@ -514,6 +514,13 @@ interface TLSDetailsProps {
     serial_number?: string;
     sans?: string[];
     error?: string;
+    alpn?: {
+      status: "pass" | "warn";
+      message: string;
+      hint?: string;
+      protocol?: string;
+      error?: string;
+    };
   };
 }
 
@@ -589,6 +596,31 @@ function TLSDetails({ tlsInfo }: TLSDetailsProps) {
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {tlsInfo.alpn && (
+        <div className="rounded border border-white/5 bg-slate-900/40 p-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-500">TLS-ALPN:</span>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                tlsInfo.alpn.status === "pass"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-amber-500/10 text-amber-400"
+              )}
+            >
+              {tlsInfo.alpn.status === "pass" ? "Ready" : "Check"}
+            </span>
+          </div>
+          <div className="mt-1 text-slate-400">{tlsInfo.alpn.message}</div>
+          {tlsInfo.alpn.protocol && (
+            <div className="mt-1 text-slate-500">Protocol: {tlsInfo.alpn.protocol}</div>
+          )}
+          {tlsInfo.alpn.hint && (
+            <div className="mt-1 text-slate-500">{tlsInfo.alpn.hint}</div>
+          )}
         </div>
       )}
     </div>

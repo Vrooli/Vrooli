@@ -198,6 +198,13 @@ railway up
    TTL: 300
    ```
 
+2. **Caddy edge requirements**:
+
+   When using Caddy for HTTPS on a VPS, the edge domain must be DNS-only (no proxy) during certificate issuance:
+   - Set apex/www (or your chosen edge domain) to DNS-only until certificates are issued.
+   - Ensure A/AAAA records point to the VPS IP.
+   - If you must keep proxying (e.g., Cloudflare), configure DNS-01 with `CLOUDFLARE_API_TOKEN`.
+
    Or for Cloudflare proxied:
    ```
    Type: CNAME

@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/tlsinfo"
 )
 
 // DNSCheckResponse is the response from the DNS check endpoint.
@@ -71,18 +72,19 @@ type CaddyControlResponse struct {
 
 // TLSInfoResponse contains detailed TLS certificate information.
 type TLSInfoResponse struct {
-	OK            bool     `json:"ok"`
-	Domain        string   `json:"domain"`
-	Valid         bool     `json:"valid"`
-	Issuer        string   `json:"issuer,omitempty"`
-	Subject       string   `json:"subject,omitempty"`
-	NotBefore     string   `json:"not_before,omitempty"`
-	NotAfter      string   `json:"not_after,omitempty"`
-	DaysRemaining int      `json:"days_remaining"`
-	SerialNumber  string   `json:"serial_number,omitempty"`
-	SANs          []string `json:"sans,omitempty"`
-	Error         string   `json:"error,omitempty"`
-	Timestamp     string   `json:"timestamp"`
+	OK            bool               `json:"ok"`
+	Domain        string             `json:"domain"`
+	Valid         bool               `json:"valid"`
+	Issuer        string             `json:"issuer,omitempty"`
+	Subject       string             `json:"subject,omitempty"`
+	NotBefore     string             `json:"not_before,omitempty"`
+	NotAfter      string             `json:"not_after,omitempty"`
+	DaysRemaining int                `json:"days_remaining"`
+	SerialNumber  string             `json:"serial_number,omitempty"`
+	SANs          []string           `json:"sans,omitempty"`
+	Error         string             `json:"error,omitempty"`
+	ALPN          *tlsinfo.ALPNCheck `json:"alpn,omitempty"`
+	Timestamp     string             `json:"timestamp"`
 }
 
 // TLSRenewResponse is the response from TLS certificate renewal.
@@ -395,8 +397,11 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
+	alpnCheck := tlsinfo.RunALPNCheck(ctx, domainName, nil, nil, 3*time.Second, 4*time.Second)
+
 	resp := TLSInfoResponse{
 		Domain:    domainName,
+		ALPN:      &alpnCheck,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 

@@ -868,14 +868,6 @@ func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) dom
 		state.Routes = parseCaddyRoutes(caddyfileContent)
 	}
 
-	// TLS info would require additional commands like openssl s_client
-	// For now, just set basic info
-	if state.Running {
-		state.TLS = domain.TLSInfo{
-			Valid: true, // Assume valid if Caddy is running with auto-TLS
-		}
-	}
-
 	return state
 }
 

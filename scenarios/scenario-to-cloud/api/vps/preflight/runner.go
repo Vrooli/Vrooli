@@ -2,10 +2,8 @@ package preflight
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -13,52 +11,14 @@ import (
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/tlsinfo"
 )
-
-// PortProbeFunc checks TCP reachability for a given host/port.
-type PortProbeFunc func(ctx context.Context, host string, port int, timeout time.Duration) error
-
-// TLSALPNProbeFunc checks TLS-ALPN negotiation for a given host/port.
-type TLSALPNProbeFunc func(ctx context.Context, host, serverName string, port int, timeout time.Duration) (string, error)
 
 // RunOptions configures optional behavior for VPS preflight.
 type RunOptions struct {
 	ProvidedSecrets map[string]string
-	PortProbe       PortProbeFunc
-	TLSALPNProbe    TLSALPNProbeFunc
-}
-
-func defaultPortProbe(ctx context.Context, host string, port int, timeout time.Duration) error {
-	dialer := net.Dialer{Timeout: timeout}
-	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
-	if err != nil {
-		return err
-	}
-	_ = conn.Close()
-	return nil
-}
-
-func defaultTLSALPNProbe(ctx context.Context, host, serverName string, port int, timeout time.Duration) (string, error) {
-	if serverName == "" {
-		serverName = host
-	}
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	dialer := &net.Dialer{Timeout: timeout}
-	config := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         serverName,
-		NextProtos:         []string{"acme-tls/1"},
-	}
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(timeout))
-	if err := conn.HandshakeContext(ctx); err != nil {
-		return "", err
-	}
-	return conn.ConnectionState().NegotiatedProtocol, nil
+	PortProbe       tlsinfo.PortProbeFunc
+	TLSALPNProbe    tlsinfo.ALPNProbeFunc
 }
 
 // Run executes all VPS preflight checks and returns the combined results.
@@ -70,10 +30,10 @@ func Run(
 	opts RunOptions,
 ) domain.PreflightResponse {
 	if opts.PortProbe == nil {
-		opts.PortProbe = defaultPortProbe
+		opts.PortProbe = tlsinfo.DefaultPortProbe
 	}
 	if opts.TLSALPNProbe == nil {
-		opts.TLSALPNProbe = defaultTLSALPNProbe
+		opts.TLSALPNProbe = tlsinfo.DefaultALPNProbe
 	}
 
 	cfg := ssh.ConfigFromManifest(manifest)
@@ -179,45 +139,24 @@ func Run(
 	if manifest.Edge.Caddy.Enabled && strings.TrimSpace(manifest.Edge.Domain) != "" {
 		domainName := strings.TrimSpace(manifest.Edge.Domain)
 		alpnTimeout := 4 * time.Second
-		if err := opts.PortProbe(ctx, domainName, 443, portTimeout); err != nil {
-			warn(
-				domain.PreflightTLSALPNID,
-				"TLS-ALPN compatibility",
-				fmt.Sprintf("Unable to reach %s:443 for TLS-ALPN probe", domainName),
-				"Ensure the edge domain resolves publicly and port 443 is reachable from the internet.",
-				map[string]string{"domain": domainName, "error": err.Error()},
-			)
-		} else if proto, err := opts.TLSALPNProbe(ctx, domainName, domainName, 443, alpnTimeout); err != nil {
-			warn(
-				domain.PreflightTLSALPNID,
-				"TLS-ALPN compatibility",
-				"TLS-ALPN probe failed",
-				"If using a proxy (e.g., Cloudflare), switch to DNS-only during issuance or configure DNS-01.",
-				map[string]string{"domain": domainName, "error": err.Error()},
-			)
-		} else if proto == "acme-tls/1" {
-			pass(
-				domain.PreflightTLSALPNID,
-				"TLS-ALPN compatibility",
-				"TLS-ALPN acme-tls/1 negotiated successfully",
-				map[string]string{"domain": domainName, "protocol": proto},
-			)
-		} else if proto == "" {
-			warn(
-				domain.PreflightTLSALPNID,
-				"TLS-ALPN compatibility",
-				"No ALPN protocol negotiated for acme-tls/1",
-				"If TLS-ALPN cannot be negotiated, use DNS-01 or DNS-only during issuance.",
-				map[string]string{"domain": domainName},
-			)
+		reachErr := opts.PortProbe(ctx, domainName, 443, portTimeout)
+		proto := ""
+		var probeErr error
+		if reachErr == nil {
+			proto, probeErr = opts.TLSALPNProbe(ctx, domainName, domainName, 443, alpnTimeout)
+		}
+		alpnCheck := tlsinfo.EvaluateALPN(domainName, reachErr, proto, probeErr)
+		data := map[string]string{"domain": domainName}
+		if alpnCheck.Protocol != "" {
+			data["protocol"] = alpnCheck.Protocol
+		}
+		if alpnCheck.Error != "" {
+			data["error"] = alpnCheck.Error
+		}
+		if alpnCheck.Status == tlsinfo.ALPNPass {
+			pass(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", alpnCheck.Message, data)
 		} else {
-			warn(
-				domain.PreflightTLSALPNID,
-				"TLS-ALPN compatibility",
-				fmt.Sprintf("Negotiated ALPN protocol %q instead of acme-tls/1", proto),
-				"If TLS-ALPN cannot be negotiated, use DNS-01 or DNS-only during issuance.",
-				map[string]string{"domain": domainName, "protocol": proto},
-			)
+			warn(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", alpnCheck.Message, alpnCheck.Hint, data)
 		}
 	}
 

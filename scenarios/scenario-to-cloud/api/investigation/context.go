@@ -12,10 +12,14 @@ import (
 
 // Default context items to include if none specified
 var defaultIncludeContexts = []string{
+	"task-metadata",
 	"error-info",
+	"safety-rules",
+	"diagnostic-checklist",
+	"output-format",
 	"deployment-manifest",
 	"vps-connection",
-	"deployment-history",
+	"deploy-results",
 	"architecture-guide",
 }
 
@@ -31,6 +35,11 @@ func containsContext(includeContexts []string, key string) bool {
 
 // buildPromptAndContext constructs the base prompt and context attachments for investigation.
 // Returns the base prompt (task instructions) and context attachments (selectable data).
+//
+// The prompt structure follows these principles:
+// 1. Base prompt is concise - just the core task
+// 2. All metadata, rules, and reference material are in context attachments
+// 3. Each attachment has summary, format, and priority for AI optimization
 func buildPromptAndContext(
 	deployment *domain.Deployment,
 	autoFix bool,
@@ -62,267 +71,563 @@ func buildPromptAndContext(
 		sshUser = "root"
 	}
 
-	// Build the base prompt (task instructions - always included)
+	// Extract error summary for the base prompt
+	errorSummary := extractErrorSummary(deployment)
+
+	// Build concise base prompt
 	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Investigate deployment failure for %s.\n\n", m.Scenario.ID))
 
-	sb.WriteString("# Deployment Investigation\n\n")
-	sb.WriteString("## Context\n")
-	sb.WriteString(fmt.Sprintf("- Deployment ID: %s\n", deployment.ID))
-	sb.WriteString(fmt.Sprintf("- Scenario: %s\n", m.Scenario.ID))
-	sb.WriteString(fmt.Sprintf("- Deployment Status: %s\n", deployment.Status))
+	if errorSummary != "" {
+		sb.WriteString(fmt.Sprintf("Error: %s\n\n", errorSummary))
+	}
+
+	sb.WriteString("SSH into the VPS, check logs, identify root cause, and report findings.\n\n")
 
 	if autoFix {
-		sb.WriteString("- Operation Mode: **auto-fix** (you may attempt safe fixes)\n")
+		sb.WriteString("Mode: auto-fix (you may attempt safe fixes after diagnosis)\n")
 	} else {
-		sb.WriteString("- Operation Mode: **report-only** (analyze only, do not make changes)\n")
+		sb.WriteString("Mode: report-only (analyze and report, do not make changes)\n")
 	}
-	sb.WriteString("\n")
-
-	sb.WriteString("## Scope & Triage (read carefully)\n")
-	sb.WriteString("You are investigating a deployment failure. There are TWO possible root domains:\n")
-	sb.WriteString("- **Deployment harness (scenario-to-cloud)**: orchestration, bundling, VPS setup, deployment steps, or CLI/API wiring.\n")
-	sb.WriteString(fmt.Sprintf("- **Target scenario (%s)**: the application being deployed and its runtime behavior.\n", m.Scenario.ID))
-	sb.WriteString("\n")
-	sb.WriteString("### Triage Rule\n")
-	sb.WriteString("First determine which domain is responsible using evidence (logs, stack traces, error messages, service names, file paths).\n")
-	sb.WriteString("Only then proceed with fixes in that domain. Do not jump scopes without explicit evidence.\n")
-	sb.WriteString("\n")
-	sb.WriteString("### Guardrails (mandatory)\n")
-	sb.WriteString("- State the chosen domain explicitly before taking any corrective action.\n")
-	sb.WriteString("- Cite at least two concrete evidence points (paths, error strings, or service names) that justify the domain choice.\n")
-	sb.WriteString("- If evidence is mixed, stop and request clarification instead of guessing.\n")
-	sb.WriteString("\n")
-
-	sb.WriteString("## Diagnostic Questions\n")
-	sb.WriteString("As you investigate, answer these questions to identify the root cause:\n\n")
-	sb.WriteString("1. **Is the failing dependency in the manifest?** Check the deployment-manifest context attachment\n")
-	sb.WriteString("2. **If yes, did the resource/scenario start step succeed?** Check `~/.vrooli/logs/` for resource and scenario start logs\n")
-	sb.WriteString("3. **If no, is it declared in the scenario's service.json?** Check `<workdir>/scenarios/<scenario>/.vrooli/service.json`\n")
-	sb.WriteString("4. **Is the Vrooli CLI working?** Run `vrooli --version` and `vrooli resource list`\n")
-	sb.WriteString("5. **Is this a configuration issue or transient failure?** Would a simple restart fix it, or is there a deeper problem?\n\n")
-
-	sb.WriteString("## Safety Rules (strict)\n")
-	sb.WriteString("- Never run `systemctl status` without `--lines=<N>` or `--no-pager --full` and a filtering step. Prefer `systemctl status <service> --no-pager --full --lines=50` or `systemctl show -p ActiveState,SubState <service>`.\n")
-	sb.WriteString("- Do NOT run `journalctl` above 200 lines. Always list log sizes first, then `tail -n 200` at most.\n")
-	sb.WriteString("- Validate SSH command quoting by echoing the target path before executing potentially expansive commands (find, cat, grep, tar, etc.).\n")
-	sb.WriteString("- Before any log/systemd query, complete the Safe-Command Checklist below.\n\n")
-
-	sb.WriteString("## Safe-Command Checklist (confirm before any log/systemd query)\n")
-	sb.WriteString("- Max lines: <= 200\n")
-	sb.WriteString("- Max bytes: <= 512KB\n")
-	sb.WriteString("- Filter scope: single unit/path (no global/system-wide listings)\n\n")
-
-	sb.WriteString("## Your Task\n")
-	sb.WriteString("1. SSH into the VPS to investigate the deployment failure (see vps-connection context)\n")
-	sb.WriteString("2. Run a log inventory first and report a structured list with sizes + warnings for any file > 1MB:\n")
-	sb.WriteString("   `LOG_DIR=\"$HOME/.vrooli/logs\"; echo -e \"path\\tsize_bytes\\tmodified\"; find \"$LOG_DIR\" -maxdepth 3 -type f \\( -name \"*.log\" -o -name \"*.txt\" -o -name \"*.out\" \\) -printf '%p\\t%s\\t%TY-%Tm-%Td %TH:%TM\\n' | sort -nr -k2 | head -200`\n")
-	sb.WriteString("3. Check relevant logs:\n")
-	sb.WriteString("   - Vrooli logs: `~/.vrooli/logs/` (resource and scenario logs)\n")
-	sb.WriteString("   - `journalctl -u <service> --no-pager -n 200` for systemd services (never above 200 lines)\n")
-	sb.WriteString("   - Docker logs: `docker logs <container>`\n")
-	sb.WriteString("   - Application logs in the workdir\n")
-	sb.WriteString("   - Use bounded log commands; avoid unbounded `find` or `cat` across log trees\n")
-	sb.WriteString("     Example safe listing:\n")
-	sb.WriteString("     `find \"$HOME/.vrooli/logs\" -maxdepth 3 -type f \\( -name \"*.log\" -o -name \"*.txt\" -o -name \"*.out\" \\) -printf '%p\\t%s\\t%TY-%Tm-%Td %TH:%TM\\n' | sort -nr -k2 | head -200`\n")
-	sb.WriteString("     Example safe read: `tail -n 200 <file>` or `head -n 200 <file>`\n")
-	sb.WriteString("4. Verify service status and port bindings:\n")
-	sb.WriteString("   - `systemctl status <service> --no-pager --full --lines=50` or `systemctl show -p ActiveState,SubState <service>`\n")
-	sb.WriteString("   - `docker ps -a`\n")
-	sb.WriteString("   - `ss -tlnp | grep <port>`\n")
-	sb.WriteString("5. Check system resources:\n")
-	sb.WriteString("   - `df -h` for disk space\n")
-	sb.WriteString("   - `free -m` for memory\n")
-	sb.WriteString("   - `top -bn1 | head -20` for CPU usage\n")
-	sb.WriteString("6. Answer the diagnostic questions above\n")
-	sb.WriteString("7. Identify the root cause of the failure\n")
-
-	if autoFix {
-		sb.WriteString("8. If safe, attempt to fix the issue (restart services, clear disk, etc.)\n")
-	}
-	sb.WriteString("\n")
-
-	sb.WriteString("## Report Format\n")
-	sb.WriteString("Please provide a structured report with:\n\n")
-	sb.WriteString("### Scope Decision\n")
-	sb.WriteString("- **Chosen domain**: scenario-to-cloud OR target scenario\n")
-	sb.WriteString("- **Evidence**: at least two concrete evidence points\n")
-	sb.WriteString("- **Confidence**: high/medium/low\n\n")
-	sb.WriteString("### Root Cause\n")
-	sb.WriteString("What caused the deployment to fail. Be specific - distinguish between symptoms (e.g., \"postgres not running\") and actual causes (e.g., \"postgres not in manifest\" or \"postgres start command failed\").\n\n")
-	sb.WriteString("### Evidence\n")
-	sb.WriteString("Logs, error messages, and system state that support your conclusion. Include:\n")
-	sb.WriteString("- Answers to the diagnostic questions above\n")
-	sb.WriteString("- Relevant log snippets\n")
-	sb.WriteString("- Command outputs that confirm the issue\n\n")
-	sb.WriteString("### Impact\n")
-	sb.WriteString("What is broken or not working as a result.\n\n")
-	sb.WriteString("### Immediate Fix\n")
-	sb.WriteString("Commands to run RIGHT NOW on this VPS to restore service. These are hotfixes to unblock the current deployment.")
-	if autoFix {
-		sb.WriteString(" (If you already applied fixes, list what you did.)")
-	}
-	sb.WriteString("\n\n")
-	sb.WriteString("### Permanent Fix\n")
-	sb.WriteString("What needs to change in code, configuration, or the deployment manifest so this issue does NOT occur on fresh VPS deployments. This might include:\n")
-	sb.WriteString("- Adding missing dependencies to `.vrooli/service.json`\n")
-	sb.WriteString("- Fixing the manifest generation process\n")
-	sb.WriteString("- Adding health checks or startup delays\n")
-	sb.WriteString("- Fixing the VPS setup/installation process\n\n")
-	sb.WriteString("### Prevention\n")
-	sb.WriteString("Recommendations for monitoring, alerts, or deployment pipeline improvements that would catch this issue earlier or prevent it entirely.\n")
 
 	basePrompt := sb.String()
 
-	// Build context attachments based on selection
+	// Build context attachments
 	var attachments []*domainpb.ContextAttachment
 
-	// Error Information
+	// Task Metadata (high priority - read first)
+	if containsContext(includeContexts, "task-metadata") {
+		attachments = append(attachments, buildTaskMetadataAttachment(deployment, &m, autoFix))
+	}
+
+	// Error Information (high priority)
 	if containsContext(includeContexts, "error-info") {
-		var errorContent strings.Builder
-		if deployment.ErrorStep != nil {
-			errorContent.WriteString(fmt.Sprintf("Failed Step: %s\n", *deployment.ErrorStep))
-		}
-		if deployment.ErrorMessage != nil {
-			errorContent.WriteString(fmt.Sprintf("Error Message:\n%s", *deployment.ErrorMessage))
-		}
-		if errorContent.Len() > 0 {
-			attachments = append(attachments, &domainpb.ContextAttachment{
-				Type:    "note",
-				Key:     "error-info",
-				Tags:    []string{"error", "diagnosis"},
-				Label:   "Error Information",
-				Content: errorContent.String(),
-			})
+		if att := buildErrorInfoAttachment(deployment); att != nil {
+			attachments = append(attachments, att)
 		}
 	}
 
-	// Deployment Manifest
-	if containsContext(includeContexts, "deployment-manifest") {
-		manifestJSON, _ := json.MarshalIndent(m, "", "  ")
-		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "deployment-manifest",
-			Tags:    []string{"config", "dependencies"},
-			Label:   "Deployment Manifest",
-			Content: string(manifestJSON),
-		})
+	// Safety Rules (high priority - must read before running commands)
+	if containsContext(includeContexts, "safety-rules") {
+		attachments = append(attachments, buildSafetyRulesAttachment())
 	}
 
-	// VPS Connection Details
+	// Diagnostic Checklist (medium priority)
+	if containsContext(includeContexts, "diagnostic-checklist") {
+		attachments = append(attachments, buildDiagnosticChecklistAttachment())
+	}
+
+	// Output Format (medium priority)
+	if containsContext(includeContexts, "output-format") {
+		attachments = append(attachments, buildOutputFormatAttachment(autoFix))
+	}
+
+	// VPS Connection (medium priority)
 	if containsContext(includeContexts, "vps-connection") {
-		var vpsContent strings.Builder
-		vpsContent.WriteString("SSH Command:\n")
-		vpsContent.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
-		vpsContent.WriteString(fmt.Sprintf("Host: %s\n", vps.Host))
-		vpsContent.WriteString(fmt.Sprintf("User: %s\n", sshUser))
-		vpsContent.WriteString(fmt.Sprintf("Port: %d\n", sshPort))
-		vpsContent.WriteString(fmt.Sprintf("Key Path: %s\n", vps.KeyPath))
-		if vps.Workdir != "" {
-			vpsContent.WriteString(fmt.Sprintf("Workdir: %s\n", vps.Workdir))
-		}
-		if m.Edge.Domain != "" {
-			vpsContent.WriteString(fmt.Sprintf("Domain: %s\n", m.Edge.Domain))
-		}
-		if len(m.Ports) > 0 {
-			vpsContent.WriteString("\nExpected Ports:\n")
-			for name, port := range m.Ports {
-				vpsContent.WriteString(fmt.Sprintf("- %s: %d\n", name, port))
-			}
-		}
-		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "vps-connection",
-			Tags:    []string{"ssh", "access"},
-			Label:   "VPS Connection Details",
-			Content: vpsContent.String(),
-		})
+		attachments = append(attachments, buildVPSConnectionAttachment(vps, sshUser, sshPort, &m))
 	}
 
-	// Deployment History
+	// Deployment Manifest (medium priority)
+	if containsContext(includeContexts, "deployment-manifest") {
+		attachments = append(attachments, buildManifestAttachment(&m))
+	}
+
+	// Deploy Results (medium priority)
+	if containsContext(includeContexts, "deploy-results") && deployment.DeployResult.Valid {
+		attachments = append(attachments, buildDeployResultsAttachment(deployment))
+	}
+
+	// Deployment History (low priority)
 	if containsContext(includeContexts, "deployment-history") && deployment.DeploymentHistory.Valid {
 		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "deployment-history",
-			Tags:    []string{"timeline", "events"},
-			Label:   "Deployment History",
-			Content: string(deployment.DeploymentHistory.Data),
+			Type:     "note",
+			Key:      "deployment-history",
+			Tags:     []string{"timeline", "events"},
+			Label:    "Deployment History",
+			Summary:  "Timeline of deployment events",
+			Format:   "json",
+			Priority: "low",
+			Content:  string(deployment.DeploymentHistory.Data),
 		})
 	}
 
-	// Preflight Results
+	// Preflight Results (low priority)
 	if containsContext(includeContexts, "preflight-results") && deployment.PreflightResult.Valid {
 		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "preflight-results",
-			Tags:    []string{"preflight", "checks"},
-			Label:   "Preflight Results",
-			Content: string(deployment.PreflightResult.Data),
+			Type:     "note",
+			Key:      "preflight-results",
+			Tags:     []string{"preflight", "checks"},
+			Label:    "Preflight Results",
+			Summary:  "Pre-deployment validation checks",
+			Format:   "json",
+			Priority: "low",
+			Content:  string(deployment.PreflightResult.Data),
 		})
 	}
 
-	// Setup Results
+	// Setup Results (low priority)
 	if containsContext(includeContexts, "setup-results") && deployment.SetupResult.Valid {
 		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "setup-results",
-			Tags:    []string{"setup", "installation"},
-			Label:   "Setup Results",
-			Content: string(deployment.SetupResult.Data),
+			Type:     "note",
+			Key:      "setup-results",
+			Tags:     []string{"setup", "installation"},
+			Label:    "Setup Results",
+			Summary:  "VPS setup and installation outputs",
+			Format:   "json",
+			Priority: "low",
+			Content:  string(deployment.SetupResult.Data),
 		})
 	}
 
-	// Deploy Results
-	if containsContext(includeContexts, "deploy-results") && deployment.DeployResult.Valid {
-		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "deploy-results",
-			Tags:    []string{"deployment", "execution"},
-			Label:   "Deploy Results",
-			Content: string(deployment.DeployResult.Data),
-		})
-	}
-
-	// Architecture Guide
+	// Architecture Guide (low priority - reference material)
 	if containsContext(includeContexts, "architecture-guide") {
-		var archContent strings.Builder
-		archContent.WriteString("## Vrooli Deployment Architecture\n")
-		archContent.WriteString("Understanding how Vrooli deployments work will help you diagnose the root cause:\n\n")
-		archContent.WriteString("### How Dependencies Work\n")
-		archContent.WriteString("1. Each scenario declares its dependencies in `.vrooli/service.json` under `dependencies.resources` and `dependencies.scenarios`\n")
-		archContent.WriteString("2. The `scenario-dependency-analyzer` scans the scenario and its dependencies to build the manifest\n")
-		archContent.WriteString("3. The deployment pipeline (`vps_deploy.go`) executes these steps in order:\n")
-		archContent.WriteString("   - Install and configure Caddy (reverse proxy)\n")
-		archContent.WriteString("   - Start each resource in `manifest.dependencies.resources` via `vrooli resource start <name>`\n")
-		archContent.WriteString("   - Start each dependent scenario in `manifest.dependencies.scenarios`\n")
-		archContent.WriteString("   - Start the target scenario with port assignments\n")
-		archContent.WriteString("   - Run health checks\n\n")
-		archContent.WriteString("### Common Failure Patterns\n")
-		archContent.WriteString("- **Resource missing from manifest**: The scenario's `.vrooli/service.json` may not declare the resource, or the analyzer didn't pick it up\n")
-		archContent.WriteString("- **Resource in manifest but failed to start**: The `vrooli resource start` command failed on the VPS (check logs in `~/.vrooli/logs/`)\n")
-		archContent.WriteString("- **Resource started but not ready**: The scenario started before the resource was fully initialized (timing/health check issue)\n")
-		archContent.WriteString("- **VPS missing Vrooli installation**: The mini-Vrooli install may be incomplete or corrupted\n")
-
-		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "architecture-guide",
-			Tags:    []string{"documentation", "reference"},
-			Label:   "Vrooli Architecture Guide",
-			Content: archContent.String(),
-		})
+		attachments = append(attachments, buildArchitectureGuideAttachment())
 	}
 
-	// User Note
+	// User Note (medium priority if provided)
 	if note != "" {
 		attachments = append(attachments, &domainpb.ContextAttachment{
-			Type:    "note",
-			Key:     "user-note",
-			Tags:    []string{"user", "context"},
-			Label:   "User Note",
-			Content: note,
+			Type:     "note",
+			Key:      "user-note",
+			Tags:     []string{"user", "context"},
+			Label:    "User Note",
+			Summary:  "Additional context from the user",
+			Format:   "text",
+			Priority: "medium",
+			Content:  note,
 		})
 	}
 
 	return basePrompt, attachments, nil
+}
+
+// extractErrorSummary extracts a one-line summary of the error.
+func extractErrorSummary(deployment *domain.Deployment) string {
+	if deployment.ErrorMessage == nil || *deployment.ErrorMessage == "" {
+		return ""
+	}
+
+	msg := *deployment.ErrorMessage
+
+	// Try to extract the most relevant part
+	// Common patterns: "Caddy ACME validation...", "Cannot negotiate ALPN..."
+	if idx := strings.Index(msg, "Cannot negotiate"); idx != -1 {
+		// Extract the specific error
+		end := strings.Index(msg[idx:], "\"}")
+		if end != -1 {
+			return msg[idx : idx+end]
+		}
+		return msg[idx:min(idx+80, len(msg))]
+	}
+
+	// For other errors, take first line or first 100 chars
+	if idx := strings.Index(msg, "\n"); idx != -1 {
+		return msg[:idx]
+	}
+	if len(msg) > 100 {
+		return msg[:100] + "..."
+	}
+	return msg
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// buildTaskMetadataAttachment creates the task metadata context.
+func buildTaskMetadataAttachment(deployment *domain.Deployment, m *domain.CloudManifest, autoFix bool) *domainpb.ContextAttachment {
+	mode := "report-only"
+	if autoFix {
+		mode = "auto-fix"
+	}
+
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("deployment_id: %s\n", deployment.ID))
+	content.WriteString(fmt.Sprintf("scenario: %s\n", m.Scenario.ID))
+	content.WriteString(fmt.Sprintf("status: %s\n", deployment.Status))
+	content.WriteString(fmt.Sprintf("mode: %s\n", mode))
+	if deployment.ErrorStep != nil {
+		content.WriteString(fmt.Sprintf("failed_step: %s\n", *deployment.ErrorStep))
+	}
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "task-metadata",
+		Tags:     []string{"metadata", "task"},
+		Label:    "Task Metadata",
+		Summary:  fmt.Sprintf("Deployment %s failed at %s", m.Scenario.ID, safeDeref(deployment.ErrorStep, "unknown step")),
+		Format:   "yaml",
+		Priority: "high",
+		Content:  content.String(),
+	}
+}
+
+func safeDeref(s *string, def string) string {
+	if s == nil {
+		return def
+	}
+	return *s
+}
+
+// buildErrorInfoAttachment creates the error information context with summarization.
+func buildErrorInfoAttachment(deployment *domain.Deployment) *domainpb.ContextAttachment {
+	var content strings.Builder
+	var summary string
+
+	if deployment.ErrorStep != nil {
+		content.WriteString(fmt.Sprintf("Failed Step: %s\n\n", *deployment.ErrorStep))
+	}
+
+	if deployment.ErrorMessage != nil && *deployment.ErrorMessage != "" {
+		msg := *deployment.ErrorMessage
+
+		// Parse and summarize the error
+		summary = extractErrorSummary(deployment)
+
+		// Check if it's a structured error with logs
+		if strings.Contains(msg, " | ") {
+			// Split pipe-separated log entries for readability
+			content.WriteString("Error Details:\n")
+			parts := strings.Split(msg, " | ")
+			for _, part := range parts {
+				content.WriteString(fmt.Sprintf("  - %s\n", strings.TrimSpace(part)))
+			}
+		} else {
+			content.WriteString(fmt.Sprintf("Error Message:\n%s", msg))
+		}
+	}
+
+	if content.Len() == 0 {
+		return nil
+	}
+
+	if summary == "" {
+		summary = "Deployment error details"
+	}
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "error-info",
+		Tags:     []string{"error", "diagnosis"},
+		Label:    "Error Information",
+		Summary:  summary,
+		Format:   "text",
+		Priority: "high",
+		Content:  content.String(),
+	}
+}
+
+// buildSafetyRulesAttachment creates the safety rules context.
+func buildSafetyRulesAttachment() *domainpb.ContextAttachment {
+	content := `Before running any log or systemd query, verify:
+- Max lines: <= 200
+- Max bytes: <= 512KB
+- Filter scope: single unit/path (no global/system-wide listings)
+
+Command Guidelines:
+- systemctl: Always use --no-pager --full --lines=50 or systemctl show -p ActiveState,SubState
+- journalctl: Never exceed 200 lines. Use -n 200 max
+- Log files: Use tail -n 200 or head -n 200, never unbounded cat
+- SSH: Echo target paths before executing find/cat/grep/tar
+
+Example safe commands:
+- systemctl status <service> --no-pager --full --lines=50
+- journalctl -u <service> --no-pager -n 200
+- find "$HOME/.vrooli/logs" -maxdepth 3 -type f -name "*.log" -printf '%p\t%s\n' | head -200
+- tail -n 200 <logfile>`
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "safety-rules",
+		Tags:     []string{"rules", "safety"},
+		Label:    "Safety Rules",
+		Summary:  "Command safety limits: max 200 lines, 512KB, bounded queries only",
+		Format:   "text",
+		Priority: "high",
+		Content:  content,
+	}
+}
+
+// buildDiagnosticChecklistAttachment creates the diagnostic checklist.
+func buildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
+	content := `Answer these questions during investigation:
+
+1. Is the failing dependency in the manifest?
+   → Check deployment-manifest attachment
+
+2. If yes, did the resource/scenario start step succeed?
+   → Check ~/.vrooli/logs/ for resource and scenario start logs
+
+3. If no, is it declared in the scenario's service.json?
+   → Check <workdir>/scenarios/<scenario>/.vrooli/service.json
+
+4. Is the Vrooli CLI working?
+   → Run: vrooli --version && vrooli resource list
+
+5. Is this a configuration issue or transient failure?
+   → Would a restart fix it, or is there a deeper problem?
+
+6. What domain does this belong to?
+   → scenario-to-cloud (deployment harness) OR target scenario (the app)?
+   → Cite specific evidence (paths, error strings, service names)`
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "diagnostic-checklist",
+		Tags:     []string{"checklist", "diagnosis"},
+		Label:    "Diagnostic Checklist",
+		Summary:  "6 questions to identify root cause and responsible domain",
+		Format:   "text",
+		Priority: "medium",
+		Content:  content,
+	}
+}
+
+// buildOutputFormatAttachment creates the output format specification.
+func buildOutputFormatAttachment(autoFix bool) *domainpb.ContextAttachment {
+	var content strings.Builder
+	content.WriteString(`Report structure:
+
+### Scope Decision
+- Chosen domain: scenario-to-cloud OR target scenario
+- Evidence: at least two concrete evidence points
+- Confidence: high/medium/low
+
+### Root Cause
+What caused the failure. Distinguish symptoms from causes.
+Example: "postgres not running" is a symptom; "postgres not in manifest" is a cause.
+
+### Evidence
+- Answers to diagnostic questions
+- Relevant log snippets
+- Command outputs confirming the issue
+
+### Impact
+What is broken or not working.
+
+### Immediate Fix
+Commands to run on this VPS to restore service (hotfix).`)
+
+	if autoFix {
+		content.WriteString(`
+If you applied fixes, list what you did.`)
+	}
+
+	content.WriteString(`
+
+### Permanent Fix
+Code/configuration changes needed so this doesn't recur:
+- Missing dependencies in .vrooli/service.json
+- Manifest generation fixes
+- Health checks or startup delays
+- VPS setup process fixes
+
+### Prevention
+Monitoring, alerts, or pipeline improvements to catch this earlier.`)
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "output-format",
+		Tags:     []string{"format", "report"},
+		Label:    "Report Format",
+		Summary:  "Required sections: Scope, Root Cause, Evidence, Impact, Fixes, Prevention",
+		Format:   "markdown",
+		Priority: "medium",
+		Content:  content.String(),
+	}
+}
+
+// buildVPSConnectionAttachment creates the VPS connection details.
+func buildVPSConnectionAttachment(vps *domain.ManifestVPS, sshUser string, sshPort int, m *domain.CloudManifest) *domainpb.ContextAttachment {
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	content.WriteString(fmt.Sprintf("host: %s\n", vps.Host))
+	content.WriteString(fmt.Sprintf("user: %s\n", sshUser))
+	content.WriteString(fmt.Sprintf("port: %d\n", sshPort))
+	content.WriteString(fmt.Sprintf("key_path: %s\n", vps.KeyPath))
+	if vps.Workdir != "" {
+		content.WriteString(fmt.Sprintf("workdir: %s\n", vps.Workdir))
+	}
+	if m.Edge.Domain != "" {
+		content.WriteString(fmt.Sprintf("domain: %s\n", m.Edge.Domain))
+	}
+	if len(m.Ports) > 0 {
+		content.WriteString("\nports:\n")
+		for name, port := range m.Ports {
+			content.WriteString(fmt.Sprintf("  %s: %d\n", name, port))
+		}
+	}
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "vps-connection",
+		Tags:     []string{"ssh", "access"},
+		Label:    "VPS Connection",
+		Summary:  fmt.Sprintf("SSH to %s@%s:%d", sshUser, vps.Host, sshPort),
+		Format:   "yaml",
+		Priority: "medium",
+		Content:  content.String(),
+	}
+}
+
+// buildManifestAttachment creates the deployment manifest context with summary.
+func buildManifestAttachment(m *domain.CloudManifest) *domainpb.ContextAttachment {
+	// Build summary of key manifest details
+	var summaryParts []string
+	if len(m.Dependencies.Resources) > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("resources: %s", strings.Join(m.Dependencies.Resources, ", ")))
+	}
+	if len(m.Ports) > 0 {
+		var portStrs []string
+		for name, port := range m.Ports {
+			portStrs = append(portStrs, fmt.Sprintf("%s=%d", name, port))
+		}
+		summaryParts = append(summaryParts, strings.Join(portStrs, ", "))
+	}
+	summary := strings.Join(summaryParts, "; ")
+	if summary == "" {
+		summary = "Deployment configuration and dependencies"
+	}
+
+	manifestJSON, _ := json.MarshalIndent(m, "", "  ")
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "deployment-manifest",
+		Tags:     []string{"config", "dependencies"},
+		Label:    "Deployment Manifest",
+		Summary:  summary,
+		Format:   "json",
+		Priority: "medium",
+		Content:  string(manifestJSON),
+	}
+}
+
+// buildDeployResultsAttachment creates the deploy results context with summarization.
+func buildDeployResultsAttachment(deployment *domain.Deployment) *domainpb.ContextAttachment {
+	// Parse the deploy result to extract key information
+	var result struct {
+		OK         bool   `json:"ok"`
+		Error      string `json:"error"`
+		FailedStep string `json:"failed_step"`
+		Timestamp  string `json:"timestamp"`
+		Steps      []struct {
+			ID          string `json:"id"`
+			Title       string `json:"title"`
+			Description string `json:"description"`
+			Command     string `json:"command"`
+		} `json:"steps"`
+	}
+
+	rawData := string(deployment.DeployResult.Data)
+	if err := json.Unmarshal(deployment.DeployResult.Data, &result); err != nil {
+		// If we can't parse it, return raw data
+		return &domainpb.ContextAttachment{
+			Type:     "note",
+			Key:      "deploy-results",
+			Tags:     []string{"deployment", "execution"},
+			Label:    "Deploy Results",
+			Summary:  "Raw deployment execution output",
+			Format:   "json",
+			Priority: "medium",
+			Content:  rawData,
+		}
+	}
+
+	// Build a structured, readable summary
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("status: %s\n", boolToStatus(result.OK)))
+	if result.FailedStep != "" {
+		content.WriteString(fmt.Sprintf("failed_step: %s\n", result.FailedStep))
+	}
+	if result.Timestamp != "" {
+		content.WriteString(fmt.Sprintf("timestamp: %s\n", result.Timestamp))
+	}
+	content.WriteString("\n")
+
+	// Summarize the error
+	if result.Error != "" {
+		content.WriteString("error_summary:\n")
+		// Split pipe-separated log entries
+		if strings.Contains(result.Error, " | ") {
+			parts := strings.Split(result.Error, " | ")
+			for _, part := range parts {
+				content.WriteString(fmt.Sprintf("  - %s\n", strings.TrimSpace(part)))
+			}
+		} else {
+			content.WriteString(fmt.Sprintf("  %s\n", result.Error))
+		}
+		content.WriteString("\n")
+	}
+
+	// List steps with their status
+	if len(result.Steps) > 0 {
+		content.WriteString("steps_executed:\n")
+		for _, step := range result.Steps {
+			status := "✓"
+			if step.ID == result.FailedStep {
+				status = "✗ FAILED"
+			}
+			content.WriteString(fmt.Sprintf("  - [%s] %s: %s\n", status, step.ID, step.Title))
+		}
+	}
+
+	summary := fmt.Sprintf("Failed at %s", result.FailedStep)
+	if result.FailedStep == "" {
+		summary = "Deployment execution results"
+	}
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "deploy-results",
+		Tags:     []string{"deployment", "execution"},
+		Label:    "Deploy Results",
+		Summary:  summary,
+		Format:   "yaml",
+		Priority: "medium",
+		Content:  content.String(),
+	}
+}
+
+func boolToStatus(ok bool) string {
+	if ok {
+		return "success"
+	}
+	return "failed"
+}
+
+// buildArchitectureGuideAttachment creates the architecture reference.
+func buildArchitectureGuideAttachment() *domainpb.ContextAttachment {
+	content := `Vrooli Deployment Architecture
+
+Dependencies Flow:
+1. Scenario declares deps in .vrooli/service.json (dependencies.resources, dependencies.scenarios)
+2. scenario-dependency-analyzer builds the manifest
+3. vps_deploy.go executes: Caddy setup → Resources → Dependent scenarios → Target scenario → Health checks
+
+Common Failure Patterns:
+- Resource missing from manifest: Check .vrooli/service.json or analyzer
+- Resource in manifest but failed: Check ~/.vrooli/logs/ for start errors
+- Resource started but not ready: Timing/health check issue
+- VPS missing Vrooli: Mini-install incomplete or corrupted
+
+Scope Determination:
+- scenario-to-cloud issues: bundling, VPS setup, deployment steps, CLI/API wiring
+- Target scenario issues: application runtime, configuration, dependencies`
+
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Key:      "architecture-guide",
+		Tags:     []string{"documentation", "reference"},
+		Label:    "Architecture Guide",
+		Summary:  "Vrooli deployment flow and common failure patterns",
+		Format:   "markdown",
+		Priority: "low",
+		Content:  content,
+	}
 }
 
 // buildFixPrompt constructs the prompt for applying fixes from an investigation.

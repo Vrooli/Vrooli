@@ -32,6 +32,7 @@ type ProbeResult struct {
 // Config controls probe behavior.
 type Config struct {
 	Timeout time.Duration
+	Port    int
 }
 
 // Option configures the probe service.
@@ -41,6 +42,13 @@ type Option func(*Config)
 func WithTimeout(timeout time.Duration) Option {
 	return func(cfg *Config) {
 		cfg.Timeout = timeout
+	}
+}
+
+// WithPort overrides the default TLS port (443).
+func WithPort(port int) Option {
+	return func(cfg *Config) {
+		cfg.Port = port
 	}
 }
 
@@ -69,7 +77,11 @@ func (s *DefaultService) Probe(ctx context.Context, domain string) (ProbeResult,
 		defer cancel()
 	}
 
-	addr := net.JoinHostPort(domain, "443")
+	port := 443
+	if s.config.Port > 0 {
+		port = s.config.Port
+	}
+	addr := net.JoinHostPort(domain, fmt.Sprintf("%d", port))
 	dialer := &net.Dialer{Timeout: s.config.Timeout}
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
 		ServerName:         domain,

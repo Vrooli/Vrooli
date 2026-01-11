@@ -1587,6 +1587,14 @@ export type CaddyControlResponse = {
   timestamp: string;
 };
 
+export type ALPNCheck = {
+  status: "pass" | "warn";
+  message: string;
+  hint?: string;
+  protocol?: string;
+  error?: string;
+};
+
 export type TLSInfoResponse = {
   ok: boolean;
   domain: string;
@@ -1599,6 +1607,7 @@ export type TLSInfoResponse = {
   serial_number?: string;
   sans?: string[];
   error?: string;
+  alpn?: ALPNCheck;
   timestamp: string;
 };
 
