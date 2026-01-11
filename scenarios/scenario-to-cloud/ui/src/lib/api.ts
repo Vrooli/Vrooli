@@ -1073,10 +1073,12 @@ export type PortBinding = {
 
 export type TLSInfo = {
   valid: boolean;
+  validation?: string;
   issuer?: string;
   expires?: string;
   days_remaining?: number;
   error?: string;
+  alpn?: ALPNCheck;
 };
 
 export type CaddyRoute = {
@@ -1599,6 +1601,7 @@ export type TLSInfoResponse = {
   ok: boolean;
   domain: string;
   valid: boolean;
+  validation?: string;
   issuer?: string;
   subject?: string;
   not_before?: string;

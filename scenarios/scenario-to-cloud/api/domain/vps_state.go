@@ -98,11 +98,22 @@ type CaddyState struct {
 
 // TLSInfo contains TLS certificate information.
 type TLSInfo struct {
-	Valid         bool   `json:"valid"`
-	Issuer        string `json:"issuer,omitempty"`
-	Expires       string `json:"expires,omitempty"`
-	DaysRemaining int    `json:"days_remaining,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Valid         bool       `json:"valid"`
+	Validation    string     `json:"validation,omitempty"`
+	Issuer        string     `json:"issuer,omitempty"`
+	Expires       string     `json:"expires,omitempty"`
+	DaysRemaining int        `json:"days_remaining,omitempty"`
+	Error         string     `json:"error,omitempty"`
+	ALPN          *ALPNCheck `json:"alpn,omitempty"`
+}
+
+// ALPNCheck captures TLS-ALPN readiness details.
+type ALPNCheck struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	Hint     string `json:"hint,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // CaddyRoute represents a route in the Caddyfile.

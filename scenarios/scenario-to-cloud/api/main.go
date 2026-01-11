@@ -62,6 +62,10 @@ type Server struct {
 	dnsService dns.Service
 	// Seam: TLS probe service (defaults to tlsinfo.NewService(...))
 	tlsService tlsinfo.Service
+	// Seam: TLS ALPN runner (defaults to tlsinfo.DefaultALPNRunner)
+	tlsALPNRunner tlsinfo.ALPNRunner
+	// Seam: Deployment repository (defaults to persistence.Repository)
+	deploymentRepo DeploymentRepository
 }
 
 // NewServer initializes configuration, database, and routes
@@ -112,12 +116,14 @@ func NewServer() (*Server, error) {
 	secretsGenerator := secrets.NewGenerator()
 	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
 	tlsService := tlsinfo.NewService(tlsinfo.WithTimeout(10 * time.Second))
+	tlsALPNRunner := tlsinfo.DefaultALPNRunner
 
 	srv := &Server{
 		config:           cfg,
 		router:           mux.NewRouter(),
 		db:               db,
 		repo:             repo,
+		deploymentRepo:   repo,
 		progressHub:      progressHub,
 		historyRecorder:  repo,
 		agentSvc:         agentSvc,
@@ -128,6 +134,7 @@ func NewServer() (*Server, error) {
 		secretsGenerator: secretsGenerator,
 		dnsService:       dnsService,
 		tlsService:       tlsService,
+		tlsALPNRunner:    tlsALPNRunner,
 	}
 
 	// Initialize the deployment orchestrator with all dependencies

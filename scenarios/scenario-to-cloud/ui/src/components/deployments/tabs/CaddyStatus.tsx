@@ -498,6 +498,31 @@ function TLSStatus({ tls }: TLSStatusProps) {
           </span>
         </div>
       )}
+      {tls.alpn && (
+        <div className="rounded border border-white/5 bg-slate-900/40 p-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">TLS-ALPN:</span>
+            <span
+              className={cn(
+                tls.alpn.status === "pass"
+                  ? "text-emerald-400"
+                  : "text-amber-400"
+              )}
+            >
+              {tls.alpn.status === "pass" ? "Ready" : "Check"}
+            </span>
+          </div>
+          <div className="mt-1 text-slate-400">{tls.alpn.message}</div>
+          {tls.alpn.protocol && (
+            <div className="mt-1 text-slate-500">
+              Protocol: {tls.alpn.protocol}
+            </div>
+          )}
+          {tls.alpn.hint && (
+            <div className="mt-1 text-slate-500">{tls.alpn.hint}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

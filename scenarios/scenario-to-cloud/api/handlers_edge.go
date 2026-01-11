@@ -75,6 +75,7 @@ type TLSInfoResponse struct {
 	OK            bool               `json:"ok"`
 	Domain        string             `json:"domain"`
 	Valid         bool               `json:"valid"`
+	Validation    string             `json:"validation,omitempty"`
 	Issuer        string             `json:"issuer,omitempty"`
 	Subject       string             `json:"subject,omitempty"`
 	NotBefore     string             `json:"not_before,omitempty"`
@@ -101,8 +102,17 @@ type TLSRenewResponse struct {
 func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
+	repo := s.deploymentRepo
+	if repo == nil {
+		repo = s.repo
+	}
+	if repo == nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+		return
+	}
+
 	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	deployment, err := repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
@@ -141,7 +151,16 @@ func (s *Server) handleDNSCheck(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDNSRecords(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	repo := s.deploymentRepo
+	if repo == nil {
+		repo = s.repo
+	}
+	if repo == nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+		return
+	}
+
+	deployment, err := repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
@@ -316,8 +335,17 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	repo := s.deploymentRepo
+	if repo == nil {
+		repo = s.repo
+	}
+	if repo == nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+		return
+	}
+
 	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	deployment, err := repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
@@ -373,8 +401,17 @@ func (s *Server) handleCaddyControl(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
+	repo := s.deploymentRepo
+	if repo == nil {
+		repo = s.repo
+	}
+	if repo == nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+		return
+	}
+
 	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	deployment, err := repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return
@@ -397,15 +434,14 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	alpnCheck := tlsinfo.RunALPNCheck(ctx, domainName, nil, nil, 3*time.Second, 4*time.Second)
-
 	resp := TLSInfoResponse{
-		Domain:    domainName,
-		ALPN:      &alpnCheck,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Domain:     domainName,
+		Validation: "time_only",
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
 	}
 
-	result, err := s.tlsService.Probe(ctx, domainName)
+	snapshot, err := tlsinfo.RunSnapshot(ctx, domainName, s.tlsService, s.tlsALPNRunner)
+	resp.ALPN = &snapshot.ALPN
 	if err != nil {
 		resp.OK = false
 		resp.Valid = false
@@ -414,14 +450,14 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp.Valid = result.Valid
-	resp.Issuer = result.Issuer
-	resp.Subject = result.Subject
-	resp.NotBefore = result.NotBefore
-	resp.NotAfter = result.NotAfter
-	resp.DaysRemaining = result.DaysRemaining
-	resp.SerialNumber = result.SerialNumber
-	resp.SANs = result.SANs
+	resp.Valid = snapshot.Probe.Valid
+	resp.Issuer = snapshot.Probe.Issuer
+	resp.Subject = snapshot.Probe.Subject
+	resp.NotBefore = snapshot.Probe.NotBefore
+	resp.NotAfter = snapshot.Probe.NotAfter
+	resp.DaysRemaining = snapshot.Probe.DaysRemaining
+	resp.SerialNumber = snapshot.Probe.SerialNumber
+	resp.SANs = snapshot.Probe.SANs
 	resp.OK = true
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
@@ -432,8 +468,17 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
+	repo := s.deploymentRepo
+	if repo == nil {
+		repo = s.repo
+	}
+	if repo == nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Deployment repository unavailable"})
+		return
+	}
+
 	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	deployment, err := repo.GetDeployment(r.Context(), id)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Message: "Failed to get deployment"})
 		return

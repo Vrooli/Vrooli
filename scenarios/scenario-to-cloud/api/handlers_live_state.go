@@ -11,6 +11,7 @@ import (
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 )
 
@@ -213,7 +214,7 @@ func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateRes
 	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	probe, err := s.tlsService.Probe(probeCtx, domainName)
+	snapshot, err := tlsinfo.RunSnapshot(probeCtx, domainName, s.tlsService, s.tlsALPNRunner)
 	if err != nil {
 		result.Caddy.TLS = domain.TLSInfo{
 			Valid: false,
@@ -223,10 +224,22 @@ func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateRes
 	}
 
 	result.Caddy.TLS = domain.TLSInfo{
-		Valid:         probe.Valid,
-		Issuer:        probe.Issuer,
-		Expires:       probe.NotAfter,
-		DaysRemaining: probe.DaysRemaining,
+		Valid:         snapshot.Probe.Valid,
+		Validation:    "time_only",
+		Issuer:        snapshot.Probe.Issuer,
+		Expires:       snapshot.Probe.NotAfter,
+		DaysRemaining: snapshot.Probe.DaysRemaining,
+		ALPN:          convertALPN(snapshot.ALPN),
+	}
+}
+
+func convertALPN(check tlsinfo.ALPNCheck) *domain.ALPNCheck {
+	return &domain.ALPNCheck{
+		Status:   string(check.Status),
+		Message:  check.Message,
+		Hint:     check.Hint,
+		Protocol: check.Protocol,
+		Error:    check.Error,
 	}
 }
 

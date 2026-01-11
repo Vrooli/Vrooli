@@ -146,6 +146,20 @@ type FakeSecretsGenerator struct {
 	mu    sync.Mutex
 }
 
+// FakeDeploymentRepo provides a controllable DeploymentRepository for testing.
+type FakeDeploymentRepo struct {
+	Deployment *domain.Deployment
+	Err        error
+}
+
+// GetDeployment returns the configured deployment or error.
+func (f *FakeDeploymentRepo) GetDeployment(_ context.Context, _ string) (*domain.Deployment, error) {
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	return f.Deployment, nil
+}
+
 // Ensure FakeSecretsGenerator implements secrets.GeneratorFunc at compile time.
 var _ secrets.GeneratorFunc = (*FakeSecretsGenerator)(nil)
 

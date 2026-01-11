@@ -601,7 +601,7 @@ func RunDeployWithProgress(
 
 	// Step: verify_origin - Verify reachability to origin directly (bypasses proxy)
 	emit("step_started", "verify_origin", "Verifying origin reachability")
-	if err := checkOriginHealth(ctx, manifest.Edge.Domain, manifest.Target.VPS.Host, 10*time.Second); err != nil {
+	if err := checkOriginHealthFunc(ctx, manifest.Edge.Domain, manifest.Target.VPS.Host, 10*time.Second); err != nil {
 		if manifest.Edge.Caddy.Enabled {
 			tlsConfig := buildCaddyTLSConfig(manifest, providedSecrets)
 			dns01Configured := tlsConfig.DNSProvider != "" && tlsConfig.DNSAPIToken != ""
@@ -832,6 +832,8 @@ func checkPublicHealth(ctx context.Context, url string, timeout time.Duration) e
 	}
 	return nil
 }
+
+var checkOriginHealthFunc = checkOriginHealth
 
 func checkOriginHealth(ctx context.Context, domain, host string, timeout time.Duration) error {
 	if strings.TrimSpace(domain) == "" {
