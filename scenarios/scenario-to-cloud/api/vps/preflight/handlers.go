@@ -53,7 +53,7 @@ func HandlePreflight(deps HandlerDeps) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 		defer cancel()
 
-		resp := Run(ctx, normalized, deps.DNSService, deps.SSHRunner)
+		resp := Run(ctx, normalized, deps.DNSService, deps.SSHRunner, RunOptions{})
 		resp.Issues = issues
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}

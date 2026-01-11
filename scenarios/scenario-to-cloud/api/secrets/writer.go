@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"scenario-to-cloud/ssh"
@@ -83,9 +84,10 @@ func WriteToVPS(
 	cfg ssh.Config,
 	workdir string,
 	secrets []GeneratedSecret,
+	userSecrets map[string]string,
 	scenarioID string,
 ) error {
-	if len(secrets) == 0 {
+	if len(secrets) == 0 && len(userSecrets) == 0 {
 		return nil // Nothing to write
 	}
 
@@ -99,6 +101,11 @@ func WriteToVPS(
 
 	// Build secrets map, preserving existing values for per_install_generated secrets
 	secretsMap := make(map[string]string)
+	for k, v := range existingSecrets {
+		if v != "" {
+			secretsMap[k] = v
+		}
+	}
 	for _, s := range secrets {
 		if existing, ok := existingSecrets[s.Key]; ok && existing != "" {
 			// PRESERVE existing secret - don't regenerate!
@@ -108,6 +115,12 @@ func WriteToVPS(
 			// New secret or empty - use generated value
 			secretsMap[s.Key] = s.Value
 		}
+	}
+	for key, value := range userSecrets {
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		secretsMap[key] = value
 	}
 
 	payload := JSONPayload{

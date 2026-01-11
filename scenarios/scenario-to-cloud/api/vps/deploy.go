@@ -114,6 +114,29 @@ func BuildPortEnvVars(ports domain.ManifestPorts) string {
 	return fmt.Sprintf("export %s &&", strings.Join(parts, " "))
 }
 
+func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) map[string]string {
+	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 || len(providedSecrets) == 0 {
+		return nil
+	}
+	out := make(map[string]string)
+	for _, secret := range manifest.Secrets.BundleSecrets {
+		if secret.Class != "user_prompt" {
+			continue
+		}
+		key := secret.Target.Name
+		if key == "" {
+			key = secret.ID
+		}
+		if value, ok := providedSecrets[key]; ok {
+			out[key] = value
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // ServiceJSON represents the structure of .vrooli/service.json
 type ServiceJSON struct {
 	Service struct {
@@ -240,7 +263,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 	workdir := manifest.Target.VPS.Workdir
 	uiPort := manifest.Ports["ui"]
 
-	caddyfile := BuildCaddyfile(manifest.Edge.Domain, uiPort)
+	caddyfile := BuildCaddyfile(manifest.Edge.Domain, uiPort, buildCaddyTLSConfig(manifest, nil))
 	caddyfilePath := "/etc/caddy/Caddyfile"
 
 	steps := []domain.VPSPlanStep{
@@ -265,6 +288,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 			Description: "Write a minimal Caddyfile and reload.",
 			Command: ssh.LocalSSHCommand(cfg, strings.Join([]string{
 				fmt.Sprintf("printf '%%s' %s > %s", ssh.QuoteSingle(caddyfile), ssh.QuoteSingle(caddyfilePath)),
+				"caddy validate --config /etc/caddy/Caddyfile",
 				"systemctl reload caddy",
 			}, " && ")),
 		},
@@ -350,9 +374,9 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 
 // RunDeploy executes VPS deployment without progress tracking.
 // This is a convenience wrapper around RunDeployWithProgress that uses no-op progress callbacks.
-func RunDeploy(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner, secretsGen secrets.GeneratorFunc) domain.VPSDeployResult {
+func RunDeploy(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner, secretsGen secrets.GeneratorFunc, providedSecrets map[string]string) domain.VPSDeployResult {
 	progress := 0.0
-	return RunDeployWithProgress(ctx, manifest, sshRunner, secretsGen, NoopProgressHub{}, NoopProgressRepo{}, "", &progress)
+	return RunDeployWithProgress(ctx, manifest, sshRunner, secretsGen, providedSecrets, NoopProgressHub{}, NoopProgressRepo{}, "", &progress)
 }
 
 // RunDeployWithProgress runs VPS deployment with progress tracking.
@@ -365,6 +389,7 @@ func RunDeployWithProgress(
 	manifest domain.CloudManifest,
 	sshRunner ssh.Runner,
 	secretsGen secrets.GeneratorFunc,
+	providedSecrets map[string]string,
 	hub ProgressBroadcaster,
 	repo ProgressRepo,
 	deploymentID string,
@@ -432,7 +457,7 @@ func RunDeployWithProgress(
 	// Idempotency: Only write Caddyfile and reload if content differs from current
 	emit("step_started", "caddy_config", "Configuring Caddy")
 	caddyfilePath := "/etc/caddy/Caddyfile"
-	caddyfile := BuildCaddyfile(manifest.Edge.Domain, uiPort)
+	caddyfile := BuildCaddyfile(manifest.Edge.Domain, uiPort, buildCaddyTLSConfig(manifest, providedSecrets))
 
 	// Check if current Caddyfile matches desired content (idempotent write)
 	checkCmd := fmt.Sprintf("cat %s 2>/dev/null || echo ''", ssh.QuoteSingle(caddyfilePath))
@@ -443,6 +468,9 @@ func RunDeployWithProgress(
 	if currentContent != desiredContent {
 		// Content differs, write new config
 		if err := run(fmt.Sprintf("printf '%%s' %s > %s", ssh.QuoteSingle(caddyfile), ssh.QuoteSingle(caddyfilePath))); err != nil {
+			return failStep("caddy_config", "Configuring Caddy", err.Error())
+		}
+		if err := run("caddy validate --config /etc/caddy/Caddyfile"); err != nil {
 			return failStep("caddy_config", "Configuring Caddy", err.Error())
 		}
 		// Only reload if we actually changed the config
@@ -476,11 +504,10 @@ func RunDeployWithProgress(
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("generate secrets: %v", err))
 		}
 
-		// Write secrets.json to VPS
-		if len(generated) > 0 {
-			if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, manifest.Scenario.ID); err != nil {
-				return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("write secrets: %v", err))
-			}
+		// Write secrets.json to VPS (generated + user-provided)
+		userSecrets := buildUserSecretMap(manifest, providedSecrets)
+		if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, userSecrets, manifest.Scenario.ID); err != nil {
+			return failStep("secrets_provision", "Provisioning secrets", fmt.Sprintf("write secrets: %v", err))
 		}
 
 		*progress += StepWeights["secrets_provision"]
@@ -576,7 +603,9 @@ func RunDeployWithProgress(
 	emit("step_started", "verify_origin", "Verifying origin reachability")
 	if err := checkOriginHealth(ctx, manifest.Edge.Domain, manifest.Target.VPS.Host, 10*time.Second); err != nil {
 		if manifest.Edge.Caddy.Enabled {
-			if hint := caddyACMEOriginUnreachableHint(fetchCaddyLogs(ctx, sshRunner, cfg, 200)); hint != "" {
+			tlsConfig := buildCaddyTLSConfig(manifest, providedSecrets)
+			dns01Configured := tlsConfig.DNSProvider != "" && tlsConfig.DNSAPIToken != ""
+			if hint := caddyACMEOriginUnreachableHint(fetchCaddyLogs(ctx, sshRunner, cfg, 200), dns01Configured); hint != "" {
 				return failStep("verify_origin", "Verifying origin reachability", hint)
 			}
 		}
@@ -596,15 +625,82 @@ func RunDeployWithProgress(
 	return domain.VPSDeployResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 
+// CaddyTLSConfig captures TLS options for Caddy.
+type CaddyTLSConfig struct {
+	Email       string
+	DNSProvider string
+	DNSAPIToken string
+	ACMECA      string
+}
+
+func buildCaddyTLSConfig(manifest domain.CloudManifest, providedSecrets map[string]string) CaddyTLSConfig {
+	cfg := CaddyTLSConfig{
+		Email:  strings.TrimSpace(manifest.Edge.Caddy.Email),
+		ACMECA: "https://acme-v02.api.letsencrypt.org/directory",
+	}
+	if providedSecrets != nil {
+		token := strings.TrimSpace(providedSecrets[domain.CloudflareAPITokenKey])
+		if token != "" {
+			cfg.DNSProvider = "cloudflare"
+			cfg.DNSAPIToken = token
+		}
+	}
+	return cfg
+}
+
+func buildCaddyGlobalOptions(cfg CaddyTLSConfig) string {
+	email := strings.TrimSpace(cfg.Email)
+	acmeCA := strings.TrimSpace(cfg.ACMECA)
+	if email == "" && acmeCA == "" {
+		acmeCA = "https://acme-v02.api.letsencrypt.org/directory"
+	}
+	if email == "" && acmeCA == "" {
+		return ""
+	}
+	lines := []string{"{"}
+	if email != "" {
+		lines = append(lines, fmt.Sprintf("  email %s", email))
+	}
+	if acmeCA != "" {
+		lines = append(lines, fmt.Sprintf("  acme_ca %s", acmeCA))
+	}
+	lines = append(lines, "}")
+	return strings.Join(lines, "\n")
+}
+
+func buildCaddyTLSBlock(cfg CaddyTLSConfig) string {
+	if cfg.DNSProvider == "" || cfg.DNSAPIToken == "" {
+		return ""
+	}
+	lines := []string{"  tls {"}
+	lines = append(lines, fmt.Sprintf("    dns %s %s", cfg.DNSProvider, cfg.DNSAPIToken))
+	lines = append(lines, "  }")
+	return strings.Join(lines, "\n")
+}
+
 // BuildCaddyfile generates a Caddyfile configuration for the given domain and UI port.
-func BuildCaddyfile(domain string, uiPort int) string {
+func BuildCaddyfile(domain string, uiPort int, tlsConfig CaddyTLSConfig) string {
 	domain = strings.TrimSpace(domain)
 	if domain == "" {
 		domain = "example.com"
 	}
-	return fmt.Sprintf(`%s {
+	globalOptions := buildCaddyGlobalOptions(tlsConfig)
+	tlsBlock := buildCaddyTLSBlock(tlsConfig)
+	var siteBlock string
+	if tlsBlock != "" {
+		siteBlock = fmt.Sprintf(`%s {
+%s
+  reverse_proxy 127.0.0.1:%d
+}`, domain, tlsBlock, uiPort)
+	} else {
+		siteBlock = fmt.Sprintf(`%s {
   reverse_proxy 127.0.0.1:%d
 }`, domain, uiPort)
+	}
+	if globalOptions != "" {
+		return fmt.Sprintf("%s\n%s", globalOptions, siteBlock)
+	}
+	return siteBlock
 }
 
 // buildHealthCheckScript returns a shell script that performs a health check with detailed error reporting.
@@ -795,13 +891,38 @@ func fetchCaddyLogs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, l
 	return res.Stdout
 }
 
-func caddyACMEOriginUnreachableHint(logs string) string {
+func caddyACMEOriginUnreachableHint(logs string, dns01Configured bool) string {
 	if strings.TrimSpace(logs) == "" {
 		return ""
 	}
 	lower := strings.ToLower(logs)
 	if !strings.Contains(lower, "acme") {
 		return ""
+	}
+	if strings.Contains(lower, "remaining=[dns-01]") && !dns01Configured {
+		var matches []string
+		for _, line := range strings.Split(logs, "\n") {
+			lineLower := strings.ToLower(line)
+			if strings.Contains(lineLower, "remaining=[dns-01]") || strings.Contains(lineLower, "no solvers available") {
+				matches = append(matches, strings.TrimSpace(line))
+			}
+		}
+		var sb strings.Builder
+		sb.WriteString("ACME requires DNS-01 (remaining=[dns-01]) but DNS-01 is not configured. ")
+		sb.WriteString("Disable proxying (DNS-only) during issuance or provide a DNS-01 token (CLOUDFLARE_API_TOKEN).")
+		if len(matches) > 0 {
+			sb.WriteString(" Recent Caddy logs: ")
+			for i, line := range matches {
+				if i >= 3 {
+					break
+				}
+				if i > 0 {
+					sb.WriteString(" | ")
+				}
+				sb.WriteString(line)
+			}
+		}
+		return sb.String()
 	}
 	if !strings.Contains(lower, "522") && !strings.Contains(lower, "403") {
 		return ""

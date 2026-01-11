@@ -19,6 +19,9 @@ type CloudManifest struct {
 	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
 }
 
+// CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
+const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN"
+
 // ManifestTarget specifies where to deploy.
 type ManifestTarget struct {
 	Type string       `json:"type"`

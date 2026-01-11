@@ -20,6 +20,7 @@
       "description": "Step-by-step deployment guides",
       "documents": [
         { "path": "guides/manifest-reference.md", "title": "Manifest Reference", "description": "Complete manifest configuration guide" },
+        { "path": "guides/dns-setup.md", "title": "DNS Setup", "description": "DNS patterns for VPS deployments (with or without OG Worker)" },
         { "path": "guides/vps-setup.md", "title": "VPS Setup", "description": "Prepare your VPS for deployments" },
         { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Common issues and solutions" }
       ]

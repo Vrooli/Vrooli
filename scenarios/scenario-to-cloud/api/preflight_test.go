@@ -63,13 +63,17 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
+		preflight.RunOptions{
+			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+		},
 	)
 
 	if !resp.OK {
 		t.Fatalf("expected OK, got: %+v", resp)
 	}
-	if len(resp.Checks) < 17 {
-		t.Fatalf("expected at least 17 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
+	if len(resp.Checks) < 20 {
+		t.Fatalf("expected at least 20 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
 	}
 }
 
@@ -118,6 +122,10 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
+		preflight.RunOptions{
+			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+		},
 	)
 
 	var found bool
@@ -184,6 +192,10 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
 			"apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log": {ExitCode: 0, Stdout: ""},
 		}},
+		preflight.RunOptions{
+			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
+			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "acme-tls/1", nil },
+		},
 	)
 
 	var pointsCheck *domain.PreflightCheck

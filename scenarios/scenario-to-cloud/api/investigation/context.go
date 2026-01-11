@@ -78,6 +78,21 @@ func buildPromptAndContext(
 	}
 	sb.WriteString("\n")
 
+	sb.WriteString("## Scope & Triage (read carefully)\n")
+	sb.WriteString("You are investigating a deployment failure. There are TWO possible root domains:\n")
+	sb.WriteString("- **Deployment harness (scenario-to-cloud)**: orchestration, bundling, VPS setup, deployment steps, or CLI/API wiring.\n")
+	sb.WriteString(fmt.Sprintf("- **Target scenario (%s)**: the application being deployed and its runtime behavior.\n", m.Scenario.ID))
+	sb.WriteString("\n")
+	sb.WriteString("### Triage Rule\n")
+	sb.WriteString("First determine which domain is responsible using evidence (logs, stack traces, error messages, service names, file paths).\n")
+	sb.WriteString("Only then proceed with fixes in that domain. Do not jump scopes without explicit evidence.\n")
+	sb.WriteString("\n")
+	sb.WriteString("### Guardrails (mandatory)\n")
+	sb.WriteString("- State the chosen domain explicitly before taking any corrective action.\n")
+	sb.WriteString("- Cite at least two concrete evidence points (paths, error strings, or service names) that justify the domain choice.\n")
+	sb.WriteString("- If evidence is mixed, stop and request clarification instead of guessing.\n")
+	sb.WriteString("\n")
+
 	sb.WriteString("## Diagnostic Questions\n")
 	sb.WriteString("As you investigate, answer these questions to identify the root cause:\n\n")
 	sb.WriteString("1. **Is the failing dependency in the manifest?** Check the deployment-manifest context attachment\n")
@@ -128,6 +143,10 @@ func buildPromptAndContext(
 
 	sb.WriteString("## Report Format\n")
 	sb.WriteString("Please provide a structured report with:\n\n")
+	sb.WriteString("### Scope Decision\n")
+	sb.WriteString("- **Chosen domain**: scenario-to-cloud OR target scenario\n")
+	sb.WriteString("- **Evidence**: at least two concrete evidence points\n")
+	sb.WriteString("- **Confidence**: high/medium/low\n\n")
 	sb.WriteString("### Root Cause\n")
 	sb.WriteString("What caused the deployment to fail. Be specific - distinguish between symptoms (e.g., \"postgres not running\") and actual causes (e.g., \"postgres not in manifest\" or \"postgres start command failed\").\n\n")
 	sb.WriteString("### Evidence\n")
@@ -335,6 +354,17 @@ func buildFixPrompt(
 	var sb strings.Builder
 
 	sb.WriteString("# Fix Application Task\n\n")
+	sb.WriteString("## Scope & Triage (read carefully)\n")
+	sb.WriteString("Fixes may belong to one of two domains:\n")
+	sb.WriteString("- **Deployment harness (scenario-to-cloud)**\n")
+	sb.WriteString(fmt.Sprintf("- **Target scenario (%s)**\n", m.Scenario.ID))
+	sb.WriteString("\n")
+	sb.WriteString("Apply fixes ONLY in the domain supported by the investigation findings. Do not switch scopes without evidence.\n")
+	sb.WriteString("\n")
+	sb.WriteString("### Guardrails (mandatory)\n")
+	sb.WriteString("- State the chosen domain explicitly before making changes.\n")
+	sb.WriteString("- Cite at least two concrete evidence points from the investigation report.\n")
+	sb.WriteString("- If evidence is mixed, stop and request clarification instead of guessing.\n\n")
 
 	// Selected fixes section
 	sb.WriteString("## Selected Fixes to Apply\n")
@@ -423,6 +453,10 @@ func buildFixPrompt(
 	// Report format
 	sb.WriteString("## Report Format\n")
 	sb.WriteString("Please provide a structured report with:\n\n")
+	sb.WriteString("### Scope Decision\n")
+	sb.WriteString("- **Chosen domain**: scenario-to-cloud OR target scenario\n")
+	sb.WriteString("- **Evidence**: at least two concrete evidence points\n")
+	sb.WriteString("- **Confidence**: high/medium/low\n\n")
 	sb.WriteString("### Fixes Applied\n")
 	sb.WriteString("List each fix you applied, what you did, and the result.\n\n")
 	sb.WriteString("### Verification\n")

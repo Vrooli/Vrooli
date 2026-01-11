@@ -12,6 +12,12 @@ import (
 
 // PreflightChecks evaluates DNS validation checks for a deployment preflight.
 func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost string, policy domain.DNSPolicy) []domain.PreflightCheck {
+	eval := Evaluate(ctx, svc, domainName, vpsHost)
+	return PreflightChecksFromEvaluation(eval, policy)
+}
+
+// PreflightChecksFromEvaluation maps a DNS evaluation to preflight checks.
+func PreflightChecksFromEvaluation(eval Evaluation, policy domain.DNSPolicy) []domain.PreflightCheck {
 	checks := make([]domain.PreflightCheck, 0, 5)
 	fail := func(id, title, details, hint string, data map[string]string) {
 		checks = append(checks, domain.PreflightCheck{
@@ -54,56 +60,6 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 		return checks
 	}
 
-	vpsLookup := svc.ResolveHost(ctx, vpsHost)
-	baseDomain := BaseDomain(domainName)
-	apexDomain := baseDomain
-	wwwDomain := "www." + baseDomain
-	doOriginDomain := "do-origin." + baseDomain
-
-	type domainStatus struct {
-		role        string
-		host        string
-		lookup      domain.DNSLookupResult
-		proxied     bool
-		pointsToVPS bool
-	}
-
-	statuses := make([]domainStatus, 0, 3)
-	apexStatus := domainStatus{
-		role:   "apex",
-		host:   apexDomain,
-		lookup: svc.ResolveHost(ctx, apexDomain),
-	}
-	apexStatus.proxied = areCloudflareIPs(apexStatus.lookup.IPs)
-	if vpsLookup.Error == nil && apexStatus.lookup.Error == nil {
-		apexStatus.pointsToVPS = intersects(vpsLookup.IPs, apexStatus.lookup.IPs)
-	}
-	statuses = append(statuses, apexStatus)
-
-	if wwwDomain != apexDomain {
-		wwwStatus := domainStatus{
-			role:   "www",
-			host:   wwwDomain,
-			lookup: svc.ResolveHost(ctx, wwwDomain),
-		}
-		wwwStatus.proxied = areCloudflareIPs(wwwStatus.lookup.IPs)
-		if vpsLookup.Error == nil && wwwStatus.lookup.Error == nil {
-			wwwStatus.pointsToVPS = intersects(vpsLookup.IPs, wwwStatus.lookup.IPs)
-		}
-		statuses = append(statuses, wwwStatus)
-	}
-
-	doOriginStatus := domainStatus{
-		role:   "origin",
-		host:   doOriginDomain,
-		lookup: svc.ResolveHost(ctx, doOriginDomain),
-	}
-	doOriginStatus.proxied = areCloudflareIPs(doOriginStatus.lookup.IPs)
-	if vpsLookup.Error == nil && doOriginStatus.lookup.Error == nil {
-		doOriginStatus.pointsToVPS = intersects(vpsLookup.IPs, doOriginStatus.lookup.IPs)
-	}
-	statuses = append(statuses, doOriginStatus)
-
 	recordDNSIssue := func(id, title, details, hint string, data map[string]string) {
 		if policy == domain.DNSPolicyWarn {
 			warn(id, title, details, hint, data)
@@ -112,120 +68,120 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 		fail(id, title, details, hint, data)
 	}
 
-	if vpsLookup.Error != nil {
+	if eval.VPS.Error != nil {
 		recordDNSIssue(
 			domain.PreflightDNSVPSHostID,
 			"Resolve VPS host",
-			fmt.Sprintf("Unable to resolve VPS host %q", vpsLookup.Host),
-			vpsLookup.Error.Message,
+			fmt.Sprintf("Unable to resolve VPS host %q", eval.VPS.Host),
+			eval.VPS.Error.Message,
 			nil,
 		)
 	} else {
-		pass(domain.PreflightDNSVPSHostID, "Resolve VPS host", "Resolved VPS host", map[string]string{"ips": strings.Join(vpsLookup.IPs, ",")})
+		pass(domain.PreflightDNSVPSHostID, "Resolve VPS host", "Resolved VPS host", map[string]string{"ips": strings.Join(eval.VPS.IPs, ",")})
 	}
 
-	for _, status := range statuses {
+	for _, status := range eval.Statuses {
 		title := ""
 		id := ""
-		allowProxy := false
-		switch status.role {
+		switch status.Role {
 		case "apex":
 			id = domain.PreflightDNSEdgeApexID
 			title = "Apex domain"
-			allowProxy = true
 		case "www":
 			id = domain.PreflightDNSEdgeWWWID
 			title = "WWW domain"
-			allowProxy = true
 		case "origin":
 			id = domain.PreflightDNSDoOriginID
 			title = "Origin domain"
+		case "edge":
+			id = domain.PreflightDNSEdgeDomainID
+			title = "Edge domain"
 		default:
 			continue
 		}
 
-		if status.lookup.Error != nil {
+		if status.Lookup.Error != nil {
 			recordDNSIssue(
 				id,
 				title,
-				fmt.Sprintf("Unable to resolve %s (%q)", title, status.lookup.Host),
-				status.lookup.Error.Message,
+				fmt.Sprintf("Unable to resolve %s (%q)", title, status.Lookup.Host),
+				status.Lookup.Error.Message,
 				nil,
 			)
 			continue
 		}
 
-		if allowProxy && status.proxied {
+		if status.AllowProxy && status.Proxied {
 			pass(
 				id,
 				title,
-				fmt.Sprintf("%s resolves to Cloudflare proxy", status.lookup.Host),
-				map[string]string{"ips": strings.Join(status.lookup.IPs, ","), "proxied": "cloudflare"},
+				fmt.Sprintf("%s resolves to Cloudflare proxy", status.Lookup.Host),
+				map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "proxied": "cloudflare"},
 			)
 			continue
 		}
 
-		if vpsLookup.Error != nil {
+		if eval.VPS.Error != nil {
 			recordDNSIssue(
 				id,
 				title,
-				fmt.Sprintf("Unable to verify %s (VPS host unresolved)", status.lookup.Host),
-				vpsLookup.Error.Message,
+				fmt.Sprintf("Unable to verify %s (VPS host unresolved)", status.Lookup.Host),
+				eval.VPS.Error.Message,
 				nil,
 			)
 			continue
 		}
 
-		if status.pointsToVPS {
+		if status.PointsToVPS {
 			pass(
 				id,
 				title,
-				fmt.Sprintf("%s resolves to the VPS", status.lookup.Host),
-				map[string]string{"ips": strings.Join(status.lookup.IPs, ","), "vps_ips": strings.Join(vpsLookup.IPs, ",")},
+				fmt.Sprintf("%s resolves to the VPS", status.Lookup.Host),
+				map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "vps_ips": strings.Join(eval.VPS.IPs, ",")},
 			)
 			continue
 		}
 
 		hint := ""
-		if len(vpsLookup.IPs) > 0 {
-			hint, _ = BuildARecordHint(status.lookup.Host, vpsLookup.IPs[0])
+		if len(eval.VPS.IPs) > 0 {
+			hint, _ = BuildARecordHint(status.Lookup.Host, eval.VPS.IPs[0])
 		}
 		recordDNSIssue(
 			id,
 			title,
-			fmt.Sprintf("%s resolves to %s, not your VPS (%s)", status.lookup.Host, strings.Join(status.lookup.IPs, ", "), strings.Join(vpsLookup.IPs, ", ")),
+			fmt.Sprintf("%s resolves to %s, not your VPS (%s)", status.Lookup.Host, strings.Join(status.Lookup.IPs, ", "), strings.Join(eval.VPS.IPs, ", ")),
 			hint,
-			map[string]string{"vps_ips": strings.Join(vpsLookup.IPs, ","), "edge_ips": strings.Join(status.lookup.IPs, ","), "domain": status.lookup.Host},
+			map[string]string{"vps_ips": strings.Join(eval.VPS.IPs, ","), "edge_ips": strings.Join(status.Lookup.IPs, ","), "domain": status.Lookup.Host},
 		)
 	}
 
 	ogWorkerHint := "To enable OG worker routing, proxy both apex and www through Cloudflare and point do-origin to the VPS (DNS-only A record)."
-	apexProxied := apexStatus.proxied
+	apexStatus, _ := eval.StatusForRole("apex")
+	wwwStatus, hasWWW := eval.StatusForRole("www")
+	doOriginStatus, _ := eval.StatusForRole("origin")
+	apexProxied := apexStatus.Proxied
 	wwwProxied := false
-	for _, status := range statuses {
-		if status.role == "www" {
-			wwwProxied = status.proxied
-			break
-		}
+	if hasWWW {
+		wwwProxied = wwwStatus.Proxied
 	}
 
 	edgeIPv6Issues := []string{}
 	edgeIPv6Data := map[string]string{}
-	vpsIPv6 := filterIPv6(vpsLookup.IPs)
-	for _, status := range statuses {
-		if status.role != "apex" && status.role != "www" {
+	vpsIPv6 := filterIPv6(eval.VPS.IPs)
+	for _, status := range eval.Statuses {
+		if status.Role != "apex" && status.Role != "www" {
 			continue
 		}
-		if status.proxied {
+		if status.Proxied {
 			continue
 		}
-		edgeIPv6 := filterIPv6(status.lookup.IPs)
+		edgeIPv6 := filterIPv6(status.Lookup.IPs)
 		if len(edgeIPv6) == 0 {
 			continue
 		}
-		if vpsLookup.Error != nil || len(vpsIPv6) == 0 || !intersects(edgeIPv6, vpsIPv6) {
-			edgeIPv6Issues = append(edgeIPv6Issues, fmt.Sprintf("%s -> %s", status.host, strings.Join(edgeIPv6, ", ")))
-			edgeIPv6Data[status.host] = strings.Join(edgeIPv6, ",")
+		if eval.VPS.Error != nil || len(vpsIPv6) == 0 || !intersects(edgeIPv6, vpsIPv6) {
+			edgeIPv6Issues = append(edgeIPv6Issues, fmt.Sprintf("%s -> %s", status.Host, strings.Join(edgeIPv6, ", ")))
+			edgeIPv6Data[status.Host] = strings.Join(edgeIPv6, ",")
 		}
 	}
 
@@ -245,7 +201,7 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 			nil,
 		)
 	}
-	if wwwDomain == apexDomain {
+	if eval.WWWDomain == eval.ApexDomain {
 		wwwProxied = apexProxied
 	}
 	if !apexProxied || !wwwProxied {
@@ -256,13 +212,13 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 			ogWorkerHint,
 			nil,
 		)
-	} else if doOriginStatus.lookup.Error != nil || !doOriginStatus.pointsToVPS {
+	} else if doOriginStatus.Lookup.Error != nil || !doOriginStatus.PointsToVPS {
 		warn(
 			domain.PreflightDNSOGWorkerID,
 			"OG worker readiness",
-			fmt.Sprintf("%s should point to the VPS for OG routing", doOriginStatus.host),
+			fmt.Sprintf("%s should point to the VPS for OG routing", doOriginStatus.Host),
 			ogWorkerHint,
-			map[string]string{"domain": doOriginStatus.host},
+			map[string]string{"domain": doOriginStatus.Host},
 		)
 	} else {
 		pass(

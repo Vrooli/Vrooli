@@ -34,6 +34,7 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	result := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	s.enrichCaddyTLS(ctx, &result)
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"result":    result,
@@ -183,6 +184,7 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	s.enrichCaddyTLS(ctx, &liveState)
 	if !liveState.OK {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "live_state_failed",
@@ -198,6 +200,34 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 		"result":    driftReport,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateResult) {
+	if result == nil || result.Caddy == nil {
+		return
+	}
+	domainName := strings.TrimSpace(result.Caddy.Domain)
+	if domainName == "" {
+		return
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	probe, err := s.tlsService.Probe(probeCtx, domainName)
+	if err != nil {
+		result.Caddy.TLS = domain.TLSInfo{
+			Valid: false,
+			Error: fmt.Sprintf("TLS probe failed: %v", err),
+		}
+		return
+	}
+
+	result.Caddy.TLS = domain.TLSInfo{
+		Valid:         probe.Valid,
+		Issuer:        probe.Issuer,
+		Expires:       probe.NotAfter,
+		DaysRemaining: probe.DaysRemaining,
+	}
 }
 
 // handleKillProcess kills a specific process on VPS.

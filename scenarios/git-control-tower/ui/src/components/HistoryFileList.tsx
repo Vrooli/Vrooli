@@ -54,16 +54,22 @@ export function HistoryFileList({
 
     const update = () => {
       const width = scrollAreaRef.current?.clientWidth ?? 0;
-      const usable = Math.max(0, width - 64);
-      const nextMax = Math.max(12, Math.min(140, Math.floor(usable / 7)));
+      // Account for: file icon (~22px), padding (~16px), some buffer (~42px) = ~80px
+      const usable = Math.max(0, width - 80);
+      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7.5)));
       setMaxPathChars(nextMax);
     };
 
-    update();
+    // Defer initial measurement to ensure layout is complete after expanding
+    const rafId = requestAnimationFrame(update);
     const observer = new ResizeObserver(update);
     observer.observe(scrollAreaRef.current);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+    // Re-run when collapsed changes to re-observe the new ScrollArea element
+  }, [collapsed]);
 
   const sortedFiles = useMemo(() => {
     return [...viewingCommit.files].sort((a, b) => a.localeCompare(b));
@@ -104,7 +110,8 @@ export function HistoryFileList({
             </div>
           </div>
 
-          <ScrollArea className="h-full min-w-0 px-2 py-2 select-none" ref={scrollAreaRef}>
+          <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
+            <div style={{ paddingBottom: 48 }}>
             {sortedFiles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="empty-state">
                 <File className="h-8 w-8 text-slate-700 mb-3" />
@@ -139,6 +146,7 @@ export function HistoryFileList({
                 })}
               </ul>
             )}
+            </div>
           </ScrollArea>
         </CardContent>
       )}

@@ -26,6 +26,7 @@ import (
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
 )
@@ -59,6 +60,8 @@ type Server struct {
 	secretsGenerator secrets.GeneratorFunc
 	// Seam: DNS services (defaults to dns.NewService(dns.NetResolver{}, dns.WithTimeout(...)))
 	dnsService dns.Service
+	// Seam: TLS probe service (defaults to tlsinfo.NewService(...))
+	tlsService tlsinfo.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -108,6 +111,7 @@ func NewServer() (*Server, error) {
 	secretsFetcher := secrets.NewClient()
 	secretsGenerator := secrets.NewGenerator()
 	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
+	tlsService := tlsinfo.NewService(tlsinfo.WithTimeout(10 * time.Second))
 
 	srv := &Server{
 		config:           cfg,
@@ -123,6 +127,7 @@ func NewServer() (*Server, error) {
 		secretsFetcher:   secretsFetcher,
 		secretsGenerator: secretsGenerator,
 		dnsService:       dnsService,
+		tlsService:       tlsService,
 	}
 
 	// Initialize the deployment orchestrator with all dependencies

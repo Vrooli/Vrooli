@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 
@@ -206,31 +203,27 @@ func (s *Server) handleDNSRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildDNSCheckResponse(ctx context.Context, svc dns.Service, domainName, vpsHost string) DNSCheckResponse {
-	vpsLookup := svc.ResolveHost(ctx, vpsHost)
-	baseDomain := dns.BaseDomain(domainName)
-	apexDomain := baseDomain
-	wwwDomain := "www." + baseDomain
-	doOriginDomain := "do-origin." + baseDomain
+	eval := dns.Evaluate(ctx, svc, domainName, vpsHost)
 
 	response := DNSCheckResponse{
-		VPSHost: vpsLookup.Host,
-		VPSIPs:  vpsLookup.IPs,
-		Domains: make([]DNSDomainCheck, 0, 3),
+		VPSHost: eval.VPS.Host,
+		VPSIPs:  eval.VPS.IPs,
+		Domains: make([]DNSDomainCheck, 0, 4),
 	}
 
-	var checks []DNSDomainCheck
-	checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, apexDomain, "apex", true))
-	if wwwDomain != apexDomain {
-		checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, wwwDomain, "www", true))
+	checks := make([]DNSDomainCheck, 0, 4)
+	for _, status := range eval.Statuses {
+		if status.Role != "apex" && status.Role != "www" && status.Role != "origin" && status.Role != "edge" {
+			continue
+		}
+		checks = append(checks, buildDomainCheck(status, eval.VPS))
 	}
-	checks = append(checks, buildDomainCheck(ctx, svc, vpsLookup, doOriginDomain, "origin", false))
-
 	response.Domains = checks
 
 	response.OK = true
-	if vpsLookup.Error != nil {
+	if eval.VPS.Error != nil {
 		response.OK = false
-		response.Message = fmt.Sprintf("Failed to resolve VPS host: %s", vpsLookup.Error.Message)
+		response.Message = fmt.Sprintf("Failed to resolve VPS host: %s", eval.VPS.Error.Message)
 		return response
 	}
 	for _, check := range checks {
@@ -247,60 +240,51 @@ func buildDNSCheckResponse(ctx context.Context, svc dns.Service, domainName, vps
 	return response
 }
 
-func buildDomainCheck(ctx context.Context, svc dns.Service, vpsLookup domain.DNSLookupResult, domainName, role string, allowProxy bool) DNSDomainCheck {
-	lookup := svc.ResolveHost(ctx, domainName)
+func buildDomainCheck(status dns.DomainStatus, vpsLookup domain.DNSLookupResult) DNSDomainCheck {
 	check := DNSDomainCheck{
-		Domain:    lookup.Host,
-		Role:      role,
-		DomainIPs: lookup.IPs,
+		Domain:      status.Lookup.Host,
+		Role:        status.Role,
+		DomainIPs:   status.Lookup.IPs,
+		PointsToVPS: status.PointsToVPS,
+		Proxied:     status.Proxied,
 	}
-	if lookup.Error != nil {
+	if status.Lookup.Error != nil {
 		check.OK = false
-		check.Message = fmt.Sprintf("Failed to resolve %s: %s", domainName, lookup.Error.Message)
+		check.Message = fmt.Sprintf("Failed to resolve %s: %s", status.Host, status.Lookup.Error.Message)
 		return check
 	}
 
-	check.Proxied = allowProxy && dns.AreCloudflareIPs(lookup.IPs)
-	if check.Proxied {
+	if status.AllowProxy && status.Proxied {
 		check.OK = true
-		check.Message = fmt.Sprintf("%s resolves to Cloudflare proxy", lookup.Host)
+		check.Message = fmt.Sprintf("%s resolves to Cloudflare proxy", status.Lookup.Host)
 		return check
 	}
 
 	if vpsLookup.Error != nil {
 		check.OK = false
-		check.Message = fmt.Sprintf("VPS host unresolved; cannot verify %s", lookup.Host)
+		check.Message = fmt.Sprintf("VPS host unresolved; cannot verify %s", status.Lookup.Host)
 		return check
 	}
 
-	check.PointsToVPS = dnsIPIntersection(vpsLookup.IPs, lookup.IPs)
-	if check.PointsToVPS {
+	if status.PointsToVPS {
 		check.OK = true
-		check.Message = fmt.Sprintf("%s points to the VPS", lookup.Host)
+		check.Message = fmt.Sprintf("%s points to the VPS", status.Lookup.Host)
 		return check
 	}
 
 	check.OK = false
-	check.Message = fmt.Sprintf("%s resolves to %s, not your VPS (%s)", lookup.Host, strings.Join(lookup.IPs, ", "), strings.Join(vpsLookup.IPs, ", "))
+	check.Message = fmt.Sprintf(
+		"%s resolves to %s, not your VPS (%s)",
+		status.Lookup.Host,
+		strings.Join(status.Lookup.IPs, ", "),
+		strings.Join(vpsLookup.IPs, ", "),
+	)
 	if len(vpsLookup.IPs) > 0 {
-		hint, hintData := dns.BuildARecordHint(lookup.Host, vpsLookup.IPs[0])
+		hint, hintData := dns.BuildARecordHint(status.Lookup.Host, vpsLookup.IPs[0])
 		check.Hint = hint
 		check.HintData = &hintData
 	}
 	return check
-}
-
-func dnsIPIntersection(a, b []string) bool {
-	set := map[string]struct{}{}
-	for _, v := range a {
-		set[v] = struct{}{}
-	}
-	for _, v := range b {
-		if _, ok := set[v]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 // handleCaddyControl handles Caddy service control actions.
@@ -411,31 +395,28 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	// Use openssl to get certificate info directly from the domain
-	// This doesn't require SSH - it checks the public certificate
-	cmd := fmt.Sprintf(
-		"echo | timeout 10 openssl s_client -servername %s -connect %s:443 2>/dev/null | openssl x509 -noout -text 2>/dev/null",
-		domainName, domainName,
-	)
-
-	// Try to run locally first (works if openssl is available)
-	result, err := runLocalCommand(ctx, cmd)
-
 	resp := TLSInfoResponse{
 		Domain:    domainName,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err != nil || result == "" {
+	result, err := s.tlsService.Probe(ctx, domainName)
+	if err != nil {
 		resp.OK = false
 		resp.Valid = false
-		resp.Error = "Unable to retrieve TLS certificate. The domain may not have HTTPS configured yet."
+		resp.Error = fmt.Sprintf("TLS probe failed: %v", err)
 		httputil.WriteJSON(w, http.StatusOK, resp)
 		return
 	}
 
-	// Parse the certificate output
-	parseTLSCertOutput(result, &resp)
+	resp.Valid = result.Valid
+	resp.Issuer = result.Issuer
+	resp.Subject = result.Subject
+	resp.NotBefore = result.NotBefore
+	resp.NotAfter = result.NotAfter
+	resp.DaysRemaining = result.DaysRemaining
+	resp.SerialNumber = result.SerialNumber
+	resp.SANs = result.SANs
 	resp.OK = true
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
@@ -511,98 +492,4 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
-}
-
-// parseTLSCertOutput parses openssl x509 -text output into TLSInfoResponse.
-func parseTLSCertOutput(output string, resp *TLSInfoResponse) {
-	lines := strings.Split(output, "\n")
-
-	// Patterns to match
-	issuerRegex := regexp.MustCompile(`Issuer:\s*(.+)`)
-	subjectRegex := regexp.MustCompile(`Subject:\s*(.+)`)
-	notBeforeRegex := regexp.MustCompile(`Not Before:\s*(.+)`)
-	notAfterRegex := regexp.MustCompile(`Not After\s*:\s*(.+)`)
-	sanRegex := regexp.MustCompile(`DNS:([^,\s]+)`)
-
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if match := issuerRegex.FindStringSubmatch(line); len(match) > 1 {
-			// Extract CN if present
-			issuer := match[1]
-			if cnIdx := strings.Index(issuer, "CN = "); cnIdx >= 0 {
-				resp.Issuer = strings.TrimSpace(issuer[cnIdx+5:])
-				if commaIdx := strings.Index(resp.Issuer, ","); commaIdx >= 0 {
-					resp.Issuer = resp.Issuer[:commaIdx]
-				}
-			} else {
-				resp.Issuer = issuer
-			}
-		}
-
-		if match := subjectRegex.FindStringSubmatch(line); len(match) > 1 {
-			resp.Subject = match[1]
-		}
-
-		if match := notBeforeRegex.FindStringSubmatch(line); len(match) > 1 {
-			resp.NotBefore = match[1]
-		}
-
-		if match := notAfterRegex.FindStringSubmatch(line); len(match) > 1 {
-			resp.NotAfter = match[1]
-			// Parse expiry date to calculate days remaining
-			if t, err := time.Parse("Jan  2 15:04:05 2006 MST", match[1]); err == nil {
-				resp.DaysRemaining = int(time.Until(t).Hours() / 24)
-				resp.Valid = resp.DaysRemaining > 0
-			} else if t, err := time.Parse("Jan 2 15:04:05 2006 GMT", match[1]); err == nil {
-				resp.DaysRemaining = int(time.Until(t).Hours() / 24)
-				resp.Valid = resp.DaysRemaining > 0
-			}
-		}
-
-		// Serial number may be on next line
-		if strings.Contains(line, "Serial Number:") {
-			// Check if on same line or next
-			if colonIdx := strings.Index(line, ":"); colonIdx >= 0 {
-				afterColon := strings.TrimSpace(line[colonIdx+1:])
-				if afterColon != "" && afterColon != "0" {
-					resp.SerialNumber = afterColon
-				} else if i+1 < len(lines) {
-					resp.SerialNumber = strings.TrimSpace(lines[i+1])
-				}
-			}
-		}
-
-		// SANs
-		if strings.Contains(line, "Subject Alternative Name") && i+1 < len(lines) {
-			sanLine := lines[i+1]
-			matches := sanRegex.FindAllStringSubmatch(sanLine, -1)
-			for _, m := range matches {
-				if len(m) > 1 {
-					resp.SANs = append(resp.SANs, m[1])
-				}
-			}
-		}
-	}
-
-	// If we found any valid data, mark as valid (unless already determined invalid by expiry)
-	if resp.Issuer != "" || resp.Subject != "" {
-		if resp.DaysRemaining == 0 && resp.NotAfter == "" {
-			resp.Valid = true // Assume valid if we got cert data but couldn't parse expiry
-		}
-	}
-}
-
-// runLocalCommand runs a command locally and returns stdout.
-func runLocalCommand(ctx context.Context, cmd string) (string, error) {
-	execCmd := exec.CommandContext(ctx, "bash", "-c", cmd)
-	var stdout, stderr bytes.Buffer
-	execCmd.Stdout = &stdout
-	execCmd.Stderr = &stderr
-
-	err := execCmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("%v: %s", err, stderr.String())
-	}
-	return stdout.String(), nil
 }

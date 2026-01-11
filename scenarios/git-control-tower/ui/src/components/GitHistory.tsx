@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, EyeOff } from "lucide-react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
@@ -163,6 +163,7 @@ export function GitHistory({
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isLoadingMoreRef = useRef(false);
+  const prevLinesLengthRef = useRef(0);
   const historyEntries = useMemo(() => {
     let remoteSeen = false;
     let firstRemoteIndex = -1;
@@ -190,6 +191,9 @@ export function GitHistory({
   const totalLines = historyEntries.length;
   const hasLines = totalLines > 0;
 
+  // Ref to store scroll position when loading more
+  const scrollPositionRef = useRef<number | null>(null);
+
   const handleScroll = useCallback(() => {
     if (!scrollRef.current || !onLoadMore || !hasMore) return;
     if (isLoadingMoreRef.current || isLoading || isFetching) return;
@@ -197,13 +201,27 @@ export function GitHistory({
     const { scrollTop, clientHeight, scrollHeight } = scrollRef.current;
     if (scrollTop + clientHeight >= scrollHeight - 80) {
       isLoadingMoreRef.current = true;
+      // Save scroll position RIGHT when we trigger loading, not on every render
+      scrollPositionRef.current = scrollTop;
       onLoadMore();
     }
   }, [hasMore, isFetching, isLoading, onLoadMore]);
 
-  if (!isFetching && isLoadingMoreRef.current) {
-    isLoadingMoreRef.current = false;
-  }
+  // Restore scroll position after new data is rendered, then reset flags
+  useLayoutEffect(() => {
+    if (
+      isLoadingMoreRef.current &&
+      scrollPositionRef.current !== null &&
+      scrollRef.current &&
+      lines.length > prevLinesLengthRef.current
+    ) {
+      scrollRef.current.scrollTop = scrollPositionRef.current;
+      // Reset flags AFTER restoring scroll, inside the effect
+      isLoadingMoreRef.current = false;
+      scrollPositionRef.current = null;
+    }
+    prevLinesLengthRef.current = lines.length;
+  }, [lines.length]);
 
   const normalizedRules = useMemo<NormalizedGroupingRule[]>(
     () =>
@@ -406,10 +424,11 @@ export function GitHistory({
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden flex flex-col">
             <ScrollArea
-              className="min-h-0 flex-1 min-w-0 px-2 py-2"
+              className="min-h-0 flex-1 min-w-0 px-2 pt-2"
               ref={scrollRef}
               onScroll={handleScroll}
             >
+              <div style={{ paddingBottom: 48 }}>
               {isLoading && (
                 <div className="flex items-center justify-center py-6 text-slate-500 text-sm">
                   <Loader2 className="h-4 w-4 animate-spin mr-2 text-slate-500" />
@@ -538,6 +557,7 @@ export function GitHistory({
                   {isFetching ? "Loading more history..." : "Scroll to load more"}
                 </div>
               )}
+              </div>
             </ScrollArea>
           </CardContent>
         )}

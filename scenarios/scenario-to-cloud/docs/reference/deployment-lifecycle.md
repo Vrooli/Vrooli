@@ -58,6 +58,17 @@ With setup complete, the scenario is deployed:
 4. Configure Caddy reverse proxy
 5. Obtain SSL certificate
 
+#### DNS + TLS notes
+
+- `edge.dns_policy` controls whether DNS checks are required (`required`), warn-only (`warn`), or skipped (`skip`).
+- If Cloudflare proxying is enabled for the apex/www records, DNS-01 is required for ACME issuance.
+  Provide a Cloudflare API token via the deployment secrets (`CLOUDFLARE_API_TOKEN`) so Caddy can use DNS-01.
+- DNS-only during issuance checklist:
+  - Set apex/www (and the edge domain) to DNS-only until certificates are issued.
+  - Confirm A/AAAA records point to the VPS IP.
+  - Ensure inbound 80/443 are open at the VPS firewall and provider security group.
+  - Re-enable proxying after issuance if desired.
+
 ### 5. Health Check
 
 After deployment, health checks verify:

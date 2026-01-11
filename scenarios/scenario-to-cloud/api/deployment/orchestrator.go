@@ -177,7 +177,9 @@ func (o *Orchestrator) RunPipeline(
 		})
 
 		emitProgress("step_started", "preflight", "Running preflight checks", progress, "")
-		preflightResp := preflight.Run(ctx, manifest, o.dnsService, o.sshRunner)
+		preflightResp := preflight.Run(ctx, manifest, o.dnsService, o.sshRunner, preflight.RunOptions{
+			ProvidedSecrets: providedSecrets,
+		})
 		preflightJSON, _ := json.Marshal(preflightResp)
 		if err := o.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
 			o.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
@@ -283,7 +285,7 @@ func (o *Orchestrator) RunPipeline(
 		Message:   "Deployment started",
 	})
 
-	deployResult := vps.RunDeployWithProgress(ctx, manifest, o.sshRunner, o.secretsGenerator, hubAdapter, repoAdapter, id, &progress)
+	deployResult := vps.RunDeployWithProgress(ctx, manifest, o.sshRunner, o.secretsGenerator, providedSecrets, hubAdapter, repoAdapter, id, &progress)
 	deployJSON, _ := json.Marshal(deployResult)
 	if err := o.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
 		o.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
@@ -336,12 +338,18 @@ func (o *Orchestrator) ensureSecretsAvailable(
 ) error {
 	// Fetch secrets from secrets-manager BEFORE building bundle
 	if manifest.Secrets == nil {
+		resources := manifest.Dependencies.Resources
+		if manifest.Edge.Caddy.Enabled {
+			resources = append(resources, "edge-dns")
+		}
+		resources = uniqueStrings(resources)
+
 		secretsCtx, secretsCancel := context.WithTimeout(ctx, 30*time.Second)
 		secretsResp, err := o.secretsFetcher.FetchBundleSecrets(
 			secretsCtx,
 			manifest.Scenario.ID,
 			secrets.DefaultDeploymentTier,
-			manifest.Dependencies.Resources,
+			resources,
 		)
 		secretsCancel()
 
@@ -506,6 +514,23 @@ func (o *Orchestrator) log(msg string, fields map[string]interface{}) {
 	if o.logger != nil {
 		o.logger(msg, fields)
 	}
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		out = append(out, trimmed)
+	}
+	return out
 }
 
 // HistoryRecorder defines the interface for recording deployment history events.

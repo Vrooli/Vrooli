@@ -704,16 +704,23 @@ export function FileList({
 
     const update = () => {
       const width = scrollAreaRef.current?.clientWidth ?? 0;
-      const usable = Math.max(0, width - 64);
-      const nextMax = Math.max(12, Math.min(140, Math.floor(usable / 7)));
+      // Account for: status badge (~28px), file icon (~22px), action buttons (~80px),
+      // badges (binary/approved ~100px), padding (~16px) = ~250px total
+      const usable = Math.max(0, width - 180);
+      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7.5)));
       setMaxPathChars(nextMax);
     };
 
-    update();
+    // Defer initial measurement to ensure layout is complete after expanding
+    const rafId = requestAnimationFrame(update);
     const observer = new ResizeObserver(update);
     observer.observe(scrollAreaRef.current);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+    // Re-run when collapsed changes to re-observe the new ScrollArea element
+  }, [collapsed]);
 
   useEffect(() => {
     if (!groupingActive) {
@@ -988,7 +995,8 @@ export function FileList({
               )}
             </div>
           )}
-          <ScrollArea className="h-full min-w-0 px-2 py-2 select-none" ref={scrollAreaRef}>
+          <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
+          <div style={{ paddingBottom: 72 }}>
           {groupingActive
             ? groupedSections.map((group) => {
                 const stageable = [
@@ -1316,6 +1324,7 @@ export function FileList({
               </p>
             </div>
           )}
+          </div>
         </ScrollArea>
         </CardContent>
       )}
