@@ -192,12 +192,16 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 	}
 
 	if sourceFilter == "all" || sourceFilter == "caddy" {
+		journalTail := tail
+		if journalTail > 200 {
+			journalTail = 200
+		}
 		sourcesToFetch = append(sourcesToFetch, struct {
 			id  string
 			cmd string
 		}{
 			id:  "caddy",
-			cmd: "journalctl -u caddy --no-pager -n " + intToStr(tail) + " 2>/dev/null || echo 'No caddy logs available'",
+			cmd: "journalctl -u caddy --no-pager -n " + intToStr(journalTail) + " 2>/dev/null || echo 'No caddy logs available'",
 		})
 	}
 

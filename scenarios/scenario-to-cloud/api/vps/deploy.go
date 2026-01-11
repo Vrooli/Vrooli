@@ -784,6 +784,9 @@ func fetchCaddyLogs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, l
 	if lines <= 0 {
 		lines = 200
 	}
+	if lines > 200 {
+		lines = 200
+	}
 	cmd := fmt.Sprintf("journalctl -u caddy --no-pager -n %d 2>/dev/null || true", lines)
 	res, err := sshRunner.Run(ctx, cfg, cmd)
 	if err != nil {
