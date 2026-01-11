@@ -148,6 +148,7 @@ const AppPreviewView = () => {
 
   useAppViewRecording({
     appId: appId ?? null,
+    appSnapshot: currentApp,
     setAppsState,
     setCurrentApp,
   });

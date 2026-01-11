@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { appService } from '@/services/api';
 import { matchesAppIdentifier } from '@/utils/appPreview';
 import type { App } from '@/types';
+import { useRecentAppsStore } from '@/state/recentAppsStore';
 
 /**
  * Records app views and updates view statistics (count, timestamps).
@@ -10,6 +11,8 @@ import type { App } from '@/types';
 interface UseAppViewRecordingOptions {
   /** Current app ID being viewed */
   appId: string | null;
+  /** Current app data for local history */
+  appSnapshot?: App | null;
   /** Callback to update apps in the global store */
   setAppsState: (updater: (prev: App[]) => App[]) => void;
   /** Callback to update the current app state */
@@ -18,10 +21,17 @@ interface UseAppViewRecordingOptions {
 
 export const useAppViewRecording = ({
   appId,
+  appSnapshot,
   setAppsState,
   setCurrentApp,
 }: UseAppViewRecordingOptions): void => {
   const lastRecordedViewRef = useRef<{ id: string | null; timestamp: number }>({ id: null, timestamp: 0 });
+  const appSnapshotRef = useRef<App | null>(appSnapshot ?? null);
+  const recordRecentApp = useRecentAppsStore(state => state.recordAppView);
+
+  useEffect(() => {
+    appSnapshotRef.current = appSnapshot ?? null;
+  }, [appSnapshot]);
 
   useEffect(() => {
     if (!appId) {
@@ -36,6 +46,17 @@ export const useAppViewRecording = ({
     }
 
     lastRecordedViewRef.current = { id: appId, timestamp: now };
+    const snapshot = appSnapshotRef.current;
+    recordRecentApp({
+      id: snapshot?.id ?? appId,
+      name: snapshot?.name,
+      scenario_name: snapshot?.scenario_name,
+      status: snapshot?.status,
+      view_count: snapshot?.view_count,
+      last_viewed_at: snapshot?.last_viewed_at ?? new Date().toISOString(),
+      completeness_score: snapshot?.completeness_score,
+      completeness_classification: snapshot?.completeness_classification,
+    });
 
     void (async () => {
       const stats = await appService.recordAppView(appId);
@@ -75,5 +96,5 @@ export const useAppViewRecording = ({
         };
       });
     })();
-  }, [appId, setAppsState, setCurrentApp]);
+  }, [appId, recordRecentApp, setAppsState, setCurrentApp]);
 };
