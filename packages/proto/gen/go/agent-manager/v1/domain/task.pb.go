@@ -175,7 +175,8 @@ func (x *Task) GetUpdatedAt() *timestamppb.Timestamp {
 // ContextAttachment represents additional context provided to an agent.
 //
 // Attachments can be files, URLs, or inline notes that provide
-// relevant context for task execution.
+// relevant context for task execution. Each attachment should have
+// a clear summary and appropriate priority to help agents focus.
 //
 // @usage Task.context_attachments
 type ContextAttachment struct {
@@ -199,7 +200,19 @@ type ContextAttachment struct {
 	Key string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	// Categorization tags for filtering and grouping.
 	// @constraint optional, max 10 tags, each max 64 chars
-	Tags          []string `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty"`
+	Tags []string `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty"`
+	// One-sentence summary of what this context contains.
+	// Displayed before the full content to help agents quickly understand relevance.
+	// @constraint optional, max 256 chars
+	Summary string `protobuf:"bytes,8,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Content format hint for proper rendering.
+	// Helps agents parse and interpret the content correctly.
+	// @constraint "text" | "json" | "markdown" | "yaml" | "log"
+	Format string `protobuf:"bytes,9,opt,name=format,proto3" json:"format,omitempty"`
+	// Priority level indicating importance for the task.
+	// High priority context should be read first; low can be skipped if not needed.
+	// @constraint "high" | "medium" | "low"
+	Priority      string `protobuf:"bytes,10,opt,name=priority,proto3" json:"priority,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +294,27 @@ func (x *ContextAttachment) GetTags() []string {
 		return x.Tags
 	}
 	return nil
+}
+
+func (x *ContextAttachment) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ContextAttachment) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *ContextAttachment) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
 }
 
 // ScopeLock represents an exclusive lock on a path scope.
@@ -687,7 +721,7 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xbc\x01\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8a\x02\n" +
 	"\x11ContextAttachment\x12+\n" +
 	"\x04type\x18\x01 \x01(\tB\x17\xbaH\x14r\x12R\x04fileR\x04linkR\x04noteR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x10\n" +
@@ -695,7 +729,11 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12\x14\n" +
 	"\x05label\x18\x05 \x01(\tR\x05label\x12\x10\n" +
 	"\x03key\x18\x06 \x01(\tR\x03key\x12\x12\n" +
-	"\x04tags\x18\a \x03(\tR\x04tags\"\xec\x01\n" +
+	"\x04tags\x18\a \x03(\tR\x04tags\x12\x18\n" +
+	"\asummary\x18\b \x01(\tR\asummary\x12\x16\n" +
+	"\x06format\x18\t \x01(\tR\x06format\x12\x1a\n" +
+	"\bpriority\x18\n" +
+	" \x01(\tR\bpriority\"\xec\x01\n" +
 	"\tScopeLock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1d\n" +

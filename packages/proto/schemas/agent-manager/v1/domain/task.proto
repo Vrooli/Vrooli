@@ -83,7 +83,8 @@ message Task {
 // ContextAttachment represents additional context provided to an agent.
 //
 // Attachments can be files, URLs, or inline notes that provide
-// relevant context for task execution.
+// relevant context for task execution. Each attachment should have
+// a clear summary and appropriate priority to help agents focus.
 //
 // @usage Task.context_attachments
 message ContextAttachment {
@@ -113,6 +114,21 @@ message ContextAttachment {
   // Categorization tags for filtering and grouping.
   // @constraint optional, max 10 tags, each max 64 chars
   repeated string tags = 7;
+
+  // One-sentence summary of what this context contains.
+  // Displayed before the full content to help agents quickly understand relevance.
+  // @constraint optional, max 256 chars
+  string summary = 8;
+
+  // Content format hint for proper rendering.
+  // Helps agents parse and interpret the content correctly.
+  // @constraint "text" | "json" | "markdown" | "yaml" | "log"
+  string format = 9;
+
+  // Priority level indicating importance for the task.
+  // High priority context should be read first; low can be skipped if not needed.
+  // @constraint "high" | "medium" | "low"
+  string priority = 10;
 }
 
 // =============================================================================

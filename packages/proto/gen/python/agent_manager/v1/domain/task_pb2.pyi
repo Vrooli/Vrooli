@@ -46,6 +46,9 @@ class ContextAttachment(_message.Message):
     LABEL_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
     type: str
     path: str
     url: str
@@ -53,7 +56,10 @@ class ContextAttachment(_message.Message):
     label: str
     key: str
     tags: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ...) -> None: ...
+    summary: str
+    format: str
+    priority: str
+    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., format: _Optional[str] = ..., priority: _Optional[str] = ...) -> None: ...
 
 class ScopeLock(_message.Message):
     __slots__ = ()
