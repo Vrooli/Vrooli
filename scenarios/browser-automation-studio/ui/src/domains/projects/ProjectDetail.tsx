@@ -7,8 +7,8 @@ import { selectors } from "@constants/selectors";
 import type { Project } from "./store";
 import { useProjectStore } from "./store";
 import type { Workflow } from "@stores/workflowStore";
-import { useConfirmDialog } from "@hooks/useConfirmDialog";
-import { ConfirmDialog } from "@shared/ui";
+import { useDeleteProjectDialog } from "@hooks/useDeleteProjectDialog";
+import { DeleteProjectDialog } from "@shared/ui/DeleteProjectDialog";
 import ProjectModal from "./ProjectModal";
 
 // New decomposed components
@@ -74,10 +74,11 @@ function ProjectDetail({
 
   // Dialog hook for delete project confirmation
   const {
-    dialogState: confirmDialogState,
-    confirm: requestConfirm,
-    close: closeConfirmDialog,
-  } = useConfirmDialog();
+    dialogState: deleteDialogState,
+    confirm: requestDeleteConfirm,
+    setDeleteFiles,
+    close: closeDeleteDialog,
+  } = useDeleteProjectDialog();
 
   // Initialize store when project changes
   useEffect(() => {
@@ -106,20 +107,18 @@ function ProjectDetail({
 
   // Handle delete project
   const handleDeleteProject = useCallback(async () => {
-    const confirmed = await requestConfirm({
-      title: "Delete project?",
-      message:
-        "Delete this project and all associated workflows? This cannot be undone.",
-      confirmLabel: "Delete Project",
-      cancelLabel: "Cancel",
-      danger: true,
+    const result = await requestDeleteConfirm({
+      projectName: project.name,
     });
-    if (!confirmed) return;
+    if (!result.confirmed) return;
 
     setIsDeletingProject(true);
     try {
-      await deleteProject(project.id);
-      toast.success("Project deleted successfully");
+      await deleteProject(project.id, result.deleteFiles);
+      const message = result.deleteFiles
+        ? "Project and files deleted successfully"
+        : "Project removed successfully";
+      toast.success(message);
       onBack();
     } catch (error) {
       logger.error(
@@ -128,6 +127,7 @@ function ProjectDetail({
           component: "ProjectDetail",
           action: "handleDeleteProject",
           projectId: project.id,
+          deleteFiles: result.deleteFiles,
         },
         error,
       );
@@ -135,7 +135,7 @@ function ProjectDetail({
     } finally {
       setIsDeletingProject(false);
     }
-  }, [project.id, deleteProject, onBack, requestConfirm, setIsDeletingProject]);
+  }, [project.id, project.name, deleteProject, onBack, requestDeleteConfirm, setIsDeletingProject]);
 
   // Handle recording import
   const handleImportRecording = useCallback(
@@ -280,7 +280,11 @@ function ProjectDetail({
       )}
 
       {/* Delete Project Confirmation Dialog */}
-      <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
+      <DeleteProjectDialog
+        state={deleteDialogState}
+        onDeleteFilesChange={setDeleteFiles}
+        onClose={closeDeleteDialog}
+      />
     </>
   );
 }

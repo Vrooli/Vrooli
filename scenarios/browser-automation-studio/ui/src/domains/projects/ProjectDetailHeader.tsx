@@ -17,6 +17,7 @@ import {
   Loader,
   ArrowLeft,
 } from "lucide-react";
+import { useMediaQuery } from "@hooks/useMediaQuery";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
@@ -92,6 +93,9 @@ export function ProjectDetailHeader({
 
   // Filtered workflows
   const filteredWorkflows = useFilteredWorkflows();
+
+  // Media query for responsive rendering (md breakpoint = 768px)
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // Dialog hooks
   const {
@@ -449,7 +453,7 @@ export function ProjectDetailHeader({
   );
 
   const handleResyncFiles = useCallback(async () => {
-    setShowNewFileMenu(false);
+    setShowMoreMenu(false);
     const confirmed = await requestConfirm({
       title: "Resync from disk?",
       message:
@@ -459,205 +463,196 @@ export function ProjectDetailHeader({
     });
     if (!confirmed) return;
     await fileOps.resyncFiles();
-  }, [requestConfirm, fileOps, setShowNewFileMenu]);
+  }, [requestConfirm, fileOps, setShowMoreMenu]);
 
   // Info Popover content (shared between desktop and mobile)
-  const InfoPopover = () => (
-    showStatsPopover && (
-      <div
-        ref={statsPopoverRef}
-        style={statsPopoverStyles}
-        className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-surface">
-            Project Details
-          </h3>
-          <button
-            type="button"
-            onClick={() => setShowStatsPopover(false)}
-            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-            aria-label="Close project details"
-          >
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Project Info Section */}
-        <div className="mb-4 pb-4 border-b border-gray-700">
-          <div className="mb-3">
-            <dt className="text-xs text-gray-400 mb-1">Project Name</dt>
-            <dd className="text-sm font-medium text-surface">{project.name}</dd>
-          </div>
-          <div className="mb-3">
-            <dt className="text-xs text-gray-400 mb-1">Description</dt>
-            <dd className="text-sm text-gray-300">
-              {project.description?.trim() ? project.description : "No description"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-gray-400 mb-1">Save Path</dt>
-            <dd className="text-sm text-gray-300 font-mono break-all">
-              {project.folder_path}
-            </dd>
-          </div>
-        </div>
-
-        {/* Metrics Section */}
-        <div className="mb-3">
-          <h4 className="text-xs font-semibold text-gray-400 mb-2">Metrics</h4>
-          <dl className="space-y-2 text-sm text-gray-300">
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-400">Workflows</dt>
-              <dd className="font-medium text-surface">{workflowCount}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-400">Total executions</dt>
-              <dd className="font-medium text-surface">{totalExecutions}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-400">Last execution</dt>
-              <dd className="font-medium text-surface">{lastExecutionLabel}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-gray-400">Last updated</dt>
-              <dd className="font-medium text-surface">{lastUpdatedLabel}</dd>
-            </div>
-          </dl>
-        </div>
-        <p className="text-xs text-gray-500">
-          Metrics refresh automatically as your workflows run.
-        </p>
+  const infoPopoverContent = showStatsPopover ? (
+    <div
+      ref={statsPopoverRef}
+      style={statsPopoverStyles}
+      className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-surface">
+          Project Details
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowStatsPopover(false)}
+          className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+          aria-label="Close project details"
+        >
+          <X size={14} />
+        </button>
       </div>
-    )
-  );
+
+      {/* Project Info Section */}
+      <div className="mb-4 pb-4 border-b border-gray-700">
+        <div className="mb-3">
+          <dt className="text-xs text-gray-400 mb-1">Project Name</dt>
+          <dd className="text-sm font-medium text-surface">{project.name}</dd>
+        </div>
+        <div className="mb-3">
+          <dt className="text-xs text-gray-400 mb-1">Description</dt>
+          <dd className="text-sm text-gray-300">
+            {project.description?.trim() ? project.description : "No description"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-gray-400 mb-1">Save Path</dt>
+          <dd className="text-sm text-gray-300 font-mono break-all">
+            {project.folder_path}
+          </dd>
+        </div>
+      </div>
+
+      {/* Metrics Section */}
+      <div className="mb-3">
+        <h4 className="text-xs font-semibold text-gray-400 mb-2">Metrics</h4>
+        <dl className="space-y-2 text-sm text-gray-300">
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-400">Workflows</dt>
+            <dd className="font-medium text-surface">{workflowCount}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-400">Total executions</dt>
+            <dd className="font-medium text-surface">{totalExecutions}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-400">Last execution</dt>
+            <dd className="font-medium text-surface">{lastExecutionLabel}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-gray-400">Last updated</dt>
+            <dd className="font-medium text-surface">{lastUpdatedLabel}</dd>
+          </div>
+        </dl>
+      </div>
+      <p className="text-xs text-gray-500">
+        Metrics refresh automatically as your workflows run.
+      </p>
+    </div>
+  ) : null;
 
   // More Menu content (shared between desktop and mobile)
-  const MoreMenu = () => (
-    showMoreMenu && (
-      <div
-        ref={moreMenuRef}
-        style={moreMenuStyles}
-        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+  const moreMenuContent = showMoreMenu ? (
+    <div
+      ref={moreMenuRef}
+      style={moreMenuStyles}
+      className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden"
+    >
+      {/* Edit Project - moved from standalone button */}
+      <button
+        data-testid={selectors.projects.editButton}
+        onClick={() => {
+          setShowEditProjectModal(true);
+          setShowMoreMenu(false);
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
       >
-        {/* Edit Project - moved from standalone button */}
+        <PencilLine size={16} />
+        <span className="text-sm">Edit Project</span>
+      </button>
+      <button
+        onClick={() => {
+          toggleSelectionMode();
+          setShowMoreMenu(false);
+        }}
+        disabled={workflows.length === 0}
+        className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+      >
+        <ListChecks size={16} />
+        <span className="text-sm">Manage Workflows</span>
+      </button>
+      {onStartRecording && (
         <button
-          data-testid={selectors.projects.editButton}
           onClick={() => {
-            setShowEditProjectModal(true);
+            onStartRecording();
             setShowMoreMenu(false);
           }}
           className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
         >
-          <PencilLine size={16} />
-          <span className="text-sm">Edit Project</span>
+          <Circle size={16} className="text-red-500 fill-red-500" />
+          <span className="text-sm">Record Actions</span>
         </button>
-        <button
-          onClick={() => {
-            toggleSelectionMode();
-            setShowMoreMenu(false);
-          }}
-          disabled={workflows.length === 0}
-          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
-        >
-          <ListChecks size={16} />
-          <span className="text-sm">Manage Workflows</span>
-        </button>
-        {onStartRecording && (
-          <button
-            onClick={() => {
-              onStartRecording();
-              setShowMoreMenu(false);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-          >
-            <Circle size={16} className="text-red-500 fill-red-500" />
-            <span className="text-sm">Record Actions</span>
-          </button>
+      )}
+      <button
+        onClick={() => {
+          handleRecordingImportClick();
+          setShowMoreMenu(false);
+        }}
+        disabled={isImportingRecording}
+        className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+      >
+        {isImportingRecording ? (
+          <Loader size={16} className="animate-spin" />
+        ) : (
+          <UploadCloud size={16} />
         )}
+        <span className="text-sm">
+          {isImportingRecording ? "Importing..." : "Import Recording"}
+        </span>
+      </button>
+      {/* Resync From Disk - moved from New dropdown, only in tree mode */}
+      {viewMode === "tree" && (
         <button
-          onClick={() => {
-            handleRecordingImportClick();
-            setShowMoreMenu(false);
-          }}
-          disabled={isImportingRecording}
-          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          onClick={handleResyncFiles}
+          className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
         >
-          {isImportingRecording ? (
-            <Loader size={16} className="animate-spin" />
-          ) : (
-            <UploadCloud size={16} />
-          )}
-          <span className="text-sm">
-            {isImportingRecording ? "Importing..." : "Import Recording"}
-          </span>
+          <RefreshCw size={16} />
+          <span className="text-sm">Resync From Disk</span>
         </button>
-        {/* Resync From Disk - moved from New dropdown, only in tree mode */}
-        {viewMode === "tree" && (
-          <button
-            onClick={() => {
-              handleResyncFiles();
-              setShowMoreMenu(false);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-          >
-            <RefreshCw size={16} />
-            <span className="text-sm">Resync From Disk</span>
-          </button>
+      )}
+      <button
+        onClick={() => {
+          onDeleteProject();
+          setShowMoreMenu(false);
+        }}
+        disabled={isDeletingProject}
+        className="w-full flex items-center gap-3 px-4 py-3 text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-gray-700"
+      >
+        {isDeletingProject ? (
+          <Loader size={16} className="animate-spin" />
+        ) : (
+          <Trash2 size={16} />
         )}
-        <button
-          onClick={() => {
-            onDeleteProject();
-            setShowMoreMenu(false);
-          }}
-          disabled={isDeletingProject}
-          className="w-full flex items-center gap-3 px-4 py-3 text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left border-t border-gray-700"
-        >
-          {isDeletingProject ? (
-            <Loader size={16} className="animate-spin" />
-          ) : (
-            <Trash2 size={16} />
-          )}
-          <span className="text-sm">
-            {isDeletingProject ? "Deleting..." : "Delete Project"}
-          </span>
-        </button>
-      </div>
-    )
-  );
+        <span className="text-sm">
+          {isDeletingProject ? "Deleting..." : "Delete Project"}
+        </span>
+      </button>
+    </div>
+  ) : null;
 
   // New File Menu content (for tree mode dropdown)
-  const NewFileMenu = () => (
-    showNewFileMenu && (
-      <div
-        ref={newFileMenuRef}
-        style={newFileMenuStyles}
-        className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden mt-2"
+  const newFileMenuContent = showNewFileMenu ? (
+    <div
+      ref={newFileMenuRef}
+      style={newFileMenuStyles}
+      className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden mt-2"
+    >
+      <button
+        onClick={handleCreateFolder}
+        data-testid={selectors.projects.fileTree.createFolderButton}
+        className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
       >
+        <FolderOpen size={16} />
+        <span className="text-sm">New Folder</span>
+      </button>
+      {(["action", "flow", "case"] as const).map((type) => (
         <button
-          onClick={handleCreateFolder}
-          data-testid={selectors.projects.fileTree.createFolderButton}
+          key={type}
+          onClick={() => handleCreateWorkflowFile(type)}
+          data-testid={selectors.projects.fileTree.createWorkflowButton}
           className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
         >
-          <FolderOpen size={16} />
-          <span className="text-sm">New Folder</span>
+          <FileCode size={16} />
+          <span className="text-sm">
+            New {type.charAt(0).toUpperCase() + type.slice(1)}
+          </span>
         </button>
-        {(["action", "flow", "case"] as const).map((type) => (
-          <button
-            key={type}
-            onClick={() => handleCreateWorkflowFile(type)}
-            data-testid={selectors.projects.fileTree.createWorkflowButton}
-            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
-          >
-            <FileCode size={16} />
-            <span className="text-sm">
-              New {type.charAt(0).toUpperCase() + type.slice(1)}
-            </span>
-          </button>
-        ))}
-      </div>
-    )
-  );
+      ))}
+    </div>
+  ) : null;
 
   return (
     <>
@@ -729,121 +724,119 @@ export function ProjectDetailHeader({
               </button>
             </div>
           </div>
-        ) : (
-          <>
-            {/* Desktop Header - Compact single row */}
-            <div className="hidden md:flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <Breadcrumbs
-                  items={[
-                    { label: "Dashboard", onClick: onBack },
-                    { label: "Projects", onClick: onBack },
-                    { label: project.name, current: true },
-                  ]}
-                />
-                {/* Info Button */}
-                <div className="relative flex-shrink-0">
-                  <button
-                    ref={statsButtonRef}
-                    type="button"
-                    onClick={() => setShowStatsPopover(!showStatsPopover)}
-                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                    aria-label="Project details"
-                    aria-expanded={showStatsPopover}
-                  >
-                    <Info size={16} />
-                  </button>
-                  <InfoPopover />
-                </div>
-                {/* More Menu Button */}
-                <div className="relative flex-shrink-0">
-                  <button
-                    ref={moreMenuButtonRef}
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                    aria-label="More options"
-                    aria-expanded={showMoreMenu}
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                  <MoreMenu />
-                </div>
-              </div>
-
-              {/* New Button - Desktop only */}
-              {viewMode === "tree" ? (
-                <div className="relative flex-shrink-0">
-                  <button
-                    ref={newFileMenuButtonRef}
-                    data-testid={selectors.workflows.newButton}
-                    onClick={() => setShowNewFileMenu(!showNewFileMenu)}
-                    className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <Plus size={16} />
-                    <span>New</span>
-                  </button>
-                  <NewFileMenu />
-                </div>
-              ) : (
+        ) : isDesktop ? (
+          /* Desktop Header - Compact single row */
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <Breadcrumbs
+                items={[
+                  { label: "Dashboard", onClick: onBack },
+                  { label: "Projects", onClick: onBack },
+                  { label: project.name, current: true },
+                ]}
+              />
+              {/* Info Button */}
+              <div className="relative flex-shrink-0">
                 <button
+                  ref={statsButtonRef}
+                  type="button"
+                  onClick={() => setShowStatsPopover(!showStatsPopover)}
+                  className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label="Project details"
+                  aria-expanded={showStatsPopover}
+                >
+                  <Info size={16} />
+                </button>
+                {infoPopoverContent}
+              </div>
+              {/* More Menu Button */}
+              <div className="relative flex-shrink-0">
+                <button
+                  ref={moreMenuButtonRef}
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label="More options"
+                  aria-expanded={showMoreMenu}
+                >
+                  <MoreVertical size={16} />
+                </button>
+                {moreMenuContent}
+              </div>
+            </div>
+
+            {/* New Button - Desktop only */}
+            {viewMode === "tree" ? (
+              <div className="relative flex-shrink-0">
+                <button
+                  ref={newFileMenuButtonRef}
                   data-testid={selectors.workflows.newButton}
-                  onClick={onCreateWorkflow}
-                  className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0"
+                  onClick={() => setShowNewFileMenu(!showNewFileMenu)}
+                  className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   <Plus size={16} />
-                  <span>New Workflow</span>
+                  <span>New</span>
                 </button>
-              )}
-            </div>
-
-            {/* Mobile Header - Compact row */}
-            <div className="flex md:hidden items-center justify-between gap-3">
-              {/* Back Button */}
+                {newFileMenuContent}
+              </div>
+            ) : (
               <button
-                onClick={onBack}
-                className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
-                aria-label="Go back"
+                data-testid={selectors.workflows.newButton}
+                onClick={onCreateWorkflow}
+                className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0"
               >
-                <ArrowLeft size={20} />
+                <Plus size={16} />
+                <span>New Workflow</span>
               </button>
+            )}
+          </div>
+        ) : (
+          /* Mobile Header - Compact row */
+          <div className="flex items-center justify-between gap-3">
+            {/* Back Button */}
+            <button
+              onClick={onBack}
+              className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={20} />
+            </button>
 
-              {/* Project Name - centered, truncated */}
-              <h1 className="text-lg font-semibold text-surface truncate flex-1 text-center">
-                {project.name}
-              </h1>
+            {/* Project Name - centered, truncated */}
+            <h1 className="text-lg font-semibold text-surface truncate flex-1 text-center">
+              {project.name}
+            </h1>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {/* Info Button */}
-                <div className="relative">
-                  <button
-                    ref={statsButtonRef}
-                    type="button"
-                    onClick={() => setShowStatsPopover(!showStatsPopover)}
-                    className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                    aria-label="Project details"
-                    aria-expanded={showStatsPopover}
-                  >
-                    <Info size={18} />
-                  </button>
-                  <InfoPopover />
-                </div>
-                {/* More Menu Button */}
-                <div className="relative">
-                  <button
-                    ref={moreMenuButtonRef}
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
-                    aria-label="More options"
-                    aria-expanded={showMoreMenu}
-                  >
-                    <MoreVertical size={18} />
-                  </button>
-                  <MoreMenu />
-                </div>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Info Button */}
+              <div className="relative">
+                <button
+                  ref={statsButtonRef}
+                  type="button"
+                  onClick={() => setShowStatsPopover(!showStatsPopover)}
+                  className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label="Project details"
+                  aria-expanded={showStatsPopover}
+                >
+                  <Info size={18} />
+                </button>
+                {infoPopoverContent}
+              </div>
+              {/* More Menu Button */}
+              <div className="relative">
+                <button
+                  ref={moreMenuButtonRef}
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+                  aria-label="More options"
+                  aria-expanded={showMoreMenu}
+                >
+                  <MoreVertical size={18} />
+                </button>
+                {moreMenuContent}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

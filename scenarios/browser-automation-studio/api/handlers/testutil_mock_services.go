@@ -176,7 +176,7 @@ func (m *MockCatalogService) UpdateProject(ctx context.Context, project *databas
 	return nil
 }
 
-func (m *MockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID) error {
+func (m *MockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.DeleteProjectCalled = true

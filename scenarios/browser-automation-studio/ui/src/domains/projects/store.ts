@@ -64,7 +64,7 @@ interface ProjectState {
     },
   ) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<Project>;
-  deleteProject: (id: string) => Promise<void>;
+  deleteProject: (id: string, deleteFiles?: boolean) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   selectProject: (idOrNull: string | null) => void; // Alias/helper for setCurrentProject
   getProject: (id: string) => Promise<Project | null>;
@@ -208,11 +208,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  deleteProject: async (id) => {
+  deleteProject: async (id, deleteFiles = false) => {
     set({ isLoading: true, error: null });
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/projects/${id}`, {
+      const url = new URL(`${config.API_URL}/projects/${id}`);
+      if (deleteFiles) {
+        url.searchParams.set('delete_files', 'true');
+      }
+      const response = await fetch(url.toString(), {
         method: 'DELETE',
       });
 
@@ -228,7 +232,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         isLoading: false
       }));
     } catch (error) {
-      logger.error('Failed to delete project', { component: 'ProjectStore', action: 'deleteProject' }, error);
+      logger.error('Failed to delete project', { component: 'ProjectStore', action: 'deleteProject', deleteFiles }, error);
       set({
         error: error instanceof Error ? error.message : 'Failed to delete project',
         isLoading: false

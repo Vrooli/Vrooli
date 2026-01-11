@@ -58,13 +58,115 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	lock.Lock()
 	defer lock.Unlock()
 
+	// Phase 1: Discover and convert external workflows first.
+	// This ensures any workflow JSON files outside workflows/ directory get imported.
+	if err := s.importExternalWorkflows(ctx, project); err != nil {
+		s.log.WithError(err).WithField("project_id", projectID).Warn("Failed to import external workflows")
+		// Continue with native sync even if external import fails
+	}
+
+	// Phase 2: Sync native workflows from workflows/ directory (existing logic).
+	return s.syncNativeWorkflows(ctx, project)
+}
+
+// importExternalWorkflows discovers and converts external workflow files to native format.
+func (s *WorkflowService) importExternalWorkflows(ctx context.Context, project *database.ProjectIndex) error {
+	_ = ctx // context reserved for future use
+
+	// Discover external workflows (not in workflows/ directory)
+	external, err := DiscoverExternalWorkflows(project, 4)
+	if err != nil {
+		return fmt.Errorf("discover external workflows: %w", err)
+	}
+
+	if len(external) == 0 {
+		return nil
+	}
+
+	// Load import manifest to check which files have already been imported
+	manifest, err := LoadImportManifest(project)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to load import manifest, starting fresh")
+		manifest = &ImportManifest{Entries: make(map[string]ImportedEntry)}
+	}
+
+	manifestUpdated := false
+
+	for _, d := range external {
+		// Skip if already imported and unchanged
+		content, err := os.ReadFile(d.AbsolutePath)
+		if err != nil {
+			s.log.WithError(err).WithField("path", d.RelativePath).Debug("Cannot read external workflow file")
+			continue
+		}
+
+		if manifest.IsImported(d.RelativePath) && !manifest.HasChanged(d.RelativePath, content) {
+			continue
+		}
+
+		// Convert external workflow to native format
+		result, err := ConvertExternalWorkflow(project, content, d.RelativePath)
+		if err != nil {
+			s.log.WithError(err).WithField("path", d.RelativePath).Warn("Failed to convert external workflow")
+			continue
+		}
+
+		// Check for name conflicts before writing
+		conflicting, _ := s.repo.GetWorkflowByName(ctx, result.Workflow.Name, result.Workflow.FolderPath)
+		if conflicting != nil {
+			// If we previously imported this file to this workflow, update it
+			if existingID, ok := manifest.GetWorkflowIDBySource(d.RelativePath); ok && existingID == conflicting.ID {
+				result.Workflow.Id = conflicting.ID.String()
+			} else {
+				s.log.WithFields(logrus.Fields{
+					"source_path":   d.RelativePath,
+					"workflow_name": result.Workflow.Name,
+					"conflict_id":   conflicting.ID,
+				}).Warn("Skipping external workflow that conflicts with existing name/folder_path")
+				continue
+			}
+		}
+
+		// Write converted workflow to workflows/ directory
+		absPath, relPath, err := WriteConvertedWorkflow(project, result)
+		if err != nil {
+			s.log.WithError(err).WithField("path", d.RelativePath).Warn("Failed to write converted workflow")
+			continue
+		}
+
+		// Record in manifest
+		workflowID, _ := uuid.Parse(result.Workflow.Id)
+		manifest.RecordImport(d.RelativePath, workflowID, relPath, content)
+		manifestUpdated = true
+
+		s.log.WithFields(logrus.Fields{
+			"source":      d.RelativePath,
+			"destination": relPath,
+			"workflow_id": workflowID,
+		}).Info("Imported external workflow")
+
+		s.cacheWorkflowPath(workflowID, absPath, relPath)
+	}
+
+	// Save manifest if updated
+	if manifestUpdated {
+		if err := SaveImportManifest(project, manifest); err != nil {
+			s.log.WithError(err).Warn("Failed to save import manifest")
+		}
+	}
+
+	return nil
+}
+
+// syncNativeWorkflows synchronizes native workflows from the workflows/ directory.
+func (s *WorkflowService) syncNativeWorkflows(ctx context.Context, project *database.ProjectIndex) error {
 	workflowsRoot := ProjectWorkflowsDir(project)
 
 	// Discover file snapshots (only if workflows directory exists).
 	snapshots := make(map[uuid.UUID]*workflowProtoSnapshot)
 	var discoveryErr error
 	if info, statErr := os.Stat(workflowsRoot); statErr == nil && info.IsDir() {
-		err = filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
+		err := filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}

@@ -111,9 +111,71 @@ func (s *WorkflowService) UpdateProject(ctx context.Context, project *database.P
 	return persistProjectProto(project, description)
 }
 
-// DeleteProject deletes a project and all its workflows
-func (s *WorkflowService) DeleteProject(ctx context.Context, id uuid.UUID) error {
-	return s.repo.DeleteProject(ctx, id)
+// DeleteProject deletes a project and all its workflows.
+// If deleteFiles is true, it also deletes project files from disk:
+// - The workflows/ directory
+// - The .bas/ directory (import manifest, etc.)
+// - The project.bas.json file
+// The project folder itself is preserved.
+func (s *WorkflowService) DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error {
+	// Get project first if we need to delete files
+	var project *database.ProjectIndex
+	if deleteFiles {
+		var err error
+		project, err = s.repo.GetProject(ctx, id)
+		if err != nil {
+			// If project not found, nothing to delete from disk
+			if err == database.ErrNotFound {
+				return s.repo.DeleteProject(ctx, id)
+			}
+			return err
+		}
+	}
+
+	// Delete from database
+	if err := s.repo.DeleteProject(ctx, id); err != nil {
+		return err
+	}
+
+	// Delete files if requested
+	if deleteFiles && project != nil && project.FolderPath != "" {
+		s.deleteProjectFiles(project)
+		// Clear manifest cache
+		ClearManifestCache(id)
+	}
+
+	return nil
+}
+
+// deleteProjectFiles removes BAS-related files from the project folder.
+// It deletes:
+// - {project}/workflows/ directory
+// - {project}/.bas/ directory
+// - {project}/project.bas.json file
+func (s *WorkflowService) deleteProjectFiles(project *database.ProjectIndex) {
+	if project == nil || project.FolderPath == "" {
+		return
+	}
+
+	// Delete workflows directory
+	workflowsDir := ProjectWorkflowsDir(project)
+	if err := os.RemoveAll(workflowsDir); err != nil && !os.IsNotExist(err) {
+		s.log.WithError(err).WithField("path", workflowsDir).Warn("Failed to delete workflows directory")
+	}
+
+	// Delete .bas directory
+	basDir := filepath.Join(project.FolderPath, ".bas")
+	if err := os.RemoveAll(basDir); err != nil && !os.IsNotExist(err) {
+		s.log.WithError(err).WithField("path", basDir).Warn("Failed to delete .bas directory")
+	}
+
+	// Delete project.json
+	projectFile := filepath.Join(project.FolderPath, projectMetadataFileName)
+	if err := os.Remove(projectFile); err != nil && !os.IsNotExist(err) {
+		s.log.WithError(err).WithField("path", projectFile).Warn("Failed to delete project.json")
+	}
+
+	s.log.WithField("project_id", project.ID).Info("Deleted project files from disk")
 }
 
 // ListProjects lists all projects

@@ -344,23 +344,32 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteProject handles DELETE /api/v1/projects/{id}
+// Query parameters:
+//   - delete_files: if "true", also delete project files from disk (workflows, .bas config)
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
 	if !ok {
 		return
 	}
 
+	// Check if we should also delete project files
+	deleteFiles := r.URL.Query().Get("delete_files") == "true"
+
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	if err := h.catalogService.DeleteProject(ctx, id); err != nil {
-		h.log.WithError(err).WithField("id", id).Error("Failed to delete project")
+	if err := h.catalogService.DeleteProject(ctx, id, deleteFiles); err != nil {
+		h.log.WithError(err).WithFields(logrus.Fields{
+			"id":           id,
+			"delete_files": deleteFiles,
+		}).Error("Failed to delete project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project"}))
 		return
 	}
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"status": "deleted",
+		"status":        "deleted",
+		"files_deleted": deleteFiles,
 	})
 }
 
