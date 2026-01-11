@@ -42,6 +42,7 @@ type Server struct {
 	telemetryMux      sync.Mutex
 	preflightSessions PreflightSessionStore
 	preflightJobs     PreflightJobStore
+	preflightService  *PreflightService
 }
 
 // NewServer creates a new server instance
@@ -73,8 +74,8 @@ func NewServer(port int) *Server {
 		preflightSessions: NewInMemorySessionStore(),
 		preflightJobs:     NewInMemoryJobStore(),
 	}
-
-	server.startPreflightJanitor()
+	server.preflightService = NewPreflightService(server.preflightSessions, server.preflightJobs)
+	server.preflightService.StartJanitor()
 	server.setupRoutes()
 	return server
 }

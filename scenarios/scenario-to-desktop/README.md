@@ -98,6 +98,14 @@ scenario-to-desktop telemetry collect \
 
 The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl`, giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
 
+### Preflight Validation (Bundled Mode)
+
+Preflight spins up the bundled runtime control API to validate manifests, secrets, readiness, ports, and telemetry before packaging.
+
+- **Default behavior**: Dry-run runtime starts, services stay stopped, and the API queries `/validate`, `/readyz`, `/ports`, `/telemetry`.
+- **Start services**: Set `start_services=true` to launch services and capture readiness plus optional log tails.
+- **Sessions**: When services are started, a preflight session (in-memory) is created with a TTL. Use `session_id` to refresh status, and `session_stop=true` to clean up early.
+
 ### Installer outputs and updater channels
 
 **Default installer formats** (optimized for cross-platform builds on Linux):
