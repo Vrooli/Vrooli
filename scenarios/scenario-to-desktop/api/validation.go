@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // validateDesktopConfig validates desktop configuration
@@ -209,4 +212,29 @@ func defaultPlatformKey() string {
 	default:
 		return "linux"
 	}
+}
+
+// testDesktopHandler handles POST requests to test a desktop application.
+func (s *Server) testDesktopHandler(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		AppPath   string   `json:"app_path"`
+		Platforms []string `json:"platforms"`
+		Headless  bool     `json:"headless"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// Perform basic validation tests
+	testResults := s.runDesktopTests(&request)
+
+	response := map[string]interface{}{
+		"test_results": testResults,
+		"status":       "completed",
+		"timestamp":    time.Now(),
+	}
+
+	writeJSONResponse(w, http.StatusOK, response)
 }

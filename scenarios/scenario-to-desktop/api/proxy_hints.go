@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	"scenario-to-desktop-api/generation"
 )
 
 type ProxyHint struct {
@@ -82,7 +84,7 @@ func (s *Server) loadSavedProxyHint(scenario string) *ProxyHint {
 	if scenarioRoot == "" {
 		return nil
 	}
-	cfg, err := loadDesktopConnectionConfig(scenarioRoot)
+	cfg, err := loadConnectionConfigFromScenario(scenarioRoot)
 	if err != nil || cfg == nil {
 		return nil
 	}
@@ -95,6 +97,20 @@ func (s *Server) loadSavedProxyHint(scenario string) *ProxyHint {
 		Confidence: "high",
 		Message:    "Stored from the last successful desktop configuration",
 	}
+}
+
+// loadConnectionConfigFromScenario loads the desktop connection config from a scenario directory.
+func loadConnectionConfigFromScenario(scenarioPath string) (*generation.ConnectionConfig, error) {
+	configPath := filepath.Join(scenarioPath, ".vrooli", "desktop-config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	var cfg generation.ConnectionConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
@@ -138,7 +154,7 @@ func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
 }
 
 func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
-	analyzer := NewScenarioAnalyzer(s.getVrooliRoot())
+	analyzer := generation.NewAnalyzer(s.getVrooliRoot())
 	metadata, err := analyzer.AnalyzeScenario(scenario)
 	if err != nil {
 		return nil
@@ -147,10 +163,10 @@ func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
 	if port == 0 {
 		port = 3000
 	}
-	url := fmt.Sprintf("http://localhost:%d/", port)
-	normalized, err := normalizeProxyURL(url)
+	proxyURL := fmt.Sprintf("http://localhost:%d/", port)
+	normalized, err := normalizeProxyURL(proxyURL)
 	if err != nil {
-		normalized = url
+		normalized = proxyURL
 	}
 	return &ProxyHint{
 		URL:        normalized,

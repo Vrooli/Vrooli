@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/build"
 )
 
 // setupTestLogger initializes a test logger that suppresses verbose output
@@ -206,8 +208,8 @@ func assertFieldValue(t *testing.T, response map[string]interface{}, fieldName s
 }
 
 // createTestBuildStatus creates a test build status
-func createTestBuildStatus(buildID, status string) *BuildStatus {
-	return &BuildStatus{
+func createTestBuildStatus(buildID, status string) *build.Status {
+	return &build.Status{
 		BuildID:      buildID,
 		ScenarioName: "test-scenario",
 		Status:       status,
@@ -223,19 +225,8 @@ func createTestBuildStatus(buildID, status string) *BuildStatus {
 	}
 }
 
-// assertBuildStatusExists checks that a build status exists
-func assertBuildStatusExists(t *testing.T, server *Server, buildID string) *BuildStatus {
-	t.Helper()
-
-	status, exists := server.builds.Get(buildID)
-	if !exists {
-		t.Fatalf("Expected build status for ID %s to exist", buildID)
-	}
-	return status
-}
-
 // assertBuildStatusValue checks a field in build status
-func assertBuildStatusValue(t *testing.T, status *BuildStatus, field string, expected interface{}) {
+func assertBuildStatusValue(t *testing.T, status *build.Status, field string, expected interface{}) {
 	t.Helper()
 
 	var actual interface{}
@@ -297,4 +288,12 @@ func createJSONRequest(method, path string, body interface{}) *http.Request {
 	req := httptest.NewRequest(method, path, bodyReader)
 	req.Header.Set("Content-Type", "application/json")
 	return req
+}
+
+// requireNoError fails the test immediately if err is not nil
+func requireNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
