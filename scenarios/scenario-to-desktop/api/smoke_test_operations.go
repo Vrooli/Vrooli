@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -130,11 +134,26 @@ func (s *Server) performSmokeTest(ctx context.Context, smokeTestID, scenarioName
 		})
 	}
 
+	if !strings.Contains(output, "SMOKE_TEST_UPLOAD=ok") {
+		s.attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output)
+	}
+
 	if err != nil {
 		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
 			status.Status = "failed"
 			status.Error = fmt.Sprintf("smoke-test failed: %v", err)
 			status.Logs = append(status.Logs, "Smoke test failed")
+			now := time.Now()
+			status.CompletedAt = &now
+		})
+		return
+	}
+
+	if !strings.Contains(output, "SMOKE_TEST_RESULT=passed") {
+		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+			status.Status = "failed"
+			status.Error = "smoke test did not report success"
+			status.Logs = append(status.Logs, "Smoke test failed: missing SMOKE_TEST_RESULT=passed")
 			now := time.Now()
 			status.CompletedAt = &now
 		})
@@ -216,17 +235,203 @@ func (s *Server) runSmokeTestCommand(parent context.Context, workDir, command st
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, command, args...)
+	cmd := exec.Command(command, args...)
 	cmd.Dir = workDir
+	if runtime.GOOS != "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	}
 	if len(extraEnv) > 0 {
 		cmd.Env = append(os.Environ(), extraEnv...)
 	}
-	output, err := cmd.CombinedOutput()
-	if ctx.Err() == context.DeadlineExceeded {
-		return string(output), fmt.Errorf("command timed out after %s", timeout)
+
+	type result struct {
+		output []byte
+		err    error
 	}
-	if ctx.Err() == context.Canceled {
-		return string(output), fmt.Errorf("command cancelled")
+	resultCh := make(chan result, 1)
+
+	go func() {
+		output, err := cmd.CombinedOutput()
+		resultCh <- result{output: output, err: err}
+	}()
+
+	select {
+	case res := <-resultCh:
+		return string(res.output), res.err
+	case <-ctx.Done():
+		terminateProcess(cmd)
+		select {
+		case res := <-resultCh:
+			if ctx.Err() == context.DeadlineExceeded {
+				return string(res.output), fmt.Errorf("command timed out after %s", timeout)
+			}
+			return string(res.output), fmt.Errorf("command cancelled")
+		case <-time.After(2 * time.Second):
+			if ctx.Err() == context.DeadlineExceeded {
+				return "", fmt.Errorf("command timed out after %s", timeout)
+			}
+			return "", fmt.Errorf("command cancelled")
+		}
 	}
-	return string(output), err
+}
+
+func terminateProcess(cmd *exec.Cmd) {
+	if cmd.Process == nil {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		_ = cmd.Process.Kill()
+		return
+	}
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err == nil {
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		return
+	}
+	_ = cmd.Process.Kill()
+}
+
+func (s *Server) attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output string) {
+	telemetryPath := extractTelemetryPath(output)
+	if telemetryPath == "" {
+		appName := resolveAppNameFromArtifact(artifactPath, scenarioName)
+		if appName != "" {
+			telemetryPath = resolveTelemetryPath(platform, appName)
+		}
+	}
+	if telemetryPath == "" {
+		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+			status.Logs = append(status.Logs, "Telemetry fallback skipped: telemetry path not found")
+		})
+		return
+	}
+
+	events, err := readTelemetryEvents(telemetryPath, 500)
+	if err != nil {
+		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+			status.TelemetryUploadError = fmt.Sprintf("telemetry fallback read failed: %v", err)
+			status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback failed: %v", err))
+		})
+		return
+	}
+	if len(events) == 0 {
+		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+			status.Logs = append(status.Logs, "Telemetry fallback skipped: no events found")
+		})
+		return
+	}
+
+	_, ingested, err := s.ingestTelemetryEvents(scenarioName, "", "smoke-test-timeout", events)
+	if err != nil {
+		s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+			status.TelemetryUploadError = fmt.Sprintf("telemetry fallback upload failed: %v", err)
+			status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback upload failed: %v", err))
+		})
+		return
+	}
+
+	s.smokeTests.Update(smokeTestID, func(status *SmokeTestStatus) {
+		status.TelemetryUploaded = true
+		status.TelemetryUploadError = ""
+		status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback uploaded %d events from %s", ingested, telemetryPath))
+	})
+}
+
+func extractTelemetryPath(output string) string {
+	const marker = "[Desktop App] Telemetry initialized at "
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, marker) {
+			idx := strings.Index(line, marker)
+			if idx >= 0 {
+				return strings.TrimSpace(line[idx+len(marker):])
+			}
+		}
+	}
+	return ""
+}
+
+func resolveAppNameFromArtifact(artifactPath, fallback string) string {
+	dir := filepath.Dir(artifactPath)
+	pkgPath := filepath.Clean(filepath.Join(dir, "..", "package.json"))
+	file, err := os.Open(pkgPath)
+	if err != nil {
+		return fallback
+	}
+	defer file.Close()
+
+	raw, err := io.ReadAll(file)
+	if err != nil {
+		return fallback
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return fallback
+	}
+	if name, ok := payload["name"].(string); ok && name != "" {
+		return name
+	}
+	return fallback
+}
+
+func resolveTelemetryPath(platform, appName string) string {
+	if appName == "" {
+		return ""
+	}
+	switch platform {
+	case "win":
+		base := os.Getenv("APPDATA")
+		if base == "" {
+			return ""
+		}
+		return filepath.Join(base, appName, "deployment-telemetry.jsonl")
+	case "mac":
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		return filepath.Join(home, "Library", "Application Support", appName, "deployment-telemetry.jsonl")
+	default:
+		config := os.Getenv("XDG_CONFIG_HOME")
+		if config == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return ""
+			}
+			config = filepath.Join(home, ".config")
+		}
+		return filepath.Join(config, appName, "deployment-telemetry.jsonl")
+	}
+}
+
+func readTelemetryEvents(path string, limit int) ([]map[string]interface{}, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	events := make([]map[string]interface{}, 0, limit)
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		if len(events) >= limit {
+			break
+		}
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var event map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			return events, err
+		}
+		events = append(events, event)
+	}
+	if err := scanner.Err(); err != nil {
+		return events, err
+	}
+	return events, nil
 }

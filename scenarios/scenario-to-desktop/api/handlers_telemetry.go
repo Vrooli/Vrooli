@@ -35,45 +35,20 @@ func (s *Server) telemetryIngestHandler(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "events array cannot be empty", http.StatusBadRequest)
 		return
 	}
-	if request.DeploymentMode == "" {
-		request.DeploymentMode = "external-server"
-	}
-
-	vrooliRoot := detectVrooliRoot()
-	telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
-	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
-		http.Error(w, fmt.Sprintf("failed to prepare telemetry directory: %s", err), http.StatusInternalServerError)
-		return
-	}
-
-	filePath := filepath.Join(telemetryDir, fmt.Sprintf("%s.jsonl", request.ScenarioName))
-	s.telemetryMux.Lock()
-	defer s.telemetryMux.Unlock()
-
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	filePath, ingested, err := s.ingestTelemetryEvents(
+		request.ScenarioName,
+		request.DeploymentMode,
+		request.Source,
+		request.Events,
+	)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to open telemetry file: %s", err), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-	defer file.Close()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	for _, event := range request.Events {
-		normalized := normalizeTelemetryEvent(event, request.ScenarioName, request.DeploymentMode, request.Source, now)
-		data, err := json.Marshal(normalized)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to marshal telemetry event: %s", err), http.StatusBadRequest)
-			return
-		}
-		if _, err := file.Write(append(data, '\n')); err != nil {
-			http.Error(w, fmt.Sprintf("failed to write telemetry: %s", err), http.StatusInternalServerError)
-			return
-		}
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"status":          "ok",
-		"events_ingested": len(request.Events),
+		"events_ingested": ingested,
 		"output_path":     filePath,
 	})
 }
@@ -99,6 +74,19 @@ func normalizeTelemetryEvent(event map[string]interface{}, scenario, deploymentM
 		normalized["server_type"] = serverType
 	}
 
+	if deploymentMode == "" {
+		if raw, ok := event["deploymentMode"].(string); ok && raw != "" {
+			deploymentMode = raw
+		} else if raw, ok := event["deployment_mode"].(string); ok && raw != "" {
+			deploymentMode = raw
+		} else {
+			deploymentMode = "unknown"
+		}
+	}
+	if source == "" {
+		source = "desktop-runtime"
+	}
+
 	normalized["scenario_name"] = scenario
 	normalized["deployment_mode"] = deploymentMode
 	normalized["source"] = source
@@ -108,6 +96,49 @@ func normalizeTelemetryEvent(event map[string]interface{}, scenario, deploymentM
 	}
 
 	return normalized
+}
+
+func (s *Server) ingestTelemetryEvents(scenario, deploymentMode, source string, events []map[string]interface{}) (string, int, error) {
+	if scenario == "" {
+		return "", 0, fmt.Errorf("scenario_name is required")
+	}
+	if len(events) == 0 {
+		return "", 0, fmt.Errorf("events array cannot be empty")
+	}
+	if deploymentMode == "" {
+		deploymentMode = "external-server"
+	}
+
+	vrooliRoot := detectVrooliRoot()
+	telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
+	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
+		return "", 0, fmt.Errorf("failed to prepare telemetry directory: %s", err)
+	}
+
+	filePath := filepath.Join(telemetryDir, fmt.Sprintf("%s.jsonl", scenario))
+	s.telemetryMux.Lock()
+	defer s.telemetryMux.Unlock()
+
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to open telemetry file: %s", err)
+	}
+	defer file.Close()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	ingested := 0
+	for _, event := range events {
+		normalized := normalizeTelemetryEvent(event, scenario, deploymentMode, source, now)
+		data, err := json.Marshal(normalized)
+		if err != nil {
+			return "", 0, fmt.Errorf("failed to marshal telemetry event: %s", err)
+		}
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			return "", 0, fmt.Errorf("failed to write telemetry: %s", err)
+		}
+		ingested++
+	}
+	return filePath, ingested, nil
 }
 
 type telemetrySummaryResponse struct {
