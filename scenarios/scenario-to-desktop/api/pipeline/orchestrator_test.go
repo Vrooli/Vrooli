@@ -250,3 +250,290 @@ func TestStageFailure(t *testing.T) {
 		t.Errorf("expected pipeline to fail, got %s", final.Status)
 	}
 }
+
+// Additional orchestrator tests
+
+func TestOrchestratorWithOptions(t *testing.T) {
+	store := NewInMemoryStore()
+	cancelManager := NewInMemoryCancelManager()
+	idGen := NewUUIDGenerator()
+	timeProv := NewRealTimeProvider()
+	logger := &mockLogger{}
+	stage := &mockStage{name: "test-stage"}
+
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithCancelManager(cancelManager),
+		WithIDGenerator(idGen),
+		WithTimeProvider(timeProv),
+		WithLogger(logger),
+		WithStages(stage),
+		WithOrchestratorScenarioRoot("/tmp/scenarios"),
+	)
+
+	if orchestrator == nil {
+		t.Fatalf("expected orchestrator to be created")
+	}
+	if orchestrator.store != store {
+		t.Errorf("expected custom store to be used")
+	}
+	if orchestrator.cancelManager != cancelManager {
+		t.Errorf("expected custom cancel manager to be used")
+	}
+	if orchestrator.scenarioRoot != "/tmp/scenarios" {
+		t.Errorf("expected scenario root '/tmp/scenarios', got %q", orchestrator.scenarioRoot)
+	}
+}
+
+func TestOrchestratorListPipelinesConcurrency(t *testing.T) {
+	orchestrator := NewOrchestrator(
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+	}
+
+	// Run multiple pipelines
+	for i := 0; i < 5; i++ {
+		orchestrator.RunPipeline(ctx, config)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	pipelines := orchestrator.ListPipelines()
+	if len(pipelines) < 5 {
+		t.Errorf("expected at least 5 pipelines, got %d", len(pipelines))
+	}
+}
+
+func TestOrchestratorCancelNonexistent(t *testing.T) {
+	orchestrator := NewOrchestrator()
+
+	cancelled := orchestrator.CancelPipeline("nonexistent")
+	if cancelled {
+		t.Errorf("expected CancelPipeline to return false for nonexistent")
+	}
+}
+
+func TestOrchestratorGetStatusNonexistent(t *testing.T) {
+	orchestrator := NewOrchestrator()
+
+	_, ok := orchestrator.GetStatus("nonexistent")
+	if ok {
+		t.Errorf("expected GetStatus to return false for nonexistent")
+	}
+}
+
+// Mock logger for testing
+type mockLogger struct{}
+
+func (m *mockLogger) Info(msg string, args ...interface{})  {}
+func (m *mockLogger) Warn(msg string, args ...interface{})  {}
+func (m *mockLogger) Error(msg string, args ...interface{}) {}
+func (m *mockLogger) Debug(msg string, args ...interface{}) {}
+
+// Store tests
+
+func TestInMemoryStore(t *testing.T) {
+	store := NewInMemoryStore()
+
+	t.Run("Save and Get", func(t *testing.T) {
+		status := &Status{
+			PipelineID:   "pipeline-123",
+			ScenarioName: "test-scenario",
+			Status:       StatusRunning,
+		}
+		store.Save(status)
+
+		retrieved, ok := store.Get("pipeline-123")
+		if !ok {
+			t.Fatalf("expected to retrieve saved status")
+		}
+		if retrieved.PipelineID != "pipeline-123" {
+			t.Errorf("expected pipeline ID 'pipeline-123'")
+		}
+	})
+
+	t.Run("Get nonexistent", func(t *testing.T) {
+		_, ok := store.Get("nonexistent")
+		if ok {
+			t.Errorf("expected false for nonexistent")
+		}
+	})
+
+	t.Run("Update existing", func(t *testing.T) {
+		status := &Status{
+			PipelineID: "pipeline-update",
+			Status:     StatusPending,
+		}
+		store.Save(status)
+
+		updated := store.Update("pipeline-update", func(s *Status) {
+			s.Status = StatusCompleted
+		})
+		if !updated {
+			t.Errorf("expected Update to return true")
+		}
+
+		retrieved, _ := store.Get("pipeline-update")
+		if retrieved.Status != StatusCompleted {
+			t.Errorf("expected status 'completed', got %q", retrieved.Status)
+		}
+	})
+
+	t.Run("Update nonexistent", func(t *testing.T) {
+		updated := store.Update("nonexistent", func(s *Status) {
+			s.Status = StatusCompleted
+		})
+		if updated {
+			t.Errorf("expected Update to return false for nonexistent")
+		}
+	})
+
+	t.Run("List", func(t *testing.T) {
+		listStore := NewInMemoryStore()
+		listStore.Save(&Status{PipelineID: "p1", Status: StatusRunning})
+		listStore.Save(&Status{PipelineID: "p2", Status: StatusCompleted})
+
+		all := listStore.List()
+		if len(all) != 2 {
+			t.Errorf("expected 2 statuses, got %d", len(all))
+		}
+	})
+}
+
+func TestInMemoryCancelManager(t *testing.T) {
+	cm := NewInMemoryCancelManager()
+
+	t.Run("Set and Get cancel", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cm.SetCancel("pipeline-1", cancel)
+
+		gotten, ok := cm.GetCancel("pipeline-1")
+		if !ok {
+			t.Fatalf("expected to get cancel func")
+		}
+		if gotten == nil {
+			t.Errorf("expected non-nil cancel func")
+		}
+
+		// Verify cancel works
+		gotten()
+		select {
+		case <-ctx.Done():
+			// Expected
+		default:
+			t.Errorf("expected context to be cancelled")
+		}
+	})
+
+	t.Run("Take cancel", func(t *testing.T) {
+		_, cancel := context.WithCancel(context.Background())
+		cm.SetCancel("pipeline-2", cancel)
+
+		taken := cm.TakeCancel("pipeline-2")
+		if taken == nil {
+			t.Fatalf("expected to take cancel func")
+		}
+
+		// Second take should return nil
+		taken2 := cm.TakeCancel("pipeline-2")
+		if taken2 != nil {
+			t.Errorf("expected nil on second take")
+		}
+	})
+
+	t.Run("Get nonexistent", func(t *testing.T) {
+		_, ok := cm.GetCancel("nonexistent")
+		if ok {
+			t.Errorf("expected false for nonexistent")
+		}
+	})
+}
+
+func TestUUIDGenerator(t *testing.T) {
+	gen := NewUUIDGenerator()
+
+	id1 := gen.Generate()
+	id2 := gen.Generate()
+
+	if id1 == "" {
+		t.Errorf("expected non-empty ID")
+	}
+	if id1 == id2 {
+		t.Errorf("expected unique IDs")
+	}
+}
+
+func TestRealTimeProvider(t *testing.T) {
+	tp := NewRealTimeProvider()
+
+	now := tp.Now()
+	if now.IsZero() {
+		t.Errorf("expected non-zero time")
+	}
+
+	unix := tp.Unix()
+	if unix == 0 {
+		t.Errorf("expected non-zero unix time")
+	}
+}
+
+// Config tests
+
+func TestConfigDefaults(t *testing.T) {
+	t.Run("StopOnFailure defaults to true", func(t *testing.T) {
+		config := &Config{
+			ScenarioName: "test",
+		}
+		// StopOnFailure is nil by default, should be treated as true
+		if config.StopOnFailure != nil && !*config.StopOnFailure {
+			t.Errorf("expected StopOnFailure to default to true")
+		}
+	})
+}
+
+// Status tests
+
+func TestStatus_Fields(t *testing.T) {
+	now := time.Now().Unix()
+	status := &Status{
+		PipelineID:   "pipeline-123",
+		ScenarioName: "my-scenario",
+		Status:       StatusRunning,
+		Platforms:    []string{"linux", "mac"},
+		Stages:       map[string]*StageResult{},
+		StageOrder:   []string{"bundle", "preflight"},
+		StartedAt:    now,
+	}
+
+	if status.PipelineID != "pipeline-123" {
+		t.Errorf("expected PipelineID 'pipeline-123'")
+	}
+	if len(status.Platforms) != 2 {
+		t.Errorf("expected 2 platforms")
+	}
+	if len(status.StageOrder) != 2 {
+		t.Errorf("expected 2 stage order entries")
+	}
+}
+
+func TestStageResult_Fields(t *testing.T) {
+	now := time.Now().Unix()
+	result := &StageResult{
+		Stage:       "bundle",
+		Status:      StatusCompleted,
+		StartedAt:   now,
+		CompletedAt: now + 10,
+		Output:      map[string]interface{}{"bundle_dir": "/tmp/bundle"},
+	}
+
+	if result.Stage != "bundle" {
+		t.Errorf("expected Stage 'bundle'")
+	}
+	if result.Status != StatusCompleted {
+		t.Errorf("expected Status 'completed'")
+	}
+}
