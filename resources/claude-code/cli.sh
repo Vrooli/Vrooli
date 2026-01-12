@@ -375,6 +375,7 @@ claude_code_settings() {
 claude_code_run() {
     local agent_tag=""
     local prompt=""
+    local resume_session=""
     
     # Parse arguments properly
     while [[ $# -gt 0 ]]; do
@@ -383,11 +384,15 @@ claude_code_run() {
                 agent_tag="$2"
                 shift 2
                 ;;
+            --resume|--session-id|--session)
+                resume_session="$2"
+                shift 2
+                ;;
             -)
                 prompt="-"
                 shift
                 break
-                ;;
+            ;;
             *)
                 prompt="$*"
                 break
@@ -450,6 +455,9 @@ claude_code_run() {
     export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
     export ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
     export SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-yes}"
+    if [[ -n "$resume_session" ]]; then
+        export CLAUDE_RESUME_SESSION="$resume_session"
+    fi
     
     # Always use non-interactive mode for autonomous platform
     export CLAUDE_NON_INTERACTIVE="true"

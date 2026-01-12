@@ -1652,8 +1652,21 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	if err != nil {
 		run.Status = domain.RunStatusFailed
 		run.EndedAt = &now
+		run.ErrorMsg = err.Error()
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
+			_ = o.events.Append(ctx, run.ID, errorEvent)
+			if o.broadcaster != nil {
+				o.broadcaster.BroadcastEvent(errorEvent)
+			}
+		}
+	} else if result != nil && !result.Success {
+		run.Status = domain.RunStatusFailed
+		run.EndedAt = &now
+		run.ErrorMsg = result.ErrorMessage
+		run.ExitCode = &result.ExitCode
+		if o.events != nil && result.ErrorMessage != "" {
+			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
 			_ = o.events.Append(ctx, run.ID, errorEvent)
 			if o.broadcaster != nil {
 				o.broadcaster.BroadcastEvent(errorEvent)

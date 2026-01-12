@@ -53,6 +53,7 @@ class RunEvent(_message.Message):
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     LOG_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_DELETED_FIELD_NUMBER: _ClassVar[int]
     TOOL_CALL_FIELD_NUMBER: _ClassVar[int]
     TOOL_RESULT_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +70,7 @@ class RunEvent(_message.Message):
     timestamp: _timestamp_pb2.Timestamp
     log: LogEventData
     message: MessageEventData
+    message_deleted: MessageDeletedEventData
     tool_call: ToolCallEventData
     tool_result: ToolResultEventData
     status: StatusEventData
@@ -78,7 +80,7 @@ class RunEvent(_message.Message):
     progress: ProgressEventData
     cost: CostEventData
     rate_limit: RateLimitEventData
-    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ...) -> None: ...
 
 class AgentManagerWsMessage(_message.Message):
     __slots__ = ()
@@ -159,6 +161,12 @@ class MessageEventData(_message.Message):
     role: str
     content: str
     def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+
+class MessageDeletedEventData(_message.Message):
+    __slots__ = ()
+    TARGET_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    target_event_id: str
+    def __init__(self, target_event_id: _Optional[str] = ...) -> None: ...
 
 class ToolCallEventData(_message.Message):
     __slots__ = ()

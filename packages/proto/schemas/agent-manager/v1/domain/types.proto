@@ -343,6 +343,9 @@ enum RunEventType {
 
   // Error event.
   RUN_EVENT_TYPE_ERROR = 8;
+
+  // Message deletion/redaction event.
+  RUN_EVENT_TYPE_MESSAGE_DELETED = 9;
 }
 
 // =============================================================================

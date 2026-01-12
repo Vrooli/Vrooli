@@ -168,7 +168,16 @@ func createSmokeTestArtifact(t *testing.T, server *Server, scenario string) stri
 	case "win":
 		filename += ".exe"
 	case "mac":
-		filename += ".zip"
+		filename += ".app"
+		artifactPath := filepath.Join(distPath, filename)
+		executable := filepath.Join(artifactPath, "Contents", "MacOS", "smoke-test")
+		if err := os.MkdirAll(filepath.Dir(executable), 0755); err != nil {
+			t.Fatalf("failed to create app bundle: %v", err)
+		}
+		if err := os.WriteFile(executable, []byte("test"), 0755); err != nil {
+			t.Fatalf("failed to write app executable: %v", err)
+		}
+		return artifactPath
 	default:
 		filename += ".AppImage"
 	}
@@ -205,7 +214,7 @@ func TestSmokeTestRunnerCancellation(t *testing.T) {
 	env.Server.setSmokeTestCancel(id, cancel)
 	cancel()
 
-	env.Server.performSmokeTest(ctx, id, scenario, env.Server.standardOutputPath(scenario), artifact, currentSmokeTestPlatform())
+	env.Server.performSmokeTest(ctx, id, scenario, artifact, currentSmokeTestPlatform())
 
 	status, ok := env.Server.smokeTests.Get(id)
 	if !ok {

@@ -66,6 +66,9 @@ message RunEvent {
     // Message event data (event_type = MESSAGE).
     MessageEventData message = 11;
 
+    // Message deletion event data (event_type = MESSAGE_DELETED).
+    MessageDeletedEventData message_deleted = 21;
+
     // Tool call event data (event_type = TOOL_CALL).
     ToolCallEventData tool_call = 12;
 
@@ -245,6 +248,18 @@ message MessageEventData {
 
   // Message content.
   string content = 2;
+}
+
+// MessageDeletedEventData marks a prior message as deleted/redacted.
+//
+// The original message remains in the append-only event stream, but
+// clients should hide it by default and offer a "show message" toggle.
+//
+// @usage RunEvent.message_deleted
+message MessageDeletedEventData {
+  // ID of the original message event being deleted.
+  // @format uuid
+  string target_event_id = 1;
 }
 
 // =============================================================================

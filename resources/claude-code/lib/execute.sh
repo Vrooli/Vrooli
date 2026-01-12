@@ -143,6 +143,9 @@ claude_code::run() {
     local cmd_args=()
     # Always use non-interactive mode for autonomous platform integration
     cmd_args+=("--print")  # Use non-interactive mode for script execution
+    if [[ -n "${CLAUDE_RESUME_SESSION:-}" ]]; then
+        cmd_args+=("--resume" "${CLAUDE_RESUME_SESSION}")
+    fi
     # Use MAX_TURNS if set, otherwise default to 5
     cmd_args+=("--max-turns" "${MAX_TURNS:-5}")
     

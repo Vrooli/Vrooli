@@ -316,3 +316,17 @@ class ContinueRunResponse(_message.Message):
     error: str
     error_code: str
     def __init__(self, success: _Optional[bool] = ..., run: _Optional[_Union[Run, _Mapping]] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ...) -> None: ...
+
+class DeleteRunMessageRequest(_message.Message):
+    __slots__ = ()
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    event_id: str
+    def __init__(self, run_id: _Optional[str] = ..., event_id: _Optional[str] = ...) -> None: ...
+
+class DeleteRunMessageResponse(_message.Message):
+    __slots__ = ()
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    def __init__(self, success: _Optional[bool] = ...) -> None: ...

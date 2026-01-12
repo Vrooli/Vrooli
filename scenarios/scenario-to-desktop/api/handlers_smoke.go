@@ -63,7 +63,7 @@ func (s *Server) smokeTestStartHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.setSmokeTestCancel(smokeTestID, cancel)
-	go s.performSmokeTest(ctx, smokeTestID, request.ScenarioName, desktopPath, artifactPath, currentPlatform)
+	go s.performSmokeTest(ctx, smokeTestID, request.ScenarioName, artifactPath, currentPlatform)
 
 	writeJSONResponse(w, http.StatusOK, status)
 }

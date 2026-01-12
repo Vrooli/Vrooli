@@ -1071,15 +1071,30 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 
 	startTime := time.Now()
 
-	// Build command arguments for codex resume
-	args := []string{
-		"resume", req.SessionID,
-		"--json",
+	// Build command arguments for codex resume.
+	// codex resume expects the prompt as an argument (stdin is ignored).
+	codexArgs := []string{"resume"}
+	if req.WorkingDir != "" {
+		codexArgs = append(codexArgs, "-C", req.WorkingDir)
+	}
+	codexArgs = append(codexArgs, "--full-auto", req.SessionID)
+	if strings.TrimSpace(req.Prompt) != "" {
+		codexArgs = append(codexArgs, req.Prompt)
 	}
 
-	// Create command using direct codex CLI
-	cmd := exec.CommandContext(ctx, r.codexCLIPath, args...)
-	cmd.Dir = req.WorkingDir
+	// codex resume requires a TTY; wrap it with `script` to allocate a pseudo-terminal.
+	scriptPath, err := exec.LookPath("script")
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "continue",
+			Cause:      fmt.Errorf("script not found for TTY allocation: %w", err),
+		}
+	}
+	cmd := exec.CommandContext(ctx, scriptPath, "-q", "/dev/null", "-c", shellEscapeCommand(r.codexCLIPath, codexArgs...))
+	if req.WorkingDir != "" {
+		cmd.Dir = req.WorkingDir
+	}
 
 	// Set environment
 	env := os.Environ()
@@ -1118,16 +1133,6 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}
 
-	// Provide prompt via stdin
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
 	// Start command
 	if err := cmd.Start(); err != nil {
 		return nil, &domain.RunnerError{
@@ -1147,19 +1152,10 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		))
 	}
 
-	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-	stdin.Close()
-
 	// Process streaming output
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
+	var outputBuilder strings.Builder
 	var errorOutput strings.Builder
 
 	// Read stderr in background
@@ -1171,7 +1167,7 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}()
 
-	// Parse streaming JSON output
+	// Read stdout (codex resume does not emit JSON)
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -1179,20 +1175,14 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		if line == "" {
 			continue
 		}
-
-		events := r.parseCodexStreamEventsWithThreadID(req.RunID, line)
-		if len(events) == 0 {
-			continue
-		}
-
-		for _, event := range events {
-			if event == nil {
-				continue
-			}
-			r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
-			if req.EventSink != nil {
-				_ = req.EventSink.Emit(event)
-			}
+		outputBuilder.WriteString(line)
+		outputBuilder.WriteString("\n")
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID,
+				"info",
+				line,
+			))
 		}
 	}
 
@@ -1228,11 +1218,20 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	} else {
 		result.Success = true
 		result.ExitCode = 0
-		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+		output := strings.TrimSpace(outputBuilder.String())
+		if output != "" {
+			lastAssistantMessage = output
+		}
+		if lastAssistantMessage != "" {
+			result.Summary = &domain.RunSummary{
+				Description:  lastAssistantMessage,
+				TurnsUsed:    metrics.TurnsUsed,
+				TokensUsed:   TotalTokens(metrics),
+				CostEstimate: metrics.CostEstimateUSD,
+			}
+		}
+		if req.EventSink != nil && output != "" {
+			_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", output))
 		}
 	}
 
@@ -1252,6 +1251,25 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	return result, nil
+}
+
+func shellEscapeCommand(command string, args ...string) string {
+	escaped := make([]string, 0, len(args)+1)
+	escaped = append(escaped, shellEscapeArg(command))
+	for _, arg := range args {
+		escaped = append(escaped, shellEscapeArg(arg))
+	}
+	return strings.Join(escaped, " ")
+}
+
+func shellEscapeArg(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+	if strings.ContainsAny(arg, " \t\n'\"\\$`") {
+		return "'" + strings.ReplaceAll(arg, "'", "'\"'\"'") + "'"
+	}
+	return arg
 }
 
 // parseCodexStreamEventsWithThreadID is like parseCodexStreamEvents but also captures thread_id.

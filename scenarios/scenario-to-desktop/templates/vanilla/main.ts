@@ -1352,6 +1352,7 @@ async function runSmokeTest(): Promise<void> {
 
     let success = false;
     let failureMessage = "";
+    let runtimeUrl = "";
 
     try {
         if (isBundledMode) {
@@ -1368,24 +1369,36 @@ async function runSmokeTest(): Promise<void> {
                 const errorDetails = formatValidationErrors(validationResult);
                 throw new Error(`Bundle validation failed: ${errorDetails}`);
             }
+            if (!BUNDLED_RUNTIME.SUPPORTED) {
+                throw new Error("Bundled runtime is not supported in this build");
+            }
+            runtimeUrl = await startBundledRuntime();
+            await checkServerReady(runtimeUrl, smokeTestTimeoutMs);
         } else if (APP_CONFIG.SERVER_TYPE === "static") {
             const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
             if (!(await pathExists(staticPath))) {
                 throw new Error(`Static UI missing at ${staticPath}`);
             }
         } else {
+            runtimeUrl = SERVER_URL;
             await checkServerReady(SERVER_URL, smokeTestTimeoutMs);
         }
 
         success = true;
     } catch (error) {
         failureMessage = String(error);
+    } finally {
+        if (isBundledMode) {
+            await shutdownRuntime();
+        }
     }
 
     if (success) {
-        await recordTelemetry("smoke_test_passed", { serverUrl: SERVER_URL });
+        await recordTelemetry("smoke_test_passed", { serverUrl: runtimeUrl || SERVER_URL });
+        console.log("SMOKE_TEST_RESULT=passed");
     } else {
         await recordTelemetry("smoke_test_failed", { error: failureMessage }, "error");
+        console.log(`SMOKE_TEST_RESULT=failed ${failureMessage}`);
     }
 
     if (smokeTestUploadURL && telemetryFilePath) {

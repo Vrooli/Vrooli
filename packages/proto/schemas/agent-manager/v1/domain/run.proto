@@ -507,3 +507,30 @@ message ContinueRunResponse {
   // Codes: "session_expired", "continuation_not_supported", "run_not_found"
   string error_code = 4;
 }
+
+// =============================================================================
+// DELETE RUN MESSAGE REQUEST/RESPONSE
+// =============================================================================
+
+// DeleteRunMessageRequest marks a message event as deleted.
+//
+// This appends a message_deleted event instead of removing history.
+//
+// @usage POST /api/v1/runs/{id}/messages/{event_id}/delete
+message DeleteRunMessageRequest {
+  // Run ID containing the message event.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Message event ID to delete.
+  // @format uuid
+  string event_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteRunMessageResponse confirms deletion.
+//
+// @usage POST /api/v1/runs/{id}/messages/{event_id}/delete response
+message DeleteRunMessageResponse {
+  // Whether the delete event was created.
+  bool success = 1;
+}

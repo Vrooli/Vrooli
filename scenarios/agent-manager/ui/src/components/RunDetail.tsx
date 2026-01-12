@@ -376,6 +376,12 @@ export function RunDetail({
                   <span className="text-muted-foreground">Progress: </span>
                   {run.progressPercent}%
                 </div>
+                {run.resolvedConfig?.runnerType ? (
+                  <div>
+                    <span className="text-muted-foreground">Runner: </span>
+                    {runnerTypeLabel(run.resolvedConfig.runnerType)}
+                  </div>
+                ) : null}
                 {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
                   <div>
                     <span className="text-muted-foreground">Fallbacks: </span>
