@@ -351,6 +351,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 			AutoRecover:       true, // Auto-recover stale runs if process is alive
 		}),
 		orchestration.WithReconcilerBroadcaster(wsHub),
+		orchestration.WithReconcilerSandbox(sandboxProvider),
 	)
 
 	// Create recommendation worker for passive extraction from investigation runs

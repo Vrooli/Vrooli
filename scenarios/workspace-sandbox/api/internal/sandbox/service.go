@@ -1,9 +1,14 @@
 package sandbox
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/policy"
@@ -118,18 +124,28 @@ type Service struct {
 	gitOps diff.GitOperations
 }
 
+const (
+	metadataAgentManagerRunID = "agent_manager_run_id"
+	metadataAgentManagerURL   = "agent_manager_url"
+)
+
 // ServiceConfig holds service configuration.
 type ServiceConfig struct {
 	DefaultProjectRoot string
 	MaxSandboxes       int
 	DefaultTTL         time.Duration
+	AgentManagerURL         string
+	AgentManagerSyncEnabled bool
+	AgentManagerSyncTimeout time.Duration
 }
 
 // DefaultServiceConfig returns sensible defaults.
 func DefaultServiceConfig() ServiceConfig {
 	return ServiceConfig{
-		MaxSandboxes: 1000,
-		DefaultTTL:   24 * time.Hour,
+		MaxSandboxes:            1000,
+		DefaultTTL:              24 * time.Hour,
+		AgentManagerSyncEnabled: true,
+		AgentManagerSyncTimeout: 5 * time.Second,
 	}
 }
 
@@ -184,6 +200,107 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 	}
 
 	return s
+}
+
+func metadataString(metadata map[string]interface{}, key string) string {
+	if metadata == nil {
+		return ""
+	}
+	raw, ok := metadata[key]
+	if !ok || raw == nil {
+		return ""
+	}
+	switch val := raw.(type) {
+	case string:
+		return strings.TrimSpace(val)
+	case fmt.Stringer:
+		return strings.TrimSpace(val.String())
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", val))
+	}
+}
+
+func (s *Service) resolveAgentManagerURL(ctx context.Context, sandbox *types.Sandbox) (string, error) {
+	if s.config.AgentManagerURL != "" {
+		return strings.TrimRight(s.config.AgentManagerURL, "/"), nil
+	}
+	if sandbox != nil {
+		if url := metadataString(sandbox.Metadata, metadataAgentManagerURL); url != "" {
+			return strings.TrimRight(url, "/"), nil
+		}
+	}
+	resolved, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(resolved, "/"), nil
+}
+
+func (s *Service) notifyAgentManager(ctx context.Context, sandbox *types.Sandbox, status, actor string, result *types.ApprovalResult) {
+	if !s.config.AgentManagerSyncEnabled {
+		return
+	}
+	runID := metadataString(sandbox.Metadata, metadataAgentManagerRunID)
+	if runID == "" {
+		return
+	}
+
+	baseURL, err := s.resolveAgentManagerURL(ctx, sandbox)
+	if err != nil {
+		log.Printf("agent-manager sync: failed to resolve agent-manager URL for sandbox %s: %v", sandbox.ID, err)
+		return
+	}
+
+	if strings.TrimSpace(actor) == "" {
+		actor = "workspace-sandbox"
+	}
+
+	payload := map[string]interface{}{
+		"runId":     runID,
+		"sandboxId": sandbox.ID.String(),
+		"status":    status,
+		"actor":     actor,
+	}
+	if result != nil {
+		payload["applied"] = result.Applied
+		payload["remaining"] = result.Remaining
+		payload["isPartial"] = result.IsPartial
+		payload["commitHash"] = result.CommitHash
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("agent-manager sync: failed to encode payload for sandbox %s: %v", sandbox.ID, err)
+		return
+	}
+
+	timeout := s.config.AgentManagerSyncTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, baseURL+"/api/v1/runs/"+runID+"/sandbox-sync", bytes.NewReader(body))
+	if err != nil {
+		log.Printf("agent-manager sync: failed to create request for sandbox %s: %v", sandbox.ID, err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("agent-manager sync: request failed for sandbox %s: %v", sandbox.ID, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("agent-manager sync: non-2xx response for sandbox %s: %s", sandbox.ID, strings.TrimSpace(string(respBody)))
+	}
 }
 
 // Create creates a new sandbox for the specified scope path.
@@ -1507,6 +1624,15 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusApproved)
 	}
 
+	s.notifyAgentManager(ctx, sandbox, "approved", req.Actor, &types.ApprovalResult{
+		Success:    true,
+		Applied:    len(changes),
+		Remaining:  remainingChanges,
+		IsPartial:  isPartial,
+		CommitHash: applyResult.CommitHash,
+		AppliedAt:  now,
+	})
+
 	return &types.ApprovalResult{
 		Success:    true,
 		Applied:    len(changes),
@@ -1551,6 +1677,8 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
 
 	s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusRejected)
+
+	s.notifyAgentManager(ctx, sandbox, "rejected", actor, nil)
 
 	return sandbox, nil
 }

@@ -8,6 +8,7 @@ package orchestration
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/sandbox"
@@ -124,6 +125,62 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 	return mapApproveResult(result), nil
 }
 
+// SyncRunFromSandbox updates run state based on workspace-sandbox approval events.
+func (o *Orchestrator) SyncRunFromSandbox(ctx context.Context, req SandboxSyncRequest) (*domain.Run, error) {
+	run, err := o.GetRun(ctx, req.RunID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.SandboxID != nil && run.SandboxID != nil && *req.SandboxID != *run.SandboxID {
+		return nil, domain.NewValidationError("sandboxId", "sandbox ID does not match run")
+	}
+
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	actor := strings.TrimSpace(req.Actor)
+	if actor == "" {
+		actor = "workspace-sandbox"
+	}
+
+	now := time.Now()
+	switch status {
+	case "approved":
+		if req.IsPartial {
+			run.ApprovalState = domain.ApprovalStatePartiallyApproved
+		} else {
+			run.ApprovalState = domain.ApprovalStateApproved
+			run.ApprovedBy = actor
+			run.ApprovedAt = &now
+			run.Status = domain.RunStatusComplete
+			run.Phase = domain.RunPhaseCompleted
+			run.EndedAt = &now
+		}
+	case "rejected":
+		run.ApprovalState = domain.ApprovalStateRejected
+		run.ApprovedBy = actor
+		run.ApprovedAt = &now
+		run.Status = domain.RunStatusFailed
+		run.Phase = domain.RunPhaseCompleted
+		run.EndedAt = &now
+		if req.Reason != "" {
+			run.ErrorMsg = req.Reason
+		}
+	default:
+		return nil, domain.NewValidationError("status", "unsupported sandbox sync status")
+	}
+
+	run.UpdatedAt = now
+	if err := o.runs.Update(ctx, run); err != nil {
+		return nil, err
+	}
+
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
+	}
+
+	return run, nil
+}
+
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
@@ -148,6 +205,9 @@ func (o *Orchestrator) markRunApproved(ctx context.Context, run *domain.Run, act
 	run.ApprovalState = domain.ApprovalStateApproved
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &now
 	run.UpdatedAt = now
 	return o.runs.Update(ctx, run)
 }
@@ -159,6 +219,9 @@ func (o *Orchestrator) markRunRejected(ctx context.Context, run *domain.Run, act
 	run.ApprovedBy = actor
 	run.ApprovedAt = &now
 	run.ErrorMsg = reason
+	run.Status = domain.RunStatusFailed
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &now
 	run.UpdatedAt = now
 	return o.runs.Update(ctx, run)
 }

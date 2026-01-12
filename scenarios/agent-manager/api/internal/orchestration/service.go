@@ -78,6 +78,7 @@ type Service interface {
 	ApproveRun(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
 	RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error
 	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
+	SyncRunFromSandbox(ctx context.Context, req SandboxSyncRequest) (*domain.Run, error)
 
 	// --- Event Operations ---
 	GetRunEvents(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]*domain.RunEvent, error)
@@ -272,6 +273,19 @@ type PartialApproveRequest struct {
 	FileIDs   []uuid.UUID
 	Actor     string
 	CommitMsg string
+}
+
+// SandboxSyncRequest updates run state based on workspace-sandbox approval events.
+type SandboxSyncRequest struct {
+	RunID      uuid.UUID
+	SandboxID  *uuid.UUID
+	Status     string
+	Actor      string
+	Reason     string
+	Applied    int
+	Remaining  int
+	IsPartial  bool
+	CommitHash string
 }
 
 // ApproveResult contains the approval outcome.

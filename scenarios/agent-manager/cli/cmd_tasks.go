@@ -26,6 +26,10 @@ func (a *App) cmdTask(args []string) error {
 		return a.taskGet(args[1:])
 	case "create":
 		return a.taskCreate(args[1:])
+	case "update":
+		return a.taskUpdate(args[1:])
+	case "delete":
+		return a.taskDelete(args[1:])
 	case "cancel":
 		return a.taskCancel(args[1:])
 	case "help", "-h", "--help":
@@ -42,6 +46,8 @@ Subcommands:
   list              List all tasks
   get <id>          Get task details
   create            Create a new task
+  update <id>       Update an existing task
+  delete <id>       Delete a cancelled task
   cancel <id>       Cancel a queued or running task
 
 Options:
@@ -54,6 +60,8 @@ Examples:
   agent-manager task list --status running
   agent-manager task get abc123
   agent-manager task create --title "Fix bug" --scope-path ./src
+  agent-manager task update abc123 --title "Updated title"
+  agent-manager task delete abc123 --force
   agent-manager task cancel abc123`)
 	return nil
 }
@@ -228,6 +236,122 @@ func (a *App) taskCreate(args []string) error {
 	}
 
 	fmt.Printf("Created task: %s (%s)\n", task.Title, task.Id)
+	return nil
+}
+
+// =============================================================================
+// Task Update
+// =============================================================================
+
+func (a *App) taskUpdate(args []string) error {
+	fs := flag.NewFlagSet("task update", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	title := fs.String("title", "", "Task title")
+	description := fs.String("description", "", "Task description")
+	scopePath := fs.String("scope-path", "", "Scope path for agent operations")
+	projectRoot := fs.String("project-root", "", "Project root directory")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager task update <id> [options]")
+	}
+
+	// First get the existing task
+	_, existing, err := a.services.Tasks.Get(id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return fmt.Errorf("task not found: %s", id)
+	}
+
+	// Build update request, preserving existing values
+	req := &domainpb.Task{
+		Id:          existing.Id,
+		Title:       existing.Title,
+		Description: existing.Description,
+		ScopePath:   existing.ScopePath,
+		ProjectRoot: existing.ProjectRoot,
+		Status:      existing.Status,
+		CreatedBy:   existing.CreatedBy,
+	}
+
+	// Apply updates only for provided flags
+	if *title != "" {
+		req.Title = *title
+	}
+	if *description != "" {
+		req.Description = *description
+	}
+	if *scopePath != "" {
+		req.ScopePath = *scopePath
+	}
+	if *projectRoot != "" {
+		req.ProjectRoot = *projectRoot
+	}
+
+	body, task, err := a.services.Tasks.Update(id, req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || task == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Updated task: %s (%s)\n", task.Title, task.Id)
+	return nil
+}
+
+// =============================================================================
+// Task Delete
+// =============================================================================
+
+func (a *App) taskDelete(args []string) error {
+	fs := flag.NewFlagSet("task delete", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Skip confirmation")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager task delete <id>")
+	}
+
+	if !*force {
+		fmt.Printf("Delete task %s? [y/N]: ", id)
+		var confirm string
+		fmt.Scanln(&confirm)
+		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
+			fmt.Println("Cancelled")
+			return nil
+		}
+	}
+
+	if err := a.services.Tasks.Delete(id); err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted task: %s\n", id)
 	return nil
 }
 

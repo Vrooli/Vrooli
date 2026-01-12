@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -33,6 +34,8 @@ func (a *App) cmdProfile(args []string) error {
 		return a.profileUpdate(args[1:])
 	case "delete":
 		return a.profileDelete(args[1:])
+	case "ensure":
+		return a.profileEnsure(args[1:])
 	case "help", "-h", "--help":
 		return a.profileHelp()
 	default:
@@ -49,6 +52,7 @@ Subcommands:
   create            Create a new profile
   update <id>       Update an existing profile
   delete <id>       Delete a profile
+  ensure            Resolve profile by key, creating with defaults if needed
 
 Options:
   --json            Output raw JSON
@@ -58,7 +62,8 @@ Examples:
   agent-manager profile list
   agent-manager profile get abc123
   agent-manager profile create --name "My Agent" --runner-type claude-code
-  agent-manager profile delete abc123`)
+  agent-manager profile delete abc123
+  agent-manager profile ensure --key "my-agent" --name "My Agent" --runner-type claude-code`)
 	return nil
 }
 
@@ -421,5 +426,93 @@ func (a *App) profileDelete(args []string) error {
 	}
 
 	fmt.Printf("Deleted profile: %s\n", id)
+	return nil
+}
+
+// =============================================================================
+// Profile Ensure
+// =============================================================================
+
+func (a *App) profileEnsure(args []string) error {
+	fs := flag.NewFlagSet("profile ensure", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	profileKey := fs.String("key", "", "Profile key (required)")
+	updateExisting := fs.Bool("update", false, "Update existing profile with provided defaults")
+	name := fs.String("name", "", "Default profile name")
+	description := fs.String("description", "", "Default profile description")
+	runnerType := fs.String("runner-type", "claude-code", "Default runner type (claude-code, codex, opencode)")
+	model := fs.String("model", "", "Default model to use")
+	maxTurns := fs.Int("max-turns", 0, "Default maximum turns")
+	timeout := fs.String("timeout", "", "Default execution timeout (e.g., 30m)")
+	requiresSandbox := fs.Bool("sandbox", true, "Default require sandbox execution")
+	requiresApproval := fs.Bool("approval", true, "Default require approval")
+	sandboxConfig := fs.String("sandbox-config", "", "Default sandbox config JSON (proto JSON)")
+	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to default sandbox config JSON")
+	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Default sandbox retention mode")
+	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Default sandbox retention TTL")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if *profileKey == "" {
+		return fmt.Errorf("--key is required")
+	}
+
+	defaults := &domainpb.AgentProfile{
+		ProfileKey:       *profileKey,
+		Name:             *name,
+		Description:      *description,
+		RunnerType:       parseRunnerType(*runnerType),
+		Model:            *model,
+		MaxTurns:         int32(*maxTurns),
+		RequiresSandbox:  *requiresSandbox,
+		RequiresApproval: *requiresApproval,
+	}
+	if defaults.Name == "" {
+		defaults.Name = *profileKey
+	}
+	if *timeout != "" {
+		parsed, err := time.ParseDuration(*timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout: %w", err)
+		}
+		defaults.Timeout = durationpb.New(parsed)
+	}
+	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
+		return err
+	} else {
+		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		if cfg != nil {
+			defaults.SandboxConfig = cfg
+		}
+	}
+
+	req := &apipb.EnsureProfileRequest{
+		ProfileKey:     *profileKey,
+		Defaults:       defaults,
+		UpdateExisting: *updateExisting,
+	}
+
+	body, resp, err := a.services.Profiles.Ensure(req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	action := "Resolved"
+	if resp.Created {
+		action = "Created"
+	} else if resp.Updated {
+		action = "Updated"
+	}
+	fmt.Printf("%s profile: %s (%s)\n", action, resp.Profile.Name, resp.Profile.Id)
 	return nil
 }

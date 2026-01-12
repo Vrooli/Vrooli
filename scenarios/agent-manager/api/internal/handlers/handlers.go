@@ -120,6 +120,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/sandbox-sync", h.SyncRunFromSandbox).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/extract-recommendations", h.ExtractRecommendations).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/regenerate-recommendations", h.RegenerateRecommendations).Methods("POST")
 
@@ -1902,6 +1903,74 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.RejectRunResponse{Status: "rejected"})
+}
+
+type sandboxSyncRequest struct {
+	RunID      string `json:"runId,omitempty"`
+	SandboxID  string `json:"sandboxId,omitempty"`
+	Status     string `json:"status"`
+	Actor      string `json:"actor,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Applied    int    `json:"applied,omitempty"`
+	Remaining  int    `json:"remaining,omitempty"`
+	IsPartial  bool   `json:"isPartial,omitempty"`
+	CommitHash string `json:"commitHash,omitempty"`
+}
+
+// SyncRunFromSandbox updates a run based on workspace-sandbox approval state.
+func (h *Handler) SyncRunFromSandbox(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	var req sandboxSyncRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if req.RunID != "" && req.RunID != id.String() {
+		writeSimpleError(w, r, "runId", "runId does not match URL")
+		return
+	}
+	if strings.TrimSpace(req.Status) == "" {
+		writeSimpleError(w, r, "status", "status is required")
+		return
+	}
+
+	var sandboxID *uuid.UUID
+	if strings.TrimSpace(req.SandboxID) != "" {
+		parsed, err := uuid.Parse(strings.TrimSpace(req.SandboxID))
+		if err != nil {
+			writeSimpleError(w, r, "sandboxId", "invalid UUID format for sandboxId")
+			return
+		}
+		sandboxID = &parsed
+	}
+
+	run, err := h.svc.SyncRunFromSandbox(r.Context(), orchestration.SandboxSyncRequest{
+		RunID:      id,
+		SandboxID:  sandboxID,
+		Status:     req.Status,
+		Actor:      req.Actor,
+		Reason:     req.Reason,
+		Applied:    req.Applied,
+		Remaining:  req.Remaining,
+		IsPartial:  req.IsPartial,
+		CommitHash: req.CommitHash,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":        "synced",
+		"runId":         run.ID.String(),
+		"runStatus":     run.Status,
+		"approvalState": run.ApprovalState,
+	})
 }
 
 // ExtractRecommendations extracts structured recommendations from an investigation run.

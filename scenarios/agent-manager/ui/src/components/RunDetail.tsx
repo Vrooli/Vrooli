@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
@@ -90,6 +90,7 @@ export function RunDetail({
   const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
+  const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
 
   // Collapsed state for details section (persisted in localStorage)
   const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(() => {
@@ -113,6 +114,7 @@ export function RunDetail({
   });
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const eventsScrollRef = useRef<HTMLDivElement | null>(null);
   const resizeRef = useRef<{ top: number; height: number } | null>(null);
 
   // Resize handler
@@ -232,6 +234,28 @@ export function RunDetail({
         return events;
     }
   }, [eventFilter, events]);
+
+  const handleEventsScroll = useCallback(() => {
+    const container = eventsScrollRef.current;
+    if (!container) return;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setEventsAutoScroll(distanceToBottom <= 24);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "events" || !eventsAutoScroll) return;
+    const container = eventsScrollRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+  }, [activeTab, eventsAutoScroll, filteredEvents]);
+
+  useEffect(() => {
+    if (activeTab !== "events") return;
+    const container = eventsScrollRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+    setEventsAutoScroll(true);
+  }, [activeTab]);
 
   const handleApprove = async () => {
     setSubmitting(true);
@@ -716,10 +740,14 @@ export function RunDetail({
           </div>
 
           {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
-          <div className={cn(
-            "flex-1 min-h-0",
-            activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-4"
-          )}>
+          <div
+            ref={eventsScrollRef}
+            onScroll={activeTab === "events" ? handleEventsScroll : undefined}
+            className={cn(
+              "flex-1 min-h-0",
+              activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-4"
+            )}
+          >
             {activeTab === "task" ? (
             task ? (
               <TaskSummary task={task} />

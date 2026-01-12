@@ -44,6 +44,15 @@ func TestNewApp_ServicesInitialized(t *testing.T) {
 	if app.services.Runs == nil {
 		t.Error("expected Runs service")
 	}
+	if app.services.Runners == nil {
+		t.Error("expected Runners service")
+	}
+	if app.services.Settings == nil {
+		t.Error("expected Settings service")
+	}
+	if app.services.Maintenance == nil {
+		t.Error("expected Maintenance service")
+	}
 }
 
 // =============================================================================
@@ -110,7 +119,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 	groups := app.registerCommands()
 
 	// Verify expected command groups exist
-	expectedGroups := []string{"Health", "Profiles", "Tasks", "Runs", "Configuration"}
+	expectedGroups := []string{"Health", "Profiles", "Tasks", "Runs", "Runners", "Settings", "Maintenance", "Configuration"}
 	if len(groups) != len(expectedGroups) {
 		t.Errorf("expected %d command groups, got %d", len(expectedGroups), len(groups))
 	}
@@ -518,5 +527,135 @@ func TestNewServices(t *testing.T) {
 	}
 	if services.Runs == nil {
 		t.Error("expected Runs service")
+	}
+	if services.Runners == nil {
+		t.Error("expected Runners service")
+	}
+	if services.Settings == nil {
+		t.Error("expected Settings service")
+	}
+	if services.Maintenance == nil {
+		t.Error("expected Maintenance service")
+	}
+}
+
+// =============================================================================
+// NEW COMMAND DISPATCHER TESTS
+// =============================================================================
+
+func TestApp_CmdRunner_EmptyArgs(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	// Empty args should show help
+	err = app.cmdRunner([]string{})
+	if err != nil {
+		t.Errorf("cmdRunner with empty args should show help, got error: %v", err)
+	}
+}
+
+func TestApp_CmdRunner_Help(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	for _, helpArg := range []string{"help", "-h", "--help"} {
+		err = app.cmdRunner([]string{helpArg})
+		if err != nil {
+			t.Errorf("cmdRunner with '%s' returned error: %v", helpArg, err)
+		}
+	}
+}
+
+func TestApp_CmdRunner_UnknownSubcommand(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	err = app.cmdRunner([]string{"unknown-subcommand"})
+	if err == nil {
+		t.Error("expected error for unknown subcommand")
+	}
+}
+
+func TestApp_CmdSettings_EmptyArgs(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	// Empty args should show help
+	err = app.cmdSettings([]string{})
+	if err != nil {
+		t.Errorf("cmdSettings with empty args should show help, got error: %v", err)
+	}
+}
+
+func TestApp_CmdSettings_Help(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	for _, helpArg := range []string{"help", "-h", "--help"} {
+		err = app.cmdSettings([]string{helpArg})
+		if err != nil {
+			t.Errorf("cmdSettings with '%s' returned error: %v", helpArg, err)
+		}
+	}
+}
+
+func TestApp_CmdSettings_UnknownSubcommand(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	err = app.cmdSettings([]string{"unknown-subcommand"})
+	if err == nil {
+		t.Error("expected error for unknown subcommand")
+	}
+}
+
+func TestApp_CmdMaintenance_EmptyArgs(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	// Empty args should show help
+	err = app.cmdMaintenance([]string{})
+	if err != nil {
+		t.Errorf("cmdMaintenance with empty args should show help, got error: %v", err)
+	}
+}
+
+func TestApp_CmdMaintenance_Help(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	for _, helpArg := range []string{"help", "-h", "--help"} {
+		err = app.cmdMaintenance([]string{helpArg})
+		if err != nil {
+			t.Errorf("cmdMaintenance with '%s' returned error: %v", helpArg, err)
+		}
+	}
+}
+
+func TestApp_CmdMaintenance_UnknownSubcommand(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	err = app.cmdMaintenance([]string{"unknown-subcommand"})
+	if err == nil {
+		t.Error("expected error for unknown subcommand")
 	}
 }

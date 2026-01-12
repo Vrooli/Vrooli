@@ -99,6 +99,27 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	runners := cliapp.CommandGroup{
+		Title: "Runners",
+		Commands: []cliapp.Command{
+			{Name: "runner", NeedsAPI: true, Description: "Manage agent runners", Run: a.cmdRunner},
+		},
+	}
+
+	settings := cliapp.CommandGroup{
+		Title: "Settings",
+		Commands: []cliapp.Command{
+			{Name: "settings", NeedsAPI: true, Description: "Manage settings", Run: a.cmdSettings},
+		},
+	}
+
+	maintenance := cliapp.CommandGroup{
+		Title: "Maintenance",
+		Commands: []cliapp.Command{
+			{Name: "maintenance", NeedsAPI: true, Description: "Maintenance operations", Run: a.cmdMaintenance},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -106,7 +127,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, profiles, tasks, runs, config}
+	return []cliapp.CommandGroup{health, profiles, tasks, runs, runners, settings, maintenance, config}
 }
 
 func (a *App) apiPath(v1Path string) string {

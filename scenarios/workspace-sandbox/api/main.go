@@ -127,6 +127,9 @@ func NewServer() (*Server, error) {
 		DefaultProjectRoot: cfg.Driver.ProjectRoot,
 		MaxSandboxes:       cfg.Limits.MaxSandboxes,
 		DefaultTTL:         cfg.Lifecycle.DefaultTTL,
+		AgentManagerURL:         cfg.Integration.AgentManagerURL,
+		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
+		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
 	svc := sandbox.NewService(repo, driverManager, svcCfg,
 		sandbox.WithApprovalPolicy(approvalPolicy),

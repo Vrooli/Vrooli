@@ -194,8 +194,10 @@ export default function App() {
                   onStopRun={runs.stopRun}
                   onDeleteRun={runs.deleteRun}
                   onRetryRun={runs.retryRun}
+                  onGetRun={runs.getRun}
                   onGetEvents={runs.getRunEvents}
                   onGetDiff={runs.getRunDiff}
+                  onGetTask={tasks.getTask}
                   onApproveRun={runs.approveRun}
                   onRejectRun={runs.rejectRun}
                   onInvestigateRuns={runs.investigateRuns}

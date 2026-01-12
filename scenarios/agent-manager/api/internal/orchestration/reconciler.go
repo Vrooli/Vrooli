@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 
@@ -72,6 +73,7 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 type Reconciler struct {
 	runs    repository.RunRepository
 	runners runner.Registry
+	sandbox sandbox.Provider
 
 	config ReconcilerConfig
 
@@ -96,6 +98,8 @@ type ReconcileStats struct {
 	OrphansFound  int
 	RunsRecovered int
 	OrphansKilled int
+	ReviewChecked int
+	ReviewSynced  int
 	Errors        []string
 }
 
@@ -134,6 +138,13 @@ func WithReconcilerConfig(cfg ReconcilerConfig) ReconcilerOption {
 func WithReconcilerBroadcaster(b EventBroadcaster) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.broadcaster = b
+	}
+}
+
+// WithReconcilerSandbox sets the sandbox provider for approval sync.
+func WithReconcilerSandbox(s sandbox.Provider) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.sandbox = s
 	}
 }
 
@@ -284,8 +295,90 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 		r.handleOrphan(ctx, orphan, &stats)
 	}
 
+	// Step 5: Sync needs_review runs with sandbox status
+	r.syncReviewRuns(ctx, &stats)
+
 	stats.Duration = time.Since(start)
 	return stats
+}
+
+func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) {
+	if r.sandbox == nil {
+		return
+	}
+
+	needsReview := domain.RunStatusNeedsReview
+	reviewRuns, err := r.runs.List(ctx, repository.RunListFilter{
+		Status: &needsReview,
+	})
+	if err != nil {
+		stats.Errors = append(stats.Errors, "failed to list needs_review runs: "+err.Error())
+		return
+	}
+	stats.ReviewChecked = len(reviewRuns)
+
+	for _, run := range reviewRuns {
+		if run.SandboxID == nil {
+			continue
+		}
+		sb, err := r.sandbox.Get(ctx, *run.SandboxID)
+		if err != nil {
+			continue
+		}
+
+		switch sb.Status {
+		case sandbox.SandboxStatusApproved:
+			if run.Status == domain.RunStatusComplete && run.ApprovalState == domain.ApprovalStateApproved {
+				continue
+			}
+			r.markRunApprovedFromSandbox(ctx, run, "workspace-sandbox-sync")
+			stats.ReviewSynced++
+		case sandbox.SandboxStatusRejected:
+			if run.Status == domain.RunStatusFailed && run.ApprovalState == domain.ApprovalStateRejected {
+				continue
+			}
+			r.markRunRejectedFromSandbox(ctx, run, "workspace-sandbox-sync")
+			stats.ReviewSynced++
+		}
+	}
+}
+
+func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
+	now := time.Now()
+	run.ApprovalState = domain.ApprovalStateApproved
+	run.ApprovedBy = actor
+	run.ApprovedAt = &now
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &now
+	run.UpdatedAt = now
+
+	if err := r.runs.Update(ctx, run); err != nil {
+		log.Printf("[reconciler] Failed to sync approved run %s: %v", run.ID, err)
+		return
+	}
+	if r.broadcaster != nil {
+		r.broadcaster.BroadcastRunStatus(run)
+	}
+}
+
+func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
+	now := time.Now()
+	run.ApprovalState = domain.ApprovalStateRejected
+	run.ApprovedBy = actor
+	run.ApprovedAt = &now
+	run.Status = domain.RunStatusFailed
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &now
+	run.UpdatedAt = now
+
+	if err := r.runs.Update(ctx, run); err != nil {
+		log.Printf("[reconciler] Failed to sync rejected run %s: %v", run.ID, err)
+		return
+	}
+	if r.broadcaster != nil {
+		r.broadcaster.BroadcastRunStatus(run)
+	}
 }
 
 // handleStaleRun handles a run that appears to have stalled.

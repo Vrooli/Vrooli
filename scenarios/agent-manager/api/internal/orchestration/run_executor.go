@@ -540,6 +540,9 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	// Use idempotency key to allow safe retries of sandbox creation
 	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
 
+	metadata := map[string]string{
+		"agent_manager_run_id": e.run.ID.String(),
+	}
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
 		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
@@ -549,6 +552,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		OwnerType:      "run",
 		IdempotencyKey: idempotencyKey,
 		Behavior:       e.run.SandboxConfig,
+		Metadata:       metadata,
 	})
 	if err != nil {
 		if _, ok := err.(*domain.SandboxError); ok {

@@ -52,6 +52,9 @@ type Config struct {
 
 	// Database connection settings.
 	Database DatabaseConfig
+
+	// Integration settings for external scenario sync.
+	Integration IntegrationConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -298,6 +301,18 @@ type DatabaseConfig struct {
 	SSLMode string
 }
 
+// IntegrationConfig controls cross-scenario callbacks.
+type IntegrationConfig struct {
+	// AgentManagerURL is the base URL for agent-manager API (optional).
+	AgentManagerURL string
+
+	// AgentManagerSyncEnabled enables workspace-sandbox -> agent-manager sync.
+	AgentManagerSyncEnabled bool
+
+	// AgentManagerSyncTimeout bounds outbound sync requests.
+	AgentManagerSyncTimeout time.Duration
+}
+
 // DefaultBaseDir returns the default sandbox base directory.
 // Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
 // Falls back to /var/lib/workspace-sandbox if home directory cannot be determined.
@@ -367,6 +382,11 @@ func Default() Config {
 			Schema:  "workspace-sandbox",
 			SSLMode: "disable",
 		},
+		Integration: IntegrationConfig{
+			AgentManagerURL:         "",
+			AgentManagerSyncEnabled: true,
+			AgentManagerSyncTimeout: 5 * time.Second,
+		},
 	}
 }
 
@@ -426,6 +446,11 @@ func LoadFromEnv() (Config, error) {
 		cfg.Driver.BaseDir = baseDir
 	}
 	cfg.Driver.UseFuseOverlayfs = envBool("WORKSPACE_SANDBOX_USE_FUSE", cfg.Driver.UseFuseOverlayfs)
+
+	// Integration config
+	cfg.Integration.AgentManagerURL = envString("WORKSPACE_SANDBOX_AGENT_MANAGER_URL", cfg.Integration.AgentManagerURL)
+	cfg.Integration.AgentManagerSyncEnabled = envBool("WORKSPACE_SANDBOX_AGENT_MANAGER_SYNC_ENABLED", cfg.Integration.AgentManagerSyncEnabled)
+	cfg.Integration.AgentManagerSyncTimeout = envDuration("WORKSPACE_SANDBOX_AGENT_MANAGER_SYNC_TIMEOUT", cfg.Integration.AgentManagerSyncTimeout)
 
 	// Execution config - defaults
 	cfg.Execution.DefaultResourceLimits.MemoryLimitMB = envInt("WORKSPACE_SANDBOX_DEFAULT_MEMORY_MB", cfg.Execution.DefaultResourceLimits.MemoryLimitMB)
@@ -533,6 +558,13 @@ func envInt(key string, defaultVal int) int {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
+	}
+	return defaultVal
+}
+
+func envString(key string, defaultVal string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
 	}
 	return defaultVal
 }

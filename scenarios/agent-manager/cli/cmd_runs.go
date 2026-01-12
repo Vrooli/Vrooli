@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
@@ -30,12 +31,26 @@ func (a *App) cmdRun(args []string) error {
 		return a.runGetByTag(args[1:])
 	case "create":
 		return a.runCreate(args[1:])
+	case "delete":
+		return a.runDelete(args[1:])
 	case "stop":
 		return a.runStop(args[1:])
 	case "stop-by-tag":
 		return a.runStopByTag(args[1:])
 	case "stop-all":
 		return a.runStopAll(args[1:])
+	case "continue":
+		return a.runContinue(args[1:])
+	case "investigate":
+		return a.runInvestigate(args[1:])
+	case "apply-investigation":
+		return a.runApplyInvestigation(args[1:])
+	case "sandbox-sync":
+		return a.runSandboxSync(args[1:])
+	case "extract-recommendations":
+		return a.runExtractRecommendations(args[1:])
+	case "regenerate-recommendations":
+		return a.runRegenerateRecommendations(args[1:])
 	case "approve":
 		return a.runApprove(args[1:])
 	case "reject":
@@ -55,17 +70,24 @@ func (a *App) runHelp() error {
 	fmt.Println(`Usage: agent-manager run <subcommand> [options]
 
 Subcommands:
-  list              List runs (with optional filters)
-  get <id>          Get run details by UUID
-  get-by-tag <tag>  Get run details by custom tag
-  create            Create and start a new run
-  stop <id>         Stop a run by UUID
-  stop-by-tag <tag> Stop a run by custom tag
-  stop-all          Stop all running runs (with optional tag prefix filter)
-  approve <id>      Approve run changes
-  reject <id>       Reject run changes
-  diff <id>         Show sandbox diff
-  events <id>       Get run events (--follow for streaming)
+  list                        List runs (with optional filters)
+  get <id>                    Get run details by UUID
+  get-by-tag <tag>            Get run details by custom tag
+  create                      Create and start a new run
+  delete <id>                 Delete a run
+  stop <id>                   Stop a run by UUID
+  stop-by-tag <tag>           Stop a run by custom tag
+  stop-all                    Stop all running runs
+  continue <id>               Continue a run with a follow-up message
+  investigate                 Create an investigation run from existing runs
+  apply-investigation <id>    Apply investigation recommendations
+  sandbox-sync <id>           Sync run state from sandbox
+  extract-recommendations <id>     Extract recommendations from investigation run
+  regenerate-recommendations <id>  Regenerate recommendations for investigation run
+  approve <id>                Approve run changes
+  reject <id>                 Reject run changes
+  diff <id>                   Show sandbox diff
+  events <id>                 Get run events (--follow for streaming)
 
 Filters (for 'list'):
   --task-id         Filter by task ID
@@ -80,10 +102,12 @@ Options:
 Examples:
   agent-manager run list
   agent-manager run list --status running
-  agent-manager run list --tag-prefix ecosystem-
-  agent-manager run get-by-tag ecosystem-task-123
-  agent-manager run stop-all --tag-prefix ecosystem-
   agent-manager run create --task-id abc123 --profile-id def456
+  agent-manager run delete abc123 --force
+  agent-manager run continue abc123 --message "Also update tests"
+  agent-manager run investigate --run-ids id1,id2 --depth standard
+  agent-manager run apply-investigation abc123
+  agent-manager run extract-recommendations abc123
   agent-manager run events xyz789 --follow`)
 	return nil
 }
@@ -750,4 +774,353 @@ func runEventDataString(event *domainpb.RunEvent) string {
 	}
 
 	return marshalProtoJSON(payload)
+}
+
+// =============================================================================
+// Run Delete
+// =============================================================================
+
+func (a *App) runDelete(args []string) error {
+	fs := flag.NewFlagSet("run delete", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Skip confirmation")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run delete <id>")
+	}
+
+	if !*force {
+		fmt.Printf("Delete run %s? [y/N]: ", id)
+		var confirm string
+		fmt.Scanln(&confirm)
+		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
+			fmt.Println("Cancelled")
+			return nil
+		}
+	}
+
+	if err := a.services.Runs.Delete(id); err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted run: %s\n", id)
+	return nil
+}
+
+// =============================================================================
+// Run Continue
+// =============================================================================
+
+func (a *App) runContinue(args []string) error {
+	fs := flag.NewFlagSet("run continue", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	message := fs.String("message", "", "Follow-up message (required)")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run continue <id> --message <message>")
+	}
+
+	if *message == "" {
+		return fmt.Errorf("--message is required")
+	}
+
+	req := &domainpb.ContinueRunRequest{
+		RunId:   id,
+		Message: *message,
+	}
+
+	body, run, err := a.services.Runs.Continue(id, req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || run == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Continued run: %s (status: %s)\n", run.Id, formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	return nil
+}
+
+// =============================================================================
+// Run Investigate
+// =============================================================================
+
+func (a *App) runInvestigate(args []string) error {
+	fs := flag.NewFlagSet("run investigate", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	runIDs := fs.String("run-ids", "", "Comma-separated run IDs to investigate (required)")
+	customContext := fs.String("context", "", "Custom context for investigation")
+	depth := fs.String("depth", "standard", "Investigation depth: quick, standard, deep")
+	projectRoot := fs.String("project-root", "", "Project root directory")
+	scopePaths := fs.String("scope-paths", "", "Comma-separated scope paths")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if *runIDs == "" {
+		return fmt.Errorf("--run-ids is required")
+	}
+
+	ids := strings.Split(*runIDs, ",")
+	for i, id := range ids {
+		ids[i] = strings.TrimSpace(id)
+	}
+
+	req := map[string]interface{}{
+		"runIds": ids,
+	}
+	if *customContext != "" {
+		req["customContext"] = *customContext
+	}
+	if *depth != "" {
+		req["depth"] = *depth
+	}
+	if *projectRoot != "" {
+		req["projectRoot"] = *projectRoot
+	}
+	if *scopePaths != "" {
+		paths := strings.Split(*scopePaths, ",")
+		for i, p := range paths {
+			paths[i] = strings.TrimSpace(p)
+		}
+		req["scopePaths"] = paths
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	body, run, err := a.services.Runs.Investigate(payload)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || run == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Created investigation run: %s\n", run.Id)
+	return nil
+}
+
+// =============================================================================
+// Run Apply Investigation
+// =============================================================================
+
+func (a *App) runApplyInvestigation(args []string) error {
+	fs := flag.NewFlagSet("run apply-investigation", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	customContext := fs.String("context", "", "Custom context for apply run")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run apply-investigation <investigation-run-id>")
+	}
+
+	req := map[string]interface{}{
+		"investigationRunId": id,
+	}
+	if *customContext != "" {
+		req["customContext"] = *customContext
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	body, run, err := a.services.Runs.InvestigationApply(payload)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || run == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Created apply run: %s\n", run.Id)
+	return nil
+}
+
+// =============================================================================
+// Run Sandbox Sync
+// =============================================================================
+
+func (a *App) runSandboxSync(args []string) error {
+	fs := flag.NewFlagSet("run sandbox-sync", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	status := fs.String("status", "", "Status to sync (required)")
+	sandboxID := fs.String("sandbox-id", "", "Sandbox ID")
+	actor := fs.String("actor", "", "Actor identifier")
+	reason := fs.String("reason", "", "Reason for sync")
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run sandbox-sync <id> --status <status>")
+	}
+
+	if *status == "" {
+		return fmt.Errorf("--status is required")
+	}
+
+	req := map[string]interface{}{
+		"runId":  id,
+		"status": *status,
+	}
+	if *sandboxID != "" {
+		req["sandboxId"] = *sandboxID
+	}
+	if *actor != "" {
+		req["actor"] = *actor
+	}
+	if *reason != "" {
+		req["reason"] = *reason
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	body, err := a.services.Runs.SandboxSync(id, payload)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Synced run: %s\n", id)
+	return nil
+}
+
+// =============================================================================
+// Run Extract Recommendations
+// =============================================================================
+
+func (a *App) runExtractRecommendations(args []string) error {
+	fs := flag.NewFlagSet("run extract-recommendations", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run extract-recommendations <id>")
+	}
+
+	body, err := a.services.Runs.ExtractRecommendations(id)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	// Pretty print the JSON result
+	var prettyJSON interface{}
+	if err := json.Unmarshal(body, &prettyJSON); err == nil {
+		formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
+		fmt.Println(string(formatted))
+	} else {
+		cliutil.PrintJSON(body)
+	}
+
+	return nil
+}
+
+// =============================================================================
+// Run Regenerate Recommendations
+// =============================================================================
+
+func (a *App) runRegenerateRecommendations(args []string) error {
+	fs := flag.NewFlagSet("run regenerate-recommendations", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	// Parse with positional ID first
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run regenerate-recommendations <id>")
+	}
+
+	body, err := a.services.Runs.RegenerateRecommendations(id)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Regenerating recommendations for run: %s\n", id)
+	return nil
 }

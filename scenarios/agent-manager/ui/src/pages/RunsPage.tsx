@@ -49,8 +49,10 @@ interface RunsPageProps {
   onStopRun: (id: string) => Promise<void>;
   onDeleteRun: (id: string) => Promise<void>;
   onRetryRun: (run: Run) => Promise<Run>;
+  onGetRun: (id: string) => Promise<Run>;
   onGetEvents: (id: string) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<RunDiff>;
+  onGetTask: (id: string) => Promise<Task>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
@@ -87,8 +89,10 @@ export function RunsPage({
   onStopRun,
   onDeleteRun,
   onRetryRun,
+  onGetRun,
   onGetEvents,
   onGetDiff,
+  onGetTask,
   onApproveRun,
   onRejectRun,
   onInvestigateRuns,
@@ -109,6 +113,8 @@ export function RunsPage({
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
+  const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
   // Filter/sort/search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,20 +133,43 @@ export function RunsPage({
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const getTaskTitle = useCallback(
-    (taskId: string) => tasks.find((t) => t.id === taskId)?.title || "Unknown Task",
-    [tasks]
+  const getTaskById = useCallback(
+    (taskId: string) => extraTasks[taskId] ?? tasks.find((t) => t.id === taskId) ?? null,
+    [extraTasks, tasks]
   );
 
-  const getTaskById = useCallback(
-    (taskId: string) => tasks.find((t) => t.id === taskId) ?? null,
-    [tasks]
+  const getTaskTitle = useCallback(
+    (taskId: string) => getTaskById(taskId)?.title || "Unknown Task",
+    [getTaskById]
   );
 
   const getProfileName = useCallback(
     (profileId?: string) =>
       profileId ? profiles.find((p) => p.id === profileId)?.name || "Unknown Profile" : "Unknown Profile",
     [profiles]
+  );
+
+  const resolvedRuns = useMemo(
+    () => runs.map((run) => runOverrides[run.id] ?? run),
+    [runs, runOverrides]
+  );
+
+  const syncRunDetails = useCallback(
+    async (runId: string) => {
+      try {
+        const latest = await onGetRun(runId);
+        setRunOverrides((prev) => ({ ...prev, [runId]: latest }));
+        setSelectedRun((prev) => (prev && prev.id === runId ? { ...prev, ...latest } : prev));
+
+        if (!getTaskById(latest.taskId)) {
+          const task = await onGetTask(latest.taskId);
+          setExtraTasks((prev) => ({ ...prev, [task.id]: task }));
+        }
+      } catch (err) {
+        console.error("Failed to sync run details:", err);
+      }
+    },
+    [getTaskById, onGetRun, onGetTask]
   );
 
   // Subscribe to WebSocket events for the selected run
@@ -181,6 +210,14 @@ export function RunsPage({
           case "run_status": {
             const statusUpdate = message.payload as Partial<Run>;
             setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+            const runId = statusUpdate.id;
+            if (runId) {
+              setRunOverrides((prev) => {
+                const existing = prev[runId];
+                if (!existing) return prev;
+                return { ...prev, [runId]: { ...existing, ...statusUpdate } as Run };
+              });
+            }
             break;
           }
         }
@@ -206,6 +243,7 @@ export function RunsPage({
       setSelectedRun(run);
       setEvents([]);
       setDiff(null);
+      void syncRunDetails(run.id);
 
       setEventsLoading(true);
       try {
@@ -233,17 +271,17 @@ export function RunsPage({
         }
       }
     },
-    [onGetEvents, onGetDiff]
+    [onGetEvents, onGetDiff, syncRunDetails]
   );
 
   // Sync selectedRun with the runs list when it updates
   useEffect(() => {
     if (!selectedRun) return;
-    const updatedRun = runs.find((r) => r.id === selectedRun.id);
+    const updatedRun = resolvedRuns.find((r) => r.id === selectedRun.id);
     if (updatedRun && updatedRun !== selectedRun) {
       setSelectedRun(updatedRun);
     }
-  }, [runs, selectedRun]);
+  }, [resolvedRuns, selectedRun]);
 
   // Sync applyInvestigationRun with the runs list when it updates
   // This ensures the modal sees WebSocket updates (e.g., recommendation extraction status)
@@ -259,11 +297,11 @@ export function RunsPage({
   useEffect(() => {
     if (!runId || runs.length === 0) return;
     if (selectedRun?.id === runId) return;
-    const run = runs.find((r) => r.id === runId);
+    const run = resolvedRuns.find((r) => r.id === runId);
     if (run) {
       loadRunDetails(run);
     }
-  }, [runId, runs, selectedRun?.id, loadRunDetails]);
+  }, [runId, resolvedRuns, selectedRun?.id, loadRunDetails]);
 
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
@@ -398,7 +436,7 @@ export function RunsPage({
   };
 
   const filteredAndSortedRuns = useMemo(() => {
-    let result = [...runs];
+    let result = [...resolvedRuns];
 
     if (statusFilter !== "all") {
       const statusValue = Number(statusFilter) as RunStatus;
@@ -421,7 +459,7 @@ export function RunsPage({
     });
 
     return result;
-  }, [runs, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
+  }, [resolvedRuns, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
 
   useEffect(() => {
     if (!isDesktop) return;
