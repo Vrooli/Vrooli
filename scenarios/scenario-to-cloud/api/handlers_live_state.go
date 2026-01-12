@@ -215,32 +215,7 @@ func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateRes
 	defer cancel()
 
 	snapshot, err := tlsinfo.RunSnapshot(probeCtx, domainName, s.tlsService, s.tlsALPNRunner)
-	if err != nil {
-		result.Caddy.TLS = domain.TLSInfo{
-			Valid: false,
-			Error: fmt.Sprintf("TLS probe failed: %v", err),
-		}
-		return
-	}
-
-	result.Caddy.TLS = domain.TLSInfo{
-		Valid:         snapshot.Probe.Valid,
-		Validation:    "time_only",
-		Issuer:        snapshot.Probe.Issuer,
-		Expires:       snapshot.Probe.NotAfter,
-		DaysRemaining: snapshot.Probe.DaysRemaining,
-		ALPN:          convertALPN(snapshot.ALPN),
-	}
-}
-
-func convertALPN(check tlsinfo.ALPNCheck) *domain.ALPNCheck {
-	return &domain.ALPNCheck{
-		Status:   string(check.Status),
-		Message:  check.Message,
-		Hint:     check.Hint,
-		Protocol: check.Protocol,
-		Error:    check.Error,
-	}
+	result.Caddy.TLS = buildDomainTLSInfo(snapshot, err)
 }
 
 // handleKillProcess kills a specific process on VPS.

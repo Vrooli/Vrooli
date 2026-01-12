@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
+	"scenario-to-cloud/vps"
 )
 
 type fakeTLSService struct {
@@ -169,13 +170,7 @@ func TestHandleTLSRenewOK(t *testing.T) {
 	deployment := buildTestDeployment("example.com")
 	repo := &FakeDeploymentRepo{Deployment: deployment}
 
-	cmd := fmt.Sprintf(
-		"caddy trust 2>/dev/null; "+
-			"systemctl reload caddy && "+
-			"sleep 3 && "+
-			"curl -sf https://%s >/dev/null && echo 'Certificate valid'",
-		"example.com",
-	)
+	cmd := vps.CaddyTLSRenewCommand("example.com")
 
 	sshRunner := &FakeSSHRunner{
 		Responses: map[string]ssh.Result{
@@ -203,5 +198,81 @@ func TestHandleTLSRenewOK(t *testing.T) {
 	}
 	if !payload.OK {
 		t.Fatalf("expected ok=true, got %+v", payload)
+	}
+}
+
+func TestHandleTLSRenewCommandFailure(t *testing.T) {
+	deployment := buildTestDeployment("example.com")
+	repo := &FakeDeploymentRepo{Deployment: deployment}
+
+	cmd := vps.CaddyTLSRenewCommand("example.com")
+
+	sshRunner := &FakeSSHRunner{
+		Responses: map[string]ssh.Result{
+			cmd: {ExitCode: 1, Stderr: "reload failed"},
+		},
+	}
+
+	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{}, tlsinfo.DefaultALPNRunner)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/deployments/dep-1/edge/tls/renew", bytes.NewBufferString("{}"))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var payload TLSRenewResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.OK {
+		t.Fatalf("expected ok=false, got %+v", payload)
+	}
+	if payload.Message == "" || payload.Output == "" {
+		t.Fatalf("expected failure message and output")
+	}
+}
+
+func TestHandleTLSRenewSSHError(t *testing.T) {
+	deployment := buildTestDeployment("example.com")
+	repo := &FakeDeploymentRepo{Deployment: deployment}
+
+	cmd := vps.CaddyTLSRenewCommand("example.com")
+
+	sshRunner := &FakeSSHRunner{
+		Errs: map[string]error{
+			cmd: fmt.Errorf("ssh failed"),
+		},
+	}
+
+	srv := newTLSHandlerServer(repo, sshRunner, fakeTLSService{}, tlsinfo.DefaultALPNRunner)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/deployments/dep-1/edge/tls/renew", bytes.NewBufferString("{}"))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var payload TLSRenewResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.OK {
+		t.Fatalf("expected ok=false, got %+v", payload)
+	}
+	if payload.Message == "" || payload.Output == "" {
+		t.Fatalf("expected failure message and output")
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
+	"scenario-to-cloud/vps"
 )
 
 // DNSCheckResponse is the response from the DNS check endpoint.
@@ -434,31 +435,9 @@ func (s *Server) handleTLSInfo(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	resp := TLSInfoResponse{
-		Domain:     domainName,
-		Validation: "time_only",
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-	}
-
 	snapshot, err := tlsinfo.RunSnapshot(ctx, domainName, s.tlsService, s.tlsALPNRunner)
-	resp.ALPN = &snapshot.ALPN
-	if err != nil {
-		resp.OK = false
-		resp.Valid = false
-		resp.Error = fmt.Sprintf("TLS probe failed: %v", err)
-		httputil.WriteJSON(w, http.StatusOK, resp)
-		return
-	}
-
-	resp.Valid = snapshot.Probe.Valid
-	resp.Issuer = snapshot.Probe.Issuer
-	resp.Subject = snapshot.Probe.Subject
-	resp.NotBefore = snapshot.Probe.NotBefore
-	resp.NotAfter = snapshot.Probe.NotAfter
-	resp.DaysRemaining = snapshot.Probe.DaysRemaining
-	resp.SerialNumber = snapshot.Probe.SerialNumber
-	resp.SANs = snapshot.Probe.SANs
-	resp.OK = true
+	resp := buildTLSInfoResponse(domainName, snapshot, err)
+	resp.Timestamp = time.Now().UTC().Format(time.RFC3339)
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }
@@ -506,40 +485,16 @@ func (s *Server) handleTLSRenew(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	// Caddy command to force certificate renewal
-	// caddy reload will re-obtain certificates if needed
-	// We can also try caddy trust to install the root CA (for local dev)
-	cmd := fmt.Sprintf(
-		"caddy trust 2>/dev/null; "+
-			"systemctl reload caddy && "+
-			"sleep 3 && "+
-			"curl -sf https://%s >/dev/null && echo 'Certificate valid'",
-		domainName,
-	)
-
-	result, err := s.sshRunner.Run(ctx, cfg, cmd)
+	result := vps.RunCaddyTLSRenew(ctx, s.sshRunner, cfg, domainName)
 
 	resp := TLSRenewResponse{
 		Domain:    domainName,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err != nil {
-		resp.OK = false
-		resp.Message = "Failed to renew TLS certificate"
-		resp.Output = err.Error()
-	} else if result.ExitCode != 0 {
-		resp.OK = false
-		resp.Message = "Certificate renewal may have failed"
-		resp.Output = result.Stderr
-		if result.Stdout != "" {
-			resp.Output = result.Stdout + "\n" + result.Stderr
-		}
-	} else {
-		resp.OK = true
-		resp.Message = "TLS certificate renewed/validated successfully"
-		resp.Output = result.Stdout
-	}
+	resp.OK = result.OK
+	resp.Message = result.Message
+	resp.Output = result.Output
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }

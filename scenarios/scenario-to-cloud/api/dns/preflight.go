@@ -242,6 +242,58 @@ func filterIPv6(ips []string) []string {
 	return out
 }
 
+// ProxyModeCheck evaluates Cloudflare proxy mode vs ACME issuance readiness.
+func ProxyModeCheck(eval Evaluation, policy domain.DNSPolicy, dns01Token string) domain.PreflightCheck {
+	proxiedDomains := []string{}
+	for _, status := range eval.Statuses {
+		if status.Role != "apex" && status.Role != "www" && status.Role != "edge" {
+			continue
+		}
+		if status.Proxied {
+			proxiedDomains = append(proxiedDomains, status.Host)
+		}
+	}
+
+	build := func(status domain.PreflightCheckStatus, details, hint string, data map[string]string) domain.PreflightCheck {
+		return domain.PreflightCheck{
+			ID:      domain.PreflightDNSProxyModeID,
+			Title:   "Proxy mode vs issuance",
+			Status:  status,
+			Details: details,
+			Hint:    hint,
+			Data:    data,
+		}
+	}
+
+	if policy == domain.DNSPolicySkip {
+		return build(
+			domain.PreflightWarn,
+			"DNS checks skipped by policy",
+			"Set edge.dns_policy to required to enforce DNS validation.",
+			nil,
+		)
+	}
+	if len(proxiedDomains) == 0 {
+		return build(domain.PreflightPass, "No Cloudflare proxy detected for edge/apex/www", "", nil)
+	}
+	if strings.TrimSpace(dns01Token) != "" {
+		return build(
+			domain.PreflightPass,
+			"Cloudflare proxy detected and DNS-01 credentials provided",
+			"",
+			map[string]string{"proxied_domains": strings.Join(proxiedDomains, ","), "dns01": "enabled"},
+		)
+	}
+
+	details := "Cloudflare proxy detected without DNS-01 credentials"
+	hint := "Disable proxying (DNS-only) during issuance or provide a Cloudflare API token for DNS-01."
+	data := map[string]string{"proxied_domains": strings.Join(proxiedDomains, ",")}
+	if policy == domain.DNSPolicyWarn {
+		return build(domain.PreflightWarn, details, hint, data)
+	}
+	return build(domain.PreflightFail, details, hint, data)
+}
+
 // BaseDomain returns the canonical base domain for edge DNS checks.
 func BaseDomain(domainName string) string {
 	normalized := normalizeHost(domainName)

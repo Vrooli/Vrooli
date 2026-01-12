@@ -531,6 +531,7 @@ interface TLSDetailsProps {
   tlsInfo: {
     ok: boolean;
     valid: boolean;
+    validation?: string;
     issuer?: string;
     subject?: string;
     not_before?: string;
@@ -574,6 +575,16 @@ function TLSDetails({ tlsInfo }: TLSDetailsProps) {
         <CheckCircle2 className="h-4 w-4" />
         <span>Valid certificate</span>
       </div>
+      {tlsInfo.validation === "time_only" && (
+        <div className="text-xs text-slate-500">
+          Validation: time-only (chain + hostname not verified)
+        </div>
+      )}
+      {tlsInfo.validation === "full" && (
+        <div className="text-xs text-slate-500">
+          Validation: full (chain + hostname verified)
+        </div>
+      )}
 
       {tlsInfo.issuer && (
         <div className="flex items-center justify-between text-xs">

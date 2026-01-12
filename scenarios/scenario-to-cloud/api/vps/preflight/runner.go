@@ -72,43 +72,11 @@ func Run(
 	checks = append(checks, dns.PreflightChecksFromEvaluation(dnsEval, manifest.Edge.DNSPolicy)...)
 
 	if manifest.Edge.Domain != "" {
-		proxiedDomains := []string{}
-		for _, status := range dnsEval.Statuses {
-			if status.Role != "apex" && status.Role != "www" && status.Role != "edge" {
-				continue
-			}
-			if status.Proxied {
-				proxiedDomains = append(proxiedDomains, status.Host)
-			}
-		}
-
 		dns01Token := ""
 		if opts.ProvidedSecrets != nil {
 			dns01Token = strings.TrimSpace(opts.ProvidedSecrets[domain.CloudflareAPITokenKey])
 		}
-
-		recordProxyIssue := func(details, hint string, data map[string]string) {
-			if manifest.Edge.DNSPolicy == domain.DNSPolicyWarn {
-				warn(domain.PreflightDNSProxyModeID, "Proxy mode vs issuance", details, hint, data)
-				return
-			}
-			fail(domain.PreflightDNSProxyModeID, "Proxy mode vs issuance", details, hint, data)
-		}
-
-		switch {
-		case manifest.Edge.DNSPolicy == domain.DNSPolicySkip:
-			warn(domain.PreflightDNSProxyModeID, "Proxy mode vs issuance", "DNS checks skipped by policy", "Set edge.dns_policy to required to enforce DNS validation.", nil)
-		case len(proxiedDomains) == 0:
-			pass(domain.PreflightDNSProxyModeID, "Proxy mode vs issuance", "No Cloudflare proxy detected for edge/apex/www", nil)
-		case dns01Token != "":
-			pass(domain.PreflightDNSProxyModeID, "Proxy mode vs issuance", "Cloudflare proxy detected and DNS-01 credentials provided", map[string]string{"proxied_domains": strings.Join(proxiedDomains, ","), "dns01": "enabled"})
-		default:
-			recordProxyIssue(
-				"Cloudflare proxy detected without DNS-01 credentials",
-				"Disable proxying (DNS-only) during issuance or provide a Cloudflare API token for DNS-01.",
-				map[string]string{"proxied_domains": strings.Join(proxiedDomains, ",")},
-			)
-		}
+		checks = append(checks, dns.ProxyModeCheck(dnsEval, manifest.Edge.DNSPolicy, dns01Token))
 	}
 
 	publicPorts := []int{80, 443}
@@ -139,13 +107,7 @@ func Run(
 	if manifest.Edge.Caddy.Enabled && strings.TrimSpace(manifest.Edge.Domain) != "" {
 		domainName := strings.TrimSpace(manifest.Edge.Domain)
 		alpnTimeout := 4 * time.Second
-		reachErr := opts.PortProbe(ctx, domainName, 443, portTimeout)
-		proto := ""
-		var probeErr error
-		if reachErr == nil {
-			proto, probeErr = opts.TLSALPNProbe(ctx, domainName, domainName, 443, alpnTimeout)
-		}
-		alpnCheck := tlsinfo.EvaluateALPN(domainName, reachErr, proto, probeErr)
+		alpnCheck := tlsinfo.RunALPNCheck(ctx, domainName, opts.PortProbe, opts.TLSALPNProbe, portTimeout, alpnTimeout)
 		data := map[string]string{"domain": domainName}
 		if alpnCheck.Protocol != "" {
 			data["protocol"] = alpnCheck.Protocol

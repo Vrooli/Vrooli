@@ -115,7 +115,12 @@ func NewServer() (*Server, error) {
 	secretsFetcher := secrets.NewClient()
 	secretsGenerator := secrets.NewGenerator()
 	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
-	tlsService := tlsinfo.NewService(tlsinfo.WithTimeout(10 * time.Second))
+	verifyMode := strings.ToLower(strings.TrimSpace(os.Getenv("TLS_VERIFY_MODE")))
+	verifyFull := verifyMode == "full" || verifyMode == "true"
+	tlsService := tlsinfo.NewService(
+		tlsinfo.WithTimeout(10*time.Second),
+		tlsinfo.WithVerify(verifyFull),
+	)
 	tlsALPNRunner := tlsinfo.DefaultALPNRunner
 
 	srv := &Server{

@@ -18,21 +18,24 @@ type Service interface {
 
 // ProbeResult contains TLS certificate details for a domain.
 type ProbeResult struct {
-	Domain        string
-	Valid         bool
-	Issuer        string
-	Subject       string
-	NotBefore     string
-	NotAfter      string
-	DaysRemaining int
-	SerialNumber  string
-	SANs          []string
+	Domain          string
+	Valid           bool
+	Validation      string
+	ValidationError string
+	Issuer          string
+	Subject         string
+	NotBefore       string
+	NotAfter        string
+	DaysRemaining   int
+	SerialNumber    string
+	SANs            []string
 }
 
 // Config controls probe behavior.
 type Config struct {
 	Timeout time.Duration
 	Port    int
+	Verify  bool
 }
 
 // Option configures the probe service.
@@ -49,6 +52,13 @@ func WithTimeout(timeout time.Duration) Option {
 func WithPort(port int) Option {
 	return func(cfg *Config) {
 		cfg.Port = port
+	}
+}
+
+// WithVerify enables full certificate verification (chain + hostname).
+func WithVerify(verify bool) Option {
+	return func(cfg *Config) {
+		cfg.Verify = verify
 	}
 }
 
@@ -96,7 +106,14 @@ func (s *DefaultService) Probe(ctx context.Context, domain string) (ProbeResult,
 	if len(state.PeerCertificates) == 0 {
 		return ProbeResult{}, fmt.Errorf("no peer certificates returned")
 	}
-	return buildProbeResult(domain, state.PeerCertificates[0], time.Now()), nil
+	validation := "time_only"
+	var validationErr error
+	now := time.Now()
+	if s.config.Verify {
+		validation = "full"
+		validationErr = verifyCertificateChain(domain, state.PeerCertificates, now)
+	}
+	return buildProbeResult(domain, state.PeerCertificates[0], now, validation, validationErr), nil
 }
 
 func (s *DefaultService) applyTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -109,30 +126,72 @@ func (s *DefaultService) applyTimeout(ctx context.Context) (context.Context, con
 	return context.WithTimeout(ctx, s.config.Timeout)
 }
 
-func buildProbeResult(domain string, cert *x509.Certificate, now time.Time) ProbeResult {
+func buildProbeResult(domain string, cert *x509.Certificate, now time.Time, validation string, validationErr error) ProbeResult {
 	if cert == nil {
 		return ProbeResult{Domain: domain, Valid: false}
+	}
+	if strings.TrimSpace(validation) == "" {
+		validation = "time_only"
 	}
 
 	notAfter := cert.NotAfter.UTC()
 	notBefore := cert.NotBefore.UTC()
-	valid := now.After(notBefore) && now.Before(notAfter)
+	validTime := now.After(notBefore) && now.Before(notAfter)
+	valid := validTime
+	if validation == "full" {
+		if validationErr != nil {
+			valid = false
+		} else {
+			valid = validTime
+		}
+	}
 	days := int(notAfter.Sub(now).Hours() / 24)
 	if days < 0 {
 		days = 0
 	}
 
 	return ProbeResult{
-		Domain:        domain,
-		Valid:         valid,
-		Issuer:        cert.Issuer.CommonName,
-		Subject:       cert.Subject.String(),
-		NotBefore:     formatCertTime(notBefore),
-		NotAfter:      formatCertTime(notAfter),
-		DaysRemaining: days,
-		SerialNumber:  formatSerial(cert.SerialNumber),
-		SANs:          append([]string{}, cert.DNSNames...),
+		Domain:          domain,
+		Valid:           valid,
+		Validation:      validation,
+		ValidationError: validationErrorString(validationErr),
+		Issuer:          cert.Issuer.CommonName,
+		Subject:         cert.Subject.String(),
+		NotBefore:       formatCertTime(notBefore),
+		NotAfter:        formatCertTime(notAfter),
+		DaysRemaining:   days,
+		SerialNumber:    formatSerial(cert.SerialNumber),
+		SANs:            append([]string{}, cert.DNSNames...),
 	}
+}
+
+func verifyCertificateChain(domain string, certs []*x509.Certificate, now time.Time) error {
+	if len(certs) == 0 {
+		return fmt.Errorf("no certificates provided")
+	}
+	roots, err := x509.SystemCertPool()
+	if err != nil || roots == nil {
+		roots = x509.NewCertPool()
+	}
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(certs); i++ {
+		intermediates.AddCert(certs[i])
+	}
+	opts := x509.VerifyOptions{
+		DNSName:       domain,
+		Roots:         roots,
+		Intermediates: intermediates,
+		CurrentTime:   now,
+	}
+	_, err = certs[0].Verify(opts)
+	return err
+}
+
+func validationErrorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func formatCertTime(t time.Time) string {
