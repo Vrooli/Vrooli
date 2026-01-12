@@ -1521,10 +1521,28 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	}
 
 	// Update run status to running
+	previousStatus := run.Status
 	run.Status = domain.RunStatusRunning
+	run.Phase = domain.RunPhaseExecuting
+	run.ProgressPercent = domain.PhaseToProgress(domain.RunPhaseExecuting)
 	run.UpdatedAt = time.Now()
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
+	}
+
+	if o.events != nil {
+		statusEvent := domain.NewStatusEvent(
+			run.ID,
+			string(previousStatus),
+			string(domain.RunStatusRunning),
+			"Continuation requested",
+		)
+		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(statusEvent)
+		}
+	}
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
 	}
 
 	// Emit user message event
@@ -1647,6 +1665,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 	// Update run based on result
 	now := time.Now()
+	previousStatus := run.Status
 	run.UpdatedAt = now
 
 	if err != nil {
@@ -1694,6 +1713,18 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	if err := o.runs.Update(ctx, run); err != nil {
 		// Log but can't do much else
 		_ = err
+	}
+
+	if o.events != nil && previousStatus != run.Status {
+		statusEvent := domain.NewStatusEvent(
+			run.ID,
+			string(previousStatus),
+			string(run.Status),
+			"Continuation completed",
+		)
+		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(statusEvent)
+		}
 	}
 
 	// Broadcast status update

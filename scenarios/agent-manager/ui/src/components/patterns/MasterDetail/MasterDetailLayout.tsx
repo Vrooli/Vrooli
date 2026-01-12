@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "../../../lib/utils";
 import { useViewportSize } from "../../../hooks/useViewportSize";
 import { useResizablePanel } from "../../../hooks/useResizablePanel";
+import { useCollapsiblePanel } from "../../../hooks/useCollapsiblePanel";
 import { DetailModal } from "./DetailModal";
 import { ResizableDivider } from "./ResizableDivider";
 
@@ -36,6 +37,7 @@ interface MasterDetailLayoutProps {
 const DEFAULT_LIST_WIDTH_PERCENT = 40;
 const DEFAULT_MIN_LIST_WIDTH = 280;
 const DEFAULT_MIN_DETAIL_WIDTH = 320;
+const COLLAPSED_LIST_WIDTH = 48;
 
 export function MasterDetailLayout({
   listPanel,
@@ -63,6 +65,22 @@ export function MasterDetailLayout({
     minOtherWidth: minDetailWidth,
   });
 
+  const { isCollapsed, toggle: toggleCollapse } = useCollapsiblePanel({
+    storageKey: `${storageKey}.list`,
+    defaultCollapsed: false,
+  });
+
+  // Clone listPanel to inject collapse props
+  const listPanelWithCollapse = React.isValidElement(listPanel)
+    ? React.cloneElement(listPanel as React.ReactElement<{ collapsed?: boolean; onToggleCollapse?: () => void }>, {
+        collapsed: isCollapsed,
+        onToggleCollapse: toggleCollapse,
+      })
+    : listPanel;
+
+  // Use collapsed width when collapsed, otherwise resizable width
+  const effectiveListWidth = isCollapsed ? COLLAPSED_LIST_WIDTH : listWidth;
+
   // Desktop layout
   if (isDesktop) {
     return (
@@ -81,17 +99,22 @@ export function MasterDetailLayout({
         >
           {/* List panel */}
           <div
-            style={{ width: listWidth }}
-            className="shrink-0 min-h-0 overflow-hidden border-r border-border"
+            style={{ width: effectiveListWidth }}
+            className={cn(
+              "shrink-0 min-h-0 overflow-hidden border-r border-border",
+              "transition-[width] duration-200 ease-in-out"
+            )}
           >
-            {listPanel}
+            {listPanelWithCollapse}
           </div>
 
-          {/* Resize divider */}
-          <ResizableDivider
-            onMouseDown={handleResizeStart}
-            isResizing={isResizing}
-          />
+          {/* Resize divider - hidden when collapsed */}
+          {!isCollapsed && (
+            <ResizableDivider
+              onMouseDown={handleResizeStart}
+              isResizing={isResizing}
+            />
+          )}
 
           {/* Detail panel */}
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">

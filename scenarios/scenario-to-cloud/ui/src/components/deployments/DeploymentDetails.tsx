@@ -512,13 +512,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </button>
             )}
 
-            {/* Spawn agent button for failed deployments */}
-            {deployment.status === "failed" && (
-              <SpawnAgentButton
-                deploymentId={deploymentId}
-                onTaskStarted={() => {}}
-              />
-            )}
+            {/* Spawn agent button - always available */}
+            <SpawnAgentButton
+              deploymentId={deploymentId}
+              onTaskStarted={() => {}}
+            />
           </div>
         </div>
       </div>
@@ -755,7 +753,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Investigation progress - show when there's an active investigation */}
-      {investigation.activeInvestigation && deployment.status === "failed" && (
+      {investigation.activeInvestigation && (
         <InvestigationProgress
           investigation={investigation.activeInvestigation}
           isRunning={investigation.isRunning}
