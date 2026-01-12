@@ -193,26 +193,35 @@ export function FolderBrowser({
       className={`bg-gray-800/30 border border-gray-700/50 rounded-xl overflow-hidden ${className}`}
       data-testid={testId}
     >
-      {/* Header with navigation */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/50 bg-gray-800/50">
-        <button
-          type="button"
-          onClick={handleNavigateUp}
-          disabled={!scanResult.parent || isScanning}
-          className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          aria-label="Navigate up"
-        >
-          <ChevronUp size={14} />
-          Up
-        </button>
+      {/* Header with navigation - fixed layout so Up button never shifts */}
+      <div className="flex items-center px-3 py-2 border-b border-gray-700/50 bg-gray-800/50">
+        {/* Fixed-width up button container */}
+        <div className="w-14 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleNavigateUp}
+            disabled={!scanResult.parent || isScanning}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Navigate up"
+          >
+            <ChevronUp size={14} />
+            Up
+          </button>
+        </div>
+
+        {/* Path display - fills remaining space */}
         <div
-          className="flex items-center gap-1.5 text-xs text-gray-500 font-mono truncate max-w-[60%]"
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 font-mono min-w-0"
           title={scanResult.path}
         >
           <FolderOpen size={12} className="flex-shrink-0" />
-          {getDisplayPath(scanResult.path)}
+          <span className="truncate">{getDisplayPath(scanResult.path)}</span>
         </div>
-        {isScanning && <Loader2 size={14} className="animate-spin text-gray-500" />}
+
+        {/* Fixed-width spinner container */}
+        <div className="w-14 flex-shrink-0 flex justify-end">
+          {isScanning && <Loader2 size={14} className="animate-spin text-gray-500" />}
+        </div>
       </div>
 
       {/* Show registered toggle */}
@@ -279,6 +288,24 @@ function FolderEntryRow({
   const isTarget = entry.isTarget;
   const isRegistered = entry.isRegistered;
 
+  // Handle row click - triggers appropriate action
+  const handleRowClick = () => {
+    if (isScanning) return;
+    if (isTarget) {
+      onSelect();
+    } else {
+      onNavigate();
+    }
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRowClick();
+    }
+  };
+
   // Styling based on type and status
   const rowStyles = isTarget
     ? isRegistered
@@ -288,7 +315,11 @@ function FolderEntryRow({
 
   return (
     <div
-      className={`flex items-center justify-between px-3 py-2 border-b border-gray-700/20 last:border-b-0 transition-colors ${rowStyles}`}
+      onClick={handleRowClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={isScanning ? -1 : 0}
+      className={`flex items-center justify-between px-3 py-2 border-b border-gray-700/20 last:border-b-0 transition-colors cursor-pointer ${isScanning ? 'cursor-not-allowed' : ''} ${rowStyles}`}
       data-path={entry.path}
       data-is-target={entry.isTarget}
       data-is-registered={entry.isRegistered}

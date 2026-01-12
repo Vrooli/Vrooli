@@ -114,13 +114,16 @@ func TaskToProto(t *domain.Task) *pb.Task {
 	attachments := make([]*pb.ContextAttachment, len(t.ContextAttachments))
 	for i, a := range t.ContextAttachments {
 		attachments[i] = &pb.ContextAttachment{
-			Type:    a.Type,
-			Key:     a.Key,
-			Tags:    a.Tags,
-			Path:    a.Path,
-			Url:     a.URL,
-			Content: a.Content,
-			Label:   a.Label,
+			Type:     a.Type,
+			Key:      a.Key,
+			Tags:     a.Tags,
+			Path:     a.Path,
+			Url:      a.URL,
+			Content:  a.Content,
+			Label:    a.Label,
+			Summary:  a.Summary,
+			Format:   a.Format,
+			Priority: a.Priority,
 		}
 	}
 
@@ -153,13 +156,16 @@ func TaskFromProto(t *pb.Task) *domain.Task {
 	attachments := make([]domain.ContextAttachment, len(t.ContextAttachments))
 	for i, a := range t.ContextAttachments {
 		attachments[i] = domain.ContextAttachment{
-			Type:    a.Type,
-			Key:     a.Key,
-			Tags:    a.Tags,
-			Path:    a.Path,
-			URL:     a.Url,
-			Content: a.Content,
-			Label:   a.Label,
+			Type:     a.Type,
+			Key:      a.Key,
+			Tags:     a.Tags,
+			Path:     a.Path,
+			URL:      a.Url,
+			Content:  a.Content,
+			Label:    a.Label,
+			Summary:  a.Summary,
+			Format:   a.Format,
+			Priority: a.Priority,
 		}
 	}
 

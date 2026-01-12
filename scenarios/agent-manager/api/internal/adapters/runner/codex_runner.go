@@ -1145,8 +1145,6 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 			string(domain.RunStatusRunning),
 			"Codex continuation started",
 		))
-		// Emit the user's follow-up message as an event
-		_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "user", req.Prompt))
 	}
 
 	// Write prompt and close stdin

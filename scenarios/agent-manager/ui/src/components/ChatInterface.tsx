@@ -27,6 +27,7 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Extract all messages from events
   const messages = useMemo(() => {
@@ -69,6 +70,22 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [isGenerating]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const styles = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(styles.lineHeight || "20");
+    const padding =
+      Number.parseFloat(styles.paddingTop || "0") + Number.parseFloat(styles.paddingBottom || "0");
+    const maxHeight = lineHeight * 10 + padding;
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [inputMessage]);
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !canContinue || sending) return;
@@ -225,6 +242,7 @@ export function ChatInterface({ run, events, eventsLoading, onContinue }: ChatIn
         <div className="border-t border-border pt-4">
           <div className="flex gap-2">
             <Textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
