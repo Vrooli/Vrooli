@@ -227,9 +227,9 @@ export function TemplateEditorModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-xl mx-4">
+      <div className="relative bg-slate-900 border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] shadow-xl mx-4 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold text-white">
               {isEditing ? "Edit Template" : "Create Template"}
             </h2>
@@ -243,7 +243,7 @@ export function TemplateEditorModal({
 
           {/* Info banner for editing defaults */}
           {isEditingDefault && (
-            <div className={`mx-4 mt-4 p-3 rounded-lg flex items-start gap-3 ${
+            <div className={`flex-shrink-0 mx-4 mt-4 p-3 rounded-lg flex items-start gap-3 ${
               applyToDefault
                 ? "bg-indigo-900/20 border border-indigo-500/30"
                 : "bg-amber-900/20 border border-amber-500/30"
@@ -282,7 +282,7 @@ export function TemplateEditorModal({
           )}
 
           {/* Content */}
-          <div className="p-4 overflow-y-auto max-h-[calc(90vh-130px)] space-y-4">
+          <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-4">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
@@ -599,7 +599,7 @@ export function TemplateEditorModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-4 border-t border-white/10">
+          <div className="flex-shrink-0 flex items-center justify-end gap-3 p-4 border-t border-white/10">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
