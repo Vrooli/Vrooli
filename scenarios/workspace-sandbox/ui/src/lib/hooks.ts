@@ -36,6 +36,7 @@ import {
   type ExecutionConfig,
   type IsolationProfile,
   type CommitPendingRequest,
+  type ViewMode,
 } from "./api";
 
 // Query keys for cache management
@@ -45,7 +46,7 @@ export const queryKeys = {
   driverOptions: ["driverOptions"] as const,
   sandboxes: (filter?: ListFilter) => ["sandboxes", filter] as const,
   sandbox: (id: string) => ["sandbox", id] as const,
-  diff: (id: string) => ["diff", id] as const,
+  diff: (id: string, mode?: ViewMode) => ["diff", id, mode] as const,
   processes: (sandboxId: string) => ["processes", sandboxId] as const,
   logs: (sandboxId: string) => ["logs", sandboxId] as const,
   processLog: (sandboxId: string, pid: number) => ["processLog", sandboxId, pid] as const,
@@ -113,10 +114,10 @@ export function useSandbox(id: string | undefined) {
 }
 
 // Get diff for sandbox
-export function useDiff(id: string | undefined) {
+export function useDiff(id: string | undefined, mode: ViewMode = "diff") {
   return useQuery({
-    queryKey: queryKeys.diff(id || ""),
-    queryFn: () => getDiff(id!),
+    queryKey: queryKeys.diff(id || "", mode),
+    queryFn: () => getDiff(id!, mode),
     enabled: !!id,
   });
 }

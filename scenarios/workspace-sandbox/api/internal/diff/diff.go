@@ -489,6 +489,204 @@ func IsBinaryFile(path string) (bool, error) {
 	return isBinaryDefault(buf[:n]), nil
 }
 
+// GetFileContent reads file content from the appropriate layer of the sandbox.
+// For added/modified files, reads from upperDir. For deleted files, reads from lowerDir.
+// Returns empty string for binary files or if file cannot be read.
+func GetFileContent(upperDir, lowerDir, filePath string, changeType types.ChangeType) (string, error) {
+	var targetPath string
+	switch changeType {
+	case types.ChangeTypeDeleted:
+		// Deleted files - read from lower (original) directory
+		targetPath = filepath.Join(lowerDir, filePath)
+	default:
+		// Added/Modified files - read from upper (changed) directory
+		targetPath = filepath.Join(upperDir, filePath)
+	}
+
+	// Check if file exists
+	info, err := os.Stat(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	// Skip directories and special files
+	if info.IsDir() || isSpecialFile(info) {
+		return "", nil
+	}
+
+	// Read file content
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Skip binary files
+	if isBinaryDefault(content) {
+		return "", nil
+	}
+
+	return string(content), nil
+}
+
+// BuildAnnotatedLines creates annotated lines from file content and unified diff.
+// It merges the current file content with deleted lines from the diff to show
+// a complete view of the file with change annotations.
+func BuildAnnotatedLines(content, unifiedDiff, filePath string) []types.AnnotatedLine {
+	// Parse the unified diff to find hunks for this file
+	parsedFiles := ParseUnifiedDiff(unifiedDiff)
+	var fileHunks []*ParsedHunk
+	for _, f := range parsedFiles {
+		if f.Path == filePath {
+			fileHunks = f.Hunks
+			break
+		}
+	}
+
+	// If no hunks, the file is entirely new - mark all lines as added
+	if len(fileHunks) == 0 {
+		return buildSimpleAnnotatedLines(content, types.LineChangeAdded)
+	}
+
+	// Build a map of new line number -> change type and deleted lines to insert
+	type lineInfo struct {
+		change       types.LineChange
+		deletedLines []string // Deleted lines to insert before this line
+	}
+	lineChanges := make(map[int]*lineInfo)
+	deletedAtEnd := []string{} // Deleted lines at end of file
+
+	for _, hunk := range fileHunks {
+		newLineNum := hunk.NewStart
+		oldLineNum := hunk.OldStart
+
+		for _, line := range hunk.Lines {
+			if len(line) == 0 {
+				continue
+			}
+
+			prefix := line[0]
+			lineContent := ""
+			if len(line) > 1 {
+				lineContent = line[1:]
+			}
+
+			switch prefix {
+			case '+':
+				// Added line
+				if lineChanges[newLineNum] == nil {
+					lineChanges[newLineNum] = &lineInfo{}
+				}
+				lineChanges[newLineNum].change = types.LineChangeAdded
+				newLineNum++
+			case '-':
+				// Deleted line - store for insertion
+				// Insert before the next new line
+				if lineChanges[newLineNum] == nil {
+					lineChanges[newLineNum] = &lineInfo{}
+				}
+				lineChanges[newLineNum].deletedLines = append(lineChanges[newLineNum].deletedLines, lineContent)
+				oldLineNum++
+			case ' ':
+				// Context line - advance both counters
+				newLineNum++
+				oldLineNum++
+			case '\\':
+				// "No newline at end of file" marker - skip
+			}
+		}
+
+		// Check if there are trailing deleted lines (deleted lines after all new lines)
+		if info := lineChanges[newLineNum]; info != nil && len(info.deletedLines) > 0 {
+			deletedAtEnd = append(deletedAtEnd, info.deletedLines...)
+			info.deletedLines = nil
+		}
+	}
+
+	// Build annotated lines from content
+	var result []types.AnnotatedLine
+	lines := strings.Split(content, "\n")
+
+	// Remove trailing empty line if content ends with newline
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	oldLineCounter := 1
+	for i, lineContent := range lines {
+		lineNum := i + 1
+
+		// Insert any deleted lines before this line
+		if info := lineChanges[lineNum]; info != nil {
+			for _, deletedContent := range info.deletedLines {
+				result = append(result, types.AnnotatedLine{
+					Number:    0, // 0 indicates deleted line
+					Content:   deletedContent,
+					Change:    types.LineChangeDeleted,
+					OldNumber: oldLineCounter,
+				})
+				oldLineCounter++
+			}
+		}
+
+		// Add the current line
+		change := types.LineChangeNone
+		if info := lineChanges[lineNum]; info != nil && info.change != "" {
+			change = info.change
+		}
+
+		result = append(result, types.AnnotatedLine{
+			Number:  lineNum,
+			Content: lineContent,
+			Change:  change,
+		})
+
+		// Advance old line counter for non-added lines
+		if change != types.LineChangeAdded {
+			oldLineCounter++
+		}
+	}
+
+	// Add any trailing deleted lines
+	for _, deletedContent := range deletedAtEnd {
+		result = append(result, types.AnnotatedLine{
+			Number:    0,
+			Content:   deletedContent,
+			Change:    types.LineChangeDeleted,
+			OldNumber: oldLineCounter,
+		})
+		oldLineCounter++
+	}
+
+	return result
+}
+
+// buildSimpleAnnotatedLines creates annotated lines for a file with a single change type.
+// Used for entirely new or entirely deleted files.
+func buildSimpleAnnotatedLines(content string, change types.LineChange) []types.AnnotatedLine {
+	if content == "" {
+		return nil
+	}
+
+	lines := strings.Split(content, "\n")
+	// Remove trailing empty line if content ends with newline
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	result := make([]types.AnnotatedLine, len(lines))
+	for i, lineContent := range lines {
+		result[i] = types.AnnotatedLine{
+			Number:  i + 1,
+			Content: lineContent,
+			Change:  change,
+		}
+	}
+	return result
+}
+
 // Patcher applies diffs to the canonical repo.
 type Patcher struct {
 	runner CommandRunner

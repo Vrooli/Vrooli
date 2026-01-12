@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   FileDiff,
   FilePlus,
@@ -15,9 +15,15 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
-import type { DiffResult, FileChange, ChangeType } from "../lib/api";
+import { ViewModeSelector } from "./ViewModeSelector";
+import type { DiffResult, FileChange, ChangeType, ViewMode, AnnotatedLine } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
+import {
+  highlightCode,
+  getLanguageFromPath,
+  type HighlightToken,
+  type HighlightedLine,
+} from "../lib/highlighter";
 
 // Hunk selection type for approval workflow
 export interface HunkSelection {
@@ -43,6 +49,9 @@ interface DiffViewerProps {
   showHunkSelection?: boolean;
   selectedHunks?: HunkSelection[];
   onHunkSelectionChange?: (hunks: HunkSelection[]) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
 interface ParsedHunk {
@@ -153,7 +162,6 @@ function parseUnifiedDiff(diff: string): ParsedFileDiff[] {
 function DiffLine({ line }: { line: string }) {
   const isAddition = line.startsWith("+");
   const isDeletion = line.startsWith("-");
-  const isContext = !isAddition && !isDeletion;
 
   let bgColor = "";
   let textColor = "text-slate-300";
@@ -174,6 +182,173 @@ function DiffLine({ line }: { line: string }) {
       <pre className={`flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto ${textColor}`}>
         {line.slice(1) || " "}
       </pre>
+    </div>
+  );
+}
+
+// Hook for async syntax highlighting
+function useHighlighting(content: string | undefined, filePath: string | undefined) {
+  const [highlightedLines, setHighlightedLines] = useState<HighlightedLine[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!content || !filePath) {
+      setHighlightedLines(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    const language = getLanguageFromPath(filePath);
+    highlightCode(content, language)
+      .then((lines) => {
+        if (!cancelled) {
+          setHighlightedLines(lines);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlightedLines(null);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content, filePath]);
+
+  return { highlightedLines, isLoading };
+}
+
+// Renders syntax-highlighted tokens
+function HighlightedTokens({ tokens }: { tokens: HighlightToken[] }) {
+  return (
+    <>
+      {tokens.map((token, i) => (
+        <span
+          key={i}
+          style={{ color: token.color }}
+          className={token.fontStyle === "italic" ? "italic" : token.fontStyle === "bold" ? "font-bold" : ""}
+        >
+          {token.content}
+        </span>
+      ))}
+    </>
+  );
+}
+
+// Renders a single line with syntax highlighting and optional change marker
+interface HighlightedCodeLineProps {
+  lineNumber: number;
+  tokens?: HighlightToken[];
+  content: string;
+  change?: "" | "added" | "deleted";
+  showChangeMarker?: boolean;
+}
+
+function HighlightedCodeLine({
+  lineNumber,
+  tokens,
+  content,
+  change,
+  showChangeMarker = false,
+}: HighlightedCodeLineProps) {
+  let bgColor = "";
+  let markerColor = "text-slate-600";
+
+  if (change === "added") {
+    bgColor = "bg-emerald-950/30";
+    markerColor = "text-emerald-400";
+  } else if (change === "deleted") {
+    bgColor = "bg-red-950/30";
+    markerColor = "text-red-400";
+  }
+
+  return (
+    <div className={`flex font-mono text-xs ${bgColor}`} data-testid={SELECTORS.diffLine}>
+      {showChangeMarker && (
+        <span className={`w-6 flex-shrink-0 text-center select-none ${markerColor}`}>
+          {change === "added" ? "+" : change === "deleted" ? "-" : " "}
+        </span>
+      )}
+      <span className="w-10 flex-shrink-0 text-right pr-2 text-slate-600 select-none">
+        {lineNumber > 0 ? lineNumber : ""}
+      </span>
+      <pre className="flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto text-slate-300">
+        {tokens ? <HighlightedTokens tokens={tokens} /> : content || " "}
+      </pre>
+    </div>
+  );
+}
+
+// Full file view with change annotations (full_diff mode)
+interface FullFileViewProps {
+  annotatedLines: AnnotatedLine[];
+  highlightedLines: HighlightedLine[] | null;
+  filePath: string;
+}
+
+function FullFileView({ annotatedLines, highlightedLines, filePath }: FullFileViewProps) {
+  // Create a map from line number to highlighted tokens
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    const map = new Map<number, HighlightToken[]>();
+    highlightedLines.forEach((line) => {
+      map.set(line.lineNumber, line.tokens);
+    });
+    return map;
+  }, [highlightedLines]);
+
+  return (
+    <div data-testid="full-file-content">
+      {annotatedLines.map((line, index) => (
+        <HighlightedCodeLine
+          key={index}
+          lineNumber={line.number}
+          tokens={line.number > 0 ? highlightMap.get(line.number) : undefined}
+          content={line.content}
+          change={line.change || ""}
+          showChangeMarker={true}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Source view - clean file content without change markers (source mode)
+interface SourceViewProps {
+  content: string;
+  highlightedLines: HighlightedLine[] | null;
+  filePath: string;
+}
+
+function SourceView({ content, highlightedLines, filePath }: SourceViewProps) {
+  const lines = useMemo(() => content.split("\n"), [content]);
+
+  // Create a map from line number to highlighted tokens
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    const map = new Map<number, HighlightToken[]>();
+    highlightedLines.forEach((line) => {
+      map.set(line.lineNumber, line.tokens);
+    });
+    return map;
+  }, [highlightedLines]);
+
+  return (
+    <div data-testid="source-content">
+      {lines.map((line, index) => (
+        <HighlightedCodeLine
+          key={index}
+          lineNumber={index + 1}
+          tokens={highlightMap.get(index + 1)}
+          content={line}
+          showChangeMarker={false}
+        />
+      ))}
     </div>
   );
 }
@@ -236,6 +411,10 @@ interface FileDiffSectionProps {
   showHunkSelection?: boolean;
   selectedHunkIndices?: Set<number>;
   onToggleHunkSelection?: (hunkIndex: number, hunk: ParsedHunk) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  fullContent?: string;
+  annotatedLines?: AnnotatedLine[];
 }
 
 function FileDiffSection({
@@ -251,9 +430,18 @@ function FileDiffSection({
   showHunkSelection,
   selectedHunkIndices,
   onToggleHunkSelection,
+  viewMode = "diff",
+  fullContent,
+  annotatedLines,
 }: FileDiffSectionProps) {
   const [expanded, setExpanded] = useState(true);
   const fileCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Get syntax highlighting for full_diff and source modes
+  const { highlightedLines } = useHighlighting(
+    viewMode !== "diff" ? fullContent : undefined,
+    viewMode !== "diff" ? file.path : undefined
+  );
 
   // Set indeterminate state on checkbox (can't be set via attribute)
   useEffect(() => {
@@ -384,27 +572,59 @@ function FileDiffSection({
       {/* File content */}
       {expanded && (
         <div data-testid={SELECTORS.diffContent}>
-          {file.hunks.map((hunk, index) => (
-            <HunkDisplay
-              key={index}
-              hunk={hunk}
-              index={index}
-              showSelection={showHunkSelection}
-              isSelected={selectedHunkIndices?.has(index)}
-              onToggleSelection={
-                onToggleHunkSelection
-                  ? () => onToggleHunkSelection(index, hunk)
-                  : undefined
-              }
+          {/* Diff mode - show hunks */}
+          {viewMode === "diff" && (
+            <>
+              {file.hunks.map((hunk, index) => (
+                <HunkDisplay
+                  key={index}
+                  hunk={hunk}
+                  index={index}
+                  showSelection={showHunkSelection}
+                  isSelected={selectedHunkIndices?.has(index)}
+                  onToggleSelection={
+                    onToggleHunkSelection
+                      ? () => onToggleHunkSelection(index, hunk)
+                      : undefined
+                  }
+                />
+              ))}
+              {file.hunks.length === 0 && (
+                <div className="px-3 py-4 text-xs text-slate-500 text-center">
+                  {file.changeType === "added"
+                    ? "New empty file"
+                    : file.changeType === "deleted"
+                    ? "File deleted"
+                    : "No changes in this file"}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Full diff mode - show full file with change annotations */}
+          {viewMode === "full_diff" && annotatedLines && (
+            <FullFileView
+              annotatedLines={annotatedLines}
+              highlightedLines={highlightedLines}
+              filePath={file.path}
             />
-          ))}
-          {file.hunks.length === 0 && (
+          )}
+
+          {/* Source mode - show clean file content */}
+          {viewMode === "source" && fullContent && (
+            <SourceView
+              content={fullContent}
+              highlightedLines={highlightedLines}
+              filePath={file.path}
+            />
+          )}
+
+          {/* No content available for non-diff modes */}
+          {viewMode !== "diff" && !fullContent && !annotatedLines && (
             <div className="px-3 py-4 text-xs text-slate-500 text-center">
-              {file.changeType === "added"
-                ? "New empty file"
-                : file.changeType === "deleted"
-                ? "File deleted"
-                : "No changes in this file"}
+              {file.changeType === "deleted"
+                ? "File was deleted"
+                : "Content not available (binary file?)"}
             </div>
           )}
         </div>
@@ -426,6 +646,8 @@ export function DiffViewer({
   showHunkSelection = false,
   selectedHunks = [],
   onHunkSelectionChange,
+  viewMode = "diff",
+  onViewModeChange,
 }: DiffViewerProps) {
   // Parse the unified diff
   const parsedFiles = useMemo(() => {
@@ -546,6 +768,17 @@ export function DiffViewer({
           Changes
         </CardTitle>
 
+        <div className="flex items-center gap-3">
+          {/* View mode selector */}
+          {onViewModeChange && diff && hasChanges && (
+            <ViewModeSelector
+              mode={viewMode}
+              onChange={onViewModeChange}
+              disabled={showHunkSelection}
+              compact={true}
+            />
+          )}
+
         {diff && hasChanges && (
           <div className="flex items-center gap-3" data-testid={SELECTORS.diffStats}>
             {/* Bulk select controls */}
@@ -614,6 +847,7 @@ export function DiffViewer({
             </span>
           </div>
         )}
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 p-0 overflow-hidden">
@@ -666,6 +900,8 @@ export function DiffViewer({
                 const isFileFullySelected = totalHunks > 0 && selectedHunkCount === totalHunks;
                 // File is indeterminate if some (but not all) hunks are selected
                 const isFileIndeterminate = selectedHunkCount > 0 && selectedHunkCount < totalHunks;
+                // Get file content for non-diff view modes
+                const fileViewData = diff.fileContents?.[file.path];
                 return (
                   <FileDiffSection
                     key={file.path}
@@ -699,6 +935,10 @@ export function DiffViewer({
                         ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk, totalHunks)
                         : undefined
                     }
+                    // View mode props
+                    viewMode={viewMode}
+                    fullContent={fileViewData?.fullContent}
+                    annotatedLines={fileViewData?.annotatedLines}
                   />
                 );
               })}

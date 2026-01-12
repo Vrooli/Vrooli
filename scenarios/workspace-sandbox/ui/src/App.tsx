@@ -25,7 +25,7 @@ import {
   useStartProcess,
   queryKeys,
 } from "./lib/hooks";
-import { computeStats, type Sandbox, type CreateRequest } from "./lib/api";
+import { computeStats, type Sandbox, type CreateRequest, type ViewMode } from "./lib/api";
 import { SELECTORS } from "./consts/selectors";
 
 /**
@@ -61,6 +61,9 @@ export default function App() {
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [selectedHunks, setSelectedHunks] = useState<HunkSelection[]>([]);
 
+  // View mode state for DiffViewer
+  const [viewMode, setViewMode] = useState<ViewMode>("diff");
+
   // Sidebar resize state
   const SIDEBAR_MIN_WIDTH = 200;
   const DETAIL_MIN_WIDTH = 400;
@@ -76,7 +79,7 @@ export default function App() {
   // Queries
   const healthQuery = useHealth();
   const sandboxesQuery = useSandboxes();
-  const diffQuery = useDiff(selectedSandbox?.id);
+  const diffQuery = useDiff(selectedSandbox?.id, viewMode);
 
   // Deep-link sandbox query - only fetch if we have a sandbox ID in URL params
   const deepLinkSandboxQuery = useSandbox(
@@ -519,6 +522,9 @@ export default function App() {
             onSelectedFileIdsChange={setSelectedFileIds}
             selectedHunks={selectedHunks}
             onSelectedHunksChange={setSelectedHunks}
+            // View mode state
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         </div>
       </div>

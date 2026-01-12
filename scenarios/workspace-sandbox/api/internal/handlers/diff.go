@@ -8,10 +8,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
 )
 
 // GetDiff handles getting sandbox diff.
+// Query parameters:
+//   - mode: View mode - "diff" (default), "full_diff", or "source"
 func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
@@ -19,12 +22,66 @@ func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	diff, err := h.Service.GetDiff(r.Context(), id)
+	// Parse mode parameter (default to "diff")
+	mode := types.ViewMode(r.URL.Query().Get("mode"))
+	if mode == "" {
+		mode = types.ViewModeDiff
+	}
+
+	// Validate mode
+	switch mode {
+	case types.ViewModeDiff, types.ViewModeFullDiff, types.ViewModeSource:
+		// Valid modes
+	default:
+		h.JSONError(w, "invalid mode parameter: must be 'diff', 'full_diff', or 'source'", http.StatusBadRequest)
+		return
+	}
+
+	diffResult, err := h.Service.GetDiff(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}
 
-	h.JSONSuccess(w, diff)
+	// Set the requested mode
+	diffResult.Mode = mode
+
+	// For full_diff or source modes, fetch file contents
+	if mode == types.ViewModeFullDiff || mode == types.ViewModeSource {
+		// Get the sandbox to access upper/lower directories
+		sandbox, err := h.Service.Get(r.Context(), id)
+		if err != nil {
+			h.HandleDomainError(w, err)
+			return
+		}
+
+		diffResult.FileContents = make(map[string]types.FileViewData)
+
+		for _, file := range diffResult.Files {
+			content, err := diff.GetFileContent(sandbox.UpperDir, sandbox.LowerDir, file.FilePath, file.ChangeType)
+			if err != nil {
+				// Log error but continue - partial content is better than failure
+				continue
+			}
+
+			if content == "" {
+				// Skip binary files or empty files
+				continue
+			}
+
+			fileData := types.FileViewData{
+				FullContent: content,
+			}
+
+			// For full_diff mode, also build annotated lines
+			if mode == types.ViewModeFullDiff {
+				fileData.AnnotatedLines = diff.BuildAnnotatedLines(content, diffResult.UnifiedDiff, file.FilePath)
+			}
+
+			diffResult.FileContents[file.FilePath] = fileData
+		}
+	}
+
+	h.JSONSuccess(w, diffResult)
 }
 
 // Approve handles approving sandbox changes.

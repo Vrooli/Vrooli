@@ -26,7 +26,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { DiffViewer, type HunkSelection } from "./DiffViewer";
-import type { Sandbox, DiffResult, Status } from "../lib/api";
+import type { Sandbox, DiffResult, Status, ViewMode } from "../lib/api";
 import { formatBytes, formatRelativeTime } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
 
@@ -59,6 +59,9 @@ interface SandboxDetailProps {
   onSelectedFileIdsChange: (ids: string[]) => void;
   selectedHunks: HunkSelection[];
   onSelectedHunksChange: (hunks: HunkSelection[]) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; variant: Status }> = {
@@ -170,6 +173,8 @@ export function SandboxDetail({
   onSelectedFileIdsChange,
   selectedHunks,
   onSelectedHunksChange,
+  viewMode,
+  onViewModeChange,
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -847,6 +852,9 @@ export function SandboxDetail({
           showHunkSelection={isReviewMode && canApproveReject}
           selectedHunks={selectedHunks}
           onHunkSelectionChange={onSelectedHunksChange}
+          // View mode props
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
         />
       </div>
     </div>

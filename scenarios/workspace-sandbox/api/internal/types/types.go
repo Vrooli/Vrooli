@@ -76,6 +76,39 @@ const (
 	ChangeTypeDeleted  ChangeType = "deleted"
 )
 
+// ViewMode specifies how to display file content in the diff viewer.
+type ViewMode string
+
+const (
+	ViewModeDiff     ViewMode = "diff"      // Show only changed lines (hunks)
+	ViewModeFullDiff ViewMode = "full_diff" // Show full file with changes highlighted
+	ViewModeSource   ViewMode = "source"    // Show file content only (no diff markers)
+)
+
+// LineChange indicates what type of change occurred on a line.
+type LineChange string
+
+const (
+	LineChangeNone    LineChange = ""        // Context line (unchanged)
+	LineChangeAdded   LineChange = "added"   // Line was added
+	LineChangeDeleted LineChange = "deleted" // Line was deleted
+)
+
+// AnnotatedLine represents a single line with its change status.
+// Used in full_diff mode to show the complete file with inline change markers.
+type AnnotatedLine struct {
+	Number    int        `json:"number"`              // Current line number (0 for deleted lines)
+	Content   string     `json:"content"`             // Line content
+	Change    LineChange `json:"change,omitempty"`    // Type of change
+	OldNumber int        `json:"oldNumber,omitempty"` // Original line number (for deleted lines)
+}
+
+// FileViewData holds per-file content for full_diff and source view modes.
+type FileViewData struct {
+	FullContent    string          `json:"fullContent,omitempty"`    // Complete file content
+	AnnotatedLines []AnnotatedLine `json:"annotatedLines,omitempty"` // Lines with change annotations
+}
+
 // AcceptanceStatus describes how a file change maps to acceptance rules.
 type AcceptanceStatus string
 
@@ -304,6 +337,10 @@ type DiffResult struct {
 	TotalAdded    int           `json:"totalAdded"`
 	TotalDeleted  int           `json:"totalDeleted"`
 	TotalModified int           `json:"totalModified"`
+
+	// View mode support for full_diff and source modes
+	Mode         ViewMode                `json:"mode,omitempty"`         // Requested view mode
+	FileContents map[string]FileViewData `json:"fileContents,omitempty"` // Per-file content, keyed by file path
 }
 
 // ApprovalRequest contains the parameters for approving changes.
