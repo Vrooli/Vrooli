@@ -32,6 +32,7 @@ import (
 	importassets "github.com/vrooli/browser-automation-studio/usecases/import/assets"
 	importprojects "github.com/vrooli/browser-automation-studio/usecases/import/projects"
 	importroutines "github.com/vrooli/browser-automation-studio/usecases/import/routines"
+	importscan "github.com/vrooli/browser-automation-studio/usecases/import/scan"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -121,6 +122,8 @@ func main() {
 	routineImportHandler := importroutines.NewHandler(routineImportSvc, log)
 	assetImportSvc := importassets.NewService(fsScanner, projectAdapter, log)
 	assetImportHandler := importassets.NewHandler(assetImportSvc, log)
+	scanImportSvc := importscan.NewService(fsScanner, projectAdapter, workflowAdapter, log)
+	scanImportHandler := importscan.NewHandler(scanImportSvc, log)
 
 	// Initialize WebSocket hub
 	hub := wsHub.NewHub(log)
@@ -342,6 +345,7 @@ func main() {
 		projectImportHandler.RegisterRoutes(r)
 		routineImportHandler.RegisterRoutes(r)
 		assetImportHandler.RegisterRoutes(r)
+		scanImportHandler.RegisterRoutes(r)
 
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
@@ -494,10 +498,6 @@ func main() {
 
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
-
-		// Filesystem helper routes (UI support utilities)
-		// Note: /fs/scan-for-projects is now handled by projectImportHandler
-		r.Post("/fs/list-directories", handler.ListDirectories)
 
 		// Entitlement routes for subscription management
 		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)

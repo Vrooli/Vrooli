@@ -20,6 +20,8 @@ export interface FolderEntry {
   name: string;
   /** Absolute path */
   path: string;
+  /** Whether the entry is a directory */
+  isDir?: boolean;
   /** Whether this is a detectable import target (project, workflow file, etc.) */
   isTarget: boolean;
   /** Whether this is already registered in the database */
@@ -28,6 +30,10 @@ export interface FolderEntry {
   registeredId?: string;
   /** Suggested name from metadata */
   suggestedName?: string;
+  /** MIME type for files */
+  mimeType?: string;
+  /** File size in bytes */
+  sizeBytes?: number;
 }
 
 /** Result from folder scanning */

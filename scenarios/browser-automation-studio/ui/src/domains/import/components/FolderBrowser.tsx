@@ -287,14 +287,17 @@ function FolderEntryRow({
 }: FolderEntryRowProps) {
   const isTarget = entry.isTarget;
   const isRegistered = entry.isRegistered;
+  const isDirectory = entry.isDir ?? !isTarget;
 
   // Handle row click - triggers appropriate action
   const handleRowClick = () => {
     if (isScanning) return;
+    if (isDirectory) {
+      onNavigate();
+      return;
+    }
     if (isTarget) {
       onSelect();
-    } else {
-      onNavigate();
     }
   };
 

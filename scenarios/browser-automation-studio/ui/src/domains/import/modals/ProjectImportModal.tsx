@@ -72,10 +72,10 @@ export function ProjectImportModal({
     setPathValidationStatus('checking');
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const response = await fetch(`${getApiBase()}/fs/list-directories`, {
+        const response = await fetch(`${getApiBase()}/fs/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: trimmed }),
+          body: JSON.stringify({ mode: 'projects', path: trimmed }),
         });
         setPathValidationStatus(response.ok ? 'valid' : 'invalid');
       } catch {

@@ -56,16 +56,20 @@ export interface ImportRoutineResponse {
 export interface RoutineEntry {
   name: string;
   path: string;
-  is_valid: boolean;
+  is_dir: boolean;
+  is_target: boolean;
   is_registered: boolean;
-  workflow_id?: string;
-  preview_name?: string;
+  registered_id?: string;
+  suggested_name?: string;
+  mime_type?: string;
+  size_bytes?: number;
 }
 
 /** Response from scanning for routines */
 export interface ScanRoutinesResponse {
   path: string;
   parent: string | null;
+  default_root?: string;
   entries: RoutineEntry[];
 }
 
@@ -186,15 +190,15 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
 
       try {
         const apiBase = getApiBase();
-        const response = await fetch(`${apiBase}/projects/${projectId}/routines/scan`, {
+        const response = await fetch(`${apiBase}/fs/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path, depth }),
+          body: JSON.stringify({ mode: 'workflows', project_id: projectId, path, depth }),
         });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.message || 'Failed to scan routines';
+          const errorMsg = errorData.message || 'Failed to scan workflows';
           setError(errorMsg);
           return null;
         }
@@ -203,8 +207,8 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         setScanResult(data);
         return data;
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to scan routines';
-        logger.error('Failed to scan routines', { error: err, path });
+        const errorMsg = err instanceof Error ? err.message : 'Failed to scan workflows';
+        logger.error('Failed to scan workflows', { error: err, path });
         setError(errorMsg);
         return null;
       } finally {

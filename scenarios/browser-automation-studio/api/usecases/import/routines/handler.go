@@ -27,7 +27,6 @@ func NewHandler(service *Service, log *logrus.Logger) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/projects/{projectID}/routines/inspect", h.InspectRoutine)
 	r.Post("/projects/{projectID}/routines/import", h.ImportRoutine)
-	r.Post("/projects/{projectID}/routines/scan", h.ScanRoutines)
 }
 
 // InspectRoutine handles POST /projects/{projectID}/routines/inspect
@@ -102,37 +101,6 @@ func (h *Handler) ImportRoutine(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, http.StatusCreated, result)
-}
-
-// ScanRoutines handles POST /projects/{projectID}/routines/scan
-func (h *Handler) ScanRoutines(w http.ResponseWriter, r *http.Request) {
-	// Parse project ID
-	projectIDStr := chi.URLParam(r, "projectID")
-	projectID, err := uuid.Parse(projectIDStr)
-	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid project ID")
-		return
-	}
-
-	// Parse request body
-	var req ScanRoutinesRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Allow empty body - use defaults
-		req = ScanRoutinesRequest{}
-	}
-
-	// Call service
-	result, err := h.service.Scan(r.Context(), projectID, &req)
-	if err != nil {
-		h.log.WithError(err).WithFields(logrus.Fields{
-			"project_id": projectID,
-			"path":       req.Path,
-		}).Error("Failed to scan routines")
-		h.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	h.respondJSON(w, http.StatusOK, result)
 }
 
 // respondJSON writes a JSON response.
