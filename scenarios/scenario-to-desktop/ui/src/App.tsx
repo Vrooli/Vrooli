@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Shield } from "lucide-react";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import { Book, List, Monitor, Zap, Folder, Shield, CheckCircle2, Loader2, Play, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
@@ -13,8 +14,8 @@ import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scen
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { fetchScenarioDesktopStatus } from "./lib/api";
-import type { BuildStatus as BuildStatusType } from "./lib/api";
+import { cancelSmokeTest, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
+import type { BuildStatus as BuildStatusType, SmokeTestStatus } from "./lib/api";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/RecordsManager";
@@ -63,6 +64,10 @@ function AppContent() {
     pending: false,
     error: null
   });
+  const [smokeTestId, setSmokeTestId] = useState<string | null>(null);
+  const [smokeTestError, setSmokeTestError] = useState<string | null>(null);
+  const [smokeTestCancelling, setSmokeTestCancelling] = useState(false);
+  const apiBase = useMemo(() => resolveApiBase({ appendSuffix: true }), []);
   const overviewRef = useRef<HTMLDivElement>(null);
   const configureRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
@@ -111,6 +116,27 @@ function AppContent() {
     () => scenariosData?.scenarios.find((s) => s.name === selectedScenarioName) || null,
     [scenariosData, selectedScenarioName]
   );
+  const detectedPlatform = useMemo(() => detectClientPlatform(), []);
+  const detectedPlatformLabel = useMemo(() => formatPlatformLabel(detectedPlatform), [detectedPlatform]);
+  const matchingArtifact = useMemo(
+    () => selectedScenario?.build_artifacts?.find((artifact) => artifact.platform === detectedPlatform) || null,
+    [selectedScenario, detectedPlatform]
+  );
+  const matchingArtifactLabel = matchingArtifact?.file_name ?? matchingArtifact?.relative_path ?? "";
+
+  const { data: smokeTestStatus, refetch: refetchSmokeStatus } = useQuery<SmokeTestStatus | null>({
+    queryKey: ["smoke-test-status", smokeTestId],
+    queryFn: async () => {
+      if (!smokeTestId) return null;
+      return fetchSmokeTestStatus(smokeTestId);
+    },
+    enabled: !!smokeTestId,
+    refetchInterval: smokeTestId ? 2000 : false,
+    refetchIntervalInBackground: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: 1
+  });
 
   const recommendedStep = useMemo(() => {
     if (viewMode !== "generator") return 2;
@@ -119,6 +145,17 @@ function AppContent() {
     if (selectedScenarioName) return 2;
     return 1;
   }, [viewMode, selectedScenario?.build_artifacts?.length, wrapperBuildId, selectedScenarioName]);
+  const smokeTestRunning = smokeTestStatus?.status === "running";
+  const smokeTestPassed = smokeTestStatus?.status === "passed";
+  const smokeTestFailed = smokeTestStatus?.status === "failed";
+  const smokeTestTimeoutMessage =
+    smokeTestStatus?.error && smokeTestStatus.error.includes("timed out")
+      ? smokeTestStatus.error
+      : null;
+  const smokeTestStatusUrl = useMemo(() => {
+    if (!smokeTestId) return "";
+    return buildApiUrl(`/desktop/smoke-test/status/${smokeTestId}`, { baseUrl: apiBase });
+  }, [apiBase, smokeTestId]);
   const generatorFormId = "desktop-generator-form";
   const hasWrapper = Boolean(wrapperBuildId) || Boolean(selectedScenario?.has_desktop);
   const generateLabel = hasWrapper ? "Regenerate Wrapper" : "Generate Wrapper";
@@ -126,6 +163,12 @@ function AppContent() {
   const canBuildInstallers = Boolean(
     selectedScenarioName && (wrapperBuildStatus?.status === "ready" || selectedScenario?.has_desktop)
   );
+
+  useEffect(() => {
+    setSmokeTestId(null);
+    setSmokeTestError(null);
+    setSmokeTestCancelling(false);
+  }, [selectedScenarioName]);
 
   // Sync view/scenario/doc from URL on load and back/forward
   useEffect(() => {
@@ -513,7 +556,7 @@ function AppContent() {
               <Card className="border-slate-800/80 bg-slate-900/70" ref={deliverRef}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                    Step 4 · Download & Telemetry
+                    Step 4 · Download & Validate
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -535,10 +578,177 @@ function AppContent() {
                             scenarioName={selectedScenario.name}
                             artifacts={selectedScenario.build_artifacts || []}
                           />
-                          <TelemetryUploadCard
-                            scenarioName={selectedScenario.name}
-                            appDisplayName={selectedScenario.display_name || selectedScenario.name}
-                          />
+                          <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-semibold text-slate-100">Validate build</div>
+                              <div className="text-xs text-slate-400">Smoke test + telemetry</div>
+                            </div>
+
+                            <div className="grid gap-2 text-xs text-slate-300">
+                              <div className="flex items-center justify-between">
+                                <span>Detected OS</span>
+                                <span className="font-medium text-slate-100">{detectedPlatformLabel}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>Matching build</span>
+                                {matchingArtifact ? (
+                                  <span className="text-emerald-300">Found</span>
+                                ) : (
+                                  <span className="text-amber-300">Not found</span>
+                                )}
+                              </div>
+                              {matchingArtifactLabel && (
+                                <div className="text-[11px] text-slate-500">
+                                  {matchingArtifactLabel}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={!matchingArtifact || smokeTestRunning}
+                                onClick={async () => {
+                                  if (!selectedScenario) return;
+                                  setSmokeTestError(null);
+                                  try {
+                                    const status = await startSmokeTest({
+                                      scenario_name: selectedScenario.name,
+                                      platform: detectedPlatform
+                                    });
+                                    setSmokeTestId(status.smoke_test_id);
+                                  } catch (error) {
+                                    setSmokeTestError(error instanceof Error ? error.message : "Failed to start smoke test");
+                                  }
+                                }}
+                              >
+                                {smokeTestRunning ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Running...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-4 w-4" />
+                                    Run smoke test
+                                  </>
+                                )}
+                              </Button>
+
+                              {smokeTestRunning && smokeTestId && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={smokeTestCancelling}
+                                  onClick={async () => {
+                                    setSmokeTestError(null);
+                                    setSmokeTestCancelling(true);
+                                    try {
+                                      await cancelSmokeTest(smokeTestId);
+                                    } catch (error) {
+                                      setSmokeTestError(
+                                        error instanceof Error ? error.message : "Failed to cancel smoke test"
+                                      );
+                                    } finally {
+                                      setSmokeTestCancelling(false);
+                                    }
+                                  }}
+                                >
+                                  {smokeTestCancelling ? "Cancelling..." : "Cancel"}
+                                </Button>
+                              )}
+
+                              {smokeTestId && !smokeTestRunning && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    void refetchSmokeStatus();
+                                  }}
+                                >
+                                  Refresh status
+                                </Button>
+                              )}
+
+                              {!matchingArtifact && (
+                                <span className="text-xs text-slate-400">
+                                  Build an installer for this OS to enable smoke testing.
+                                </span>
+                              )}
+                            </div>
+
+                            {smokeTestError && (
+                              <div className="rounded bg-red-900/20 px-2 py-1 text-xs text-red-300">
+                                {smokeTestError}
+                              </div>
+                            )}
+
+                            {(smokeTestStatus || smokeTestRunning) && (
+                              <div className="rounded border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-300 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  {smokeTestPassed && <CheckCircle2 className="h-4 w-4 text-emerald-300" />}
+                                  {smokeTestFailed && <XCircle className="h-4 w-4 text-red-300" />}
+                                  {smokeTestRunning && <Loader2 className="h-4 w-4 animate-spin text-slate-300" />}
+                                  <span>
+                                    {smokeTestRunning && "Smoke test running..."}
+                                    {smokeTestPassed && "Smoke test passed"}
+                                    {smokeTestFailed && "Smoke test failed"}
+                                  </span>
+                                </div>
+                                {smokeTestCancelling && (
+                                  <p className="text-amber-300">Cancelling smoke test...</p>
+                                )}
+                                {smokeTestStatus?.telemetry_uploaded && (
+                                  <p className="text-emerald-300">Telemetry auto-uploaded.</p>
+                                )}
+                                {smokeTestStatus?.telemetry_upload_error && (
+                                  <p className="text-amber-300">{smokeTestStatus.telemetry_upload_error}</p>
+                                )}
+                                {smokeTestTimeoutMessage && (
+                                  <p className="text-amber-300">{smokeTestTimeoutMessage}</p>
+                                )}
+                                {smokeTestId && (
+                                  <div className="text-[11px] text-slate-400">
+                                    <p>Smoke test ID: <span className="font-mono text-slate-200">{smokeTestId}</span></p>
+                                    {smokeTestStatusUrl && (
+                                      <p>
+                                        Status URL:{" "}
+                                        <a
+                                          className="font-mono text-slate-200 underline"
+                                          href={smokeTestStatusUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          {smokeTestStatusUrl}
+                                        </a>
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {smokeTestStatus?.error && !smokeTestTimeoutMessage && (
+                                  <p className="text-red-300">{smokeTestStatus.error}</p>
+                                )}
+                                {smokeTestStatus?.logs && smokeTestStatus.logs.length > 0 && (
+                                  <details>
+                                    <summary className="cursor-pointer text-slate-400">Logs</summary>
+                                    <pre className="mt-2 max-h-40 overflow-auto rounded bg-black/40 p-2 text-[11px] text-slate-300">
+                                      {smokeTestStatus.logs.join("\n\n")}
+                                    </pre>
+                                  </details>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="border-t border-slate-800 pt-3">
+                              <TelemetryUploadCard
+                                scenarioName={selectedScenario.name}
+                                appDisplayName={selectedScenario.display_name || selectedScenario.name}
+                              />
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-3 text-sm text-slate-300">
@@ -620,6 +830,25 @@ function AppContent() {
       </div>
     </div>
   );
+}
+
+function detectClientPlatform(): "win" | "mac" | "linux" {
+  if (typeof navigator === "undefined") return "linux";
+  const platform = (navigator.platform || navigator.userAgent || "").toLowerCase();
+  if (platform.includes("win")) return "win";
+  if (platform.includes("mac")) return "mac";
+  return "linux";
+}
+
+function formatPlatformLabel(platform: "win" | "mac" | "linux"): string {
+  switch (platform) {
+    case "win":
+      return "Windows";
+    case "mac":
+      return "macOS";
+    default:
+      return "Linux";
+  }
 }
 
 interface StepperProps {

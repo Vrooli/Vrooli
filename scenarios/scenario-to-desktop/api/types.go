@@ -294,6 +294,21 @@ type BuildStatus struct {
 	Metadata           map[string]interface{}          `json:"metadata,omitempty"`
 }
 
+// SmokeTestStatus represents the status of a desktop smoke test run.
+type SmokeTestStatus struct {
+	SmokeTestID          string     `json:"smoke_test_id"`
+	ScenarioName         string     `json:"scenario_name"`
+	Platform             string     `json:"platform"`
+	Status               string     `json:"status"` // running, passed, failed
+	ArtifactPath         string     `json:"artifact_path,omitempty"`
+	StartedAt            time.Time  `json:"started_at"`
+	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+	Logs                 []string   `json:"logs,omitempty"`
+	Error                string     `json:"error,omitempty"`
+	TelemetryUploaded    bool       `json:"telemetry_uploaded,omitempty"`
+	TelemetryUploadError string     `json:"telemetry_upload_error,omitempty"`
+}
+
 // TemplateInfo represents information about available templates
 type TemplateInfo struct {
 	Name        string   `json:"name"`

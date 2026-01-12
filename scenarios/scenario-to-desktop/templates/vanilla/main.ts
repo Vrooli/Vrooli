@@ -183,6 +183,12 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
     && LOCAL_VROOLI_BOOTSTRAP.ENABLE
     && Boolean(LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME);
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
+const isSmokeTest = process.argv.includes("--smoke-test") || process.env.SMOKE_TEST === "1";
+const smokeTestUploadURL = process.env.SMOKE_TEST_UPLOAD_URL || "";
+const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || "");
+const smokeTestTimeoutMs = Number.isFinite(smokeTestTimeoutCandidate) && smokeTestTimeoutCandidate > 0
+    ? smokeTestTimeoutCandidate
+    : APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
 
 const runtimeControlEnabled = (isBundledMode && BUNDLED_RUNTIME.SUPPORTED) || Boolean(
     process.env.RUNTIME_CONTROL_HOST ||
@@ -1301,6 +1307,63 @@ function checkServerReady(url: string, timeout: number): Promise<void> {
     });
 }
 
+async function runSmokeTest(): Promise<void> {
+    await initializeTelemetry();
+    await recordTelemetry("smoke_test_started", {
+        deploymentMode: APP_CONFIG.DEPLOYMENT_MODE,
+        serverType: APP_CONFIG.SERVER_TYPE,
+    });
+
+    let success = false;
+    let failureMessage = "";
+
+    try {
+        if (isBundledMode) {
+            const bundleRoot = await resolveBundleRoot();
+            if (!bundleRoot) {
+                throw new Error("Bundled payload is missing");
+            }
+            const manifestPath = path.join(bundleRoot, "bundle.json");
+            if (!(await pathExists(manifestPath))) {
+                throw new Error(`Bundled manifest missing at ${manifestPath}`);
+            }
+            const validationResult = await validateBundlePreFlight(bundleRoot, manifestPath);
+            if (!validationResult.valid) {
+                const errorDetails = formatValidationErrors(validationResult);
+                throw new Error(`Bundle validation failed: ${errorDetails}`);
+            }
+        } else if (APP_CONFIG.SERVER_TYPE === "static") {
+            const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
+            if (!(await pathExists(staticPath))) {
+                throw new Error(`Static UI missing at ${staticPath}`);
+            }
+        } else {
+            await checkServerReady(SERVER_URL, smokeTestTimeoutMs);
+        }
+
+        success = true;
+    } catch (error) {
+        failureMessage = String(error);
+    }
+
+    if (success) {
+        await recordTelemetry("smoke_test_passed", { serverUrl: SERVER_URL });
+    } else {
+        await recordTelemetry("smoke_test_failed", { error: failureMessage });
+    }
+
+    if (smokeTestUploadURL && telemetryFilePath) {
+        try {
+            await uploadTelemetryFile(telemetryFilePath, smokeTestUploadURL, "smoke-test", true);
+            console.log("SMOKE_TEST_UPLOAD=ok");
+        } catch (error) {
+            console.log(`SMOKE_TEST_UPLOAD=error ${String(error)}`);
+        }
+    }
+
+    app.exit(success ? 0 : 1);
+}
+
 function createSplashWindow() {
     if (!APP_CONFIG.ENABLE_SPLASH) return;
 
@@ -2326,6 +2389,11 @@ ipcMain.handle("storage:get-info", async () => {
 // ===== APP EVENT HANDLERS =====
 
 app.whenReady().then(async () => {
+    if (isSmokeTest) {
+        await runSmokeTest();
+        return;
+    }
+
     // Single instance lock
     if (APP_CONFIG.ENABLE_SINGLE_INSTANCE) {
         const gotTheLock = app.requestSingleInstanceLock();

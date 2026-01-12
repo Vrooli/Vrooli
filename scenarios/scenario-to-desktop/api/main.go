@@ -34,6 +34,9 @@ type Server struct {
 	router            *mux.Router
 	port              int
 	builds            *BuildStore
+	smokeTests        *SmokeTestStore
+	smokeTestCancels  map[string]context.CancelFunc
+	smokeTestMux      sync.Mutex
 	records           *DesktopRecordStore
 	wineInstalls      map[string]*WineInstallStatus
 	wineInstallMux    sync.RWMutex
@@ -63,10 +66,24 @@ func NewServer(port int) *Server {
 		Level: slog.LevelInfo,
 	}))
 
+	smokeStore, err := NewSmokeTestStore(filepath.Join(
+		detectVrooliRoot(),
+		"scenarios",
+		"scenario-to-desktop",
+		"data",
+		"smoke_tests.json",
+	))
+	if err != nil {
+		logger.Warn("smoke test store unavailable", "error", err)
+		smokeStore = &SmokeTestStore{statusMap: make(map[string]*SmokeTestStatus)}
+	}
+
 	server := &Server{
 		router:            mux.NewRouter(),
 		port:              port,
 		builds:            NewBuildStore(),
+		smokeTests:        smokeStore,
+		smokeTestCancels:  make(map[string]context.CancelFunc),
 		records:           recordStore,
 		wineInstalls:      make(map[string]*WineInstallStatus),
 		templateDir:       "../templates", // Templates are in parent directory when running from api/
@@ -116,6 +133,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/package", s.packageDesktopHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/smoke-test/start", s.smokeTestStartHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/smoke-test/status/{smoke_test_id}", s.smokeTestStatusHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/desktop/smoke-test/cancel/{smoke_test_id}", s.smokeTestCancelHandler).Methods("POST")
 
 	// Scenario discovery
 	s.router.HandleFunc("/api/v1/scenarios/desktop-status", s.getScenarioDesktopStatusHandler).Methods("GET")

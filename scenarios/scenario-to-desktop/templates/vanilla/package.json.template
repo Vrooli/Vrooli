@@ -21,6 +21,7 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:all": "node scripts/setup-wine.js && node scripts/fix-rcedit.js && npm run build && electron-builder -mwl",
+    "smoke-test": "electron . --smoke-test",
     "setup:wine": "node scripts/setup-wine.js",
     "postinstall": "electron-builder install-app-deps && node scripts/setup-dmg-license.js"
   },

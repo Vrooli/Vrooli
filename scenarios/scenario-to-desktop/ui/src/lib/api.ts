@@ -316,6 +316,20 @@ export interface BuildStatus {
   artifacts?: Record<string, string>;
 }
 
+export interface SmokeTestStatus {
+  smoke_test_id: string;
+  scenario_name: string;
+  platform: "win" | "mac" | "linux";
+  status: "running" | "passed" | "failed";
+  artifact_path?: string;
+  started_at: string;
+  completed_at?: string;
+  logs?: string[];
+  error?: string;
+  telemetry_uploaded?: boolean;
+  telemetry_upload_error?: string;
+}
+
 export interface ProbeResponse {
   server: {
     status: "ok" | "error" | "skipped";
@@ -759,6 +773,42 @@ export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<
     throw new Error(text || "Failed to upload telemetry");
   }
 
+  return response.json();
+}
+
+export async function startSmokeTest(payload: {
+  scenario_name: string;
+  platform?: string;
+}): Promise<SmokeTestStatus> {
+  const response = await fetch(buildUrl("/desktop/smoke-test/start"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to start smoke test");
+  }
+  return response.json();
+}
+
+export async function fetchSmokeTestStatus(smokeTestId: string): Promise<SmokeTestStatus> {
+  const response = await fetch(buildUrl(`/desktop/smoke-test/status/${smokeTestId}`));
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to fetch smoke test status");
+  }
+  return response.json();
+}
+
+export async function cancelSmokeTest(smokeTestId: string): Promise<{ status: string }> {
+  const response = await fetch(buildUrl(`/desktop/smoke-test/cancel/${smokeTestId}`), {
+    method: "POST"
+  });
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to cancel smoke test");
+  }
   return response.json();
 }
 
