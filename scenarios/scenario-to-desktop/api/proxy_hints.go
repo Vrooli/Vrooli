@@ -98,7 +98,7 @@ func (s *Server) loadSavedProxyHint(scenario string) *ProxyHint {
 }
 
 func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
-	telemetryPath := filepath.Join(s.getVrooliRoot(), ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
+	telemetryPath := s.telemetryFilePath(scenario)
 	file, err := os.Open(telemetryPath)
 	if err != nil {
 		return nil

@@ -50,6 +50,38 @@ export interface TelemetryFilePath {
   path: string;
 }
 
+/**
+ * Server-side telemetry summary.
+ */
+export interface TelemetrySummary {
+  scenario_name: string;
+  exists: boolean;
+  file_path?: string;
+  file_size_bytes?: number;
+  event_count?: number;
+  last_ingested_at?: string;
+}
+
+/**
+ * A tail entry from the server-side telemetry file.
+ */
+export interface TelemetryTailEntry {
+  raw: string;
+  event?: TelemetryEvent;
+  error?: string;
+}
+
+/**
+ * Response payload for telemetry tail requests.
+ */
+export interface TelemetryTailResponse {
+  scenario_name: string;
+  exists: boolean;
+  limit: number;
+  total_lines?: number;
+  entries?: TelemetryTailEntry[];
+}
+
 // ============================================================================
 // Download Types
 // ============================================================================

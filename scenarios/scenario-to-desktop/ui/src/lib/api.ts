@@ -1,5 +1,6 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import type { ScenariosResponse } from "../components/scenario-inventory/types";
+import type { TelemetrySummary, TelemetryTailResponse } from "../domain/types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -775,6 +776,35 @@ export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<
 
   return response.json();
 }
+
+export async function fetchTelemetrySummary(scenarioName: string): Promise<TelemetrySummary> {
+  const response = await fetch(
+    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/summary`)
+  );
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to fetch telemetry summary");
+  }
+  return response.json();
+}
+
+export async function fetchTelemetryTail(
+  scenarioName: string,
+  limit = 200
+): Promise<TelemetryTailResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await fetch(
+    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/tail?${params.toString()}`)
+  );
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to fetch telemetry tail");
+  }
+  return response.json();
+}
+
+export const getTelemetryDownloadUrl = (scenarioName: string): string =>
+  buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/download`);
 
 export async function startSmokeTest(payload: {
   scenario_name: string;
