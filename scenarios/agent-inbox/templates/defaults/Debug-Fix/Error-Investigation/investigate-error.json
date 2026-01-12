@@ -1,0 +1,39 @@
+{
+  "id": "debug-investigate-error",
+  "name": "Investigate Error",
+  "description": "Deep-dive into an error to understand root cause and fix",
+  "icon": "Bug",
+  "modes": ["Debug/Fix", "Error Investigation"],
+  "content": "I'm encountering this error and need help investigating:\n\n**Error Message:**\n{{error_message}}\n\n**Where it occurs:** {{location}}\n\n**Steps to reproduce:**\n{{repro_steps}}\n\n**What I've tried:**\n{{attempted_fixes}}\n\nPlease:\n1. Analyze the error and identify likely root causes\n2. Trace through the relevant code paths\n3. Propose fixes with code examples\n4. Explain why the fix works",
+  "variables": [
+    {
+      "name": "error_message",
+      "label": "Error Message",
+      "type": "textarea",
+      "placeholder": "Paste the full error message or stack trace",
+      "required": true
+    },
+    {
+      "name": "location",
+      "label": "Location",
+      "type": "text",
+      "placeholder": "e.g., file path, component name, API endpoint",
+      "required": true
+    },
+    {
+      "name": "repro_steps",
+      "label": "Steps to Reproduce",
+      "type": "textarea",
+      "placeholder": "1. Click X\n2. Enter Y\n3. Error appears",
+      "required": false
+    },
+    {
+      "name": "attempted_fixes",
+      "label": "What I've Tried",
+      "type": "textarea",
+      "placeholder": "Describe any fixes you've already attempted",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

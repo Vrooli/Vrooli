@@ -1,11 +1,15 @@
 /**
  * Modal for creating and editing templates.
  * Provides form for all template fields including variables.
+ *
+ * Updated to support file-based templates:
+ * - All templates are now editable (including defaults)
+ * - Editing a default template creates a user override
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { X, Plus, Trash2, ChevronDown, Eye } from "lucide-react";
-import type { Template, TemplateVariable } from "@/lib/types/templates";
+import { X, Plus, Trash2, ChevronDown, Eye, Info } from "lucide-react";
+import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/templates";
 import { SUGGESTION_MODES } from "@/lib/types/templates";
 import { fillTemplateContent } from "@/data/templates";
 
@@ -13,6 +17,7 @@ interface TemplateEditorModalProps {
   open: boolean;
   onClose: () => void;
   template?: Template; // Undefined for create, defined for edit
+  templateSource?: TemplateSource; // Source of the template being edited
   defaultModes?: string[]; // Pre-fill modes when creating from Suggestions
   onSave: (
     template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
@@ -59,10 +64,12 @@ export function TemplateEditorModal({
   open,
   onClose,
   template,
+  templateSource,
   defaultModes,
   onSave,
 }: TemplateEditorModalProps) {
   const isEditing = !!template;
+  const isEditingDefault = isEditing && templateSource === "default";
 
   // Form state
   const [name, setName] = useState("");
@@ -223,6 +230,22 @@ export function TemplateEditorModal({
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {/* Info banner for editing defaults */}
+          {isEditingDefault && (
+            <div className="mx-4 mt-4 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg flex items-start gap-3">
+              <Info className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-amber-200 font-medium">
+                  Editing a default template
+                </p>
+                <p className="text-xs text-amber-300/70 mt-1">
+                  Your changes will be saved as a custom version. The original default
+                  will remain available and can be restored anytime from Settings.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           <div className="p-4 overflow-y-auto max-h-[calc(90vh-130px)] space-y-4">

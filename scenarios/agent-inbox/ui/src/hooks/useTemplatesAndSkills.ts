@@ -6,20 +6,22 @@
  * - Skill attachment/removal
  * - Slash command filtering
  * - Mode-based navigation for Suggestions
- * - Template CRUD operations
+ * - Template CRUD operations (async, API-backed)
  * - State reset after message send
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getAllTemplates,
   fillTemplateContent,
   validateTemplateVariables,
-  createTemplate as createTemplateStorage,
-  updateTemplate as updateTemplateStorage,
-  deleteTemplate as deleteTemplateStorage,
-  hideBuiltInTemplate,
-  unhideBuiltInTemplate,
+  createTemplate as createTemplateAPI,
+  updateTemplate as updateTemplateAPI,
+  deleteTemplate as deleteTemplateAPI,
+  resetTemplate as resetTemplateAPI,
+  invalidateTemplatesCache,
+  migrateLegacyTemplates,
+  hasLegacyData,
 } from "@/data/templates";
 import { SKILLS, getSkillById, getSkillsByIds } from "@/data/skills";
 import type {
@@ -29,13 +31,16 @@ import type {
   SlashCommand,
   SlashCommandType,
   Template,
+  TemplateWithSource,
 } from "@/lib/types/templates";
-import { serializeModePath } from "@/lib/frecency";
+import type { CreateTemplateInput, UpdateTemplateInput } from "@/lib/api";
 
 export interface UseTemplatesAndSkillsReturn {
   // Data
-  templates: Template[];
+  templates: TemplateWithSource[];
   skills: Skill[];
+  isLoading: boolean;
+  error: string | null;
 
   // Template state
   activeTemplate: ActiveTemplate | null;
@@ -46,20 +51,22 @@ export interface UseTemplatesAndSkillsReturn {
   isTemplateValid: () => boolean;
   getTemplateMissingFields: () => string[];
 
-  // Template CRUD
+  // Template CRUD (async)
   createTemplate: (
-    template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
-  ) => Template;
-  updateTemplate: (id: string, updates: Partial<Template>) => Template | null;
-  deleteTemplate: (id: string) => boolean;
-  hideTemplate: (id: string) => void;
-  unhideTemplate: (id: string) => void;
-  refreshTemplates: () => void;
+    template: CreateTemplateInput
+  ) => Promise<TemplateWithSource | null>;
+  updateTemplate: (
+    id: string,
+    updates: UpdateTemplateInput
+  ) => Promise<TemplateWithSource | null>;
+  deleteTemplate: (id: string) => Promise<boolean>;
+  resetTemplate: (id: string) => Promise<TemplateWithSource | null>;
+  refreshTemplates: () => Promise<void>;
 
   // Mode navigation
   currentModePath: string[];
   setCurrentModePath: (path: string[]) => void;
-  getTemplatesAtPath: (path: string[]) => Template[];
+  getTemplatesAtPath: (path: string[]) => TemplateWithSource[];
   getSubmodesAtPath: (path: string[]) => string[];
   navigateToMode: (mode: string) => void;
   navigateBack: () => void;
@@ -83,8 +90,10 @@ export interface UseTemplatesAndSkillsReturn {
 }
 
 export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
-  // Template list state (refreshable)
-  const [templates, setTemplates] = useState<Template[]>(getAllTemplates);
+  // Template list state (async loaded)
+  const [templates, setTemplates] = useState<TemplateWithSource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Active template state
   const [activeTemplate, setActiveTemplateState] =
@@ -96,57 +105,121 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
   // Skills state
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
 
-  // Refresh templates from storage
-  const refreshTemplates = useCallback(() => {
-    setTemplates(getAllTemplates());
+  // Load templates on mount
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTemplates() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Migrate legacy localStorage data if present
+        if (hasLegacyData()) {
+          const migrated = await migrateLegacyTemplates();
+          if (migrated > 0) {
+            console.log(`Migrated ${migrated} legacy templates to file storage`);
+          }
+        }
+
+        const loaded = await getAllTemplates();
+        if (mounted) {
+          setTemplates(loaded);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : "Failed to load templates");
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadTemplates();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Template CRUD operations
+  // Refresh templates from API
+  const refreshTemplates = useCallback(async () => {
+    invalidateTemplatesCache();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const loaded = await getAllTemplates();
+      setTemplates(loaded);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load templates");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Template CRUD operations (async)
   const createTemplate = useCallback(
-    (
-      template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
-    ): Template => {
-      const newTemplate = createTemplateStorage(template);
-      refreshTemplates();
-      return newTemplate;
+    async (template: CreateTemplateInput): Promise<TemplateWithSource | null> => {
+      try {
+        const newTemplate = await createTemplateAPI(template);
+        await refreshTemplates();
+        return newTemplate;
+      } catch (err) {
+        console.error("Failed to create template:", err);
+        return null;
+      }
     },
     [refreshTemplates]
   );
 
   const updateTemplate = useCallback(
-    (id: string, updates: Partial<Template>): Template | null => {
-      const updated = updateTemplateStorage(id, updates);
-      if (updated) {
-        refreshTemplates();
+    async (
+      id: string,
+      updates: UpdateTemplateInput
+    ): Promise<TemplateWithSource | null> => {
+      try {
+        const updated = await updateTemplateAPI(id, updates);
+        await refreshTemplates();
+        return updated;
+      } catch (err) {
+        console.error("Failed to update template:", err);
+        return null;
       }
-      return updated;
     },
     [refreshTemplates]
   );
 
   const deleteTemplate = useCallback(
-    (id: string): boolean => {
-      const deleted = deleteTemplateStorage(id);
-      if (deleted) {
-        refreshTemplates();
+    async (id: string): Promise<boolean> => {
+      try {
+        const deleted = await deleteTemplateAPI(id);
+        if (deleted) {
+          await refreshTemplates();
+        }
+        return deleted;
+      } catch (err) {
+        console.error("Failed to delete template:", err);
+        return false;
       }
-      return deleted;
     },
     [refreshTemplates]
   );
 
-  const hideTemplate = useCallback(
-    (id: string): void => {
-      hideBuiltInTemplate(id);
-      refreshTemplates();
-    },
-    [refreshTemplates]
-  );
-
-  const unhideTemplate = useCallback(
-    (id: string): void => {
-      unhideBuiltInTemplate(id);
-      refreshTemplates();
+  const resetTemplate = useCallback(
+    async (id: string): Promise<TemplateWithSource | null> => {
+      try {
+        const reset = await resetTemplateAPI(id);
+        if (reset) {
+          await refreshTemplates();
+        }
+        return reset;
+      } catch (err) {
+        console.error("Failed to reset template:", err);
+        return null;
+      }
     },
     [refreshTemplates]
   );
@@ -166,7 +239,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
 
   // Get templates at a specific path
   const getTemplatesAtPath = useCallback(
-    (path: string[]): Template[] => {
+    (path: string[]): TemplateWithSource[] => {
       if (path.length === 0) {
         // At root, no templates - only mode chips
         return [];
@@ -468,6 +541,8 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     // Data
     templates,
     skills: SKILLS,
+    isLoading,
+    error,
 
     // Template state
     activeTemplate,
@@ -482,8 +557,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     createTemplate,
     updateTemplate,
     deleteTemplate,
-    hideTemplate,
-    unhideTemplate,
+    resetTemplate,
     refreshTemplates,
 
     // Mode navigation

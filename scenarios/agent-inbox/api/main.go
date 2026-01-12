@@ -62,8 +62,16 @@ func main() {
 	storageCfg := config.GetStorageConfig()
 	storage := services.NewLocalStorageService(storageCfg)
 
+	// Create templates service for file-based template storage
+	cfg := config.Default()
+	templatesSvc := services.NewTemplatesService(&cfg.Templates)
+	if err := templatesSvc.EnsureDirectories(); err != nil {
+		log.Printf("warning: failed to create template directories: %v", err)
+	}
+
 	// Create handlers with all dependencies
 	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
+	h.Templates = templatesSvc
 
 	// Create upload handlers
 	uploadHandlers := handlers.NewUploadHandlers(storage, storageCfg)

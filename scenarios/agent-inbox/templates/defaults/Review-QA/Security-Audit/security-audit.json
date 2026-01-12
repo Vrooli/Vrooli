@@ -1,0 +1,31 @@
+{
+  "id": "review-security",
+  "name": "Security Audit",
+  "description": "Analyze code for security vulnerabilities",
+  "icon": "Shield",
+  "modes": ["Review/QA", "Security Audit"],
+  "content": "Perform a security audit on {{scope}}.\n\n**Type of data handled:** {{data_types}}\n\n**Known concerns:**\n{{concerns}}\n\nPlease check for:\n1. Input validation vulnerabilities\n2. Authentication/authorization issues\n3. Injection vulnerabilities (SQL, XSS, etc.)\n4. Sensitive data exposure\n5. Security misconfigurations\n6. Provide remediation steps for any issues found",
+  "variables": [
+    {
+      "name": "scope",
+      "label": "Audit Scope",
+      "type": "text",
+      "placeholder": "e.g., authentication flow, API endpoints, user input handling",
+      "required": true
+    },
+    {
+      "name": "data_types",
+      "label": "Data Types Handled",
+      "type": "textarea",
+      "placeholder": "What sensitive data does this code handle?",
+      "required": true
+    },
+    {
+      "name": "concerns",
+      "label": "Known Concerns",
+      "type": "textarea",
+      "placeholder": "Any specific security concerns to investigate?",
+      "required": false
+    }
+  ]
+}

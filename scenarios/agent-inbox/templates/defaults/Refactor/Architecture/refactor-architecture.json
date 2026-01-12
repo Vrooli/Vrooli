@@ -1,0 +1,40 @@
+{
+  "id": "refactor-architecture",
+  "name": "Refactor Architecture",
+  "description": "Restructure code organization or system architecture",
+  "icon": "Building2",
+  "modes": ["Refactor", "Architecture"],
+  "content": "I need to refactor the architecture of {{area}}.\n\n**Current state:** {{current_state}}\n\n**Desired state:** {{desired_state}}\n\n**Motivation:** {{motivation}}\n\nPlease:\n1. Analyze the current architecture\n2. Propose a migration path to the new structure\n3. Identify risks and breaking changes\n4. Provide step-by-step refactoring plan\n5. Show code examples for key transformations",
+  "variables": [
+    {
+      "name": "area",
+      "label": "Area to Refactor",
+      "type": "text",
+      "placeholder": "e.g., state management, API layer, component structure",
+      "required": true
+    },
+    {
+      "name": "current_state",
+      "label": "Current State",
+      "type": "textarea",
+      "placeholder": "Describe the current architecture",
+      "required": true
+    },
+    {
+      "name": "desired_state",
+      "label": "Desired State",
+      "type": "textarea",
+      "placeholder": "Describe what you want it to become",
+      "required": true
+    },
+    {
+      "name": "motivation",
+      "label": "Motivation",
+      "type": "textarea",
+      "placeholder": "Why is this refactor needed?",
+      "required": false
+    }
+  ],
+  "suggestedSkillIds": ["screaming-arch"],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "research-dependencies",
+  "name": "Analyze Dependencies",
+  "description": "Understand package dependencies, their purpose, and issues",
+  "icon": "Package",
+  "modes": ["Research", "Dependencies"],
+  "content": "Analyze the dependencies in {{scope}}.\n\nPlease provide:\n1. Overview of major dependencies and their purposes\n2. Identify any outdated or deprecated packages\n3. Flag potential security vulnerabilities\n4. Note any duplicate or redundant dependencies\n5. Suggest alternatives for problematic dependencies\n\n{{specific_concern}}",
+  "variables": [
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "options": ["entire project", "backend only", "frontend only", "specific package"],
+      "required": true
+    },
+    {
+      "name": "specific_concern",
+      "label": "Specific Concerns",
+      "type": "textarea",
+      "placeholder": "Any particular packages you're concerned about?",
+      "required": false
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "id": "implement-ui-component",
+  "name": "Create UI Component",
+  "description": "Build a new React component with proper patterns",
+  "icon": "Layout",
+  "modes": ["Implement Feature", "UI Component"],
+  "content": "I need to create a new UI component: {{component_name}}\n\n**Purpose:** {{purpose}}\n\n**Props interface:**\n{{props}}\n\n**Visual requirements:**\n{{visual_requirements}}\n\n**Interactions:**\n{{interactions}}\n\nPlease:\n1. Create the component following project patterns\n2. Define TypeScript props interface\n3. Include proper styling (Tailwind/CSS-in-JS as appropriate)\n4. Add accessibility attributes (ARIA)\n5. Include basic tests",
+  "variables": [
+    {
+      "name": "component_name",
+      "label": "Component Name",
+      "type": "text",
+      "placeholder": "e.g., UserAvatar, DataTable, Modal",
+      "required": true
+    },
+    {
+      "name": "purpose",
+      "label": "Purpose",
+      "type": "textarea",
+      "placeholder": "What does this component do? Where will it be used?",
+      "required": true
+    },
+    {
+      "name": "props",
+      "label": "Props",
+      "type": "textarea",
+      "placeholder": "List the props this component should accept",
+      "required": false
+    },
+    {
+      "name": "visual_requirements",
+      "label": "Visual Requirements",
+      "type": "textarea",
+      "placeholder": "Describe how it should look",
+      "required": false
+    },
+    {
+      "name": "interactions",
+      "label": "Interactions",
+      "type": "textarea",
+      "placeholder": "What user interactions should it support?",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

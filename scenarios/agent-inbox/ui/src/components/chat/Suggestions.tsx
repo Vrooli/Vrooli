@@ -10,7 +10,7 @@ import {
   Plus,
   Pencil,
   Trash2,
-  EyeOff,
+  RotateCcw,
   Search,
   Bug,
   Sparkles,
@@ -34,7 +34,7 @@ import {
   Shield,
   Accessibility,
 } from "lucide-react";
-import type { Template, ModeHistoryEntry } from "@/lib/types/templates";
+import type { TemplateWithSource, ModeHistoryEntry } from "@/lib/types/templates";
 import { SUGGESTION_MODES } from "@/lib/types/templates";
 import { sortByFrecency, serializeModePath } from "@/lib/frecency";
 
@@ -77,16 +77,16 @@ const MODE_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   };
 
 interface SuggestionsProps {
-  templates: Template[];
+  templates: TemplateWithSource[];
   currentModePath: string[];
   modeHistory: ModeHistoryEntry[];
-  onSelectTemplate: (template: Template) => void;
+  onSelectTemplate: (template: TemplateWithSource) => void;
   onNavigateToMode: (mode: string) => void;
   onNavigateBack: () => void;
   onResetPath: () => void;
-  onEditTemplate?: (template: Template) => void;
+  onEditTemplate?: (template: TemplateWithSource) => void;
   onDeleteTemplate?: (templateId: string) => void;
-  onHideTemplate?: (templateId: string) => void;
+  onResetTemplate?: (templateId: string) => void;
   onCreateTemplate?: (parentModes: string[]) => void;
   onRecordModeUsage?: (path: string[]) => void;
 }
@@ -108,16 +108,19 @@ export function Suggestions({
   onResetPath,
   onEditTemplate,
   onDeleteTemplate,
-  onHideTemplate,
+  onResetTemplate,
   onCreateTemplate,
   onRecordModeUsage,
 }: SuggestionsProps) {
   // Get items at current level
   const { submodes, levelTemplates } = useMemo(() => {
+    // Defensive check - ensure templates is an array
+    const templatesList = templates ?? [];
+
     if (currentModePath.length === 0) {
       // At root - show top-level modes
       const availableModes = new Set<string>();
-      templates.forEach((t) => {
+      templatesList.forEach((t) => {
         if (t.modes && t.modes.length > 0) {
           availableModes.add(t.modes[0]);
         }
@@ -130,15 +133,15 @@ export function Suggestions({
 
       return {
         submodes: orderedModes as string[],
-        levelTemplates: [] as Template[],
+        levelTemplates: [] as TemplateWithSource[],
       };
     }
 
     // Get submodes at current path
     const submodesSet = new Set<string>();
-    const pathTemplates: Template[] = [];
+    const pathTemplates: TemplateWithSource[] = [];
 
-    templates.forEach((t) => {
+    templatesList.forEach((t) => {
       if (!t.modes || t.modes.length === 0) return;
 
       // Check if template's modes match current path
@@ -190,7 +193,7 @@ export function Suggestions({
   );
 
   const handleTemplateClick = useCallback(
-    (template: Template) => {
+    (template: TemplateWithSource) => {
       onSelectTemplate(template);
       if (template.modes) {
         onRecordModeUsage?.(template.modes);
@@ -278,7 +281,6 @@ export function Suggestions({
         {/* Templates as cards */}
         {sortedTemplates.map((template) => {
           const IconComponent = getIconComponent(template.icon);
-          const isBuiltIn = template.isBuiltIn;
 
           return (
             <div
@@ -291,48 +293,46 @@ export function Suggestions({
 
               {/* Action buttons on hover */}
               <div className="hidden group-hover:flex items-center gap-1 ml-1">
-                {isBuiltIn ? (
-                  // Built-in templates can only be hidden
-                  onHideTemplate && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onHideTemplate(template.id);
-                      }}
-                      className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-white"
-                      title="Hide template"
-                    >
-                      <EyeOff className="h-3 w-3" />
-                    </button>
-                  )
-                ) : (
-                  // User templates can be edited and deleted
-                  <>
-                    {onEditTemplate && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditTemplate(template);
-                        }}
-                        className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-white"
-                        title="Edit template"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
-                    {onDeleteTemplate && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteTemplate(template.id);
-                        }}
-                        className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-red-400"
-                        title="Delete template"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                  </>
+                {/* Edit button - available for ALL templates */}
+                {onEditTemplate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditTemplate(template);
+                    }}
+                    className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-white"
+                    title="Edit template"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+
+                {/* Reset button - only for modified templates */}
+                {template.source === "modified" && onResetTemplate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResetTemplate(template.id);
+                    }}
+                    className="p-0.5 rounded hover:bg-white/20 text-amber-400 hover:text-amber-300"
+                    title="Reset to default"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                )}
+
+                {/* Delete button - only for user and modified templates */}
+                {(template.source === "user" || template.source === "modified") && onDeleteTemplate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteTemplate(template.id);
+                    }}
+                    className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-red-400"
+                    title={template.source === "modified" ? "Remove customization" : "Delete template"}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 )}
               </div>
             </div>

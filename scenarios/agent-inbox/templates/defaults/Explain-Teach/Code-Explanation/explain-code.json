@@ -1,0 +1,31 @@
+{
+  "id": "explain-code",
+  "name": "Explain Code",
+  "description": "Get a detailed explanation of how code works",
+  "icon": "MessageCircleQuestion",
+  "modes": ["Explain/Teach", "Code Explanation"],
+  "content": "Please explain how this code works: {{location}}\n\n**My current understanding:**\n{{current_understanding}}\n\n**Specific questions:**\n{{questions}}\n\nPlease:\n1. Provide a high-level overview of what the code does\n2. Walk through the execution flow step by step\n3. Explain any complex patterns or techniques used\n4. Clarify any parts I mentioned being confused about\n5. Suggest resources for learning more",
+  "variables": [
+    {
+      "name": "location",
+      "label": "Code Location",
+      "type": "text",
+      "placeholder": "e.g., src/hooks/useInfiniteQuery.ts",
+      "required": true
+    },
+    {
+      "name": "current_understanding",
+      "label": "Current Understanding",
+      "type": "textarea",
+      "placeholder": "What do you already understand about this code?",
+      "required": false
+    },
+    {
+      "name": "questions",
+      "label": "Specific Questions",
+      "type": "textarea",
+      "placeholder": "What specifically confuses you?",
+      "required": false
+    }
+  ]
+}

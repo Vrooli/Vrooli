@@ -1,20 +1,24 @@
 /**
  * Settings tab for managing templates and Suggestions preferences.
+ *
+ * Updated to work with file-based template storage:
+ * - All templates are now editable (including defaults)
+ * - Source indicators show where templates come from (default, user, modified)
+ * - Modified defaults can be reset to their original state
  */
 
 import { useState, useCallback } from "react";
 import {
   Lightbulb,
-  Eye,
-  EyeOff,
   Pencil,
   Trash2,
   RotateCcw,
   Search,
+  FileText,
+  User,
+  RefreshCw,
 } from "lucide-react";
-import type { Template, ModeHistoryEntry } from "@/lib/types/templates";
-import { BUILT_IN_TEMPLATES } from "@/data/builtInTemplates";
-import { getHiddenBuiltInIds } from "@/data/templates";
+import type { ModeHistoryEntry, TemplateWithSource } from "@/lib/types/templates";
 import { ModelSelector } from "./ModelSelector";
 import type { Model } from "@/lib/api";
 
@@ -23,14 +27,37 @@ interface TemplatesSettingsTabProps {
   onToggleSuggestions: (visible: boolean) => void;
   mergeModel: string;
   onMergeModelChange: (modelId: string) => void;
-  templates: Template[];
-  onEditTemplate: (template: Template) => void;
-  onDeleteTemplate: (templateId: string) => void;
-  onHideTemplate: (templateId: string) => void;
-  onUnhideTemplate: (templateId: string) => void;
+  templates: TemplateWithSource[];
+  onEditTemplate: (template: TemplateWithSource) => void;
+  onDeleteTemplate: (templateId: string) => Promise<void>;
+  onResetTemplate: (templateId: string) => Promise<void>;
   modeHistory: ModeHistoryEntry[];
   onClearHistory: () => void;
   models: Model[];
+  isLoading?: boolean;
+}
+
+function getSourceBadge(source: TemplateWithSource["source"]) {
+  switch (source) {
+    case "default":
+      return {
+        label: "Default",
+        className: "bg-slate-700 text-slate-400",
+        icon: FileText,
+      };
+    case "user":
+      return {
+        label: "Custom",
+        className: "bg-indigo-900/50 text-indigo-400",
+        icon: User,
+      };
+    case "modified":
+      return {
+        label: "Modified",
+        className: "bg-amber-900/50 text-amber-400",
+        icon: RefreshCw,
+      };
+  }
 }
 
 export function TemplatesSettingsTab({
@@ -41,17 +68,15 @@ export function TemplatesSettingsTab({
   templates,
   onEditTemplate,
   onDeleteTemplate,
-  onHideTemplate,
-  onUnhideTemplate,
+  onResetTemplate,
   modeHistory,
   onClearHistory,
   models,
+  isLoading,
 }: TemplatesSettingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showHidden, setShowHidden] = useState(false);
-
-  // Get hidden built-in IDs
-  const hiddenIds = getHiddenBuiltInIds();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   // Filter templates
   const filteredTemplates = templates.filter((t) => {
@@ -62,17 +87,101 @@ export function TemplatesSettingsTab({
     return matchesSearch;
   });
 
-  // Get hidden built-in templates
-  const hiddenBuiltIns = BUILT_IN_TEMPLATES.filter((t) =>
-    hiddenIds.includes(t.id)
+  // Group templates by source for better organization
+  const defaultTemplates = filteredTemplates.filter((t) => t.source === "default");
+  const modifiedTemplates = filteredTemplates.filter((t) => t.source === "modified");
+  const userTemplates = filteredTemplates.filter((t) => t.source === "user");
+
+  const handleDelete = useCallback(
+    async (templateId: string) => {
+      setDeletingId(templateId);
+      try {
+        await onDeleteTemplate(templateId);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [onDeleteTemplate]
   );
 
-  const handleUnhide = useCallback(
-    (templateId: string) => {
-      onUnhideTemplate(templateId);
+  const handleReset = useCallback(
+    async (templateId: string) => {
+      setResettingId(templateId);
+      try {
+        await onResetTemplate(templateId);
+      } finally {
+        setResettingId(null);
+      }
     },
-    [onUnhideTemplate]
+    [onResetTemplate]
   );
+
+  const renderTemplateItem = (template: TemplateWithSource) => {
+    const badge = getSourceBadge(template.source);
+    const BadgeIcon = badge.icon;
+    const isDeleting = deletingId === template.id;
+    const isResetting = resettingId === template.id;
+    const isOperating = isDeleting || isResetting;
+
+    return (
+      <div
+        key={template.id}
+        className={`flex items-center justify-between p-2 bg-slate-800/50 border border-white/5 rounded-lg ${
+          isOperating ? "opacity-50" : ""
+        }`}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-white truncate">{template.name}</p>
+            <span
+              className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded ${badge.className}`}
+            >
+              <BadgeIcon className="h-2.5 w-2.5" />
+              {badge.label}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 truncate">
+            {template.modes?.join(" → ") || "No mode"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 ml-2">
+          {/* Edit button - available for ALL templates */}
+          <button
+            onClick={() => onEditTemplate(template)}
+            disabled={isOperating}
+            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            title="Edit template"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+
+          {/* Reset button - only for modified templates */}
+          {template.source === "modified" && (
+            <button
+              onClick={() => handleReset(template.id)}
+              disabled={isOperating}
+              className="p-1.5 rounded hover:bg-white/10 text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
+              title="Reset to default"
+            >
+              <RotateCcw className={`h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
+            </button>
+          )}
+
+          {/* Delete button - only for user and modified templates */}
+          {(template.source === "user" || template.source === "modified") && (
+            <button
+              onClick={() => handleDelete(template.id)}
+              disabled={isOperating}
+              className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
+              title={template.source === "modified" ? "Remove customization" : "Delete template"}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -130,7 +239,10 @@ export function TemplatesSettingsTab({
       <section>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-slate-300">
-            Templates ({filteredTemplates.length})
+            Templates ({templates.length})
+            {isLoading && (
+              <span className="ml-2 text-xs text-slate-500">Loading...</span>
+            )}
           </h3>
           {modeHistory.length > 0 && (
             <button
@@ -155,108 +267,72 @@ export function TemplatesSettingsTab({
           />
         </div>
 
+        {/* Legend */}
+        <div className="flex items-center gap-4 mb-3 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <FileText className="h-3 w-3" />
+            Default
+          </span>
+          <span className="flex items-center gap-1 text-amber-400">
+            <RefreshCw className="h-3 w-3" />
+            Modified
+          </span>
+          <span className="flex items-center gap-1 text-indigo-400">
+            <User className="h-3 w-3" />
+            Custom
+          </span>
+        </div>
+
         {/* Templates */}
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {filteredTemplates.map((template) => (
-            <div
-              key={template.id}
-              className="flex items-center justify-between p-2 bg-slate-800/50 border border-white/5 rounded-lg"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-white truncate">{template.name}</p>
-                  {template.isBuiltIn && (
-                    <span className="px-1.5 py-0.5 text-[10px] bg-slate-700 text-slate-400 rounded">
-                      Built-in
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 truncate">
-                  {template.modes?.join(" → ") || "No mode"}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 ml-2">
-                {template.isBuiltIn ? (
-                  <button
-                    onClick={() => onHideTemplate(template.id)}
-                    className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                    title="Hide template"
-                  >
-                    <EyeOff className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => onEditTemplate(template)}
-                      className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                      title="Edit template"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => onDeleteTemplate(template.id)}
-                      className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-red-400 transition-colors"
-                      title="Delete template"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-              </div>
+        <div className="space-y-2 max-h-80 overflow-y-auto">
+          {/* User templates first */}
+          {userTemplates.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-slate-600 font-medium">
+                Custom Templates
+              </p>
+              {userTemplates.map(renderTemplateItem)}
             </div>
-          ))}
+          )}
+
+          {/* Modified templates */}
+          {modifiedTemplates.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-slate-600 font-medium mt-3">
+                Modified Templates
+              </p>
+              {modifiedTemplates.map(renderTemplateItem)}
+            </div>
+          )}
+
+          {/* Default templates */}
+          {defaultTemplates.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-slate-600 font-medium mt-3">
+                Default Templates
+              </p>
+              {defaultTemplates.map(renderTemplateItem)}
+            </div>
+          )}
 
           {filteredTemplates.length === 0 && (
             <p className="text-sm text-slate-500 text-center py-4">
-              No templates found
+              {isLoading ? "Loading templates..." : "No templates found"}
             </p>
           )}
         </div>
+      </section>
 
-        {/* Hidden templates */}
-        {hiddenBuiltIns.length > 0 && (
-          <div className="mt-4">
-            <button
-              onClick={() => setShowHidden(!showHidden)}
-              className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors"
-            >
-              {showHidden ? (
-                <EyeOff className="h-3 w-3" />
-              ) : (
-                <Eye className="h-3 w-3" />
-              )}
-              {showHidden ? "Hide" : "Show"} hidden templates (
-              {hiddenBuiltIns.length})
-            </button>
-
-            {showHidden && (
-              <div className="mt-2 space-y-2">
-                {hiddenBuiltIns.map((template) => (
-                  <div
-                    key={template.id}
-                    className="flex items-center justify-between p-2 bg-slate-800/30 border border-white/5 rounded-lg opacity-60"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-400 truncate">
-                        {template.name}
-                      </p>
-                      <p className="text-xs text-slate-600 truncate">
-                        {template.modes?.join(" → ") || "No mode"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleUnhide(template.id)}
-                      className="p-1.5 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
-                      title="Unhide template"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      {/* Info */}
+      <section className="text-xs text-slate-500 space-y-1">
+        <p>
+          <strong className="text-slate-400">Tip:</strong> All templates are editable.
+          Editing a default template creates your own customized version.
+        </p>
+        <p>
+          Use the <RotateCcw className="h-3 w-3 inline text-amber-400" /> button to
+          reset a modified template back to its original default.
+        </p>
       </section>
     </div>
   );

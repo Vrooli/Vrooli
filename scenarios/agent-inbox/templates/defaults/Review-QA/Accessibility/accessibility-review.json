@@ -1,0 +1,32 @@
+{
+  "id": "review-accessibility",
+  "name": "Accessibility Review",
+  "description": "Check UI components for accessibility compliance",
+  "icon": "Accessibility",
+  "modes": ["Review/QA", "Accessibility"],
+  "content": "Review the accessibility of {{component}}.\n\n**Target compliance:** {{compliance_level}}\n\n**User groups to consider:**\n{{user_groups}}\n\nPlease check:\n1. Keyboard navigation and focus management\n2. Screen reader compatibility (ARIA labels, roles)\n3. Color contrast and visual accessibility\n4. Form labels and error messaging\n5. Dynamic content announcements\n6. Provide specific fixes for any issues",
+  "variables": [
+    {
+      "name": "component",
+      "label": "Component/Page",
+      "type": "text",
+      "placeholder": "e.g., LoginForm, Dashboard, Modal component",
+      "required": true
+    },
+    {
+      "name": "compliance_level",
+      "label": "Compliance Level",
+      "type": "select",
+      "options": ["WCAG 2.1 A", "WCAG 2.1 AA", "WCAG 2.1 AAA", "General best practices"],
+      "defaultValue": "WCAG 2.1 AA",
+      "required": true
+    },
+    {
+      "name": "user_groups",
+      "label": "User Groups",
+      "type": "textarea",
+      "placeholder": "Specific user needs to consider (vision, motor, cognitive)?",
+      "required": false
+    }
+  ]
+}

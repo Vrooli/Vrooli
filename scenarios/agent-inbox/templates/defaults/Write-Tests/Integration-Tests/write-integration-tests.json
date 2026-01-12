@@ -1,0 +1,39 @@
+{
+  "id": "tests-integration",
+  "name": "Write Integration Tests",
+  "description": "Create integration tests for component or API interactions",
+  "icon": "Puzzle",
+  "modes": ["Write Tests", "Integration Tests"],
+  "content": "Write integration tests for {{feature}}.\n\n**Components involved:** {{components}}\n\n**User flows to test:**\n{{flows}}\n\n**External dependencies:** {{dependencies}}\n\nPlease:\n1. Test complete user workflows\n2. Mock external services appropriately\n3. Test component interactions\n4. Include setup and teardown\n5. Verify data persistence where relevant",
+  "variables": [
+    {
+      "name": "feature",
+      "label": "Feature to Test",
+      "type": "text",
+      "placeholder": "e.g., user registration flow, checkout process",
+      "required": true
+    },
+    {
+      "name": "components",
+      "label": "Components Involved",
+      "type": "textarea",
+      "placeholder": "List the components/modules involved",
+      "required": false
+    },
+    {
+      "name": "flows",
+      "label": "User Flows",
+      "type": "textarea",
+      "placeholder": "Describe the flows to test (one per line)",
+      "required": true
+    },
+    {
+      "name": "dependencies",
+      "label": "External Dependencies",
+      "type": "textarea",
+      "placeholder": "APIs, databases, services to mock?",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

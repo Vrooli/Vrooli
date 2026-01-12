@@ -28,12 +28,11 @@ import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useModeHistory } from "../../hooks/useModeHistory";
 import {
   getAllTemplates,
-  deleteTemplate as deleteTemplateFromStorage,
-  hideBuiltInTemplate,
-  unhideBuiltInTemplate,
+  deleteTemplate as deleteTemplateFromAPI,
+  resetTemplate as resetTemplateFromAPI,
 } from "../../data/templates";
 import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
-import type { Template } from "../../lib/types/templates";
+import type { TemplateWithSource } from "../../lib/types/templates";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
@@ -86,7 +85,7 @@ interface SettingsProps {
   models: Model[];
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onEditTemplate?: (template: Template) => void;
+  onEditTemplate?: (template: TemplateWithSource) => void;
 }
 
 export function Settings({
@@ -148,31 +147,32 @@ export function Settings({
   const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
 
   // Templates state - refresh when tab changes to templates
-  const [templates, setTemplates] = useState<Template[]>(() => getAllTemplates());
+  const [templates, setTemplates] = useState<TemplateWithSource[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
   // Refresh templates when switching to templates tab
   useEffect(() => {
     if (activeTab === "templates") {
-      setTemplates(getAllTemplates());
+      setIsLoadingTemplates(true);
+      getAllTemplates()
+        .then(setTemplates)
+        .finally(() => setIsLoadingTemplates(false));
     }
   }, [activeTab]);
 
-  const handleDeleteTemplate = useCallback((templateId: string) => {
-    deleteTemplateFromStorage(templateId);
-    setTemplates(getAllTemplates());
+  const handleDeleteTemplate = useCallback(async (templateId: string) => {
+    await deleteTemplateFromAPI(templateId);
+    const updated = await getAllTemplates();
+    setTemplates(updated);
   }, []);
 
-  const handleHideTemplate = useCallback((templateId: string) => {
-    hideBuiltInTemplate(templateId);
-    setTemplates(getAllTemplates());
+  const handleResetTemplate = useCallback(async (templateId: string) => {
+    await resetTemplateFromAPI(templateId);
+    const updated = await getAllTemplates();
+    setTemplates(updated);
   }, []);
 
-  const handleUnhideTemplate = useCallback((templateId: string) => {
-    unhideBuiltInTemplate(templateId);
-    setTemplates(getAllTemplates());
-  }, []);
-
-  const handleEditTemplate = useCallback((template: Template) => {
+  const handleEditTemplate = useCallback((template: TemplateWithSource) => {
     onEditTemplate?.(template);
     onClose();
   }, [onEditTemplate, onClose]);
@@ -450,11 +450,11 @@ export function Settings({
               templates={templates}
               onEditTemplate={handleEditTemplate}
               onDeleteTemplate={handleDeleteTemplate}
-              onHideTemplate={handleHideTemplate}
-              onUnhideTemplate={handleUnhideTemplate}
+              onResetTemplate={handleResetTemplate}
               modeHistory={modeHistory}
               onClearHistory={clearModeHistory}
               models={models}
+              isLoading={isLoadingTemplates}
             />
           </TabsContent>
 

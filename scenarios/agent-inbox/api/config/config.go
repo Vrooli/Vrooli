@@ -28,6 +28,7 @@ type Config struct {
 	Integration IntegrationConfig
 	Resilience  ResilienceConfig
 	Storage     StorageConfig
+	Templates   TemplatesConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -244,6 +245,24 @@ type StorageConfig struct {
 	AllowedDocumentTypes []string
 }
 
+// TemplatesConfig controls template file storage and management.
+// Audience: Operators configuring template storage location.
+type TemplatesConfig struct {
+	// BasePath is the root directory for template storage.
+	// Templates are organized as: BasePath/{defaults,user}/{mode}/{submode}/{id}.json
+	// Set via TEMPLATES_BASE_PATH env var.
+	// Default: "../templates" (relative to api/ directory, i.e. scenario_root/templates/)
+	BasePath string
+
+	// DefaultsDir is the subdirectory within BasePath for default templates.
+	// Default: "defaults"
+	DefaultsDir string
+
+	// UserDir is the subdirectory within BasePath for user templates.
+	// Default: "user"
+	UserDir string
+}
+
 // Default returns the default configuration with all sane defaults.
 // This configuration works well for local development and typical deployments.
 func Default() *Config {
@@ -298,6 +317,11 @@ func Default() *Config {
 			MaxFileSize:          getEnvInt64("UPLOAD_MAX_SIZE_MB", 20) * 1024 * 1024,
 			AllowedImageTypes:    []string{"image/jpeg", "image/png", "image/gif", "image/webp"},
 			AllowedDocumentTypes: []string{"application/pdf"},
+		},
+		Templates: TemplatesConfig{
+			BasePath:    getEnvOrDefault("TEMPLATES_BASE_PATH", "../templates"),
+			DefaultsDir: "defaults",
+			UserDir:     "user",
 		},
 	}
 }

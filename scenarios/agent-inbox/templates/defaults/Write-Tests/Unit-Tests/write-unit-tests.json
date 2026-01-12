@@ -1,0 +1,39 @@
+{
+  "id": "tests-unit",
+  "name": "Write Unit Tests",
+  "description": "Create comprehensive unit tests for a function or module",
+  "icon": "FlaskConical",
+  "modes": ["Write Tests", "Unit Tests"],
+  "content": "Write unit tests for {{target}}.\n\n**Location:** {{location}}\n\n**Testing framework:** {{framework}}\n\n**Key behaviors to test:**\n{{behaviors}}\n\nPlease:\n1. Create tests covering happy paths\n2. Add edge case and boundary tests\n3. Include error case tests\n4. Use proper mocking where needed\n5. Follow AAA pattern (Arrange, Act, Assert)",
+  "variables": [
+    {
+      "name": "target",
+      "label": "What to Test",
+      "type": "text",
+      "placeholder": "e.g., calculateTotal function, useAuth hook",
+      "required": true
+    },
+    {
+      "name": "location",
+      "label": "File Location",
+      "type": "text",
+      "placeholder": "e.g., src/utils/math.ts",
+      "required": true
+    },
+    {
+      "name": "framework",
+      "label": "Test Framework",
+      "type": "select",
+      "options": ["Vitest", "Jest", "Testing Library", "Go testing", "pytest"],
+      "required": true
+    },
+    {
+      "name": "behaviors",
+      "label": "Key Behaviors",
+      "type": "textarea",
+      "placeholder": "List the main behaviors that should be tested",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

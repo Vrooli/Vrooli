@@ -1,0 +1,24 @@
+{
+  "id": "research-best-practices",
+  "name": "Find Best Practices",
+  "description": "Research current best practices for a technology or pattern",
+  "icon": "Lightbulb",
+  "modes": ["Research", "Best Practices"],
+  "content": "Research current best practices for {{topic}}.\n\nI need to understand:\n1. What are the recommended approaches in 2024/2025?\n2. Common pitfalls to avoid\n3. How does our current implementation compare?\n4. Specific recommendations for our use case\n\nOur context: {{our_context}}",
+  "variables": [
+    {
+      "name": "topic",
+      "label": "Topic",
+      "type": "text",
+      "placeholder": "e.g., React state management, API error handling, TypeScript generics",
+      "required": true
+    },
+    {
+      "name": "our_context",
+      "label": "Our Context",
+      "type": "textarea",
+      "placeholder": "Describe your current setup and constraints",
+      "required": false
+    }
+  ]
+}

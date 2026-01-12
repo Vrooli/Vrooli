@@ -32,6 +32,7 @@ type Handlers struct {
 	Storage       services.StorageService
 	ToolExecutor  *integrations.ToolExecutor
 	AsyncTracker  *services.AsyncTrackerService
+	Templates     *services.TemplatesService
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -124,6 +125,16 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 
 	// Utilities
 	r.HandleFunc("/api/v1/link-preview", h.GetLinkPreview).Methods("GET", "OPTIONS")
+
+	// Templates
+	r.HandleFunc("/api/v1/templates", h.ListTemplates).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates", h.CreateTemplate).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/import", h.ImportTemplates).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/export", h.ExportTemplates).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.GetTemplate).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.UpdateTemplate).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.DeleteTemplate).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}/reset", h.ResetTemplate).Methods("POST", "OPTIONS")
 }
 
 // Response helpers

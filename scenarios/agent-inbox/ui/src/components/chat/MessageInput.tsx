@@ -173,7 +173,7 @@ export function MessageInput({
     createTemplate,
     updateTemplate,
     deleteTemplate,
-    hideTemplate,
+    resetTemplate,
   } = useTemplatesAndSkills();
 
   // Only use attachments if enabled
@@ -589,6 +589,15 @@ export function MessageInput({
     [deleteTemplate]
   );
 
+  const handleResetTemplateFromSuggestions = useCallback(
+    (templateId: string) => {
+      if (window.confirm("Reset this template to its default state?")) {
+        resetTemplate(templateId);
+      }
+    },
+    [resetTemplate]
+  );
+
   // Model supports tools (required for force tool)
   const modelSupportsToolUse = supportsTools(currentModel);
 
@@ -651,7 +660,7 @@ export function MessageInput({
           onResetPath={resetModePath}
           onEditTemplate={handleOpenTemplateEditor}
           onDeleteTemplate={handleDeleteTemplateFromSuggestions}
-          onHideTemplate={hideTemplate}
+          onResetTemplate={handleResetTemplateFromSuggestions}
           onCreateTemplate={(modes) => {
             setDefaultEditorModes(modes);
             setEditingTemplate(undefined);

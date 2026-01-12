@@ -1,0 +1,47 @@
+{
+  "id": "tests-e2e",
+  "name": "Write E2E Tests",
+  "description": "Create end-to-end tests for critical user journeys",
+  "icon": "Route",
+  "modes": ["Write Tests", "E2E Tests"],
+  "content": "Write E2E tests for {{journey}}.\n\n**Testing tool:** {{tool}}\n\n**Starting URL:** {{start_url}}\n\n**Steps:**\n{{steps}}\n\n**Expected outcomes:**\n{{outcomes}}\n\nPlease:\n1. Write tests for the complete user journey\n2. Include proper selectors (data-testid preferred)\n3. Add appropriate waits and assertions\n4. Handle potential flakiness\n5. Include cleanup steps",
+  "variables": [
+    {
+      "name": "journey",
+      "label": "User Journey",
+      "type": "text",
+      "placeholder": "e.g., Sign up and create first project",
+      "required": true
+    },
+    {
+      "name": "tool",
+      "label": "E2E Tool",
+      "type": "select",
+      "options": ["Playwright", "Cypress", "Puppeteer", "Selenium"],
+      "required": true
+    },
+    {
+      "name": "start_url",
+      "label": "Starting URL",
+      "type": "text",
+      "placeholder": "e.g., /login, /dashboard",
+      "required": false,
+      "defaultValue": "/"
+    },
+    {
+      "name": "steps",
+      "label": "Steps",
+      "type": "textarea",
+      "placeholder": "1. Click Sign Up\n2. Enter email\n3. Submit form",
+      "required": true
+    },
+    {
+      "name": "outcomes",
+      "label": "Expected Outcomes",
+      "type": "textarea",
+      "placeholder": "What should happen at each step?",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

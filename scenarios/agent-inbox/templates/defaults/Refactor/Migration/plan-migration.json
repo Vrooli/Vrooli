@@ -1,0 +1,39 @@
+{
+  "id": "refactor-migration",
+  "name": "Plan Migration",
+  "description": "Create a migration plan for upgrading libraries or patterns",
+  "icon": "ArrowRightLeft",
+  "modes": ["Refactor", "Migration"],
+  "content": "I need to migrate from {{from_tech}} to {{to_tech}}.\n\n**Scope:** {{scope}}\n\n**Constraints:**\n{{constraints}}\n\nPlease:\n1. Analyze what needs to change\n2. Create a phased migration plan\n3. Identify breaking changes and how to handle them\n4. Provide code transformation examples\n5. Suggest testing strategies during migration",
+  "variables": [
+    {
+      "name": "from_tech",
+      "label": "From",
+      "type": "text",
+      "placeholder": "e.g., Redux, Class components, Webpack",
+      "required": true
+    },
+    {
+      "name": "to_tech",
+      "label": "To",
+      "type": "text",
+      "placeholder": "e.g., Zustand, Function components, Vite",
+      "required": true
+    },
+    {
+      "name": "scope",
+      "label": "Scope",
+      "type": "select",
+      "options": ["Entire codebase", "Single feature", "Specific files"],
+      "required": true
+    },
+    {
+      "name": "constraints",
+      "label": "Constraints",
+      "type": "textarea",
+      "placeholder": "Timeline, team size, compatibility requirements?",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}
