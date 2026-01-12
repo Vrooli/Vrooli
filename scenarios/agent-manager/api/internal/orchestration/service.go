@@ -68,6 +68,7 @@ type Service interface {
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
+	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
 
 	// --- Run Resumption Operations (Interruption Resilience) ---
 	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -1578,6 +1579,56 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir)
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// DeleteRunMessage appends a message_deleted event for a message event.
+// The original message remains in the append-only stream for auditability.
+func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error) {
+	if o.events == nil {
+		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)
+	}
+
+	events, err := o.events.Get(ctx, runID, event.GetOptions{
+		EventTypes: []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeMessageDeleted},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var target *domain.RunEvent
+	alreadyDeleted := false
+	targetID := eventID.String()
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		if evt.ID == eventID {
+			target = evt
+			continue
+		}
+		if data, ok := evt.Data.(*domain.MessageDeletedEventData); ok && data.TargetEventID == targetID {
+			alreadyDeleted = true
+		}
+	}
+
+	if target == nil {
+		return nil, domain.NewNotFoundErrorWithID("RunEvent", targetID)
+	}
+	if target.EventType != domain.EventTypeMessage {
+		return nil, domain.NewValidationError("eventId", "only message events can be deleted")
+	}
+	if alreadyDeleted {
+		return nil, domain.NewStateError("RunEvent", "deleted", "delete", "message already deleted")
+	}
+
+	deleteEvent := domain.NewMessageDeletedEvent(runID, targetID)
+	if err := o.events.Append(ctx, runID, deleteEvent); err != nil {
+		return nil, err
+	}
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastEvent(deleteEvent)
+	}
+	return deleteEvent, nil
 }
 
 // executeContinuation handles the actual continuation execution (runs in background).

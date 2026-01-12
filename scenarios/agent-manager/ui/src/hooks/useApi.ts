@@ -754,6 +754,16 @@ export function useRuns() {
     [fetchRuns]
   );
 
+  const deleteRunMessage = useCallback(
+    async (runId: string, eventId: string): Promise<void> => {
+      await apiRequest<void>(`/runs/${runId}/messages/${eventId}/delete`, {
+        method: "POST",
+      });
+      await fetchRuns();
+    },
+    [fetchRuns]
+  );
+
   useEffect(() => {
     fetchRuns();
   }, [fetchRuns]);
@@ -773,6 +783,7 @@ export function useRuns() {
     approveRun,
     rejectRun,
     continueRun,
+    deleteRunMessage,
   };
 }
 

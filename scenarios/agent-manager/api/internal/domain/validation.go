@@ -110,7 +110,7 @@ func (p RunPhase) IsValid() bool {
 // IsValid returns whether this is a valid RunEventType.
 func (t RunEventType) IsValid() bool {
 	switch t {
-	case EventTypeLog, EventTypeMessage, EventTypeToolCall, EventTypeToolResult,
+	case EventTypeLog, EventTypeMessage, EventTypeMessageDeleted, EventTypeToolCall, EventTypeToolResult,
 		EventTypeStatus, EventTypeMetric, EventTypeArtifact, EventTypeError:
 		return true
 	default:

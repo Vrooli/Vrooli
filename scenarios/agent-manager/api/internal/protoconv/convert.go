@@ -520,6 +520,8 @@ func RunEventTypeToProto(t domain.RunEventType) pb.RunEventType {
 		return pb.RunEventType_RUN_EVENT_TYPE_LOG
 	case domain.EventTypeMessage:
 		return pb.RunEventType_RUN_EVENT_TYPE_MESSAGE
+	case domain.EventTypeMessageDeleted:
+		return pb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED
 	case domain.EventTypeToolCall:
 		return pb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL
 	case domain.EventTypeToolResult:
@@ -544,6 +546,8 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 		return domain.EventTypeLog
 	case pb.RunEventType_RUN_EVENT_TYPE_MESSAGE:
 		return domain.EventTypeMessage
+	case pb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED:
+		return domain.EventTypeMessageDeleted
 	case pb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL:
 		return domain.EventTypeToolCall
 	case pb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT:

@@ -7,6 +7,7 @@ package domain
 
 import (
 	"log"
+	"strings"
 )
 
 // ValidateEvent validates a RunEvent and logs warnings for missing data.
@@ -23,6 +24,8 @@ func ValidateEvent(evt *RunEvent) {
 		validateToolResultEvent(evt)
 	case EventTypeMessage:
 		validateMessageEvent(evt)
+	case EventTypeMessageDeleted:
+		validateMessageDeletedEvent(evt)
 	case EventTypeMetric:
 		validateMetricEvent(evt)
 	}
@@ -80,6 +83,19 @@ func validateMessageEvent(evt *RunEvent) {
 
 	if data.Content == "" {
 		log.Printf("[WARN] message event has empty content (runID=%s, role=%s)", evt.RunID, data.Role)
+	}
+}
+
+// validateMessageDeletedEvent logs warnings for message_deleted events with missing target IDs.
+func validateMessageDeletedEvent(evt *RunEvent) {
+	data, ok := evt.Data.(*MessageDeletedEventData)
+	if !ok {
+		log.Printf("[WARN] message_deleted event has wrong data type: %T (runID=%s)", evt.Data, evt.RunID)
+		return
+	}
+
+	if strings.TrimSpace(data.TargetEventID) == "" {
+		log.Printf("[WARN] message_deleted event missing targetEventId (runID=%s)", evt.RunID)
 	}
 }
 

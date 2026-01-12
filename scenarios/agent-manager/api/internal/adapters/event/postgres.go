@@ -71,6 +71,11 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		if err := json.Unmarshal(e.Data, &data); err == nil {
 			evt.Data = &data
 		}
+	case domain.EventTypeMessageDeleted:
+		var data domain.MessageDeletedEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
 	case domain.EventTypeToolCall:
 		var data domain.ToolCallEventData
 		if err := json.Unmarshal(e.Data, &data); err == nil {

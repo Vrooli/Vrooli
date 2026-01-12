@@ -203,6 +203,7 @@ export default function App() {
                   onInvestigateRuns={runs.investigateRuns}
                   onApplyInvestigation={runs.applyInvestigation}
                   onContinueRun={runs.continueRun}
+                  onDeleteRunMessage={runs.deleteRunMessage}
                   onRefresh={runs.refetch}
                   wsSubscribe={ws.subscribe}
                   wsUnsubscribe={ws.unsubscribe}

@@ -480,6 +480,12 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				Content: data.Content,
 			},
 		}
+	case *domain.MessageDeletedEventData:
+		event.Data = &pb.RunEvent_MessageDeleted{
+			MessageDeleted: &pb.MessageDeletedEventData{
+				TargetEventId: data.TargetEventID,
+			},
+		}
 	case *domain.ToolCallEventData:
 		var input *structpb.Struct
 		if len(data.Input) > 0 {

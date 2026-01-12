@@ -116,6 +116,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
@@ -342,6 +343,7 @@ func parseEventTypes(values []string) ([]domain.RunEventType, []string) {
 			switch domain.RunEventType(trimmed) {
 			case domain.EventTypeLog,
 				domain.EventTypeMessage,
+				domain.EventTypeMessageDeleted,
 				domain.EventTypeToolCall,
 				domain.EventTypeToolResult,
 				domain.EventTypeStatus,
@@ -1626,6 +1628,41 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 		Run:     protoconv.RunToProto(run),
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// DeleteRunMessage marks a message event as deleted.
+// POST /api/v1/runs/{id}/messages/{event_id}/delete
+func (h *Handler) DeleteRunMessage(w http.ResponseWriter, r *http.Request) {
+	runIDStr := mux.Vars(r)["id"]
+	runID, err := uuid.Parse(runIDStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	eventIDStr := mux.Vars(r)["event_id"]
+	eventID, err := uuid.Parse(eventIDStr)
+	if err != nil {
+		writeSimpleError(w, r, "event_id", "invalid UUID format for event ID")
+		return
+	}
+
+	req := domainpb.DeleteRunMessageRequest{
+		RunId:   runIDStr,
+		EventId: eventIDStr,
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	if _, err := h.svc.DeleteRunMessage(r.Context(), runID, eventID); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &domainpb.DeleteRunMessageResponse{
+		Success: true,
+	})
 }
 
 // GetRunByTag retrieves a run by its custom tag.

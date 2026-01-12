@@ -488,14 +488,15 @@ type RunEvent struct {
 type RunEventType string
 
 const (
-	EventTypeLog        RunEventType = "log"
-	EventTypeMessage    RunEventType = "message"
-	EventTypeToolCall   RunEventType = "tool_call"
-	EventTypeToolResult RunEventType = "tool_result"
-	EventTypeStatus     RunEventType = "status"
-	EventTypeMetric     RunEventType = "metric"
-	EventTypeArtifact   RunEventType = "artifact"
-	EventTypeError      RunEventType = "error"
+	EventTypeLog            RunEventType = "log"
+	EventTypeMessage        RunEventType = "message"
+	EventTypeMessageDeleted RunEventType = "message_deleted"
+	EventTypeToolCall       RunEventType = "tool_call"
+	EventTypeToolResult     RunEventType = "tool_result"
+	EventTypeStatus         RunEventType = "status"
+	EventTypeMetric         RunEventType = "metric"
+	EventTypeArtifact       RunEventType = "artifact"
+	EventTypeError          RunEventType = "error"
 )
 
 // =============================================================================
@@ -557,6 +558,29 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 		EventType: EventTypeMessage,
 		Timestamp: time.Now(),
 		Data:      &MessageEventData{Role: role, Content: content},
+	}
+}
+
+// =============================================================================
+// MESSAGE DELETED EVENT
+// =============================================================================
+
+// MessageDeletedEventData marks a message event as deleted/redacted.
+type MessageDeletedEventData struct {
+	TargetEventID string `json:"targetEventId"`
+}
+
+func (d *MessageDeletedEventData) EventType() RunEventType { return EventTypeMessageDeleted }
+func (d *MessageDeletedEventData) isEventPayload()         {}
+
+// NewMessageDeletedEvent creates a new message deletion event.
+func NewMessageDeletedEvent(runID uuid.UUID, targetEventID string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessageDeleted,
+		Timestamp: time.Now(),
+		Data:      &MessageDeletedEventData{TargetEventID: targetEventID},
 	}
 }
 

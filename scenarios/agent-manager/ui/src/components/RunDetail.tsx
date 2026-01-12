@@ -62,6 +62,7 @@ interface RunDetailProps {
   onApplyInvestigation: (runId: string) => void;
   onDelete: (run: Run) => Promise<void>;
   onContinue: (message: string) => Promise<void>;
+  onDeleteMessage: (eventId: string) => Promise<void>;
   deleteLoading: boolean;
 }
 
@@ -81,6 +82,7 @@ export function RunDetail({
   onApplyInvestigation,
   onDelete,
   onContinue,
+  onDeleteMessage,
   deleteLoading,
 }: RunDetailProps) {
   const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("events");
@@ -807,6 +809,7 @@ export function RunDetail({
                 events={events}
                 eventsLoading={eventsLoading}
                 onContinue={onContinue}
+                onDeleteMessage={onDeleteMessage}
               />
             </div>
           ) : activeTab === "diff" ? (
