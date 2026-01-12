@@ -52,6 +52,12 @@ interface ChatViewProps {
   // Async operations
   asyncOperations?: AsyncStatusUpdate[];
   onCancelAsyncOperation?: (toolCallId: string) => Promise<void>;
+  // Template activation (for template-to-tool linking)
+  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  /** Currently active template ID (for UI indicator) */
+  activeTemplateId?: string | null;
+  /** Callback to deactivate the active template */
+  onTemplateDeactivate?: () => void;
 }
 
 export function ChatView({
@@ -85,6 +91,9 @@ export function ChatView({
   onSubmitEdit,
   asyncOperations = EMPTY_ASYNC_OPS,
   onCancelAsyncOperation,
+  onTemplateActivated,
+  activeTemplateId,
+  onTemplateDeactivate,
 }: ChatViewProps) {
   // Compute visible messages based on the active branch
   // This filters the full message tree to only show the active path
@@ -172,6 +181,9 @@ export function ChatView({
           editingMessage={editingMessage}
           onCancelEdit={onCancelEdit}
           onSubmitEdit={onSubmitEdit}
+          onTemplateActivated={onTemplateActivated}
+          activeTemplateId={activeTemplateId}
+          onTemplateDeactivate={onTemplateDeactivate}
         />
       </div>
     </div>

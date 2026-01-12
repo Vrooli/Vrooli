@@ -153,6 +153,9 @@ func (sw *StreamWriter) WriteToolCallResult(result domain.ToolExecutionResult) {
 	} else {
 		event["result"] = result.Result
 	}
+	if result.DeactivateTemplate {
+		event["deactivate_template"] = true
+	}
 	sw.WriteEvent(event)
 }
 

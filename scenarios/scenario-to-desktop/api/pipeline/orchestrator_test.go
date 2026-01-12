@@ -8,10 +8,10 @@ import (
 
 // mockTimeProvider provides a fixed time for deterministic testing.
 type mockTimeProvider struct {
-	now time.Time
+	now int64
 }
 
-func (m *mockTimeProvider) Now() time.Time {
+func (m *mockTimeProvider) Now() int64 {
 	return m.now
 }
 
@@ -407,20 +407,17 @@ func TestInMemoryStore(t *testing.T) {
 func TestInMemoryCancelManager(t *testing.T) {
 	cm := NewInMemoryCancelManager()
 
-	t.Run("Set and Get cancel", func(t *testing.T) {
+	t.Run("Set and Take cancel", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		cm.SetCancel("pipeline-1", cancel)
+		cm.Set("pipeline-1", cancel)
 
-		gotten, ok := cm.GetCancel("pipeline-1")
-		if !ok {
-			t.Fatalf("expected to get cancel func")
-		}
-		if gotten == nil {
-			t.Errorf("expected non-nil cancel func")
+		taken := cm.Take("pipeline-1")
+		if taken == nil {
+			t.Fatalf("expected to take cancel func")
 		}
 
 		// Verify cancel works
-		gotten()
+		taken()
 		select {
 		case <-ctx.Done():
 			// Expected
@@ -429,26 +426,37 @@ func TestInMemoryCancelManager(t *testing.T) {
 		}
 	})
 
-	t.Run("Take cancel", func(t *testing.T) {
+	t.Run("Take twice", func(t *testing.T) {
 		_, cancel := context.WithCancel(context.Background())
-		cm.SetCancel("pipeline-2", cancel)
+		cm.Set("pipeline-2", cancel)
 
-		taken := cm.TakeCancel("pipeline-2")
+		taken := cm.Take("pipeline-2")
 		if taken == nil {
 			t.Fatalf("expected to take cancel func")
 		}
 
 		// Second take should return nil
-		taken2 := cm.TakeCancel("pipeline-2")
+		taken2 := cm.Take("pipeline-2")
 		if taken2 != nil {
 			t.Errorf("expected nil on second take")
 		}
 	})
 
-	t.Run("Get nonexistent", func(t *testing.T) {
-		_, ok := cm.GetCancel("nonexistent")
-		if ok {
-			t.Errorf("expected false for nonexistent")
+	t.Run("Take nonexistent", func(t *testing.T) {
+		taken := cm.Take("nonexistent")
+		if taken != nil {
+			t.Errorf("expected nil for nonexistent")
+		}
+	})
+
+	t.Run("Clear", func(t *testing.T) {
+		_, cancel := context.WithCancel(context.Background())
+		cm.Set("pipeline-3", cancel)
+		cm.Clear("pipeline-3")
+
+		taken := cm.Take("pipeline-3")
+		if taken != nil {
+			t.Errorf("expected nil after clear")
 		}
 	})
 }
@@ -471,13 +479,13 @@ func TestRealTimeProvider(t *testing.T) {
 	tp := NewRealTimeProvider()
 
 	now := tp.Now()
-	if now.IsZero() {
-		t.Errorf("expected non-zero time")
+	if now == 0 {
+		t.Errorf("expected non-zero unix timestamp")
 	}
 
-	unix := tp.Unix()
-	if unix == 0 {
-		t.Errorf("expected non-zero unix time")
+	// Verify it returns a reasonable timestamp (after year 2020)
+	if now < 1577836800 {
+		t.Errorf("expected timestamp after 2020, got %d", now)
 	}
 }
 
@@ -503,7 +511,7 @@ func TestStatus_Fields(t *testing.T) {
 		PipelineID:   "pipeline-123",
 		ScenarioName: "my-scenario",
 		Status:       StatusRunning,
-		Platforms:    []string{"linux", "mac"},
+		CurrentStage: "bundle",
 		Stages:       map[string]*StageResult{},
 		StageOrder:   []string{"bundle", "preflight"},
 		StartedAt:    now,
@@ -512,8 +520,8 @@ func TestStatus_Fields(t *testing.T) {
 	if status.PipelineID != "pipeline-123" {
 		t.Errorf("expected PipelineID 'pipeline-123'")
 	}
-	if len(status.Platforms) != 2 {
-		t.Errorf("expected 2 platforms")
+	if status.CurrentStage != "bundle" {
+		t.Errorf("expected CurrentStage 'bundle'")
 	}
 	if len(status.StageOrder) != 2 {
 		t.Errorf("expected 2 stage order entries")
@@ -527,7 +535,8 @@ func TestStageResult_Fields(t *testing.T) {
 		Status:      StatusCompleted,
 		StartedAt:   now,
 		CompletedAt: now + 10,
-		Output:      map[string]interface{}{"bundle_dir": "/tmp/bundle"},
+		Details:     map[string]interface{}{"bundle_dir": "/tmp/bundle"},
+		Logs:        []string{"starting...", "done"},
 	}
 
 	if result.Stage != "bundle" {
@@ -535,5 +544,8 @@ func TestStageResult_Fields(t *testing.T) {
 	}
 	if result.Status != StatusCompleted {
 		t.Errorf("expected Status 'completed'")
+	}
+	if len(result.Logs) != 2 {
+		t.Errorf("expected 2 log entries")
 	}
 }

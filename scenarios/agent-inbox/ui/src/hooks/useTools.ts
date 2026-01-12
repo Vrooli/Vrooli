@@ -68,6 +68,8 @@ export interface UseToolsReturn {
   resetTool: (scenario: string, toolName: string) => Promise<void>;
   refreshToolRegistry: () => Promise<void>;
   refetch: () => void;
+  /** Enable multiple tools by their IDs (format: "scenario:tool_name") */
+  enableToolsByIds: (toolIds: string[]) => Promise<void>;
 }
 
 /**
@@ -303,6 +305,15 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
     refetch: () => {
       refetch();
+    },
+    enableToolsByIds: async (toolIds: string[]) => {
+      // Enable tools in sequence to avoid race conditions with optimistic updates
+      for (const toolId of toolIds) {
+        const [scenario, toolName] = toolId.split(':');
+        if (scenario && toolName) {
+          await toggleMutation.mutateAsync({ scenario, toolName, enabled: true });
+        }
+      }
     },
   };
 }

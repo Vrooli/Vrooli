@@ -171,11 +171,12 @@ func (a *StreamingAccumulator) ToResult() *CompletionResult {
 
 // ToolExecutionResult captures the outcome of executing a single tool.
 type ToolExecutionResult struct {
-	ToolCallID string      `json:"tool_call_id"`
-	ToolName   string      `json:"tool_name"`
-	Status     string      `json:"status"`
-	Result     interface{} `json:"result,omitempty"`
-	Error      string      `json:"error,omitempty"`
+	ToolCallID         string      `json:"tool_call_id"`
+	ToolName           string      `json:"tool_name"`
+	Status             string      `json:"status"`
+	Result             interface{} `json:"result,omitempty"`
+	Error              string      `json:"error,omitempty"`
+	DeactivateTemplate bool        `json:"deactivate_template,omitempty"` // True if this tool was suggested by the active template
 }
 
 // Succeeded returns true if the tool executed successfully.

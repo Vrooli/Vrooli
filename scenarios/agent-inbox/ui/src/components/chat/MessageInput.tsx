@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Send, Loader2, Check, X } from "lucide-react";
+import { Send, Loader2, Check, X, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { AttachmentButton, type ForcedTool } from "./AttachmentButton";
@@ -63,6 +63,12 @@ interface MessageInputProps {
   onCancelEdit?: () => void;
   /** Callback when edit is submitted */
   onSubmitEdit?: (payload: MessagePayload) => void;
+  /** Callback when a template with suggested tools is activated */
+  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  /** Currently active template ID (persisted state, for UI indicator) */
+  activeTemplateId?: string | null;
+  /** Callback to deactivate the active template */
+  onTemplateDeactivate?: () => void;
 }
 
 export function MessageInput({
@@ -81,6 +87,9 @@ export function MessageInput({
   editingMessage,
   onCancelEdit,
   onSubmitEdit,
+  onTemplateActivated,
+  activeTemplateId,
+  onTemplateDeactivate,
 }: MessageInputProps) {
   // Support both isLoading and deprecated isGenerating
   const loading = isLoading ?? isGenerating ?? false;
@@ -425,7 +434,7 @@ export function MessageInput({
 
   // Handle template selection (may show merge overlay if message has content)
   const handleTemplateSelect = useCallback(
-    (template: Template) => {
+    async (template: Template) => {
       // If message has content, show merge overlay
       if (message.trim()) {
         setSavedMessage(message);
@@ -436,9 +445,14 @@ export function MessageInput({
         setActiveTemplate(template);
         setShowVariableForm(true);
         setShouldFocusTemplateForm(true);
+
+        // Activate template tools if present
+        if (template.suggestedToolIds?.length && onTemplateActivated) {
+          await onTemplateActivated(template.id, template.suggestedToolIds);
+        }
       }
     },
-    [message, setActiveTemplate]
+    [message, setActiveTemplate, onTemplateActivated]
   );
 
   // Handle merge overlay action
@@ -453,6 +467,11 @@ export function MessageInput({
           setActiveTemplate(pendingTemplate);
           setShowVariableForm(true);
           setShouldFocusTemplateForm(true);
+
+          // Activate template tools if present
+          if (pendingTemplate.suggestedToolIds?.length && onTemplateActivated) {
+            await onTemplateActivated(pendingTemplate.id, pendingTemplate.suggestedToolIds);
+          }
           break;
         case "merge":
           // Use AI to merge message with template
@@ -473,6 +492,11 @@ export function MessageInput({
               setActiveTemplate(pendingTemplate);
               setShowVariableForm(true);
               setShouldFocusTemplateForm(true);
+
+              // Activate template tools if present
+              if (pendingTemplate.suggestedToolIds?.length && onTemplateActivated) {
+                await onTemplateActivated(pendingTemplate.id, pendingTemplate.suggestedToolIds);
+              }
             }
           }
           break;
@@ -487,7 +511,7 @@ export function MessageInput({
       setPendingTemplate(null);
       setSavedMessage("");
     },
-    [pendingTemplate, savedMessage, chatId, mergeModel, mergeMessages, setActiveTemplate]
+    [pendingTemplate, savedMessage, chatId, mergeModel, mergeMessages, setActiveTemplate, onTemplateActivated]
   );
 
   // Handle slash command selection
@@ -824,6 +848,20 @@ export function MessageInput({
               onClear={clearTemplate}
               onEdit={() => setShowVariableForm(true)}
             />
+          )}
+          {/* Show active template tools indicator when template was applied but isn't being edited */}
+          {activeTemplateId && !activeTemplate && onTemplateDeactivate && (
+            <div className="flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-full">
+              <Sparkles className="h-3 w-3" />
+              <span>Template tools active</span>
+              <button
+                onClick={onTemplateDeactivate}
+                className="ml-1 hover:text-indigo-300 transition-colors"
+                aria-label="Deactivate template tools"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           )}
           {selectedSkillIds.length > 0 && (
             <SkillIndicator

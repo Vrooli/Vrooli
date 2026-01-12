@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus } from "./hooks/useAsyncStatus";
+import { useTools } from "./hooks/useTools";
+import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -40,6 +42,12 @@ function AppContent() {
     },
     [setChatInUrl]
   );
+
+  // Template deactivation callback (uses ref to break circular dependency with useChats/useActiveTemplate)
+  const templateDeactivateRef = useRef<(() => void) | null>(null);
+  const handleTemplateDeactivated = useCallback(() => {
+    templateDeactivateRef.current?.();
+  }, []);
 
   const {
     // State
@@ -104,6 +112,7 @@ function AppContent() {
   } = useChats({
     initialChatId,
     onChatChange: handleChatChange,
+    onTemplateDeactivated: handleTemplateDeactivated,
   });
 
   // Track async operations for the selected chat
@@ -111,6 +120,29 @@ function AppContent() {
     operations: asyncOperations,
     cancelOperation: cancelAsyncOperation,
   } = useAsyncStatus(selectedChatId);
+
+  // Template-to-tool linking: manage active template state and tool enablement
+  const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
+  const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
+
+  // Update the ref so the deactivation callback can use the activeTemplate
+  useEffect(() => {
+    templateDeactivateRef.current = () => {
+      activeTemplate.deactivate();
+    };
+  }, [activeTemplate]);
+
+  // Handle template activation (when user selects a template with suggested tools)
+  const handleTemplateActivated = useCallback(
+    async (templateId: string, toolIds: string[]) => {
+      if (!selectedChatId) return;
+      // First enable the suggested tools
+      await enableToolsByIds(toolIds);
+      // Then activate the template at the chat level
+      await activeTemplate.activate(templateId, toolIds);
+    },
+    [selectedChatId, enableToolsByIds, activeTemplate]
+  );
 
   // Handle browser back/forward navigation
   usePopStateListener(
@@ -521,6 +553,9 @@ function AppContent() {
             }}
             asyncOperations={asyncOperations}
             onCancelAsyncOperation={cancelAsyncOperation}
+            onTemplateActivated={handleTemplateActivated}
+            activeTemplateId={activeTemplate.activeTemplateId}
+            onTemplateDeactivate={activeTemplate.deactivate}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />

@@ -59,6 +59,11 @@ export interface CompletionActions {
   rejectTool: (chatId: string, toolCallId: string, reason?: string) => Promise<void>;
 }
 
+export interface UseCompletionOptions {
+  /** Called when a template's suggested tool is used (template should be deactivated) */
+  onTemplateDeactivated?: () => void;
+}
+
 // Generate unique request IDs to correlate state updates
 let requestIdCounter = 0;
 function generateRequestId(): number {
@@ -72,7 +77,8 @@ const EMPTY_IMAGES: string[] = [];
 const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_APPROVALS: PendingApproval[] = [];
 
-export function useCompletion(): CompletionState & CompletionActions {
+export function useCompletion(options?: UseCompletionOptions): CompletionState & CompletionActions {
+  const { onTemplateDeactivated } = options || {};
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>(EMPTY_IMAGES);
@@ -144,6 +150,10 @@ export function useCompletion(): CompletionState & CompletionActions {
                   : tc
               )
             );
+            // Check if a template's suggested tool was used
+            if (event.deactivate_template && onTemplateDeactivated) {
+              onTemplateDeactivated();
+            }
           }
           break;
 
@@ -187,7 +197,7 @@ export function useCompletion(): CompletionState & CompletionActions {
           break;
       }
     };
-  }, []);
+  }, [onTemplateDeactivated]);
 
   const cancelCompletion = useCallback(() => {
     if (abortControllerRef.current) {

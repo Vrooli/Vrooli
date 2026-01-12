@@ -610,6 +610,10 @@ func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *Strea
 		assistantMessageID = msg.ID // Tool responses are parented to the assistant message
 	}
 
+	// Fetch active template tool IDs for template deactivation detection
+	activeTemplateToolIDs, _ := h.Repo.GetActiveTemplateToolIDs(ctx, chatID)
+	templateDeactivated := false
+
 	var toolErrors []error
 	var hasPendingApprovals bool
 
@@ -632,7 +636,25 @@ func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *Strea
 			}
 
 			if len(outcome.Results) > 0 {
-				sw.WriteToolCallResult(outcome.Results[0])
+				toolResult := outcome.Results[0]
+
+				// Check if this tool matches an active template's suggested tool
+				if !templateDeactivated && len(activeTemplateToolIDs) > 0 {
+					for _, templateToolID := range activeTemplateToolIDs {
+						// Template tool IDs are in format "scenario:tool_name" - check if tool_name matches
+						if strings.HasSuffix(templateToolID, ":"+tc.Function.Name) || templateToolID == tc.Function.Name {
+							toolResult.DeactivateTemplate = true
+							templateDeactivated = true
+							// Clear the active template from the database
+							if clearErr := h.Repo.ClearActiveTemplate(ctx, chatID); clearErr != nil {
+								log.Printf("warning: failed to clear active template: %v", clearErr)
+							}
+							break
+						}
+					}
+				}
+
+				sw.WriteToolCallResult(toolResult)
 			}
 		}
 	}
@@ -758,10 +780,12 @@ func convertToCompletionResult(resp *integrations.OpenRouterResponse) *domain.Co
 // and individual tool results reflect their status. The overall response is
 // still returned to allow partial success handling.
 func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Request, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
-	// Get the active leaf (the user message that triggered this completion)
-	parentMessageID, _ := h.Repo.GetActiveLeaf(r.Context(), chatID)
+	ctx := r.Context()
 
-	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result, parentMessageID)
+	// Get the active leaf (the user message that triggered this completion)
+	parentMessageID, _ := h.Repo.GetActiveLeaf(ctx, chatID)
+
+	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 	if err != nil {
 		h.JSONError(w, "Failed to save message", http.StatusInternalServerError)
 		return
@@ -774,8 +798,12 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 		assistantMessageID = msg.ID // Tool responses are parented to the assistant message
 	}
 
+	// Fetch active template tool IDs for template deactivation detection
+	activeTemplateToolIDs, _ := h.Repo.GetActiveTemplateToolIDs(ctx, chatID)
+	templateDeactivated := false
+
 	// Execute all tool calls
-	outcome, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls, assistantMessageID)
+	outcome, toolErr := svc.ExecuteToolCalls(ctx, chatID, messageID, result.ToolCalls, assistantMessageID)
 	if toolErr != nil {
 		log.Printf("tool execution error for chat %s: %v", chatID, toolErr)
 	}
@@ -785,7 +813,21 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	var pendingApprovalsMap []map[string]interface{}
 
 	if outcome != nil {
-		for _, tr := range outcome.Results {
+		for i, tr := range outcome.Results {
+			// Check if this tool matches an active template's suggested tool
+			if !templateDeactivated && len(activeTemplateToolIDs) > 0 {
+				for _, templateToolID := range activeTemplateToolIDs {
+					if strings.HasSuffix(templateToolID, ":"+tr.ToolName) || templateToolID == tr.ToolName {
+						outcome.Results[i].DeactivateTemplate = true
+						templateDeactivated = true
+						if clearErr := h.Repo.ClearActiveTemplate(ctx, chatID); clearErr != nil {
+							log.Printf("warning: failed to clear active template: %v", clearErr)
+						}
+						break
+					}
+				}
+			}
+
 			m := map[string]interface{}{
 				"tool_id":   tr.ToolCallID,
 				"tool_name": tr.ToolName,
@@ -795,6 +837,9 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 				m["error"] = tr.Error
 			} else {
 				m["result"] = tr.Result
+			}
+			if outcome.Results[i].DeactivateTemplate {
+				m["deactivate_template"] = true
 			}
 			resultsMap = append(resultsMap, m)
 		}

@@ -1,6 +1,9 @@
 package preflight
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -503,6 +506,216 @@ type testError struct {
 
 func (e *testError) Error() string {
 	return e.msg
+}
+
+// HTTPRuntimeClient tests
+
+func TestNewHTTPRuntimeClient(t *testing.T) {
+	client := NewHTTPRuntimeClient("http://localhost:8080", "test-token", nil)
+	if client == nil {
+		t.Fatalf("expected client to be created")
+	}
+	if client.baseURL != "http://localhost:8080" {
+		t.Errorf("expected baseURL 'http://localhost:8080', got %q", client.baseURL)
+	}
+	if client.token != "test-token" {
+		t.Errorf("expected token 'test-token', got %q", client.token)
+	}
+}
+
+func TestNewHTTPRuntimeClientWithOptions(t *testing.T) {
+	customHTTPClient := &http.Client{Timeout: 10 * time.Second}
+	client := NewHTTPRuntimeClient("http://localhost:8080", "test-token", nil,
+		WithHTTPClient(customHTTPClient),
+	)
+	if client.httpClient != customHTTPClient {
+		t.Errorf("expected custom HTTP client to be used")
+	}
+}
+
+func TestHTTPRuntimeClient_Status(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/status" {
+			t.Errorf("expected path '/status', got %q", r.URL.Path)
+		}
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Runtime{RuntimeVersion: "1.0.0", InstanceID: "test-instance"})
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "", nil)
+	status, err := client.Status()
+	if err != nil {
+		t.Fatalf("Status() error: %v", err)
+	}
+	if status.RuntimeVersion != "1.0.0" {
+		t.Errorf("expected version '1.0.0', got %q", status.RuntimeVersion)
+	}
+}
+
+func TestHTTPRuntimeClient_StatusError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "", nil)
+	_, err := client.Status()
+	if err == nil {
+		t.Fatalf("expected error for 500 status")
+	}
+}
+
+func TestHTTPRuntimeClient_Secrets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/secrets" {
+			t.Errorf("expected path '/secrets', got %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"secrets": []Secret{
+				{ID: "API_KEY", Required: true, HasValue: false},
+				{ID: "DB_PASSWORD", Required: true, HasValue: true},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "", nil)
+	secrets, err := client.Secrets()
+	if err != nil {
+		t.Fatalf("Secrets() error: %v", err)
+	}
+	if len(secrets) != 2 {
+		t.Errorf("expected 2 secrets, got %d", len(secrets))
+	}
+}
+
+func TestHTTPRuntimeClient_ApplySecrets(t *testing.T) {
+	t.Run("posts secrets", func(t *testing.T) {
+		var receivedPayload map[string]map[string]string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				t.Errorf("expected POST, got %s", r.Method)
+			}
+			json.NewDecoder(r.Body).Decode(&receivedPayload)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client := NewHTTPRuntimeClient(server.URL, "", nil)
+		err := client.ApplySecrets(map[string]string{"API_KEY": "secret123"})
+		if err != nil {
+			t.Fatalf("ApplySecrets() error: %v", err)
+		}
+		if receivedPayload["secrets"]["API_KEY"] != "secret123" {
+			t.Errorf("expected API_KEY 'secret123', got %q", receivedPayload["secrets"]["API_KEY"])
+		}
+	})
+
+	t.Run("skips empty secrets", func(t *testing.T) {
+		called := false
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+		}))
+		defer server.Close()
+
+		client := NewHTTPRuntimeClient(server.URL, "", nil)
+		err := client.ApplySecrets(map[string]string{"API_KEY": ""})
+		if err != nil {
+			t.Fatalf("ApplySecrets() error: %v", err)
+		}
+		if called {
+			t.Errorf("expected no HTTP call for empty secrets")
+		}
+	})
+
+	t.Run("skips nil secrets", func(t *testing.T) {
+		called := false
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+		}))
+		defer server.Close()
+
+		client := NewHTTPRuntimeClient(server.URL, "", nil)
+		err := client.ApplySecrets(nil)
+		if err != nil {
+			t.Fatalf("ApplySecrets() error: %v", err)
+		}
+		if called {
+			t.Errorf("expected no HTTP call for nil secrets")
+		}
+	})
+}
+
+func TestHTTPRuntimeClient_Ports(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"services": map[string]map[string]int{
+				"api": {"http": 8080},
+				"web": {"http": 3000},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "", nil)
+	ports, err := client.Ports()
+	if err != nil {
+		t.Fatalf("Ports() error: %v", err)
+	}
+	if ports["api"]["http"] != 8080 {
+		t.Errorf("expected api http port 8080, got %d", ports["api"]["http"])
+	}
+}
+
+func TestHTTPRuntimeClient_Telemetry(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Telemetry{Path: "/telemetry", UploadURL: "http://localhost:8080/telemetry"})
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "", nil)
+	telemetry, err := client.Telemetry()
+	if err != nil {
+		t.Fatalf("Telemetry() error: %v", err)
+	}
+	if telemetry.Path != "/telemetry" {
+		t.Errorf("expected path '/telemetry', got %q", telemetry.Path)
+	}
+}
+
+func TestHTTPRuntimeClient_LogTails(t *testing.T) {
+	t.Run("returns nil for nil manifest", func(t *testing.T) {
+		client := NewHTTPRuntimeClient("http://localhost:8080", "", nil)
+		tails := client.LogTails(Request{LogTailLines: 10})
+		if tails != nil {
+			t.Errorf("expected nil for nil manifest")
+		}
+	})
+}
+
+func TestHTTPRuntimeClient_AuthorizationHeader(t *testing.T) {
+	var receivedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Runtime{})
+	}))
+	defer server.Close()
+
+	client := NewHTTPRuntimeClient(server.URL, "test-token", nil)
+	client.Status()
+
+	if receivedAuth != "Bearer test-token" {
+		t.Errorf("expected 'Bearer test-token', got %q", receivedAuth)
+	}
 }
 
 func TestUpdatePreflightResult(t *testing.T) {

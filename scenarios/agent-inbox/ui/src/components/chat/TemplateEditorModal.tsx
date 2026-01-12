@@ -7,11 +7,12 @@
  * - Editing a default template creates a user override
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { X, Plus, Trash2, ChevronDown, Eye, Info } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench } from "lucide-react";
 import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/templates";
 import { SUGGESTION_MODES } from "@/lib/types/templates";
 import { fillTemplateContent } from "@/data/templates";
+import { useTools } from "@/hooks/useTools";
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -86,6 +87,13 @@ export function TemplateEditorModal({
   const [showPreview, setShowPreview] = useState(false);
   const [applyToDefault, setApplyToDefault] = useState(false);
 
+  // Tool selection state
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
+  const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
+
+  // Fetch available tools
+  const { toolsByScenario, isLoading: isLoadingTools } = useTools();
+
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -98,6 +106,7 @@ export function TemplateEditorModal({
       setModes(template.modes || []);
       setContent(template.content);
       setVariables(template.variables || []);
+      setSelectedToolIds(template.suggestedToolIds || []);
     } else {
       setName("");
       setDescription("");
@@ -105,10 +114,12 @@ export function TemplateEditorModal({
       setModes(defaultModes || []);
       setContent("");
       setVariables([]);
+      setSelectedToolIds([]);
     }
     setErrors({});
     setShowPreview(false);
     setApplyToDefault(false);
+    setExpandedScenarios(new Set());
   }, [template, defaultModes, open]);
 
   // Add a new variable
@@ -153,6 +164,35 @@ export function TemplateEditorModal({
       }
     });
   }, []);
+
+  // Tool selection helpers
+  const toggleToolSelection = useCallback((toolId: string) => {
+    setSelectedToolIds((prev) =>
+      prev.includes(toolId) ? prev.filter((id) => id !== toolId) : [...prev, toolId]
+    );
+  }, []);
+
+  const toggleScenario = useCallback((scenario: string) => {
+    setExpandedScenarios((prev) => {
+      const next = new Set(prev);
+      if (next.has(scenario)) {
+        next.delete(scenario);
+      } else {
+        next.add(scenario);
+      }
+      return next;
+    });
+  }, []);
+
+  // Count selected tools per scenario
+  const selectedCountByScenario = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const toolId of selectedToolIds) {
+      const [scenario] = toolId.split(":");
+      counts.set(scenario, (counts.get(scenario) || 0) + 1);
+    }
+    return counts;
+  }, [selectedToolIds]);
 
   // Validate form
   const validate = useCallback(() => {
@@ -201,11 +241,12 @@ export function TemplateEditorModal({
         modes,
         content: content.trim(),
         variables,
+        suggestedToolIds: selectedToolIds.length > 0 ? selectedToolIds : undefined,
       },
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [validate, name, description, icon, modes, content, variables, onSave, onClose, isEditingDefault, applyToDefault]);
+  }, [validate, name, description, icon, modes, content, variables, selectedToolIds, onSave, onClose, isEditingDefault, applyToDefault]);
 
   // Generate preview content
   const previewContent = useCallback(() => {
@@ -570,6 +611,95 @@ export function TemplateEditorModal({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Suggested Tools */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Wrench className="h-4 w-4 text-slate-400" />
+                <label className="text-sm font-medium text-slate-300">
+                  Suggested Tools
+                </label>
+                {selectedToolIds.length > 0 && (
+                  <span className="text-xs bg-indigo-600/30 text-indigo-300 px-2 py-0.5 rounded-full">
+                    {selectedToolIds.length} selected
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mb-3">
+                These tools will be auto-enabled when this template is selected
+              </p>
+
+              {isLoadingTools ? (
+                <p className="text-sm text-slate-500 italic">Loading tools...</p>
+              ) : toolsByScenario.size === 0 ? (
+                <p className="text-sm text-slate-500 italic">No tools available</p>
+              ) : (
+                <div className="space-y-2">
+                  {Array.from(toolsByScenario.entries()).map(([scenario, tools]) => {
+                    const isExpanded = expandedScenarios.has(scenario);
+                    const selectedCount = selectedCountByScenario.get(scenario) || 0;
+
+                    return (
+                      <div
+                        key={scenario}
+                        className="bg-slate-800/50 border border-white/5 rounded-lg overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleScenario(scenario)}
+                          className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-slate-400" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-slate-400" />
+                            )}
+                            <span className="text-sm text-slate-300">{scenario}</span>
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {selectedCount}/{tools.length} selected
+                          </span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="border-t border-white/5 px-3 py-2 space-y-1.5">
+                            {tools.map((tool) => {
+                              const toolId = `${scenario}:${tool.tool.name}`;
+                              const isSelected = selectedToolIds.includes(toolId);
+
+                              return (
+                                <label
+                                  key={tool.tool.name}
+                                  className="flex items-start gap-2 cursor-pointer group"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleToolSelection(toolId)}
+                                    className="mt-0.5 rounded bg-slate-700 border-white/20 text-indigo-500 focus:ring-indigo-500"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm text-white group-hover:text-indigo-300 transition-colors">
+                                      {tool.tool.name}
+                                    </span>
+                                    {tool.tool.description && (
+                                      <p className="text-xs text-slate-500 truncate">
+                                        {tool.tool.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

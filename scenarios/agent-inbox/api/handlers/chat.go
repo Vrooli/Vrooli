@@ -590,3 +590,64 @@ func (h *Handlers) ForkChat(w http.ResponseWriter, r *http.Request) {
 
 	h.JSONResponse(w, newChat, http.StatusCreated)
 }
+
+// SetActiveTemplate sets or clears the active template for a chat.
+// PATCH /api/v1/chats/{id}/active-template
+// Body: { "template_id": "template-123", "tool_ids": ["scenario:tool1", "scenario:tool2"] }
+// To clear: { "template_id": "" } or { "template_id": null }
+func (h *Handlers) SetActiveTemplate(w http.ResponseWriter, r *http.Request) {
+	chatID := h.ParseUUID(w, r, "id")
+	if chatID == "" {
+		return
+	}
+
+	var req struct {
+		TemplateID string   `json:"template_id"`
+		ToolIDs    []string `json:"tool_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidJSON())
+		return
+	}
+
+	ctx := r.Context()
+
+	// Verify chat exists
+	exists, err := h.Repo.ChatExists(ctx, chatID)
+	if err != nil {
+		log.Printf("[ERROR] [%s] SetActiveTemplate ChatExists failed: %v", middleware.GetRequestID(ctx), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("check chat", err))
+		return
+	}
+	if !exists {
+		h.WriteAppError(w, r, domain.ErrChatNotFound(chatID))
+		return
+	}
+
+	// If template_id is empty, clear the active template
+	if req.TemplateID == "" {
+		if err := h.Repo.ClearActiveTemplate(ctx, chatID); err != nil {
+			log.Printf("[ERROR] [%s] ClearActiveTemplate failed: %v", middleware.GetRequestID(ctx), err)
+			h.WriteAppError(w, r, domain.ErrDatabaseError("clear active template", err))
+			return
+		}
+		h.JSONResponse(w, map[string]interface{}{
+			"active_template_id":       nil,
+			"active_template_tool_ids": nil,
+		}, http.StatusOK)
+		return
+	}
+
+	// Set the active template
+	if err := h.Repo.SetActiveTemplate(ctx, chatID, req.TemplateID, req.ToolIDs); err != nil {
+		log.Printf("[ERROR] [%s] SetActiveTemplate failed: %v", middleware.GetRequestID(ctx), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("set active template", err))
+		return
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"active_template_id":       req.TemplateID,
+		"active_template_tool_ids": req.ToolIDs,
+	}, http.StatusOK)
+}

@@ -21,10 +21,12 @@ type Chat struct {
 	LabelIDs            []string  `json:"label_ids"`
 	SystemPrompt        string    `json:"system_prompt"`
 	ToolsEnabled        bool      `json:"tools_enabled"`
-	WebSearchEnabled    bool      `json:"web_search_enabled"`               // Default web search setting for new messages
-	ActiveLeafMessageID string    `json:"active_leaf_message_id,omitempty"` // Current branch leaf for message tree
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	WebSearchEnabled       bool      `json:"web_search_enabled"`                  // Default web search setting for new messages
+	ActiveLeafMessageID    string    `json:"active_leaf_message_id,omitempty"`    // Current branch leaf for message tree
+	ActiveTemplateID       string    `json:"active_template_id,omitempty"`        // Currently active template (tools remain enabled until used)
+	ActiveTemplateToolIDs  []string  `json:"active_template_tool_ids,omitempty"`  // Tool IDs suggested by active template
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat.

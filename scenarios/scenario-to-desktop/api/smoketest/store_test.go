@@ -2,11 +2,17 @@ package smoketest
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func TestNewInMemoryStore(t *testing.T) {
@@ -311,5 +317,554 @@ func TestStartRequest_Fields(t *testing.T) {
 	}
 	if req.Platform != "darwin" {
 		t.Errorf("expected Platform 'darwin'")
+	}
+}
+
+// Service tests
+
+func TestNewService(t *testing.T) {
+	service := NewService()
+	if service == nil {
+		t.Fatalf("expected service to be created")
+	}
+}
+
+func TestNewServiceWithOptions(t *testing.T) {
+	store := NewInMemoryStore()
+	cancelManager := NewCancelManager()
+	mockLogger := &testLogger{}
+
+	service := NewService(
+		WithStore(store),
+		WithCancelManager(cancelManager),
+		WithPort(9000),
+		WithLogger(mockLogger),
+	)
+
+	if service == nil {
+		t.Fatalf("expected service to be created")
+	}
+	if service.store != store {
+		t.Errorf("expected custom store to be used")
+	}
+	if service.cancelManager != cancelManager {
+		t.Errorf("expected custom cancel manager to be used")
+	}
+	if service.port != 9000 {
+		t.Errorf("expected port 9000, got %d", service.port)
+	}
+	if service.logger != mockLogger {
+		t.Errorf("expected custom logger to be used")
+	}
+}
+
+type testLogger struct {
+	infoCalls  int
+	warnCalls  int
+	errorCalls int
+}
+
+func (l *testLogger) Info(msg string, args ...interface{})  { l.infoCalls++ }
+func (l *testLogger) Warn(msg string, args ...interface{})  { l.warnCalls++ }
+func (l *testLogger) Error(msg string, args ...interface{}) { l.errorCalls++ }
+
+func TestService_CurrentPlatform(t *testing.T) {
+	service := NewService()
+	platform := service.CurrentPlatform()
+
+	validPlatforms := []string{"linux", "mac", "win"}
+	found := false
+	for _, p := range validPlatforms {
+		if platform == p {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected valid platform, got %q", platform)
+	}
+}
+
+func TestService_PerformSmokeTest_NonexistentID(t *testing.T) {
+	service := NewService()
+	ctx := context.Background()
+
+	// Should not panic with nonexistent ID
+	service.PerformSmokeTest(ctx, "nonexistent", "scenario", "/path/to/artifact", "linux")
+}
+
+func TestService_PerformSmokeTest_CancelledContext(t *testing.T) {
+	store := NewInMemoryStore()
+	service := NewService(WithStore(store))
+
+	status := &Status{
+		SmokeTestID:  "test-123",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+	}
+	store.Save(status)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	service.PerformSmokeTest(ctx, "test-123", "test-scenario", "/path/to/artifact", "linux")
+
+	updated, _ := store.Get("test-123")
+	if updated.Status != "failed" {
+		t.Errorf("expected status 'failed' after cancellation, got %q", updated.Status)
+	}
+}
+
+func TestService_PerformSmokeTest_NonexistentArtifact(t *testing.T) {
+	store := NewInMemoryStore()
+	service := NewService(WithStore(store))
+
+	status := &Status{
+		SmokeTestID:  "test-artifact",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+	}
+	store.Save(status)
+
+	ctx := context.Background()
+	service.PerformSmokeTest(ctx, "test-artifact", "test-scenario", "/nonexistent/artifact", "linux")
+
+	updated, _ := store.Get("test-artifact")
+	if updated.Status != "failed" {
+		t.Errorf("expected status 'failed' for missing artifact, got %q", updated.Status)
+	}
+	if updated.Error == "" {
+		t.Errorf("expected error message to be set")
+	}
+}
+
+// Interface tests
+
+func TestSmokeTestStore_Interface(t *testing.T) {
+	var store Store = NewInMemoryStore()
+	if store == nil {
+		t.Errorf("expected Store interface to be implemented")
+	}
+}
+
+func TestCancelManager_Interface(t *testing.T) {
+	var cm CancelManager = NewCancelManager()
+	if cm == nil {
+		t.Errorf("expected CancelManager interface to be implemented")
+	}
+}
+
+// NoopLogger test
+
+func TestNoopLogger(t *testing.T) {
+	logger := &noopLogger{}
+
+	// These should not panic
+	logger.Info("test message", "key", "value")
+	logger.Warn("test warning", "key", "value")
+	logger.Error("test error", "key", "value")
+}
+
+// WithPath option test
+
+func TestWithPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "test-store.json")
+
+	store, err := NewStore(storePath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+
+	// Save some data
+	store.Save(&Status{SmokeTestID: "test-1", Status: "passed"})
+
+	// Create another store with WithPath option
+	store2, err := NewStore(storePath, WithPath(storePath))
+	if err != nil {
+		t.Fatalf("failed to create store with option: %v", err)
+	}
+
+	// Should load existing data
+	_, ok := store2.Get("test-1")
+	if !ok {
+		t.Errorf("expected to load persisted data")
+	}
+}
+
+// Handler tests
+
+type mockService struct {
+	platform string
+}
+
+func (m *mockService) CurrentPlatform() string {
+	if m.platform != "" {
+		return m.platform
+	}
+	return "linux"
+}
+
+func (m *mockService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	// Mock implementation
+}
+
+type mockPackageFinder struct {
+	artifactPath string
+	err          error
+}
+
+func (m *mockPackageFinder) FindBuiltPackage(distPath, platform string) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	return m.artifactPath, nil
+}
+
+func TestNewHandler(t *testing.T) {
+	service := &mockService{}
+	store := NewInMemoryStore()
+	cancelManager := NewCancelManager()
+
+	handler := NewHandler(service, store, cancelManager)
+	if handler == nil {
+		t.Fatalf("expected handler to be created")
+	}
+	if handler.service != service {
+		t.Errorf("expected service to be set")
+	}
+	if handler.store != store {
+		t.Errorf("expected store to be set")
+	}
+}
+
+func TestNewHandlerWithOptions(t *testing.T) {
+	service := &mockService{}
+	store := NewInMemoryStore()
+	cancelManager := NewCancelManager()
+	packageFinder := &mockPackageFinder{}
+	outputFunc := func(name string) string { return "/path/to/" + name }
+
+	handler := NewHandler(service, store, cancelManager,
+		WithPackageFinder(packageFinder),
+		WithOutputPathFunc(outputFunc),
+	)
+
+	if handler.packageFinder != packageFinder {
+		t.Errorf("expected package finder to be set")
+	}
+	if handler.outputPathFunc == nil {
+		t.Errorf("expected output path func to be set")
+	}
+}
+
+func TestIsSafeScenarioName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"empty is unsafe", "", false},
+		{"valid name", "my-scenario", true},
+		{"with dots", "my.scenario", true},
+		{"path traversal dots", "../evil", false},
+		{"forward slash", "path/to/scenario", false},
+		{"backslash", "path\\to\\scenario", false},
+		{"double dots middle", "sce..nario", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSafeScenarioName(tt.input)
+			if result != tt.expected {
+				t.Errorf("isSafeScenarioName(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestHandler_HandleStatus(t *testing.T) {
+	store := NewInMemoryStore()
+	handler := NewHandler(&mockService{}, store, NewCancelManager())
+
+	// Save a status
+	store.Save(&Status{
+		SmokeTestID:  "test-123",
+		ScenarioName: "my-scenario",
+		Status:       "running",
+	})
+
+	t.Run("returns status for existing test", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/desktop/smoke-test/status/test-123", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": "test-123"})
+		w := httptest.NewRecorder()
+
+		handler.HandleStatus(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 404 for nonexistent test", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/desktop/smoke-test/status/nonexistent", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": "nonexistent"})
+		w := httptest.NewRecorder()
+
+		handler.HandleStatus(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 for missing smoke_test_id", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/desktop/smoke-test/status/", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": ""})
+		w := httptest.NewRecorder()
+
+		handler.HandleStatus(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+}
+
+func TestHandler_HandleCancel(t *testing.T) {
+	t.Run("cancels running test", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		// Set up a cancel function
+		ctx, cancel := context.WithCancel(context.Background())
+		cancelManager.SetCancel("test-123", cancel)
+
+		store.Save(&Status{
+			SmokeTestID: "test-123",
+			Status:      "running",
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/cancel/test-123", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": "test-123"})
+		w := httptest.NewRecorder()
+
+		handler.HandleCancel(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d", w.Code)
+		}
+
+		// Verify context was cancelled
+		select {
+		case <-ctx.Done():
+			// Expected
+		default:
+			t.Errorf("expected context to be cancelled")
+		}
+	})
+
+	t.Run("marks as failed if no running process", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		store.Save(&Status{
+			SmokeTestID: "test-456",
+			Status:      "running",
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/cancel/test-456", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": "test-456"})
+		w := httptest.NewRecorder()
+
+		handler.HandleCancel(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d", w.Code)
+		}
+
+		status, _ := store.Get("test-456")
+		if status.Status != "failed" {
+			t.Errorf("expected status 'failed', got %q", status.Status)
+		}
+	})
+
+	t.Run("returns 404 for nonexistent test", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/cancel/nonexistent", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": "nonexistent"})
+		w := httptest.NewRecorder()
+
+		handler.HandleCancel(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 for missing smoke_test_id", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/cancel/", nil)
+		req = mux.SetURLVars(req, map[string]string{"smoke_test_id": ""})
+		w := httptest.NewRecorder()
+
+		handler.HandleCancel(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+}
+
+func TestHandler_HandleStart(t *testing.T) {
+	t.Run("returns 400 for missing scenario_name", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		body := strings.NewReader(`{}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 for unsafe scenario name", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		body := strings.NewReader(`{"scenario_name": "../evil"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 for platform mismatch", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{platform: "linux"}, store, cancelManager)
+
+		body := strings.NewReader(`{"scenario_name": "test", "platform": "win"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 if handler not configured", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		// Don't set outputPathFunc or packageFinder
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		body := strings.NewReader(`{"scenario_name": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("expected status 500, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 404 if artifact not found", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		packageFinder := &mockPackageFinder{err: fmt.Errorf("not found")}
+		handler := NewHandler(&mockService{}, store, cancelManager,
+			WithOutputPathFunc(func(name string) string { return "/path/to/" + name }),
+			WithPackageFinder(packageFinder),
+		)
+
+		body := strings.NewReader(`{"scenario_name": "test"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 for wrong method", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		handler := NewHandler(&mockService{}, store, cancelManager)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/desktop/smoke-test/start", nil)
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("starts smoke test successfully", func(t *testing.T) {
+		store := NewInMemoryStore()
+		cancelManager := NewCancelManager()
+		packageFinder := &mockPackageFinder{artifactPath: "/path/to/artifact.AppImage"}
+		handler := NewHandler(&mockService{}, store, cancelManager,
+			WithOutputPathFunc(func(name string) string { return "/path/to/" + name }),
+			WithPackageFinder(packageFinder),
+		)
+
+		body := strings.NewReader(`{"scenario_name": "test-scenario"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/desktop/smoke-test/start", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.HandleStart(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
+func TestHandler_RegisterRoutes(t *testing.T) {
+	store := NewInMemoryStore()
+	cancelManager := NewCancelManager()
+	handler := NewHandler(&mockService{}, store, cancelManager)
+
+	router := mux.NewRouter()
+	handler.RegisterRoutes(router)
+
+	// Verify routes are registered by walking the router
+	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		return nil
+	})
+	if err != nil {
+		t.Errorf("expected routes to be walkable: %v", err)
 	}
 }

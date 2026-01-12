@@ -251,6 +251,9 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"create idx_attachments_message_id", `CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id)`},
 		{"add chats.web_search_enabled", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS web_search_enabled BOOLEAN DEFAULT false`},
 		{"add messages.web_search", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_search BOOLEAN`},
+		// Template-to-tool linking: track active template and its suggested tools
+		{"add chats.active_template_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_template_id TEXT`},
+		{"add chats.active_template_tool_ids", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_template_tool_ids TEXT[]`},
 	}
 
 	for _, m := range migrations {

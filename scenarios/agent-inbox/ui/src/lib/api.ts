@@ -34,6 +34,8 @@ export interface Chat {
   tools_enabled: boolean; // Whether AI can use tools in this chat
   web_search_enabled: boolean; // Default web search setting for new messages
   active_leaf_message_id?: string; // Current branch leaf for message tree
+  active_template_id?: string; // Currently active template (tools remain enabled until used)
+  active_template_tool_ids?: string[]; // Tool IDs suggested by the active template
   created_at: string;
   updated_at: string;
 }
@@ -211,6 +213,29 @@ export async function deleteAllChats(): Promise<{ deleted: number }> {
 
   if (!res.ok) {
     throw new Error(`Failed to delete all chats: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Active Template (template-to-tool linking)
+export async function setActiveTemplate(
+  chatId: string,
+  templateId: string | null,
+  toolIds: string[]
+): Promise<Chat> {
+  const url = buildApiUrl(`/chats/${chatId}/active-template`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      template_id: templateId ?? "",
+      tool_ids: toolIds
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to set active template: ${res.status}`);
   }
 
   return res.json();
@@ -697,6 +722,8 @@ export interface StreamingEvent {
   // Warning/error event fields
   code?: string;
   request_id?: string;
+  // Template deactivation (when a template's suggested tool is used)
+  deactivate_template?: boolean;
 }
 
 // Chat completion with streaming

@@ -62,16 +62,18 @@ export interface UseChatsOptions {
   initialChatId?: string;
   /** Callback when selected chat changes - used for URL sync */
   onChatChange?: (chatId: string | null) => void;
+  /** Callback when a template's suggested tool is used (template should be deactivated) */
+  onTemplateDeactivated?: () => void;
 }
 
 export function useChats(options: UseChatsOptions = {}) {
-  const { initialChatId, onChatChange } = options;
+  const { initialChatId, onChatChange, onTemplateDeactivated } = options;
   const queryClient = useQueryClient();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
   const [currentView, setCurrentView] = useState<View>("inbox");
 
   // Delegate to focused hooks
-  const completion = useCompletion();
+  const completion = useCompletion({ onTemplateDeactivated });
   const labelOps = useLabels();
 
   // Fetch chats based on current view

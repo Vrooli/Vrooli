@@ -57,15 +57,17 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	var labelIDs []byte
 	var activeLeafMessageID sql.NullString
 	var webSearchEnabled sql.NullBool
+	var activeTemplateID sql.NullString
+	var activeTemplateToolIDs []byte
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '{}'), c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -81,6 +83,10 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	if webSearchEnabled.Valid {
 		chat.WebSearchEnabled = webSearchEnabled.Bool
 	}
+	if activeTemplateID.Valid {
+		chat.ActiveTemplateID = activeTemplateID.String
+	}
+	chat.ActiveTemplateToolIDs = parsePostgresArray(string(activeTemplateToolIDs))
 	return &chat, nil
 }
 
@@ -240,6 +246,40 @@ func (r *Repository) SetWebSearchEnabled(ctx context.Context, chatID string, ena
 		UPDATE chats SET web_search_enabled = $1, updated_at = NOW() WHERE id = $2
 	`, enabled, chatID)
 	return err
+}
+
+// Active Template Operations
+
+// SetActiveTemplate sets the active template and its suggested tool IDs for a chat.
+// This is used to track which template's tools should remain enabled until used.
+func (r *Repository) SetActiveTemplate(ctx context.Context, chatID, templateID string, toolIDs []string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET active_template_id = $1, active_template_tool_ids = $2, updated_at = NOW() WHERE id = $3
+	`, sql.NullString{String: templateID, Valid: templateID != ""}, toolIDs, chatID)
+	return err
+}
+
+// ClearActiveTemplate removes the active template state from a chat.
+// Called when a template tool is used or when the user manually deactivates.
+func (r *Repository) ClearActiveTemplate(ctx context.Context, chatID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET active_template_id = NULL, active_template_tool_ids = NULL, updated_at = NOW() WHERE id = $1
+	`, chatID)
+	return err
+}
+
+// GetActiveTemplateToolIDs returns the active template's tool IDs for a chat.
+// Used to check if an executed tool matches a template-suggested tool.
+func (r *Repository) GetActiveTemplateToolIDs(ctx context.Context, chatID string) ([]string, error) {
+	var toolIDs []byte
+	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(active_template_tool_ids, '{}') FROM chats WHERE id = $1`, chatID).Scan(&toolIDs)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return parsePostgresArray(string(toolIDs)), nil
 }
 
 // Message Operations
