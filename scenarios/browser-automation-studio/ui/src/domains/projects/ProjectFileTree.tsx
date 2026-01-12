@@ -393,6 +393,18 @@ export function ProjectFileTree({
     [requestPrompt, fileOps, fetchProjectEntries, fetchWorkflows, project.id],
   );
 
+  const handleOpenInFolder = useCallback(
+    async (path: string) => {
+      try {
+        await fileOps.revealProjectPath(path);
+        toast.success("Opened in file manager");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to open in folder");
+      }
+    },
+    [fileOps],
+  );
+
   // Handler for preview workflow (single click)
   const handlePreviewWorkflow = useCallback(
     (workflowId: string) => {
@@ -795,6 +807,19 @@ export function ProjectFileTree({
               <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 flex-shrink-0">
                 root
               </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void fileOps.openProjectFolder().catch((err) => {
+                    toast.error(err instanceof Error ? err.message : "Failed to open project folder");
+                  });
+                }}
+                className="ml-2 p-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-all"
+                title="Open project folder"
+                aria-label="Open project folder"
+              >
+                <FolderOpen size={14} />
+              </button>
               {/* Add button for root */}
               <button
                 onClick={(e) => {
@@ -833,6 +858,7 @@ export function ProjectFileTree({
                   onExecuteWorkflow={handleExecuteWorkflow}
                   onDeleteNode={handleDeleteTreeNode}
                   onRenameNode={handleRenameTreeNode}
+                  onOpenInFolder={handleOpenInFolder}
                   onShowInlineAddMenu={handleShowInlineAddMenu}
                   onPreviewAsset={handlePreviewAsset}
                 />

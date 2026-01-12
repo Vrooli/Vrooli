@@ -67,6 +67,10 @@ type DeleteProjectFileRequest struct {
 	Path string `json:"path"`
 }
 
+type RevealProjectPathRequest struct {
+	Path string `json:"path"`
+}
+
 type ResyncProjectFilesResponse struct {
 	ProjectID        string `json:"project_id"`
 	ProjectRoot      string `json:"project_root"`
@@ -607,5 +611,116 @@ func (h *Handler) ResyncProjectFiles(w http.ResponseWriter, r *http.Request) {
 		EntriesIndexed:   len(workflows) + assetsIndexed,
 		WorkflowsIndexed: len(workflows),
 		AssetsIndexed:    assetsIndexed,
+	})
+}
+
+// RevealProjectPath handles POST /api/v1/projects/{id}/files/reveal.
+// Opens the file manager and highlights the file when possible.
+func (h *Handler) RevealProjectPath(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	var req RevealProjectPathRequest
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	relPath, ok := normalizeProjectRelPath(req.Path)
+	if !ok {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid path"}))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	project, err := h.repo.GetProject(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrProjectNotFound)
+			return
+		}
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project"}))
+		return
+	}
+
+	abs, err := safeJoinProjectPath(project.FolderPath, relPath)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+
+	info, statErr := os.Stat(abs)
+	if statErr != nil {
+		h.respondError(w, ErrProjectFileNotFound)
+		return
+	}
+
+	if info.IsDir() {
+		if err := openFolder(abs); err != nil {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "open_project_folder"}))
+			return
+		}
+		h.respondSuccess(w, http.StatusOK, map[string]any{
+			"status": "opened",
+			"path":   abs,
+		})
+		return
+	}
+
+	if err := revealInFileManager(abs); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "reveal_project_file"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"status": "revealed",
+		"path":   abs,
+	})
+}
+
+// OpenProjectFolder handles POST /api/v1/projects/{id}/open-folder.
+// Opens the project root folder in the system file manager.
+func (h *Handler) OpenProjectFolder(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	project, err := h.repo.GetProject(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrProjectNotFound)
+			return
+		}
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project"}))
+		return
+	}
+
+	folderPath := strings.TrimSpace(project.FolderPath)
+	if folderPath == "" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "project folder path is empty"}))
+		return
+	}
+
+	if info, statErr := os.Stat(folderPath); statErr != nil || !info.IsDir() {
+		h.respondError(w, ErrProjectFileNotFound)
+		return
+	}
+
+	if err := openFolder(folderPath); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "open_project_root"}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"status": "opened",
+		"path":   folderPath,
 	})
 }

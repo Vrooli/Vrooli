@@ -167,6 +167,8 @@ export interface FileTreeItemProps {
   onDeleteNode: (path: string) => Promise<void>;
   /** Rename/move a node */
   onRenameNode: (path: string) => Promise<void>;
+  /** Open a node in the system file manager */
+  onOpenInFolder: (path: string) => Promise<void>;
   /** Show inline add menu for a folder */
   onShowInlineAddMenu?: (folderPath: string, e?: React.MouseEvent) => void;
   /** Preview an asset file (single click) */
@@ -199,6 +201,7 @@ export function FileTreeItem({
   onExecuteWorkflow,
   onDeleteNode,
   onRenameNode,
+  onOpenInFolder,
   onShowInlineAddMenu,
   onPreviewAsset,
 }: FileTreeItemProps) {
@@ -250,6 +253,11 @@ export function FileTreeItem({
       return;
     }
     await onExecuteWorkflow(e, node.workflowId);
+  };
+
+  const handleOpenInFolder = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onOpenInFolder(node.path);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -374,7 +382,9 @@ export function FileTreeItem({
         {fileKindIcon(node)}
 
         {/* Name and type badge */}
-        <span className={`text-base truncate ${isTopLevel ? "text-flow-text-secondary" : "text-gray-300"}`}>
+        <span
+          className={`text-base truncate min-w-0 ${isTopLevel ? "text-flow-text-secondary" : "text-gray-300"}`}
+        >
           {node.name}
         </span>
         {typeLabel ? (
@@ -384,7 +394,7 @@ export function FileTreeItem({
         ) : null}
 
         {/* Action buttons - positioned close to name, visible on hover */}
-        <div className="ml-auto flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="ml-2 flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
           {/* Add button for folders */}
           {isFolder && onShowInlineAddMenu ? (
             <button
@@ -409,6 +419,14 @@ export function FileTreeItem({
               {typeLabel === "Case" ? <ListChecks size={16} /> : <Play size={16} />}
             </button>
           ) : null}
+          <button
+            onClick={handleOpenInFolder}
+            className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
+            title="Open in folder"
+            aria-label="Open in folder"
+          >
+            <FolderOpen size={16} />
+          </button>
           <button
             onClick={handleRenameNode}
             className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
@@ -455,6 +473,7 @@ export function FileTreeItem({
                 onExecuteWorkflow={onExecuteWorkflow}
                 onDeleteNode={onDeleteNode}
                 onRenameNode={onRenameNode}
+                onOpenInFolder={onOpenInFolder}
                 onShowInlineAddMenu={onShowInlineAddMenu}
                 onPreviewAsset={onPreviewAsset}
               />

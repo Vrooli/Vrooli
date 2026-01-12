@@ -465,6 +465,16 @@ export function ProjectDetailHeader({
     await fileOps.resyncFiles();
   }, [requestConfirm, fileOps, setShowMoreMenu]);
 
+  const handleOpenProjectFolder = useCallback(async () => {
+    setShowMoreMenu(false);
+    try {
+      await fileOps.openProjectFolder();
+      toast.success("Opened project folder");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to open project folder");
+    }
+  }, [fileOps, setShowMoreMenu]);
+
   // Info Popover content (shared between desktop and mobile)
   const infoPopoverContent = showStatsPopover ? (
     <div
@@ -552,6 +562,13 @@ export function ProjectDetailHeader({
       >
         <PencilLine size={16} />
         <span className="text-sm">Edit Project</span>
+      </button>
+      <button
+        onClick={handleOpenProjectFolder}
+        className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+      >
+        <FolderOpen size={16} />
+        <span className="text-sm">Open Project Folder</span>
       </button>
       <button
         onClick={() => {
