@@ -349,6 +349,68 @@ func (s *TemplatesService) DeleteTemplate(id string) error {
 	return nil
 }
 
+// UpdateDefaultTemplate updates the actual default template file (not a user override).
+// This is for applying changes directly to the shipped defaults.
+func (s *TemplatesService) UpdateDefaultTemplate(id string, updates *Template) (*TemplateResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find the default template
+	defaultTemplate, err := s.findTemplateByID(s.defaultsPath(), id)
+	if err != nil || defaultTemplate == nil {
+		return nil, fmt.Errorf("default template not found: %s", id)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Merge updates with existing template
+	base := defaultTemplate.template
+
+	// Apply updates (preserve ID)
+	if updates.Name != "" {
+		base.Name = updates.Name
+	}
+	if updates.Description != "" {
+		base.Description = updates.Description
+	}
+	if updates.Icon != "" {
+		base.Icon = updates.Icon
+	}
+	if updates.Content != "" {
+		base.Content = updates.Content
+	}
+	if updates.Modes != nil {
+		base.Modes = updates.Modes
+	}
+	if updates.Variables != nil {
+		base.Variables = updates.Variables
+	}
+	if updates.SuggestedSkillIDs != nil {
+		base.SuggestedSkillIDs = updates.SuggestedSkillIDs
+	}
+	if updates.SuggestedToolIDs != nil {
+		base.SuggestedToolIDs = updates.SuggestedToolIDs
+	}
+
+	// Write to the default template's path
+	if err := s.writeTemplate(defaultTemplate.path, &base); err != nil {
+		return nil, err
+	}
+
+	// Also delete any user override if it exists (since default now matches what user wanted)
+	userTemplate, _ := s.findTemplateByID(s.userPath(), id)
+	if userTemplate != nil {
+		_ = os.Remove(userTemplate.path) // Ignore errors, not critical
+	}
+
+	return &TemplateResponse{
+		Template:   base,
+		Source:     SourceDefault,
+		HasDefault: true,
+		UpdatedAt:  now,
+	}, nil
+}
+
 // ResetTemplate resets a modified default template by deleting the user override.
 func (s *TemplatesService) ResetTemplate(id string) (*TemplateResponse, error) {
 	s.mu.Lock()

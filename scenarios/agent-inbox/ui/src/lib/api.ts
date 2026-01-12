@@ -1635,6 +1635,28 @@ export async function resetTemplate(id: string): Promise<TemplateResponse> {
 }
 
 /**
+ * Update the actual default template (not a user override).
+ * This modifies the shipped default template files directly.
+ * @param id - Template ID
+ * @param updates - Template fields to update
+ */
+export async function updateDefaultTemplate(id: string, updates: UpdateTemplateInput): Promise<TemplateResponse> {
+  const url = buildApiUrl(`/templates/${id}/update-default`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update default template: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
  * Import multiple templates from a JSON array.
  * @param templates - Array of templates to import
  */

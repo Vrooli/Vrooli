@@ -13,6 +13,10 @@ import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/tem
 import { SUGGESTION_MODES } from "@/lib/types/templates";
 import { fillTemplateContent } from "@/data/templates";
 
+interface SaveOptions {
+  applyToDefault?: boolean;
+}
+
 interface TemplateEditorModalProps {
   open: boolean;
   onClose: () => void;
@@ -20,7 +24,8 @@ interface TemplateEditorModalProps {
   templateSource?: TemplateSource; // Source of the template being edited
   defaultModes?: string[]; // Pre-fill modes when creating from Suggestions
   onSave: (
-    template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">
+    template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">,
+    options?: SaveOptions
   ) => void;
 }
 
@@ -79,6 +84,7 @@ export function TemplateEditorModal({
   const [content, setContent] = useState("");
   const [variables, setVariables] = useState<TemplateVariable[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [applyToDefault, setApplyToDefault] = useState(false);
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -102,6 +108,7 @@ export function TemplateEditorModal({
     }
     setErrors({});
     setShowPreview(false);
+    setApplyToDefault(false);
   }, [template, defaultModes, open]);
 
   // Add a new variable
@@ -186,16 +193,19 @@ export function TemplateEditorModal({
   const handleSave = useCallback(() => {
     if (!validate()) return;
 
-    onSave({
-      name: name.trim(),
-      description: description.trim(),
-      icon,
-      modes,
-      content: content.trim(),
-      variables,
-    });
+    onSave(
+      {
+        name: name.trim(),
+        description: description.trim(),
+        icon,
+        modes,
+        content: content.trim(),
+        variables,
+      },
+      isEditingDefault ? { applyToDefault } : undefined
+    );
     onClose();
-  }, [validate, name, description, icon, modes, content, variables, onSave, onClose]);
+  }, [validate, name, description, icon, modes, content, variables, onSave, onClose, isEditingDefault, applyToDefault]);
 
   // Generate preview content
   const previewContent = useCallback(() => {
@@ -233,17 +243,41 @@ export function TemplateEditorModal({
 
           {/* Info banner for editing defaults */}
           {isEditingDefault && (
-            <div className="mx-4 mt-4 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg flex items-start gap-3">
-              <Info className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-amber-200 font-medium">
-                  Editing a default template
+            <div className={`mx-4 mt-4 p-3 rounded-lg flex items-start gap-3 ${
+              applyToDefault
+                ? "bg-indigo-900/20 border border-indigo-500/30"
+                : "bg-amber-900/20 border border-amber-500/30"
+            }`}>
+              <Info className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                applyToDefault ? "text-indigo-400" : "text-amber-400"
+              }`} />
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  applyToDefault ? "text-indigo-200" : "text-amber-200"
+                }`}>
+                  {applyToDefault
+                    ? "Updating default template"
+                    : "Editing a default template"}
                 </p>
-                <p className="text-xs text-amber-300/70 mt-1">
-                  Your changes will be saved as a custom version. The original default
-                  will remain available and can be restored anytime from Settings.
+                <p className={`text-xs mt-1 ${
+                  applyToDefault ? "text-indigo-300/70" : "text-amber-300/70"
+                }`}>
+                  {applyToDefault
+                    ? "Your changes will modify the default template directly. This affects all users."
+                    : "Your changes will be saved as a custom version. The original default will remain available."}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setApplyToDefault(!applyToDefault)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  applyToDefault
+                    ? "bg-amber-600/20 text-amber-300 hover:bg-amber-600/30"
+                    : "bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30"
+                }`}
+              >
+                {applyToDefault ? "Save as custom" : "Apply to default"}
+              </button>
             </div>
           )}
 

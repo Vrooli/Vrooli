@@ -11,14 +11,18 @@ import { LabelManager } from "./components/labels/LabelManager";
 import { Settings, getViewMode, setViewMode, type ViewMode } from "./components/settings/Settings";
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
 import { UsageStats } from "./components/settings/UsageStats";
+import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
 import { Button } from "./components/ui/button";
 import { ToastProvider } from "./components/ui/toast";
+import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
+import type { TemplateWithSource } from "./lib/types/templates";
 
 function AppContent() {
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showUsageStats, setShowUsageStats] = useState(false);
+  const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatListOpen, setChatListOpen] = useState(true);
   const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
@@ -179,12 +183,29 @@ function AppContent() {
     setViewMode(mode);
   }, []);
 
+  const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource) => {
+    setSettingsEditingTemplate(template);
+  }, []);
+
+  const handleSaveTemplateFromSettings = useCallback(async (
+    templateData: Omit<TemplateWithSource, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "source" | "hasDefault">,
+    options?: { applyToDefault?: boolean }
+  ) => {
+    if (!settingsEditingTemplate) return;
+    if (options?.applyToDefault) {
+      await updateDefaultTemplateAPI(settingsEditingTemplate.id, templateData);
+    } else {
+      await updateTemplateAPI(settingsEditingTemplate.id, templateData);
+    }
+    setSettingsEditingTemplate(null);
+  }, [settingsEditingTemplate]);
+
   const handleDeselectChat = useCallback(() => {
     selectChat("");
   }, [selectChat]);
 
   // Keyboard shortcuts
-  const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats;
+  const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats || !!settingsEditingTemplate;
 
   // Get visible chats for navigation (filtered by current view)
   const visibleChats = useMemo(() => {
@@ -526,6 +547,16 @@ function AppContent() {
         models={models}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
+        onEditTemplate={handleEditTemplateFromSettings}
+      />
+
+      {/* Template Editor from Settings */}
+      <TemplateEditorModal
+        open={!!settingsEditingTemplate}
+        onClose={() => setSettingsEditingTemplate(null)}
+        onSave={handleSaveTemplateFromSettings}
+        template={settingsEditingTemplate || undefined}
+        templateSource={settingsEditingTemplate?.source}
       />
 
       {/* Keyboard Shortcuts Dialog */}

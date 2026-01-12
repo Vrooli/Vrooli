@@ -135,6 +135,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/templates/{id}", h.UpdateTemplate).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/v1/templates/{id}", h.DeleteTemplate).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/templates/{id}/reset", h.ResetTemplate).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}/update-default", h.UpdateDefaultTemplate).Methods("PUT", "OPTIONS")
 }
 
 // Response helpers

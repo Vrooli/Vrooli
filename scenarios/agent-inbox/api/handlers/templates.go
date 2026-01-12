@@ -109,6 +109,30 @@ func (h *Handlers) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, map[string]bool{"deleted": true}, http.StatusOK)
 }
 
+// UpdateDefaultTemplate updates the actual default template (not a user override).
+// PUT /api/v1/templates/{id}/update-default
+func (h *Handlers) UpdateDefaultTemplate(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		h.JSONError(w, "template ID required", http.StatusBadRequest)
+		return
+	}
+
+	var updates services.Template
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		h.JSONError(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.Templates.UpdateDefaultTemplate(id, &updates)
+	if err != nil {
+		h.JSONError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	h.JSONResponse(w, result, http.StatusOK)
+}
+
 // ResetTemplate resets a modified default template to its original state.
 // POST /api/v1/templates/{id}/reset
 func (h *Handlers) ResetTemplate(w http.ResponseWriter, r *http.Request) {

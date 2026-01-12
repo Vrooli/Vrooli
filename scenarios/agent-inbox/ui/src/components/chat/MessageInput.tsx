@@ -512,10 +512,11 @@ export function MessageInput({
           setWebSearchEnabled(true);
           break;
         case "direct-template":
-          const template = getTemplateById(command.id);
-          if (template) {
-            handleTemplateSelect(template);
-          }
+          getTemplateById(command.id).then((template) => {
+            if (template) {
+              handleTemplateSelect(template);
+            }
+          });
           break;
         case "direct-skill":
           addSkill(command.id);
