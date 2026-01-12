@@ -26,6 +26,7 @@ import (
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
@@ -47,6 +48,7 @@ type Server struct {
 	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
 	investigationSvc *investigation.Service
+	taskSvc          *tasks.Service
 	historyRecorder  deployment.HistoryRecorder
 	orchestrator     *deployment.Orchestrator
 
@@ -133,6 +135,7 @@ func NewServer() (*Server, error) {
 		historyRecorder:  repo,
 		agentSvc:         agentSvc,
 		investigationSvc: investigation.NewService(repo, agentSvc, progressHub),
+		taskSvc:          tasks.NewService(repo, agentSvc, progressHub),
 		sshRunner:        sshRunner,
 		scpRunner:        scpRunner,
 		secretsFetcher:   secretsFetcher,
@@ -247,13 +250,16 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/preflight/disk/usage", preflight.HandleDiskUsage(s.sshRunner)).Methods("POST")
 	api.HandleFunc("/preflight/disk/cleanup", preflight.HandleDiskCleanup(s.sshRunner)).Methods("POST")
 
-	// Investigation endpoints (agent-manager integration)
+	// Investigation endpoints (agent-manager integration) - legacy, kept for backward compatibility
 	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/investigations", s.handleListInvestigations).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}", s.handleGetInvestigation).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}/stop", s.handleStopInvestigation).Methods("POST")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}/apply-fixes", s.handleApplyFixes).Methods("POST")
 	api.HandleFunc("/agent-manager/status", s.handleCheckAgentManagerStatus).Methods("GET")
+
+	// New unified task endpoints
+	s.registerTaskRoutes(api)
 }
 
 // Router returns the HTTP handler for use with server.Run

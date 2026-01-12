@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { DeploymentProgress } from "./DeploymentProgress";
-import { InvestigateButton } from "./InvestigateButton";
+import { SpawnAgentButton } from "./SpawnAgentButton";
 import { InvestigationProgress } from "./InvestigationProgress";
 import { InvestigationReport } from "./InvestigationReport";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
@@ -93,9 +93,9 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
               <Rocket className="h-4 w-4 mr-1.5" />
               Retry Deployment
             </Button>
-            <InvestigateButton
+            <SpawnAgentButton
               deploymentId={deploymentId}
-              onInvestigationStarted={handleInvestigationStarted}
+              onTaskStarted={handleInvestigationStarted}
             />
           </div>
 

@@ -1861,3 +1861,108 @@ export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
   }
   return res.json() as Promise<AgentManagerStatus>;
 }
+
+// =============================================================================
+// Unified Task API (New)
+// =============================================================================
+
+import type { CreateTaskRequest } from "../types/investigation";
+
+export type CreateTaskResponse = {
+  task: Investigation;
+};
+
+export type ListTasksResponse = {
+  tasks: InvestigationSummary[];
+};
+
+export type GetTaskResponse = {
+  task: Investigation;
+};
+
+/**
+ * Create a new task (investigate or fix) for a deployment.
+ * The task runs in the background; use getTask to poll status.
+ */
+export async function createTask(
+  deploymentId: string,
+  options: CreateTaskRequest
+): Promise<CreateTaskResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/tasks`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<CreateTaskResponse>;
+}
+
+/**
+ * List all tasks for a deployment.
+ */
+export async function listTasks(
+  deploymentId: string,
+  limit?: number
+): Promise<ListTasksResponse> {
+  let url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/tasks`, { baseUrl: API_BASE });
+  if (limit) {
+    url += `?limit=${limit}`;
+  }
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list tasks: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListTasksResponse>;
+}
+
+/**
+ * Get a single task by ID.
+ */
+export async function getTask(
+  deploymentId: string,
+  taskId: string
+): Promise<GetTaskResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/tasks/${encodeURIComponent(taskId)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetTaskResponse>;
+}
+
+/**
+ * Stop a running task.
+ */
+export async function stopTask(
+  deploymentId: string,
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/tasks/${encodeURIComponent(taskId)}/stop`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<{ success: boolean; message: string }>;
+}

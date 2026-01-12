@@ -39,7 +39,7 @@ import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, Termin
 import { CodeBlock } from "../ui/code-block";
 import { Alert } from "../ui/alert";
 import { Stepper, type StepperStatus } from "../ui/stepper";
-import { InvestigateButton } from "../wizard/InvestigateButton";
+import { SpawnAgentButton } from "../wizard/SpawnAgentButton";
 import { InvestigationProgress } from "../wizard/InvestigationProgress";
 import { InvestigationReport } from "../wizard/InvestigationReport";
 import { BuildStatusPanel } from "../wizard/StepBuild";
@@ -512,11 +512,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </button>
             )}
 
-            {/* Investigate button for failed deployments */}
+            {/* Spawn agent button for failed deployments */}
             {deployment.status === "failed" && (
-              <InvestigateButton
+              <SpawnAgentButton
                 deploymentId={deploymentId}
-                onInvestigationStarted={() => {}}
+                onTaskStarted={() => {}}
               />
             )}
           </div>
