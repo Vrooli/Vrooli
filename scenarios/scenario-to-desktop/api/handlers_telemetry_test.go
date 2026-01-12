@@ -112,6 +112,58 @@ func TestTelemetryTail_WithLimit(t *testing.T) {
 	}
 }
 
+func TestTelemetryInsights_WithData(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+	t.Setenv("VROOLI_ROOT", env.TempDir)
+
+	scenario := "insights-scenario"
+	telemetryDir := filepath.Join(env.TempDir, ".vrooli", "deployment", "telemetry")
+	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
+		t.Fatalf("failed to create telemetry dir: %v", err)
+	}
+	filePath := filepath.Join(telemetryDir, scenario+".jsonl")
+	content := strings.Join([]string{
+		`{"event":"app_session_failed","timestamp":"2026-01-01T00:00:00Z","session_id":"sess-1","details":{"reason":"boom","started_at":"2026-01-01T00:00:00Z"}}`,
+		`{"event":"smoke_test_passed","timestamp":"2026-01-02T00:00:00Z","session_id":"smoke-1"}`,
+		`{"event":"startup_error","timestamp":"2026-01-03T00:00:00Z","level":"error","details":{"message":"bad"}}`,
+		"",
+	}, "\n")
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write telemetry file: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/v1/deployment/telemetry/insights-scenario/insights", nil)
+	req = mux.SetURLVars(req, map[string]string{"scenario_name": scenario})
+	w := httptest.NewRecorder()
+
+	env.Server.telemetryInsightsHandler(w, req)
+	resp := assertJSONResponse(t, w, http.StatusOK)
+
+	assertFieldValue(t, resp, "exists", true)
+	lastSession, ok := resp["last_session"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected last_session, got %#v", resp["last_session"])
+	}
+	assertFieldValue(t, lastSession, "status", "failed")
+	assertFieldValue(t, lastSession, "session_id", "sess-1")
+
+	lastSmoke, ok := resp["last_smoke_test"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected last_smoke_test, got %#v", resp["last_smoke_test"])
+	}
+	assertFieldValue(t, lastSmoke, "status", "passed")
+
+	lastError, ok := resp["last_error"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected last_error, got %#v", resp["last_error"])
+	}
+	assertFieldValue(t, lastError, "event", "startup_error")
+}
+
 func TestTelemetryDownload(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -140,5 +192,36 @@ func TestTelemetryDownload(t *testing.T) {
 	}
 	if body := w.Body.String(); !strings.Contains(body, `"event":"first"`) {
 		t.Fatalf("expected response to contain telemetry, got %q", body)
+	}
+}
+
+func TestTelemetryDelete(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+	t.Setenv("VROOLI_ROOT", env.TempDir)
+
+	scenario := "delete-scenario"
+	telemetryDir := filepath.Join(env.TempDir, ".vrooli", "deployment", "telemetry")
+	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
+		t.Fatalf("failed to create telemetry dir: %v", err)
+	}
+	filePath := filepath.Join(telemetryDir, scenario+".jsonl")
+	if err := os.WriteFile(filePath, []byte(`{"event":"first"}`), 0o644); err != nil {
+		t.Fatalf("failed to write telemetry file: %v", err)
+	}
+
+	req := httptest.NewRequest("DELETE", "/api/v1/deployment/telemetry/delete-scenario", nil)
+	req = mux.SetURLVars(req, map[string]string{"scenario_name": scenario})
+	w := httptest.NewRecorder()
+
+	env.Server.telemetryDeleteHandler(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		t.Fatalf("expected telemetry file to be deleted, got %v", err)
 	}
 }

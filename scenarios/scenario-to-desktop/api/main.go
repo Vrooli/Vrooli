@@ -144,8 +144,10 @@ func (s *Server) setupRoutes() {
 	// Deployment telemetry ingestion
 	s.router.HandleFunc("/api/v1/deployment/telemetry", s.telemetryIngestHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/deployment/telemetry/{scenario_name}/summary", s.telemetrySummaryHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/deployment/telemetry/{scenario_name}/insights", s.telemetryInsightsHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/deployment/telemetry/{scenario_name}/tail", s.telemetryTailHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/deployment/telemetry/{scenario_name}/download", s.telemetryDownloadHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/deployment/telemetry/{scenario_name}", s.telemetryDeleteHandler).Methods("DELETE")
 
 	// Build by scenario name (simplified endpoint)
 	s.router.HandleFunc("/api/v1/desktop/build/{scenario_name}", s.buildScenarioDesktopHandler).Methods("POST")

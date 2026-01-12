@@ -1,6 +1,7 @@
 import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import * as nodeNet from "node:net";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -75,6 +76,13 @@ let runtimeProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+type TelemetryLevel = "info" | "warn" | "error";
+const sessionId = randomUUID();
+let sessionKind = "app";
+let appSessionStartedAt: string | null = null;
+let appSessionReadyAt: string | null = null;
+let appSessionFailureMessage: string | null = null;
+let appSessionRecorded = false;
 
 // ===== APP STORAGE CONFIGURATION =====
 // Storage root is within userData directory for security and proper app isolation
@@ -184,6 +192,9 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
     && Boolean(LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME);
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 const isSmokeTest = process.argv.includes("--smoke-test") || process.env.SMOKE_TEST === "1";
+if (isSmokeTest) {
+    sessionKind = "smoke_test";
+}
 const smokeTestUploadURL = process.env.SMOKE_TEST_UPLOAD_URL || "";
 const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || "");
 const smokeTestTimeoutMs = Number.isFinite(smokeTestTimeoutCandidate) && smokeTestTimeoutCandidate > 0
@@ -309,11 +320,14 @@ async function initializeTelemetry() {
     }
 }
 
-async function recordTelemetry(event: string, details: TelemetryDetails = {}): Promise<void> {
+async function recordTelemetry(event: string, details: TelemetryDetails = {}, level: TelemetryLevel = "info"): Promise<void> {
     if (!telemetryFilePath) return;
     const payload = {
         timestamp: new Date().toISOString(),
         event,
+        level,
+        session_id: sessionId,
+        session_kind: sessionKind,
         deploymentMode: APP_CONFIG.DEPLOYMENT_MODE,
         serverType: APP_CONFIG.SERVER_TYPE,
         details,
@@ -324,6 +338,28 @@ async function recordTelemetry(event: string, details: TelemetryDetails = {}): P
     } catch (error) {
         console.warn("[Desktop App] Failed to write telemetry entry:", error);
     }
+}
+
+async function recordAppSessionOutcome(reason?: string): Promise<void> {
+    if (appSessionRecorded) return;
+    if (!telemetryFilePath) return;
+
+    const failedReason =
+        appSessionFailureMessage ||
+        reason ||
+        (appSessionReadyAt ? "" : "app_exit_before_ready");
+    const succeeded = failedReason === "";
+
+    await recordTelemetry(
+        succeeded ? "app_session_succeeded" : "app_session_failed",
+        {
+            started_at: appSessionStartedAt,
+            ready_at: appSessionReadyAt,
+            reason: failedReason,
+        },
+        succeeded ? "info" : "error"
+    );
+    appSessionRecorded = true;
 }
 
 async function loadTelemetryState(): Promise<void> {
@@ -1300,7 +1336,7 @@ function checkServerReady(url: string, timeout: number): Promise<void> {
                 void recordTelemetry("dependency_unreachable", {
                     url,
                     timeoutMs: timeout,
-                });
+                }, "error");
                 reject(new Error(`Server not ready within timeout: ${url}`));
             }
         }, APP_CONFIG.SERVER_CHECK_INTERVAL_MS);
@@ -1349,7 +1385,7 @@ async function runSmokeTest(): Promise<void> {
     if (success) {
         await recordTelemetry("smoke_test_passed", { serverUrl: SERVER_URL });
     } else {
-        await recordTelemetry("smoke_test_failed", { error: failureMessage });
+        await recordTelemetry("smoke_test_failed", { error: failureMessage }, "error");
     }
 
     if (smokeTestUploadURL && telemetryFilePath) {
@@ -2424,6 +2460,7 @@ app.whenReady().then(async () => {
         createSystemTray();
 
         await initializeTelemetry();
+        appSessionStartedAt = new Date().toISOString();
         await recordTelemetry("app_start", {
             deploymentMode: APP_CONFIG.DEPLOYMENT_MODE,
         });
@@ -2436,7 +2473,9 @@ app.whenReady().then(async () => {
                 dialog.showErrorBox("Bundled Mode Unavailable", message);
                 void recordTelemetry("bundled_mode_blocked", {
                     docsUrl: BUNDLED_RUNTIME.DOCS_URL,
-                });
+                }, "warn");
+                appSessionFailureMessage = message;
+                await recordAppSessionOutcome(message);
                 app.quit();
                 return;
             }
@@ -2445,9 +2484,11 @@ app.whenReady().then(async () => {
                 targetUrl = await startBundledRuntime();
             } catch (startupError) {
                 console.error("[Desktop App] Bundled runtime failed to start", startupError);
-                await recordTelemetry("bundled_runtime_failed", { error: String(startupError) });
+                await recordTelemetry("bundled_runtime_failed", { error: String(startupError) }, "error");
                 dialog.showErrorBox("Bundled Startup Error", String(startupError));
                 await shutdownRuntime();
+                appSessionFailureMessage = String(startupError);
+                await recordAppSessionOutcome(String(startupError));
                 app.quit();
                 return;
             }
@@ -2464,8 +2505,10 @@ app.whenReady().then(async () => {
                     await ensureRuntimeSecretsIfNeeded();
                     void autoUploadTelemetryIfConfigured("startup");
                 } catch (secretError) {
-                    await recordTelemetry("runtime_secrets_missing", { error: String(secretError) });
+                    await recordTelemetry("runtime_secrets_missing", { error: String(secretError) }, "error");
                     dialog.showErrorBox("Secrets required", String(secretError));
+                    appSessionFailureMessage = String(secretError);
+                    await recordAppSessionOutcome(String(secretError));
                     app.quit();
                     return;
                 }
@@ -2496,6 +2539,7 @@ app.whenReady().then(async () => {
         mainWindow!.focus();
 
         console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
+        appSessionReadyAt = new Date().toISOString();
         void recordTelemetry("app_ready", {
             serverUrl: targetUrl,
             bundled: isBundledMode,
@@ -2516,7 +2560,9 @@ app.whenReady().then(async () => {
         dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
         void recordTelemetry("startup_error", {
             message: String(error),
-        });
+        }, "error");
+        appSessionFailureMessage = String(error);
+        await recordAppSessionOutcome(String(error));
         app.quit();
     }
 });
@@ -2547,6 +2593,7 @@ app.on("before-quit", () => {
     }
 
     void shutdownLocalVrooli();
+    void recordAppSessionOutcome("app_shutdown");
     void recordTelemetry("app_shutdown");
 });
 

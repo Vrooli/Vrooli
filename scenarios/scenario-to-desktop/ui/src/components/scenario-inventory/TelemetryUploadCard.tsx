@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import {
   uploadTelemetry,
+  deleteTelemetry,
+  fetchTelemetryInsights,
   fetchTelemetrySummary,
   fetchTelemetryTail,
   getTelemetryDownloadUrl
@@ -25,7 +27,12 @@ import {
   formatEventPreview
 } from "../../domain/telemetry";
 import { formatBytes } from "../../domain/download";
-import type { TelemetryTailEntry, TelemetryTailResponse, TelemetrySummary } from "../../domain/types";
+import type {
+  TelemetryInsights,
+  TelemetryTailEntry,
+  TelemetryTailResponse,
+  TelemetrySummary
+} from "../../domain/types";
 
 interface TelemetryUploadCardProps {
   scenarioName: string;
@@ -37,15 +44,30 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successPath, setSuccessPath] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const [showPaths, setShowPaths] = useState(false);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [showTail, setShowTail] = useState(false);
+  const [showErrorsOnly, setShowErrorsOnly] = useState(false);
   const [tailLimit] = useState(200);
 
   const telemetryPaths = useMemo(() => {
     const appName = appDisplayName || scenarioName;
     return generateTelemetryPaths(appName);
   }, [appDisplayName, scenarioName]);
+
+  const {
+    data: telemetryInsights,
+    isFetching: insightsLoading,
+    error: insightsError,
+    refetch: refetchInsights
+  } = useQuery<TelemetryInsights>({
+    queryKey: ["telemetry-insights", scenarioName],
+    queryFn: () => fetchTelemetryInsights(scenarioName),
+    enabled: isExpanded,
+    refetchInterval: isExpanded ? 15000 : false,
+    refetchIntervalInBackground: true
+  });
 
   const {
     data: telemetrySummary,
@@ -71,6 +93,14 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
     enabled: isExpanded && showTail && !!telemetrySummary?.exists
   });
 
+  const filteredEntries = useMemo(() => {
+    const entries = telemetryTail?.entries ?? [];
+    if (!showErrorsOnly) {
+      return entries;
+    }
+    return entries.filter((entry) => isErrorEntry(entry));
+  }, [telemetryTail?.entries, showErrorsOnly]);
+
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!selectedFile) {
@@ -95,10 +125,29 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
     onSuccess: (data) => {
       setError(null);
       setSuccessPath(data.output_path);
+      setDeleteMessage(null);
       void refetchSummary();
     },
     onError: (err: Error) => {
       setSuccessPath(null);
+      setError(err.message);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await deleteTelemetry(scenarioName);
+    },
+    onSuccess: () => {
+      setError(null);
+      setSuccessPath(null);
+      setDeleteMessage("Telemetry deleted.");
+      setShowTail(false);
+      void refetchSummary();
+      void refetchInsights();
+    },
+    onError: (err: Error) => {
+      setDeleteMessage(null);
       setError(err.message);
     }
   });
@@ -162,6 +211,70 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
           <span>Telemetry uploaded successfully</span>
         </div>
       )}
+      {deleteMessage && (
+        <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-200">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+          <span>{deleteMessage}</span>
+        </div>
+      )}
+
+      <div className="rounded border border-slate-800 bg-black/20 p-3 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-semibold text-slate-200">Latest results</div>
+          <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => refetchInsights()}>
+            Refresh
+          </Button>
+        </div>
+
+        {insightsLoading && (
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading telemetry insights...
+          </div>
+        )}
+
+        {insightsError && (
+          <p className="text-xs text-red-400">
+            {insightsError instanceof Error ? insightsError.message : "Failed to load telemetry insights"}
+          </p>
+        )}
+
+        {!insightsLoading && telemetryInsights && !telemetryInsights.exists && (
+          <p className="text-xs text-slate-400">No telemetry insights yet.</p>
+        )}
+
+        {telemetryInsights?.exists && (
+          <div className="grid gap-2 text-xs text-slate-300">
+            <div className="flex items-center justify-between">
+              <span>Last app session</span>
+              <span className="text-slate-100">
+                {telemetryInsights.last_session?.status
+                  ? `${telemetryInsights.last_session.status} (${formatTimestamp(telemetryInsights.last_session.completed_at)})`
+                  : "Unknown"}
+              </span>
+            </div>
+            {telemetryInsights.last_session?.session_id && (
+              <div className="text-[11px] text-slate-500">
+                Session ID: <span className="font-mono text-slate-300">{telemetryInsights.last_session.session_id}</span>
+              </div>
+            )}
+            {telemetryInsights.last_smoke_test && (
+              <div className="flex items-center justify-between">
+                <span>Last smoke test</span>
+                <span className="text-slate-100">
+                  {telemetryInsights.last_smoke_test.status} ({formatTimestamp(telemetryInsights.last_smoke_test.completed_at || telemetryInsights.last_smoke_test.started_at)})
+                </span>
+              </div>
+            )}
+            {telemetryInsights.last_error && (
+              <div className="rounded border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-[11px] text-amber-200">
+                Last error: {telemetryInsights.last_error.event} - {telemetryInsights.last_error.message || "No message"} (
+                {formatTimestamp(telemetryInsights.last_error.timestamp)})
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="rounded border border-slate-800 bg-black/20 p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -177,8 +290,24 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
                 target="_blank"
                 rel="noreferrer"
               >
-                Download JSONL
-              </a>
+                  Download JSONL
+                </a>
+            )}
+            {telemetrySummary?.exists && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-amber-200 border-amber-800/60 hover:bg-amber-900/20"
+                onClick={() => {
+                  if (!window.confirm("Delete uploaded telemetry? This cannot be undone.")) {
+                    return;
+                  }
+                  deleteMutation.mutate();
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete telemetry"}
+              </Button>
             )}
           </div>
         </div>
@@ -236,15 +365,26 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
                 {showTail ? "Hide telemetry" : `View last ${tailLimit} events`}
               </Button>
               {showTail && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2"
-                  onClick={() => refetchTail()}
-                >
-                  Refresh events
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2"
+                    onClick={() => setShowErrorsOnly((prev) => !prev)}
+                  >
+                    {showErrorsOnly ? "Show all events" : "Show errors only"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2"
+                    onClick={() => refetchTail()}
+                  >
+                    Refresh events
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -264,12 +404,14 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
                 {tailError instanceof Error ? tailError.message : "Failed to load telemetry entries"}
               </p>
             )}
-            {!tailLoading && telemetryTail?.entries && telemetryTail.entries.length === 0 && (
-              <p className="text-xs text-slate-400">No telemetry entries found.</p>
+            {!tailLoading && telemetryTail?.entries && filteredEntries.length === 0 && (
+              <p className="text-xs text-slate-400">
+                {showErrorsOnly ? "No error events found." : "No telemetry entries found."}
+              </p>
             )}
-            {telemetryTail?.entries && telemetryTail.entries.length > 0 && (
+            {filteredEntries.length > 0 && (
               <ul className="space-y-2">
-                {telemetryTail.entries.map((entry, index) => (
+                {filteredEntries.map((entry, index) => (
                   <li
                     key={`${index}-${entry.raw.slice(0, 16)}`}
                     className="rounded border border-slate-800 bg-black/30 p-2 text-xs text-slate-300"
@@ -379,4 +521,44 @@ function formatTailEntry(entry: TelemetryTailEntry): string {
     return formatEventPreview(entry.event);
   }
   return "Unparsed telemetry line";
+}
+
+const ERROR_EVENTS = new Set([
+  "startup_error",
+  "bundled_runtime_failed",
+  "runtime_error",
+  "dependency_unreachable",
+  "smoke_test_failed",
+  "migration_failed",
+  "asset_missing",
+  "asset_checksum_mismatch",
+  "asset_size_exceeded",
+  "secrets_missing",
+  "runtime_secrets_missing",
+  "service_not_ready"
+]);
+
+function isErrorEntry(entry: TelemetryTailEntry): boolean {
+  const event = entry.event;
+  if (!event) {
+    return false;
+  }
+  if (event.level === "error") {
+    return true;
+  }
+  if (typeof event.event === "string" && ERROR_EVENTS.has(event.event)) {
+    return true;
+  }
+  return false;
+}
+
+function formatTimestamp(value?: string): string {
+  if (!value) {
+    return "Unknown";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
 }

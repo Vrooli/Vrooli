@@ -1,11 +1,21 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import type { ScenariosResponse } from "../components/scenario-inventory/types";
-import type { TelemetrySummary, TelemetryTailResponse } from "../domain/types";
+import type { TelemetryInsights, TelemetrySummary, TelemetryTailResponse } from "../domain/types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 export const getIconPreviewUrl = (path: string): string =>
   buildUrl(`/icons/preview?path=${encodeURIComponent(path)}`);
+
+export async function fetchTelemetryInsights(scenarioName: string): Promise<TelemetryInsights> {
+  const response = await fetch(
+    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}/insights`)
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch telemetry insights (${response.status})`);
+  }
+  return (await response.json()) as TelemetryInsights;
+}
 
 export interface DocsDocument {
   path: string;
@@ -775,6 +785,17 @@ export async function uploadTelemetry(payload: TelemetryUploadRequest): Promise<
   }
 
   return response.json();
+}
+
+export async function deleteTelemetry(scenarioName: string): Promise<void> {
+  const response = await fetch(
+    buildUrl(`/deployment/telemetry/${encodeURIComponent(scenarioName)}`),
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Failed to delete telemetry");
+  }
 }
 
 export async function fetchTelemetrySummary(scenarioName: string): Promise<TelemetrySummary> {

@@ -50,6 +50,8 @@ export const STANDARD_EVENTS = [
   "runtime_start",
   "runtime_shutdown",
   "runtime_error",
+  "app_session_succeeded",
+  "app_session_failed",
   "service_start",
   "service_ready",
   "service_not_ready",
@@ -64,7 +66,11 @@ export const STANDARD_EVENTS = [
   "asset_missing",
   "asset_checksum_mismatch",
   "asset_size_exceeded",
-  "api_unreachable"
+  "api_unreachable",
+  "smoke_test_started",
+  "smoke_test_passed",
+  "smoke_test_failed",
+  "runtime_telemetry_uploaded"
 ] as const;
 
 export type StandardEventType = (typeof STANDARD_EVENTS)[number];
@@ -287,8 +293,14 @@ export function formatEventPreview(event: TelemetryEvent): string {
   if (event.event) {
     parts.push(`event: "${event.event}"`);
   }
+  if (event.level) {
+    parts.push(`level: "${event.level}"`);
+  }
   if (event.timestamp) {
     parts.push(`timestamp: "${event.timestamp}"`);
+  }
+  if (event.session_id) {
+    parts.push(`session: "${event.session_id}"`);
   }
   if (event.detail) {
     parts.push(`detail: "${truncateLine(String(event.detail), 30)}"`);

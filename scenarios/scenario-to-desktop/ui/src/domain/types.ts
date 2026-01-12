@@ -33,6 +33,10 @@ export interface DesktopBuildArtifact {
 export interface TelemetryEvent {
   event?: string;
   timestamp?: string;
+  level?: string;
+  session_id?: string;
+  session_kind?: string;
+  details?: Record<string, unknown>;
   detail?: string;
   [key: string]: unknown;
 }
@@ -60,6 +64,37 @@ export interface TelemetrySummary {
   file_size_bytes?: number;
   event_count?: number;
   last_ingested_at?: string;
+}
+
+export interface TelemetryInsightSession {
+  session_id?: string;
+  status: string;
+  started_at?: string;
+  ready_at?: string;
+  completed_at?: string;
+  reason?: string;
+}
+
+export interface TelemetryInsightSmokeTest {
+  session_id?: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface TelemetryInsightError {
+  event: string;
+  timestamp: string;
+  message?: string;
+}
+
+export interface TelemetryInsights {
+  scenario_name: string;
+  exists: boolean;
+  last_session?: TelemetryInsightSession;
+  last_smoke_test?: TelemetryInsightSmokeTest;
+  last_error?: TelemetryInsightError;
 }
 
 /**
