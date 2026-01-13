@@ -65,6 +65,7 @@ export function TemplateEditorModal({
 
   // Tool selection state
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
+  const [initialToolIds, setInitialToolIds] = useState<string[]>([]); // For tracking unsaved changes
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
 
   // Fetch available tools
@@ -83,7 +84,7 @@ export function TemplateEditorModal({
       // Creating new - has changes if any field is filled
       return !!(name.trim() || description.trim() || content.trim() || modes.length > 0 || variables.length > 0 || selectedToolIds.length > 0);
     }
-    // Editing - compare to original
+    // Editing - compare to original (use initialToolIds which are already normalized)
     return (
       name !== template.name ||
       description !== template.description ||
@@ -91,9 +92,9 @@ export function TemplateEditorModal({
       JSON.stringify(modes) !== JSON.stringify(template.modes || []) ||
       content !== template.content ||
       JSON.stringify(variables) !== JSON.stringify(template.variables || []) ||
-      JSON.stringify(selectedToolIds.sort()) !== JSON.stringify((template.suggestedToolIds || []).sort())
+      JSON.stringify([...selectedToolIds].sort()) !== JSON.stringify([...initialToolIds].sort())
     );
-  }, [readOnly, template, name, description, icon, modes, content, variables, selectedToolIds]);
+  }, [readOnly, template, name, description, icon, modes, content, variables, selectedToolIds, initialToolIds]);
 
   // Handle close with unsaved changes check
   const handleClose = useCallback(() => {
@@ -156,6 +157,7 @@ export function TemplateEditorModal({
       // Normalize tool IDs to scenario:toolName format
       const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
       setSelectedToolIds(normalizedIds);
+      setInitialToolIds(normalizedIds);
     } else {
       setName("");
       setDescription("");
@@ -164,6 +166,7 @@ export function TemplateEditorModal({
       setContent("");
       setVariables([]);
       setSelectedToolIds([]);
+      setInitialToolIds([]);
     }
     setErrors({});
     setShowPreview(false);

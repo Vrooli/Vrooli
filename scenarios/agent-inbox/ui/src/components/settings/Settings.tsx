@@ -309,7 +309,7 @@ export function Settings({
 
   return (
     <>
-    <Dialog open={open} onClose={onClose} className="max-w-lg">
+    <Dialog open={open} onClose={onClose} className="max-w-lg" disableEscape={isCreatingSkill || editingSkill !== null}>
       <DialogHeader onClose={onClose}>Settings</DialogHeader>
       <DialogBody className="space-y-4">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
