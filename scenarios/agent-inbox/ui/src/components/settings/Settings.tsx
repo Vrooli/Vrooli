@@ -14,6 +14,7 @@ import {
   AlignLeft,
   Zap,
   Lightbulb,
+  BookOpen,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -21,6 +22,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
 import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
+import { SkillsSettingsTab } from "./SkillsSettingsTab";
+import { SkillEditorModal } from "./SkillEditorModal";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
 import { useYoloMode } from "../../hooks/useSettings";
@@ -31,12 +34,23 @@ import {
   deleteTemplate as deleteTemplateFromAPI,
   resetTemplate as resetTemplateFromAPI,
 } from "../../data/templates";
+import {
+  getAllSkills,
+  deleteSkill as deleteSkillFromAPI,
+  resetSkill as resetSkillFromAPI,
+  createSkill as createSkillFromAPI,
+  updateSkill as updateSkillFromAPI,
+  invalidateSkillsCache,
+} from "../../data/skills";
+import {
+  updateDefaultSkill as updateDefaultSkillFromAPI,
+} from "../../lib/api";
 import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
-import type { TemplateWithSource } from "../../lib/types/templates";
+import type { TemplateWithSource, SkillWithSource, Skill, SkillSource } from "../../lib/types/templates";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "templates" | "data";
+export type SettingsTab = "general" | "ai" | "templates" | "skills" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -150,6 +164,12 @@ export function Settings({
   const [templates, setTemplates] = useState<TemplateWithSource[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
+  // Skills state - refresh when tab changes to skills
+  const [skills, setSkills] = useState<SkillWithSource[]>([]);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<SkillWithSource | null>(null);
+  const [isCreatingSkill, setIsCreatingSkill] = useState(false);
+
   // Refresh templates when switching to templates tab
   useEffect(() => {
     if (activeTab === "templates") {
@@ -157,6 +177,16 @@ export function Settings({
       getAllTemplates()
         .then(setTemplates)
         .finally(() => setIsLoadingTemplates(false));
+    }
+  }, [activeTab]);
+
+  // Refresh skills when switching to skills tab
+  useEffect(() => {
+    if (activeTab === "skills") {
+      setIsLoadingSkills(true);
+      getAllSkills()
+        .then(setSkills)
+        .finally(() => setIsLoadingSkills(false));
     }
   }, [activeTab]);
 
@@ -176,6 +206,56 @@ export function Settings({
     onEditTemplate?.(template);
     onClose();
   }, [onEditTemplate, onClose]);
+
+  // Skill handlers
+  const handleDeleteSkill = useCallback(async (skillId: string) => {
+    await deleteSkillFromAPI(skillId);
+    const updated = await getAllSkills();
+    setSkills(updated);
+  }, []);
+
+  const handleResetSkill = useCallback(async (skillId: string) => {
+    await resetSkillFromAPI(skillId);
+    const updated = await getAllSkills();
+    setSkills(updated);
+  }, []);
+
+  const handleEditSkill = useCallback((skill: SkillWithSource | null) => {
+    if (skill === null) {
+      // Create new skill
+      setIsCreatingSkill(true);
+      setEditingSkill(null);
+    } else {
+      // Edit existing skill
+      setIsCreatingSkill(false);
+      setEditingSkill(skill);
+    }
+  }, []);
+
+  const handleSaveSkill = useCallback(async (
+    skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">,
+    options?: { applyToDefault?: boolean }
+  ) => {
+    if (isCreatingSkill) {
+      // Create new skill
+      await createSkillFromAPI(skillData);
+    } else if (editingSkill) {
+      // Update existing skill
+      if (options?.applyToDefault && editingSkill.source === "default") {
+        // Apply changes to the default skill
+        await updateDefaultSkillFromAPI(editingSkill.id, skillData);
+        invalidateSkillsCache();
+      } else {
+        // Create user override or update user skill
+        await updateSkillFromAPI(editingSkill.id, skillData);
+      }
+    }
+    // Refresh skills list
+    const updated = await getAllSkills();
+    setSkills(updated);
+    setEditingSkill(null);
+    setIsCreatingSkill(false);
+  }, [isCreatingSkill, editingSkill]);
 
   const handleYoloModeToggle = useCallback(() => {
     setYoloMode(!yoloMode);
@@ -249,6 +329,12 @@ export function Settings({
               <span className="flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
                 Templates
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="skills">
+              <span className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Skills
               </span>
             </TabsTrigger>
             <TabsTrigger value="data">
@@ -458,6 +544,17 @@ export function Settings({
             />
           </TabsContent>
 
+          {/* Skills Tab */}
+          <TabsContent value="skills" className="space-y-6">
+            <SkillsSettingsTab
+              skills={skills}
+              onEditSkill={handleEditSkill}
+              onDeleteSkill={handleDeleteSkill}
+              onResetSkill={handleResetSkill}
+              isLoading={isLoadingSkills}
+            />
+          </TabsContent>
+
           {/* Data Tab */}
           <TabsContent value="data" className="space-y-6">
             {/* Usage Statistics Section */}
@@ -553,6 +650,18 @@ export function Settings({
             tool={selectedToolForRun}
           />
         )}
+
+        {/* Skill editor modal */}
+        <SkillEditorModal
+          open={isCreatingSkill || editingSkill !== null}
+          onClose={() => {
+            setEditingSkill(null);
+            setIsCreatingSkill(false);
+          }}
+          skill={editingSkill ?? undefined}
+          skillSource={editingSkill?.source}
+          onSave={handleSaveSkill}
+        />
       </DialogBody>
     </Dialog>
   );

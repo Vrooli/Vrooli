@@ -69,9 +69,16 @@ func main() {
 		log.Printf("warning: failed to create template directories: %v", err)
 	}
 
+	// Create skills service for file-based skill storage
+	skillsSvc := services.NewSkillsService(&cfg.Skills)
+	if err := skillsSvc.EnsureDirectories(); err != nil {
+		log.Printf("warning: failed to create skill directories: %v", err)
+	}
+
 	// Create handlers with all dependencies
 	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
 	h.Templates = templatesSvc
+	h.Skills = skillsSvc
 
 	// Create upload handlers
 	uploadHandlers := handlers.NewUploadHandlers(storage, storageCfg)

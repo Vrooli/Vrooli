@@ -1720,3 +1720,203 @@ export async function exportTemplates(): Promise<Template[]> {
 
   return res.json();
 }
+
+// ============================================================================
+// Skills API
+// ============================================================================
+
+import type { Skill, SkillSource, SkillWithSource } from "@/lib/types/templates";
+
+export interface SkillResponse extends Skill {
+  source: SkillSource;
+  hasDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SkillListResponse {
+  skills: SkillResponse[];
+  defaults_count: number;
+  user_count: number;
+  modified_defaults_count: number;
+}
+
+/**
+ * Fetch all skills (defaults merged with user overrides).
+ */
+export async function fetchSkills(): Promise<SkillListResponse> {
+  const url = buildApiUrl("/skills", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch skills: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Fetch a single skill by ID.
+ * @param id - Skill ID
+ */
+export async function fetchSkill(id: string): Promise<SkillResponse> {
+  const url = buildApiUrl(`/skills/${id}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch skill: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export type CreateSkillInput = Omit<Skill, "id">;
+
+/**
+ * Create a new user skill.
+ * @param skill - Skill data (id will be generated)
+ */
+export async function createSkill(skill: CreateSkillInput): Promise<SkillResponse> {
+  const url = buildApiUrl("/skills", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(skill)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to create skill: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export type UpdateSkillInput = Partial<Omit<Skill, "id">>;
+
+/**
+ * Update an existing skill.
+ * If it's a default skill, creates a user override.
+ * @param id - Skill ID
+ * @param updates - Fields to update
+ */
+export async function updateSkill(id: string, updates: UpdateSkillInput): Promise<SkillResponse> {
+  const url = buildApiUrl(`/skills/${id}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update skill: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Delete a user skill or user override.
+ * @param id - Skill ID
+ */
+export async function deleteSkill(id: string): Promise<void> {
+  const url = buildApiUrl(`/skills/${id}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete skill: ${res.status}`);
+  }
+}
+
+/**
+ * Reset a modified default skill to its original state.
+ * Deletes the user override to reveal the default.
+ * @param id - Skill ID
+ */
+export async function resetSkill(id: string): Promise<SkillResponse> {
+  const url = buildApiUrl(`/skills/${id}/reset`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to reset skill: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Update the actual default skill (not a user override).
+ * This modifies the shipped default skill files directly.
+ * @param id - Skill ID
+ * @param updates - Skill fields to update
+ */
+export async function updateDefaultSkill(id: string, updates: UpdateSkillInput): Promise<SkillResponse> {
+  const url = buildApiUrl(`/skills/${id}/update-default`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update default skill: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Import multiple skills from a JSON array.
+ * @param skills - Array of skills to import
+ */
+export async function importSkills(skills: Skill[]): Promise<{ imported: number }> {
+  const url = buildApiUrl("/skills/import", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(skills)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to import skills: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Export all user skills.
+ */
+export async function exportSkills(): Promise<Skill[]> {
+  const url = buildApiUrl("/skills/export", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to export skills: ${res.status}`);
+  }
+
+  return res.json();
+}

@@ -48,9 +48,23 @@ export interface Skill {
   name: string;
   description: string;
   icon?: string; // Lucide icon name
-  category?: string;
+  modes?: string[]; // Hierarchical path like ["Architecture", "Audits"]
   content: string; // Full methodology/knowledge content
   tags?: string[];
+  targetToolId?: string; // Optional tool this skill targets
+  /** @deprecated Use modes instead. Kept for backwards compatibility during migration. */
+  category?: string;
+}
+
+/** Skill source type - indicates where the skill came from */
+export type SkillSource = "default" | "user" | "modified";
+
+/** Skill with source metadata from API */
+export interface SkillWithSource extends Skill {
+  source: SkillSource;
+  hasDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**

@@ -29,6 +29,7 @@ type Config struct {
 	Resilience  ResilienceConfig
 	Storage     StorageConfig
 	Templates   TemplatesConfig
+	Skills      SkillsConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -263,6 +264,25 @@ type TemplatesConfig struct {
 	UserDir string
 }
 
+// SkillsConfig controls skill file storage and management.
+// Skills are knowledge modules that provide methodology and expertise for specific tasks.
+// Audience: Operators configuring skill storage location.
+type SkillsConfig struct {
+	// BasePath is the root directory for skill storage.
+	// Skills are organized as: BasePath/{defaults,user}/{mode}/{submode}/{id}.json
+	// Set via SKILLS_BASE_PATH env var.
+	// Default: "../skills" (relative to api/ directory, i.e. scenario_root/skills/)
+	BasePath string
+
+	// DefaultsDir is the subdirectory within BasePath for default skills.
+	// Default: "defaults"
+	DefaultsDir string
+
+	// UserDir is the subdirectory within BasePath for user skills.
+	// Default: "user"
+	UserDir string
+}
+
 // Default returns the default configuration with all sane defaults.
 // This configuration works well for local development and typical deployments.
 func Default() *Config {
@@ -320,6 +340,11 @@ func Default() *Config {
 		},
 		Templates: TemplatesConfig{
 			BasePath:    getEnvOrDefault("TEMPLATES_BASE_PATH", "../templates"),
+			DefaultsDir: "defaults",
+			UserDir:     "user",
+		},
+		Skills: SkillsConfig{
+			BasePath:    getEnvOrDefault("SKILLS_BASE_PATH", "../skills"),
 			DefaultsDir: "defaults",
 			UserDir:     "user",
 		},

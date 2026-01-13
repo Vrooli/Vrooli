@@ -23,7 +23,7 @@ import {
   migrateLegacyTemplates,
   hasLegacyData,
 } from "@/data/templates";
-import { SKILLS, getSkillById, getSkillsByIds } from "@/data/skills";
+import { getAllSkills, invalidateSkillsCache } from "@/data/skills";
 import type {
   ActiveTemplate,
   Skill,
@@ -33,14 +33,18 @@ import type {
   Template,
   TemplateWithSource,
 } from "@/lib/types/templates";
-import type { CreateTemplateInput, UpdateTemplateInput } from "@/lib/api";
+import type { CreateTemplateInput, UpdateTemplateInput, SkillResponse } from "@/lib/api";
 
 export interface UseTemplatesAndSkillsReturn {
   // Data
   templates: TemplateWithSource[];
-  skills: Skill[];
+  skills: SkillResponse[];
   isLoading: boolean;
+  skillsLoading: boolean;
   error: string | null;
+
+  // Skills refresh
+  refreshSkills: () => Promise<void>;
 
   // Template state
   activeTemplate: ActiveTemplate | null;
@@ -95,6 +99,10 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Skills list state (async loaded)
+  const [skills, setSkills] = useState<SkillResponse[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+
   // Active template state
   const [activeTemplate, setActiveTemplateState] =
     useState<ActiveTemplate | null>(null);
@@ -102,7 +110,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
   // Mode navigation state
   const [currentModePath, setCurrentModePath] = useState<string[]>([]);
 
-  // Skills state
+  // Skills selection state
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
 
   // Load templates on mount
@@ -144,6 +152,34 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     };
   }, []);
 
+  // Load skills on mount
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSkills() {
+      setSkillsLoading(true);
+
+      try {
+        const loaded = await getAllSkills();
+        if (mounted) {
+          setSkills(loaded);
+        }
+      } catch (err) {
+        console.error("Failed to load skills:", err);
+      } finally {
+        if (mounted) {
+          setSkillsLoading(false);
+        }
+      }
+    }
+
+    loadSkills();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Refresh templates from API
   const refreshTemplates = useCallback(async () => {
     invalidateTemplatesCache();
@@ -157,6 +193,21 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
       setError(err instanceof Error ? err.message : "Failed to load templates");
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Refresh skills from API
+  const refreshSkills = useCallback(async () => {
+    invalidateSkillsCache();
+    setSkillsLoading(true);
+
+    try {
+      const loaded = await getAllSkills();
+      setSkills(loaded);
+    } catch (err) {
+      console.error("Failed to refresh skills:", err);
+    } finally {
+      setSkillsLoading(false);
     }
   }, []);
 
@@ -394,15 +445,15 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
 
   // Get selected skill objects
   const getSelectedSkills = useCallback(() => {
-    return getSkillsByIds(selectedSkillIds);
-  }, [selectedSkillIds]);
+    return skills.filter((s) => selectedSkillIds.includes(s.id));
+  }, [selectedSkillIds, skills]);
 
   // Build full skill payloads for sending to backend
   const buildSkillPayloads = useCallback(
     (skillIds: string[]): SkillPayload[] => {
       const payloads: SkillPayload[] = [];
       for (const id of skillIds) {
-        const skill = getSkillById(id);
+        const skill = skills.find((s) => s.id === id);
         if (!skill) continue;
         payloads.push({
           id: skill.id,
@@ -411,11 +462,12 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
           key: `skill-${skill.id}`,
           label: skill.name,
           tags: skill.tags,
+          targetToolId: skill.targetToolId,
         });
       }
       return payloads;
     },
-    []
+    [skills]
   );
 
   // Build all slash commands
@@ -470,7 +522,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
       })),
 
       // Direct skill commands
-      ...SKILLS.map((s) => ({
+      ...skills.map((s) => ({
         type: "direct-skill" as const,
         id: s.id,
         name: `/${s.id}`,
@@ -481,7 +533,7 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     ];
 
     return commands;
-  }, [templates]);
+  }, [templates, skills]);
 
   // Filter and sort commands by query relevance
   const filterCommands = useCallback(
@@ -540,9 +592,13 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
   return {
     // Data
     templates,
-    skills: SKILLS,
+    skills,
     isLoading,
+    skillsLoading,
     error,
+
+    // Skills refresh
+    refreshSkills,
 
     // Template state
     activeTemplate,

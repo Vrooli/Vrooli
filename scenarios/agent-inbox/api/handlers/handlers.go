@@ -33,6 +33,7 @@ type Handlers struct {
 	ToolExecutor  *integrations.ToolExecutor
 	AsyncTracker  *services.AsyncTrackerService
 	Templates     *services.TemplatesService
+	Skills        *services.SkillsService
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -137,6 +138,17 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/templates/{id}", h.DeleteTemplate).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/templates/{id}/reset", h.ResetTemplate).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/templates/{id}/update-default", h.UpdateDefaultTemplate).Methods("PUT", "OPTIONS")
+
+	// Skills
+	r.HandleFunc("/api/v1/skills", h.ListSkills).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills", h.CreateSkill).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/import", h.ImportSkills).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/export", h.ExportSkills).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.GetSkill).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.UpdateSkill).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.DeleteSkill).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}/reset", h.ResetSkill).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}/update-default", h.UpdateDefaultSkill).Methods("PUT", "OPTIONS")
 }
 
 // Response helpers
