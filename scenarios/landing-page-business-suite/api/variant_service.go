@@ -29,16 +29,15 @@ type Variant struct {
 
 // VariantSnapshot captures a full variant + sections payload for import/export.
 type VariantSnapshot struct {
-	Variant  VariantSnapshotMeta `json:"variant"`
-	Sections []VariantSection    `json:"sections"`
+	Variant  VariantSnapshotMeta      `json:"variant"`
+	Sections []VariantSection         `json:"sections"`
+	Metadata *VariantSnapshotMetadata `json:"_metadata,omitempty"`
 }
 
 type VariantSnapshotMeta struct {
 	Slug         string              `json:"slug"`
 	Name         string              `json:"name"`
 	Description  string              `json:"description,omitempty"`
-	Weight       int                 `json:"weight"`
-	Status       string              `json:"status"`
 	Axes         map[string]string   `json:"axes"`
 	HeaderConfig LandingHeaderConfig `json:"header_config"`
 	SEOConfig    json.RawMessage     `json:"seo_config,omitempty"`
@@ -47,17 +46,23 @@ type VariantSnapshotMeta struct {
 type VariantSnapshotInput struct {
 	Variant  VariantSnapshotMetaInput `json:"variant"`
 	Sections []VariantSectionInput    `json:"sections"`
+	Metadata *VariantSnapshotMetadata `json:"_metadata,omitempty"`
 }
 
 type VariantSnapshotMetaInput struct {
 	Slug         string               `json:"slug"`
 	Name         string               `json:"name"`
 	Description  string               `json:"description,omitempty"`
-	Weight       int                  `json:"weight"`
-	Status       string               `json:"status"`
+	Weight       *int                 `json:"weight,omitempty"`
+	Status       *string              `json:"status,omitempty"`
 	Axes         map[string]string    `json:"axes"`
 	HeaderConfig *LandingHeaderConfig `json:"header_config"`
 	SEOConfig    json.RawMessage      `json:"seo_config,omitempty"`
+}
+
+type VariantSnapshotMetadata struct {
+	Mode      string `json:"mode,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
 type VariantSection struct {
@@ -599,8 +604,6 @@ func (vs *VariantService) ExportVariantSnapshot(slug string, cs *ContentService)
 			Slug:         variant.Slug,
 			Name:         variant.Name,
 			Description:  variant.Description,
-			Weight:       variant.Weight,
-			Status:       variant.Status,
 			Axes:         variant.Axes,
 			HeaderConfig: variant.HeaderConfig,
 			SEOConfig:    seoRaw,
@@ -621,16 +624,28 @@ func (vs *VariantService) ImportVariantSnapshot(slug string, snapshot VariantSna
 		return nil, fmt.Errorf("payload slug %q does not match route slug %q", snapshot.Variant.Slug, slug)
 	}
 
-	status := strings.TrimSpace(snapshot.Variant.Status)
-	if status == "" {
-		status = "active"
-	}
-	if !allowedVariantStatuses[status] {
-		return nil, fmt.Errorf("status %q is not allowed", status)
+	variant, err := vs.GetVariantBySlug(slug)
+	if err != nil {
+		return nil, err
 	}
 
-	if snapshot.Variant.Weight < 0 || snapshot.Variant.Weight > 100 {
-		return nil, errors.New("weight must be between 0 and 100")
+	status := variant.Status
+	if snapshot.Variant.Status != nil {
+		status = strings.TrimSpace(*snapshot.Variant.Status)
+		if status == "" {
+			return nil, errors.New("status is required when provided")
+		}
+		if !allowedVariantStatuses[status] {
+			return nil, fmt.Errorf("status %q is not allowed", status)
+		}
+	}
+
+	weight := variant.Weight
+	if snapshot.Variant.Weight != nil {
+		if *snapshot.Variant.Weight < 0 || *snapshot.Variant.Weight > 100 {
+			return nil, errors.New("weight must be between 0 and 100")
+		}
+		weight = *snapshot.Variant.Weight
 	}
 
 	if len(snapshot.Variant.Axes) == 0 {
@@ -652,11 +667,6 @@ func (vs *VariantService) ImportVariantSnapshot(slug string, snapshot VariantSna
 		seoJSON = snapshot.Variant.SEOConfig
 	}
 
-	variant, err := vs.GetVariantBySlug(slug)
-	if err != nil {
-		return nil, err
-	}
-
 	tx, err := vs.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -673,7 +683,7 @@ func (vs *VariantService) ImportVariantSnapshot(slug string, snapshot VariantSna
 			seo_config = $6,
 			updated_at = NOW()
 		WHERE slug = $7
-	`, snapshot.Variant.Name, snapshot.Variant.Description, snapshot.Variant.Weight, status, headerJSON, seoJSON, slug); err != nil {
+	`, snapshot.Variant.Name, snapshot.Variant.Description, weight, status, headerJSON, seoJSON, slug); err != nil {
 		return nil, fmt.Errorf("update variant: %w", err)
 	}
 

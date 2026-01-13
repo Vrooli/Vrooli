@@ -3,8 +3,6 @@
     "slug": "variant-a",
     "name": "Quiet Founder Alt (archived)",
     "description": "Placeholder variant archived to force all traffic to the control experience",
-    "weight": 0,
-    "status": "archived",
     "axes": {
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",

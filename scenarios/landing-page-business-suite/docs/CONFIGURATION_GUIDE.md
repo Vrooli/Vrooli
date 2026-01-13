@@ -9,7 +9,8 @@ This document describes all configuration files in the `.vrooli/` directory and 
 | `service.json` | Lifecycle, ports, dependencies | Rarely - deployment/infrastructure changes |
 | `variant_space.json` | A/B testing axes (personas, JTBD, conversion styles) | When adding new audience segments or conversion strategies |
 | `styling.json` | Design system (colors, typography, components) | When changing visual identity |
-| `variants/*.json` | Fallback variant content | When updating offline/default content |
+| `variants/*.json` | Variant content snapshots (content-only) | When updating landing copy/layout |
+| `fallback/fallback.json` | Offline-safe landing payload | When updating fallback content |
 | `endpoints.json` | API endpoint inventory | Auto-generated, rarely manual edit |
 | `schemas/*.json` | JSON Schema validation | When adding new section types or fields |
 | `testing.json` | Test phase configuration | When adding new test phases |
@@ -418,18 +419,49 @@ Per-variant styling hints:
 
 ## variants/*.json
 
-Fallback variant payloads used when the API is unavailable.
+Variant content snapshots. These are the deployable source of truth for landing copy, layout, axes, header config, and SEO.
 
-### fallback.json
+- `weight` and `status` are not stored in files. They live in Postgres so allocations and stats survive deployments.
+- By default, the API syncs snapshots in **content-only** mode at startup.
+- Set `VARIANT_SNAPSHOT_MODE=full` to allow snapshot-provided weights/status (primarily for one-time bootstraps).
+- Missing snapshots are archived by default during sync. Set `VARIANT_SNAPSHOT_PRUNE=ignore` to disable or `VARIANT_SNAPSHOT_PRUNE=delete` to soft-delete.
+- Set `VARIANT_SNAPSHOT_ALLOW_RESURRECT=true` to let snapshot files revive variants that were previously deleted.
+- Use `make export-variants ADMIN_SESSION=...` to export the current database variants into `.vrooli/variants/*.json`.
 
-Default content rendered when API fails or during initial load:
+### Variant Lifecycle (Source of Truth)
+
+1. Edit `.vrooli/variants/*.json` locally (copy, sections, header, SEO, axes).
+2. Deploy those files to your VPS alongside the scenario.
+3. On boot (or via the admin sync endpoint), the API imports the file snapshots into Postgres.
+4. Weights + performance stats stay in Postgres and survive deploys.
+
+**Important:** Admin UI edits only affect the database. To persist them across deploys, export them back to files (`make export-variants`) and commit.
+
+### Sync Endpoint
+
+You can re-run the snapshot import without restarting the service:
+
+```
+POST /api/v1/admin/variants/sync
+```
+
+This re-applies the file snapshots using the same `VARIANT_SNAPSHOT_MODE` and `VARIANT_SNAPSHOT_PRUNE` rules.
+
+### control.json
+
+The control variant content (copied to database on sync).
+
+---
+
+## fallback/fallback.json
+
+Offline-safe landing payload used when the API is unavailable:
 
 ```json
 {
   "variant": {
     "slug": "fallback",
-    "name": "Fallback",
-    "status": "active"
+    "name": "Fallback"
   },
   "sections": [
     {
@@ -448,10 +480,6 @@ Default content rendered when API fails or during initial load:
   "downloads": [ ... ]
 }
 ```
-
-### control.json
-
-The control variant content (copied to database on seed).
 
 ---
 
@@ -557,7 +585,7 @@ When customizing a generated landing page:
 2. **Adjust colors** - Modify `styling.json` > `palette` tokens
 3. **Change fonts** - Update `styling.json` > `typography` settings
 4. **Define personas** - Edit `variant_space.json` > `axes.persona.variants`
-5. **Set fallback content** - Update `variants/fallback.json` sections
+5. **Set fallback content** - Update `fallback/fallback.json` sections
 6. **Configure resources** - Enable/disable in `service.json` > `dependencies.resources`
 
 Always validate changes against the schemas in `schemas/` before deploying.

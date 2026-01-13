@@ -949,59 +949,68 @@ function AdminHealthDigest({
           </Button>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3" data-testid="admin-health-attention-card">
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
-          {snapshot.highlightedAttention ? (
-            <>
-              <div>
-                <p className="text-lg font-semibold text-white">{snapshot.highlightedAttention.name}</p>
-                <p className="text-xs text-slate-500">{snapshot.highlightedAttention.updatedLabel}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {snapshot.highlightedAttention.reasons.map((reason) => (
-                  <span
-                    key={`${snapshot.highlightedAttention.slug}-${reason}`}
-                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
+          {(() => {
+            const highlightedAttention = snapshot.highlightedAttention;
+            if (!highlightedAttention) {
+              return (
+                <>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
+                  <p className="text-sm text-slate-400">
+                    No variants are flagged right now. Keep routing traffic to surface the next opportunity.
+                  </p>
+                </>
+              );
+            }
+            return (
+              <>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
+                <div>
+                  <p className="text-lg font-semibold text-white">{highlightedAttention.name}</p>
+                  <p className="text-xs text-slate-500">{highlightedAttention.updatedLabel}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {highlightedAttention.reasons.map((reason) => (
+                    <span
+                      key={`${highlightedAttention.slug}-${reason}`}
+                      className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+                {typeof highlightedAttention.conversionRate === "number" && (
+                  <p className="text-sm text-slate-300">
+                    Conversion rate:&nbsp;
+                    <span className="font-semibold text-rose-300">
+                      {highlightedAttention.conversionRate.toFixed(2)}%
+                    </span>
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      onHighlightVariant(highlightedAttention.slug, {
+                        sectionId: highlightedAttention.sectionId,
+                        sectionType: highlightedAttention.sectionType,
+                      })
+                    }
+                    data-testid="admin-health-review"
                   >
-                    {reason}
-                  </span>
-                ))}
-              </div>
-              {typeof snapshot.highlightedAttention.conversionRate === "number" && (
-                <p className="text-sm text-slate-300">
-                  Conversion rate:&nbsp;
-                  <span className="font-semibold text-rose-300">
-                    {snapshot.highlightedAttention.conversionRate.toFixed(2)}%
-                  </span>
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    onHighlightVariant(snapshot.highlightedAttention!.slug, {
-                      sectionId: snapshot.highlightedAttention?.sectionId,
-                      sectionType: snapshot.highlightedAttention?.sectionType,
-                    })
-                  }
-                  data-testid="admin-health-review"
-                >
-                  Review in customization
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onInspectVariantAnalytics(snapshot.highlightedAttention!.slug)}
-                  data-testid="admin-health-attention-analytics"
-                >
-                  View analytics
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-slate-400">
-              No variants are flagged right now. Keep routing traffic to surface the next opportunity.
-            </p>
-          )}
+                    Review in customization
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onInspectVariantAnalytics(highlightedAttention.slug)}
+                    data-testid="admin-health-attention-analytics"
+                  >
+                    View analytics
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>

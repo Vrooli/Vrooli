@@ -3,8 +3,6 @@
     "slug": "control",
     "name": "Silent Founder (Control)",
     "description": "Silent Founder OS default experience for introverted solo builders",
-    "weight": 100,
-    "status": "active",
     "axes": {
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",

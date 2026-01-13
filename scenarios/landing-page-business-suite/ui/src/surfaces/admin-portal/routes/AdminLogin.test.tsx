@@ -38,6 +38,9 @@ const renderWithRouter = (component: React.ReactElement) => {
 
 describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   const originalLocation = window.location;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,12 +49,11 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     // Mock location to avoid session check trigger
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/login' };
+    setLocation({ ...originalLocation, pathname: '/admin/login' } as Location);
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    setLocation(originalLocation);
   });
 
   it('[REQ:ADMIN-AUTH] should render login form with email and password fields', () => {

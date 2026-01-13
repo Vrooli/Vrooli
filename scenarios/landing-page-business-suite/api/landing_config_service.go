@@ -542,8 +542,14 @@ var (
 type fallbackProvider func() LandingConfigPayload
 
 func init() {
-	path := filepath.Join("..", ".vrooli", "variants", "fallback.json")
+	primaryPath := filepath.Join("..", ".vrooli", "fallback", "fallback.json")
+	legacyPath := filepath.Join("..", ".vrooli", "variants", "fallback.json")
+	path := primaryPath
 	payload, err := loadFallbackLandingFromFile(path)
+	if err != nil {
+		path = legacyPath
+		payload, err = loadFallbackLandingFromFile(path)
+	}
 	if err != nil {
 		log.Printf("failed to read fallback config at %s: %v; using baked defaults", path, err)
 		payload, err = parseFallbackLandingConfig(defaultFallbackLandingJSON)

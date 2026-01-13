@@ -4,6 +4,7 @@ import { buildEditableSEOConfig } from './seoController';
 
 describe('seoController', () => {
   const branding: SiteBranding = {
+    id: 1,
     site_name: 'Landing Suite',
     default_title: 'Default Title',
     default_description: 'Default description',

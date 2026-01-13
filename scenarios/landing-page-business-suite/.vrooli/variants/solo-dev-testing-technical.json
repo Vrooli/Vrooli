@@ -3,8 +3,6 @@
     "slug": "solo-dev-testing-technical",
     "name": "Solo Dev · Testing · Technical",
     "description": "Replayable e2e tests for solo developers.",
-    "weight": 20,
-    "status": "active",
     "axes": {
       "persona": "soloDev",
       "jtbd": "testing",

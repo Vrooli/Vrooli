@@ -266,7 +266,8 @@ export function BillingSettings() {
       } else if (field === 'stripePriceId') {
         nextValues.stripePriceId = String(nextValue);
       } else {
-        (nextValues as Record<string, unknown>)[field] = nextValue;
+        const mutable = nextValues as unknown as Record<string, unknown>;
+        mutable[field] = nextValue;
       }
       return {
         ...prev,

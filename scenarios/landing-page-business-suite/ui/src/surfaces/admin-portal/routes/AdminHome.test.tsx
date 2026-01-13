@@ -110,15 +110,17 @@ const renderWithRouter = (component: React.ReactElement) => {
 };
 
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
-  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn>;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
+  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn<typeof analyticsController, 'fetchAnalyticsSummary'>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin' };
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    setLocation({ ...originalLocation, pathname: '/admin' } as Location);
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
@@ -128,8 +130,8 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
-    window.location = originalLocation;
+    globalThis.fetch = originalFetch;
+    setLocation(originalLocation);
     window.localStorage.clear();
     fetchAnalyticsSpy.mockRestore();
   });

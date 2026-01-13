@@ -31,7 +31,7 @@ const mockSummary = {
   top_cta_ctr: 12.5,
   variant_stats: [
     {
-      variant_id: 'v1',
+      variant_id: 1,
       variant_slug: 'control',
       variant_name: 'Control',
       views: 500,
@@ -42,7 +42,7 @@ const mockSummary = {
       trend: 'up' as const,
     },
     {
-      variant_id: 'v2',
+      variant_id: 2,
       variant_slug: 'variant-a',
       variant_name: 'Variant A',
       views: 750,
@@ -66,14 +66,16 @@ const renderWithRouter = (component: React.ReactElement) => {
 };
 
 describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/analytics' };
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    setLocation({ ...originalLocation, pathname: '/admin/analytics' } as Location);
     window.localStorage.clear();
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
@@ -81,8 +83,8 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
-    window.location = originalLocation;
+    globalThis.fetch = originalFetch;
+    setLocation(originalLocation);
     window.localStorage.clear();
   });
 

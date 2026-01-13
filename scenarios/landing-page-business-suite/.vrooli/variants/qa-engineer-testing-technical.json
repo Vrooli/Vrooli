@@ -3,8 +3,6 @@
     "slug": "qa-engineer-testing-technical",
     "name": "QA Engineer · Testing · Technical",
     "description": "Replay evidence and stable regressions.",
-    "weight": 15,
-    "status": "active",
     "axes": {
       "persona": "qaEngineer",
       "jtbd": "testing",

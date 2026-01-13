@@ -38,7 +38,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ## Landing Config & Fallback Seams
 
 - **Fallback payload provider** (`LandingConfigService.UseFallbackProvider`)  
-  - Baked fallback content loads once from `.vrooli/variants/fallback.json` (or `defaultFallbackLandingJSON`). Each response clones the payload, so mutations in one request cannot leak into the next.  
+- Baked fallback content loads once from `.vrooli/fallback/fallback.json` (or `defaultFallbackLandingJSON`). Each response clones the payload, so mutations in one request cannot leak into the next.  
   - Tests can inject a minimal fallback provider to avoid disk reads and to assert fallback behavior when variant selection, section retrieval/renderability, pricing, or download listing fails. The response is marked `fallback` while still attempting to include branding.
 
 ---

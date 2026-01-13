@@ -104,4 +104,5 @@ If you're an AI agent customizing this landing page:
 Key files for agent customization:
 - `.vrooli/styling.json` - Design tokens
 - `.vrooli/variant_space.json` - A/B testing axes
-- `.vrooli/variants/*.json` - Fallback content
+- `.vrooli/variants/*.json` - Variant content snapshots (content-only)
+- `.vrooli/fallback/fallback.json` - Offline-safe landing payload

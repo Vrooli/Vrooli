@@ -448,6 +448,7 @@ Before going live:
 - [ ] OG images configured for social sharing
 - [ ] Footer links working
 - [ ] Privacy policy and terms linked
+- [ ] Variant snapshot files deployed (`.vrooli/variants/*.json`, `.vrooli/variant_space.json`, `.vrooli/fallback/fallback.json`)
 
 ### Technical
 - [ ] Stripe live keys configured

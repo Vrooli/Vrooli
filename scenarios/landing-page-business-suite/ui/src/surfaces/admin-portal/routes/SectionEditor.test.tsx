@@ -99,6 +99,15 @@ const mockLandingConfig: LandingConfigResponse = {
   },
   sections: [],
   downloads: [],
+  header: {
+    branding: { mode: 'logo_and_name', label: 'Test Variant', mobile_preference: 'auto' },
+    nav: { links: [] },
+    ctas: {
+      primary: { mode: 'inherit_hero', variant: 'solid' },
+      secondary: { mode: 'downloads', variant: 'ghost' },
+    },
+    behavior: { sticky: true, hide_on_scroll: false },
+  },
   fallback: false,
 };
 

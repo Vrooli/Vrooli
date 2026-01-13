@@ -14,6 +14,7 @@ import {
   type LandingHeaderConfig,
   type LandingHeaderNavLink,
   type LandingSection,
+  type HeaderCTAMode,
 } from '../../../shared/api';
 import {
   buildAxesSelection,
@@ -102,15 +103,20 @@ export function VariantEditor() {
   const markersListener = useRef<IDisposable | null>(null);
 
   const handleEditorMount: OnMount = (_editor, monaco) => {
-    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-      validate: true,
-      allowComments: false,
-      schemas: monacoSchemaCatalog.map(({ uri, schema }) => ({
-        uri,
-        fileMatch: uri === variantSchemaUri ? [editorModelPath] : [uri],
-        schema,
-      })),
-    });
+    const jsonDefaults = (monaco.languages as typeof monaco.languages & {
+      json?: { jsonDefaults?: { setDiagnosticsOptions: (options: unknown) => void } };
+    }).json?.jsonDefaults;
+    if (jsonDefaults) {
+      jsonDefaults.setDiagnosticsOptions({
+        validate: true,
+        allowComments: false,
+        schemas: monacoSchemaCatalog.map(({ uri, schema }) => ({
+          uri,
+          fileMatch: uri === variantSchemaUri ? [editorModelPath] : [uri],
+          schema,
+        })),
+      });
+    }
 
     const uri = monaco.Uri.parse(editorModelPath);
     const refreshMarkers = () => {
@@ -125,7 +131,7 @@ export function VariantEditor() {
 
     markersListener.current?.dispose();
     markersListener.current = monaco.editor.onDidChangeMarkers((changed) => {
-      const affected = changed.some((change) => change.resource.toString() === uri.toString());
+      const affected = changed.some((change) => change.toString() === uri.toString());
       if (affected) {
         refreshMarkers();
       }
@@ -888,7 +894,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
 
   const handleCTAModeChange = (
     target: 'primary' | 'secondary',
-    updates: { mode?: string; label?: string; href?: string; variant?: 'solid' | 'ghost' },
+    updates: { mode?: HeaderCTAMode; label?: string; href?: string; variant?: 'solid' | 'ghost' },
   ) => {
     updateConfig((draft) => {
       draft.ctas[target] = {

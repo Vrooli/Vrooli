@@ -1,4 +1,4 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
 import {
   ConfigSource,
   GetStripeSettingsResponseSchema,
@@ -84,7 +84,7 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
 
 export function getStripeSettings() {
   return apiCall('/admin/settings/stripe').then((resp) => {
-    const message = fromJson(GetStripeSettingsResponseSchema, resp, {
+    const message = fromJson(GetStripeSettingsResponseSchema, resp as JsonValue, {
       ignoreUnknownFields: true,
       protoFieldName: true,
     });
@@ -97,7 +97,7 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
     method: 'PUT',
     body: JSON.stringify(payload),
   }).then((resp) => {
-    const message = fromJson(UpdateStripeSettingsResponseSchema, resp, {
+    const message = fromJson(UpdateStripeSettingsResponseSchema, resp as JsonValue, {
       ignoreUnknownFields: true,
       protoFieldName: true,
     });

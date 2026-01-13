@@ -12,6 +12,10 @@ func defaultAxesSelection() map[string]string {
 	}
 }
 
+func boolPtr(value bool) *bool {
+	return &value
+}
+
 func altAxesSelection() map[string]string {
 	return map[string]string{
 		"persona":         "ops_leader",
@@ -63,6 +67,67 @@ func TestSelectVariant(t *testing.T) {
 
 	if variant.Status != "active" {
 		t.Errorf("Selected variant has status %s, expected active", variant.Status)
+	}
+}
+
+func TestImportVariantSnapshotPreservesWeightAndStatus(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db, testVariantSpace())
+	cs := NewContentService(db)
+
+	variant, err := vs.CreateVariant("test-snapshot", "Test Snapshot", "Initial", 42, defaultAxesSelection())
+	if err != nil {
+		t.Fatalf("CreateVariant failed: %v", err)
+	}
+	t.Cleanup(func() { db.Exec("DELETE FROM variants WHERE slug = $1", variant.Slug) })
+
+	if err := vs.ArchiveVariant(variant.Slug); err != nil {
+		t.Fatalf("ArchiveVariant failed: %v", err)
+	}
+
+	snapshot := VariantSnapshotInput{
+		Variant: VariantSnapshotMetaInput{
+			Slug:        variant.Slug,
+			Name:        "Updated Snapshot",
+			Description: "Updated description",
+			Axes:        defaultAxesSelection(),
+		},
+		Sections: []VariantSectionInput{
+			{
+				SectionType: "hero",
+				Content: map[string]interface{}{
+					"title":    "Updated hero",
+					"subtitle": "Updated subtitle",
+					"cta_text": "Start now",
+					"cta_url":  "/checkout?plan=pro",
+				},
+				Order:   1,
+				Enabled: boolPtr(true),
+			},
+		},
+	}
+
+	if _, err := vs.ImportVariantSnapshot(variant.Slug, snapshot, cs); err != nil {
+		t.Fatalf("ImportVariantSnapshot failed: %v", err)
+	}
+
+	updated, err := vs.GetVariantBySlug(variant.Slug)
+	if err != nil {
+		t.Fatalf("GetVariantBySlug failed: %v", err)
+	}
+
+	if updated.Weight != 42 {
+		t.Errorf("Weight changed during import: got %d, want 42", updated.Weight)
+	}
+
+	if updated.Status != "archived" {
+		t.Errorf("Status changed during import: got %s, want archived", updated.Status)
+	}
+
+	if updated.Name != "Updated Snapshot" {
+		t.Errorf("Name was not updated: got %s", updated.Name)
 	}
 }
 

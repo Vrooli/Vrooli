@@ -249,6 +249,25 @@ Permanently deletes a variant.
 
 ---
 
+### POST /admin/variants/sync
+
+Re-imports variant snapshot files from disk into Postgres.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "status": "ok"
+}
+```
+
+**Notes:**
+- Uses the same `VARIANT_SNAPSHOT_MODE` and `VARIANT_SNAPSHOT_PRUNE` settings as startup.
+- Intended for applying file edits without restarting the service.
+
+---
+
 ## Weight Normalization
 
 Weights are relative, not absolute. They're normalized at selection time:

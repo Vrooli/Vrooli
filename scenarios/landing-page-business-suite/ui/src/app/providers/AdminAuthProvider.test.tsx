@@ -36,11 +36,13 @@ function TestComponent() {
 
 describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   const originalLocation = window.location;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
 
   beforeEach(() => {
     // Mock window.location
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/home' };
+    setLocation({ ...originalLocation, pathname: '/admin/home' } as Location);
 
     mockCheckAdminSession.mockResolvedValue({
       authenticated: false,
@@ -52,7 +54,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    setLocation(originalLocation);
     vi.clearAllMocks();
   });
 

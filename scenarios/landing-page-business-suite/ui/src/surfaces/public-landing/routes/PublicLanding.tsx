@@ -174,7 +174,7 @@ export function PublicLanding() {
       .filter((section) => section.enabled !== false)
       .sort((a, b) => a.order - b.order);
   }, [config]);
-  const debugSectionTypes: string[] | null = null;
+  const debugSectionTypes = useMemo<string[] | null>(() => null, []);
   const sectionsToRender = debugSectionTypes
     ? sections.filter((section) => debugSectionTypes.includes(section.section_type))
     : sections;

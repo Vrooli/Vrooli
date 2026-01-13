@@ -25,6 +25,8 @@ This document explains the key concepts and architecture of your landing page.
 
 Landing pages support whole-page A/B testing where different visitors see different variants.
 
+Variant content (copy, sections, header, SEO, axes) ships as files in `.vrooli/variants/*.json`, while weights and performance stats live in Postgres so deployments do not reset allocations or analytics.
+
 ### Variant Dimensions (Axes)
 
 Each variant is defined along three axes:
@@ -301,7 +303,7 @@ Responses are cached for 60 seconds maximum to balance performance with freshnes
 If the API is unavailable, the UI loads a baked-in fallback configuration:
 
 ```
-.vrooli/variants/fallback.json
+.vrooli/fallback/fallback.json
 ```
 
 This ensures visitors see something (the fallback variant) even during API outages.

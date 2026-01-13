@@ -1,17 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { getLandingConfig, type LandingConfigResponse } from '../../shared/api';
+import { getLandingConfig, type LandingConfigResponse, type Variant as LandingVariant } from '../../shared/api';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
-
-export interface Variant {
-  id?: number;
-  slug: string;
-  name: string;
-  description?: string;
-  weight?: number;
-  status?: string;
-  created_at?: string;
-  updated_at?: string;
-}
 
 export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
 // Note: local_storage resolution is retained for backward compatibility in consumers,
@@ -19,7 +8,7 @@ export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api
 // unless explicitly pinned via URL param.
 
 interface LandingVariantContextType {
-  variant: Variant | null;
+  variant: LandingVariant | null;
   config: LandingConfigResponse | null;
   loading: boolean;
   error: string | null;

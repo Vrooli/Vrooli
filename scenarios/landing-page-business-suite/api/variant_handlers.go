@@ -355,3 +355,22 @@ func handleVariantImport(vs *VariantService, cs *ContentService) http.HandlerFun
 		json.NewEncoder(w).Encode(snapshot)
 	}
 }
+
+// handleVariantSnapshotSync handles POST /api/v1/admin/variants/sync
+// Re-imports variant snapshots from disk into the database.
+func handleVariantSnapshotSync(vs *VariantService, cs *ContentService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if err := syncVariantSnapshots(vs, cs); err != nil {
+			http.Error(w, `{"error": "Failed to sync variant snapshots"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}

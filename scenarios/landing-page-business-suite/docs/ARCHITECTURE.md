@@ -219,7 +219,7 @@ API Request → Database → JSON assembly → Cache headers → Response
                 |
                 v
             Fallback (if API unavailable)
-            .vrooli/variants/fallback.json
+            .vrooli/fallback/fallback.json
 ```
 
 **Event Tracking:**

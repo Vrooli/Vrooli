@@ -255,7 +255,10 @@ describe('BrandingSettings', () => {
     });
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
-    const logoInput = fileInputs.item(0);
+    const logoInput = fileInputs.item(0) as HTMLInputElement | null;
+    if (!logoInput) {
+      throw new Error('Logo input not found');
+    }
     const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
     await user.upload(logoInput, file);
 
@@ -302,7 +305,10 @@ describe('BrandingSettings', () => {
     await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
-    const faviconInput = fileInputs.item(2);
+    const faviconInput = fileInputs.item(2) as HTMLInputElement | null;
+    if (!faviconInput) {
+      throw new Error('Favicon input not found');
+    }
     const file = new File(['dummy'], 'favicon.png', { type: 'image/png' });
     await user.upload(faviconInput, file);
 
@@ -345,7 +351,10 @@ describe('BrandingSettings', () => {
     await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
-    const ogInput = fileInputs.item(4);
+    const ogInput = fileInputs.item(4) as HTMLInputElement | null;
+    if (!ogInput) {
+      throw new Error('OG image input not found');
+    }
     const file = new File(['dummy'], 'og.png', { type: 'image/png' });
     await user.upload(ogInput, file);
 

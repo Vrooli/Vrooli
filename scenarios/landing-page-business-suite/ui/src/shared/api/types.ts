@@ -48,19 +48,24 @@ export interface VariantSnapshotMeta {
   slug: string;
   name: string;
   description?: string;
-  weight: number;
-  status: 'active' | 'archived' | 'deleted';
   axes: VariantAxes;
-  header_config: LandingHeaderConfig;
+  header_config?: LandingHeaderConfig;
   seo_config?: Record<string, unknown>;
+}
+
+export interface VariantSnapshotMetadata {
+  mode?: 'content-only' | 'full';
+  updated_at?: string;
 }
 
 export interface VariantSnapshot {
   variant: VariantSnapshotMeta;
   sections: LandingSection[];
+  _metadata?: VariantSnapshotMetadata;
 }
 
 export interface BundleProduct {
+  id?: number;
   bundle_key: string;
   name: string;
   stripe_product_id: string;

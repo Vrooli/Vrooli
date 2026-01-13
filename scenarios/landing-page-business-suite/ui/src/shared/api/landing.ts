@@ -1,4 +1,4 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
 import {
   BillingInterval,
   GetPricingResponseSchema,
@@ -19,7 +19,7 @@ export function getLandingConfig(variantSlug?: string) {
 
 export function getPlans() {
   return apiCall('/plans').then((resp) => {
-    const message = fromJson(GetPricingResponseSchema, resp, {
+    const message = fromJson(GetPricingResponseSchema, resp as JsonValue, {
       ignoreUnknownFields: true,
       protoFieldName: true,
     });

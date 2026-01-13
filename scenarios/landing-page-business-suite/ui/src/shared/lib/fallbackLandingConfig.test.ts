@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const FALLBACK_PATH = '../../../../.vrooli/variants/fallback.json';
+const FALLBACK_PATH = '../../../../.vrooli/fallback/fallback.json';
 
 const basePricing = {
   bundle: {

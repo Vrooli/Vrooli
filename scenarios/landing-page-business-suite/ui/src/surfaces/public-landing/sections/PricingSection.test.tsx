@@ -50,6 +50,7 @@ describe('PricingSection', () => {
           one_time_bonus_credits: 0,
           plan_rank: 1,
           bonus_type: 'none',
+          display_enabled: true,
           display_weight: 10,
           metadata: {
             features: ['Solo workspace'],
@@ -82,6 +83,7 @@ describe('PricingSection', () => {
           one_time_bonus_credits: 0,
           plan_rank: 1,
           bonus_type: 'none',
+          display_enabled: true,
           display_weight: 10,
           metadata: {
             features: ['Solo workspace'],

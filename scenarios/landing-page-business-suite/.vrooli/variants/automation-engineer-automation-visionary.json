@@ -3,8 +3,6 @@
     "slug": "automation-engineer-automation-visionary",
     "name": "Automation Engineer · Automation · Visionary",
     "description": "Visually program the browser; agents on deck.",
-    "weight": 20,
-    "status": "active",
     "axes": {
       "persona": "automationEngineer",
       "jtbd": "automation",

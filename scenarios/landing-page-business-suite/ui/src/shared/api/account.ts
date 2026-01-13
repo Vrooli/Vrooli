@@ -1,11 +1,11 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
 import { SubscriptionState, VerifySubscriptionResponseSchema } from '@proto-lprv/billing_pb';
 import { apiCall } from './common';
 import type { CreditInfo, EntitlementPayload, SubscriptionInfo } from './types';
 
 export function getSubscriptionInfo() {
   return apiCall('/me/subscription').then((resp) => {
-    const message = fromJson(VerifySubscriptionResponseSchema, resp, {
+    const message = fromJson(VerifySubscriptionResponseSchema, resp as JsonValue, {
       ignoreUnknownFields: true,
       protoFieldName: true,
     });

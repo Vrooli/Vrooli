@@ -178,6 +178,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantUpdate(s.variantService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/variants/{slug}/archive", s.requireAdmin(handleVariantArchive(s.variantService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantDelete(s.variantService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/variants/sync", s.requireAdmin(handleVariantSnapshotSync(s.variantService, s.contentService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/variants/{slug}/export", s.requireAdmin(handleVariantExport(s.variantService, s.contentService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/variants/{slug}/import", s.requireAdmin(handleVariantImport(s.variantService, s.contentService))).Methods("PUT")
 
@@ -821,6 +822,11 @@ func upsertVariantAxesBySlug(db *sql.DB, slug string, axes map[string]string) er
 	return nil
 }
 
+const (
+	snapshotModeContentOnly = "content-only"
+	snapshotModeFull        = "full"
+)
+
 // syncVariantSnapshots loads variant snapshot JSON files and ensures the database matches them.
 // This keeps landing variants in sync with the checked-in source of truth when the service starts.
 func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
@@ -849,6 +855,32 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 		return nil
 	}
 
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_MODE")))
+	if mode == "" {
+		mode = snapshotModeContentOnly
+	}
+	if mode != snapshotModeContentOnly && mode != snapshotModeFull {
+		logStructured("variant_snapshot_mode_invalid", map[string]interface{}{
+			"mode":     mode,
+			"fallback": snapshotModeContentOnly,
+		})
+		mode = snapshotModeContentOnly
+	}
+
+	pruneMode := strings.ToLower(strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_PRUNE")))
+	if pruneMode == "" {
+		pruneMode = "archive"
+	}
+	if pruneMode != "archive" && pruneMode != "delete" && pruneMode != "ignore" {
+		logStructured("variant_snapshot_prune_mode_invalid", map[string]interface{}{
+			"mode":     pruneMode,
+			"fallback": "archive",
+		})
+		pruneMode = "archive"
+	}
+
+	allowResurrect := parseEnvBool(os.Getenv("VARIANT_SNAPSHOT_ALLOW_RESURRECT"))
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -861,8 +893,16 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 		return fmt.Errorf("read snapshot directory %s: %w", dir, err)
 	}
 
+	snapshotSlugs := map[string]struct{}{}
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		if entry.Name() == "fallback.json" {
+			logStructured("variant_snapshot_skipped", map[string]interface{}{
+				"reason": "fallback file excluded from sync",
+				"file":   entry.Name(),
+			})
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
@@ -883,6 +923,7 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 			})
 			continue
 		}
+		snapshotSlugs[slug] = struct{}{}
 
 		if snapshot.Variant.HeaderConfig == nil {
 			cfg := defaultLandingHeaderConfig(valueOrDefault(snapshot.Variant.Name, slug))
@@ -893,16 +934,24 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 			return fmt.Errorf("snapshot %s missing axes for variant %s", path, slug)
 		}
 
-		if _, err := vs.GetVariantBySlug(slug); err != nil {
+		if mode == snapshotModeContentOnly {
+			snapshot.Variant.Weight = nil
+			snapshot.Variant.Status = nil
+		}
+
+		variant, err := vs.GetVariantBySlug(slug)
+		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "not found") {
 				name := valueOrDefault(snapshot.Variant.Name, slug)
 				desc := snapshot.Variant.Description
 				if strings.TrimSpace(desc) == "" {
 					desc = "Imported from snapshot"
 				}
-				weight := snapshot.Variant.Weight
-				if weight < 0 || weight > 100 {
-					weight = 50
+				weight := 50
+				if mode == snapshotModeFull && snapshot.Variant.Weight != nil {
+					if *snapshot.Variant.Weight >= 0 && *snapshot.Variant.Weight <= 100 {
+						weight = *snapshot.Variant.Weight
+					}
 				}
 				if _, err := vs.CreateVariant(slug, name, desc, weight, snapshot.Variant.Axes); err != nil {
 					return fmt.Errorf("create variant %s: %w", slug, err)
@@ -910,6 +959,21 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 			} else {
 				return fmt.Errorf("lookup variant %s: %w", slug, err)
 			}
+		} else if variant.Status == "deleted" {
+			if !allowResurrect {
+				logStructured("variant_snapshot_skipped", map[string]interface{}{
+					"reason": "variant marked deleted",
+					"slug":   slug,
+					"file":   path,
+				})
+				continue
+			}
+			status := "active"
+			snapshot.Variant.Status = &status
+			logStructured("variant_snapshot_resurrected", map[string]interface{}{
+				"slug": slug,
+				"file": path,
+			})
 		}
 
 		if _, err := vs.ImportVariantSnapshot(slug, snapshot, cs); err != nil {
@@ -922,7 +986,45 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 		})
 	}
 
+	if pruneMode != "ignore" && len(snapshotSlugs) > 0 {
+		variants, err := vs.ListVariants("")
+		if err != nil {
+			return fmt.Errorf("list variants for prune: %w", err)
+		}
+		for _, variant := range variants {
+			if _, ok := snapshotSlugs[variant.Slug]; ok {
+				continue
+			}
+			if pruneMode == "delete" {
+				if err := vs.DeleteVariant(variant.Slug); err != nil {
+					return fmt.Errorf("delete variant %s: %w", variant.Slug, err)
+				}
+				logStructured("variant_snapshot_pruned", map[string]interface{}{
+					"slug": variant.Slug,
+					"mode": "delete",
+				})
+				continue
+			}
+			if err := vs.ArchiveVariant(variant.Slug); err != nil {
+				return fmt.Errorf("archive variant %s: %w", variant.Slug, err)
+			}
+			logStructured("variant_snapshot_pruned", map[string]interface{}{
+				"slug": variant.Slug,
+				"mode": "archive",
+			})
+		}
+	}
+
 	return nil
+}
+
+func parseEnvBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // ensureSchema creates required tables if they do not exist (runtime guard when psql is unavailable)
