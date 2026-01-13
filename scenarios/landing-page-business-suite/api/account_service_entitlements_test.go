@@ -263,6 +263,9 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	replacer := strings.NewReplacer("/", "_", ".", "_")
+	suffix := replacer.Replace(strings.ToLower(t.Name()))
+
 	bundleKey := configureAccountBundleEnv(t, "infer_env")
 	productID := upsertTestBundleProduct(
 		t,
@@ -301,11 +304,15 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 		nil,
 	)
 
-	email := "infer-plan@example.com"
+	email := fmt.Sprintf("infer-plan-%s@example.com", suffix)
+	subscriptionID := fmt.Sprintf("sub_infer_%s", suffix)
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
 	if _, err := db.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-	`, "sub_infer_123", email, "trialing", "", "price_infer_plan", bundleKey); err != nil {
+	`, subscriptionID, email, "trialing", "", "price_infer_plan", bundleKey); err != nil {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 

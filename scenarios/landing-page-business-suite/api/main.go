@@ -313,10 +313,20 @@ func (s *Server) resetDemoData(ctx context.Context) error {
 		return err
 	}
 
-	return seedDefaultData(s.db)
+	if err := seedDefaultData(s.db); err != nil {
+		return err
+	}
+
+	variantService := NewVariantService(s.db, defaultVariantSpace)
+	contentService := NewContentService(s.db)
+	if err := syncVariantSnapshots(variantService, contentService); err != nil {
+		return fmt.Errorf("sync variant snapshots: %w", err)
+	}
+
+	return nil
 }
 
-// seedDefaultData ensures the public landing page has content without requiring admin setup
+// seedDefaultData sets up baseline records that are not variant-specific.
 func seedDefaultData(db *sql.DB) error {
 	if err := ensureSchema(db); err != nil {
 		return fmt.Errorf("failed to apply schema: %w", err)
@@ -349,46 +359,6 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed site branding: %w", err)
 	}
 
-	// Ensure control and variant-a exist and are active
-	controlID, err := upsertVariant(db, "control", "Control (Original)", "Original landing page design", 50)
-	if err != nil {
-		return err
-	}
-	if _, err := upsertVariant(db, "variant-a", "Variant A", "Experimental variant A", 50); err != nil {
-		return err
-	}
-
-	if err := upsertVariantAxesBySlug(db, "control", map[string]string{
-		"persona":         "ops_leader",
-		"jtbd":            "launch_bundle",
-		"conversionStyle": "demo_led",
-	}); err != nil {
-		return err
-	}
-	if err := upsertVariantAxesBySlug(db, "variant-a", map[string]string{
-		"persona":         "automation_freelancer",
-		"jtbd":            "scale_services",
-		"conversionStyle": "self_serve",
-	}); err != nil {
-		return err
-	}
-
-	// Seed sections for control if none exist
-	var sectionCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM content_sections WHERE variant_id = $1`, controlID).Scan(&sectionCount); err != nil {
-		return fmt.Errorf("failed to count sections: %w", err)
-	}
-
-	if sectionCount == 0 {
-		if err := seedSectionsFromFallback(db, controlID); err != nil {
-			return err
-		}
-	}
-
-	if err := ensureVariantAxesDefaults(db, defaultVariantSpace); err != nil {
-		return fmt.Errorf("failed to seed variant axes defaults: %w", err)
-	}
-
 	//nolint:govet // fallback pricing includes proto-backed mutexes; seed uses read-only copy
 	if err := seedBundlePricingDefaults(db, fallbackLanding.Pricing); err != nil {
 		return err
@@ -398,95 +368,6 @@ func seedDefaultData(db *sql.DB) error {
 		return err
 	}
 
-	return nil
-}
-
-func defaultSectionSeeds() []LandingSection {
-	if len(fallbackLanding.Sections) > 0 {
-		return fallbackLanding.Sections
-	}
-
-	return []LandingSection{
-		{
-			SectionType: "hero",
-			Order:       1,
-			Enabled:     true,
-			Content: map[string]interface{}{
-				"headline":    "Build Landing Pages in Minutes",
-				"subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in",
-				"cta_text":    "Get Started Free",
-				"cta_url":     "/signup",
-			},
-		},
-		{
-			SectionType: "features",
-			Order:       2,
-			Enabled:     true,
-			Content: map[string]interface{}{
-				"title": "Everything You Need",
-				"items": []map[string]interface{}{
-					{"title": "A/B Testing", "description": "Test variants and optimize conversions", "icon": "Zap"},
-					{"title": "Analytics", "description": "Track visitor behavior and metrics", "icon": "BarChart"},
-					{"title": "Stripe Integration", "description": "Accept payments instantly", "icon": "CreditCard"},
-				},
-			},
-		},
-		{
-			SectionType: "pricing",
-			Order:       3,
-			Enabled:     true,
-			Content: map[string]interface{}{
-				"title": "Simple Pricing",
-				"plans": []map[string]interface{}{
-					{"name": "Starter", "price": "$29", "features": []string{"5 landing pages", "Basic analytics", "Email support"}, "cta_text": "Start Free Trial"},
-					{"name": "Pro", "price": "$99", "features": []string{"Unlimited pages", "Advanced analytics", "Priority support", "Custom domains"}, "cta_text": "Get Started", "highlighted": true},
-				},
-			},
-		},
-		{
-			SectionType: "cta",
-			Order:       4,
-			Enabled:     true,
-			Content: map[string]interface{}{
-				"headline":    "Ready to Launch Your Landing Page?",
-				"subheadline": "Join thousands of marketers using Landing Manager",
-				"cta_text":    "Start Building Now",
-				"cta_url":     "/signup",
-			},
-		},
-	}
-}
-
-func seedSectionsFromFallback(db *sql.DB, variantID int) error {
-	sections := defaultSectionSeeds()
-	for idx, section := range sections {
-		sectionType := strings.TrimSpace(section.SectionType)
-		if sectionType == "" {
-			continue
-		}
-
-		order := section.Order
-		if order <= 0 {
-			order = idx + 1
-		}
-
-		content := section.Content
-		if content == nil {
-			content = map[string]interface{}{}
-		}
-		payload, err := json.Marshal(content)
-		if err != nil {
-			return fmt.Errorf("marshal section %s: %w", sectionType, err)
-		}
-
-		enabled := section.Enabled
-		if _, err := db.Exec(`
-			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled)
-			VALUES ($1, $2, $3::jsonb, $4, $5)
-		`, variantID, sectionType, payload, order, enabled); err != nil {
-			return fmt.Errorf("failed to seed section %s: %w", sectionType, err)
-		}
-	}
 	return nil
 }
 
@@ -764,72 +645,6 @@ func valueOrDefault(value, fallback string) string {
 	return trimmed
 }
 
-func upsertVariant(db *sql.DB, slug, name, description string, weight int) (int, error) {
-	var id int
-	err := db.QueryRow(`
-		INSERT INTO variants (slug, name, description, weight, status)
-		VALUES ($1, $2, $3, $4, 'active')
-		ON CONFLICT (slug)
-		DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, weight = EXCLUDED.weight, status = 'active', updated_at = NOW()
-		RETURNING id
-	`, slug, name, description, weight).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("failed to upsert variant %s: %w", slug, err)
-	}
-	return id, nil
-}
-
-func ensureVariantAxesDefaults(db *sql.DB, space *VariantSpace) error {
-	if space == nil {
-		space = defaultVariantSpace
-	}
-
-	for axisID, axis := range space.Axes {
-		if axis == nil || len(axis.Variants) == 0 {
-			continue
-		}
-		defaultValue := axis.Variants[0].ID
-		if strings.TrimSpace(defaultValue) == "" {
-			continue
-		}
-		if _, err := db.Exec(`
-			INSERT INTO variant_axes (variant_id, axis_id, variant_value, created_at, updated_at)
-			SELECT id, $1, $2, NOW(), NOW()
-			FROM variants
-			WHERE NOT EXISTS (
-				SELECT 1 FROM variant_axes WHERE variant_axes.variant_id = variants.id AND axis_id = $3
-			)
-		`, axisID, defaultValue, axisID); err != nil {
-			return fmt.Errorf("failed to seed default axis %s: %w", axisID, err)
-		}
-	}
-
-	return nil
-}
-
-func upsertVariantAxesBySlug(db *sql.DB, slug string, axes map[string]string) error {
-	if len(axes) == 0 {
-		return nil
-	}
-	var variantID int
-	if err := db.QueryRow(`SELECT id FROM variants WHERE slug = $1`, slug).Scan(&variantID); err != nil {
-		return fmt.Errorf("variant %s not found for axes assignment: %w", slug, err)
-	}
-
-	for axisID, value := range axes {
-		if _, err := db.Exec(`
-			INSERT INTO variant_axes (variant_id, axis_id, variant_value, created_at, updated_at)
-			VALUES ($1, $2, $3, NOW(), NOW())
-			ON CONFLICT (variant_id, axis_id)
-			DO UPDATE SET variant_value = EXCLUDED.variant_value, updated_at = NOW()
-		`, variantID, axisID, value); err != nil {
-			return fmt.Errorf("failed to upsert axis %s for %s: %w", axisID, slug, err)
-		}
-	}
-
-	return nil
-}
-
 const (
 	snapshotModeContentOnly = "content-only"
 	snapshotModeFull        = "full"
@@ -842,6 +657,7 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 		return fmt.Errorf("variant or content service missing")
 	}
 
+	requireSnapshots := parseEnvBool(os.Getenv("VARIANT_SNAPSHOT_REQUIRED"))
 	dir := strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_DIR"))
 	if dir == "" {
 		candidates := []string{
@@ -857,6 +673,9 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 	}
 
 	if dir == "" {
+		if requireSnapshots {
+			return fmt.Errorf("variant snapshots required but no snapshot directory found")
+		}
 		logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
 			"reason": "no snapshot directory found",
 		})
@@ -892,6 +711,9 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if requireSnapshots {
+				return fmt.Errorf("variant snapshots required but directory missing: %s", dir)
+			}
 			logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
 				"reason": "snapshot directory missing",
 				"path":   dir,
@@ -992,6 +814,10 @@ func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
 			"slug": slug,
 			"file": path,
 		})
+	}
+
+	if requireSnapshots && len(snapshotSlugs) == 0 {
+		return fmt.Errorf("variant snapshots required but no snapshot files found in %s", dir)
 	}
 
 	if pruneMode != "ignore" && len(snapshotSlugs) > 0 {

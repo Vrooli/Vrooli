@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCENARIO_NAME="landing-page-business-suite"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+get_api_url() {
+  local api_port
+  api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+  if [[ -z "$api_port" ]]; then
+    echo -e "${RED}Error: ${SCENARIO_NAME} is not running${NC}" >&2
+    echo "Start it with: vrooli scenario start ${SCENARIO_NAME}" >&2
+    exit 1
+  fi
+  echo "http://localhost:${api_port}"
+}
+
+usage() {
+  echo -e "${CYAN}Landing Page Business Suite CLI${NC}"
+  echo ""
+  echo "Usage: landing-page-business-suite [command]"
+  echo ""
+  echo "Commands:"
+  echo "  health   Check API health"
+  echo "  version  Show CLI version"
+  echo "  help     Show this help"
+}
+
+cmd_health() {
+  local api_url
+  api_url=$(get_api_url)
+  if curl -s "${api_url}/health" >/dev/null; then
+    echo -e "${GREEN}ok${NC}"
+    return 0
+  fi
+  echo -e "${RED}error${NC}"
+  return 1
+}
+
+case "${1:-help}" in
+  health)
+    cmd_health
+    ;;
+  version|--version|-v)
+    echo "landing-page-business-suite 1.0.0"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    echo -e "${RED}Unknown command: $1${NC}" >&2
+    usage
+    exit 2
+    ;;
+esac

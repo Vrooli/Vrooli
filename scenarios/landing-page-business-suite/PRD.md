@@ -192,13 +192,13 @@
 
 #### Landing Page Best Practices
 - [Unbounce Landing Page Guide](https://unbounce.com/landing-page-articles/)
-- [CXL Landing Page Optimization](https://cxl.com/blog/landing-page-optimization/)
-- [Nielsen Norman Group - Landing Pages](https://www.nngroup.com/articles/landing-pages/)
+- [Optimizely Landing Page Optimization](https://www.optimizely.com/optimization-glossary/landing-page-optimization/)
+- [Nielsen Norman Group Articles](https://www.nngroup.com/articles/)
 
 #### A/B Testing Resources
 - [Optimizely AB Testing Guide](https://www.optimizely.com/optimization-glossary/ab-testing/)
 - [VWO A/B Test Duration Calculator](https://vwo.com/tools/ab-test-duration-calculator/)
-- [Bayesian vs Frequentist Testing](https://cxl.com/blog/bayesian-frequentist-ab-testing/)
+- [Bayesian vs Frequentist Testing](https://www.evanmiller.org/bayesian-ab-testing.html)
 
 #### Design Inspiration (Distinctive Aesthetics)
 - [Vercel](https://vercel.com) - Clean, fast, modern

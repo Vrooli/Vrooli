@@ -55,6 +55,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to seed default data: %v", err)
 	}
 
+	variantService := NewVariantService(db, defaultVariantSpace)
+	contentService := NewContentService(db)
+	if err := syncVariantSnapshots(variantService, contentService); err != nil {
+		t.Fatalf("Failed to sync variant snapshots: %v", err)
+	}
+
 	return db
 }
 

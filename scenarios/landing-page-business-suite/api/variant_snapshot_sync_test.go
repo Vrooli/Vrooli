@@ -416,6 +416,36 @@ func TestSyncVariantSnapshots_EmptyDirDoesNotPrune(t *testing.T) {
 	}
 }
 
+func TestSyncVariantSnapshots_RequiredFailsWhenDirMissing(t *testing.T) {
+	db := setupTestDB(t)
+	t.Cleanup(func() { _ = db.Close() })
+
+	vs := NewVariantService(db, testVariantSpace())
+	cs := NewContentService(db)
+
+	t.Setenv("VARIANT_SNAPSHOT_DIR", filepath.Join(t.TempDir(), "missing"))
+	t.Setenv("VARIANT_SNAPSHOT_REQUIRED", "true")
+
+	if err := syncVariantSnapshots(vs, cs); err == nil {
+		t.Fatal("expected error when snapshots required but directory missing")
+	}
+}
+
+func TestSyncVariantSnapshots_RequiredFailsWhenNoSnapshots(t *testing.T) {
+	db := setupTestDB(t)
+	t.Cleanup(func() { _ = db.Close() })
+
+	vs := NewVariantService(db, testVariantSpace())
+	cs := NewContentService(db)
+
+	t.Setenv("VARIANT_SNAPSHOT_DIR", t.TempDir())
+	t.Setenv("VARIANT_SNAPSHOT_REQUIRED", "true")
+
+	if err := syncVariantSnapshots(vs, cs); err == nil {
+		t.Fatal("expected error when snapshots required but directory empty")
+	}
+}
+
 func writeSnapshot(t *testing.T, dir string, snapshot VariantSnapshotInput) {
 	t.Helper()
 

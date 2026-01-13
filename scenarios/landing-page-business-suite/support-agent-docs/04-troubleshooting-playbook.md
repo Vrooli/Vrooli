@@ -47,7 +47,7 @@ sudo apt install libgtk-3-0 libnotify4 libnss3 libxss1
 ### Resolution
 - Most startup issues are resolved by reinstalling the app
 - If logs show permission errors, check that the app has access to its data directory
-- For persistent issues, submit a bug report at [vrooli.com/feedback](https://vrooli.com/feedback) with the log file attached
+- For persistent issues, submit a bug report at [GitHub issues](https://github.com/Vrooli/Vrooli/issues) with the log file attached
 
 ---
 
@@ -252,7 +252,7 @@ Most issues can be resolved using:
 
 ### How to Escalate
 
-1. Go to [vrooli.com/feedback](https://vrooli.com/feedback)
+1. Go to [GitHub issues](https://github.com/Vrooli/Vrooli/issues)
 2. Select the appropriate category:
    - **Bug report** for technical issues
    - **Feature request** for missing functionality
@@ -282,4 +282,4 @@ Most issues can be resolved using:
 - [ ] Can you reproduce the issue consistently?
 - [ ] Have you checked for similar issues in the repository?
 
-If all else fails, submit at [vrooli.com/feedback](https://vrooli.com/feedback) with details.
+If all else fails, submit at [GitHub issues](https://github.com/Vrooli/Vrooli/issues) with details.

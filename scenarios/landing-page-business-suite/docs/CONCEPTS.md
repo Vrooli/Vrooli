@@ -37,19 +37,22 @@ Each variant is defined along three axes:
 +-----------------------------------------------------------------------+
 |                                                                       |
 |  PERSONA (Who is this for?)                                           |
-|  +-- ops_leader        -> Enterprise operations director              |
-|  +-- automation_freelancer -> Solo builders / agencies                |
-|  +-- product_marketer  -> GTM / marketing leads                       |
+|  +-- silentFounder     -> Introverted solo builders                   |
+|  +-- soloDev           -> Independent engineers                       |
+|  +-- qaEngineer        -> QA owners who want replayable failures       |
+|  +-- automationEngineer -> Browser automation specialists             |
+|  +-- agency            -> Studios delivering client handoffs          |
 |                                                                       |
 |  JTBD (What job are they hiring us for?)                              |
-|  +-- launch_bundle     -> First production deployment                 |
-|  +-- scale_services    -> Turn automations into products              |
-|  +-- improve_conversions -> Optimize existing flows                   |
+|  +-- automation        -> Automate back office work                   |
+|  +-- testing           -> End-to-end testing                          |
+|  +-- entrepreneurship  -> Build a business                            |
+|  +-- marketing         -> Marketing demos                             |
 |                                                                       |
 |  CONVERSION STYLE (How do they want to buy?)                          |
-|  +-- self_serve        -> Direct checkout                             |
-|  +-- demo_led          -> Book a demo first                           |
-|  +-- founder_led       -> Talk to the founder                         |
+|  +-- emotional         -> Anxiety relief + independence               |
+|  +-- technical         -> Technical proof + CI                         |
+|  +-- visionary         -> Future-of-work vision                       |
 |                                                                       |
 +-----------------------------------------------------------------------+
 ```
@@ -62,9 +65,9 @@ Each variant is defined along three axes:
 
 Example test plan:
 ```
-Control:     ops_leader x launch_bundle x self_serve
-Variant A:   ops_leader x launch_bundle x demo_led     (test conversion style)
-Variant B:   automation_freelancer x launch_bundle x self_serve (test persona)
+Control:     silentFounder x entrepreneurship x emotional
+Variant A:   silentFounder x entrepreneurship x technical  (test conversion style)
+Variant B:   soloDev x entrepreneurship x emotional        (test persona)
 ```
 
 ---

@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -59,7 +61,13 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	initSessionStore()
 	server := &Server{db: db}
 
-	payload := `{"current_password":"changeme123","new_email":"owner@test.com","new_password":"Sup3rSecurePass!"}`
+	replacer := strings.NewReplacer("/", "_", ".", "_")
+	suffix := replacer.Replace(strings.ToLower(t.Name()))
+	newEmail := fmt.Sprintf("owner-%s@test.com", suffix)
+	if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, newEmail); err != nil {
+		t.Fatalf("failed to cleanup admin user: %v", err)
+	}
+	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s","new_password":"Sup3rSecurePass!"}`, newEmail)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
 	attachAdminSession(t, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
@@ -75,7 +83,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 		t.Fatalf("invalid profile json: %v", err)
 	}
 
-	if profile.Email != "owner@test.com" {
+	if profile.Email != newEmail {
 		t.Fatalf("expected updated email, got %s", profile.Email)
 	}
 	if profile.IsDefaultEmail {
@@ -86,7 +94,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	}
 
 	var storedEmail, storedHash string
-	if err := db.QueryRow(`SELECT email, password_hash FROM admin_users WHERE email = $1`, "owner@test.com").Scan(&storedEmail, &storedHash); err != nil {
+	if err := db.QueryRow(`SELECT email, password_hash FROM admin_users WHERE email = $1`, newEmail).Scan(&storedEmail, &storedHash); err != nil {
 		t.Fatalf("failed to load updated admin: %v", err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte("Sup3rSecurePass!")); err != nil {
@@ -99,7 +107,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 		sessionProbeReq.AddCookie(cookie)
 	}
 	session, _ := sessionStore.Get(sessionProbeReq, "admin_session")
-	if session.Values["email"] != "owner@test.com" {
+	if session.Values["email"] != newEmail {
 		t.Fatalf("session email not updated, got %v", session.Values["email"])
 	}
 }
@@ -126,11 +134,17 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	initSessionStore()
 	server := &Server{db: db}
 
-	if _, err := db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, "taken@test.com", defaultAdminPasswordHash); err != nil {
+	replacer := strings.NewReplacer("/", "_", ".", "_")
+	suffix := replacer.Replace(strings.ToLower(t.Name()))
+	takenEmail := fmt.Sprintf("taken-%s@test.com", suffix)
+	if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, takenEmail); err != nil {
+		t.Fatalf("failed to cleanup conflicting admin: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, takenEmail, defaultAdminPasswordHash); err != nil {
 		t.Fatalf("failed to seed conflicting admin: %v", err)
 	}
 
-	payload := `{"current_password":"changeme123","new_email":"taken@test.com"}`
+	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s"}`, takenEmail)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
 	attachAdminSession(t, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()

@@ -127,6 +127,13 @@
             "type": "binaries"
           },
           {
+            "command": "landing-page-business-suite",
+            "targets": [
+              "landing-page-business-suite"
+            ],
+            "type": "cli"
+          },
+          {
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src",
             "type": "ui-bundle"
@@ -135,6 +142,14 @@
       },
       "description": "Build API & UI for the generated landing scenario",
       "steps": [
+        {
+          "description": "Install landing-page-business-suite CLI command globally",
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
         {
           "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
           "name": "build-api",

@@ -16,9 +16,10 @@
 # Default target - show help
 .DEFAULT_GOAL := help
 
+API_URL ?= http://localhost:3000
+
 # Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
-API_URL ?= http://localhost:3000
 
 # Colors for output
 GREEN := \033[1;32m

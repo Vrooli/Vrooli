@@ -4,7 +4,7 @@
 
 ### Where to Download
 
-Download the installer for your operating system from [vrooli.com](https://vrooli.com). After subscribing, you'll have access to download links for:
+Download the installer for your operating system from [Vrooli on GitHub](https://github.com/Vrooli/Vrooli). After subscribing, you'll have access to download links for:
 
 - **Windows:** `.exe` installer
 - **macOS:** `.dmg` disk image (Universal binary for Intel and Apple Silicon)

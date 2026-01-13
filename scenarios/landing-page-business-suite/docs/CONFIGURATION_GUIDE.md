@@ -423,6 +423,8 @@ Variant content snapshots. These are the deployable source of truth for landing 
 
 - `weight` and `status` are not stored in files. They live in Postgres so allocations and stats survive deployments.
 - By default, the API syncs snapshots in **content-only** mode at startup.
+- The API does not seed variants or sections outside of snapshots. If no snapshots are present, the database stays empty.
+- Set `VARIANT_SNAPSHOT_REQUIRED=true` to fail boot when snapshot files are missing (recommended for VPS deployments).
 - Set `VARIANT_SNAPSHOT_MODE=full` to allow snapshot-provided weights/status (primarily for one-time bootstraps).
 - Missing snapshots are archived by default during sync. Set `VARIANT_SNAPSHOT_PRUNE=ignore` to disable or `VARIANT_SNAPSHOT_PRUNE=delete` to soft-delete.
 - Set `VARIANT_SNAPSHOT_ALLOW_RESURRECT=true` to let snapshot files revive variants that were previously deleted.
