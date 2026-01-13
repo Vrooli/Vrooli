@@ -1394,6 +1394,15 @@ export interface FormState {
   signing_enabled_for_build?: boolean;
   /** Bundle result including auto-build status. Persisted for restoration on page load. */
   bundle_result?: unknown;
+  /** Smoke test state - persisted for restoration on page load. */
+  smoke_test_id?: string | null;
+  smoke_test_platform?: "win" | "mac" | "linux" | null;
+  smoke_test_status?: "running" | "passed" | "failed" | null;
+  smoke_test_started_at?: string | null;
+  smoke_test_completed_at?: string | null;
+  smoke_test_logs?: string[] | null;
+  smoke_test_error?: string | null;
+  smoke_test_telemetry_uploaded?: boolean;
 }
 
 export interface InputFingerprint {

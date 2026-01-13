@@ -17,10 +17,11 @@ import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { cancelSmokeTest, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
-import type { BuildStatus as BuildStatusType, SmokeTestStatus } from "./lib/api";
+import type { BuildStatus as BuildStatusType, SmokeTestStatus, FormState } from "./lib/api";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/RecordsManager";
+import { useScenarioState } from "./hooks";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,11 +70,37 @@ function AppContent() {
   const [smokeTestId, setSmokeTestId] = useState<string | null>(null);
   const [smokeTestError, setSmokeTestError] = useState<string | null>(null);
   const [smokeTestCancelling, setSmokeTestCancelling] = useState(false);
+  const [smokeTestInitialized, setSmokeTestInitialized] = useState(false);
   const apiBase = useMemo(() => resolveApiBase({ appendSuffix: true }), []);
+
+  // Server-side state persistence for smoke test results
+  const {
+    formState: serverFormState,
+    hasInitiallyLoaded: serverStateLoaded,
+    updateFormState: updateServerFormState,
+    saveStageResult,
+  } = useScenarioState({
+    scenarioName: selectedScenarioName,
+    enabled: Boolean(selectedScenarioName),
+    onStateLoaded: (state) => {
+      // Initialize smoke test state from server on load
+      if (state.form_state && !smokeTestInitialized) {
+        const fs = state.form_state;
+        if (fs.smoke_test_id) {
+          setSmokeTestId(fs.smoke_test_id);
+        }
+        if (fs.smoke_test_error) {
+          setSmokeTestError(fs.smoke_test_error);
+        }
+        setSmokeTestInitialized(true);
+      }
+    },
+  });
   const overviewRef = useRef<HTMLDivElement>(null);
   const configureRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
-  const deliverRef = useRef<HTMLDivElement>(null);
+  const validateRef = useRef<HTMLDivElement>(null);
+  const distributeRef = useRef<HTMLDivElement>(null);
 
   // Sync view/scenario with URL hash for sharable routes
   useEffect(() => {
@@ -140,16 +167,21 @@ function AppContent() {
     retry: 1
   });
 
-  const recommendedStep = useMemo(() => {
-    if (viewMode !== "generator") return 2;
-    if (selectedScenario?.build_artifacts?.length) return 4;
-    if (wrapperBuildId) return 3;
-    if (selectedScenarioName) return 2;
-    return 1;
-  }, [viewMode, selectedScenario?.build_artifacts?.length, wrapperBuildId, selectedScenarioName]);
   const smokeTestRunning = smokeTestStatus?.status === "running";
   const smokeTestPassed = smokeTestStatus?.status === "passed";
   const smokeTestFailed = smokeTestStatus?.status === "failed";
+  const recommendedStep = useMemo(() => {
+    if (viewMode !== "generator") return 2;
+    // If smoke test passed, recommend distribution step
+    if (smokeTestPassed) return 5;
+    // If build artifacts exist, recommend validation step
+    if (selectedScenario?.build_artifacts?.length) return 4;
+    // If wrapper build started, recommend build step
+    if (wrapperBuildId) return 3;
+    // If scenario selected, recommend configure step
+    if (selectedScenarioName) return 2;
+    return 1;
+  }, [viewMode, smokeTestPassed, selectedScenario?.build_artifacts?.length, wrapperBuildId, selectedScenarioName]);
   const smokeTestTimeoutMessage =
     smokeTestStatus?.error && smokeTestStatus.error.includes("timed out")
       ? smokeTestStatus.error
@@ -170,7 +202,48 @@ function AppContent() {
     setSmokeTestId(null);
     setSmokeTestError(null);
     setSmokeTestCancelling(false);
+    setSmokeTestInitialized(false);
   }, [selectedScenarioName]);
+
+  // Persist smoke test status changes to server
+  const prevSmokeTestStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedScenarioName || !serverStateLoaded) return;
+    if (!smokeTestId) return;
+    if (!smokeTestStatus) return;
+
+    // Only persist when status actually changes to avoid redundant saves
+    const statusKey = `${smokeTestId}:${smokeTestStatus.status}`;
+    if (statusKey === prevSmokeTestStatusRef.current) return;
+    prevSmokeTestStatusRef.current = statusKey;
+
+    // Build form state update for smoke test
+    const smokeTestFormState: Partial<FormState> = {
+      smoke_test_id: smokeTestId,
+      smoke_test_platform: smokeTestStatus.platform,
+      smoke_test_status: smokeTestStatus.status,
+      smoke_test_started_at: smokeTestStatus.started_at,
+      smoke_test_completed_at: smokeTestStatus.completed_at ?? null,
+      smoke_test_logs: smokeTestStatus.logs ?? null,
+      smoke_test_error: smokeTestStatus.error ?? null,
+      smoke_test_telemetry_uploaded: smokeTestStatus.telemetry_uploaded ?? false,
+    };
+
+    // If test completed (passed or failed), save as stage result
+    if (smokeTestStatus.status === "passed" || smokeTestStatus.status === "failed") {
+      void saveStageResult("smoke_test", smokeTestStatus, smokeTestFormState);
+    } else {
+      // Just update form state for running status
+      updateServerFormState(smokeTestFormState);
+    }
+  }, [
+    selectedScenarioName,
+    serverStateLoaded,
+    smokeTestId,
+    smokeTestStatus,
+    saveStageResult,
+    updateServerFormState,
+  ]);
 
   // Sync view/scenario/doc from URL on load and back/forward
   useEffect(() => {
@@ -268,12 +341,13 @@ function AppContent() {
     setActiveStep(2);
   };
 
-  const scrollTargets: Record<number, RefObject<HTMLDivElement>> = useMemo(
+  const scrollTargets: Record<number, RefObject<HTMLDivElement | null>> = useMemo(
     () => ({
       1: overviewRef,
       2: configureRef,
       3: buildRef,
-      4: deliverRef
+      4: validateRef,
+      5: distributeRef
     }),
     []
   );
@@ -294,7 +368,8 @@ function AppContent() {
     { id: 1, title: "Overview", description: "How the desktop build works" },
     { id: 2, title: "Configure", description: "Select scenario, template, and connection" },
     { id: 3, title: "Build", description: "Kick off installers and watch progress" },
-    { id: 4, title: "Deliver", description: "Download installers and share telemetry" }
+    { id: 4, title: "Validate", description: "Download and smoke test installers" },
+    { id: 5, title: "Distribute", description: "Upload to cloud storage for distribution" }
   ];
 
   return (
@@ -568,7 +643,7 @@ function AppContent() {
               </Card>
 
               {/* Step 4 */}
-              <Card className="border-slate-800/80 bg-slate-900/70" ref={deliverRef}>
+              <Card className="border-slate-800/80 bg-slate-900/70" ref={validateRef}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
                     Step 4 · Download & Validate
@@ -577,7 +652,7 @@ function AppContent() {
                 <CardContent className="space-y-4">
                   {!selectedScenarioName && (
                     <p className="text-sm text-slate-300">
-                      Select a scenario in step 2 to unlock downloads and telemetry uploads.
+                      Select a scenario in step 2 to unlock downloads and smoke testing.
                     </p>
                   )}
                   {selectedScenarioName && !selectedScenario && (
@@ -592,20 +667,6 @@ function AppContent() {
                           <DownloadButtons
                             scenarioName={selectedScenario.name}
                             artifacts={selectedScenario.build_artifacts || []}
-                          />
-
-                          {/* Distribution Upload */}
-                          <DistributionUploadSection
-                            scenarioName={selectedScenario.name}
-                            artifacts={
-                              (selectedScenario.build_artifacts || []).reduce((acc, artifact) => {
-                                const path = artifact.absolute_path || artifact.relative_path;
-                                if (path && artifact.platform) {
-                                  acc[artifact.platform] = path;
-                                }
-                                return acc;
-                              }, {} as Record<string, string>)
-                            }
                           />
 
                           <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
@@ -648,6 +709,17 @@ function AppContent() {
                                       platform: detectedPlatform
                                     });
                                     setSmokeTestId(status.smoke_test_id);
+                                    // Persist initial smoke test state to server
+                                    updateServerFormState({
+                                      smoke_test_id: status.smoke_test_id,
+                                      smoke_test_platform: status.platform,
+                                      smoke_test_status: status.status,
+                                      smoke_test_started_at: status.started_at,
+                                      smoke_test_completed_at: null,
+                                      smoke_test_logs: null,
+                                      smoke_test_error: null,
+                                      smoke_test_telemetry_uploaded: false,
+                                    });
                                   } catch (error) {
                                     setSmokeTestError(error instanceof Error ? error.message : "Failed to start smoke test");
                                   }
@@ -824,6 +896,81 @@ function AppContent() {
                               Back to build
                             </Button>
                           </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Step 5 */}
+              <Card className="border-slate-800/80 bg-slate-900/70" ref={distributeRef}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
+                    Step 5 · Distribute
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!selectedScenarioName && (
+                    <p className="text-sm text-slate-300">
+                      Select a scenario in step 2 to unlock distribution uploads.
+                    </p>
+                  )}
+                  {selectedScenarioName && !selectedScenario && (
+                    <p className="text-sm text-slate-300">
+                      Loading scenario details...
+                    </p>
+                  )}
+                  {selectedScenario && (
+                    <>
+                      {(selectedScenario.build_artifacts?.length ?? 0) > 0 ? (
+                        <div className="space-y-4">
+                          <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-300">
+                            <p className="font-semibold text-slate-200">Upload to cloud storage</p>
+                            <p className="text-xs text-slate-400">
+                              Configure distribution targets in the Distribution tab, then upload your installers to
+                              S3-compatible storage for public download links.
+                            </p>
+                          </div>
+
+                          <DistributionUploadSection
+                            scenarioName={selectedScenario.name}
+                            artifacts={
+                              (selectedScenario.build_artifacts || []).reduce((acc, artifact) => {
+                                const path = artifact.absolute_path || artifact.relative_path;
+                                if (path && artifact.platform) {
+                                  acc[artifact.platform] = path;
+                                }
+                                return acc;
+                              }, {} as Record<string, string>)
+                            }
+                          />
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setViewMode("distribution")}
+                            >
+                              Configure Distribution Targets
+                            </Button>
+                            <span className="text-slate-400">
+                              Set up S3/R2 buckets for hosting downloads.
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 text-sm text-slate-300">
+                          <p>Build installers first to enable distribution uploads.</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActiveStep(3)}
+                          >
+                            Back to build
+                          </Button>
                         </div>
                       )}
                     </>

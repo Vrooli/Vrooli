@@ -101,6 +101,16 @@ type FormState struct {
 
 	// Bundle result (cached auto-build status for restoration on page load)
 	BundleResult json.RawMessage `json:"bundle_result,omitempty"`
+
+	// Smoke test state (persisted for restoration on page load)
+	SmokeTestID               *string  `json:"smoke_test_id,omitempty"`
+	SmokeTestPlatform         *string  `json:"smoke_test_platform,omitempty"`
+	SmokeTestStatus           *string  `json:"smoke_test_status,omitempty"`
+	SmokeTestStartedAt        *string  `json:"smoke_test_started_at,omitempty"`
+	SmokeTestCompletedAt      *string  `json:"smoke_test_completed_at,omitempty"`
+	SmokeTestLogs             []string `json:"smoke_test_logs,omitempty"`
+	SmokeTestError            *string  `json:"smoke_test_error,omitempty"`
+	SmokeTestTelemetryUploaded bool    `json:"smoke_test_telemetry_uploaded,omitempty"`
 }
 
 // PlatformSelection mirrors the UI platform toggle state.
