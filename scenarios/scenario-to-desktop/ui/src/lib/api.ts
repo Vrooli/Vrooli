@@ -1392,6 +1392,8 @@ export interface FormState {
   preflight_session_ttl?: number;
   deployment_manager_url?: string | null;
   signing_enabled_for_build?: boolean;
+  /** Bundle result including auto-build status. Persisted for restoration on page load. */
+  bundle_result?: unknown;
 }
 
 export interface InputFingerprint {

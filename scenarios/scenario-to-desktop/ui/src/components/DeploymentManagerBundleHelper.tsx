@@ -137,13 +137,10 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
       }
     };
 
-    // Ref to access latest buildStatus in runExport callback
-    const buildStatusRef = useRef<AutoBuildStatusResponse | null>(null);
-    useEffect(() => {
-      buildStatusRef.current = buildStatus;
-    }, [buildStatus]);
-
-    const runExport = useCallback(async () => {
+    // Run export with explicit buildStatus parameter to avoid stale ref issues.
+    // The ref approach fails because effects run after render, but runExport is
+    // called synchronously after setBuildStatus in handleExport and the polling effect.
+    const runExport = useCallback(async (currentBuildStatus: AutoBuildStatusResponse | null) => {
       setGenerationPhase("exporting");
       try {
         const response = await exportBundleFromDeploymentManager({
@@ -167,7 +164,7 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
         }
         // Notify parent of successful bundle completion for stage persistence
         onBundleComplete?.({
-          buildStatus: buildStatusRef.current,
+          buildStatus: currentBuildStatus,
           manifestPath: response.manifest_path ?? null,
           checksum: response.checksum,
           generatedAt: response.generated_at,
@@ -197,7 +194,8 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
         }
         if (response.status === "skipped") {
           exportTriggeredRef.current = true;
-          await runExport();
+          // Pass response directly since state update hasn't rendered yet
+          await runExport(response);
         }
       } catch (error) {
         setBuildError((error as Error).message);
@@ -243,7 +241,8 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
           if (doneStatuses.has(status.status)) {
             if ((status.status === "success" || status.status === "skipped") && !exportTriggeredRef.current) {
               exportTriggeredRef.current = true;
-              await runExport();
+              // Pass status directly since state update hasn't rendered yet
+              await runExport(status);
             } else if (status.status !== "success" && status.status !== "skipped") {
               setGenerationPhase("idle");
               setBuildError(`Auto build finished with status "${status.status}".`);

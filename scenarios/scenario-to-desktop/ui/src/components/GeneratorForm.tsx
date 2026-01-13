@@ -130,6 +130,8 @@ export function GeneratorForm({
     startServices: true,
     autoRefresh: true
   });
+  // Bundle result seed from server state - similar pattern to preflightSeed
+  const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
   const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -336,6 +338,8 @@ export function GeneratorForm({
         startServices: fs.preflight_start_services ?? true,
         autoRefresh: fs.preflight_auto_refresh ?? true
       });
+      // Apply bundle result seed from server state
+      setBundleResultSeed((fs.bundle_result as BundleResult) ?? null);
     },
     onStateCleared: () => {
       resetFormState(true);
@@ -350,6 +354,7 @@ export function GeneratorForm({
         startServices: true,
         autoRefresh: true
       });
+      setBundleResultSeed(null);
       resetPreflight();
     },
   });
@@ -388,7 +393,8 @@ export function GeneratorForm({
     preflight_session_expires_at: preflightSessionExpiresAt,
     preflight_session_ttl: preflightSessionTTL,
     deployment_manager_url: deploymentManagerUrl,
-    signing_enabled_for_build: signingEnabledForBuild
+    signing_enabled_for_build: signingEnabledForBuild,
+    bundle_result: bundleResultSeed
   }), [
     selectedTemplate, appDisplayName, appDescription, iconPath,
     displayNameEdited, descriptionEdited, iconPathEdited,
@@ -399,7 +405,7 @@ export function GeneratorForm({
     preflightResult, preflightError, preflightOverride, preflightSecrets,
     preflightStartServices, preflightAutoRefresh,
     preflightSessionId, preflightSessionExpiresAt, preflightSessionTTL,
-    deploymentManagerUrl, signingEnabledForBuild
+    deploymentManagerUrl, signingEnabledForBuild, bundleResultSeed
   ]);
 
   // Debounced save to server when form state changes
@@ -463,27 +469,21 @@ export function GeneratorForm({
   const handleBundleComplete = useCallback(
     (result: BundleResult) => {
       if (!scenarioName || !hasInitiallyLoaded) return;
-      // Save bundle stage result with manifest path update
+      // Update local seed state for immediate availability
+      setBundleResultSeed(result);
+      // Save bundle stage result with manifest path and bundle_result in form_state
       void saveStageResult("bundle", result, {
         bundle_manifest_path: result.manifestPath ?? undefined,
         deployment_manager_url: result.deploymentManagerUrl,
+        bundle_result: result,
       });
     },
     [scenarioName, hasInitiallyLoaded, saveStageResult]
   );
 
-  // Extract bundle stage result for restoration from server state
-  const initialBundleResult = useMemo((): BundleResult | null => {
-    const bundleStage = stages["bundle"];
-    if (!bundleStage?.result) return null;
-    // The stage result is stored as the BundleResult type
-    try {
-      const result = bundleStage.result as BundleResult;
-      return result;
-    } catch {
-      return null;
-    }
-  }, [stages]);
+  // Bundle result for restoration - use seed loaded from form_state.bundle_result
+  // This mirrors how preflight uses preflightResultSeed from form_state.preflight_result
+  const initialBundleResult = bundleResultSeed;
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({

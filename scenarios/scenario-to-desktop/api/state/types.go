@@ -98,6 +98,9 @@ type FormState struct {
 
 	// Signing
 	SigningEnabledForBuild bool `json:"signing_enabled_for_build,omitempty"`
+
+	// Bundle result (cached auto-build status for restoration on page load)
+	BundleResult json.RawMessage `json:"bundle_result,omitempty"`
 }
 
 // PlatformSelection mirrors the UI platform toggle state.
