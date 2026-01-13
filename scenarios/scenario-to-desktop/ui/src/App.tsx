@@ -16,7 +16,7 @@ import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scen
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { cancelSmokeTest, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
+import { cancelSmokeTest, fetchBuildStatus, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
 import type { BuildStatus as BuildStatusType, SmokeTestStatus, FormState } from "./lib/api";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
@@ -47,14 +47,40 @@ function AppContent() {
   const initialParams = useMemo(() => parseSearchParams(), []);
   const storedState = useMemo(() => loadGeneratorAppState(), []);
   const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
+  // Wrapper build state - will be initialized from server-side state
   const [wrapperBuildId, setWrapperBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
   const [wrapperBuildStatus, setWrapperBuildStatus] = useState<BuildStatusType | null>(null);
+  const [wrapperBuildInitialized, setWrapperBuildInitialized] = useState(false);
   const [selectedScenarioName, setSelectedScenarioName] = useState(
     initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
   );
   const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(
     initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
   );
+
+  // Fetch build status from server - only poll when we have an active build in "building" state
+  // For completed builds (ready/failed), we rely on persisted server-side state
+  const shouldPollBuildStatus = Boolean(wrapperBuildId) && (
+    !wrapperBuildInitialized || // Still loading from server
+    wrapperBuildStatus?.status === "building" // Actively building
+  );
+
+  const { data: fetchedBuildStatus } = useQuery({
+    queryKey: ["build-status-global", wrapperBuildId],
+    queryFn: () => (wrapperBuildId ? fetchBuildStatus(wrapperBuildId) : null),
+    enabled: shouldPollBuildStatus,
+    refetchInterval: (query) => {
+      const data = query.state.data as BuildStatusType | null;
+      // Stop polling when build is complete or failed
+      return data?.status === "ready" || data?.status === "failed" ? false : 2000;
+    },
+    // Don't throw on error - build ID may be stale
+    retry: 1,
+  });
+
+  // Use server-persisted status as primary, fetched as fallback for active builds
+  const effectiveBuildStatus = wrapperBuildStatus || fetchedBuildStatus;
+
   const [viewMode, setViewMode] = useState<ViewMode>(
     (initialParams.view as ViewMode | undefined) ?? (storedState?.viewMode as ViewMode | undefined) ?? "inventory"
   );
@@ -73,7 +99,7 @@ function AppContent() {
   const [smokeTestInitialized, setSmokeTestInitialized] = useState(false);
   const apiBase = useMemo(() => resolveApiBase({ appendSuffix: true }), []);
 
-  // Server-side state persistence for smoke test results
+  // Server-side state persistence for smoke test and wrapper build results
   const {
     formState: serverFormState,
     hasInitiallyLoaded: serverStateLoaded,
@@ -83,9 +109,27 @@ function AppContent() {
     scenarioName: selectedScenarioName,
     enabled: Boolean(selectedScenarioName),
     onStateLoaded: (state) => {
+      if (!state.form_state) return;
+      const fs = state.form_state;
+
+      // Initialize wrapper build state from server on load
+      if (!wrapperBuildInitialized) {
+        if (fs.wrapper_build_id) {
+          setWrapperBuildId(fs.wrapper_build_id);
+        }
+        // Restore the build status from server - this is the key fix!
+        // Creates a minimal BuildStatus object from persisted state
+        if (fs.wrapper_build_status) {
+          setWrapperBuildStatus({
+            status: fs.wrapper_build_status,
+            output_path: fs.wrapper_output_path ?? undefined,
+          } as BuildStatusType);
+        }
+        setWrapperBuildInitialized(true);
+      }
+
       // Initialize smoke test state from server on load
-      if (state.form_state && !smokeTestInitialized) {
-        const fs = state.form_state;
+      if (!smokeTestInitialized) {
         if (fs.smoke_test_id) {
           setSmokeTestId(fs.smoke_test_id);
         }
@@ -195,15 +239,54 @@ function AppContent() {
   const generateLabel = hasWrapper ? "Regenerate Wrapper" : "Generate Wrapper";
   const canGenerate = Boolean(selectedScenarioName);
   const canBuildInstallers = Boolean(
-    selectedScenarioName && (wrapperBuildStatus?.status === "ready" || selectedScenario?.has_desktop)
+    selectedScenarioName && (effectiveBuildStatus?.status === "ready" || selectedScenario?.has_desktop)
   );
 
+  // Reset state when scenario changes
   useEffect(() => {
     setSmokeTestId(null);
     setSmokeTestError(null);
     setSmokeTestCancelling(false);
     setSmokeTestInitialized(false);
+    // Also reset wrapper build initialization so it reloads from server for new scenario
+    setWrapperBuildInitialized(false);
+    setWrapperBuildStatus(null);
+    setWrapperBuildId(null);
   }, [selectedScenarioName]);
+
+  // Persist wrapper build status changes to server
+  const prevWrapperBuildStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedScenarioName || !serverStateLoaded) return;
+    if (!wrapperBuildId) return;
+    // Use effective status which combines local state and fetched data
+    const currentStatus = effectiveBuildStatus;
+    if (!currentStatus) return;
+
+    // Only persist when status actually changes to avoid redundant saves
+    const statusKey = `${wrapperBuildId}:${currentStatus.status}`;
+    if (statusKey === prevWrapperBuildStatusRef.current) return;
+    prevWrapperBuildStatusRef.current = statusKey;
+
+    // Persist wrapper build state to server
+    updateServerFormState({
+      wrapper_build_id: wrapperBuildId,
+      wrapper_build_status: currentStatus.status as "building" | "ready" | "failed",
+      wrapper_output_path: currentStatus.output_path ?? null,
+    });
+
+    // Update local state to match (in case it came from fetchedBuildStatus)
+    if (!wrapperBuildStatus || wrapperBuildStatus.status !== currentStatus.status) {
+      setWrapperBuildStatus(currentStatus);
+    }
+  }, [
+    selectedScenarioName,
+    serverStateLoaded,
+    wrapperBuildId,
+    effectiveBuildStatus,
+    wrapperBuildStatus,
+    updateServerFormState,
+  ]);
 
   // Persist smoke test status changes to server
   const prevSmokeTestStatusRef = useRef<string | null>(null);
@@ -1013,11 +1096,11 @@ function AppContent() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex items-center gap-2">
-                  {!wrapperBuildStatus ? (
+                  {!effectiveBuildStatus ? (
                     <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                  ) : wrapperBuildStatus.status === "failed" ? (
+                  ) : effectiveBuildStatus.status === "failed" ? (
                     <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-                  ) : wrapperBuildStatus.status === "ready" ? (
+                  ) : effectiveBuildStatus.status === "ready" ? (
                     <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                   ) : (
                     <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
@@ -1027,13 +1110,13 @@ function AppContent() {
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 hidden sm:inline">
-                  {!wrapperBuildStatus ? (
+                  {!effectiveBuildStatus ? (
                     "Loading build status..."
-                  ) : wrapperBuildStatus.status === "failed" ? (
+                  ) : effectiveBuildStatus.status === "failed" ? (
                     "Build failed - spawn an agent to investigate"
-                  ) : wrapperBuildStatus.status === "ready" ? (
+                  ) : effectiveBuildStatus.status === "ready" ? (
                     "Build ready - spawn an agent to verify or improve"
-                  ) : wrapperBuildStatus.status === "building" ? (
+                  ) : effectiveBuildStatus.status === "building" ? (
                     "Build in progress..."
                   ) : (
                     "Spawn an agent to analyze this build"
@@ -1041,14 +1124,14 @@ function AppContent() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {!wrapperBuildStatus && (
+                {!effectiveBuildStatus && (
                   <span className="text-xs text-amber-400 hidden md:inline">
                     Waiting for status
                   </span>
                 )}
                 <SpawnAgentButton
                   pipelineId={wrapperBuildId}
-                  disabled={!wrapperBuildStatus}
+                  disabled={!effectiveBuildStatus}
                 />
               </div>
             </div>

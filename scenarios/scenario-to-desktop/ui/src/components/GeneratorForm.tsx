@@ -460,6 +460,35 @@ export function GeneratorForm({
     saveStageResult,
   ]);
 
+  // Handle session invalidation - when session is cleared by usePreflightSession validation
+  // This tracks when session goes from a value to null (invalidated) and clears persisted state
+  const prevSessionIdRef = useRef<string | null>(preflightSeed.sessionId);
+  useEffect(() => {
+    const prevId = prevSessionIdRef.current;
+    prevSessionIdRef.current = preflightSessionId;
+
+    // Detect invalidation: had a session ID from seed, but now it's null
+    // and we still have the same seed (hasn't been updated to match)
+    if (prevId && !preflightSessionId && preflightSeed.sessionId === prevId) {
+      // Session was invalidated - clear local seed and persisted state
+      setPreflightSeed(prev => ({
+        ...prev,
+        sessionId: null,
+        sessionExpiresAt: null,
+        result: null
+      }));
+      // Clear persisted state if ready
+      if (scenarioName && hasInitiallyLoaded) {
+        updateFormState({
+          preflight_session_id: null,
+          preflight_session_expires_at: null,
+          preflight_result: null,
+          preflight_error: `Session expired. Please run preflight again.`
+        });
+      }
+    }
+  }, [preflightSessionId, preflightSeed.sessionId, scenarioName, hasInitiallyLoaded, updateFormState]);
+
   // Legacy compatibility - keep draft timestamps working
   const draftTimestamps = serverTimestamps;
   const draftLoadedScenario = serverFormState ? scenarioName : null;

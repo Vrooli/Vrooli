@@ -8,6 +8,7 @@ import {
   startBundlePreflight,
   fetchBundlePreflightStatus,
   runBundlePreflight,
+  validatePreflightSession,
   type BundlePreflightResponse,
   type BundlePreflightJobStatusResponse,
   type BundlePreflightSecret
@@ -27,6 +28,8 @@ export interface UsePreflightSessionOptions {
   initialAutoRefresh?: boolean;
   /** Called when preflight completes successfully. Use to persist stage results. */
   onPreflightComplete?: (result: BundlePreflightResponse) => void;
+  /** Called when a stale session is detected and cleared. Use to update persisted state. */
+  onSessionInvalidated?: (sessionId: string) => void;
 }
 
 export interface UsePreflightSessionResult {
@@ -80,7 +83,8 @@ export function usePreflightSession({
   initialSessionTTL = DEFAULT_SESSION_TTL,
   initialStartServices = true,
   initialAutoRefresh = true,
-  onPreflightComplete
+  onPreflightComplete,
+  onSessionInvalidated
 }: UsePreflightSessionOptions): UsePreflightSessionResult {
   // Core state
   const [result, setResult] = useState<BundlePreflightResponse | null>(initialResult);
@@ -146,6 +150,48 @@ export function usePreflightSession({
     initialStartServices,
     initialAutoRefresh
   ]);
+
+  // Validate session on load - check if the persisted session is still valid
+  // This handles the case where the API was restarted and in-memory sessions were lost
+  useEffect(() => {
+    if (!initialSessionId || !isBundled) return;
+
+    let cancelled = false;
+
+    const validate = async () => {
+      try {
+        const validation = await validatePreflightSession(initialSessionId);
+        if (cancelled) return;
+
+        if (!validation.valid) {
+          // Session is stale - clear it and notify parent
+          console.info(
+            `Preflight session ${initialSessionId} is no longer valid: ${validation.reason}. ` +
+            "The API may have been restarted. Please run preflight again."
+          );
+          setSessionId(null);
+          setSessionExpiresAt(null);
+          // Clear result since it depends on the session
+          setResult(null);
+          // Notify parent to clear persisted session data
+          onSessionInvalidated?.(initialSessionId);
+        } else if (validation.expires_at) {
+          // Session is valid - update expiration time in case it changed
+          setSessionExpiresAt(validation.expires_at);
+        }
+      } catch (err) {
+        // Network error or other issue - assume session might be invalid
+        console.warn("Failed to validate preflight session:", err);
+        // Don't clear on network error - let the next API call fail naturally
+      }
+    };
+
+    validate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialSessionId, isBundled, onSessionInvalidated]);
 
   // Reset state when bundleManifestPath changes or bundled mode is disabled
   useEffect(() => {

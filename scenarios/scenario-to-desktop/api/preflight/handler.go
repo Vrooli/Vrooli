@@ -38,6 +38,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/desktop/preflight/status", h.StatusHandler).Methods("GET")
 	r.HandleFunc("/api/v1/desktop/preflight/health", h.HealthHandler).Methods("GET")
 
+	// Session validation endpoint - check if a session is still valid
+	r.HandleFunc("/api/v1/desktop/preflight/session/validate", h.ValidateSessionHandler).Methods("GET")
+
 	// Bundle manifest inspection
 	r.HandleFunc("/api/v1/desktop/bundle-manifest", h.ManifestHandler).Methods("POST")
 }
@@ -254,6 +257,33 @@ func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, response)
+}
+
+// ValidateSessionHandler checks if a preflight session is still valid.
+// GET /api/v1/desktop/preflight/session/validate?session_id=...
+func (h *Handler) ValidateSessionHandler(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "session_id is required", http.StatusBadRequest)
+		return
+	}
+
+	session, ok := h.service.GetSession(sessionID)
+	if !ok {
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"session_id": sessionID,
+			"valid":      false,
+			"reason":     "session not found or expired",
+		})
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"session_id": sessionID,
+		"valid":      true,
+		"expires_at": session.ExpiresAt.Format(time.RFC3339),
+		"created_at": session.CreatedAt.Format(time.RFC3339),
+	})
 }
 
 // ManifestHandler loads and returns a bundle manifest for UI display.

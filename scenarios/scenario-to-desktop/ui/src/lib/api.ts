@@ -661,6 +661,25 @@ export async function fetchBundlePreflightStatus(payload: { job_id: string }): P
   return response.json();
 }
 
+export interface PreflightSessionValidationResponse {
+  session_id: string;
+  valid: boolean;
+  reason?: string;
+  expires_at?: string;
+  created_at?: string;
+}
+
+export async function validatePreflightSession(sessionId: string): Promise<PreflightSessionValidationResponse> {
+  const params = new URLSearchParams({ session_id: sessionId });
+  const response = await fetch(buildUrl(`/desktop/preflight/session/validate?${params.toString()}`));
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
 export async function fetchBundlePreflightHealth(payload: {
   session_id: string;
   service_id: string;
@@ -1403,6 +1422,10 @@ export interface FormState {
   smoke_test_logs?: string[] | null;
   smoke_test_error?: string | null;
   smoke_test_telemetry_uploaded?: boolean;
+  /** Wrapper build state - persisted for restoration on page load. */
+  wrapper_build_id?: string | null;
+  wrapper_build_status?: "building" | "ready" | "failed" | null;
+  wrapper_output_path?: string | null;
 }
 
 export interface InputFingerprint {

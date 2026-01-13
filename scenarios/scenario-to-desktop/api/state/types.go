@@ -103,14 +103,20 @@ type FormState struct {
 	BundleResult json.RawMessage `json:"bundle_result,omitempty"`
 
 	// Smoke test state (persisted for restoration on page load)
-	SmokeTestID               *string  `json:"smoke_test_id,omitempty"`
-	SmokeTestPlatform         *string  `json:"smoke_test_platform,omitempty"`
-	SmokeTestStatus           *string  `json:"smoke_test_status,omitempty"`
-	SmokeTestStartedAt        *string  `json:"smoke_test_started_at,omitempty"`
-	SmokeTestCompletedAt      *string  `json:"smoke_test_completed_at,omitempty"`
-	SmokeTestLogs             []string `json:"smoke_test_logs,omitempty"`
-	SmokeTestError            *string  `json:"smoke_test_error,omitempty"`
-	SmokeTestTelemetryUploaded bool    `json:"smoke_test_telemetry_uploaded,omitempty"`
+	SmokeTestID                *string  `json:"smoke_test_id,omitempty"`
+	SmokeTestPlatform          *string  `json:"smoke_test_platform,omitempty"`
+	SmokeTestStatus            *string  `json:"smoke_test_status,omitempty"`
+	SmokeTestStartedAt         *string  `json:"smoke_test_started_at,omitempty"`
+	SmokeTestCompletedAt       *string  `json:"smoke_test_completed_at,omitempty"`
+	SmokeTestLogs              []string `json:"smoke_test_logs,omitempty"`
+	SmokeTestError             *string  `json:"smoke_test_error,omitempty"`
+	SmokeTestTelemetryUploaded bool     `json:"smoke_test_telemetry_uploaded,omitempty"`
+
+	// Wrapper build state (persisted for restoration on page load)
+	// This tracks the Electron wrapper generation, not platform installers
+	WrapperBuildID     *string `json:"wrapper_build_id,omitempty"`
+	WrapperBuildStatus *string `json:"wrapper_build_status,omitempty"` // building, ready, failed
+	WrapperOutputPath  *string `json:"wrapper_output_path,omitempty"`
 }
 
 // PlatformSelection mirrors the UI platform toggle state.
