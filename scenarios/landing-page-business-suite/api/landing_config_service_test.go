@@ -98,6 +98,7 @@ func TestLandingConfigServiceUsesInjectedFallbackProvider(t *testing.T) {
 		NewBrandingService(db),
 	)
 
+	//nolint:govet // fallback payload contains proto-backed pricing with internal locks
 	customFallback := cloneLandingPayload(fallbackLanding)
 	customFallback.Variant.Slug = "seam-fallback"
 	customFallback.Variant.Name = "Seam Fallback"
@@ -111,6 +112,7 @@ func TestLandingConfigServiceUsesInjectedFallbackProvider(t *testing.T) {
 	}
 	customFallback.Downloads = []DownloadApp{}
 	service.UseFallbackProvider(func() LandingConfigPayload {
+		//nolint:govet // fallback payload contains proto-backed pricing with internal locks
 		return customFallback
 	})
 

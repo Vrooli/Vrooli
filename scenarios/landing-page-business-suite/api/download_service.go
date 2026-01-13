@@ -379,7 +379,7 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	installStepsBytes, err := json.Marshal(app.InstallSteps)
 	if err != nil {

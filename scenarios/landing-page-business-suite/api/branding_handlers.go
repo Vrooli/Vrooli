@@ -16,7 +16,9 @@ func handleGetBranding(bs *BrandingService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		if err := json.NewEncoder(w).Encode(branding); err != nil {
+			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -37,7 +39,9 @@ func handleUpdateBranding(bs *BrandingService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		if err := json.NewEncoder(w).Encode(branding); err != nil {
+			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -74,7 +78,9 @@ func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		if err := json.NewEncoder(w).Encode(branding); err != nil {
+			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -100,6 +106,8 @@ func handleGetPublicBranding(bs *BrandingService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(publicBranding)
+		if err := json.NewEncoder(w).Encode(publicBranding); err != nil {
+			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
+		}
 	}
 }

@@ -5,10 +5,17 @@ import (
 	"testing"
 )
 
+func titleCaseSlug(slug string) string {
+	if slug == "" {
+		return slug
+	}
+	return strings.ToUpper(slug[:1]) + slug[1:]
+}
+
 // [REQ:CUSTOM-SPLIT,CUSTOM-LIVE] - Content service powers the section editor
 func TestContentService_GetSections(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 
@@ -70,7 +77,7 @@ func TestContentService_GetSections(t *testing.T) {
 
 func TestContentService_GetPublicSections_FiltersDisabledAndOrders(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -120,7 +127,7 @@ func TestContentService_GetPublicSections_FiltersDisabledAndOrders(t *testing.T)
 
 func TestContentService_GetSection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -167,7 +174,7 @@ func TestContentService_GetSection(t *testing.T) {
 
 func TestContentService_GetSection_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 
@@ -179,7 +186,7 @@ func TestContentService_GetSection_NotFound(t *testing.T) {
 
 func TestContentService_UpdateSection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -232,7 +239,7 @@ func TestContentService_UpdateSection(t *testing.T) {
 
 func TestContentService_CreateSection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -279,7 +286,7 @@ func TestContentService_CreateSection(t *testing.T) {
 
 func TestContentService_CopySectionsFromVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	createVariant := func(slug string) int64 {
@@ -288,10 +295,14 @@ func TestContentService_CopySectionsFromVariant(t *testing.T) {
 			INSERT INTO variants (slug, name, description, weight, status, created_at, updated_at)
 			VALUES ($1, $2, $3, 50, 'active', NOW(), NOW())
 			RETURNING id
-		`, slug, strings.Title(slug), "copy test variant").Scan(&id); err != nil {
+		`, slug, titleCaseSlug(slug), "copy test variant").Scan(&id); err != nil {
 			t.Fatalf("failed to insert variant %s: %v", slug, err)
 		}
-		t.Cleanup(func() { db.Exec(`DELETE FROM variants WHERE slug = $1`, slug) })
+		t.Cleanup(func() {
+			if _, err := db.Exec(`DELETE FROM variants WHERE slug = $1`, slug); err != nil {
+				t.Fatalf("failed to cleanup variant %s: %v", slug, err)
+			}
+		})
 		return id
 	}
 
@@ -357,7 +368,7 @@ func TestContentService_CopySectionsFromVariant(t *testing.T) {
 
 func TestContentService_DeleteSection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -392,7 +403,7 @@ func TestContentService_DeleteSection(t *testing.T) {
 
 func TestContentService_DeleteSection_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 
@@ -404,7 +415,7 @@ func TestContentService_DeleteSection_NotFound(t *testing.T) {
 
 func TestContentService_ContentJSON_Marshaling(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -462,7 +473,7 @@ func TestContentService_ContentJSON_Marshaling(t *testing.T) {
 
 func TestContentService_ReplaceSectionsTx_ReplacesAndRenumbers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -490,7 +501,7 @@ func TestContentService_ReplaceSectionsTx_ReplacesAndRenumbers(t *testing.T) {
 		{SectionType: "cta", Content: map[string]interface{}{"cta": "Join"}, Order: 5, Enabled: &disabled},
 	})
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("ReplaceSectionsTx failed: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -532,7 +543,7 @@ func TestContentService_ReplaceSectionsTx_ReplacesAndRenumbers(t *testing.T) {
 
 func TestContentService_ReplaceSectionsTx_ValidatesBeforeClearing(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)
@@ -558,10 +569,10 @@ func TestContentService_ReplaceSectionsTx_ValidatesBeforeClearing(t *testing.T) 
 		{SectionType: "hero", Content: nil},
 	})
 	if validationErr == nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatal("expected validation error for unsupported section type and missing content")
 	}
-	tx.Rollback()
+	_ = tx.Rollback()
 
 	sections, err := service.GetSections(variantID)
 	if err != nil {
@@ -577,7 +588,7 @@ func TestContentService_ReplaceSectionsTx_ValidatesBeforeClearing(t *testing.T) 
 
 func TestContentService_ReplaceSectionsTx_RequiresTransaction(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	service := NewContentService(db)
 	variantID := createTestVariant(t, db)

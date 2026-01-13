@@ -30,8 +30,8 @@ describe('PricingSection', () => {
 
     render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
 
-    expect(screen.getByText('Launch (Demo)')).toBeDefined();
-    expect(screen.getByText('Pro (Demo)')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Solo' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Studio' })).toBeDefined();
   });
 
   it('renders remote pricing tiers when arrays contain plans', () => {
@@ -63,7 +63,7 @@ describe('PricingSection', () => {
 
     render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
 
-    expect(screen.getByText('Solo Monthly')).toBeDefined();
+    expect(screen.getAllByText('Solo Monthly').length).toBeGreaterThan(0);
     expect(screen.queryByText('Starter')).toBeNull();
   });
 

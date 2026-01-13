@@ -8,9 +8,11 @@ import (
 
 func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM payment_settings")
+		if _, err := db.Exec("DELETE FROM payment_settings"); err != nil {
+			t.Fatalf("failed to clean payment_settings: %v", err)
+		}
 	})
 
 	service := NewPaymentSettingsService(db)
@@ -59,9 +61,11 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 
 func TestPaymentSettingsService_TrimsWhitespace(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM payment_settings")
+		if _, err := db.Exec("DELETE FROM payment_settings"); err != nil {
+			t.Fatalf("failed to clean payment_settings: %v", err)
+		}
 	})
 
 	service := NewPaymentSettingsService(db)
@@ -93,8 +97,10 @@ func TestPaymentSettingsService_TrimsWhitespace(t *testing.T) {
 
 func TestPaymentSettingsServiceReturnsNilWhenNoRecord(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
-	db.Exec("DELETE FROM payment_settings")
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec("DELETE FROM payment_settings"); err != nil {
+		t.Fatalf("failed to clean payment_settings: %v", err)
+	}
 
 	service := NewPaymentSettingsService(db)
 	ctx := context.Background()

@@ -66,7 +66,9 @@ func handleDocsTree() http.HandlerFunc {
 				"error": err.Error(),
 			})
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode([]DocEntry{})
+			if err := json.NewEncoder(w).Encode([]DocEntry{}); err != nil {
+				http.Error(w, "Failed to encode docs tree", http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -86,7 +88,9 @@ func handleDocsTree() http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(entries)
+		if err := json.NewEncoder(w).Encode(entries); err != nil {
+			http.Error(w, "Failed to encode docs tree", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -149,7 +153,9 @@ func handleDocsContent() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(doc)
+		if err := json.NewEncoder(w).Encode(doc); err != nil {
+			http.Error(w, "Failed to encode document", http.StatusInternalServerError)
+		}
 	}
 }
 

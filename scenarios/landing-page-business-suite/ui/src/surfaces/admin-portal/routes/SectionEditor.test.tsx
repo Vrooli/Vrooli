@@ -205,10 +205,10 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     });
 
     // Verify form fields are populated
-    const titleInput = screen.getByTestId('content-title-input') as HTMLInputElement;
+    const titleInput = (await screen.findByTestId('content-title-input')) as HTMLInputElement;
     expect(titleInput.value).toBe('Test Title');
 
-    const subtitleInput = screen.getByTestId('content-subtitle-input') as HTMLTextAreaElement;
+    const subtitleInput = (await screen.findByTestId('content-subtitle-input')) as HTMLTextAreaElement;
     expect(subtitleInput.value).toBe('Test Subtitle');
   });
 

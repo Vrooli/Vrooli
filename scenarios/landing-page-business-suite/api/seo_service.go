@@ -141,7 +141,12 @@ func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 
 		var seoConfig VariantSEOConfig
 		if v.SEOConfig != nil {
-			json.Unmarshal(*v.SEOConfig, &seoConfig)
+			if err := json.Unmarshal(*v.SEOConfig, &seoConfig); err != nil {
+				logStructuredError("seo_config_parse_failed", map[string]interface{}{
+					"slug":  v.Slug,
+					"error": err.Error(),
+				})
+			}
 		}
 		if seoConfig.NoIndex {
 			continue

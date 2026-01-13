@@ -81,6 +81,7 @@ func startTestContainerDB(t *testing.T) string {
 		pass := "testpass"
 		dbName := "landing_manager_test"
 
+		//nolint:staticcheck // legacy testcontainers helper still required for current runtime
 		container, err := postgres.RunContainer(ctx,
 			tc.WithImage("postgres:15-alpine"),
 			tc.WithWaitStrategy(wait.ForListeningPort("5432/tcp").WithStartupTimeout(90*time.Second)),
@@ -115,13 +116,18 @@ func startTestContainerDB(t *testing.T) string {
 }
 
 // setupTestServer creates a complete test server instance with all services initialized
+//nolint:unused // helper retained for future handler tests
 func setupTestServer(t *testing.T) (*Server, func()) {
 	db := setupTestDB(t)
 
 	// Clean up any existing test data BEFORE creating the server
 	// This prevents duplicate key violations from previous test runs
-	db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')")
-	db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'")
+	if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')"); err != nil {
+		t.Fatalf("failed to cleanup admin sessions: %v", err)
+	}
+	if _, err := db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'"); err != nil {
+		t.Fatalf("failed to cleanup admin users: %v", err)
+	}
 
 	// Create a test config
 	config := &Config{
@@ -151,8 +157,12 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	cleanup := func() {
 		// Clean up test data after test completes
-		db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')")
-		db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'")
+		if _, err := db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')"); err != nil {
+			t.Fatalf("failed to cleanup admin sessions: %v", err)
+		}
+		if _, err := db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'"); err != nil {
+			t.Fatalf("failed to cleanup admin users: %v", err)
+		}
 		db.Close()
 	}
 
@@ -185,7 +195,9 @@ func resetStripeTestData(t *testing.T, db *sql.DB) {
 // createTestVariant is a helper to create a test variant for content tests
 func createTestVariant(t *testing.T, db *sql.DB) int64 {
 	// Clean up any existing test variant first
-	db.Exec("DELETE FROM variants WHERE slug = 'test-variant'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-variant'"); err != nil {
+		t.Fatalf("failed to cleanup test variant: %v", err)
+	}
 
 	query := `
 		INSERT INTO variants (slug, name, description, weight, status, created_at, updated_at)

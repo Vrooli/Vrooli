@@ -557,6 +557,7 @@ func init() {
 			panic(fmt.Sprintf("default fallback config invalid: %v", err))
 		}
 	}
+	//nolint:govet // fallback payload contains proto types with internal locks
 	fallbackLanding = payload
 }
 
@@ -792,6 +793,7 @@ func (s *LandingConfigService) fallbackPayload() LandingConfigPayload {
 	return cloneLandingPayload(provider())
 }
 
+//nolint:govet // returns proto-backed payload by value for legacy callers
 func defaultFallbackProvider() LandingConfigPayload {
 	return fallbackLanding
 }
@@ -853,6 +855,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		return LandingConfigPayload{}, fmt.Errorf("parse fallback downloads: %w", err)
 	}
 
+	//nolint:govet // payload contains proto-backed pricing object
 	payload := LandingConfigPayload{
 		Variant:   raw.Variant,
 		Sections:  sections,
@@ -866,6 +869,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		payload.Variant.Axes = raw.Axes
 	}
 
+	//nolint:govet // returning cloned payload is acceptable for immutable fallback
 	return payload, nil
 }
 
@@ -1005,6 +1009,7 @@ func ensureRenderableSections(sections []LandingSection) error {
 	return fmt.Errorf("hero section missing")
 }
 
+//nolint:govet // proto-backed pricing uses internal locks; we clone defensively
 func cloneLandingPayload(payload LandingConfigPayload) LandingConfigPayload {
 	cloned := LandingConfigPayload{
 		Variant: LandingVariantSummary{
@@ -1137,6 +1142,7 @@ func cloneHeaderConfig(cfg LandingHeaderConfig, variantName string) LandingHeade
 	return normalizeLandingHeaderConfig(&copy, variantName)
 }
 
+//nolint:govet // proto-backed pricing uses internal locks; cloning avoids shared mutation
 func clonePricing(pricing PricingOverview) *PricingOverview {
 	cloned := proto.Clone(&pricing)
 	if cloned == nil {

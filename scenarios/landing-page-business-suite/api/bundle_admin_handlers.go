@@ -52,17 +52,8 @@ func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 			return
 		}
 
-		updated, err := planService.UpdateBundlePrice(r.Context(), bundleKey, priceID, UpdateBundlePriceInput{
-			StripePriceID:  req.StripePriceID,
-			PlanName:       req.PlanName,
-			DisplayWeight:  req.DisplayWeight,
-			DisplayEnabled: req.DisplayEnabled,
-			Subtitle:       req.Subtitle,
-			Badge:          req.Badge,
-			CtaLabel:       req.CtaLabel,
-			Highlight:      req.Highlight,
-			Features:       req.Features,
-		})
+		input := UpdateBundlePriceInput(req)
+		updated, err := planService.UpdateBundlePrice(r.Context(), bundleKey, priceID, input)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

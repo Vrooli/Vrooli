@@ -158,7 +158,11 @@ func writeJSON(w http.ResponseWriter, payload interface{}) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write(data)
+		if _, err := w.Write(data); err != nil {
+			logStructuredError("write_json_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 		return
 	}
 	if err := json.NewEncoder(w).Encode(payload); err != nil {

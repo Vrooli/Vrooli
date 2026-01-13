@@ -124,7 +124,9 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true))
+	if err := json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true)); err != nil {
+		http.Error(w, "Failed to encode login response", http.StatusInternalServerError)
+	}
 }
 
 // handleAdminLogout destroys the admin session
@@ -132,7 +134,11 @@ func (s *Server) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 	session, _ := sessionStore.Get(r, "admin_session")
 	email := session.Values["email"]
 	session.Options.MaxAge = -1
-	session.Save(r, w)
+	if err := session.Save(r, w); err != nil {
+		logStructuredError("admin_session_save_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
 
 	logStructured("admin_logout", map[string]interface{}{
 		"level": "info",
@@ -149,12 +155,16 @@ func (s *Server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 	if !ok || email == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(buildLoginResponse("", false))
+		if err := json.NewEncoder(w).Encode(buildLoginResponse("", false)); err != nil {
+			http.Error(w, "Failed to encode session response", http.StatusInternalServerError)
+		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(buildLoginResponse(email, true))
+	if err := json.NewEncoder(w).Encode(buildLoginResponse(email, true)); err != nil {
+		http.Error(w, "Failed to encode session response", http.StatusInternalServerError)
+	}
 }
 
 // requireAdmin is middleware to protect admin routes
@@ -221,7 +231,9 @@ func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(buildAdminProfileResponse(storedEmail, passwordHash))
+	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(storedEmail, passwordHash)); err != nil {
+		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+	}
 }
 
 // handleAdminProfileUpdate updates the admin email and/or password
@@ -327,7 +339,9 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(buildAdminProfileResponse(targetEmail, targetPasswordHash))
+	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(targetEmail, targetPasswordHash)); err != nil {
+		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+	}
 }
 
 func validateAdminPasswordUpdate(candidate, currentHash string) error {

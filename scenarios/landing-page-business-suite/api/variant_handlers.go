@@ -21,7 +21,9 @@ func handleVariantSelect(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -53,7 +55,9 @@ func handlePublicVariantBySlug(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -78,7 +82,9 @@ func handleVariantBySlug(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -99,14 +105,17 @@ func handleVariantsList(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"variants": variants,
-		})
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
 // handleVariantCreate handles POST /api/v1/variants (OT-P0-017: AB-CRUD)
 // DEPRECATED: Use handleVariantCreateWithSections instead
+//nolint:unused // legacy handler retained for backward compatibility
 func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -145,7 +154,9 @@ func handleVariantCreate(vs *VariantService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -198,7 +209,9 @@ func handleVariantCreateWithSections(vs *VariantService, cs *ContentService) htt
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -236,7 +249,9 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(variant)
+		if err := json.NewEncoder(w).Encode(variant); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -262,10 +277,12 @@ func handleVariantArchive(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"message": "Variant archived successfully",
 			"slug":    slug,
-		})
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -289,10 +306,12 @@ func handleVariantDelete(vs *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"message": "Variant deleted successfully",
 			"slug":    slug,
-		})
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -319,7 +338,9 @@ func handleVariantExport(vs *VariantService, cs *ContentService) http.HandlerFun
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(snapshot)
+		if err := json.NewEncoder(w).Encode(snapshot); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -352,7 +373,9 @@ func handleVariantImport(vs *VariantService, cs *ContentService) http.HandlerFun
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(snapshot)
+		if err := json.NewEncoder(w).Encode(snapshot); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -371,6 +394,8 @@ func handleVariantSnapshotSync(vs *VariantService, cs *ContentService) http.Hand
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

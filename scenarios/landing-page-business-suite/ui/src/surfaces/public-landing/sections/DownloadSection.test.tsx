@@ -222,7 +222,7 @@ describe('DownloadSection', () => {
     await user.click(screen.getByTestId('download-btn-primary'));
 
     expect(window.open).toHaveBeenCalledWith('/downloads/app.tar.gz', '_blank', 'noopener,noreferrer');
-    expect(await screen.findByText('Download started!')).toBeInTheDocument();
+    expect(await screen.findByText('Download started')).toBeInTheDocument();
   });
 
   it('rejects dangerous artifact URL schemes before opening a new window', async () => {

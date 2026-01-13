@@ -36,7 +36,9 @@ func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -73,10 +75,12 @@ func handleUpdateVariantSEO(variantService *VariantService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":    true,
 			"updated_at": time.Now().UTC().Format(time.RFC3339),
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -97,7 +101,11 @@ func handleSitemapXML(seoService *SEOService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Write([]byte(sitemap))
+		if _, err := w.Write([]byte(sitemap)); err != nil {
+			logStructuredError("sitemap_write_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }
 
@@ -117,6 +125,10 @@ func handleRobotsTXT(seoService *SEOService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte(robotsTxt))
+		if _, err := w.Write([]byte(robotsTxt)); err != nil {
+			logStructuredError("robots_write_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }

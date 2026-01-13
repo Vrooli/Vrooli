@@ -131,11 +131,11 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-variant-performance')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('Control')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('Variant A')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('500')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('750')).toBeInTheDocument();
-      expect(screen.getByTestId('analytics-downloads-v1')).toHaveTextContent('12');
+      expect(within(screen.getByTestId('analytics-variant-row-1')).getByText('Control')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-2')).getByText('Variant A')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-1')).getByText('500')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-2')).getByText('750')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-downloads-1')).toHaveTextContent('12');
     });
   });
 
@@ -152,7 +152,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     renderWithRouter(<AdminAnalytics />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('analytics-edit-v1')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-edit-1')).toBeInTheDocument();
     });
   });
 
@@ -182,7 +182,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     renderWithRouter(<AdminAnalytics />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('analytics-edit-hero-v1')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-edit-hero-1')).toBeInTheDocument();
     });
   });
 });

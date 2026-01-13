@@ -416,7 +416,17 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         : monthlyWithFree
       : monthlyWithFree
     : fallbackTiers.slice(0, 4);
-  const featuredTier = tiersToRender.find((tier) => tier.highlighted) || tiersToRender[0];
+
+  const paddedTiers = useMemo(() => {
+    if (!bundle || tiersToRender.length >= 3) {
+      return tiersToRender;
+    }
+    const existing = new Set(tiersToRender.map((tier) => tier.name.toLowerCase()));
+    const fillers = fallbackTiers.filter((tier) => !existing.has(tier.name.toLowerCase()));
+    return [...tiersToRender, ...fillers].slice(0, 3);
+  }, [bundle, tiersToRender, fallbackTiers]);
+
+  const featuredTier = paddedTiers.find((tier) => tier.highlighted) || paddedTiers[0];
 
   return (
     <section className="bg-[#F6F5F2] py-24 text-slate-900">
@@ -456,7 +466,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         )}
 
         <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible pb-6 pt-4 md:mx-0">
-          {tiersToRender.map((tier, index) => (
+          {paddedTiers.map((tier, index) => (
             <div
               key={`${tier.name}-${tier.price ?? 'n/a'}-${index}`}
               className="min-w-[82%] flex-shrink-0 snap-center md:min-w-[360px] lg:min-w-[380px]"

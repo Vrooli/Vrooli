@@ -266,7 +266,7 @@ func (s *AccountService) cacheSubscription(user string, status *landing_page_rea
 		status:    &landing_page_react_vite_v1.SubscriptionStatus{},
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
-	*entry.status = *status
+	entry.status = proto.Clone(status).(*landing_page_react_vite_v1.SubscriptionStatus)
 
 	s.cacheMutex.Lock()
 	s.cache[user] = entry

@@ -71,7 +71,9 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(asset)
+		if err := json.NewEncoder(w).Encode(asset); err != nil {
+			http.Error(w, "Failed to encode asset", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -92,9 +94,11 @@ func handleAssetsList(as *AssetsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"assets": assets,
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode assets", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -125,7 +129,9 @@ func handleAssetGet(as *AssetsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(asset)
+		if err := json.NewEncoder(w).Encode(asset); err != nil {
+			http.Error(w, "Failed to encode asset", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -162,6 +168,7 @@ func handleAssetDelete(as *AssetsService) http.HandlerFunc {
 
 // handleServeUpload handles GET /api/v1/uploads/{path...}
 // This serves uploaded files publicly (no auth required)
+//nolint:unused // reserved for debug-only asset preview handler
 func handleServeUpload(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the path after /api/v1/uploads/

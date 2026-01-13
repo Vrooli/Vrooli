@@ -1,8 +1,10 @@
-import { fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
 import {
   ConfigSource,
   GetStripeSettingsResponseSchema,
   UpdateStripeSettingsResponseSchema,
+  type GetStripeSettingsResponse,
+  type UpdateStripeSettingsResponse,
   type StripeConfigSnapshot,
   type StripeSettings,
 } from '@proto-lprv/settings_pb';
@@ -84,10 +86,9 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
 
 export function getStripeSettings() {
   return apiCall('/admin/settings/stripe').then((resp) => {
-    const message = fromJson(GetStripeSettingsResponseSchema, resp as JsonValue, {
+    const message = fromJson(GetStripeSettingsResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as GetStripeSettingsResponse;
     return flattenStripeSettings(message.snapshot, message.settings);
   });
 }
@@ -97,10 +98,9 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
     method: 'PUT',
     body: JSON.stringify(payload),
   }).then((resp) => {
-    const message = fromJson(UpdateStripeSettingsResponseSchema, resp as JsonValue, {
+    const message = fromJson(UpdateStripeSettingsResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as UpdateStripeSettingsResponse;
     return flattenStripeSettings(message.snapshot, message.settings);
   });
 }

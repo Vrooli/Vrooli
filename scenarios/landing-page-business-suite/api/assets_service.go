@@ -350,7 +350,12 @@ func (s *AssetsService) GetFilePath(storagePath string) string {
 
 func generateUniqueFilename(ext string) string {
 	bytes := make([]byte, 16)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		logStructuredError("asset_filename_random_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	}
 	timestamp := time.Now().Unix()
 	return fmt.Sprintf("%d_%s%s", timestamp, hex.EncodeToString(bytes), ext)
 }

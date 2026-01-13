@@ -26,7 +26,7 @@ function getVariantSlugFromUrl(): string | null {
 }
 
 export function LandingVariantProvider({ children }: { children: ReactNode }) {
-  const [variant, setVariant] = useState<Variant | null>(null);
+  const [variant, setVariant] = useState<LandingVariant | null>(null);
   const [config, setConfig] = useState<LandingConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

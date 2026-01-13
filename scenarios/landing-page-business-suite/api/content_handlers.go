@@ -31,9 +31,11 @@ func handleGetPublicSections(contentService *ContentService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"sections": sections,
-		})
+		}); err != nil {
+			http.Error(w, `{"error": "Failed to encode sections"}`, http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -60,9 +62,11 @@ func handleGetSections(contentService *ContentService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"sections": sections,
-		})
+		}); err != nil {
+			http.Error(w, `{"error": "Failed to encode sections"}`, http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -93,7 +97,9 @@ func handleGetSection(contentService *ContentService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(section)
+		if err := json.NewEncoder(w).Encode(section); err != nil {
+			http.Error(w, `{"error": "Failed to encode section"}`, http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -141,10 +147,12 @@ func handleUpdateSection(contentService *ContentService) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Section updated successfully",
-		})
+		}); err != nil {
+			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -190,7 +198,9 @@ func handleCreateSection(contentService *ContentService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		if err := json.NewEncoder(w).Encode(created); err != nil {
+			http.Error(w, `{"error": "Failed to encode section"}`, http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -224,9 +234,11 @@ func handleDeleteSection(contentService *ContentService) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Section deleted successfully",
-		})
+		}); err != nil {
+			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+		}
 	}
 }

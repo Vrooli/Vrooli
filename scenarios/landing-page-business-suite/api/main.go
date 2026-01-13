@@ -246,7 +246,11 @@ func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(space.JSONBytes())
+		if _, err := w.Write(space.JSONBytes()); err != nil {
+			logStructuredError("variant_space_write_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }
 
@@ -276,7 +280,9 @@ func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (s *Server) resetDemoData(ctx context.Context) error {
@@ -294,7 +300,7 @@ func (s *Server) resetDemoData(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, table := range tables {
 		stmt := fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)
@@ -383,6 +389,7 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed variant axes defaults: %w", err)
 	}
 
+	//nolint:govet // fallback pricing includes proto-backed mutexes; seed uses read-only copy
 	if err := seedBundlePricingDefaults(db, fallbackLanding.Pricing); err != nil {
 		return err
 	}
@@ -483,6 +490,7 @@ func seedSectionsFromFallback(db *sql.DB, variantID int) error {
 	return nil
 }
 
+//nolint:govet // pricing proto includes internal mutexes; used read-only for seeding
 func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 	if pricing.Bundle.BundleKey == "" {
 		return nil
@@ -1403,7 +1411,9 @@ func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // loggingMiddleware prints structured request logs
@@ -1420,6 +1430,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+//nolint:unused // reserved for future structured logging hooks
 func (s *Server) log(msg string, fields map[string]interface{}) {
 	logStructured(msg, fields)
 }

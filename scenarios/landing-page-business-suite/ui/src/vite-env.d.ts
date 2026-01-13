@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+type ProtoSchema<T> = unknown;
+
 declare module '@proto-lprv/billing_pb' {
   export enum SubscriptionState {
     SUBSCRIPTION_STATE_UNSPECIFIED = 0,
@@ -9,7 +11,21 @@ declare module '@proto-lprv/billing_pb' {
     SUBSCRIPTION_STATE_CANCELED = 4,
   }
 
-  export const VerifySubscriptionResponseSchema: unknown;
+  export interface SubscriptionStatus {
+    state?: SubscriptionState;
+    subscriptionId?: string;
+    userIdentity?: string;
+    planTier?: string;
+    stripePriceId?: string;
+    bundleKey?: string;
+    cachedAt?: { toJsonString?: () => string };
+  }
+
+  export interface VerifySubscriptionResponse {
+    status?: SubscriptionStatus;
+  }
+
+  export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
 }
 
 declare module '@proto-lprv/settings_pb' {
@@ -19,11 +35,31 @@ declare module '@proto-lprv/settings_pb' {
     CONFIG_SOURCE_DATABASE = 2,
   }
 
-  export type StripeConfigSnapshot = Record<string, unknown>;
-  export type StripeSettings = Record<string, unknown>;
+  export interface StripeConfigSnapshot {
+    publishableKeyPreview?: string;
+    publishableKeySet?: boolean;
+    secretKeySet?: boolean;
+    webhookSecretSet?: boolean;
+    source?: ConfigSource | string | number;
+  }
 
-  export const GetStripeSettingsResponseSchema: unknown;
-  export const UpdateStripeSettingsResponseSchema: unknown;
+  export interface StripeSettings {
+    dashboardUrl?: string;
+    updatedAt?: { toJsonString?: () => string } | string | Date | { seconds?: number; nanos?: number };
+  }
+
+  export interface GetStripeSettingsResponse {
+    snapshot?: StripeConfigSnapshot;
+    settings?: StripeSettings;
+  }
+
+  export interface UpdateStripeSettingsResponse {
+    snapshot?: StripeConfigSnapshot;
+    settings?: StripeSettings;
+  }
+
+  export const GetStripeSettingsResponseSchema: ProtoSchema<GetStripeSettingsResponse>;
+  export const UpdateStripeSettingsResponseSchema: ProtoSchema<UpdateStripeSettingsResponse>;
 }
 
 declare module '@proto-lprv/pricing_pb' {
@@ -47,5 +83,51 @@ declare module '@proto-lprv/pricing_pb' {
     PLAN_KIND_SUPPORTER_CONTRIBUTION = 3,
   }
 
-  export const GetPricingResponseSchema: unknown;
+  export interface PricingBundle {
+    bundleKey?: string;
+    name?: string;
+    stripeProductId?: string;
+    creditsPerUsd?: number | string;
+    displayCreditsMultiplier?: number | string;
+    displayCreditsLabel?: string;
+    environment?: string;
+    metadata?: Record<string, { toJson?: () => unknown }>;
+  }
+
+  export interface PricingPlan {
+    planName?: string;
+    planTier?: string;
+    billingInterval?: BillingInterval;
+    amountCents?: number | string;
+    currency?: string;
+    introEnabled?: boolean;
+    introType?: IntroPricingType;
+    introAmountCents?: number | string;
+    introPeriods?: number | string;
+    introPriceLookupKey?: string;
+    stripePriceId?: string;
+    monthlyIncludedCredits?: number | string;
+    oneTimeBonusCredits?: number | string;
+    planRank?: number | string;
+    bonusType?: string;
+    kind?: PlanKind;
+    isVariableAmount?: boolean;
+    displayEnabled?: boolean;
+    bundleKey?: string;
+    displayWeight?: number | string;
+    metadata?: Record<string, { toJson?: () => unknown }>;
+  }
+
+  export interface PricingPayload {
+    bundle?: PricingBundle;
+    monthly?: PricingPlan[];
+    yearly?: PricingPlan[];
+    updatedAt?: { toJsonString?: () => string } | string | { seconds?: number; nanos?: number };
+  }
+
+  export interface GetPricingResponse {
+    pricing?: PricingPayload;
+  }
+
+  export const GetPricingResponseSchema: ProtoSchema<GetPricingResponse>;
 }

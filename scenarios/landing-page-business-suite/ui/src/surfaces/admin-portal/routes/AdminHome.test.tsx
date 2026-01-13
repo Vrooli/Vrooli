@@ -115,7 +115,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
   const setLocation = (next: Location) => {
     Object.defineProperty(window, 'location', { value: next, writable: true });
   };
-  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn<typeof analyticsController, 'fetchAnalyticsSummary'>>;
+  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn> | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -124,7 +124,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
-    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
+    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary) as ReturnType<typeof vi.spyOn>;
     mockedGetStripeSettings.mockResolvedValue(mockStripeSettings);
     mockedResetDemoData.mockResolvedValue({ reset: true, timestamp: new Date().toISOString() });
   });
@@ -133,7 +133,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     globalThis.fetch = originalFetch;
     setLocation(originalLocation);
     window.localStorage.clear();
-    fetchAnalyticsSpy.mockRestore();
+    fetchAnalyticsSpy?.mockRestore();
   });
 
   it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', () => {

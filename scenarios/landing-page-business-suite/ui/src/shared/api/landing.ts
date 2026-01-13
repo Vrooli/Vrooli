@@ -1,9 +1,10 @@
-import { fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
 import {
   BillingInterval,
   GetPricingResponseSchema,
   IntroPricingType,
   PlanKind,
+  type GetPricingResponse,
 } from '@proto-lprv/pricing_pb';
 import { apiCall } from './common';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
@@ -19,11 +20,10 @@ export function getLandingConfig(variantSlug?: string) {
 
 export function getPlans() {
   return apiCall('/plans').then((resp) => {
-    const message = fromJson(GetPricingResponseSchema, resp as JsonValue, {
+    const message = fromJson(GetPricingResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
-    const toObjectMap = (input?: Record<string, { toJson: () => unknown }>) => {
+    }) as GetPricingResponse;
+    const toObjectMap = (input?: Record<string, { toJson?: () => unknown }>) => {
       if (!input) return undefined;
       return Object.fromEntries(
         Object.entries(input).map(([key, value]) => [key, value?.toJson?.() ?? null])

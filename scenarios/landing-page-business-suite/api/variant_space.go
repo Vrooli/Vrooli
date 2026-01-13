@@ -149,7 +149,7 @@ func (vs *VariantSpace) ValidateSelection(selection map[string]string) error {
 	// Verify disallowed combos.
 	if vs.Constraints != nil {
 		for _, combo := range vs.Constraints.DisallowedCombinations {
-			if combo == nil || len(combo) == 0 {
+			if len(combo) == 0 {
 				continue
 			}
 			match := true

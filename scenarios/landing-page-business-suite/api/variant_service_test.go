@@ -44,10 +44,12 @@ func testVariantSpace() *VariantSpace {
 
 func TestSelectVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	// Clean up test data
-	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'"); err != nil {
+		t.Fatalf("failed to cleanup variants: %v", err)
+	}
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -72,7 +74,7 @@ func TestSelectVariant(t *testing.T) {
 
 func TestImportVariantSnapshotPreservesWeightAndStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 	cs := NewContentService(db)
@@ -81,7 +83,11 @@ func TestImportVariantSnapshotPreservesWeightAndStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateVariant failed: %v", err)
 	}
-	t.Cleanup(func() { db.Exec("DELETE FROM variants WHERE slug = $1", variant.Slug) })
+	t.Cleanup(func() {
+		if _, err := db.Exec("DELETE FROM variants WHERE slug = $1", variant.Slug); err != nil {
+			t.Fatalf("failed to cleanup variant %s: %v", variant.Slug, err)
+		}
+	})
 
 	if err := vs.ArchiveVariant(variant.Slug); err != nil {
 		t.Fatalf("ArchiveVariant failed: %v", err)
@@ -133,7 +139,7 @@ func TestImportVariantSnapshotPreservesWeightAndStatus(t *testing.T) {
 
 func TestGetVariantBySlug(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -156,7 +162,7 @@ func TestGetVariantBySlug(t *testing.T) {
 
 func TestCreateVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -189,12 +195,14 @@ func TestCreateVariant(t *testing.T) {
 	}
 
 	// Clean up
-	db.Exec("DELETE FROM variants WHERE slug = 'test-variant'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-variant'"); err != nil {
+		t.Fatalf("failed to cleanup test-variant: %v", err)
+	}
 }
 
 func TestUpdateVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -245,12 +253,14 @@ func TestUpdateVariant(t *testing.T) {
 	}
 
 	// Clean up
-	db.Exec("DELETE FROM variants WHERE slug = 'test-update'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-update'"); err != nil {
+		t.Fatalf("failed to cleanup test-update: %v", err)
+	}
 }
 
 func TestArchiveVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -294,12 +304,14 @@ func TestArchiveVariant(t *testing.T) {
 	}
 
 	// Clean up
-	db.Exec("DELETE FROM variants WHERE slug = 'test-archive'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-archive'"); err != nil {
+		t.Fatalf("failed to cleanup test-archive: %v", err)
+	}
 }
 
 func TestDeleteVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -326,17 +338,21 @@ func TestDeleteVariant(t *testing.T) {
 	}
 
 	// Clean up
-	db.Exec("DELETE FROM variants WHERE slug = 'test-delete'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-delete'"); err != nil {
+		t.Fatalf("failed to cleanup test-delete: %v", err)
+	}
 }
 
 func TestUpdateSEOConfigBySlug(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
 	slug := "test-seo-config"
-	db.Exec("DELETE FROM variants WHERE slug = $1", slug)
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = $1", slug); err != nil {
+		t.Fatalf("failed to cleanup variant %s: %v", slug, err)
+	}
 
 	_, err := vs.CreateVariant(slug, "SEO Variant", "SEO description", 40, defaultAxesSelection())
 	if err != nil {
@@ -378,12 +394,14 @@ func TestUpdateSEOConfigBySlug(t *testing.T) {
 		t.Error("expected error when slug is empty")
 	}
 
-	db.Exec("DELETE FROM variants WHERE slug = $1", slug)
+	if _, err := db.Exec("DELETE FROM variants WHERE slug = $1", slug); err != nil {
+		t.Fatalf("failed to cleanup variant %s: %v", slug, err)
+	}
 }
 
 func TestListVariants(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -416,7 +434,7 @@ func TestListVariants(t *testing.T) {
 
 func TestWeightedSelection(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, testVariantSpace())
 
@@ -462,12 +480,14 @@ func TestWeightedSelection(t *testing.T) {
 	}
 
 	// Clean up
-	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
+	if _, err := db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'"); err != nil {
+		t.Fatalf("failed to cleanup variants: %v", err)
+	}
 }
 
 func TestCreateVariantRequiresAxes(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	vs := NewVariantService(db, defaultVariantSpace)
 

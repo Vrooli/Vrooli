@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/vrooli/api-core/health"
 )
 
 func newHealthTestServer(t *testing.T) (*Server, func()) {
@@ -22,7 +24,8 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleHealth(w, req)
+		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
+		healthHandler.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("Expected status 200, got %d", w.Code)
@@ -31,19 +34,16 @@ func TestHealthEndpoint(t *testing.T) {
 			t.Fatalf("Expected Content-Type application/json, got %s", contentType)
 		}
 
-		var payload struct {
-			Status       string            `json:"status"`
-			Readiness    bool              `json:"readiness"`
-			Dependencies map[string]string `json:"dependencies"`
-		}
+		var payload health.Response
 		if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode health response: %v", err)
 		}
 		if payload.Status != "healthy" || !payload.Readiness {
 			t.Fatalf("expected healthy status and readiness, got status=%s readiness=%v", payload.Status, payload.Readiness)
 		}
-		if payload.Dependencies["database"] != "connected" {
-			t.Fatalf("expected database dependency to be connected, got %q", payload.Dependencies["database"])
+		dbStatus, ok := payload.Dependencies["database"]
+		if !ok || !dbStatus.Connected {
+			t.Fatalf("expected database dependency to be connected")
 		}
 	})
 
@@ -57,17 +57,14 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		srv.handleHealth(w, req)
+		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
+		healthHandler.ServeHTTP(w, req)
 
-		if w.Code != http.StatusOK {
-			t.Fatalf("Expected status 200 even when unhealthy, got %d", w.Code)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("Expected status 503 when unhealthy, got %d", w.Code)
 		}
 
-		var payload struct {
-			Status       string            `json:"status"`
-			Readiness    bool              `json:"readiness"`
-			Dependencies map[string]string `json:"dependencies"`
-		}
+		var payload health.Response
 		if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode health response: %v", err)
 		}
@@ -77,32 +74,29 @@ func TestHealthEndpoint(t *testing.T) {
 		if payload.Readiness {
 			t.Fatalf("expected readiness=false when db ping fails")
 		}
-		if payload.Dependencies["database"] != "disconnected" {
-			t.Fatalf("expected database dependency marked disconnected, got %q", payload.Dependencies["database"])
+		dbStatus, ok := payload.Dependencies["database"]
+		if !ok || dbStatus.Connected {
+			t.Fatalf("expected database dependency marked disconnected")
 		}
 	})
 }
 
-func TestRequireEnv(t *testing.T) {
-	// Test valid environment variable
-	t.Run("valid environment variable", func(t *testing.T) {
-		os.Setenv("TEST_VAR", "test_value")
-		defer os.Unsetenv("TEST_VAR")
-
-		result := requireEnv("TEST_VAR")
-		if result != "test_value" {
-			t.Errorf("Expected test_value, got %s", result)
+func TestParseEnvBool(t *testing.T) {
+	t.Run("truthy values", func(t *testing.T) {
+		cases := []string{"1", "true", "TRUE", "yes", "Y", "on", " On "}
+		for _, value := range cases {
+			if !parseEnvBool(value) {
+				t.Fatalf("expected true for %q", value)
+			}
 		}
 	})
 
-	// Test whitespace trimming
-	t.Run("whitespace trimming", func(t *testing.T) {
-		os.Setenv("TEST_VAR_WS", "  trimmed  ")
-		defer os.Unsetenv("TEST_VAR_WS")
-
-		result := requireEnv("TEST_VAR_WS")
-		if result != "trimmed" {
-			t.Errorf("Expected trimmed, got '%s'", result)
+	t.Run("falsey values", func(t *testing.T) {
+		cases := []string{"", "0", "false", "no", "off", "disabled"}
+		for _, value := range cases {
+			if parseEnvBool(value) {
+				t.Fatalf("expected false for %q", value)
+			}
 		}
 	})
 }

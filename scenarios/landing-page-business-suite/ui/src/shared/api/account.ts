@@ -1,14 +1,13 @@
-import { fromJson, type JsonValue } from '@bufbuild/protobuf';
-import { SubscriptionState, VerifySubscriptionResponseSchema } from '@proto-lprv/billing_pb';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { SubscriptionState, VerifySubscriptionResponseSchema, type VerifySubscriptionResponse } from '@proto-lprv/billing_pb';
 import { apiCall } from './common';
 import type { CreditInfo, EntitlementPayload, SubscriptionInfo } from './types';
 
 export function getSubscriptionInfo() {
   return apiCall('/me/subscription').then((resp) => {
-    const message = fromJson(VerifySubscriptionResponseSchema, resp as JsonValue, {
+    const message = fromJson(VerifySubscriptionResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as VerifySubscriptionResponse;
     const status = message.status;
     const mapState = (state?: SubscriptionState) => {
       switch (state) {
@@ -32,7 +31,7 @@ export function getSubscriptionInfo() {
       plan_tier: status?.planTier,
       price_id: status?.stripePriceId,
       bundle_key: status?.bundleKey,
-      updated_at: status?.cachedAt?.toJsonString(),
+      updated_at: status?.cachedAt?.toJsonString?.(),
     };
     return subscription;
   });

@@ -18,7 +18,11 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	const userEmail = "cache-test@example.com"
 	const subscriptionID = "sub-cache-test"
 
-	defer db.Exec("DELETE FROM subscriptions WHERE subscription_id = $1", subscriptionID)
+	defer func() {
+		if _, err := db.Exec("DELETE FROM subscriptions WHERE subscription_id = $1", subscriptionID); err != nil {
+			t.Fatalf("failed to cleanup subscription: %v", err)
+		}
+	}()
 
 	_, err := db.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)

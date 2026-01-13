@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Plus, Clipboard } from 'lucide-react';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import type { IDisposable } from 'monaco-editor';
+import type { IDisposable, editor as MonacoEditor, Uri as MonacoUri } from 'monaco-editor';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -123,15 +123,15 @@ export function VariantEditor() {
       const markers = monaco.editor.getModelMarkers({ resource: uri });
       setSchemaIssues(
         markers.map(
-          (marker) =>
+          (marker: MonacoEditor.IMarker) =>
             `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
         )
       );
     };
 
     markersListener.current?.dispose();
-    markersListener.current = monaco.editor.onDidChangeMarkers((changed) => {
-      const affected = changed.some((change) => change.toString() === uri.toString());
+    markersListener.current = monaco.editor.onDidChangeMarkers((changed: readonly MonacoUri[]) => {
+      const affected = changed.some((change: MonacoUri) => change.toString() === uri.toString());
       if (affected) {
         refreshMarkers();
       }
@@ -1128,7 +1128,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
             <h3 className="text-slate-200 font-medium">Primary CTA</h3>
             <select
               value={config.ctas.primary.mode ?? 'inherit_hero'}
-              onChange={(e) => handleCTAModeChange('primary', { mode: e.target.value })}
+              onChange={(e) => handleCTAModeChange('primary', { mode: e.target.value as HeaderCTAMode })}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
               <option value="inherit_hero">Use hero CTA</option>
@@ -1159,7 +1159,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
             <h3 className="text-slate-200 font-medium">Secondary CTA</h3>
             <select
               value={config.ctas.secondary.mode ?? 'downloads'}
-              onChange={(e) => handleCTAModeChange('secondary', { mode: e.target.value })}
+              onChange={(e) => handleCTAModeChange('secondary', { mode: e.target.value as HeaderCTAMode })}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
               <option value="downloads">Downloads anchor</option>

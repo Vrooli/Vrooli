@@ -387,6 +387,7 @@ func (S3DownloadStorageProvider) New(ctx context.Context, settings DownloadStora
 	return newS3DownloadStorage(ctx, settings)
 }
 
+//nolint:staticcheck // legacy endpoint resolver still required for custom S3 endpoints
 func endpointResolverForS3(endpointURL string) aws.EndpointResolverWithOptionsFunc {
 	return func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		if service == s3.ServiceID && strings.TrimSpace(endpointURL) != "" {
@@ -410,6 +411,7 @@ func newS3DownloadStorage(ctx context.Context, settings DownloadStorageSettings)
 		config.WithRegion(region),
 	}
 	if settings.Endpoint != "" {
+		//nolint:staticcheck // legacy endpoint resolver still required for custom S3 endpoints
 		loadOptions = append(loadOptions, config.WithEndpointResolverWithOptions(endpointResolverForS3(settings.Endpoint)))
 	}
 	if strings.TrimSpace(settings.AccessKeyID) != "" || strings.TrimSpace(settings.SecretAccessKey) != "" {

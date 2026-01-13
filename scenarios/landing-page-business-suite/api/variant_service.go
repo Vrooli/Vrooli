@@ -119,13 +119,13 @@ func (vs *VariantService) SelectVariant() (*Variant, error) {
 
 	if totalWeight == 0 {
 		// If all weights are 0, distribute evenly
-		rand.Seed(time.Now().UnixNano())
-		return &variants[rand.Intn(len(variants))], nil
+		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+		return &variants[rng.Intn(len(variants))], nil
 	}
 
 	// Weighted random selection
-	rand.Seed(time.Now().UnixNano())
-	randomWeight := rand.Intn(totalWeight)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomWeight := rng.Intn(totalWeight)
 	cumulativeWeight := 0
 
 	for _, v := range variants {
@@ -276,7 +276,7 @@ func (vs *VariantService) CreateVariant(slug, name, description string, weight i
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `
 		INSERT INTO variants (slug, name, description, weight, status, header_config)
@@ -372,7 +372,7 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var headerFromDB []byte
 	err = tx.QueryRow(query, args...).Scan(
@@ -671,7 +671,7 @@ func (vs *VariantService) ImportVariantSnapshot(slug string, snapshot VariantSna
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec(`
 		UPDATE variants

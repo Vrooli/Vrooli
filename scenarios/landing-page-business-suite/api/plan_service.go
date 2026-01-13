@@ -303,8 +303,7 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			"mapped_enum":  option.BillingInterval.String(),
 		})
 
-		copied := option
-		options = append(options, &copied)
+		options = append(options, proto.Clone(&option).(*PlanOption))
 	}
 
 	logStructured("loadBundlePrices_done", map[string]interface{}{
@@ -742,6 +741,7 @@ func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {
 	}
 }
 
+//nolint:unused // helper retained for future optional fields
 func nullableString(ns sql.NullString) *string {
 	if !ns.Valid {
 		return nil

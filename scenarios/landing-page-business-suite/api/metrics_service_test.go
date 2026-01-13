@@ -18,8 +18,12 @@ func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
 	}
 
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM metrics_events")
-		db.Close()
+		if err := db.Ping(); err == nil {
+			if _, err := db.Exec("DELETE FROM metrics_events"); err != nil {
+				t.Fatalf("failed to clean metrics_events: %v", err)
+			}
+		}
+		_ = db.Close()
 	})
 
 	service := NewMetricsService(db)
@@ -57,7 +61,9 @@ func TestTrackEvent_Valid(t *testing.T) {
 
 	// Verify event was inserted
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count)
+	if err := db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count); err != nil {
+		t.Fatalf("failed to count metrics events: %v", err)
+	}
 	if count != 1 {
 		t.Errorf("Expected 1 event, got %d", count)
 	}
@@ -88,7 +94,9 @@ func TestTrackEvent_Idempotency(t *testing.T) {
 
 	// Verify only one event was inserted
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count)
+	if err := db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count); err != nil {
+		t.Fatalf("failed to count metrics events: %v", err)
+	}
 	if count != 1 {
 		t.Errorf("Expected 1 event (idempotency), got %d", count)
 	}
@@ -205,7 +213,9 @@ func TestGetVariantStats(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		service.TrackEvent(evt)
+		if err := service.TrackEvent(evt); err != nil {
+			t.Fatalf("failed to track event: %v", err)
+		}
 	}
 
 	// Get stats for all variants
@@ -257,12 +267,14 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	controlID := lookupVariantID(t, db, "control")
 
 	// Insert test events for variant 1 (control)
-	service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(MetricEvent{
 		EventType: "page_view",
 		VariantID: controlID,
 		SessionID: "session1",
 		EventID:   "evt-filter-1",
-	})
+	}); err != nil {
+		t.Fatalf("failed to track event: %v", err)
+	}
 
 	startDate := time.Now().AddDate(0, 0, -1)
 	endDate := time.Now().AddDate(0, 0, 1)
@@ -297,7 +309,9 @@ func TestGetAnalyticsSummary(t *testing.T) {
 	}
 
 	for _, evt := range events {
-		service.TrackEvent(evt)
+		if err := service.TrackEvent(evt); err != nil {
+			t.Fatalf("failed to track event: %v", err)
+		}
 	}
 
 	startDate := time.Now().AddDate(0, 0, -1)

@@ -238,7 +238,7 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error, got nil")
 	}
-	if derivatives != nil && len(derivatives) > 0 {
+	if len(derivatives) > 0 {
 		t.Fatalf("expected no derivatives on failure, got %v", derivatives)
 	}
 
@@ -253,7 +253,7 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 
 func TestAssetsServiceUpload_DisallowedMimeRejectsAndCleansUp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -301,7 +301,7 @@ func TestAssetsServiceUpload_DisallowedMimeRejectsAndCleansUp(t *testing.T) {
 
 func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -336,7 +336,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 
 func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	uploadDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", uploadDir)
@@ -370,7 +370,9 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 		t.Fatalf("upload should tolerate derivative failure: %v", err)
 	}
 	t.Cleanup(func() {
-		db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID)
+		if _, err := db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID); err != nil {
+			t.Fatalf("failed to cleanup asset: %v", err)
+		}
 	})
 
 	if asset == nil {
@@ -407,7 +409,7 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 
 func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -485,7 +487,7 @@ func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 
 func TestAssetsServiceUpload_DetectsMimeAndStoresGeneralAssets(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
