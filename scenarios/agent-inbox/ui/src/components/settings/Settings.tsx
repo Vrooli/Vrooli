@@ -308,6 +308,7 @@ export function Settings({
   }, []);
 
   return (
+    <>
     <Dialog open={open} onClose={onClose} className="max-w-lg">
       <DialogHeader onClose={onClose}>Settings</DialogHeader>
       <DialogBody className="space-y-4">
@@ -651,18 +652,20 @@ export function Settings({
           />
         )}
 
-        {/* Skill editor modal */}
-        <SkillEditorModal
-          open={isCreatingSkill || editingSkill !== null}
-          onClose={() => {
-            setEditingSkill(null);
-            setIsCreatingSkill(false);
-          }}
-          skill={editingSkill ?? undefined}
-          skillSource={editingSkill?.source}
-          onSave={handleSaveSkill}
-        />
       </DialogBody>
     </Dialog>
+
+    {/* Skill editor modal - rendered outside Dialog to avoid overflow clipping and z-index issues */}
+    <SkillEditorModal
+      open={isCreatingSkill || editingSkill !== null}
+      onClose={() => {
+        setEditingSkill(null);
+        setIsCreatingSkill(false);
+      }}
+      skill={editingSkill ?? undefined}
+      skillSource={editingSkill?.source}
+      onSave={handleSaveSkill}
+    />
+  </>
   );
 }
