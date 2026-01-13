@@ -1641,3 +1641,246 @@ export async function invalidateScenarioStage(
   }
   return response.json();
 }
+
+// ==================== Distribution API ====================
+
+export interface DistributionRetryConfig {
+  max_attempts?: number;
+  initial_backoff_ms?: number;
+  max_backoff_ms?: number;
+  backoff_multiplier?: number;
+}
+
+export interface DistributionTarget {
+  name: string;
+  enabled: boolean;
+  provider: "s3" | "r2" | "s3-compatible";
+  bucket: string;
+  endpoint?: string;
+  region?: string;
+  path_prefix?: string;
+  access_key_id_env: string;
+  secret_access_key_env: string;
+  acl?: string;
+  cdn_url?: string;
+  retry?: DistributionRetryConfig;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DistributionConfig {
+  schema_version: string;
+  targets: Record<string, DistributionTarget>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DistributionConfigResponse {
+  config: DistributionConfig | null;
+  config_path: string;
+}
+
+export interface DistributionTargetResponse {
+  target: DistributionTarget;
+}
+
+export interface DistributionTargetsResponse {
+  targets: DistributionTarget[];
+  count: number;
+}
+
+export interface DistributionTargetValidation {
+  target_name: string;
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface DistributionValidationResult {
+  valid: boolean;
+  targets: Record<string, DistributionTargetValidation>;
+  error?: string;
+}
+
+export interface DistributionTestResult {
+  target_name: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface DistributeRequest {
+  scenario_name: string;
+  version?: string;
+  artifacts: Record<string, string>;
+  target_names?: string[];
+  parallel?: boolean;
+}
+
+export interface DistributeResponse {
+  distribution_id: string;
+  status_url: string;
+}
+
+export interface UploadStatus {
+  platform: string;
+  status: "pending" | "uploading" | "completed" | "failed";
+  url?: string;
+  error?: string;
+  progress?: number;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface TargetDistribution {
+  target_name: string;
+  status: "pending" | "running" | "completed" | "partial" | "failed";
+  uploads: Record<string, UploadStatus>;
+  error?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface DistributionStatus {
+  distribution_id: string;
+  scenario_name: string;
+  version?: string;
+  status: "pending" | "running" | "completed" | "partial" | "failed" | "cancelled";
+  targets: Record<string, TargetDistribution>;
+  error?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export async function fetchDistributionConfig(): Promise<DistributionConfigResponse> {
+  const response = await fetch(buildUrl("/distribution/config"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch distribution config: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchDistributionConfigPath(): Promise<{ path: string }> {
+  const response = await fetch(buildUrl("/distribution/config-path"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch distribution config path: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchDistributionTargets(): Promise<DistributionTargetsResponse> {
+  const response = await fetch(buildUrl("/distribution/targets"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch distribution targets: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchDistributionTarget(name: string): Promise<DistributionTargetResponse> {
+  const response = await fetch(buildUrl(`/distribution/targets/${encodeURIComponent(name)}`));
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`Target "${name}" not found`);
+    }
+    throw new Error(`Failed to fetch distribution target: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function createDistributionTarget(target: DistributionTarget): Promise<DistributionTargetResponse> {
+  const response = await fetch(buildUrl("/distribution/targets"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(target),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to create distribution target");
+  }
+  return response.json();
+}
+
+export async function updateDistributionTarget(
+  name: string,
+  target: Partial<DistributionTarget>
+): Promise<DistributionTargetResponse> {
+  const response = await fetch(buildUrl(`/distribution/targets/${encodeURIComponent(name)}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(target),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to update distribution target");
+  }
+  return response.json();
+}
+
+export async function deleteDistributionTarget(name: string): Promise<{ status: string }> {
+  const response = await fetch(buildUrl(`/distribution/targets/${encodeURIComponent(name)}`), {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete distribution target: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function testDistributionTarget(name: string): Promise<DistributionTestResult> {
+  const response = await fetch(buildUrl(`/distribution/targets/${encodeURIComponent(name)}/test`), {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to test distribution target");
+  }
+  return response.json();
+}
+
+export async function validateDistributionTargets(
+  targetNames?: string[]
+): Promise<DistributionValidationResult> {
+  const response = await fetch(buildUrl("/distribution/validate"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_names: targetNames }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to validate distribution targets: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function startDistribution(request: DistributeRequest): Promise<DistributeResponse> {
+  const response = await fetch(buildUrl("/distribution/distribute"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to start distribution");
+  }
+  return response.json();
+}
+
+export async function fetchDistributionStatus(distributionId: string): Promise<DistributionStatus> {
+  const response = await fetch(buildUrl(`/distribution/status/${encodeURIComponent(distributionId)}`));
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`Distribution "${distributionId}" not found`);
+    }
+    throw new Error(`Failed to fetch distribution status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function cancelDistribution(distributionId: string): Promise<{ status: string }> {
+  const response = await fetch(buildUrl(`/distribution/cancel/${encodeURIComponent(distributionId)}`), {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to cancel distribution: ${response.statusText}`);
+  }
+  return response.json();
+}

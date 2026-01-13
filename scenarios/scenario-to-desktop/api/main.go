@@ -21,6 +21,7 @@ import (
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/distribution"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
@@ -54,17 +55,18 @@ type Server struct {
 	logger      *slog.Logger
 
 	// Domain handlers (screaming architecture)
-	preflightHandler  *preflightdomain.Handler
-	buildHandler      *build.Handler
-	generationHandler *generation.Handler
-	smokeTestHandler  *smoketest.Handler
-	telemetryHandler  *telemetry.Handler
-	recordsHandler    *records.Handler
-	scenarioHandler   *scenario.Handler
-	systemHandler     *system.Handler
-	pipelineHandler   *pipeline.Handler
-	bundleHandler     *bundle.Handler
-	stateHandler      *state.Handler
+	preflightHandler    *preflightdomain.Handler
+	buildHandler        *build.Handler
+	generationHandler   *generation.Handler
+	smokeTestHandler    *smoketest.Handler
+	telemetryHandler    *telemetry.Handler
+	recordsHandler      *records.Handler
+	scenarioHandler     *scenario.Handler
+	systemHandler       *system.Handler
+	pipelineHandler     *pipeline.Handler
+	bundleHandler       *bundle.Handler
+	stateHandler        *state.Handler
+	distributionHandler *distribution.Handler
 
 	// Task orchestration service
 	taskSvc *tasks.Service
@@ -170,6 +172,23 @@ func NewServer(port int) *Server {
 	systemBuildStore := &systemBuildStoreAdapter{store: buildStore}
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
 
+	// Distribution domain (S3/R2 uploads)
+	distributionRepo := distribution.NewGlobalRepository(
+		distribution.WithVrooliRoot(vrooliRoot),
+	)
+	distributionStore := distribution.NewInMemoryStore()
+	distributionService := distribution.NewService(
+		distribution.WithRepository(distributionRepo),
+		distribution.WithStore(distributionStore),
+		distribution.WithLogger(logger),
+	)
+	distributionHandler := distribution.NewHandler(
+		distribution.WithHandlerService(distributionService),
+		distribution.WithHandlerRepository(distributionRepo),
+		distribution.WithHandlerStore(distributionStore),
+		distribution.WithHandlerLogger(logger),
+	)
+
 	// Pipeline orchestrator - wire up all stages with their dependencies
 	// Create scenario analyzer for generation stage
 	scenarioAnalyzer := generation.NewAnalyzer(vrooliRoot)
@@ -191,6 +210,10 @@ func NewServer(port int) *Server {
 		pipeline.NewBuildStage(
 			pipeline.WithBuildService(buildService),
 			pipeline.WithBuildStore(buildStore),
+		),
+		pipeline.NewDistributionStage(
+			pipeline.WithDistributionService(distributionService),
+			pipeline.WithDistributionStore(distributionStore),
 		),
 		pipeline.NewSmokeTestStage(
 			pipeline.WithSmokeTestService(smokeTestService),
@@ -254,9 +277,10 @@ func NewServer(port int) *Server {
 		recordsHandler:    recordsHandler,
 		scenarioHandler:   scenarioHandler,
 		systemHandler:     systemHandler,
-		pipelineHandler:   pipelineHandler,
-		bundleHandler:     bundleHandler,
-		stateHandler:      stateHandler,
+		pipelineHandler:     pipelineHandler,
+		bundleHandler:       bundleHandler,
+		stateHandler:        stateHandler,
+		distributionHandler: distributionHandler,
 
 		// Task orchestration
 		taskSvc: taskSvc,
@@ -501,6 +525,9 @@ func (s *Server) setupRoutes() {
 	// Signing domain: /api/v1/signing/*
 	signingHandler := signing.NewHandler()
 	signingHandler.RegisterRoutes(s.router)
+
+	// Distribution domain: /api/v1/distribution/*
+	s.distributionHandler.RegisterRoutes(s.router)
 
 	// Pipeline orchestration - one-button deployment: /api/v1/pipeline/*
 	s.pipelineHandler.RegisterRoutes(s.router)

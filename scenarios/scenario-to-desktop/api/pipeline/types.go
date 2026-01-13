@@ -3,6 +3,7 @@ package pipeline
 import (
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/distribution"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/smoketest"
@@ -10,11 +11,12 @@ import (
 
 // Stage names as constants for consistency.
 const (
-	StageBundle    = "bundle"
-	StagePreflight = "preflight"
-	StageGenerate  = "generate"
-	StageBuild     = "build"
-	StageSmokeTest = "smoketest"
+	StageBundle       = "bundle"
+	StagePreflight    = "preflight"
+	StageGenerate     = "generate"
+	StageBuild        = "build"
+	StageDistribution = "distribution"
+	StageSmokeTest    = "smoketest"
 )
 
 // Pipeline status values.
@@ -67,6 +69,16 @@ type Config struct {
 
 	// Publish enables publishing after successful build.
 	Publish bool `json:"publish,omitempty"`
+
+	// Distribute enables distribution stage after successful build.
+	Distribute bool `json:"distribute,omitempty"`
+
+	// DistributionTargets specifies which distribution targets to upload to.
+	// Empty means all enabled targets.
+	DistributionTargets []string `json:"distribution_targets,omitempty"`
+
+	// Version is the release version (used in distribution path).
+	Version string `json:"version,omitempty"`
 
 	// PreflightTimeoutSeconds sets the timeout for preflight validation.
 	PreflightTimeoutSeconds int `json:"preflight_timeout_seconds,omitempty"`
@@ -139,6 +151,9 @@ type StageInput struct {
 
 	// SmokeTestResult contains the output from the smoke test stage.
 	SmokeTestResult *smoketest.Status
+
+	// DistributionResult contains the output from the distribution stage.
+	DistributionResult *distribution.DistributionStatus
 
 	// ScenarioMetadata contains analyzed scenario metadata.
 	ScenarioMetadata *generation.ScenarioMetadata
