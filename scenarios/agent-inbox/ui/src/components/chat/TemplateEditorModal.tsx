@@ -112,6 +112,7 @@ export function TemplateEditorModal({
   const [pendingChanges, setPendingChanges] = useState<Map<string, TemplateFormState>>(new Map());
   const [expandedTreeNodes, setExpandedTreeNodes] = useState<Set<string>>(new Set());
   const [isSavingAll, setIsSavingAll] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Track if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
@@ -199,6 +200,26 @@ export function TemplateEditorModal({
 
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size;
+
+  // Compute merged items for tree display - reflects pending mode changes in real-time
+  const itemsForTree = useMemo(() => {
+    if (!allTemplates) return [];
+
+    return allTemplates.map((item) => {
+      // For current item, use live form state modes
+      if (item.id === template?.id) {
+        return { ...item, modes };
+      }
+
+      // For other items with pending changes, use their pending modes
+      const pending = pendingChanges.get(item.id);
+      if (pending?.modes) {
+        return { ...item, modes: pending.modes };
+      }
+
+      return item;
+    });
+  }, [allTemplates, pendingChanges, template?.id, modes]);
 
   // Handle Save All
   const handleSaveAll = useCallback(async () => {
@@ -584,7 +605,7 @@ export function TemplateEditorModal({
             {/* Tree Sidebar */}
             {showSidebar && allTemplates && (
               <ItemTreeSidebar
-                items={allTemplates}
+                items={itemsForTree}
                 selectedItemId={template?.id ?? null}
                 onSelectItem={(id) => {
                   const selected = allTemplates.find((t) => t.id === id);
@@ -598,7 +619,9 @@ export function TemplateEditorModal({
                   return <IconComp className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />;
                 }}
                 title="Templates"
-                className="w-60 flex-shrink-0"
+                className={isSidebarCollapsed ? "" : "w-60 flex-shrink-0"}
+                isCollapsed={isSidebarCollapsed}
+                onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
               />
             )}
 

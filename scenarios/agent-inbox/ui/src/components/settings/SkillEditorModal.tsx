@@ -97,6 +97,7 @@ export function SkillEditorModal({
   const [pendingChanges, setPendingChanges] = useState<Map<string, SkillFormState>>(new Map());
   const [expandedTreeNodes, setExpandedTreeNodes] = useState<Set<string>>(new Set());
   const [isSavingAll, setIsSavingAll] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Track if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
@@ -185,6 +186,26 @@ export function SkillEditorModal({
 
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size;
+
+  // Compute merged items for tree display - reflects pending mode changes in real-time
+  const itemsForTree = useMemo(() => {
+    if (!allSkills) return [];
+
+    return allSkills.map((item) => {
+      // For current item, use live form state modes
+      if (item.id === skill?.id) {
+        return { ...item, modes };
+      }
+
+      // For other items with pending changes, use their pending modes
+      const pending = pendingChanges.get(item.id);
+      if (pending?.modes) {
+        return { ...item, modes: pending.modes };
+      }
+
+      return item;
+    });
+  }, [allSkills, pendingChanges, skill?.id, modes]);
 
   // Handle Save All
   const handleSaveAll = useCallback(async () => {
@@ -460,7 +481,7 @@ export function SkillEditorModal({
           {/* Tree Sidebar */}
           {showSidebar && allSkills && (
             <ItemTreeSidebar
-              items={allSkills}
+              items={itemsForTree}
               selectedItemId={skill?.id ?? null}
               onSelectItem={(id) => {
                 const selected = allSkills.find((s) => s.id === id);
@@ -474,7 +495,9 @@ export function SkillEditorModal({
                 return <IconComp className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />;
               }}
               title="Skills"
-              className="w-60 flex-shrink-0"
+              className={isSidebarCollapsed ? "" : "w-60 flex-shrink-0"}
+              isCollapsed={isSidebarCollapsed}
+              onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
             />
           )}
 
