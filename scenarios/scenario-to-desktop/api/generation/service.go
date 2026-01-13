@@ -185,8 +185,16 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	buildStatus.Metadata["destination_path"] = destinationPath
 
 	if s.builds != nil {
+		// Create the build entry first (Update only works for existing builds)
+		s.builds.Create(buildID)
+		// Then update with the full status including metadata
 		s.builds.Update(buildID, func(status *BuildStatus) {
-			*status = *buildStatus
+			status.OutputPath = buildStatus.OutputPath
+			status.StartedAt = buildStatus.StartedAt
+			status.BuildLog = buildStatus.BuildLog
+			status.ErrorLog = buildStatus.ErrorLog
+			status.Artifacts = buildStatus.Artifacts
+			status.Metadata = buildStatus.Metadata
 		})
 	}
 
