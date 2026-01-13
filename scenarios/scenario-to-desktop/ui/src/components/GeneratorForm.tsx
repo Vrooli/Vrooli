@@ -49,11 +49,14 @@ import {
   type PlatformSelection
 } from "../domain/generator";
 import {
-  useGeneratorDraft,
+  useScenarioState,
   usePreflightSession,
   useSigningConfig,
   type GeneratorDraftState
 } from "../hooks";
+import { PipelineStatusSummary } from "./state/PipelineStatusOverview";
+import { PendingChangesAlert } from "./state/PendingChangesAlert";
+import type { FormState } from "../lib/api";
 
 const TEMPLATE_SUMMARIES: Record<string, { name: string; description: string }> = {
   basic: { name: "Basic", description: "Balanced single window wrapper" },
@@ -648,10 +651,10 @@ export function GeneratorForm({
     setDescriptionEdited(draft.descriptionEdited);
     setIconPathEdited(draft.iconPathEdited);
     setFramework(draft.framework || "electron");
-    setServerType(draft.serverType ?? DEFAULT_SERVER_TYPE);
-    setDeploymentMode(draft.deploymentMode ?? DEFAULT_DEPLOYMENT_MODE);
+    setServerType((draft.serverType as ServerType) ?? DEFAULT_SERVER_TYPE);
+    setDeploymentMode((draft.deploymentMode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
     setPlatforms(draft.platforms ?? { win: true, mac: true, linux: true });
-    setLocationMode(draft.locationMode ?? "proper");
+    setLocationMode((draft.locationMode as OutputLocation) ?? "proper");
     setOutputPath(draft.outputPath ?? "");
     setProxyUrl(draft.proxyUrl ?? "");
     setBundleManifestPath(draft.bundleManifestPath ?? "");
@@ -660,7 +663,7 @@ export function GeneratorForm({
     setLocalApiEndpoint(draft.localApiEndpoint ?? "http://localhost:3001/api");
     setAutoManageTier1(draft.autoManageTier1 ?? false);
     setVrooliBinaryPath(draft.vrooliBinaryPath ?? "vrooli");
-    setConnectionResult(draft.connectionResult ?? null);
+    setConnectionResult((draft.connectionResult as ProbeResponse | null) ?? null);
     setConnectionError(draft.connectionError ?? null);
     setDeploymentManagerUrl(draft.deploymentManagerUrl ?? null);
     setSigningEnabledForBuild(draft.signingEnabledForBuild ?? false);
@@ -669,98 +672,70 @@ export function GeneratorForm({
     }
   };
 
-  const draftState = useMemo(() => ({
-    selectedTemplate,
-    appDisplayName,
-    appDescription,
-    iconPath,
-    displayNameEdited,
-    descriptionEdited,
-    iconPathEdited,
-    framework,
-    serverType,
-    deploymentMode,
-    platforms,
-    locationMode,
-    outputPath,
-    proxyUrl,
-    bundleManifestPath,
-    serverPort,
-    localServerPath,
-    localApiEndpoint,
-    autoManageTier1,
-    vrooliBinaryPath,
-    connectionResult,
-    connectionError,
-    preflightResult,
-    preflightError,
-    preflightOverride,
-    preflightSecrets,
-    preflightStartServices,
-    preflightAutoRefresh,
-    preflightSessionId,
-    preflightSessionExpiresAt,
-    preflightSessionTTL,
-    deploymentManagerUrl,
-    signingEnabledForBuild
-  }), [
-    selectedTemplate,
-    appDisplayName,
-    appDescription,
-    iconPath,
-    displayNameEdited,
-    descriptionEdited,
-    iconPathEdited,
-    framework,
-    serverType,
-    deploymentMode,
-    platforms,
-    locationMode,
-    outputPath,
-    proxyUrl,
-    bundleManifestPath,
-    serverPort,
-    localServerPath,
-    localApiEndpoint,
-    autoManageTier1,
-    vrooliBinaryPath,
-    connectionResult,
-    connectionError,
-    preflightResult,
-    preflightError,
-    preflightOverride,
-    preflightSecrets,
-    preflightStartServices,
-    preflightAutoRefresh,
-    preflightSessionId,
-    preflightSessionExpiresAt,
-    preflightSessionTTL,
-    deploymentManagerUrl,
-    signingEnabledForBuild
-  ]);
 
+  // Server-side state persistence via useScenarioState
   const {
-    timestamps: draftTimestamps,
-    loadedScenario: draftLoadedScenario,
-    clearDraft
-  } = useGeneratorDraft({
+    formState: serverFormState,
+    isLoading: stateLoading,
+    isSaving: stateSaving,
+    isStale,
+    pendingChanges,
+    validationStatus,
+    timestamps: serverTimestamps,
+    updateFormState,
+    clearState,
+    lastSavedAt,
+  } = useScenarioState({
     scenarioName,
-    draftState,
-    onDraftLoaded: (draft) => {
-      applyDraftState(draft);
+    enabled: Boolean(scenarioName),
+    onStateLoaded: (state) => {
+      if (!state.form_state) return;
+      const fs = state.form_state;
+      // Apply form state from server
+      setAppDisplayName(fs.app_display_name || "");
+      setAppDescription(fs.app_description || "");
+      setIconPath(fs.icon_path || "");
+      setDisplayNameEdited(fs.display_name_edited || false);
+      setDescriptionEdited(fs.description_edited || false);
+      setIconPathEdited(fs.icon_path_edited || false);
+      setFramework(fs.framework || "electron");
+      setServerType((fs.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
+      setDeploymentMode((fs.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
+      setPlatforms({
+        win: fs.platforms?.win ?? true,
+        mac: fs.platforms?.mac ?? true,
+        linux: fs.platforms?.linux ?? true,
+      });
+      setLocationMode((fs.location_mode as OutputLocation) ?? "proper");
+      setOutputPath(fs.output_path ?? "");
+      setProxyUrl(fs.proxy_url ?? "");
+      setBundleManifestPath(fs.bundle_manifest_path ?? "");
+      setServerPort(fs.server_port ?? 3000);
+      setLocalServerPath(fs.local_server_path ?? "ui/server.js");
+      setLocalApiEndpoint(fs.local_api_endpoint ?? "http://localhost:3001/api");
+      setAutoManageTier1(fs.auto_manage_tier1 ?? false);
+      setVrooliBinaryPath(fs.vrooli_binary_path ?? "vrooli");
+      setConnectionResult((fs.connection_result as ProbeResponse | null) ?? null);
+      setConnectionError(fs.connection_error ?? null);
+      setDeploymentManagerUrl(fs.deployment_manager_url ?? null);
+      setSigningEnabledForBuild(fs.signing_enabled_for_build ?? false);
+      if (fs.selected_template) {
+        onTemplateChange(fs.selected_template);
+      }
+      // Apply preflight seed from server state
       setPreflightSeed({
-        result: draft.preflightResult,
-        error: draft.preflightError,
-        override: draft.preflightOverride,
-        secrets: draft.preflightSecrets,
-        sessionId: draft.preflightSessionId,
-        sessionExpiresAt: draft.preflightSessionExpiresAt,
-        sessionTTL: draft.preflightSessionTTL,
-        startServices: draft.preflightStartServices,
-        autoRefresh: draft.preflightAutoRefresh
+        result: fs.preflight_result ?? null,
+        error: fs.preflight_error ?? null,
+        override: fs.preflight_override ?? false,
+        secrets: fs.preflight_secrets ?? {},
+        sessionId: fs.preflight_session_id ?? null,
+        sessionExpiresAt: fs.preflight_session_expires_at ?? null,
+        sessionTTL: fs.preflight_session_ttl ?? 120,
+        startServices: fs.preflight_start_services ?? true,
+        autoRefresh: fs.preflight_auto_refresh ?? true
       });
     },
-    onDraftCleared: () => {
+    onStateCleared: () => {
       resetFormState(true);
       setPreflightSeed({
         result: null,
@@ -774,8 +749,71 @@ export function GeneratorForm({
         autoRefresh: true
       });
       resetPreflight();
-    }
+    },
   });
+
+  // Convert local state to FormState for server persistence
+  const formStateForServer = useMemo((): Partial<FormState> => ({
+    selected_template: selectedTemplate,
+    app_display_name: appDisplayName,
+    app_description: appDescription,
+    icon_path: iconPath,
+    display_name_edited: displayNameEdited,
+    description_edited: descriptionEdited,
+    icon_path_edited: iconPathEdited,
+    framework,
+    server_type: serverType,
+    deployment_mode: deploymentMode,
+    platforms,
+    location_mode: locationMode,
+    output_path: outputPath,
+    proxy_url: proxyUrl,
+    bundle_manifest_path: bundleManifestPath,
+    server_port: serverPort,
+    local_server_path: localServerPath,
+    local_api_endpoint: localApiEndpoint,
+    auto_manage_tier1: autoManageTier1,
+    vrooli_binary_path: vrooliBinaryPath,
+    connection_result: connectionResult,
+    connection_error: connectionError,
+    preflight_result: preflightResult,
+    preflight_error: preflightError,
+    preflight_override: preflightOverride,
+    preflight_secrets: preflightSecrets,
+    preflight_start_services: preflightStartServices,
+    preflight_auto_refresh: preflightAutoRefresh,
+    preflight_session_id: preflightSessionId,
+    preflight_session_expires_at: preflightSessionExpiresAt,
+    preflight_session_ttl: preflightSessionTTL,
+    deployment_manager_url: deploymentManagerUrl,
+    signing_enabled_for_build: signingEnabledForBuild
+  }), [
+    selectedTemplate, appDisplayName, appDescription, iconPath,
+    displayNameEdited, descriptionEdited, iconPathEdited,
+    framework, serverType, deploymentMode, platforms,
+    locationMode, outputPath, proxyUrl, bundleManifestPath,
+    serverPort, localServerPath, localApiEndpoint,
+    autoManageTier1, vrooliBinaryPath, connectionResult, connectionError,
+    preflightResult, preflightError, preflightOverride, preflightSecrets,
+    preflightStartServices, preflightAutoRefresh,
+    preflightSessionId, preflightSessionExpiresAt, preflightSessionTTL,
+    deploymentManagerUrl, signingEnabledForBuild
+  ]);
+
+  // Debounced save to server when form state changes
+  const prevFormStateRef = useRef<string>("");
+  useEffect(() => {
+    if (!scenarioName) return;
+    const serialized = JSON.stringify(formStateForServer);
+    if (serialized === prevFormStateRef.current) return;
+    prevFormStateRef.current = serialized;
+    updateFormState(formStateForServer);
+  }, [scenarioName, formStateForServer, updateFormState]);
+
+  // Legacy compatibility - keep draft timestamps working
+  const draftTimestamps = serverTimestamps;
+  const draftLoadedScenario = serverFormState ? scenarioName : null;
+  const clearDraft = clearState;
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -1084,16 +1122,24 @@ export function GeneratorForm({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {(draftCreatedLabel || draftUpdatedLabel) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            {draftCreatedLabel && (
-              <span>Draft started {draftCreatedLabel}</span>
-            )}
-            {draftUpdatedLabel && (
-              <span>Updated {draftUpdatedLabel}</span>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {scenarioName && (
+            <PipelineStatusSummary validationStatus={validationStatus} />
+          )}
+          {(draftCreatedLabel || draftUpdatedLabel) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              {draftCreatedLabel && (
+                <span>Started {draftCreatedLabel}</span>
+              )}
+              {draftUpdatedLabel && (
+                <span>Saved {draftUpdatedLabel}</span>
+              )}
+              {stateSaving && (
+                <span className="text-blue-400">Saving...</span>
+              )}
+            </div>
+          )}
+        </div>
         <Button
           type="button"
           size="sm"
@@ -1112,6 +1158,15 @@ export function GeneratorForm({
           Reset progress
         </Button>
       </div>
+
+      {isStale && pendingChanges.length > 0 && (
+        <PendingChangesAlert
+          changes={pendingChanges}
+          onDismiss={() => {
+            // Dismiss by refreshing the page or invalidating cache
+          }}
+        />
+      )}
       <form id={formId} onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
             <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Loader2,
@@ -320,8 +321,8 @@ export function SpawnAgentButton({
         {isRunning ? "View Task" : "Spawn Agent"}
       </Button>
 
-      {/* Options modal */}
-      {showOptions && (
+      {/* Options modal - rendered via portal to ensure proper viewport centering */}
+      {showOptions && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl w-[95vw] max-w-2xl mx-4">
             {/* Header */}
@@ -543,7 +544,8 @@ export function SpawnAgentButton({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

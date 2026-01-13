@@ -30,6 +30,7 @@ import (
 	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/state"
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
@@ -63,6 +64,7 @@ type Server struct {
 	systemHandler     *system.Handler
 	pipelineHandler   *pipeline.Handler
 	bundleHandler     *bundle.Handler
+	stateHandler      *state.Handler
 
 	// Task orchestration service
 	taskSvc *tasks.Service
@@ -150,6 +152,18 @@ func NewServer(port int) *Server {
 
 	// Scenario domain
 	scenarioHandler := scenario.NewHandler(vrooliRoot, nil, logger)
+
+	// State domain (scenario state persistence)
+	stateStore, err := state.NewStore(state.DefaultDataDir())
+	if err != nil {
+		logger.Warn("state store unavailable, using nil", "error", err)
+		stateStore = nil
+	}
+	var stateHandler *state.Handler
+	if stateStore != nil {
+		stateService := state.NewService(stateStore, logger)
+		stateHandler = state.NewHandler(stateService)
+	}
 
 	// System domain (wine service)
 	wineService := system.NewWineService(logger)
@@ -242,6 +256,7 @@ func NewServer(port int) *Server {
 		systemHandler:     systemHandler,
 		pipelineHandler:   pipelineHandler,
 		bundleHandler:     bundleHandler,
+		stateHandler:      stateHandler,
 
 		// Task orchestration
 		taskSvc: taskSvc,
@@ -474,6 +489,11 @@ func (s *Server) setupRoutes() {
 
 	// Scenario domain: /api/v1/scenarios/desktop-status
 	s.scenarioHandler.RegisterRoutes(s.router)
+
+	// State domain: /api/v1/scenarios/{scenario}/state*
+	if s.stateHandler != nil {
+		s.stateHandler.RegisterRoutes(s.router)
+	}
 
 	// System domain: /api/v1/status, /api/v1/templates*, /api/v1/system/wine/*
 	s.systemHandler.RegisterRoutes(s.router)
