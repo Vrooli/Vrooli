@@ -309,7 +309,24 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     enableToolsByIds: async (toolIds: string[]) => {
       // Enable tools in sequence to avoid race conditions with optimistic updates
       for (const toolId of toolIds) {
-        const [scenario, toolName] = toolId.split(':');
+        const parts = toolId.split(':');
+        let scenario: string | undefined;
+        let toolName: string | undefined;
+
+        if (parts.length === 2) {
+          // New format: "scenario:toolName"
+          [scenario, toolName] = parts;
+        } else {
+          // Old format: just "toolName" - need to find the scenario
+          toolName = toolId;
+          for (const [scenarioKey, tools] of toolsByScenario.entries()) {
+            if (tools.some(t => t.tool.name === toolId)) {
+              scenario = scenarioKey;
+              break;
+            }
+          }
+        }
+
         if (scenario && toolName) {
           await toggleMutation.mutateAsync({ scenario, toolName, enabled: true });
         }

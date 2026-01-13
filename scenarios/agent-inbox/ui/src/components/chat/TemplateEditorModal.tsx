@@ -13,6 +13,7 @@ import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/tem
 import { SUGGESTION_MODES } from "@/lib/types/templates";
 import { fillTemplateContent } from "@/data/templates";
 import { useTools } from "@/hooks/useTools";
+import type { EffectiveTool } from "@/lib/api";
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -97,6 +98,27 @@ export function TemplateEditorModal({
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Normalize tool IDs from old format (just tool name) to new format (scenario:toolName)
+  // This handles backwards compatibility with templates saved before the scenario prefix was added
+  const normalizeToolIds = useCallback((toolIds: string[], availableTools: Map<string, EffectiveTool[]>): string[] => {
+    if (!toolIds || availableTools.size === 0) return toolIds || [];
+
+    return toolIds.map(toolId => {
+      // If already in scenario:toolName format, keep as-is
+      if (toolId.includes(":")) return toolId;
+
+      // Otherwise, find the scenario that has this tool
+      for (const [scenario, tools] of availableTools.entries()) {
+        const found = tools.find(t => t.tool.name === toolId);
+        if (found) {
+          return `${scenario}:${toolId}`;
+        }
+      }
+      // If tool not found in any scenario, keep original (might be removed tool)
+      return toolId;
+    });
+  }, []);
+
   // Initialize form when template changes
   useEffect(() => {
     if (template) {
@@ -106,7 +128,9 @@ export function TemplateEditorModal({
       setModes(template.modes || []);
       setContent(template.content);
       setVariables(template.variables || []);
-      setSelectedToolIds(template.suggestedToolIds || []);
+      // Normalize tool IDs to scenario:toolName format
+      const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
+      setSelectedToolIds(normalizedIds);
     } else {
       setName("");
       setDescription("");
@@ -120,7 +144,7 @@ export function TemplateEditorModal({
     setShowPreview(false);
     setApplyToDefault(false);
     setExpandedScenarios(new Set());
-  }, [template, defaultModes, open]);
+  }, [template, defaultModes, open, toolsByScenario, normalizeToolIds]);
 
   // Add a new variable
   const addVariable = useCallback(() => {
