@@ -682,6 +682,18 @@ export function GeneratorForm({
 
     const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
+    // Use effective preflight values - fall back to server state when hook hasn't synced yet.
+    // This handles the race condition where usePreflightSession's effect hasn't run yet
+    // but server state has been loaded with valid preflight data.
+    const effectivePreflightResult = preflightResult ?? serverFormState?.preflight_result ?? null;
+    const effectivePreflightOk = effectivePreflightResult
+      ? Boolean(
+          effectivePreflightResult.validation?.valid &&
+          effectivePreflightResult.ready?.ready &&
+          missingPreflightSecrets.length === 0
+        )
+      : preflightOk;
+
     // Validate all inputs using the centralized validation function
     const errors = validateFormInputs({
       scenarioName,
@@ -694,8 +706,8 @@ export function GeneratorForm({
       appDescription,
       locationMode,
       outputPath: outputPathForRequest,
-      preflightResult,
-      preflightOk,
+      preflightResult: effectivePreflightResult,
+      preflightOk: effectivePreflightOk,
       preflightOverride,
       signingEnabledForBuild,
       signingConfig,

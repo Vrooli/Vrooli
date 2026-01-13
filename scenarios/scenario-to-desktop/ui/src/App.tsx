@@ -211,8 +211,6 @@ function AppContent() {
 
   useEffect(() => {
     saveGeneratorAppState({
-      version: 1,
-      updatedAt: new Date().toISOString(),
       viewMode,
       selectedScenarioName,
       selectedTemplate,
