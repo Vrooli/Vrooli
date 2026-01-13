@@ -10,6 +10,7 @@ import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons
 import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
 import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
+import { SpawnAgentButton } from "./components/SpawnAgentButton";
 import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
@@ -805,7 +806,7 @@ function AppContent() {
         )}
 
         {/* Footer */}
-        <div className="mt-12 text-center text-sm text-slate-400">
+        <div className="mt-12 pb-24 text-center text-sm text-slate-400">
           <p>
             Built with ❤️ by the{" "}
             <a
@@ -828,6 +829,56 @@ function AppContent() {
           </p>
         </div>
       </div>
+
+      {/* Fixed Bottom Action Bar - shows when there's an active build */}
+      {viewMode === "generator" && wrapperBuildId && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md shadow-lg shadow-slate-950/50">
+          <div className="mx-auto max-w-7xl px-6 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2">
+                  {!wrapperBuildStatus ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  ) : wrapperBuildStatus.status === "failed" ? (
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                  ) : wrapperBuildStatus.status === "ready" ? (
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  ) : (
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200 truncate">
+                    {selectedScenarioName || "Build"}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline">
+                  {!wrapperBuildStatus ? (
+                    "Loading build status..."
+                  ) : wrapperBuildStatus.status === "failed" ? (
+                    "Build failed - spawn an agent to investigate"
+                  ) : wrapperBuildStatus.status === "ready" ? (
+                    "Build ready - spawn an agent to verify or improve"
+                  ) : wrapperBuildStatus.status === "building" ? (
+                    "Build in progress..."
+                  ) : (
+                    "Spawn an agent to analyze this build"
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {!wrapperBuildStatus && (
+                  <span className="text-xs text-amber-400 hidden md:inline">
+                    Waiting for status
+                  </span>
+                )}
+                <SpawnAgentButton
+                  pipelineId={wrapperBuildId}
+                  disabled={!wrapperBuildStatus}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

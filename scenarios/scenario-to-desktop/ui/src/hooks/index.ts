@@ -3,5 +3,13 @@
  */
 
 export { useGeneratorDraft, type GeneratorDraftState, type DraftTimestamps } from "./useGeneratorDraft";
+export {
+  useAgentManagerStatus,
+  useTasks,
+  useTaskDetails,
+  useCreateTask,
+  useStopTask,
+  usePipelineInvestigation,
+} from "./useInvestigation";
 export { usePreflightSession, type UsePreflightSessionOptions, type UsePreflightSessionResult } from "./usePreflightSession";
 export { useSigningConfig, type UseSigningConfigOptions, type UseSigningConfigResult } from "./useSigningConfig";

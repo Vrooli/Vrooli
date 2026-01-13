@@ -1,6 +1,16 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import type { ScenariosResponse } from "../components/scenario-inventory/types";
 import type { TelemetryInsights, TelemetrySummary, TelemetryTailResponse } from "../domain/types";
+import type {
+  AgentManagerStatus,
+  CreateTaskRequest,
+  CreateTaskResponse,
+  GetTaskResponse,
+  Investigation,
+  InvestigationSummary,
+  ListTasksResponse,
+  StopTaskResponse,
+} from "../types/investigation";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -1256,4 +1266,84 @@ export async function generateLinuxSigningKey(
     throw new Error(data.error || data.message || `Failed to generate key: ${response.statusText}`);
   }
   return data;
+}
+
+// ==================== Task / Investigation API ====================
+
+export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
+  const response = await fetch(buildUrl("/agent-manager/status"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch agent manager status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function createTask(
+  pipelineId: string,
+  request: CreateTaskRequest
+): Promise<Investigation> {
+  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || error.error || "Failed to create task");
+  }
+  const data: CreateTaskResponse = await response.json();
+  return data.task;
+}
+
+export async function listTasks(
+  pipelineId: string,
+  limit?: number
+): Promise<InvestigationSummary[]> {
+  const params = new URLSearchParams();
+  if (limit) {
+    params.set("limit", String(limit));
+  }
+  const url = buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks`) +
+    (params.toString() ? `?${params.toString()}` : "");
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to list tasks: ${response.statusText}`);
+  }
+  const data: ListTasksResponse = await response.json();
+  return data.tasks;
+}
+
+export async function getTask(
+  pipelineId: string,
+  taskId: string
+): Promise<Investigation> {
+  const response = await fetch(
+    buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks/${encodeURIComponent(taskId)}`)
+  );
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Task not found");
+    }
+    throw new Error(`Failed to fetch task: ${response.statusText}`);
+  }
+  const data: GetTaskResponse = await response.json();
+  return data.task;
+}
+
+export async function stopTask(
+  pipelineId: string,
+  taskId: string
+): Promise<void> {
+  const response = await fetch(
+    buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks/${encodeURIComponent(taskId)}/stop`),
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || error.error || "Failed to stop task");
+  }
+  const data: StopTaskResponse = await response.json();
+  if (!data.success) {
+    throw new Error(data.message || "Failed to stop task");
+  }
 }

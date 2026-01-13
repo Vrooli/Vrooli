@@ -18,9 +18,11 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
+	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
 	preflightdomain "scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/records"
@@ -29,6 +31,7 @@ import (
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/system"
+	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
 )
 
@@ -60,6 +63,9 @@ type Server struct {
 	systemHandler     *system.Handler
 	pipelineHandler   *pipeline.Handler
 	bundleHandler     *bundle.Handler
+
+	// Task orchestration service
+	taskSvc *tasks.Service
 }
 
 // NewServer creates a new server instance
@@ -187,6 +193,36 @@ func NewServer(port int) *Server {
 		pipeline.WithOrchestrator(pipelineOrchestrator),
 	)
 
+	// ===== Task Orchestration Service =====
+
+	// Initialize investigation store for task persistence
+	invStore := persistence.NewInvestigationStore(filepath.Join(dataDir, "investigations"))
+
+	// Initialize agent manager service (optional - may not be available)
+	agentSvcEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
+	var taskSvc *tasks.Service
+	if agentSvcEnabled {
+		agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
+			ProfileName: "scenario-to-desktop",
+			ProfileKey:  "scenario-to-desktop",
+			Timeout:     30 * time.Second,
+			Enabled:     true,
+		})
+
+		// Initialize agent profile (best effort - don't fail if unavailable)
+		initCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+			logger.Warn("failed to initialize agent-manager profile", "error", err)
+		}
+		cancel()
+
+		// Create pipeline store adapter for task service
+		pipelineStoreAdapter := &pipelineStoreAdapter{store: pipelineOrchestrator}
+
+		// Create task service (nil progress hub for now - can add WebSocket later)
+		taskSvc = tasks.NewService(invStore, pipelineStoreAdapter, agentSvc, nil)
+	}
+
 	// ===== Create Server =====
 
 	srv := &Server{
@@ -206,6 +242,9 @@ func NewServer(port int) *Server {
 		systemHandler:     systemHandler,
 		pipelineHandler:   pipelineHandler,
 		bundleHandler:     bundleHandler,
+
+		// Task orchestration
+		taskSvc: taskSvc,
 	}
 	srv.setupRoutes()
 	return srv
@@ -234,6 +273,15 @@ func (a *systemBuildStoreAdapter) Snapshot() map[string]*system.BuildStatus {
 		}
 	}
 	return result
+}
+
+// pipelineStoreAdapter adapts pipeline.Orchestrator to tasks.PipelineStore interface
+type pipelineStoreAdapter struct {
+	store pipeline.Orchestrator
+}
+
+func (a *pipelineStoreAdapter) Get(pipelineID string) (*pipeline.Status, bool) {
+	return a.store.GetStatus(pipelineID)
 }
 
 // generationBuildStoreAdapter adapts build.InMemoryStore to generation.BuildStore interface
@@ -436,6 +484,9 @@ func (s *Server) setupRoutes() {
 
 	// Pipeline orchestration - one-button deployment: /api/v1/pipeline/*
 	s.pipelineHandler.RegisterRoutes(s.router)
+
+	// Task orchestration - agent spawning for pipeline investigations
+	s.registerTaskRoutes()
 
 	// Bundle domain: /api/v1/bundle/package, /api/v1/desktop/package
 	s.bundleHandler.RegisterRoutes(s.router)
