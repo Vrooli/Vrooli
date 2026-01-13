@@ -27,7 +27,7 @@ export interface SettingConstraint {
 
 export interface SettingsConstraints {
   numeric: Record<string, SettingConstraint>;
-  providers: ProviderOption[];
+  runners: ProviderOption[];
 }
 
 interface UseAgentSettingsManagerResult {
@@ -40,29 +40,19 @@ function parseAgentSettings(
   payload: Record<string, unknown>,
   previous: AgentSettings,
 ): { settings: AgentSettings; snapshot: AgentSettingsSnapshot } {
-  const backendData = (payload.agent_backend ?? {}) as Record<string, unknown>;
-  const providersData = (payload.providers ?? {}) as Record<string, any>;
+  const agentManager = (payload.agent_manager ?? payload) as Record<string, unknown>;
 
-  const rawProvider = typeof backendData.provider === 'string' ? backendData.provider.trim() : '';
-  const provider: 'codex' | 'claude-code' =
-    rawProvider === 'codex' || rawProvider === 'claude-code'
-      ? rawProvider
-      : previous.backend?.provider ?? 'codex';
-
-  const autoFallback =
-    typeof backendData.auto_fallback === 'boolean'
-      ? (backendData.auto_fallback as boolean)
-      : previous.backend?.autoFallback ?? true;
+  const rawRunner =
+    typeof agentManager.runner_type === 'string' ? agentManager.runner_type.trim() : '';
+  const runnerType: 'claude-code' | 'codex' | 'opencode' =
+    rawRunner === 'claude-code' || rawRunner === 'codex' || rawRunner === 'opencode'
+      ? rawRunner
+      : previous.runnerType ?? 'claude-code';
 
   const skipPermissions =
-    typeof backendData.skip_permissions === 'boolean'
-      ? (backendData.skip_permissions as boolean)
+    typeof agentManager.skip_permissions === 'boolean'
+      ? (agentManager.skip_permissions as boolean)
       : previous.skipPermissionChecks;
-
-  const providerConfig = (providersData?.[provider] ?? {}) as Record<string, any>;
-  const operationsConfig = (providerConfig?.operations ?? {}) as Record<string, any>;
-  const investigateConfig = (operationsConfig?.investigate ?? {}) as Record<string, any>;
-  const fixConfig = (operationsConfig?.fix ?? {}) as Record<string, any>;
 
   const resolveNumber = (value: unknown): number | undefined =>
     typeof value === 'number' && Number.isFinite(value) ? (value as number) : undefined;
@@ -71,18 +61,15 @@ function parseAgentSettings(
     typeof value === 'string' && value.trim().length > 0 ? (value as string).trim() : undefined;
 
   const selectedMaxTurns =
-    resolveNumber(investigateConfig.max_turns) ??
-    resolveNumber(fixConfig.max_turns) ??
+    resolveNumber(agentManager.max_turns) ??
     previous.maximumTurns;
 
   const timeoutSeconds =
-    resolveNumber(investigateConfig.timeout_seconds) ??
-    resolveNumber(fixConfig.timeout_seconds) ??
+    resolveNumber(agentManager.timeout_seconds) ??
     previous.taskTimeout * 60;
 
   const allowedToolsRaw =
-    resolveString(investigateConfig.allowed_tools) ??
-    resolveString(fixConfig.allowed_tools);
+    resolveString(agentManager.allowed_tools);
 
   const parsedAllowedTools =
     allowedToolsRaw
@@ -92,10 +79,7 @@ function parseAgentSettings(
 
   const next: AgentSettings = {
     ...previous,
-    backend: {
-      provider,
-      autoFallback,
-    },
+    runnerType,
     maximumTurns: selectedMaxTurns,
     taskTimeout: Math.max(5, Math.round(timeoutSeconds / 60)),
     allowedTools: parsedAllowedTools.length > 0 ? parsedAllowedTools : previous.allowedTools,
@@ -163,10 +147,6 @@ export function useAgentSettingsManager({
   }, [apiBaseUrl]);
 
   useEffect(() => {
-    if (!agentSettings.backend) {
-      return;
-    }
-
     const snapshot = buildAgentSettingsSnapshot(agentSettings, allowedToolsSignature);
 
     if (!initializedRef.current) {
@@ -182,8 +162,7 @@ export function useAgentSettingsManager({
     }
 
     const payload: Record<string, unknown> = {
-      provider: snapshot.provider,
-      auto_fallback: snapshot.autoFallback,
+      runner_type: snapshot.runnerType,
       max_turns: snapshot.maximumTurns,
       timeout_seconds: snapshot.taskTimeoutMinutes * 60,
       skip_permissions: snapshot.skipPermissionChecks,

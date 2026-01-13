@@ -66,8 +66,9 @@ export interface Issue {
       agent_last_error?: string;
       agent_last_status?: string;
       agent_failure_time?: string;
-      agent_transcript_path?: string;
-      agent_last_message_path?: string;
+      agent_run_id?: string;
+      agent_profile_key?: string;
+      agent_runner_type?: string;
       rate_limit_until?: string;
       rate_limit_agent?: string;
       [key: string]: string | undefined;

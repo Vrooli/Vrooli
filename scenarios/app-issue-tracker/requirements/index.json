@@ -78,7 +78,7 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "validation_method": "Investigation with auto_resolve produces transcript and applies fixes",
+      "validation_method": "Investigation with auto_resolve produces run events and applies fixes",
       "tags": [
         "ai",
         "automation",

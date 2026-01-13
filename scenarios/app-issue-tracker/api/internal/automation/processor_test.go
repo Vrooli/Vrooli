@@ -13,7 +13,8 @@ type mockHost struct {
 	loadIssuesFromFolderCalled   bool
 	clearRateLimitMetadataCalled bool
 	triggerInvestigationCalled   bool
-	cleanupOldTranscriptsCalled  bool
+	setIssueBlockedCalled        bool
+	clearIssueBlockedCalled      bool
 	loadIssuesFromFolderResult   []issuespkg.Issue
 	triggerInvestigationErr      error
 	loadIssuesFromFolderErr      error
@@ -37,8 +38,14 @@ func (m *mockHost) TriggerInvestigation(issueID, agentID string, autoResolve boo
 	return m.triggerInvestigationErr
 }
 
-func (m *mockHost) CleanupOldTranscripts() {
-	m.cleanupOldTranscriptsCalled = true
+func (m *mockHost) SetIssueBlockedMetadata(issueID string, blockedByIssues []string) error {
+	m.setIssueBlockedCalled = true
+	return nil
+}
+
+func (m *mockHost) ClearIssueBlockedMetadata(issueID string) error {
+	m.clearIssueBlockedCalled = true
+	return nil
 }
 
 func TestNewProcessor(t *testing.T) {
@@ -126,7 +133,7 @@ func TestProcessorRunningProcesses(t *testing.T) {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p.RegisterRunningProcess(issueID, agentID, startTime, cancel)
+	p.RegisterRunningProcess(issueID, agentID, "run-test", startTime, nil, cancel)
 
 	// Check if running
 	if !p.IsRunning(issueID) {
@@ -162,7 +169,7 @@ func TestProcessorCancelRunningProcess(t *testing.T) {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p.RegisterRunningProcess(issueID, agentID, startTime, cancel)
+	p.RegisterRunningProcess(issueID, agentID, "run-test", startTime, nil, cancel)
 
 	// Cancel the process
 	cancelled := p.CancelRunningProcess(issueID, "test reason")

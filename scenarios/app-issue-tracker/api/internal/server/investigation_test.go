@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"app-issue-tracker-api/internal/agents"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestExecuteInvestigationUpdatesProcessedCount(t *testing.T) {
@@ -26,16 +28,20 @@ func TestExecuteInvestigationUpdatesProcessedCount(t *testing.T) {
 		return "restart ok", nil
 	}
 
-	factory := &captureFactory{}
-	env.Server.commandFactory = factory.build
-
 	// Successful execution should increment exactly once.
 	issueSuccess := createTestIssue("issue-success", "Success Case", "bug", "high", "test-app")
 	if _, err := env.Server.saveIssue(issueSuccess, "open"); err != nil {
 		t.Fatalf("failed to seed success issue: %v", err)
 	}
 
-	factory.cmd = &fakeCommand{stdout: "Investigation summary\nFinal response"}
+	env.AgentMock.run = &domainpb.Run{
+		Id:     "run-success",
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		Summary: &domainpb.RunSummary{
+			Description: "Investigation summary\nFinal response",
+		},
+	}
+	env.AgentMock.waitError = nil
 	ctx, cancel := context.WithCancel(context.Background())
 	svc.executeInvestigation(ctx, cancel, issueSuccess.ID, agents.UnifiedResolverID, fixed.Format(time.RFC3339))
 
@@ -53,7 +59,12 @@ func TestExecuteInvestigationUpdatesProcessedCount(t *testing.T) {
 		t.Fatalf("failed to seed failure issue: %v", err)
 	}
 
-	factory.cmd = &fakeCommand{waitErr: errors.New("boom")}
+	env.AgentMock.run = &domainpb.Run{
+		Id:       "run-failure",
+		Status:   domainpb.RunStatus_RUN_STATUS_FAILED,
+		ErrorMsg: "boom",
+	}
+	env.AgentMock.waitError = errors.New("boom")
 	ctx, cancel = context.WithCancel(context.Background())
 	svc.executeInvestigation(ctx, cancel, issueFailure.ID, agents.UnifiedResolverID, fixed.Format(time.RFC3339))
 
@@ -89,13 +100,10 @@ func TestHandleInvestigationSuccessRestartFailure(t *testing.T) {
 		return "restart output", errors.New("restart boom")
 	}
 
-	result := &ClaudeExecutionResult{
-		Success:         true,
-		LastMessage:     "All good",
-		Output:          "All good",
-		ExecutionTime:   2 * time.Second,
-		TranscriptPath:  "",
-		LastMessagePath: "",
+	result := &AgentRunResult{
+		Success:       true,
+		Output:        "All good",
+		ExecutionTime: 2 * time.Second,
 	}
 
 	svc.handleInvestigationSuccess(issue.ID, agents.UnifiedResolverID, result)

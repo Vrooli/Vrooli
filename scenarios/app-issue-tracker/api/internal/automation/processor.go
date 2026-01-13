@@ -19,7 +19,6 @@ type Host interface {
 	LoadIssuesFromFolder(folder string) ([]issuespkg.Issue, error)
 	ClearRateLimitMetadata(issueID string)
 	TriggerInvestigation(issueID, agentID string, autoResolve bool) error
-	CleanupOldTranscripts()
 	SetIssueBlockedMetadata(issueID string, blockedByIssues []string) error
 	ClearIssueBlockedMetadata(issueID string) error
 }
@@ -43,6 +42,7 @@ type Processor struct {
 
 type trackedProcess struct {
 	info            *RunningProcess
+	runID           string
 	targets         []issuespkg.Target // Cached targets for conflict detection
 	cancel          context.CancelFunc
 	cancelRequested bool
@@ -111,7 +111,7 @@ func (p *Processor) ProcessedCount() int {
 	return p.processedCount
 }
 
-func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, targets []issuespkg.Target, cancel context.CancelFunc) {
+func (p *Processor) RegisterRunningProcess(issueID, agentID, runID, startTime string, targets []issuespkg.Target, cancel context.CancelFunc) {
 	p.runningMu.Lock()
 	defer p.runningMu.Unlock()
 
@@ -121,8 +121,10 @@ func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, t
 		}
 		existing.info.IssueID = issueID
 		existing.info.AgentID = agentID
+		existing.info.RunID = runID
 		existing.info.StartTime = startTime
 		existing.info.Status = AgentStatusRunning
+		existing.runID = runID
 		existing.targets = targets
 		if cancel != nil {
 			existing.cancel = cancel
@@ -137,9 +139,11 @@ func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, t
 		info: &RunningProcess{
 			IssueID:   issueID,
 			AgentID:   agentID,
+			RunID:     runID,
 			StartTime: startTime,
 			Status:    AgentStatusRunning,
 		},
+		runID:   runID,
 		targets: targets,
 		cancel:  cancel,
 	}
@@ -312,7 +316,6 @@ func (p *Processor) tick() {
 	}
 
 	p.host.ClearExpiredRateLimitMetadata()
-	p.host.CleanupOldTranscripts()
 
 	openIssues, err := p.host.LoadIssuesFromFolder("open")
 	if err != nil {
@@ -451,6 +454,7 @@ type ProcessorState struct {
 type RunningProcess struct {
 	IssueID   string `json:"issue_id"`
 	AgentID   string `json:"agent_id"`
+	RunID     string `json:"run_id,omitempty"`
 	StartTime string `json:"start_time"`
 	Status    string `json:"status,omitempty"`
 }

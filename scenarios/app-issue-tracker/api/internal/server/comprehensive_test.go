@@ -168,8 +168,8 @@ func TestCreateIssueHandler_Comprehensive(t *testing.T) {
 				Path:   "/api/v1/issues",
 				Body: map[string]interface{}{
 					"targets": []map[string]interface{}{
-					{"type": "scenario", "id": "test-app"},
-				},
+						{"type": "scenario", "id": "test-app"},
+					},
 				},
 				ExpectedStatus: http.StatusBadRequest,
 			},
@@ -301,7 +301,7 @@ func TestDeleteIssueHandler_Comprehensive(t *testing.T) {
 		}
 
 		startTime := time.Now().UTC().Format(time.RFC3339)
-		env.Server.processor.RegisterRunningProcess(issue.ID, "agent-test", startTime, nil)
+		env.Server.processor.RegisterRunningProcess(issue.ID, "agent-test", "run-test", startTime, nil, nil)
 		t.Cleanup(func() {
 			env.Server.processor.UnregisterRunningProcess(issue.ID)
 		})

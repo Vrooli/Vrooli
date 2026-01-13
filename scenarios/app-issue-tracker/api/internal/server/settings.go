@@ -7,21 +7,17 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"unicode"
 
 	"app-issue-tracker-api/internal/logging"
 )
 
 // AgentSettings holds configuration for AI agent execution
 type AgentSettings struct {
+	RunnerType      string `json:"runner_type"`
 	MaxTurns        int    `json:"max_turns"`
 	AllowedTools    string `json:"allowed_tools"`
 	TimeoutSeconds  int    `json:"timeout_seconds"`
 	SkipPermissions bool   `json:"skip_permissions"`
-	AgentTag        string `json:"agent_tag"`
-	Provider        string `json:"provider"`
-	CLICommand      string `json:"cli_command"`
-	Command         []string
 }
 
 var (
@@ -70,13 +66,11 @@ func ReloadAgentSettings() error {
 func reloadAgentSettingsLocked() error {
 	// Default settings (aligned with ecosystem-manager)
 	agentSettings = AgentSettings{
+		RunnerType:      "claude-code",
 		MaxTurns:        80,
 		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		TimeoutSeconds:  600,
 		SkipPermissions: true,
-		Provider:        "claude-code",
-		CLICommand:      "resource-claude-code",
-		Command:         []string{"run", "--tag", "{{TAG}}", "-"},
 	}
 
 	// Try to load from agent-settings.json
@@ -88,19 +82,13 @@ func reloadAgentSettingsLocked() error {
 	}
 
 	var config struct {
-		AgentBackend struct {
-			Provider        string `json:"provider"`
+		AgentManager struct {
+			RunnerType      string `json:"runner_type"`
+			MaxTurns        int    `json:"max_turns"`
+			AllowedTools    string `json:"allowed_tools"`
+			TimeoutSeconds  int    `json:"timeout_seconds"`
 			SkipPermissions *bool  `json:"skip_permissions"`
-		} `json:"agent_backend"`
-		Providers map[string]struct {
-			CLICommand string `json:"cli_command"`
-			Operations map[string]struct {
-				MaxTurns       int    `json:"max_turns"`
-				AllowedTools   string `json:"allowed_tools"`
-				TimeoutSeconds int    `json:"timeout_seconds"`
-				Command        string `json:"command"`
-			} `json:"operations"`
-		} `json:"providers"`
+		} `json:"agent_manager"`
 	}
 
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -108,54 +96,25 @@ func reloadAgentSettingsLocked() error {
 		return fmt.Errorf("parse agent settings: %w", err)
 	}
 
-	// Extract provider settings
-	provider := config.AgentBackend.Provider
-	if provider == "" {
-		provider = "claude-code"
+	if config.AgentManager.RunnerType != "" {
+		agentSettings.RunnerType = strings.TrimSpace(config.AgentManager.RunnerType)
 	}
-
-	if config.AgentBackend.SkipPermissions != nil {
-		agentSettings.SkipPermissions = *config.AgentBackend.SkipPermissions
+	if config.AgentManager.MaxTurns > 0 {
+		agentSettings.MaxTurns = config.AgentManager.MaxTurns
 	}
-
-	providerConfig, ok := config.Providers[provider]
-	if !ok {
-		err := fmt.Errorf("provider %q missing from agent settings", provider)
-		logging.LogWarn("Provider missing from agent settings", "provider", provider)
-		return err
+	if config.AgentManager.AllowedTools != "" {
+		agentSettings.AllowedTools = strings.TrimSpace(config.AgentManager.AllowedTools)
 	}
-
-	// Load investigation operation settings
-	investigateOp, ok := providerConfig.Operations["investigate"]
-	if ok {
-		if investigateOp.MaxTurns > 0 {
-			agentSettings.MaxTurns = investigateOp.MaxTurns
-		}
-		if investigateOp.AllowedTools != "" {
-			agentSettings.AllowedTools = investigateOp.AllowedTools
-		}
-		if investigateOp.TimeoutSeconds > 0 {
-			agentSettings.TimeoutSeconds = investigateOp.TimeoutSeconds
-		}
-		if command := strings.TrimSpace(investigateOp.Command); command != "" {
-			if parts, err := parseCommandParts(command); err != nil {
-				logging.LogWarn("Failed to parse investigate command", "raw_command", command, "error", err)
-			} else if len(parts) > 0 {
-				agentSettings.Command = parts
-			}
-		}
+	if config.AgentManager.TimeoutSeconds > 0 {
+		agentSettings.TimeoutSeconds = config.AgentManager.TimeoutSeconds
 	}
-
-	agentSettings.Provider = provider
-	if providerConfig.CLICommand != "" {
-		agentSettings.CLICommand = providerConfig.CLICommand
+	if config.AgentManager.SkipPermissions != nil {
+		agentSettings.SkipPermissions = *config.AgentManager.SkipPermissions
 	}
 
 	logging.LogInfo(
 		"Agent settings loaded",
-		"provider", agentSettings.Provider,
-		"cli_command", agentSettings.CLICommand,
-		"command", strings.Join(agentSettings.Command, " "),
+		"runner_type", agentSettings.RunnerType,
 		"max_turns", agentSettings.MaxTurns,
 		"timeout_seconds", agentSettings.TimeoutSeconds,
 		"timeout_minutes", agentSettings.TimeoutSeconds/60,
@@ -188,53 +147,4 @@ func setAgentSettingsForTest(settings AgentSettings, root string) {
 	agentSettings = settings
 	scenarioRootPath = root
 	agentSettingsErr = nil
-}
-
-func parseCommandParts(input string) ([]string, error) {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return nil, nil
-	}
-
-	var parts []string
-	var current strings.Builder
-	var inQuote rune
-	escaped := false
-
-	for _, r := range input {
-		switch {
-		case escaped:
-			current.WriteRune(r)
-			escaped = false
-		case r == '\\':
-			escaped = true
-		case inQuote != 0:
-			if r == inQuote {
-				inQuote = 0
-			} else {
-				current.WriteRune(r)
-			}
-		case r == '\'' || r == '"':
-			inQuote = r
-		case unicode.IsSpace(r):
-			if current.Len() > 0 {
-				parts = append(parts, current.String())
-				current.Reset()
-			}
-		default:
-			current.WriteRune(r)
-		}
-	}
-
-	if escaped {
-		return nil, fmt.Errorf("unterminated escape sequence")
-	}
-	if inQuote != 0 {
-		return nil, fmt.Errorf("unterminated quote")
-	}
-	if current.Len() > 0 {
-		parts = append(parts, current.String())
-	}
-
-	return parts, nil
 }

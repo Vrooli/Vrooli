@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"app-issue-tracker-api/internal/agentmanager"
 	"app-issue-tracker-api/internal/automation"
 	"app-issue-tracker-api/internal/server/services"
 )
@@ -25,9 +26,9 @@ func WithHub(h *Hub) Option {
 	}
 }
 
-func WithCommandFactory(factory commandFactory) Option {
+func WithAgentManager(manager agentmanager.Runner) Option {
 	return func(s *Server) {
-		s.commandFactory = factory
+		s.agentManager = manager
 	}
 }
 
@@ -39,7 +40,7 @@ type Server struct {
 	issues         *services.IssueService
 	investigations *InvestigationService
 	content        *IssueContentService
-	commandFactory commandFactory
+	agentManager   agentmanager.Runner
 	startOnce      sync.Once
 	stopOnce       sync.Once
 	stopMu         sync.Mutex
@@ -126,12 +127,6 @@ func (s *Server) ensureHub() bool {
 		return true
 	}
 	return false
-}
-
-func (s *Server) ensureCommandFactory() {
-	if s.commandFactory == nil {
-		s.commandFactory = defaultCommandFactory
-	}
 }
 
 func (s *Server) ensureStore(defaultIssuesDir string) bool {

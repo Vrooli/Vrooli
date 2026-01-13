@@ -10,6 +10,9 @@ import (
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/server/metadata"
 	"app-issue-tracker-api/internal/storage"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func seedIssue(t *testing.T, store storage.IssueStorage, issue *issuespkg.Issue, folder string) string {
@@ -72,44 +75,43 @@ func TestIssueContentServiceAgentConversation(t *testing.T) {
 	store := storage.NewFileIssueStore(issuesDir)
 
 	issue := &issuespkg.Issue{ID: "ISSUE-2"}
-	issue.Investigation.AgentID = "agent-42"
 	seedIssue(t, store, issue, "open")
 	issueDir := store.IssueDir("open", "ISSUE-2")
 
-	transcriptRel := filepath.Join("tmp", "agents", "transcript.log")
-	lastRel := filepath.Join("tmp", "agents", "last.txt")
-
-	issue.Metadata.Extra[metadata.AgentTranscriptPathKey] = transcriptRel
-	issue.Metadata.Extra[metadata.AgentLastMessagePathKey] = lastRel
+	issue.Metadata.Extra[metadata.AgentRunIDKey] = "run-2"
+	issue.Metadata.Extra[metadata.AgentRunnerTypeKey] = "claude-code"
 
 	if err := store.WriteIssueMetadata(issueDir, issue); err != nil {
 		t.Fatalf("rewrite metadata: %v", err)
 	}
 
-	transcriptPath := filepath.Join(root, transcriptRel)
-	if err := os.MkdirAll(filepath.Dir(transcriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir transcript dir: %v", err)
+	agentMock := newTestAgentManager()
+	agentMock.run = &domainpb.Run{
+		Id:        "run-2",
+		Status:    domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		SessionId: "session-2",
+		EndedAt:   timestamppb.New(time.Now().UTC()),
+		Summary: &domainpb.RunSummary{
+			Description: "Done",
+		},
 	}
-	entries := []string{
-		`{"sandbox":{"cwd":"/workspace"}}`,
-		`{"prompt":"Investigate"}`,
-		`{"id":"1","timestamp":"2024-01-01T00:00:00Z","msg":{"type":"agent_message","role":"assistant","message":"Done"}}`,
-	}
-	if err := os.WriteFile(transcriptPath, []byte(strings.Join(entries, "\n")), 0o644); err != nil {
-		t.Fatalf("write transcript: %v", err)
-	}
-	if err := os.Chtimes(transcriptPath, time.Now(), time.Now()); err != nil {
-		t.Fatalf("chtimes transcript: %v", err)
-	}
-
-	lastMessagePath := filepath.Join(root, lastRel)
-	if err := os.WriteFile(lastMessagePath, []byte("Latest message"), 0o644); err != nil {
-		t.Fatalf("write last message: %v", err)
+	agentMock.events = []*domainpb.RunEvent{
+		{
+			Id:        "evt-2",
+			EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+			Data: &domainpb.RunEvent_Message{
+				Message: &domainpb.MessageEventData{
+					Role:    "assistant",
+					Content: "Done",
+				},
+			},
+		},
 	}
 
 	srv := &Server{
-		config: &Config{ScenarioRoot: root, VrooliRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
-		store:  store,
+		config:       &Config{ScenarioRoot: root, VrooliRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
+		store:        store,
+		agentManager: agentMock,
 	}
 	svc := NewIssueContentService(srv)
 	payload, err := svc.AgentConversation("ISSUE-2", 10)
@@ -119,12 +121,6 @@ func TestIssueContentServiceAgentConversation(t *testing.T) {
 
 	if !payload.Available {
 		t.Fatalf("expected conversation to be available")
-	}
-	if payload.Provider != "agent-42" {
-		t.Fatalf("expected provider agent-42, got %s", payload.Provider)
-	}
-	if payload.LastMessage != "Latest message" {
-		t.Fatalf("unexpected last message: %s", payload.LastMessage)
 	}
 	if len(payload.Entries) == 0 {
 		t.Fatalf("expected transcript entries to be parsed")

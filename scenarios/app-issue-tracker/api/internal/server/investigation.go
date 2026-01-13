@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"app-issue-tracker-api/internal/agentmanager"
 	"app-issue-tracker-api/internal/agents"
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
@@ -153,6 +154,7 @@ func (svc *InvestigationService) failInvestigation(issueID, errorMsg, output str
 	}
 
 	nowUTC := svc.utcNow()
+	scenarioRestart := svc.attemptScenarioRestart(issue, issueID)
 
 	services.MarkInvestigationFailure(issue, errorMsg, output, nowUTC)
 
@@ -160,11 +162,11 @@ func (svc *InvestigationService) failInvestigation(issueID, errorMsg, output str
 		logging.LogErrorErr("Failed to persist investigation failure state", persistErr, "issue_id", issueID)
 	}
 
-	svc.transitionIssueAndPublish(issueID, StatusFailed, EventAgentFailed, issue.Investigation.AgentID, false, nowUTC, nil)
+	svc.transitionIssueAndPublish(issueID, StatusFailed, EventAgentFailed, issue.Investigation.AgentID, false, nowUTC, scenarioRestart)
 }
 
 func (svc *InvestigationService) TriggerInvestigation(issueID, agentID string, autoResolve bool) error {
-	issue, issueDir, currentFolder, err := svc.server.loadIssueWithStatus(issueID)
+	_, _, currentFolder, err := svc.server.loadIssueWithStatus(issueID)
 	if err != nil {
 		if errors.Is(err, services.ErrIssueNotFound) {
 			return err
@@ -179,31 +181,24 @@ func (svc *InvestigationService) TriggerInvestigation(issueID, agentID string, a
 	logging.LogInfo("Starting investigation", "issue_id", issueID, "agent_id", agentID, "auto_resolve", autoResolve)
 
 	startedAt := svc.utcNow().Format(time.RFC3339)
-	if err := svc.persistInvestigationStart(issue, issueDir, agentID, startedAt); err != nil {
-		return err
-	}
-
 	if err := svc.ensureIssueActive(issueID, currentFolder); err != nil {
 		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	svc.server.registerRunningProcess(issueID, agentID, startedAt, issue.Targets, cancel)
 	go svc.executeInvestigation(ctx, cancel, issueID, agentID, startedAt)
 
 	return nil
 }
 
-func (svc *InvestigationService) persistInvestigationStart(issue *Issue, issueDir, agentID, startedAt string) error {
+func (svc *InvestigationService) persistInvestigationStart(issue *Issue, issueDir, agentID, runID, profileKey, runnerType, sessionID, startedAt string) error {
 	startedAtTime, err := time.Parse(time.RFC3339, startedAt)
 	if err != nil {
 		startedAtTime = svc.utcNow()
 		startedAt = startedAtTime.Format(time.RFC3339)
 	}
 
-	// Get the actual provider (codex/claude-code) from settings
-	provider := GetAgentSettings().Provider
-	services.MarkInvestigationStarted(issue, agentID, provider, startedAtTime)
+	services.MarkInvestigationStarted(issue, agentID, runID, profileKey, runnerType, sessionID, startedAtTime)
 
 	if err := svc.server.writeIssueMetadata(issueDir, issue); err != nil {
 		return fmt.Errorf("failed to update issue: %w", err)
@@ -236,10 +231,17 @@ func (svc *InvestigationService) executeInvestigation(ctx context.Context, cance
 		return
 	}
 
-	result, err := svc.runInvestigationAgent(ctx, prompt, issueID)
+	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
+	if loadErr != nil {
+		logging.LogErrorErr("Investigation failed to reload issue", loadErr, "issue_id", issueID)
+		return
+	}
+
+	result, err := svc.runInvestigationAgent(ctx, prompt, issue, issueDir, agentID, startedAt)
 	if err != nil {
-		logging.LogErrorErr("Claude execution error", err, "issue_id", issueID)
+		logging.LogErrorErr("Agent execution error", err, "issue_id", issueID)
 		svc.failInvestigation(issueID, fmt.Sprintf("Execution error: %v", err), "")
+		recordCompletion()
 		return
 	}
 
@@ -276,22 +278,78 @@ func (svc *InvestigationService) prepareInvestigationPrompt(issueID, agentID, st
 	return prompt, nil
 }
 
-func (svc *InvestigationService) runInvestigationAgent(ctx context.Context, prompt, issueID string) (*ClaudeExecutionResult, error) {
+func (svc *InvestigationService) runInvestigationAgent(ctx context.Context, prompt string, issue *Issue, issueDir, agentID, startedAt string) (*AgentRunResult, error) {
+	if issue == nil {
+		return nil, fmt.Errorf("issue is required")
+	}
+
 	settings := GetAgentSettings()
 	timeoutDuration := time.Duration(settings.TimeoutSeconds) * time.Second
 	startTime := svc.now()
 
-	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, timeoutDuration)
-	defer timeoutCancel()
+	waitCtx, waitCancel := context.WithTimeout(ctx, timeoutDuration)
 
-	result, err := svc.server.executeClaudeCode(timeoutCtx, prompt, issueID, startTime, timeoutDuration)
+	profileConfig, err := buildProfileConfig(settings)
 	if err != nil {
+		waitCancel()
 		return nil, err
 	}
+
+	if !svc.server.agentManager.IsAvailable(ctx) {
+		waitCancel()
+		return nil, fmt.Errorf("agent-manager is not available")
+	}
+
+	runID, err := svc.server.agentManager.CreateRun(ctx, agentmanager.RunRequest{
+		IssueID:    issue.ID,
+		IssueTitle: issue.Title,
+		Prompt:     prompt,
+		Timeout:    timeoutDuration,
+		Tag:        fmt.Sprintf("app-issue-tracker-%s", issue.ID),
+	}, profileConfig)
+	if err != nil {
+		waitCancel()
+		return nil, err
+	}
+
+	stopRun := func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := svc.server.agentManager.StopRun(stopCtx, runID); err != nil {
+			logging.LogWarn("Failed to stop agent-manager run", "issue_id", issue.ID, "run_id", runID, "error", err)
+		}
+		waitCancel()
+	}
+
+	if err := svc.persistInvestigationStart(issue, issueDir, agentID, runID, agentManagerProfileKey, settings.RunnerType, "", startedAt); err != nil {
+		logging.LogWarn("Failed to persist investigation start", "issue_id", issue.ID, "error", err)
+	}
+
+	svc.server.registerRunningProcess(issue.ID, agentID, runID, startedAt, issue.Targets, stopRun)
+
+	run, err := svc.server.agentManager.WaitForRun(waitCtx, runID, 2*time.Second)
+	waitCancel()
+	if err != nil {
+		if waitCtx.Err() == context.DeadlineExceeded {
+			return &AgentRunResult{
+				Success:       false,
+				Output:        "",
+				Error:         fmt.Sprintf("TIMEOUT: Execution exceeded %v limit", timeoutDuration),
+				RunID:         runID,
+				RunnerType:    settings.RunnerType,
+				ProfileKey:    agentManagerProfileKey,
+				ExecutionTime: time.Since(startTime),
+				Timeout:       true,
+			}, nil
+		}
+		return nil, err
+	}
+
+	result := buildAgentRunResult(run, startTime, settings.RunnerType, agentManagerProfileKey)
 	return result, nil
 }
 
-func (svc *InvestigationService) handleInvestigationOutcome(issueID, agentID string, result *ClaudeExecutionResult) {
+func (svc *InvestigationService) handleInvestigationOutcome(issueID, agentID string, result *AgentRunResult) {
 	if svc.wasInvestigationCancelled(issueID, agentID) {
 		return
 	}
@@ -335,11 +393,11 @@ func (svc *InvestigationService) handleInvestigationCancellation(issueID, agentI
 	svc.transitionIssueAndPublish(issueID, StatusOpen, EventAgentFailed, agentID, false, nowUTC, scenarioRestart)
 }
 
-func (svc *InvestigationService) handleInvestigationRateLimit(issueID, agentID string, result *ClaudeExecutionResult) bool {
+func (svc *InvestigationService) handleInvestigationRateLimit(issueID, agentID string, result *AgentRunResult) bool {
 	return svc.rateLimiter.Handle(issueID, agentID, result)
 }
 
-func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID string, result *ClaudeExecutionResult) {
+func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID string, result *AgentRunResult) {
 	logging.LogWarn("Investigation failed", "issue_id", issueID, "error", result.Error)
 
 	nowUTC := svc.utcNow()
@@ -347,9 +405,7 @@ func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID str
 
 	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
 	if loadErr == nil {
-		// Get the actual provider (codex/claude-code) from settings
-		provider := GetAgentSettings().Provider
-		services.RecordAgentExecutionFailure(issue, result.Error, provider, nowUTC, result.TranscriptPath, result.LastMessagePath, svc.server.config.ScenarioRoot, result.MaxTurnsExceeded)
+		services.RecordAgentExecutionFailure(issue, result.Error, result.RunID, result.ProfileKey, result.RunnerType, result.SessionID, nowUTC, result.MaxTurnsExceeded)
 		issue.Metadata.UpdatedAt = nowUTC.Format(time.RFC3339)
 		svc.server.writeIssueMetadata(issueDir, issue)
 
@@ -360,7 +416,7 @@ func (svc *InvestigationService) handleInvestigationFailure(issueID, agentID str
 	svc.transitionIssueAndPublish(issueID, StatusFailed, EventAgentFailed, agentID, false, nowUTC, scenarioRestart)
 }
 
-func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID string, result *ClaudeExecutionResult) {
+func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID string, result *AgentRunResult) {
 	logging.LogInfo("Investigation completed successfully", "issue_id", issueID, "execution_time", result.ExecutionTime.Round(time.Second))
 
 	issue, issueDir, _, loadErr := svc.server.loadIssueWithStatus(issueID)
@@ -371,17 +427,11 @@ func (svc *InvestigationService) handleInvestigationSuccess(issueID, agentID str
 
 	nowUTC := svc.utcNow()
 
-	reportContent := strings.TrimSpace(result.LastMessage)
-	if reportContent == "" {
-		reportContent = strings.TrimSpace(result.Output)
-	}
+	reportContent := strings.TrimSpace(result.Output)
 
 	// Restart scenario after successful investigation
 	scenarioRestart := svc.attemptScenarioRestart(issue, issueID)
-
-	// Get the actual provider (codex/claude-code) from settings
-	provider := GetAgentSettings().Provider
-	services.MarkInvestigationSuccess(issue, reportContent, provider, nowUTC, result.TranscriptPath, result.LastMessagePath, svc.server.config.ScenarioRoot)
+	services.MarkInvestigationSuccess(issue, reportContent, result.RunID, result.ProfileKey, result.RunnerType, result.SessionID, nowUTC)
 
 	if persistErr := svc.server.writeIssueMetadata(issueDir, issue); persistErr != nil {
 		logging.LogErrorErr("Failed to persist investigation results", persistErr, "issue_id", issueID)
@@ -400,17 +450,4 @@ func (svc *InvestigationService) ClearExpiredRateLimitMetadata() {
 
 func (svc *InvestigationService) ClearRateLimitMetadata(issueID string) {
 	svc.rateLimiter.Clear(issueID)
-}
-
-// CleanupOldTranscripts removes old transcript files based on retention policy
-func (svc *InvestigationService) CleanupOldTranscripts() {
-	config := DefaultTranscriptCleanupConfig()
-	if err := CleanupOldTranscripts(svc.server.config.ScenarioRoot, config); err != nil {
-		logging.LogErrorErr("Failed to cleanup old transcripts", err)
-	}
-
-	// Also cleanup marker and prompt files from scenario root
-	if err := CleanupCodexMarkerFiles(svc.server.config.ScenarioRoot); err != nil {
-		logging.LogErrorErr("Failed to cleanup Codex marker files", err)
-	}
 }

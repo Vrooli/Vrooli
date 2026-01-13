@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
+	"app-issue-tracker-api/internal/agentmanager"
 	"app-issue-tracker-api/internal/automation"
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
@@ -73,16 +75,27 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 		opt(server)
 	}
 
+	if server.agentManager == nil {
+		server.agentManager = agentmanager.NewAgentService(agentmanager.Config{
+			ProfileKey: agentManagerProfileKey,
+			Timeout:    30 * time.Second,
+			VrooliRoot: config.VrooliRoot,
+		})
+	}
+
 	server.processor = automation.NewProcessor(newProcessorHost(server))
 
 	storeWasDefault := server.ensureStore(config.IssuesDir)
 	server.ensureHub()
-	server.ensureCommandFactory()
 	server.wsUpgrader = newWebSocketUpgrader(config)
 
 	server.issues = services.NewIssueService(server.store, services.NewArtifactManager(), server.processor, nil)
 	server.investigations = NewInvestigationService(server)
 	server.content = NewIssueContentService(server)
+
+	if err := server.initializeAgentManager(); err != nil {
+		return nil, nil, err
+	}
 
 	storageType := fmt.Sprintf("%T", server.store)
 	attrs := []any{"type", storageType}

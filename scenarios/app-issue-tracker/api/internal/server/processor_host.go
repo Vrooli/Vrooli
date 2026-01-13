@@ -39,10 +39,6 @@ func (h *processorHost) TriggerInvestigation(issueID, agentID string, autoResolv
 	return h.server.investigations.TriggerInvestigation(issueID, agentID, autoResolve)
 }
 
-func (h *processorHost) CleanupOldTranscripts() {
-	h.server.investigations.CleanupOldTranscripts()
-}
-
 func (h *processorHost) SetIssueBlockedMetadata(issueID string, blockedByIssues []string) error {
 	return h.server.setIssueBlockedMetadata(issueID, blockedByIssues)
 }

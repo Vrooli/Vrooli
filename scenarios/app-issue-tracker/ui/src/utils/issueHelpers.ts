@@ -9,8 +9,7 @@ import type {
 } from '../types/issueCreation';
 
 export interface AgentSettingsSnapshot {
-  provider: string;
-  autoFallback: boolean;
+  runnerType: string;
   maximumTurns: number;
   taskTimeoutMinutes: number;
   allowedToolsKey: string;
@@ -22,8 +21,7 @@ export function buildAgentSettingsSnapshot(
   allowedToolsKey: string,
 ): AgentSettingsSnapshot {
   return {
-    provider: settings.backend?.provider ?? 'codex',
-    autoFallback: settings.backend?.autoFallback ?? true,
+    runnerType: settings.runnerType,
     maximumTurns: settings.maximumTurns,
     taskTimeoutMinutes: settings.taskTimeout,
     allowedToolsKey,
@@ -39,8 +37,7 @@ export function agentSettingsSnapshotsEqual(
     return false;
   }
   return (
-    previous.provider === next.provider &&
-    previous.autoFallback === next.autoFallback &&
+    previous.runnerType === next.runnerType &&
     previous.maximumTurns === next.maximumTurns &&
     previous.taskTimeoutMinutes === next.taskTimeoutMinutes &&
     previous.allowedToolsKey === next.allowedToolsKey &&

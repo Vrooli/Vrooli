@@ -20,10 +20,11 @@ func TestHandleInvestigationRateLimitMovesIssueToFailed(t *testing.T) {
 	}
 
 	resetTime := "2035-01-02T03:04:05Z"
-	result := &ClaudeExecutionResult{
-		Success: false,
-		Error:   "RATE_LIMIT: API rate limit reached",
-		Output:  "upstream responded with 429 Too Many Requests; next window resumes at " + resetTime,
+	result := &AgentRunResult{
+		Success:     false,
+		Error:       "RATE_LIMIT: API rate limit reached",
+		Output:      "upstream responded with 429 Too Many Requests; next window resumes at " + resetTime,
+		RateLimited: true,
 	}
 
 	handled := env.Server.investigations.handleInvestigationRateLimit(issue.ID, agents.UnifiedResolverID, result)

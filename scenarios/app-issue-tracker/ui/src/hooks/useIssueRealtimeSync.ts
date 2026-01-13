@@ -18,10 +18,10 @@ import type {
 } from '../types/events';
 import { useWebSocket, type ConnectionStatus } from './useWebSocket';
 
-export type RunningProcessMap = Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>;
+export type RunningProcessMap = Map<string, { agent_id: string; run_id?: string; start_time: string; duration?: string; status?: string }>;
 
 export interface RunningProcessSeed {
-  processes: Array<{ issue_id: string; agent_id: string; start_time: string; status?: string }>;
+  processes: Array<{ issue_id: string; agent_id: string; run_id?: string; start_time: string; status?: string }>;
   version: number;
 }
 
@@ -99,13 +99,14 @@ export function useIssueRealtimeSync({
         return new Map();
       }
 
-      const seeded = new Map<string, { agent_id: string; start_time: string; duration?: string; status?: string }>();
+      const seeded = new Map<string, { agent_id: string; run_id?: string; start_time: string; duration?: string; status?: string }>();
       initialRunningProcesses.processes.forEach((process) => {
         if (!process || !process.issue_id) {
           return;
         }
         seeded.set(process.issue_id, {
           agent_id: process.agent_id,
+          run_id: process.run_id,
           start_time: process.start_time,
           status: process.status ?? 'running',
           duration: formatElapsedDuration(process.start_time),

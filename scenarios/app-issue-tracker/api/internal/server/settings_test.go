@@ -7,28 +7,19 @@ import (
 	"testing"
 )
 
-func writeAgentSettingsFile(t *testing.T, root string, provider string, cli string) {
+func writeAgentSettingsFile(t *testing.T, root string, runnerType string, maxTurns int) {
 	t.Helper()
 	configDir := filepath.Join(root, "initialization", "configuration")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatalf("failed to create config dir: %v", err)
 	}
 	data := map[string]any{
-		"agent_backend": map[string]any{
-			"provider": provider,
-		},
-		"providers": map[string]any{
-			provider: map[string]any{
-				"cli_command": cli,
-				"operations": map[string]any{
-					"investigate": map[string]any{
-						"max_turns":       42,
-						"allowed_tools":   "Read",
-						"timeout_seconds": 90,
-						"command":         "run --tag {{TAG}} -",
-					},
-				},
-			},
+		"agent_manager": map[string]any{
+			"runner_type":      runnerType,
+			"max_turns":        maxTurns,
+			"allowed_tools":    "Read",
+			"timeout_seconds":  90,
+			"skip_permissions": true,
 		},
 	}
 
@@ -47,8 +38,8 @@ func TestLoadAgentSettingsAllowsScenarioSwitch(t *testing.T) {
 	first := filepath.Join(tempDir, "scenario1")
 	second := filepath.Join(tempDir, "scenario2")
 
-	writeAgentSettingsFile(t, first, "claude-code", "resource-claude-code")
-	writeAgentSettingsFile(t, second, "custom-provider", "custom-cli")
+	writeAgentSettingsFile(t, first, "claude-code", 42)
+	writeAgentSettingsFile(t, second, "codex", 55)
 
 	resetAgentSettingsForTest()
 	t.Cleanup(resetAgentSettingsForTest)
@@ -57,19 +48,16 @@ func TestLoadAgentSettingsAllowsScenarioSwitch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first load failed: %v", err)
 	}
-	if settings.Provider != "claude-code" {
-		t.Fatalf("expected provider claude-code, got %s", settings.Provider)
+	if settings.RunnerType != "claude-code" {
+		t.Fatalf("expected runner claude-code, got %s", settings.RunnerType)
 	}
 
 	settings, err = LoadAgentSettings(second)
 	if err != nil {
 		t.Fatalf("second load failed: %v", err)
 	}
-	if settings.Provider != "custom-provider" {
-		t.Fatalf("expected provider custom-provider, got %s", settings.Provider)
-	}
-	if settings.CLICommand != "custom-cli" {
-		t.Fatalf("expected cli command custom-cli, got %s", settings.CLICommand)
+	if settings.RunnerType != "codex" {
+		t.Fatalf("expected runner codex, got %s", settings.RunnerType)
 	}
 }
 

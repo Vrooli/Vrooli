@@ -22,7 +22,6 @@ import {
   Pencil,
   Paperclip,
   Play,
-  RotateCcw,
   Tag,
   Trash2,
   User,
@@ -51,12 +50,12 @@ interface AgentConversationEntryPayload {
 interface AgentConversationPayloadResponse {
   issue_id: string;
   available: boolean;
-  provider?: string;
+  runner_type?: string;
+  profile_key?: string;
+  run_id?: string;
   session_id?: string;
-  prompt?: string;
   metadata?: Record<string, unknown> | null;
   entries?: AgentConversationEntryPayload[];
-  last_message?: string;
   transcript_timestamp?: string;
 }
 
@@ -144,16 +143,19 @@ export function IssueDetailsModal({
   const fetchAbortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const providerLabel = conversation?.provider ?? issue.investigation?.agent_id ?? null;
+  const runnerLabel =
+    conversation?.runner_type ??
+    issue.metadata?.extra?.agent_runner_type ??
+    issue.investigation?.agent_id ??
+    null;
 
-  const hasAgentTranscript = Boolean(
-    issue.metadata?.extra?.agent_transcript_path || issue.metadata?.extra?.agent_last_message_path,
-  );
+  const hasAgentRun = Boolean(issue.metadata?.extra?.agent_run_id);
+  const hasAgentTranscript = hasAgentRun;
 
   const followUpAvailable =
     (issue.status === 'completed' || issue.status === 'failed') && typeof onFollowUp === 'function';
   const followUpLoading = followUpLoadingId === issue.id;
-  const shouldShowTranscriptView = conversationExpanded && hasAgentTranscript;
+  const shouldShowTranscriptView = conversationExpanded && hasAgentRun;
 
   useEffect(() => {
     if (fetchAbortRef.current) {
@@ -359,10 +361,16 @@ export function IssueDetailsModal({
         </div>
 
         <div className="agent-transcript-metadata-card">
-          {providerLabel && (
+          {runnerLabel && (
             <div className="agent-transcript-metadata-row">
-              <span className="agent-transcript-metadata-label">Backend:</span>
-              <span className="agent-transcript-metadata-value">{providerLabel}</span>
+              <span className="agent-transcript-metadata-label">Runner:</span>
+              <span className="agent-transcript-metadata-value">{runnerLabel}</span>
+            </div>
+          )}
+          {conversation?.run_id && (
+            <div className="agent-transcript-metadata-row">
+              <span className="agent-transcript-metadata-label">Run ID:</span>
+              <span className="agent-transcript-metadata-value">{conversation.run_id}</span>
             </div>
           )}
           {conversation?.transcript_timestamp && (
@@ -1143,27 +1151,6 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
     }
   };
 
-  const handleResumeAgent = (sessionId: string, provider: string) => {
-    // Generate correct CLI command based on provider
-    let command: string;
-    if (provider === 'codex') {
-      command = `codex resume ${sessionId}`;
-    } else if (provider === 'claude-code') {
-      command = `claude --resume ${sessionId}`;
-    } else {
-      // Fallback for unknown providers
-      command = `# Unknown provider: ${provider}\n# Session ID: ${sessionId}`;
-    }
-
-    // Copy command to clipboard for user to run
-    navigator.clipboard.writeText(command).then(() => {
-      alert(`Resume command copied to clipboard:\n\n${command}\n\nRun this in your terminal to resume the agent session.`);
-    }).catch(() => {
-      // Clipboard API may be blocked, show command directly
-      alert(`To resume this agent session, run:\n\n${command}`);
-    });
-  };
-
   // Filter entries based on selected kinds
   const filteredEntries = useMemo(() => {
     if (selectedKinds.size === 0) {
@@ -1204,18 +1191,6 @@ function AgentConversationPanel({ conversation }: AgentConversationPanelProps) {
               >
                 {sessionIdCopied ? <Check size={14} /> : <Copy size={14} />}
               </button>
-              {conversation.provider && (
-                <button
-                  type="button"
-                  className="agent-conversation-session-action agent-conversation-resume-btn"
-                  onClick={() => handleResumeAgent(conversation.session_id!, conversation.provider!)}
-                  aria-label="Resume agent session"
-                  title="Copy resume command to clipboard"
-                >
-                  <RotateCcw size={14} />
-                  Resume
-                </button>
-              )}
             </span>
           </div>
         )}
