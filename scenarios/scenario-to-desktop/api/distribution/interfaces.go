@@ -46,6 +46,10 @@ type Service interface {
 
 	// ValidateTargets validates all (or specified) targets.
 	ValidateTargets(ctx context.Context, targetNames []string) *ValidationResult
+
+	// CheckCredentials checks if required credentials are available for targets.
+	// Returns which env vars are missing so the UI can prompt for them.
+	CheckCredentials(ctx context.Context, req *CheckCredentialsRequest) *CheckCredentialsResponse
 }
 
 // Repository persists distribution configurations.
@@ -94,7 +98,8 @@ type Store interface {
 // UploaderFactory creates Uploader instances for targets.
 type UploaderFactory interface {
 	// Create creates an Uploader for the given target config.
-	Create(target *DistributionTarget, envReader EnvironmentReader) (Uploader, error)
+	// inlineCredentials is an optional map of env var names to values that override env lookups.
+	Create(target *DistributionTarget, envReader EnvironmentReader, inlineCredentials map[string]string) (Uploader, error)
 }
 
 // EnvironmentReader abstracts environment variable access for testing.

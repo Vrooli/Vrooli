@@ -22,6 +22,17 @@ import {
 const SAVE_DEBOUNCE_MS = 600;
 const STALENESS_CHECK_INTERVAL_MS = 30000;
 
+/**
+ * Tracks whether initial load has completed and whether we have server state.
+ * This is critical for preventing race conditions where saves overwrite server state.
+ */
+interface LoadStatus {
+  /** True after the first successful fetch (even if no state found) */
+  hasInitiallyLoaded: boolean;
+  /** True if server returned state (as opposed to 404/empty) */
+  hasServerState: boolean;
+}
+
 export interface UseScenarioStateOptions {
   scenarioName: string;
   enabled?: boolean;
@@ -39,6 +50,9 @@ export interface UseScenarioStateResult {
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
+
+  // Load status - critical for preventing race conditions
+  hasInitiallyLoaded: boolean;
 
   // Save operations
   isSaving: boolean;
@@ -81,7 +95,12 @@ export function useScenarioState({
   const queryClient = useQueryClient();
   const saveTimeoutRef = useRef<number | null>(null);
   const pendingUpdatesRef = useRef<Partial<FormState>>({});
-  const skipNextSaveRef = useRef(false);
+
+  // Track load status to prevent race conditions
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>({
+    hasInitiallyLoaded: false,
+    hasServerState: false,
+  });
 
   const [localFormState, setLocalFormState] = useState<FormState | null>(null);
   const [localHash, setLocalHash] = useState<string | null>(null);
@@ -174,13 +193,39 @@ export function useScenarioState({
     },
   });
 
-  // Initialize local state from server
+  // Clear local state when scenario changes to prevent stale data
+  const prevScenarioRef = useRef<string>(scenarioName);
   useEffect(() => {
+    if (prevScenarioRef.current !== scenarioName) {
+      prevScenarioRef.current = scenarioName;
+      // Reset load status - this is critical to prevent saves before new scenario loads
+      setLoadStatus({ hasInitiallyLoaded: false, hasServerState: false });
+      // Clear local state when switching scenarios
+      setLocalFormState(null);
+      setLocalHash(null);
+      setLastSavedAt(null);
+      setIsStale(false);
+      setPendingChanges([]);
+      setValidationStatus(null);
+      pendingUpdatesRef.current = {};
+    }
+  }, [scenarioName]);
+
+  // Initialize local state from server - this is the critical path for loading persisted state
+  useEffect(() => {
+    // serverData is undefined during initial loading, null after error
+    if (serverData === undefined) return;
+
     if (serverData?.state) {
-      skipNextSaveRef.current = true;
+      // Server returned existing state - apply it to local
       setLocalFormState(serverData.state.form_state);
       setLocalHash(serverData.state.hash || null);
       setLastSavedAt(serverData.state.updated_at);
+
+      // Mark as loaded WITH server state - this allows saves to proceed
+      setLoadStatus({ hasInitiallyLoaded: true, hasServerState: true });
+
+      // Notify consumer AFTER setting load status
       onStateLoaded?.(serverData.state);
 
       // Check if manifest changed
@@ -188,8 +233,13 @@ export function useScenarioState({
         onManifestChanged?.(serverData.current_hash, serverData.stored_hash);
       }
     } else if (serverData && !serverData.state) {
+      // Server returned empty (no existing state for this scenario)
       setLocalFormState(null);
       setLocalHash(null);
+
+      // Mark as loaded WITHOUT server state - saves can proceed (will create new state)
+      setLoadStatus({ hasInitiallyLoaded: true, hasServerState: false });
+
       onStateCleared?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,11 +274,12 @@ export function useScenarioState({
     }, SAVE_DEBOUNCE_MS);
   }, [saveMutation]);
 
-  // Update form state function
+  // Update form state function - guards against premature saves
   const updateFormState = useCallback(
     (updates: Partial<FormState>) => {
-      if (skipNextSaveRef.current) {
-        skipNextSaveRef.current = false;
+      // CRITICAL: Do not save until initial load completes
+      // This prevents race condition where default form values overwrite server state
+      if (!loadStatus.hasInitiallyLoaded) {
         return;
       }
 
@@ -236,7 +287,7 @@ export function useScenarioState({
       pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates };
       debouncedSave();
     },
-    [debouncedSave]
+    [debouncedSave, loadStatus.hasInitiallyLoaded]
   );
 
   // Force save now
@@ -270,7 +321,7 @@ export function useScenarioState({
   const resolveConflict = useCallback(
     (resolution: "local" | "server") => {
       if (resolution === "server" && conflictState) {
-        skipNextSaveRef.current = true;
+        // Apply server state - the save effect will save it back (redundant but safe)
         setLocalFormState(conflictState.form_state);
         setLocalHash(conflictState.hash || null);
         onStateLoaded?.(conflictState);
@@ -310,6 +361,7 @@ export function useScenarioState({
     isLoading,
     isError,
     error: error as Error | null,
+    hasInitiallyLoaded: loadStatus.hasInitiallyLoaded,
     isSaving: saveMutation.isPending,
     saveError: saveMutation.error as Error | null,
     lastSavedAt,

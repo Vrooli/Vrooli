@@ -1715,6 +1715,24 @@ export interface DistributeRequest {
   artifacts: Record<string, string>;
   target_names?: string[];
   parallel?: boolean;
+  /** Inline credentials for targets. Keys are env var names, values are secrets. */
+  inline_credentials?: Record<string, string>;
+}
+
+export interface CheckCredentialsRequest {
+  target_names?: string[];
+}
+
+export interface TargetCredentialStatus {
+  target_name: string;
+  all_present: boolean;
+  missing_credentials: string[];
+  required_credentials: string[];
+}
+
+export interface CheckCredentialsResponse {
+  all_present: boolean;
+  targets: Record<string, TargetCredentialStatus>;
 }
 
 export interface DistributeResponse {
@@ -1881,6 +1899,20 @@ export async function cancelDistribution(distributionId: string): Promise<{ stat
   });
   if (!response.ok) {
     throw new Error(`Failed to cancel distribution: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function checkDistributionCredentials(
+  request?: CheckCredentialsRequest
+): Promise<CheckCredentialsResponse> {
+  const response = await fetch(buildUrl("/distribution/check-credentials"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request || {}),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to check distribution credentials: ${response.statusText}`);
   }
   return response.json();
 }

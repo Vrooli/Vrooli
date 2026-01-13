@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchProxyHints,
@@ -11,13 +11,10 @@ import {
   type BundleManifestResponse,
   type ProbeResponse,
   type ProxyHintsResponse,
-  type SigningConfig,
-  type SigningReadinessResponse
 } from "../lib/api";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { AlertTriangle, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
 import { ScenarioModal } from "./ScenarioModal";
 import { FrameworkModal } from "./FrameworkModal";
@@ -29,7 +26,17 @@ import { ExternalServerSection } from "./ExternalServerSection";
 import { EmbeddedServerSection } from "./EmbeddedServerSection";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";
-import type { DesktopConnectionConfig, ScenarioDesktopStatus, ScenariosResponse } from "./scenario-inventory/types";
+import type { DesktopConnectionConfig, ScenariosResponse } from "./scenario-inventory/types";
+import {
+  ScenarioSelector,
+  FrameworkTemplateSection,
+  SigningInlineSection,
+  OutputLocationSelector,
+  OutputPathField,
+  ValidationErrors,
+  validateFormInputs,
+  type ValidationError,
+} from "./generator";
 import {
   DEFAULT_DEPLOYMENT_MODE,
   DEFAULT_SERVER_TYPE,
@@ -44,7 +51,6 @@ import {
   computeStagingPreviewPath,
   getSelectedPlatforms,
   resolveEndpoints,
-  validateGeneratorInputs,
   type OutputLocation,
   type PlatformSelection
 } from "../domain/generator";
@@ -52,388 +58,10 @@ import {
   useScenarioState,
   usePreflightSession,
   useSigningConfig,
-  type GeneratorDraftState
 } from "../hooks";
 import { PipelineStatusSummary } from "./state/PipelineStatusOverview";
 import { PendingChangesAlert } from "./state/PendingChangesAlert";
 import type { FormState } from "../lib/api";
-
-const TEMPLATE_SUMMARIES: Record<string, { name: string; description: string }> = {
-  basic: { name: "Basic", description: "Balanced single window wrapper" },
-  advanced: { name: "Advanced", description: "Tray, shortcuts, deep OS touches" },
-  multi_window: { name: "Multi-Window", description: "Multiple coordinated windows" },
-  kiosk: { name: "Kiosk Mode", description: "Locked-down fullscreen kiosk" },
-  universal: { name: "Universal Desktop App", description: "All-purpose desktop wrapper" }
-};
-
-const FRAMEWORK_SUMMARIES: Record<string, { name: string; description: string }> = {
-  electron: { name: "Electron", description: "Most compatible and battle-tested for desktop web apps" },
-  tauri: { name: "Tauri", description: "Rust + system webview for smaller, more secure apps" },
-  neutralino: { name: "Neutralino", description: "Ultra-lightweight desktop wrapper with minimal runtime" }
-};
-
-interface ScenarioSelectorProps {
-  scenarioName: string;
-  loadingScenarios: boolean;
-  selectedScenario?: ScenarioDesktopStatus;
-  onOpenScenarioModal: () => void;
-  onLoadSaved?: () => void;
-  locked?: boolean;
-  onUnlock?: () => void;
-}
-
-function ScenarioSelector({
-  scenarioName,
-  loadingScenarios,
-  selectedScenario,
-  onOpenScenarioModal,
-  onLoadSaved,
-  locked = false,
-  onUnlock
-}: ScenarioSelectorProps) {
-  const displayName = selectedScenario?.display_name || scenarioName;
-
-  if (locked && scenarioName) {
-    return (
-      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Scenario</p>
-          <p className="text-sm font-semibold text-slate-100">{scenarioName}</p>
-        </div>
-        {onUnlock && (
-          <button
-            type="button"
-            onClick={onUnlock}
-            className="text-xs text-blue-300 underline hover:text-blue-200"
-          >
-            Change scenario
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5 gap-3">
-        <Label htmlFor="scenarioName">Scenario Name</Label>
-        <div className="flex items-center gap-2">
-          {selectedScenario?.connection_config && onLoadSaved && (
-            <button
-              type="button"
-              onClick={onLoadSaved}
-              className="text-xs text-blue-300 hover:text-blue-200"
-            >
-              Load saved URLs
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onOpenScenarioModal}
-            className="text-xs text-blue-400 hover:text-blue-300"
-          >
-            Browse scenarios
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-slate-100">
-              {displayName || (loadingScenarios ? "Loading scenarios..." : "Select a scenario")}
-            </p>
-            <p className="text-xs text-slate-400">
-              {scenarioName ? `Slug: ${scenarioName}` : "Browse scenarios to choose a desktop target."}
-            </p>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={onOpenScenarioModal}>
-            Browse scenarios
-          </Button>
-        </div>
-      </div>
-      <p className="mt-1.5 text-xs text-slate-400">
-        Select from available scenarios or enter a slug from the modal.
-      </p>
-    </div>
-  );
-}
-
-interface FrameworkTemplateSectionProps {
-  framework: string;
-  onFrameworkChange: (framework: string) => void;
-  onOpenFrameworkModal: () => void;
-  selectedTemplate: string;
-  onOpenTemplateModal: () => void;
-}
-
-function FrameworkTemplateSection({
-  framework,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onFrameworkChange,
-  onOpenFrameworkModal,
-  selectedTemplate,
-  onOpenTemplateModal
-}: FrameworkTemplateSectionProps) {
-  const frameworkSummary = FRAMEWORK_SUMMARIES[framework] ?? {
-    name: framework,
-    description: "Desktop framework"
-  };
-  const summary =
-    TEMPLATE_SUMMARIES[selectedTemplate] ?? {
-      name: selectedTemplate.replace(/_/g, " "),
-      description: "Custom template"
-    };
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div>
-        <Label>Framework</Label>
-        <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-100">{frameworkSummary.name}</p>
-              <p className="text-xs text-slate-400">{frameworkSummary.description}</p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenFrameworkModal}>
-              Browse frameworks
-            </Button>
-          </div>
-        </div>
-        <p className="mt-1.5 text-xs text-slate-400">
-          Electron is fully supported today. Tauri and Neutralino are planned but not yet available.
-        </p>
-      </div>
-
-      <div>
-        <Label>Template</Label>
-        <div className="mt-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-100">{summary?.name ?? "Select template"}</p>
-              <p className="text-xs text-slate-400">
-                {summary?.description ?? "Browse templates to choose the best fit."}
-              </p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenTemplateModal}>
-              Browse templates
-            </Button>
-          </div>
-        </div>
-        <p className="mt-1.5 text-xs text-slate-400">
-          All templates share the same codebase. If you change your mind later, switch templates here or from the
-          Generated Apps tab - your scenario stays intact.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-interface SigningInlineSectionProps {
-  scenarioName: string;
-  signingEnabled: boolean;
-  signingConfig?: SigningConfig | null;
-  readiness?: SigningReadinessResponse;
-  loading: boolean;
-  onToggleSigning: (enabled: boolean) => void;
-  onOpenSigning: () => void;
-  onRefresh: () => void;
-}
-
-function SigningInlineSection({
-  scenarioName,
-  signingEnabled,
-  signingConfig,
-  readiness,
-  loading,
-  onToggleSigning,
-  onOpenSigning,
-  onRefresh
-}: SigningInlineSectionProps) {
-  const hasConfig = Boolean(signingConfig);
-  const ready = readiness?.ready;
-  const readinessNote =
-    readiness?.issues && readiness.issues.length > 0 ? readiness.issues[0] : undefined;
-  const [expiryWarning, setExpiryWarning] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("std_signing_expiry_warning");
-    if (stored) {
-      setExpiryWarning(stored);
-    }
-  }, []);
-
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-slate-100">Signing (recommended for production)</p>
-          <p className="text-xs text-slate-400">
-            Signed installers avoid OS warnings. Configure details in the Signing tab or reuse saved config here.
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-slate-100">
-          <input
-            type="checkbox"
-            className="h-4 w-4"
-            checked={signingEnabled}
-            disabled={!scenarioName}
-            onChange={(e) => onToggleSigning(e.target.checked)}
-          />
-          <span>{signingEnabled ? "Sign this build" : "Skip signing for this build"}</span>
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin text-blue-300" />
-            Checking signing status…
-          </div>
-        ) : signingEnabled ? (
-          hasConfig ? (
-            ready ? (
-              <div className="flex items-center gap-2 text-green-300">
-                <ShieldCheck className="h-4 w-4" />
-                Signing ready for at least one platform.
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-amber-300">
-                <AlertTriangle className="h-4 w-4" />
-                {readinessNote || "Signing config needs fixes before packaging."}
-              </div>
-            )
-          ) : (
-            <div className="flex items-center gap-2 text-amber-300">
-              <AlertTriangle className="h-4 w-4" />
-              No signing config saved yet. Open the Signing tab to add certificates.
-            </div>
-          )
-        ) : (
-          <div className="flex items-center gap-2 text-slate-300">
-            <AlertTriangle className="h-4 w-4 text-slate-400" />
-            Unsigned installers may trigger OS warnings. Enable signing when you&apos;re ready.
-          </div>
-        )}
-
-        {signingEnabled && expiryWarning && (
-          <div className="flex items-center gap-2 text-amber-300">
-            <AlertTriangle className="h-4 w-4" />
-            {expiryWarning}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={onRefresh} disabled={!scenarioName || loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          {!signingEnabled && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onToggleSigning(true)}
-              disabled={!scenarioName}
-              className="gap-1 text-blue-200 hover:text-blue-100"
-            >
-              Enable signing now
-            </Button>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onOpenSigning}
-            disabled={!scenarioName}
-            className="gap-1 text-blue-200 hover:text-blue-100"
-          >
-            Open Signing tab
-            <ExternalLink className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface OutputPathFieldProps {
-  outputPath: string;
-  onOutputPathChange: (value: string) => void;
-}
-
-interface OutputLocationSelectorProps {
-  locationMode: OutputLocation;
-  standardPath: string;
-  stagingPreview: string;
-  onChange: (value: OutputLocation) => void;
-}
-
-function OutputLocationSelector({ locationMode, onChange, standardPath, stagingPreview }: OutputLocationSelectorProps) {
-  return (
-    <div className="space-y-2">
-      <Label>Output location</Label>
-      <div className="space-y-1.5">
-        <label className="flex gap-3 text-sm text-slate-200">
-          <input
-            type="radio"
-            name="outputLocation"
-            value="proper"
-            checked={locationMode === "proper"}
-            onChange={() => onChange("proper")}
-          />
-          <span>
-            Proper (recommended): <code className="text-xs">{standardPath}</code>
-          </span>
-        </label>
-        <label className="flex gap-3 text-sm text-slate-200">
-          <input
-            type="radio"
-            name="outputLocation"
-            value="temp"
-            checked={locationMode === "temp"}
-            onChange={() => onChange("temp")}
-          />
-          <span>
-            Temporary (gitignored staging): <code className="text-xs">{stagingPreview}</code>
-          </span>
-        </label>
-        <label className="flex gap-3 text-sm text-slate-200">
-          <input
-            type="radio"
-            name="outputLocation"
-            value="custom"
-            checked={locationMode === "custom"}
-            onChange={() => onChange("custom")}
-          />
-          <span>Custom path</span>
-        </label>
-      </div>
-      <p className="text-xs text-slate-400">
-        Proper keeps wrappers beside their scenarios. Temporary routes output to a gitignored staging area so you can
-        review before moving. Custom is for one-off locations.
-      </p>
-    </div>
-  );
-}
-
-function OutputPathField({ outputPath, onOutputPathChange }: OutputPathFieldProps) {
-  return (
-    <div>
-      <Label htmlFor="outputPath">Output Directory</Label>
-      <Input
-        id="outputPath"
-        value={outputPath}
-        onChange={(e) => onOutputPathChange(e.target.value)}
-        placeholder="/absolute/or/relative/path"
-        className="mt-1.5"
-      />
-      <p className="mt-1 text-xs text-slate-400">
-        Used only when choosing a custom location. Leave blank to fall back to the selected mode&apos;s default.
-      </p>
-    </div>
-  );
-}
 
 interface GeneratorFormProps {
   selectedTemplate: string;
@@ -504,6 +132,7 @@ export function GeneratorForm({
   });
   const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const isUpdateMode = selectionSource === "inventory";
   const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
 
@@ -600,7 +229,7 @@ export function GeneratorForm({
     setScenarioLocked(selectionSource === "inventory");
   }, [selectionSource]);
 
-  const resetFormState = (resetTemplate: boolean) => {
+  const resetFormState = useCallback((resetTemplate: boolean) => {
     setAppDisplayName("");
     setAppDescription("");
     setIconPath("");
@@ -626,6 +255,7 @@ export function GeneratorForm({
     setDeploymentManagerUrl(null);
     setSigningEnabledForBuild(false);
     setLastLoadedScenario(null);
+    setValidationErrors([]);
     setPreflightSeed({
       result: null,
       error: null,
@@ -641,42 +271,13 @@ export function GeneratorForm({
     if (resetTemplate) {
       onTemplateChange("basic");
     }
-  };
-
-  const applyDraftState = (draft: GeneratorDraftState) => {
-    setAppDisplayName(draft.appDisplayName);
-    setAppDescription(draft.appDescription);
-    setIconPath(draft.iconPath);
-    setDisplayNameEdited(draft.displayNameEdited);
-    setDescriptionEdited(draft.descriptionEdited);
-    setIconPathEdited(draft.iconPathEdited);
-    setFramework(draft.framework || "electron");
-    setServerType((draft.serverType as ServerType) ?? DEFAULT_SERVER_TYPE);
-    setDeploymentMode((draft.deploymentMode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
-    setPlatforms(draft.platforms ?? { win: true, mac: true, linux: true });
-    setLocationMode((draft.locationMode as OutputLocation) ?? "proper");
-    setOutputPath(draft.outputPath ?? "");
-    setProxyUrl(draft.proxyUrl ?? "");
-    setBundleManifestPath(draft.bundleManifestPath ?? "");
-    setServerPort(draft.serverPort ?? 3000);
-    setLocalServerPath(draft.localServerPath ?? "ui/server.js");
-    setLocalApiEndpoint(draft.localApiEndpoint ?? "http://localhost:3001/api");
-    setAutoManageTier1(draft.autoManageTier1 ?? false);
-    setVrooliBinaryPath(draft.vrooliBinaryPath ?? "vrooli");
-    setConnectionResult((draft.connectionResult as ProbeResponse | null) ?? null);
-    setConnectionError(draft.connectionError ?? null);
-    setDeploymentManagerUrl(draft.deploymentManagerUrl ?? null);
-    setSigningEnabledForBuild(draft.signingEnabledForBuild ?? false);
-    if (draft.selectedTemplate) {
-      onTemplateChange(draft.selectedTemplate);
-    }
-  };
-
+  }, [onTemplateChange, resetPreflight]);
 
   // Server-side state persistence via useScenarioState
   const {
     formState: serverFormState,
     isLoading: stateLoading,
+    hasInitiallyLoaded,
     isSaving: stateSaving,
     isStale,
     pendingChanges,
@@ -684,7 +285,6 @@ export function GeneratorForm({
     timestamps: serverTimestamps,
     updateFormState,
     clearState,
-    lastSavedAt,
   } = useScenarioState({
     scenarioName,
     enabled: Boolean(scenarioName),
@@ -801,14 +401,28 @@ export function GeneratorForm({
   ]);
 
   // Debounced save to server when form state changes
+  // CRITICAL: Only save after initial load to prevent race condition
   const prevFormStateRef = useRef<string>("");
+  const prevScenarioForSaveRef = useRef<string>(scenarioName);
+
+  // Reset the previous form state ref when scenario changes to prevent stale comparisons
+  useEffect(() => {
+    if (prevScenarioForSaveRef.current !== scenarioName) {
+      prevScenarioForSaveRef.current = scenarioName;
+      prevFormStateRef.current = "";
+    }
+  }, [scenarioName]);
+
   useEffect(() => {
     if (!scenarioName) return;
+    // Wait for initial load before saving - prevents overwriting server state with defaults
+    if (!hasInitiallyLoaded) return;
+
     const serialized = JSON.stringify(formStateForServer);
     if (serialized === prevFormStateRef.current) return;
     prevFormStateRef.current = serialized;
     updateFormState(formStateForServer);
-  }, [scenarioName, formStateForServer, updateFormState]);
+  }, [scenarioName, formStateForServer, updateFormState, hasInitiallyLoaded]);
 
   // Legacy compatibility - keep draft timestamps working
   const draftTimestamps = serverTimestamps;
@@ -855,7 +469,12 @@ export function GeneratorForm({
     onGenerateStateChange({ pending: generateMutation.isPending, error: generateErrorMessage });
   }, [generateMutation.isPending, generateErrorMessage, onGenerateStateChange]);
 
-  const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
+  // Memoize selectedScenario to avoid recalculating on every render
+  const selectedScenario = useMemo(
+    () => scenariosData?.scenarios.find((s) => s.name === scenarioName),
+    [scenariosData?.scenarios, scenarioName]
+  );
+
   const iconPreviewUrl = useMemo(
     () => (iconPath ? getIconPreviewUrl(iconPath) : ""),
     [iconPath]
@@ -865,6 +484,7 @@ export function GeneratorForm({
     setIconPreviewError(false);
   }, [iconPreviewUrl]);
 
+  // Apply scenario defaults ONLY when selecting a new scenario (not when loading from server)
   useEffect(() => {
     if (!scenarioName) {
       if (!displayNameEdited) {
@@ -876,6 +496,17 @@ export function GeneratorForm({
       if (!iconPathEdited) {
         setIconPath("");
       }
+      return;
+    }
+    // CRITICAL: Wait for initial load to complete before deciding whether to apply defaults.
+    // This prevents race conditions where defaults are applied before server state is processed.
+    // hasInitiallyLoaded is set AFTER localFormState is updated from server response.
+    if (!hasInitiallyLoaded) {
+      return;
+    }
+    // Skip applying scenario defaults when we've loaded state from the server.
+    // This prevents overwriting persisted values with scenario metadata on refresh.
+    if (serverFormState) {
       return;
     }
     if (!selectedScenario) {
@@ -893,6 +524,8 @@ export function GeneratorForm({
   }, [
     scenarioName,
     selectedScenario,
+    hasInitiallyLoaded,
+    serverFormState,
     displayNameEdited,
     descriptionEdited,
     iconPathEdited
@@ -953,7 +586,8 @@ export function GeneratorForm({
     if (!scenarioName) {
       return;
     }
-    const updatedAt = selectedScenario?.connection_config?.updated_at;
+    const connectionConfig = selectedScenario?.connection_config;
+    const updatedAt = connectionConfig?.updated_at;
     if (!updatedAt) {
       return;
     }
@@ -964,13 +598,12 @@ export function GeneratorForm({
     if (draftLoadedScenario === scenarioName) {
       return;
     }
-    applySavedConnection(selectedScenario?.connection_config);
+    applySavedConnection(connectionConfig);
     setLastLoadedScenario(configKey);
   }, [
     scenarioName,
-    selectedScenario?.connection_config?.updated_at,
-    lastLoadedScenario,
     selectedScenario?.connection_config,
+    lastLoadedScenario,
     draftLoadedScenario
   ]);
 
@@ -988,50 +621,36 @@ export function GeneratorForm({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!scenarioName) {
-      alert("Please select a scenario before generating a desktop app.");
-      return;
-    }
+    // Clear previous validation errors
+    setValidationErrors([]);
 
     const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
-    const validationMessage = validateGeneratorInputs({
+    // Validate all inputs using the centralized validation function
+    const errors = validateFormInputs({
+      scenarioName,
       selectedPlatforms: selectedPlatformsList,
-      decision: connectionDecision,
+      isBundled,
+      requiresProxyUrl: requiresRemoteConfig,
       bundleManifestPath,
       proxyUrl,
       appDisplayName,
       appDescription,
       locationMode,
-      outputPath: outputPathForRequest
+      outputPath: outputPathForRequest,
+      preflightResult,
+      preflightOk,
+      preflightOverride,
+      signingEnabledForBuild,
+      signingConfig,
+      signingReadiness,
     });
 
-    if (validationMessage) {
-      alert(validationMessage);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      // Scroll to show validation errors
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
-    }
-
-    if (isBundled) {
-      if (!preflightResult) {
-        alert("Run preflight validation before generating a bundled desktop app.");
-        return;
-      }
-      if (!preflightOk && !preflightOverride) {
-        alert("Preflight is not green. Fix the issues or enable override to continue.");
-        return;
-      }
-    }
-
-    if (signingEnabledForBuild) {
-      if (!signingConfig || !signingConfig.enabled) {
-        alert("Signing is enabled for this build but no signing config is saved. Open the Signing tab to add certificates first.");
-        return;
-      }
-      if (signingReadiness && !signingReadiness.ready) {
-        const issue = signingReadiness.issues?.[0] || "Resolve signing prerequisites before packaging.";
-        alert(`Signing is not ready: ${issue}`);
-        return;
-      }
     }
 
     const config = buildDesktopConfig({
@@ -1067,11 +686,11 @@ export function GeneratorForm({
 
   const handleDeploymentChange = (nextMode: DeploymentMode) => {
     setDeploymentMode(nextMode);
-    const nextAllowed = nextMode === "bundled" || nextMode === "cloud-api"
+    const nextAllowed: ServerType[] = nextMode === "bundled" || nextMode === "cloud-api"
       ? ["external"]
       : SERVER_TYPE_OPTIONS.map((option) => option.value);
     if (!nextAllowed.includes(serverType)) {
-      setServerType((nextAllowed[0] as ServerType) ?? DEFAULT_SERVER_TYPE);
+      setServerType(nextAllowed[0] ?? DEFAULT_SERVER_TYPE);
     }
   };
 
@@ -1267,7 +886,6 @@ export function GeneratorForm({
 
           <FrameworkTemplateSection
             framework={framework}
-            onFrameworkChange={setFramework}
             onOpenFrameworkModal={() => setFrameworkModalOpen(true)}
             selectedTemplate={selectedTemplate}
             onOpenTemplateModal={() => setTemplateModalOpen(true)}
@@ -1342,12 +960,19 @@ export function GeneratorForm({
           )}
 
           <input type="hidden" name="scenarioName" value={scenarioName} />
+
+          {/* Validation errors - shown above submit button */}
+          <ValidationErrors
+            errors={validationErrors}
+            onDismiss={() => setValidationErrors([])}
+          />
+
           {showSubmit && (
             <>
               <Button
                 type="submit"
                 className="w-full"
-                disabled={generateMutation.isPending}
+                disabled={generateMutation.isPending || validationErrors.length > 0}
               >
                 {generateMutation.isPending
                   ? "Generating..."

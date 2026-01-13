@@ -11,10 +11,16 @@ import (
 type DefaultUploaderFactory struct{}
 
 // Create creates an Uploader for the given target config.
-func (f *DefaultUploaderFactory) Create(target *DistributionTarget, envReader EnvironmentReader) (Uploader, error) {
+// inlineCredentials is an optional map of env var names to values that override env lookups.
+func (f *DefaultUploaderFactory) Create(target *DistributionTarget, envReader EnvironmentReader, inlineCredentials map[string]string) (Uploader, error) {
 	// Convert to providers types
 	s3Config := targetToS3Config(target)
-	providerEnvReader := &envReaderAdapter{envReader}
+
+	// Wrap env reader to check inline credentials first
+	providerEnvReader := &envReaderWithInline{
+		envReader:         envReader,
+		inlineCredentials: inlineCredentials,
+	}
 
 	// Create the S3 uploader
 	s3Uploader, err := providers.NewS3Uploader(context.Background(), s3Config, providerEnvReader)
@@ -23,6 +29,23 @@ func (f *DefaultUploaderFactory) Create(target *DistributionTarget, envReader En
 	}
 
 	return &uploaderAdapter{uploader: s3Uploader, target: target}, nil
+}
+
+// envReaderWithInline wraps an EnvironmentReader to check inline credentials first.
+type envReaderWithInline struct {
+	envReader         EnvironmentReader
+	inlineCredentials map[string]string
+}
+
+func (e *envReaderWithInline) GetEnv(key string) string {
+	// Check inline credentials first
+	if e.inlineCredentials != nil {
+		if val, ok := e.inlineCredentials[key]; ok {
+			return val
+		}
+	}
+	// Fall back to environment
+	return e.envReader.GetEnv(key)
 }
 
 // targetToS3Config converts DistributionTarget to providers.S3TargetConfig.
@@ -63,15 +86,6 @@ func targetToProviderTarget(target *DistributionTarget) *providers.DistributionT
 		AccessKeyIDEnv:     target.AccessKeyIDEnv,
 		SecretAccessKeyEnv: target.SecretAccessKeyEnv,
 	}
-}
-
-// envReaderAdapter adapts EnvironmentReader to providers.EnvironmentReader.
-type envReaderAdapter struct {
-	reader EnvironmentReader
-}
-
-func (a *envReaderAdapter) GetEnv(key string) string {
-	return a.reader.GetEnv(key)
 }
 
 // uploaderAdapter adapts providers.S3Uploader to the Uploader interface.

@@ -169,6 +169,43 @@ type DistributeRequest struct {
 
 	// Parallel enables concurrent uploads to multiple targets.
 	Parallel bool `json:"parallel,omitempty"`
+
+	// InlineCredentials provides credentials directly instead of from env vars.
+	// Keys are env var names (e.g., "R2_ACCESS_KEY_ID"), values are the actual secrets.
+	// Used when env vars aren't set and user provides credentials via UI.
+	// These are never persisted - only used for this single operation.
+	InlineCredentials map[string]string `json:"inline_credentials,omitempty"`
+}
+
+// CheckCredentialsRequest contains parameters for checking credentials availability.
+type CheckCredentialsRequest struct {
+	// TargetNames specifies which targets to check.
+	// Empty means all enabled targets.
+	TargetNames []string `json:"target_names,omitempty"`
+}
+
+// CheckCredentialsResponse contains the credential check results.
+type CheckCredentialsResponse struct {
+	// AllPresent is true if all required credentials are available.
+	AllPresent bool `json:"all_present"`
+
+	// Targets contains per-target credential status.
+	Targets map[string]*TargetCredentialStatus `json:"targets"`
+}
+
+// TargetCredentialStatus contains credential status for a single target.
+type TargetCredentialStatus struct {
+	// TargetName is the target being checked.
+	TargetName string `json:"target_name"`
+
+	// AllPresent is true if all credentials for this target are available.
+	AllPresent bool `json:"all_present"`
+
+	// MissingCredentials lists env var names that are not set.
+	MissingCredentials []string `json:"missing_credentials,omitempty"`
+
+	// RequiredCredentials lists all env var names needed for this target.
+	RequiredCredentials []string `json:"required_credentials"`
 }
 
 // DistributeResponse contains the result of starting a distribution operation.

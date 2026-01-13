@@ -5,12 +5,15 @@ import {
   fetchDistributionTargets,
   startDistribution,
   fetchDistributionStatus,
+  checkDistributionCredentials,
   type DistributionTarget,
   type DistributionStatus,
+  type CheckCredentialsResponse,
 } from "../../lib/api";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
+import { CredentialEntryModal } from "./CredentialEntryModal";
 
 interface DistributionUploadSectionProps {
   scenarioName: string;
@@ -26,6 +29,9 @@ export function DistributionUploadSection({
   const [distributionId, setDistributionId] = useState<string | null>(null);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [credentialModalOpen, setCredentialModalOpen] = useState(false);
+  const [credentialStatus, setCredentialStatus] = useState<CheckCredentialsResponse | null>(null);
+  const [isCheckingCredentials, setIsCheckingCredentials] = useState(false);
 
   // Fetch available targets
   const { data: targetsData, isLoading: targetsLoading } = useQuery({
@@ -49,22 +55,54 @@ export function DistributionUploadSection({
 
   // Start distribution mutation
   const distributeMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (inlineCredentials?: Record<string, string>) =>
       startDistribution({
         scenario_name: scenarioName,
         version,
         artifacts,
         target_names: selectedTargets.length > 0 ? selectedTargets : undefined,
         parallel: true,
+        inline_credentials: inlineCredentials,
       }),
     onSuccess: (resp) => {
       setDistributionId(resp.distribution_id);
       setUploadError(null);
+      setCredentialModalOpen(false);
+      setCredentialStatus(null);
     },
     onError: (error: Error) => {
       setUploadError(error.message);
     },
   });
+
+  // Handle upload button click - check credentials first
+  const handleUploadClick = async () => {
+    setUploadError(null);
+    setIsCheckingCredentials(true);
+
+    try {
+      const targetNames = selectedTargets.length > 0 ? selectedTargets : undefined;
+      const result = await checkDistributionCredentials({ target_names: targetNames });
+
+      if (result.all_present) {
+        // All credentials present, proceed with upload
+        distributeMutation.mutate(undefined);
+      } else {
+        // Missing credentials, show modal
+        setCredentialStatus(result);
+        setCredentialModalOpen(true);
+      }
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Failed to check credentials");
+    } finally {
+      setIsCheckingCredentials(false);
+    }
+  };
+
+  // Handle credential submission from modal
+  const handleCredentialSubmit = (credentials: Record<string, string>) => {
+    distributeMutation.mutate(credentials);
+  };
 
   const enabledTargets = (targetsData?.targets || []).filter((t) => t.enabled);
   const hasTargets = enabledTargets.length > 0;
@@ -77,6 +115,7 @@ export function DistributionUploadSection({
   };
 
   const isUploading =
+    isCheckingCredentials ||
     distributeMutation.isPending ||
     (distributionStatus?.status === "pending" || distributionStatus?.status === "running");
 
@@ -181,14 +220,14 @@ export function DistributionUploadSection({
       )}
 
       <Button
-        onClick={() => distributeMutation.mutate()}
+        onClick={handleUploadClick}
         disabled={isUploading}
         className="w-full"
       >
         {isUploading ? (
           <>
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            Uploading...
+            {isCheckingCredentials ? "Checking credentials..." : "Uploading..."}
           </>
         ) : (
           <>
@@ -197,6 +236,18 @@ export function DistributionUploadSection({
           </>
         )}
       </Button>
+
+      {/* Credential entry modal */}
+      <CredentialEntryModal
+        open={credentialModalOpen}
+        credentialStatus={credentialStatus}
+        onSubmit={handleCredentialSubmit}
+        onCancel={() => {
+          setCredentialModalOpen(false);
+          setCredentialStatus(null);
+        }}
+        isSubmitting={distributeMutation.isPending}
+      />
     </div>
   );
 }

@@ -8,6 +8,15 @@ export {
   type UseScenarioStateResult,
 } from "./useScenarioState";
 
+export {
+  useGeneratorFormState,
+  type GeneratorFormState,
+  type FormAction,
+  type UseGeneratorFormStateResult,
+  type ConnectionConfigPayload,
+  DEFAULT_FORM_STATE,
+} from "./useGeneratorFormState";
+
 // Legacy type export for backwards compatibility
 export type GeneratorDraftState = {
   selectedTemplate: string;

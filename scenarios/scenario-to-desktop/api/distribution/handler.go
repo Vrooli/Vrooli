@@ -76,6 +76,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Validation
 	r.HandleFunc("/api/v1/distribution/targets/{name}/test", h.ValidateTarget).Methods("POST")
 	r.HandleFunc("/api/v1/distribution/validate", h.ValidateAllTargets).Methods("POST")
+	r.HandleFunc("/api/v1/distribution/check-credentials", h.CheckCredentials).Methods("POST")
 
 	// Distribution operations
 	r.HandleFunc("/api/v1/distribution/distribute", h.Distribute).Methods("POST")
@@ -267,6 +268,20 @@ func (h *Handler) ValidateTarget(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/distribution/validate
 func (h *Handler) ValidateAllTargets(w http.ResponseWriter, r *http.Request) {
 	result := h.service.ValidateTargets(r.Context(), nil)
+
+	h.writeJSON(w, http.StatusOK, result)
+}
+
+// CheckCredentials checks if credentials are available for targets.
+// POST /api/v1/distribution/check-credentials
+func (h *Handler) CheckCredentials(w http.ResponseWriter, r *http.Request) {
+	var req CheckCredentialsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Empty body is OK - checks all targets
+		req = CheckCredentialsRequest{}
+	}
+
+	result := h.service.CheckCredentials(r.Context(), &req)
 
 	h.writeJSON(w, http.StatusOK, result)
 }

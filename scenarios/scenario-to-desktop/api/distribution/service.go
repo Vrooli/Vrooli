@@ -110,6 +110,51 @@ func NewService(opts ...ServiceOption) *DefaultService {
 	return s
 }
 
+// CheckCredentials checks if required credentials are available for targets.
+func (s *DefaultService) CheckCredentials(ctx context.Context, req *CheckCredentialsRequest) *CheckCredentialsResponse {
+	config, err := s.repo.Get(ctx)
+	if err != nil {
+		return &CheckCredentialsResponse{
+			AllPresent: false,
+			Targets:    map[string]*TargetCredentialStatus{},
+		}
+	}
+
+	targets := s.getTargets(config, req.TargetNames)
+	response := &CheckCredentialsResponse{
+		AllPresent: true,
+		Targets:    make(map[string]*TargetCredentialStatus),
+	}
+
+	for _, target := range targets {
+		status := &TargetCredentialStatus{
+			TargetName:          target.Name,
+			AllPresent:          true,
+			MissingCredentials:  []string{},
+			RequiredCredentials: []string{target.AccessKeyIDEnv, target.SecretAccessKeyEnv},
+		}
+
+		// Check access key ID
+		if val := s.envReader.GetEnv(target.AccessKeyIDEnv); val == "" {
+			status.AllPresent = false
+			status.MissingCredentials = append(status.MissingCredentials, target.AccessKeyIDEnv)
+		}
+
+		// Check secret access key
+		if val := s.envReader.GetEnv(target.SecretAccessKeyEnv); val == "" {
+			status.AllPresent = false
+			status.MissingCredentials = append(status.MissingCredentials, target.SecretAccessKeyEnv)
+		}
+
+		response.Targets[target.Name] = status
+		if !status.AllPresent {
+			response.AllPresent = false
+		}
+	}
+
+	return response
+}
+
 // Distribute starts a distribution operation.
 func (s *DefaultService) Distribute(ctx context.Context, req *DistributeRequest) (*DistributeResponse, error) {
 	// Get distribution config
@@ -237,8 +282,8 @@ func (s *DefaultService) runDistribution(ctx context.Context, distributionID str
 			default:
 			}
 
-			// Create uploader for target
-			uploader, err := s.uploaderFactory.Create(target, s.envReader)
+			// Create uploader for target (with inline credentials if provided)
+			uploader, err := s.uploaderFactory.Create(target, s.envReader, req.InlineCredentials)
 			if err != nil {
 				s.logger.Error("failed to create uploader",
 					"target", target.Name,
@@ -493,8 +538,8 @@ func (s *DefaultService) validateTarget(ctx context.Context, target *Distributio
 		return validation
 	}
 
-	// Connection validation
-	uploader, err := s.uploaderFactory.Create(target, s.envReader)
+	// Connection validation (no inline credentials for validation - tests env vars)
+	uploader, err := s.uploaderFactory.Create(target, s.envReader, nil)
 	if err != nil {
 		validation.Valid = false
 		validation.Connected = false
