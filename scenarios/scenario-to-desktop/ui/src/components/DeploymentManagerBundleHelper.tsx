@@ -11,29 +11,65 @@ export type DeploymentManagerBundleHelperHandle = {
   exportBundle: () => void;
 };
 
+/** Bundle result data for stage persistence */
+export interface BundleResult {
+  buildStatus: AutoBuildStatusResponse | null;
+  manifestPath: string | null;
+  checksum?: string;
+  generatedAt?: string;
+  deploymentManagerUrl?: string | null;
+}
+
 type DeploymentManagerBundleHelperProps = {
   scenarioName: string;
   onBundleManifestChange: (value: string) => void;
   onBundleExported?: (manifestPath: string) => void;
   onDeploymentManagerUrlChange?: (url: string | null) => void;
+  /** Called when bundle export completes successfully. Use to persist stage results. */
+  onBundleComplete?: (result: BundleResult) => void;
+  /** Initial state for restoration from server persistence. */
+  initialBuildStatus?: AutoBuildStatusResponse | null;
+  initialManifestPath?: string | null;
+  initialExportMeta?: { checksum?: string; generated_at?: string } | null;
+  initialDeploymentManagerUrl?: string | null;
 };
 
 export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleHelperHandle, DeploymentManagerBundleHelperProps>(
-  ({ scenarioName, onBundleManifestChange, onBundleExported, onDeploymentManagerUrlChange }, ref) => {
+  ({
+    scenarioName,
+    onBundleManifestChange,
+    onBundleExported,
+    onDeploymentManagerUrlChange,
+    onBundleComplete,
+    initialBuildStatus,
+    initialManifestPath,
+    initialExportMeta,
+    initialDeploymentManagerUrl,
+  }, ref) => {
     const [tier, setTier] = useState("tier-2-desktop");
     const [generationPhase, setGenerationPhase] = useState<"idle" | "building" | "exporting">("idle");
     const [exportError, setExportError] = useState<string | null>(null);
     const [buildError, setBuildError] = useState<string | null>(null);
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
     const [downloadName, setDownloadName] = useState<string | null>(null);
-    const [exportMeta, setExportMeta] = useState<{ checksum?: string; generated_at?: string } | null>(null);
+    const [exportMeta, setExportMeta] = useState<{ checksum?: string; generated_at?: string } | null>(
+      initialExportMeta ?? null
+    );
     // State for deployment manager URL - setter is used, value is passed via callback
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
-    const [manifestPath, setManifestPath] = useState<string | null>(null);
+    const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(
+      initialDeploymentManagerUrl ?? null
+    );
+    const [manifestPath, setManifestPath] = useState<string | null>(initialManifestPath ?? null);
     const [buildJobId, setBuildJobId] = useState<string | null>(null);
-    const [buildStatus, setBuildStatus] = useState<AutoBuildStatusResponse | null>(null);
+    const [buildStatus, setBuildStatus] = useState<AutoBuildStatusResponse | null>(
+      initialBuildStatus ?? null
+    );
     const exportTriggeredRef = useRef(false);
+    // Track previous scenario to detect genuine scenario changes vs initial load
+    const prevScenarioRef = useRef<string>(scenarioName);
+    // Track if we've received initial values from server
+    const hasReceivedInitialRef = useRef<boolean>(Boolean(initialBuildStatus || initialManifestPath));
 
     useImperativeHandle(ref, () => ({
       exportBundle: () => {
@@ -41,13 +77,48 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
       }
     }));
 
+    // Sync from initial props when they change (server state loading)
     useEffect(() => {
-      setGenerationPhase("idle");
-      setExportError(null);
-      setBuildError(null);
-      setBuildJobId(null);
-      setBuildStatus(null);
-      exportTriggeredRef.current = false;
+      if (initialBuildStatus) {
+        setBuildStatus(initialBuildStatus);
+        hasReceivedInitialRef.current = true;
+      }
+      if (initialManifestPath) {
+        setManifestPath(initialManifestPath);
+      }
+      if (initialExportMeta) {
+        setExportMeta(initialExportMeta);
+      }
+      if (initialDeploymentManagerUrl) {
+        setDeploymentManagerUrl(initialDeploymentManagerUrl);
+      }
+    }, [initialBuildStatus, initialManifestPath, initialExportMeta, initialDeploymentManagerUrl]);
+
+    // Reset state when scenario changes - but not on initial load
+    useEffect(() => {
+      const prevScenario = prevScenarioRef.current;
+      prevScenarioRef.current = scenarioName;
+
+      // Only reset if the scenario genuinely changed (not on initial load)
+      const isGenuineChange = prevScenario !== scenarioName && prevScenario !== "";
+
+      // Also skip reset if we just received initial values from server
+      if (!isGenuineChange && hasReceivedInitialRef.current) {
+        hasReceivedInitialRef.current = false; // Reset flag after first load
+        return;
+      }
+
+      if (isGenuineChange) {
+        setGenerationPhase("idle");
+        setExportError(null);
+        setBuildError(null);
+        setBuildJobId(null);
+        setBuildStatus(null);
+        setManifestPath(null);
+        setExportMeta(null);
+        setDeploymentManagerUrl(null);
+        exportTriggeredRef.current = false;
+      }
     }, [scenarioName]);
 
     const resetGenerationState = () => {
@@ -65,6 +136,12 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
         onDeploymentManagerUrlChange(null);
       }
     };
+
+    // Ref to access latest buildStatus in runExport callback
+    const buildStatusRef = useRef<AutoBuildStatusResponse | null>(null);
+    useEffect(() => {
+      buildStatusRef.current = buildStatus;
+    }, [buildStatus]);
 
     const runExport = useCallback(async () => {
       setGenerationPhase("exporting");
@@ -88,12 +165,20 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
           onBundleManifestChange(response.manifest_path);
           onBundleExported?.(response.manifest_path);
         }
+        // Notify parent of successful bundle completion for stage persistence
+        onBundleComplete?.({
+          buildStatus: buildStatusRef.current,
+          manifestPath: response.manifest_path ?? null,
+          checksum: response.checksum,
+          generatedAt: response.generated_at,
+          deploymentManagerUrl: response.deployment_manager_url,
+        });
       } catch (error) {
         setExportError((error as Error).message);
       } finally {
         setGenerationPhase("idle");
       }
-    }, [scenarioName, tier, onBundleManifestChange, onBundleExported, onDeploymentManagerUrlChange]);
+    }, [scenarioName, tier, onBundleManifestChange, onBundleExported, onDeploymentManagerUrlChange, onBundleComplete]);
 
     const handleExport = async () => {
       resetGenerationState();

@@ -5,7 +5,7 @@ import { Braces, Copy, Download, LayoutList } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { DeploymentManagerBundleHelper, type DeploymentManagerBundleHelperHandle } from "./DeploymentManagerBundleHelper";
+import { DeploymentManagerBundleHelper, type DeploymentManagerBundleHelperHandle, type BundleResult } from "./DeploymentManagerBundleHelper";
 
 interface BundledRuntimeSectionProps {
   bundleManifestPath: string;
@@ -14,6 +14,10 @@ interface BundledRuntimeSectionProps {
   bundleHelperRef: Ref<DeploymentManagerBundleHelperHandle>;
   onBundleExported?: (manifestPath: string) => void;
   onDeploymentManagerUrlChange?: (url: string | null) => void;
+  /** Called when bundle export completes successfully. Use to persist stage results. */
+  onBundleComplete?: (result: BundleResult) => void;
+  /** Initial state for bundle helper restoration from server persistence. */
+  initialBundleResult?: BundleResult | null;
 }
 
 export function BundledRuntimeSection({
@@ -22,7 +26,9 @@ export function BundledRuntimeSection({
   scenarioName,
   bundleHelperRef,
   onBundleExported,
-  onDeploymentManagerUrlChange
+  onDeploymentManagerUrlChange,
+  onBundleComplete,
+  initialBundleResult,
 }: BundledRuntimeSectionProps) {
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [manifestResult, setManifestResult] = useState<BundleManifestResponse | null>(null);
@@ -215,6 +221,15 @@ export function BundledRuntimeSection({
         onBundleManifestChange={onBundleManifestChange}
         onBundleExported={onBundleExported}
         onDeploymentManagerUrlChange={onDeploymentManagerUrlChange}
+        onBundleComplete={onBundleComplete}
+        initialBuildStatus={initialBundleResult?.buildStatus}
+        initialManifestPath={initialBundleResult?.manifestPath}
+        initialExportMeta={
+          initialBundleResult?.checksum || initialBundleResult?.generatedAt
+            ? { checksum: initialBundleResult.checksum, generated_at: initialBundleResult.generatedAt }
+            : null
+        }
+        initialDeploymentManagerUrl={initialBundleResult?.deploymentManagerUrl}
       />
     </div>
   );

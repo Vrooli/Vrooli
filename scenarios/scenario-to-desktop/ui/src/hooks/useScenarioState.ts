@@ -17,6 +17,8 @@ import {
   type StateChange,
   type ValidationStatus,
   type BuildArtifact,
+  type StageState,
+  type SaveStateOptions,
 } from "../lib/api";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -70,6 +72,13 @@ export interface UseScenarioStateResult {
 
   // Actions
   updateFormState: (updates: Partial<FormState>) => void;
+  /** Save stage result with form state update. Use for persisting bundle/preflight results. */
+  saveStageResult: (
+    stage: string,
+    result: unknown,
+    formStateUpdates?: Partial<FormState>,
+    options?: Partial<SaveStateOptions>
+  ) => Promise<void>;
   saveNow: () => Promise<void>;
   clearState: () => Promise<void>;
   refetch: () => void;
@@ -81,6 +90,9 @@ export interface UseScenarioStateResult {
 
   // Build artifacts
   buildArtifacts: BuildArtifact[];
+
+  // Stage states (for reading current stage status)
+  stages: Record<string, StageState>;
 }
 
 export function useScenarioState({
@@ -190,6 +202,48 @@ export function useScenarioState({
       if (response.status) {
         setValidationStatus(response.status);
       }
+    },
+  });
+
+  // Mutation for saving stage results (immediate, non-debounced)
+  const stageResultMutation = useMutation({
+    mutationFn: async (params: {
+      stage: string;
+      result: unknown;
+      formStateUpdates?: Partial<FormState>;
+      options?: Partial<SaveStateOptions>;
+    }) => {
+      const mergedFormState: FormState = {
+        ...(localFormState || {}),
+        ...(params.formStateUpdates || {}),
+      };
+      return saveScenarioState(scenarioName, mergedFormState, {
+        computeHash: true,
+        expectedHash: localHash || undefined,
+        stageResults: { [params.stage]: params.result },
+        ...params.options,
+      });
+    },
+    onSuccess: (response: SaveStateResponse, variables) => {
+      if (response.conflict && response.server_state) {
+        setConflictState(response.server_state);
+        onConflict?.(response.server_state);
+      } else {
+        // Update local form state with any updates
+        if (variables.formStateUpdates) {
+          setLocalFormState((prev) =>
+            prev ? { ...prev, ...variables.formStateUpdates } : variables.formStateUpdates!
+          );
+        }
+        setLocalHash(response.hash || null);
+        setLastSavedAt(response.updated_at);
+        setIsStale(false);
+        // Invalidate query to get fresh stage data
+        queryClient.invalidateQueries({ queryKey: ["scenario-state", scenarioName] });
+      }
+    },
+    onError: (err: Error) => {
+      onSaveError?.(err);
     },
   });
 
@@ -317,6 +371,28 @@ export function useScenarioState({
     [stalenessMutation]
   );
 
+  // Save stage result - for persisting bundle/preflight results with proper stage tracking
+  const saveStageResult = useCallback(
+    async (
+      stage: string,
+      result: unknown,
+      formStateUpdates?: Partial<FormState>,
+      options?: Partial<SaveStateOptions>
+    ) => {
+      // CRITICAL: Do not save until initial load completes
+      if (!loadStatus.hasInitiallyLoaded) {
+        return;
+      }
+      await stageResultMutation.mutateAsync({
+        stage,
+        result,
+        formStateUpdates,
+        options,
+      });
+    },
+    [loadStatus.hasInitiallyLoaded, stageResultMutation]
+  );
+
   // Resolve conflict
   const resolveConflict = useCallback(
     (resolution: "local" | "server") => {
@@ -355,6 +431,10 @@ export function useScenarioState({
     return serverData?.state?.build_artifacts || [];
   }, [serverData?.state?.build_artifacts]);
 
+  const stages = useMemo(() => {
+    return serverData?.state?.stages || {};
+  }, [serverData?.state?.stages]);
+
   return {
     state: serverData?.state || null,
     formState: localFormState,
@@ -362,8 +442,8 @@ export function useScenarioState({
     isError,
     error: error as Error | null,
     hasInitiallyLoaded: loadStatus.hasInitiallyLoaded,
-    isSaving: saveMutation.isPending,
-    saveError: saveMutation.error as Error | null,
+    isSaving: saveMutation.isPending || stageResultMutation.isPending,
+    saveError: (saveMutation.error || stageResultMutation.error) as Error | null,
     lastSavedAt,
     isStale,
     pendingChanges,
@@ -371,6 +451,7 @@ export function useScenarioState({
     serverHash: serverData?.state?.hash || null,
     localHash,
     updateFormState,
+    saveStageResult,
     saveNow,
     clearState,
     refetch,
@@ -378,5 +459,6 @@ export function useScenarioState({
     checkStaleness: checkStalenessManual,
     timestamps,
     buildArtifacts,
+    stages,
   };
 }

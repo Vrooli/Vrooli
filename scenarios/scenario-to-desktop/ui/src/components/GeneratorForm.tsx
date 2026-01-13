@@ -20,7 +20,7 @@ import { ScenarioModal } from "./ScenarioModal";
 import { FrameworkModal } from "./FrameworkModal";
 import { DeploymentModal } from "./DeploymentModal";
 import { BundledPreflightSection } from "./BundledPreflightSection";
-import type { DeploymentManagerBundleHelperHandle } from "./DeploymentManagerBundleHelper";
+import type { DeploymentManagerBundleHelperHandle, BundleResult } from "./DeploymentManagerBundleHelper";
 import { BundledRuntimeSection } from "./BundledRuntimeSection";
 import { ExternalServerSection } from "./ExternalServerSection";
 import { EmbeddedServerSection } from "./EmbeddedServerSection";
@@ -284,7 +284,9 @@ export function GeneratorForm({
     validationStatus,
     timestamps: serverTimestamps,
     updateFormState,
+    saveStageResult,
     clearState,
+    stages,
   } = useScenarioState({
     scenarioName,
     enabled: Boolean(scenarioName),
@@ -424,10 +426,64 @@ export function GeneratorForm({
     updateFormState(formStateForServer);
   }, [scenarioName, formStateForServer, updateFormState, hasInitiallyLoaded]);
 
+  // Save preflight result as stage state when preflight completes successfully
+  const prevPreflightResultRef = useRef<string>("");
+  useEffect(() => {
+    if (!scenarioName || !hasInitiallyLoaded) return;
+    if (!preflightResult || !preflightOk) return;
+
+    // Only save when result changes
+    const serialized = JSON.stringify(preflightResult);
+    if (serialized === prevPreflightResultRef.current) return;
+    prevPreflightResultRef.current = serialized;
+
+    // Save preflight stage result with form state updates
+    void saveStageResult("preflight", preflightResult, {
+      preflight_result: preflightResult,
+      preflight_error: null,
+      preflight_session_id: preflightSessionId,
+      preflight_session_expires_at: preflightSessionExpiresAt,
+    });
+  }, [
+    scenarioName,
+    hasInitiallyLoaded,
+    preflightResult,
+    preflightOk,
+    preflightSessionId,
+    preflightSessionExpiresAt,
+    saveStageResult,
+  ]);
+
   // Legacy compatibility - keep draft timestamps working
   const draftTimestamps = serverTimestamps;
   const draftLoadedScenario = serverFormState ? scenarioName : null;
   const clearDraft = clearState;
+
+  // Handler for bundle export completion - saves bundle stage result
+  const handleBundleComplete = useCallback(
+    (result: BundleResult) => {
+      if (!scenarioName || !hasInitiallyLoaded) return;
+      // Save bundle stage result with manifest path update
+      void saveStageResult("bundle", result, {
+        bundle_manifest_path: result.manifestPath ?? undefined,
+        deployment_manager_url: result.deploymentManagerUrl,
+      });
+    },
+    [scenarioName, hasInitiallyLoaded, saveStageResult]
+  );
+
+  // Extract bundle stage result for restoration from server state
+  const initialBundleResult = useMemo((): BundleResult | null => {
+    const bundleStage = stages["bundle"];
+    if (!bundleStage?.result) return null;
+    // The stage result is stored as the BundleResult type
+    try {
+      const result = bundleStage.result as BundleResult;
+      return result;
+    } catch {
+      return null;
+    }
+  }, [stages]);
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -705,6 +761,8 @@ export function GeneratorForm({
         onBundleExported={(manifestPath) => {
           runPreflight(undefined, manifestPath);
         }}
+        onBundleComplete={handleBundleComplete}
+        initialBundleResult={initialBundleResult}
       />
     ) : connectionDecision.kind === "remote-server" ? (
       <ExternalServerSection

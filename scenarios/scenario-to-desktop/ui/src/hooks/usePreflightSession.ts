@@ -25,6 +25,8 @@ export interface UsePreflightSessionOptions {
   initialSessionTTL?: number;
   initialStartServices?: boolean;
   initialAutoRefresh?: boolean;
+  /** Called when preflight completes successfully. Use to persist stage results. */
+  onPreflightComplete?: (result: BundlePreflightResponse) => void;
 }
 
 export interface UsePreflightSessionResult {
@@ -77,7 +79,8 @@ export function usePreflightSession({
   initialSecrets = {},
   initialSessionTTL = DEFAULT_SESSION_TTL,
   initialStartServices = true,
-  initialAutoRefresh = true
+  initialAutoRefresh = true,
+  onPreflightComplete
 }: UsePreflightSessionOptions): UsePreflightSessionResult {
   // Core state
   const [result, setResult] = useState<BundlePreflightResponse | null>(initialResult);
@@ -99,6 +102,10 @@ export function usePreflightSession({
 
   // Ref for interval callback to avoid stale closures
   const refreshStatusRef = useRef<(() => Promise<void>) | null>(null);
+  // Track previous manifest path to detect genuine user changes vs initial load
+  const prevManifestPathRef = useRef<string>(bundleManifestPath);
+  // Track if we've received initial values from server (to avoid resetting on load)
+  const hasReceivedInitialRef = useRef<boolean>(Boolean(initialResult));
 
   // Computed values
   const missingSecrets = useMemo(() => {
@@ -126,6 +133,10 @@ export function usePreflightSession({
     }
     setStartServices(initialStartServices);
     setAutoRefresh(initialAutoRefresh);
+    // Mark that we've received initial values from server
+    if (initialResult) {
+      hasReceivedInitialRef.current = true;
+    }
   }, [
     initialResult,
     initialError,
@@ -143,13 +154,30 @@ export function usePreflightSession({
       setError(null);
       setOverride(false);
       setSecrets({});
+      prevManifestPathRef.current = bundleManifestPath;
       return;
     }
-    // Reset when manifest path changes
-    setResult(null);
-    setError(null);
-    setOverride(false);
-    setSecrets({});
+
+    const prevPath = prevManifestPathRef.current;
+    prevManifestPathRef.current = bundleManifestPath;
+
+    // Only reset if the manifest path genuinely changed (user changed it),
+    // not on initial load from server where path goes from "" to loaded value
+    const isGenuineChange = prevPath !== bundleManifestPath && prevPath !== "";
+
+    // Also skip reset if we just received initial values from server
+    if (!isGenuineChange && hasReceivedInitialRef.current) {
+      hasReceivedInitialRef.current = false; // Reset flag after first load
+      return;
+    }
+
+    if (isGenuineChange) {
+      // Reset when manifest path actually changes to a different value
+      setResult(null);
+      setError(null);
+      setOverride(false);
+      setSecrets({});
+    }
   }, [bundleManifestPath, isBundled]);
 
   // Poll for job status when job is running
@@ -181,6 +209,10 @@ export function usePreflightSession({
 
         if (status.status === "completed") {
           setPending(false);
+          // Notify parent when preflight completes successfully
+          if (status.result && onPreflightComplete) {
+            onPreflightComplete(status.result);
+          }
           return;
         }
 
@@ -198,7 +230,7 @@ export function usePreflightSession({
       cancelled = true;
       if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [jobId]);
+  }, [jobId, onPreflightComplete]);
 
   // Auto-refresh status when session is active
   useEffect(() => {
