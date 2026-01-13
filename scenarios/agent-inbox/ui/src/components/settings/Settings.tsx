@@ -99,7 +99,7 @@ interface SettingsProps {
   models: Model[];
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onEditTemplate?: (template: TemplateWithSource) => void;
+  onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void;
 }
 
 export function Settings({
@@ -203,9 +203,9 @@ export function Settings({
   }, []);
 
   const handleEditTemplate = useCallback((template: TemplateWithSource) => {
-    onEditTemplate?.(template);
+    onEditTemplate?.(template, templates);
     onClose();
-  }, [onEditTemplate, onClose]);
+  }, [onEditTemplate, onClose, templates]);
 
   // Skill handlers
   const handleDeleteSkill = useCallback(async (skillId: string) => {
@@ -665,6 +665,20 @@ export function Settings({
       skill={editingSkill ?? undefined}
       skillSource={editingSkill?.source}
       onSave={handleSaveSkill}
+      // Multi-item mode props for sidebar navigation
+      allSkills={skills}
+      onSelectSkill={(skill) => {
+        setEditingSkill(skill);
+        setIsCreatingSkill(false);
+      }}
+      onSaveAll={async (updates) => {
+        // Import batch save function
+        const { updateSkills } = await import("../../data/skills");
+        await updateSkills(updates);
+        // Refresh skills list
+        const updated = await getAllSkills();
+        setSkills(updated);
+      }}
     />
   </>
   );

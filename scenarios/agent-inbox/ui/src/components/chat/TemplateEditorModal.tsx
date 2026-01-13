@@ -7,14 +7,25 @@
  * - Editing a default template creates a user override
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench, Pencil, AlertTriangle } from "lucide-react";
-import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/templates";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
+import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench, Pencil, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+import type { Template, TemplateVariable, TemplateSource, TemplateWithSource } from "@/lib/types/templates";
 import { fillTemplateContent, getTemplateModesAtLevel } from "@/data/templates";
 import { useTools } from "@/hooks/useTools";
 import type { EffectiveTool } from "@/lib/api";
 import { IconSelector, TEMPLATE_ICON_OPTIONS } from "@/components/shared/IconSelector";
 import { CategoryPathEditor } from "@/components/shared/CategoryPathEditor";
+import { ItemTreeSidebar } from "@/components/shared/ItemTreeSidebar";
+
+// Type for Lucide icon components
+type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+// Get icon component from name
+function getIconComponent(name: string): IconComponent {
+  const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];
+  return Icon || Sparkles;
+}
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -32,6 +43,22 @@ interface TemplateEditorModalProps {
   ) => void;
   readOnly?: boolean; // If true, modal is in preview mode (no editing)
   onEdit?: () => void; // Callback when Edit button is clicked in readOnly mode
+  // Multi-item mode props
+  allTemplates?: TemplateWithSource[]; // If provided, shows tree sidebar for navigation
+  onSelectTemplate?: (template: TemplateWithSource) => void; // Called when switching templates
+  onSaveAll?: (templates: Array<{ id: string; data: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">; options?: SaveOptions }>) => Promise<void>;
+}
+
+// Form state for tracking changes
+interface TemplateFormState {
+  name: string;
+  description: string;
+  icon: string;
+  modes: string[];
+  content: string;
+  variables: TemplateVariable[];
+  selectedToolIds: string[];
+  applyToDefault: boolean;
 }
 
 const VARIABLE_TYPES: TemplateVariable["type"][] = [
@@ -49,9 +76,13 @@ export function TemplateEditorModal({
   onSave,
   readOnly = false,
   onEdit,
+  allTemplates,
+  onSelectTemplate,
+  onSaveAll,
 }: TemplateEditorModalProps) {
   const isEditing = !!template;
   const isEditingDefault = isEditing && templateSource === "default" && !readOnly;
+  const showSidebar = !!allTemplates && allTemplates.length > 0;
 
   // Form state
   const [name, setName] = useState("");
@@ -77,6 +108,11 @@ export function TemplateEditorModal({
   // Confirmation dialog state
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
+  // Multi-item editing state
+  const [pendingChanges, setPendingChanges] = useState<Map<string, TemplateFormState>>(new Map());
+  const [expandedTreeNodes, setExpandedTreeNodes] = useState<Set<string>>(new Set());
+  const [isSavingAll, setIsSavingAll] = useState(false);
+
   // Track if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
     if (readOnly) return false;
@@ -96,14 +132,137 @@ export function TemplateEditorModal({
     );
   }, [readOnly, template, name, description, icon, modes, content, variables, selectedToolIds, initialToolIds]);
 
-  // Handle close with unsaved changes check
-  const handleClose = useCallback(() => {
+  // Get current form state as an object
+  const getCurrentFormState = useCallback((): TemplateFormState => ({
+    name,
+    description,
+    icon,
+    modes,
+    content,
+    variables,
+    selectedToolIds,
+    applyToDefault,
+  }), [name, description, icon, modes, content, variables, selectedToolIds, applyToDefault]);
+
+  // Store current changes in pending when switching templates
+  const storeCurrentChanges = useCallback(() => {
+    if (!template?.id || readOnly) return;
     if (hasUnsavedChanges) {
+      setPendingChanges((prev) => {
+        const next = new Map(prev);
+        next.set(template.id, getCurrentFormState());
+        return next;
+      });
+    }
+  }, [template?.id, readOnly, hasUnsavedChanges, getCurrentFormState]);
+
+  // Handle switching to a different template
+  const handleSelectTemplate = useCallback((selectedTemplate: TemplateWithSource) => {
+    if (selectedTemplate.id === template?.id) return;
+
+    // Store current changes before switching
+    storeCurrentChanges();
+
+    // Notify parent to switch template
+    onSelectTemplate?.(selectedTemplate);
+  }, [template?.id, storeCurrentChanges, onSelectTemplate]);
+
+  // Toggle tree node expansion
+  const toggleTreeNode = useCallback((nodeId: string) => {
+    setExpandedTreeNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Compute set of dirty item IDs for the sidebar
+  const dirtyItemIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    // Add items from pendingChanges
+    for (const [id] of pendingChanges.entries()) {
+      ids.add(id);
+    }
+
+    // Add current template if it has unsaved changes
+    if (template?.id && hasUnsavedChanges) {
+      ids.add(template.id);
+    }
+
+    return ids;
+  }, [pendingChanges, template?.id, hasUnsavedChanges]);
+
+  // Count total dirty items
+  const dirtyCount = dirtyItemIds.size;
+
+  // Handle Save All
+  const handleSaveAll = useCallback(async () => {
+    if (!onSaveAll || dirtyCount === 0) return;
+
+    setIsSavingAll(true);
+    try {
+      const updates: Array<{ id: string; data: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">; options?: SaveOptions }> = [];
+
+      // Add current template if dirty
+      if (template?.id && hasUnsavedChanges) {
+        updates.push({
+          id: template.id,
+          data: {
+            name: name.trim(),
+            description: description.trim(),
+            icon,
+            modes,
+            content: content.trim(),
+            variables,
+            suggestedToolIds: selectedToolIds.length > 0 ? selectedToolIds : undefined,
+          },
+          options: isEditingDefault ? { applyToDefault } : undefined,
+        });
+      }
+
+      // Add pending changes
+      for (const [id, state] of pendingChanges.entries()) {
+        if (id === template?.id) continue; // Skip if already added
+        const originalTemplate = allTemplates?.find((t) => t.id === id);
+        const isDefault = originalTemplate?.source === "default";
+        updates.push({
+          id,
+          data: {
+            name: state.name.trim(),
+            description: state.description.trim(),
+            icon: state.icon,
+            modes: state.modes,
+            content: state.content.trim(),
+            variables: state.variables,
+            suggestedToolIds: state.selectedToolIds.length > 0 ? state.selectedToolIds : undefined,
+          },
+          options: isDefault ? { applyToDefault: state.applyToDefault } : undefined,
+        });
+      }
+
+      await onSaveAll(updates);
+
+      // Clear pending changes after successful save
+      setPendingChanges(new Map());
+    } finally {
+      setIsSavingAll(false);
+    }
+  }, [onSaveAll, dirtyCount, template?.id, hasUnsavedChanges, name, description, icon, modes, content, variables, selectedToolIds, isEditingDefault, applyToDefault, pendingChanges, allTemplates]);
+
+  // Handle close with unsaved changes check (updated for multi-item)
+  const handleClose = useCallback(() => {
+    // Check both current unsaved changes and pending changes from other items
+    if (hasUnsavedChanges || pendingChanges.size > 0) {
       setShowCloseConfirm(true);
     } else {
       onClose();
     }
-  }, [hasUnsavedChanges, onClose]);
+  }, [hasUnsavedChanges, pendingChanges.size, onClose]);
 
   // Handle escape key
   useEffect(() => {
@@ -148,16 +307,35 @@ export function TemplateEditorModal({
   // Initialize form when template changes
   useEffect(() => {
     if (template) {
-      setName(template.name);
-      setDescription(template.description);
-      setIcon(template.icon || "Sparkles");
-      setModes(template.modes || []);
-      setContent(template.content);
-      setVariables(template.variables || []);
-      // Normalize tool IDs to scenario:toolName format
-      const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
-      setSelectedToolIds(normalizedIds);
-      setInitialToolIds(normalizedIds);
+      // Check if there are pending changes for this template
+      const pending = pendingChanges.get(template.id);
+      if (pending) {
+        // Restore from pending changes
+        setName(pending.name);
+        setDescription(pending.description);
+        setIcon(pending.icon);
+        setModes(pending.modes);
+        setContent(pending.content);
+        setVariables(pending.variables);
+        setSelectedToolIds(pending.selectedToolIds);
+        setApplyToDefault(pending.applyToDefault);
+        // Keep initial tool IDs from original template for comparison
+        const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
+        setInitialToolIds(normalizedIds);
+      } else {
+        // Initialize from template
+        setName(template.name);
+        setDescription(template.description);
+        setIcon(template.icon || "Sparkles");
+        setModes(template.modes || []);
+        setContent(template.content);
+        setVariables(template.variables || []);
+        // Normalize tool IDs to scenario:toolName format
+        const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
+        setSelectedToolIds(normalizedIds);
+        setInitialToolIds(normalizedIds);
+        setApplyToDefault(false);
+      }
     } else {
       setName("");
       setDescription("");
@@ -167,12 +345,12 @@ export function TemplateEditorModal({
       setVariables([]);
       setSelectedToolIds([]);
       setInitialToolIds([]);
+      setApplyToDefault(false);
     }
     setErrors({});
     setShowPreview(false);
-    setApplyToDefault(false);
     setExpandedScenarios(new Set());
-  }, [template, defaultModes, open, toolsByScenario, normalizeToolIds]);
+  }, [template, defaultModes, open, toolsByScenario, normalizeToolIds, pendingChanges]);
 
   // Add a new variable
   const addVariable = useCallback(() => {
@@ -333,7 +511,9 @@ export function TemplateEditorModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-white/10 rounded-xl w-full max-w-2xl md:max-w-5xl max-h-[90vh] shadow-xl mx-4 flex flex-col">
+      <div className={`relative bg-slate-900 border border-white/10 rounded-xl w-full max-h-[90vh] shadow-xl mx-4 flex flex-col ${
+        showSidebar ? "max-w-6xl" : "max-w-2xl md:max-w-5xl"
+      }`}>
           {/* Header */}
           <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold text-white">
@@ -399,9 +579,32 @@ export function TemplateEditorModal({
             </div>
           )}
 
-          {/* Content */}
-          <div className="flex-1 min-h-0 p-4 overflow-hidden">
-            <div className="h-full md:grid md:grid-cols-[1fr_2fr] md:gap-6 space-y-4 md:space-y-0 overflow-y-auto md:overflow-hidden">
+          {/* Content with optional sidebar */}
+          <div className="flex-1 min-h-0 overflow-hidden flex">
+            {/* Tree Sidebar */}
+            {showSidebar && allTemplates && (
+              <ItemTreeSidebar
+                items={allTemplates}
+                selectedItemId={template?.id ?? null}
+                onSelectItem={(id) => {
+                  const selected = allTemplates.find((t) => t.id === id);
+                  if (selected) handleSelectTemplate(selected);
+                }}
+                dirtyItemIds={dirtyItemIds}
+                expandedNodes={expandedTreeNodes}
+                onToggleNode={toggleTreeNode}
+                renderItemIcon={(item) => {
+                  const IconComp = getIconComponent(item.icon || "Sparkles");
+                  return <IconComp className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />;
+                }}
+                title="Templates"
+                className="w-60 flex-shrink-0"
+              />
+            )}
+
+            {/* Main Content */}
+            <div className="flex-1 min-h-0 p-4 overflow-hidden">
+              <div className="h-full md:grid md:grid-cols-[1fr_2fr] md:gap-6 space-y-4 md:space-y-0 overflow-y-auto md:overflow-hidden">
               {/* Left Column - Metadata */}
               <div className="space-y-4 md:h-full md:min-h-0 md:overflow-y-auto md:pr-2">
                 {/* Name */}
@@ -785,6 +988,7 @@ export function TemplateEditorModal({
               </div>
             </div>
           </div>
+          </div>
 
           {/* Footer */}
           <div className="flex-shrink-0 flex items-center justify-end gap-3 p-4 border-t border-white/10">
@@ -795,12 +999,26 @@ export function TemplateEditorModal({
               {readOnly ? "Close" : "Cancel"}
             </button>
             {!readOnly && (
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-              >
-                {isEditing ? "Save Changes" : "Create Template"}
-              </button>
+              <>
+                {/* Show Save All when multiple items are dirty and onSaveAll is provided */}
+                {showSidebar && dirtyCount > 1 && onSaveAll ? (
+                  <button
+                    onClick={handleSaveAll}
+                    disabled={isSavingAll}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingAll && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Save All Changes ({dirtyCount})
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                  >
+                    {isEditing ? "Save Changes" : "Create Template"}
+                  </button>
+                )}
+              </>
             )}
           </div>
       </div>
@@ -818,7 +1036,9 @@ export function TemplateEditorModal({
               <div>
                 <h3 className="text-lg font-semibold text-white">Unsaved Changes</h3>
                 <p className="text-sm text-slate-400 mt-1">
-                  You have unsaved changes. Are you sure you want to close without saving?
+                  {dirtyCount > 1
+                    ? `You have unsaved changes in ${dirtyCount} templates. Are you sure you want to close without saving?`
+                    : "You have unsaved changes. Are you sure you want to close without saving?"}
                 </p>
               </div>
             </div>
@@ -832,11 +1052,12 @@ export function TemplateEditorModal({
               <button
                 onClick={() => {
                   setShowCloseConfirm(false);
+                  setPendingChanges(new Map()); // Clear pending changes
                   onClose();
                 }}
                 className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors"
               >
-                Discard Changes
+                Discard {dirtyCount > 1 ? "All Changes" : "Changes"}
               </button>
             </div>
           </div>

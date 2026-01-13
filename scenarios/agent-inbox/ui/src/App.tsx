@@ -25,6 +25,7 @@ function AppContent() {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
+  const [settingsAllTemplates, setSettingsAllTemplates] = useState<TemplateWithSource[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatListOpen, setChatListOpen] = useState(true);
   const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
@@ -215,8 +216,9 @@ function AppContent() {
     setViewMode(mode);
   }, []);
 
-  const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource) => {
+  const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource, allTemplates: TemplateWithSource[]) => {
     setSettingsEditingTemplate(template);
+    setSettingsAllTemplates(allTemplates);
   }, []);
 
   const handleSaveTemplateFromSettings = useCallback(async (
@@ -588,10 +590,26 @@ function AppContent() {
       {/* Template Editor from Settings */}
       <TemplateEditorModal
         open={!!settingsEditingTemplate}
-        onClose={() => setSettingsEditingTemplate(null)}
+        onClose={() => {
+          setSettingsEditingTemplate(null);
+          setSettingsAllTemplates([]);
+        }}
         onSave={handleSaveTemplateFromSettings}
         template={settingsEditingTemplate || undefined}
         templateSource={settingsEditingTemplate?.source}
+        // Multi-item mode props for sidebar navigation
+        allTemplates={settingsAllTemplates}
+        onSelectTemplate={(template) => {
+          setSettingsEditingTemplate(template);
+        }}
+        onSaveAll={async (updates) => {
+          // Import batch save function
+          const { updateTemplates, getAllTemplates } = await import("./data/templates");
+          await updateTemplates(updates);
+          // Refresh templates list
+          const updated = await getAllTemplates();
+          setSettingsAllTemplates(updated);
+        }}
       />
 
       {/* Keyboard Shortcuts Dialog */}

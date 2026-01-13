@@ -9,12 +9,23 @@
  * - Read-only mode for previewing without editing
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Eye, ChevronDown, Info, Tag, Pencil, AlertTriangle } from "lucide-react";
-import type { Skill, SkillSource } from "@/lib/types/templates";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
+import { X, Eye, ChevronDown, Info, Tag, Pencil, AlertTriangle, BookOpen, Loader2 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
+import type { Skill, SkillSource, SkillWithSource } from "@/lib/types/templates";
 import { IconSelector, SKILL_ICON_OPTIONS } from "@/components/shared/IconSelector";
 import { CategoryPathEditor } from "@/components/shared/CategoryPathEditor";
+import { ItemTreeSidebar } from "@/components/shared/ItemTreeSidebar";
 import { getSkillModesAtLevel } from "@/data/skills";
+
+// Type for Lucide icon components
+type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+// Get icon component from name
+function getIconComponent(name: string): IconComponent {
+  const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];
+  return Icon || BookOpen;
+}
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -31,6 +42,22 @@ interface SkillEditorModalProps {
   ) => void;
   readOnly?: boolean; // If true, modal is in preview mode (no editing)
   onEdit?: () => void; // Callback when Edit button is clicked in readOnly mode
+  // Multi-item mode props
+  allSkills?: SkillWithSource[]; // If provided, shows tree sidebar for navigation
+  onSelectSkill?: (skill: SkillWithSource) => void; // Called when switching skills
+  onSaveAll?: (skills: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt">; options?: SaveOptions }>) => Promise<void>;
+}
+
+// Form state for tracking changes
+interface SkillFormState {
+  name: string;
+  description: string;
+  icon: string;
+  modes: string[];
+  content: string;
+  tagsInput: string;
+  targetToolId: string;
+  applyToDefault: boolean;
 }
 
 export function SkillEditorModal({
@@ -41,9 +68,13 @@ export function SkillEditorModal({
   onSave,
   readOnly = false,
   onEdit,
+  allSkills,
+  onSelectSkill,
+  onSaveAll,
 }: SkillEditorModalProps) {
   const isEditing = !!skill;
   const isEditingDefault = isEditing && skillSource === "default" && !readOnly;
+  const showSidebar = !!allSkills && allSkills.length > 0;
 
   // Form state
   const [name, setName] = useState("");
@@ -61,6 +92,11 @@ export function SkillEditorModal({
 
   // Confirmation dialog state
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+
+  // Multi-item editing state
+  const [pendingChanges, setPendingChanges] = useState<Map<string, SkillFormState>>(new Map());
+  const [expandedTreeNodes, setExpandedTreeNodes] = useState<Set<string>>(new Set());
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   // Track if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
@@ -82,14 +118,147 @@ export function SkillEditorModal({
     );
   }, [readOnly, skill, name, description, icon, modes, content, tagsInput, targetToolId]);
 
-  // Handle close with unsaved changes check
-  const handleClose = useCallback(() => {
+  // Get current form state as an object
+  const getCurrentFormState = useCallback((): SkillFormState => ({
+    name,
+    description,
+    icon,
+    modes,
+    content,
+    tagsInput,
+    targetToolId,
+    applyToDefault,
+  }), [name, description, icon, modes, content, tagsInput, targetToolId, applyToDefault]);
+
+  // Store current changes in pending when switching skills
+  const storeCurrentChanges = useCallback(() => {
+    if (!skill?.id || readOnly) return;
     if (hasUnsavedChanges) {
+      setPendingChanges((prev) => {
+        const next = new Map(prev);
+        next.set(skill.id, getCurrentFormState());
+        return next;
+      });
+    }
+  }, [skill?.id, readOnly, hasUnsavedChanges, getCurrentFormState]);
+
+  // Handle switching to a different skill
+  const handleSelectSkill = useCallback((selectedSkill: SkillWithSource) => {
+    if (selectedSkill.id === skill?.id) return;
+
+    // Store current changes before switching
+    storeCurrentChanges();
+
+    // Notify parent to switch skill
+    onSelectSkill?.(selectedSkill);
+  }, [skill?.id, storeCurrentChanges, onSelectSkill]);
+
+  // Toggle tree node expansion
+  const toggleTreeNode = useCallback((nodeId: string) => {
+    setExpandedTreeNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Compute set of dirty item IDs for the sidebar
+  const dirtyItemIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    // Add items from pendingChanges
+    for (const [id] of pendingChanges.entries()) {
+      ids.add(id);
+    }
+
+    // Add current skill if it has unsaved changes
+    if (skill?.id && hasUnsavedChanges) {
+      ids.add(skill.id);
+    }
+
+    return ids;
+  }, [pendingChanges, skill?.id, hasUnsavedChanges]);
+
+  // Count total dirty items
+  const dirtyCount = dirtyItemIds.size;
+
+  // Handle Save All
+  const handleSaveAll = useCallback(async () => {
+    if (!onSaveAll || dirtyCount === 0) return;
+
+    setIsSavingAll(true);
+    try {
+      const updates: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt">; options?: SaveOptions }> = [];
+
+      // Add current skill if dirty
+      if (skill?.id && hasUnsavedChanges) {
+        const tags = tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+
+        updates.push({
+          id: skill.id,
+          data: {
+            name: name.trim(),
+            description: description.trim(),
+            icon,
+            modes: modes.length > 0 ? modes : undefined,
+            content: content.trim(),
+            tags: tags.length > 0 ? tags : undefined,
+            targetToolId: targetToolId.trim() || undefined,
+          },
+          options: isEditingDefault ? { applyToDefault } : undefined,
+        });
+      }
+
+      // Add pending changes
+      for (const [id, state] of pendingChanges.entries()) {
+        if (id === skill?.id) continue; // Skip if already added
+        const originalSkill = allSkills?.find((s) => s.id === id);
+        const isDefault = originalSkill?.source === "default";
+        const tags = state.tagsInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+
+        updates.push({
+          id,
+          data: {
+            name: state.name.trim(),
+            description: state.description.trim(),
+            icon: state.icon,
+            modes: state.modes.length > 0 ? state.modes : undefined,
+            content: state.content.trim(),
+            tags: tags.length > 0 ? tags : undefined,
+            targetToolId: state.targetToolId.trim() || undefined,
+          },
+          options: isDefault ? { applyToDefault: state.applyToDefault } : undefined,
+        });
+      }
+
+      await onSaveAll(updates);
+
+      // Clear pending changes after successful save
+      setPendingChanges(new Map());
+    } finally {
+      setIsSavingAll(false);
+    }
+  }, [onSaveAll, dirtyCount, skill?.id, hasUnsavedChanges, name, description, icon, modes, content, tagsInput, targetToolId, isEditingDefault, applyToDefault, pendingChanges, allSkills]);
+
+  // Handle close with unsaved changes check (updated for multi-item)
+  const handleClose = useCallback(() => {
+    // Check both current unsaved changes and pending changes from other items
+    if (hasUnsavedChanges || pendingChanges.size > 0) {
       setShowCloseConfirm(true);
     } else {
       onClose();
     }
-  }, [hasUnsavedChanges, onClose]);
+  }, [hasUnsavedChanges, pendingChanges.size, onClose]);
 
   // Handle escape key
   useEffect(() => {
@@ -113,13 +282,29 @@ export function SkillEditorModal({
   // Initialize form when skill changes
   useEffect(() => {
     if (skill) {
-      setName(skill.name);
-      setDescription(skill.description);
-      setIcon(skill.icon || "BookOpen");
-      setModes(skill.modes || []);
-      setContent(skill.content);
-      setTagsInput(skill.tags?.join(", ") || "");
-      setTargetToolId(skill.targetToolId || "");
+      // Check if there are pending changes for this skill
+      const pending = pendingChanges.get(skill.id);
+      if (pending) {
+        // Restore from pending changes
+        setName(pending.name);
+        setDescription(pending.description);
+        setIcon(pending.icon);
+        setModes(pending.modes);
+        setContent(pending.content);
+        setTagsInput(pending.tagsInput);
+        setTargetToolId(pending.targetToolId);
+        setApplyToDefault(pending.applyToDefault);
+      } else {
+        // Initialize from skill
+        setName(skill.name);
+        setDescription(skill.description);
+        setIcon(skill.icon || "BookOpen");
+        setModes(skill.modes || []);
+        setContent(skill.content);
+        setTagsInput(skill.tags?.join(", ") || "");
+        setTargetToolId(skill.targetToolId || "");
+        setApplyToDefault(false);
+      }
     } else {
       setName("");
       setDescription("");
@@ -128,11 +313,11 @@ export function SkillEditorModal({
       setContent("");
       setTagsInput("");
       setTargetToolId("");
+      setApplyToDefault(false);
     }
     setErrors({});
     setShowPreview(false);
-    setApplyToDefault(false);
-  }, [skill, open]);
+  }, [skill, open, pendingChanges]);
 
   // Get mode suggestions at a specific level
   const getSuggestionsAtLevel = useCallback(
@@ -202,7 +387,9 @@ export function SkillEditorModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-white/10 rounded-xl w-full max-w-2xl md:max-w-5xl max-h-[90vh] shadow-xl mx-4 flex flex-col">
+      <div className={`relative bg-slate-900 border border-white/10 rounded-xl w-full max-h-[90vh] shadow-xl mx-4 flex flex-col ${
+        showSidebar ? "max-w-6xl" : "max-w-2xl md:max-w-5xl"
+      }`}>
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-lg font-semibold text-white">
@@ -268,9 +455,32 @@ export function SkillEditorModal({
           </div>
         )}
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 p-4 overflow-hidden">
-          <div className="h-full md:grid md:grid-cols-[1fr_2fr] md:gap-6 space-y-4 md:space-y-0 overflow-y-auto md:overflow-hidden">
+        {/* Content with optional sidebar */}
+        <div className="flex-1 min-h-0 overflow-hidden flex">
+          {/* Tree Sidebar */}
+          {showSidebar && allSkills && (
+            <ItemTreeSidebar
+              items={allSkills}
+              selectedItemId={skill?.id ?? null}
+              onSelectItem={(id) => {
+                const selected = allSkills.find((s) => s.id === id);
+                if (selected) handleSelectSkill(selected);
+              }}
+              dirtyItemIds={dirtyItemIds}
+              expandedNodes={expandedTreeNodes}
+              onToggleNode={toggleTreeNode}
+              renderItemIcon={(item) => {
+                const IconComp = getIconComponent(item.icon || "BookOpen");
+                return <IconComp className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />;
+              }}
+              title="Skills"
+              className="w-60 flex-shrink-0"
+            />
+          )}
+
+          {/* Main Content */}
+          <div className="flex-1 min-h-0 p-4 overflow-hidden">
+            <div className="h-full md:grid md:grid-cols-[1fr_2fr] md:gap-6 space-y-4 md:space-y-0 overflow-y-auto md:overflow-hidden">
             {/* Left Column - Metadata */}
             <div className="space-y-4 md:h-full md:min-h-0 md:overflow-y-auto md:pr-2">
               {/* Name */}
@@ -437,6 +647,7 @@ export function SkillEditorModal({
             </div>
           </div>
         </div>
+        </div>
 
         {/* Footer */}
         <div className="flex-shrink-0 flex items-center justify-end gap-3 p-4 border-t border-white/10">
@@ -447,12 +658,26 @@ export function SkillEditorModal({
             {readOnly ? "Close" : "Cancel"}
           </button>
           {!readOnly && (
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-            >
-              {isEditing ? "Save Changes" : "Create Skill"}
-            </button>
+            <>
+              {/* Show Save All when multiple items are dirty and onSaveAll is provided */}
+              {showSidebar && dirtyCount > 1 && onSaveAll ? (
+                <button
+                  onClick={handleSaveAll}
+                  disabled={isSavingAll}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingAll && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Save All Changes ({dirtyCount})
+                </button>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                >
+                  {isEditing ? "Save Changes" : "Create Skill"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -470,7 +695,9 @@ export function SkillEditorModal({
               <div>
                 <h3 className="text-lg font-semibold text-white">Unsaved Changes</h3>
                 <p className="text-sm text-slate-400 mt-1">
-                  You have unsaved changes. Are you sure you want to close without saving?
+                  {dirtyCount > 1
+                    ? `You have unsaved changes in ${dirtyCount} skills. Are you sure you want to close without saving?`
+                    : "You have unsaved changes. Are you sure you want to close without saving?"}
                 </p>
               </div>
             </div>
@@ -484,11 +711,12 @@ export function SkillEditorModal({
               <button
                 onClick={() => {
                   setShowCloseConfirm(false);
+                  setPendingChanges(new Map()); // Clear pending changes
                   onClose();
                 }}
                 className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors"
               >
-                Discard Changes
+                Discard {dirtyCount > 1 ? "All Changes" : "Changes"}
               </button>
             </div>
           </div>
