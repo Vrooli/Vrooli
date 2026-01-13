@@ -201,25 +201,25 @@ export function TemplateEditorModal({
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size;
 
-  // Compute merged items for tree display - reflects pending mode changes in real-time
+  // Compute merged items for tree display - reflects pending changes in real-time
   const itemsForTree = useMemo(() => {
     if (!allTemplates) return [];
 
     return allTemplates.map((item) => {
-      // For current item, use live form state modes
+      // For current item, use live form state
       if (item.id === template?.id) {
-        return { ...item, modes };
+        return { ...item, name, modes, icon };
       }
 
-      // For other items with pending changes, use their pending modes
+      // For other items with pending changes, use their pending values
       const pending = pendingChanges.get(item.id);
-      if (pending?.modes) {
-        return { ...item, modes: pending.modes };
+      if (pending) {
+        return { ...item, name: pending.name, modes: pending.modes, icon: pending.icon };
       }
 
       return item;
     });
-  }, [allTemplates, pendingChanges, template?.id, modes]);
+  }, [allTemplates, pendingChanges, template?.id, name, modes, icon]);
 
   // Handle Save All
   const handleSaveAll = useCallback(async () => {
