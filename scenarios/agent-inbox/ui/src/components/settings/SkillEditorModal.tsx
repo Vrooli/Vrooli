@@ -1,16 +1,20 @@
 /**
- * Modal for creating and editing skills.
+ * Modal for creating, editing, and previewing skills.
  * Simpler than TemplateEditorModal since skills have no variables.
  *
  * Features:
  * - Edit name, description, icon, modes, content, tags
  * - Apply changes to default or save as custom
  * - Preview content
+ * - Read-only mode for previewing without editing
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { X, Eye, ChevronDown, Info, Tag } from "lucide-react";
+import { X, Eye, ChevronDown, Info, Tag, Pencil } from "lucide-react";
 import type { Skill, SkillSource } from "@/lib/types/templates";
+import { IconSelector, SKILL_ICON_OPTIONS } from "@/components/shared/IconSelector";
+import { CategoryPathEditor } from "@/components/shared/CategoryPathEditor";
+import { getSkillModesAtLevel } from "@/data/skills";
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -21,50 +25,13 @@ interface SkillEditorModalProps {
   onClose: () => void;
   skill?: Skill; // Undefined for create, defined for edit
   skillSource?: SkillSource; // Source of the skill being edited
-  onSave: (
+  onSave?: (
     skill: Omit<Skill, "id" | "createdAt" | "updatedAt">,
     options?: SaveOptions
   ) => void;
+  readOnly?: boolean; // If true, modal is in preview mode (no editing)
+  onEdit?: () => void; // Callback when Edit button is clicked in readOnly mode
 }
-
-const ICON_OPTIONS = [
-  "BookOpen",
-  "Brain",
-  "Building2",
-  "Code",
-  "Database",
-  "FileCode",
-  "FlaskConical",
-  "Gauge",
-  "GraduationCap",
-  "Layout",
-  "Lightbulb",
-  "Package",
-  "Puzzle",
-  "Route",
-  "Search",
-  "Server",
-  "Shield",
-  "Sparkles",
-  "Target",
-  "Terminal",
-  "Wand2",
-  "Wrench",
-  "Zap",
-];
-
-// Skill-focused modes (different from template modes)
-const SKILL_MODES = [
-  "Architecture",
-  "Best Practices",
-  "Code Quality",
-  "Design Patterns",
-  "Documentation",
-  "Performance",
-  "Security",
-  "Testing",
-  "Tooling",
-] as const;
 
 export function SkillEditorModal({
   open,
@@ -72,9 +39,11 @@ export function SkillEditorModal({
   skill,
   skillSource,
   onSave,
+  readOnly = false,
+  onEdit,
 }: SkillEditorModalProps) {
   const isEditing = !!skill;
-  const isEditingDefault = isEditing && skillSource === "default";
+  const isEditingDefault = isEditing && skillSource === "default" && !readOnly;
 
   // Form state
   const [name, setName] = useState("");
@@ -114,20 +83,13 @@ export function SkillEditorModal({
     setApplyToDefault(false);
   }, [skill, open]);
 
-  // Add/update mode at a level
-  const setModeAtLevel = useCallback((level: number, value: string) => {
-    setModes((prev) => {
-      const newModes = [...prev];
-      if (value) {
-        newModes[level] = value;
-        // Truncate any modes after this level
-        return newModes.slice(0, level + 1);
-      } else {
-        // Clear this level and all after
-        return newModes.slice(0, level);
-      }
-    });
-  }, []);
+  // Get mode suggestions at a specific level
+  const getSuggestionsAtLevel = useCallback(
+    (level: number, parentPath: string[]): string[] => {
+      return getSkillModesAtLevel(level, parentPath);
+    },
+    []
+  );
 
   // Validate form
   const validate = useCallback(() => {
@@ -149,6 +111,7 @@ export function SkillEditorModal({
 
   // Handle save
   const handleSave = useCallback(() => {
+    if (readOnly || !onSave) return;
     if (!validate()) return;
 
     const tags = tagsInput
@@ -169,9 +132,15 @@ export function SkillEditorModal({
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [validate, name, description, icon, modes, content, tagsInput, targetToolId, onSave, onClose, isEditingDefault, applyToDefault]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, tagsInput, targetToolId, onClose, isEditingDefault, applyToDefault]);
 
   if (!open) return null;
+
+  const modalTitle = readOnly
+    ? "Skill Preview"
+    : isEditing
+      ? "Edit Skill"
+      : "Create Skill";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -186,14 +155,26 @@ export function SkillEditorModal({
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-lg font-semibold text-white">
-            {isEditing ? "Edit Skill" : "Create Skill"}
+            {modalTitle}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {readOnly && onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
+                title="Edit skill"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Info banner for editing defaults */}
@@ -241,16 +222,17 @@ export function SkillEditorModal({
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Name *
+              Name {!readOnly && "*"}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Screaming Architecture"
+              disabled={readOnly}
               className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.name ? "border-red-500" : "border-white/10"
-              }`}
+              } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
             />
             {errors.name && (
               <p className="text-xs text-red-400 mt-1">{errors.name}</p>
@@ -260,16 +242,17 @@ export function SkillEditorModal({
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Description *
+              Description {!readOnly && "*"}
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of what this skill provides"
+              disabled={readOnly}
               className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.description ? "border-red-500" : "border-white/10"
-              }`}
+              } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
             />
             {errors.description && (
               <p className="text-xs text-red-400 mt-1">{errors.description}</p>
@@ -281,86 +264,47 @@ export function SkillEditorModal({
             <label className="block text-sm font-medium text-slate-300 mb-1">
               Icon
             </label>
-            <select
+            <IconSelector
               value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {ICON_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+              onChange={setIcon}
+              icons={SKILL_ICON_OPTIONS}
+              disabled={readOnly}
+            />
           </div>
 
-          {/* Modes */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
-              Category Path
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {/* Level 0: Top-level mode */}
-              <select
-                value={modes[0] || ""}
-                onChange={(e) => setModeAtLevel(0, e.target.value)}
-                className="px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Select category...</option>
-                {SKILL_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {mode}
-                  </option>
-                ))}
-              </select>
-
-              {/* Level 1: Subcategory */}
-              {modes[0] && (
-                <input
-                  type="text"
-                  value={modes[1] || ""}
-                  onChange={(e) => setModeAtLevel(1, e.target.value)}
-                  placeholder="Subcategory (optional)"
-                  className="px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              )}
-
-              {/* Level 2: Sub-subcategory */}
-              {modes[1] && (
-                <input
-                  type="text"
-                  value={modes[2] || ""}
-                  onChange={(e) => setModeAtLevel(2, e.target.value)}
-                  placeholder="Sub-subcategory (optional)"
-                  className="px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Path: {modes.length > 0 ? modes.join(" / ") : "(none)"}
-            </p>
-          </div>
+          {/* Category Path */}
+          <CategoryPathEditor
+            value={modes}
+            onChange={setModes}
+            getSuggestionsAtLevel={getSuggestionsAtLevel}
+            label="Category Path"
+            placeholder="Select or type category..."
+            disabled={readOnly}
+          />
 
           {/* Content */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Skill Content *
+              Skill Content {!readOnly && "*"}
             </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="The methodology, knowledge, or expertise content that will be injected into the agent's context..."
               rows={10}
+              disabled={readOnly}
               className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm ${
                 errors.content ? "border-red-500" : "border-white/10"
-              }`}
+              } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
             />
             {errors.content && (
               <p className="text-xs text-red-400 mt-1">{errors.content}</p>
             )}
-            <p className="text-xs text-slate-500 mt-1">
-              Use Markdown formatting. This content will be injected into the agent's context when the skill is activated.
-            </p>
+            {!readOnly && (
+              <p className="text-xs text-slate-500 mt-1">
+                Use Markdown formatting. This content will be injected into the agent's context when the skill is activated.
+              </p>
+            )}
           </div>
 
           {/* Tags */}
@@ -376,33 +320,44 @@ export function SkillEditorModal({
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="architecture, audit, clean-code, domain-driven"
-              className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={readOnly}
+              className={`w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                readOnly ? "opacity-70 cursor-not-allowed" : ""
+              }`}
             />
-            <p className="text-xs text-slate-500 mt-1">
-              Comma-separated tags for search and filtering
-            </p>
+            {!readOnly && (
+              <p className="text-xs text-slate-500 mt-1">
+                Comma-separated tags for search and filtering
+              </p>
+            )}
           </div>
 
           {/* Target Tool ID (optional) */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Target Tool ID (optional)
+              Target Tool ID {!readOnly && "(optional)"}
             </label>
             <input
               type="text"
               value={targetToolId}
               onChange={(e) => setTargetToolId(e.target.value)}
               placeholder="e.g., spawn_coding_agent"
-              className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={readOnly}
+              className={`w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                readOnly ? "opacity-70 cursor-not-allowed" : ""
+              }`}
             />
-            <p className="text-xs text-slate-500 mt-1">
-              If set, this skill will only be sent to the specified tool
-            </p>
+            {!readOnly && (
+              <p className="text-xs text-slate-500 mt-1">
+                If set, this skill will only be sent to the specified tool
+              </p>
+            )}
           </div>
 
           {/* Preview toggle */}
           <div>
             <button
+              type="button"
               onClick={() => setShowPreview(!showPreview)}
               className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors"
             >
@@ -430,14 +385,16 @@ export function SkillEditorModal({
             onClick={onClose}
             className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-          >
-            {isEditing ? "Save Changes" : "Create Skill"}
-          </button>
+          {!readOnly && (
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+            >
+              {isEditing ? "Save Changes" : "Create Skill"}
+            </button>
+          )}
         </div>
       </div>
     </div>

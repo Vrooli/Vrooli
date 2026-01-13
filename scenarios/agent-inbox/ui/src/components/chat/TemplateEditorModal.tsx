@@ -8,12 +8,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench } from "lucide-react";
+import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench, Pencil } from "lucide-react";
 import type { Template, TemplateVariable, TemplateSource } from "@/lib/types/templates";
-import { SUGGESTION_MODES } from "@/lib/types/templates";
-import { fillTemplateContent } from "@/data/templates";
+import { fillTemplateContent, getTemplateModesAtLevel } from "@/data/templates";
 import { useTools } from "@/hooks/useTools";
 import type { EffectiveTool } from "@/lib/api";
+import { IconSelector, TEMPLATE_ICON_OPTIONS } from "@/components/shared/IconSelector";
+import { CategoryPathEditor } from "@/components/shared/CategoryPathEditor";
 
 interface SaveOptions {
   applyToDefault?: boolean;
@@ -25,41 +26,13 @@ interface TemplateEditorModalProps {
   template?: Template; // Undefined for create, defined for edit
   templateSource?: TemplateSource; // Source of the template being edited
   defaultModes?: string[]; // Pre-fill modes when creating from Suggestions
-  onSave: (
+  onSave?: (
     template: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">,
     options?: SaveOptions
   ) => void;
+  readOnly?: boolean; // If true, modal is in preview mode (no editing)
+  onEdit?: () => void; // Callback when Edit button is clicked in readOnly mode
 }
-
-const ICON_OPTIONS = [
-  "Sparkles",
-  "Bug",
-  "Search",
-  "RefreshCw",
-  "FlaskConical",
-  "GraduationCap",
-  "Eye",
-  "FolderTree",
-  "Package",
-  "Lightbulb",
-  "Gauge",
-  "FileType",
-  "Server",
-  "Layout",
-  "Wand2",
-  "Building2",
-  "ArrowRightLeft",
-  "Puzzle",
-  "Route",
-  "MessageCircleQuestion",
-  "Shield",
-  "Accessibility",
-  "FileCode",
-  "Terminal",
-  "Database",
-  "Cloud",
-  "Zap",
-];
 
 const VARIABLE_TYPES: TemplateVariable["type"][] = [
   "text",
@@ -74,9 +47,11 @@ export function TemplateEditorModal({
   templateSource,
   defaultModes,
   onSave,
+  readOnly = false,
+  onEdit,
 }: TemplateEditorModalProps) {
   const isEditing = !!template;
-  const isEditingDefault = isEditing && templateSource === "default";
+  const isEditingDefault = isEditing && templateSource === "default" && !readOnly;
 
   // Form state
   const [name, setName] = useState("");
@@ -174,20 +149,13 @@ export function TemplateEditorModal({
     setVariables((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Add/update mode at a level
-  const setModeAtLevel = useCallback((level: number, value: string) => {
-    setModes((prev) => {
-      const newModes = [...prev];
-      if (value) {
-        newModes[level] = value;
-        // Truncate any modes after this level
-        return newModes.slice(0, level + 1);
-      } else {
-        // Clear this level and all after
-        return newModes.slice(0, level);
-      }
-    });
-  }, []);
+  // Get mode suggestions at a specific level
+  const getSuggestionsAtLevel = useCallback(
+    (level: number, parentPath: string[]): string[] => {
+      return getTemplateModesAtLevel(level, parentPath);
+    },
+    []
+  );
 
   // Tool selection helpers
   const toggleToolSelection = useCallback((toolId: string) => {
@@ -255,6 +223,7 @@ export function TemplateEditorModal({
 
   // Handle save
   const handleSave = useCallback(() => {
+    if (readOnly || !onSave) return;
     if (!validate()) return;
 
     onSave(
@@ -270,7 +239,7 @@ export function TemplateEditorModal({
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [validate, name, description, icon, modes, content, variables, selectedToolIds, onSave, onClose, isEditingDefault, applyToDefault]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, variables, selectedToolIds, onClose, isEditingDefault, applyToDefault]);
 
   // Generate preview content
   const previewContent = useCallback(() => {
@@ -282,6 +251,12 @@ export function TemplateEditorModal({
   }, [content, variables]);
 
   if (!open) return null;
+
+  const modalTitle = readOnly
+    ? "Template Preview"
+    : isEditing
+      ? "Edit Template"
+      : "Create Template";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -296,14 +271,26 @@ export function TemplateEditorModal({
           {/* Header */}
           <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold text-white">
-              {isEditing ? "Edit Template" : "Create Template"}
+              {modalTitle}
             </h2>
-            <button
-              onClick={onClose}
-              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {readOnly && onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
+                  title="Edit template"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Info banner for editing defaults */}
@@ -351,16 +338,17 @@ export function TemplateEditorModal({
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Name
+                Name {!readOnly && "*"}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Debug Performance Issue"
+                disabled={readOnly}
                 className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   errors.name ? "border-red-500" : "border-white/10"
-                }`}
+                } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
               />
               {errors.name && (
                 <p className="text-xs text-red-400 mt-1">{errors.name}</p>
@@ -370,16 +358,17 @@ export function TemplateEditorModal({
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Description
+                Description {!readOnly && "*"}
               </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Short description of what this template does"
+                disabled={readOnly}
                 className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   errors.description ? "border-red-500" : "border-white/10"
-                }`}
+                } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
               />
               {errors.description && (
                 <p className="text-xs text-red-400 mt-1">{errors.description}</p>
@@ -391,90 +380,49 @@ export function TemplateEditorModal({
               <label className="block text-sm font-medium text-slate-300 mb-1">
                 Icon
               </label>
-              <select
+              <IconSelector
                 value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {ICON_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+                onChange={setIcon}
+                icons={TEMPLATE_ICON_OPTIONS}
+                disabled={readOnly}
+              />
             </div>
 
-            {/* Modes */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Mode Path
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {/* Level 0: Top-level mode */}
-                <select
-                  value={modes[0] || ""}
-                  onChange={(e) => setModeAtLevel(0, e.target.value)}
-                  className={`px-3 py-2 bg-slate-800 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.modes ? "border-red-500" : "border-white/10"
-                  }`}
-                >
-                  <option value="">Select mode...</option>
-                  {SUGGESTION_MODES.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {mode}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Level 1+: Subcategories */}
-                {modes[0] && (
-                  <input
-                    type="text"
-                    value={modes[1] || ""}
-                    onChange={(e) => setModeAtLevel(1, e.target.value)}
-                    placeholder="Subcategory (optional)"
-                    className="px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                )}
-
-                {modes[1] && (
-                  <input
-                    type="text"
-                    value={modes[2] || ""}
-                    onChange={(e) => setModeAtLevel(2, e.target.value)}
-                    placeholder="Sub-subcategory (optional)"
-                    className="px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                )}
-              </div>
-              {errors.modes && (
-                <p className="text-xs text-red-400 mt-1">{errors.modes}</p>
-              )}
-              <p className="text-xs text-slate-500 mt-1">
-                Path: {modes.length > 0 ? modes.join(" → ") : "(none)"}
-              </p>
-            </div>
+            {/* Category Path */}
+            <CategoryPathEditor
+              value={modes}
+              onChange={setModes}
+              getSuggestionsAtLevel={getSuggestionsAtLevel}
+              label="Category Path"
+              placeholder="Select or type category..."
+              disabled={readOnly}
+              required={!readOnly}
+              error={errors.modes}
+            />
 
             {/* Content */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Template Content
+                Template Content {!readOnly && "*"}
               </label>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Template text with {{variable_name}} placeholders..."
                 rows={6}
+                disabled={readOnly}
                 className={`w-full px-3 py-2 bg-slate-800 border rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm ${
                   errors.content ? "border-red-500" : "border-white/10"
-                }`}
+                } ${readOnly ? "opacity-70 cursor-not-allowed" : ""}`}
               />
               {errors.content && (
                 <p className="text-xs text-red-400 mt-1">{errors.content}</p>
               )}
-              <p className="text-xs text-slate-500 mt-1">
-                Use {"{{variable_name}}"} syntax for placeholders
-              </p>
+              {!readOnly && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Use {"{{variable_name}}"} syntax for placeholders
+                </p>
+              )}
             </div>
 
             {/* Variables */}
@@ -483,13 +431,15 @@ export function TemplateEditorModal({
                 <label className="text-sm font-medium text-slate-300">
                   Variables
                 </label>
-                <button
-                  onClick={addVariable}
-                  className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  Add Variable
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={addVariable}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Variable
+                  </button>
+                )}
               </div>
 
               {variables.length === 0 ? (
@@ -758,14 +708,16 @@ export function TemplateEditorModal({
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
             >
-              Cancel
+              {readOnly ? "Close" : "Cancel"}
             </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-            >
-              {isEditing ? "Save Changes" : "Create Template"}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+              >
+                {isEditing ? "Save Changes" : "Create Template"}
+              </button>
+            )}
           </div>
       </div>
     </div>
