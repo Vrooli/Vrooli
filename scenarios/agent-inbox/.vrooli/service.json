@@ -211,6 +211,12 @@
         "enabled": true,
         "required": false,
         "description": "Provides coding agent execution (Claude Code, Codex, OpenCode) for task dispatch"
+      },
+      "scenario-to-cloud": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides VPS deployment lifecycle management (create, execute, stop, inspect deployments)"
       }
     }
   }

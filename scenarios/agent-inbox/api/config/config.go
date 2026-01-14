@@ -450,8 +450,8 @@ func getToolScenarios() []string {
 			return scenarios
 		}
 	}
-	// Default to agent-manager
-	return []string{"agent-manager"}
+	// Default to agent-manager and scenario-to-cloud
+	return []string{"agent-manager", "scenario-to-cloud"}
 }
 
 // GetStorageConfig returns the storage configuration with defaults.
