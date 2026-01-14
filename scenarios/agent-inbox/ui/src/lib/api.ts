@@ -1023,6 +1023,16 @@ export interface ToolConfigUpdate {
   enabled: boolean;
 }
 
+/**
+ * Result of tool discovery sync operation.
+ */
+export interface DiscoveryResult {
+  scenarios_with_tools: number;
+  new_scenarios: string[];
+  removed_scenarios: string[];
+  total_tools: number;
+}
+
 // Export chat to file
 // Triggers browser download with the specified format
 export async function exportChat(chatId: string, format: ExportFormat = "markdown"): Promise<void> {
@@ -1163,6 +1173,26 @@ export async function refreshTools(): Promise<{ success: boolean; scenarios_coun
 
   if (!res.ok) {
     throw new Error(`Failed to refresh tools: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Perform full tool discovery from all running scenarios.
+ * Discovers scenarios via vrooli CLI and probes each for /api/v1/tools.
+ */
+export async function syncTools(): Promise<DiscoveryResult> {
+  const url = buildApiUrl("/tools/sync", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Tool discovery failed: ${errorText}`);
   }
 
   return res.json();

@@ -35,6 +35,9 @@ import (
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
+	"scenario-to-desktop-api/toolexecution"
+	"scenario-to-desktop-api/toolhandlers"
+	"scenario-to-desktop-api/toolregistry"
 )
 
 // Global logger for middleware and initialization code
@@ -67,6 +70,10 @@ type Server struct {
 	bundleHandler       *bundle.Handler
 	stateHandler        *state.Handler
 	distributionHandler *distribution.Handler
+
+	// Tool Discovery and Execution Protocol handlers
+	toolsHandler         *toolhandlers.ToolsHandler
+	toolExecutionHandler *toolexecution.Handler
 
 	// Task orchestration service
 	taskSvc *tasks.Service
@@ -230,6 +237,42 @@ func NewServer(port int) *Server {
 		pipeline.WithOrchestrator(pipelineOrchestrator),
 	)
 
+	// ===== Tool Discovery and Execution Protocol =====
+
+	// Initialize tool registry with scenario metadata
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "scenario-to-desktop",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Desktop application packaging, signing, and distribution",
+	})
+
+	// Register tool providers (20 tools across 4 categories)
+	toolReg.RegisterProvider(toolregistry.NewBuildToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewSigningToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewDistributionToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewInspectionToolProvider())
+
+	// Create tool discovery handler
+	toolsHandler := toolhandlers.NewToolsHandler(toolReg)
+
+	// Create build store adapter for tool execution
+	toolBuildStore := &toolBuildStoreAdapter{store: buildStore}
+
+	// Create tool executor with service dependencies
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		BuildStore: toolBuildStore,
+		VrooliRoot: vrooliRoot,
+		Logger:     logger,
+		// Other services can be wired up as adapters are created
+	})
+
+	// Create tool execution handler
+	toolExecutionHandler := toolexecution.NewHandler(toolExecutor)
+
+	logger.Info("tool protocol initialized",
+		"providers", toolReg.ProviderCount(),
+		"tools", toolReg.ToolCount(context.Background()))
+
 	// ===== Task Orchestration Service =====
 
 	// Initialize investigation store for task persistence
@@ -281,6 +324,10 @@ func NewServer(port int) *Server {
 		bundleHandler:       bundleHandler,
 		stateHandler:        stateHandler,
 		distributionHandler: distributionHandler,
+
+		// Tool Protocol handlers
+		toolsHandler:         toolsHandler,
+		toolExecutionHandler: toolExecutionHandler,
 
 		// Task orchestration
 		taskSvc: taskSvc,
@@ -394,6 +441,68 @@ func (a *generationBuildStoreAdapter) Update(buildID string, fn func(status *gen
 		status.Artifacts = genStatus.Artifacts
 		status.Metadata = genStatus.Metadata
 	})
+}
+
+// toolBuildStoreAdapter adapts build.InMemoryStore to toolexecution.BuildStore interface
+type toolBuildStoreAdapter struct {
+	store *build.InMemoryStore
+}
+
+func (a *toolBuildStoreAdapter) Get(buildID string) (toolexecution.BuildStatus, bool) {
+	status, ok := a.store.Get(buildID)
+	if !ok {
+		return toolexecution.BuildStatus{}, false
+	}
+	return toolexecution.BuildStatus{
+		BuildID:      status.BuildID,
+		ScenarioName: status.ScenarioName,
+		Status:       status.Status,
+		Platforms:    status.Platforms,
+		OutputPath:   status.OutputPath,
+		ErrorLog:     status.ErrorLog,
+		BuildLog:     status.BuildLog,
+		Artifacts:    status.Artifacts,
+		CreatedAt:    status.CreatedAt,
+		CompletedAt:  status.CompletedAt,
+		Metadata:     status.Metadata,
+	}, true
+}
+
+func (a *toolBuildStoreAdapter) Save(status toolexecution.BuildStatus) {
+	a.store.Save(&build.Status{
+		BuildID:      status.BuildID,
+		ScenarioName: status.ScenarioName,
+		Status:       status.Status,
+		Platforms:    status.Platforms,
+		OutputPath:   status.OutputPath,
+		ErrorLog:     status.ErrorLog,
+		BuildLog:     status.BuildLog,
+		Artifacts:    status.Artifacts,
+		CreatedAt:    status.CreatedAt,
+		CompletedAt:  status.CompletedAt,
+		Metadata:     status.Metadata,
+	})
+}
+
+func (a *toolBuildStoreAdapter) Snapshot() map[string]toolexecution.BuildStatus {
+	snapshot := a.store.Snapshot()
+	result := make(map[string]toolexecution.BuildStatus, len(snapshot))
+	for id, status := range snapshot {
+		result[id] = toolexecution.BuildStatus{
+			BuildID:      status.BuildID,
+			ScenarioName: status.ScenarioName,
+			Status:       status.Status,
+			Platforms:    status.Platforms,
+			OutputPath:   status.OutputPath,
+			ErrorLog:     status.ErrorLog,
+			BuildLog:     status.BuildLog,
+			Artifacts:    status.Artifacts,
+			CreatedAt:    status.CreatedAt,
+			CompletedAt:  status.CompletedAt,
+			Metadata:     status.Metadata,
+		}
+	}
+	return result
 }
 
 // defaultSmokeTestPackageFinder is the default package finder for smoke tests
@@ -537,6 +646,13 @@ func (s *Server) setupRoutes() {
 
 	// Bundle domain: /api/v1/bundle/package, /api/v1/desktop/package
 	s.bundleHandler.RegisterRoutes(s.router)
+
+	// ===== Tool Discovery and Execution Protocol =====
+	// GET /api/v1/tools - Returns complete tool manifest
+	// GET /api/v1/tools/{name} - Returns specific tool definition
+	// POST /api/v1/tools/execute - Execute a tool
+	s.toolsHandler.RegisterRoutes(s.router)
+	s.router.HandleFunc("/api/v1/tools/execute", s.toolExecutionHandler.Execute).Methods("POST", "OPTIONS")
 
 	// ===== Legacy Routes (Not Yet Fully Migrated) =====
 	// These handlers remain on Server struct until they're migrated to domain modules

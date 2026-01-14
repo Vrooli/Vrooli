@@ -15,6 +15,7 @@ package integrations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -258,6 +259,70 @@ func (c *ScenarioClient) fetchManifest(ctx context.Context, baseURL string) (*to
 	}
 
 	return &manifest, nil
+}
+
+// DiscoverToolScenarios uses vrooli CLI to find all running scenarios
+// and probes each for /api/v1/tools endpoints.
+// Returns the names of scenarios that implement the Tool Discovery Protocol.
+func (c *ScenarioClient) DiscoverToolScenarios(ctx context.Context) ([]string, error) {
+	// 1. Run: vrooli scenario list --json
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run vrooli scenario list: %w", err)
+	}
+
+	// 2. Parse JSON response
+	var response struct {
+		Scenarios []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+		} `json:"scenarios"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse vrooli response: %w", err)
+	}
+
+	// 3. Filter running scenarios (exclude [UNREGISTERED] and [MISSING])
+	var candidates []string
+	for _, s := range response.Scenarios {
+		if s.Status != "[UNREGISTERED]" && s.Status != "[MISSING]" && s.Name != "" {
+			candidates = append(candidates, s.Name)
+		}
+	}
+
+	// 4. Probe each /api/v1/tools (parallel, with timeout)
+	return c.probeForTools(ctx, candidates)
+}
+
+// probeForTools probes each scenario's /api/v1/tools endpoint in parallel.
+// Returns only the scenarios that successfully return a tool manifest.
+func (c *ScenarioClient) probeForTools(ctx context.Context, scenarios []string) ([]string, error) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var withTools []string
+
+	for _, name := range scenarios {
+		wg.Add(1)
+		go func(scenarioName string) {
+			defer wg.Done()
+
+			// Use a shorter timeout context for probing
+			probeCtx, cancel := context.WithTimeout(ctx, c.timeout)
+			defer cancel()
+
+			_, err := c.FetchToolManifest(probeCtx, scenarioName)
+			if err == nil {
+				mu.Lock()
+				withTools = append(withTools, scenarioName)
+				mu.Unlock()
+			}
+			// Silent skip on error (404/timeout = no tools)
+		}(name)
+	}
+
+	wg.Wait()
+	return withTools, nil
 }
 
 // defaultURLResolver implements URLResolver using environment variables and vrooli CLI.

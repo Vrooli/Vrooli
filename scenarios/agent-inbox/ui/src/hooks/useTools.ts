@@ -24,10 +24,12 @@ import {
   setToolApproval,
   resetToolConfig,
   refreshTools,
+  syncTools,
   type ToolSet,
   type ScenarioStatus,
   type EffectiveTool,
   type ApprovalOverride,
+  type DiscoveryResult,
 } from "../lib/api";
 
 // Query keys for cache management
@@ -56,6 +58,7 @@ export interface UseToolsReturn {
   isLoading: boolean;
   isLoadingScenarios: boolean;
   isRefreshing: boolean;
+  isSyncing: boolean;
   isUpdating: boolean;
 
   // Error states
@@ -67,6 +70,8 @@ export interface UseToolsReturn {
   setApproval: (scenario: string, toolName: string, override: ApprovalOverride) => Promise<void>;
   resetTool: (scenario: string, toolName: string) => Promise<void>;
   refreshToolRegistry: () => Promise<void>;
+  /** Discover tools from all running scenarios via vrooli CLI */
+  syncDiscoveredTools: () => Promise<DiscoveryResult>;
   refetch: () => void;
   /** Enable multiple tools by their IDs (format: "scenario:tool_name") */
   enableToolsByIds: (toolIds: string[]) => Promise<void>;
@@ -241,6 +246,15 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
   });
 
+  // Sync tools (discover from all running scenarios)
+  const syncMutation = useMutation({
+    mutationFn: syncTools,
+    onSuccess: () => {
+      // Invalidate all tool queries to reload discovered tools
+      queryClient.invalidateQueries({ queryKey: toolQueryKeys.all });
+    },
+  });
+
   // Derived data: enabled tools only
   // CRITICAL: Must memoize to prevent creating new arrays on every render
   // which would cause infinite re-render loops in consuming components
@@ -284,6 +298,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     isLoading,
     isLoadingScenarios,
     isRefreshing: refreshMutation.isPending,
+    isSyncing: syncMutation.isPending,
     isUpdating: toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending,
 
     // Error states
@@ -302,6 +317,9 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
     refreshToolRegistry: async () => {
       await refreshMutation.mutateAsync();
+    },
+    syncDiscoveredTools: async () => {
+      return await syncMutation.mutateAsync();
     },
     refetch: () => {
       refetch();

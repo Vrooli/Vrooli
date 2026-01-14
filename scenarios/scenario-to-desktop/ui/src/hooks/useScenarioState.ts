@@ -38,6 +38,8 @@ interface LoadStatus {
 export interface UseScenarioStateOptions {
   scenarioName: string;
   enabled?: boolean;
+  /** Whether to run periodic staleness checks. Defaults to true. Set to false when form editing isn't active. */
+  checkStaleness?: boolean;
   onStateLoaded?: (state: ScenarioState) => void;
   onStateCleared?: () => void;
   onConflict?: (serverState: ScenarioState) => void;
@@ -98,6 +100,7 @@ export interface UseScenarioStateResult {
 export function useScenarioState({
   scenarioName,
   enabled = true,
+  checkStaleness: checkStalenessEnabled = true,
   onStateLoaded,
   onStateCleared,
   onConflict,
@@ -299,9 +302,9 @@ export function useScenarioState({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverData]);
 
-  // Staleness check interval
+  // Staleness check interval - only runs when checkStalenessEnabled is true
   useEffect(() => {
-    if (!enabled || !scenarioName || !localHash) return;
+    if (!enabled || !checkStalenessEnabled || !scenarioName || !localHash) return;
 
     const interval = setInterval(() => {
       // Only check if we have a manifest path
@@ -313,7 +316,7 @@ export function useScenarioState({
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, scenarioName, localHash, localFormState?.bundle_manifest_path]);
+  }, [enabled, checkStalenessEnabled, scenarioName, localHash, localFormState?.bundle_manifest_path]);
 
   // Debounced save
   const debouncedSave = useCallback(() => {

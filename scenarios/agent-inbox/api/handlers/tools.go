@@ -131,6 +131,20 @@ func (h *Handlers) RefreshTools(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// SyncTools performs full tool discovery and returns results.
+// This discovers all running scenarios with tool endpoints via vrooli CLI,
+// probes each for /api/v1/tools, and updates the registry.
+// POST /api/v1/tools/sync
+func (h *Handlers) SyncTools(w http.ResponseWriter, r *http.Request) {
+	result, err := h.ToolRegistry.SyncTools(r.Context())
+	if err != nil {
+		h.JSONError(w, "Tool discovery failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.JSONResponse(w, result, http.StatusOK)
+}
+
 // SetToolApproval updates the approval override for a tool.
 // POST /api/v1/tools/config/approval
 // Body: { "chat_id": "optional", "scenario": "agent-manager", "tool_name": "spawn_coding_agent", "approval_override": "require"|"skip"|"" }

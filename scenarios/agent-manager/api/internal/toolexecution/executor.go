@@ -7,20 +7,33 @@ import (
 	"os"
 	"time"
 
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
 )
 
+// Orchestrator defines the subset of orchestration.Service used by toolexecution.
+// This minimal interface enables easier testing with focused mocks.
+type Orchestrator interface {
+	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
+	CreateRun(ctx context.Context, req orchestration.CreateRunRequest) (*domain.Run, error)
+	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
+	ListRuns(ctx context.Context, opts orchestration.RunListOptions) ([]*domain.Run, error)
+	StopRun(ctx context.Context, id uuid.UUID) error
+	GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error)
+	ApproveRun(ctx context.Context, req orchestration.ApproveRequest) (*orchestration.ApproveResult, error)
+}
+
 // ServerExecutorConfig holds dependencies for the ServerExecutor.
 type ServerExecutorConfig struct {
-	Orchestrator orchestration.Service
+	Orchestrator Orchestrator
 }
 
 // ServerExecutor implements tool execution using the orchestration service.
 type ServerExecutor struct {
-	orchestrator orchestration.Service
+	orchestrator Orchestrator
 }
 
 // NewServerExecutor creates a new ServerExecutor with the given configuration.

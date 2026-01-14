@@ -32,6 +32,7 @@ import {
   Shield,
   ShieldOff,
   Play,
+  Search,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -50,6 +51,8 @@ interface ToolConfigurationProps {
   isLoading?: boolean;
   /** Refreshing state */
   isRefreshing?: boolean;
+  /** Syncing state (discovering tools from running scenarios) */
+  isSyncing?: boolean;
   /** Updating state */
   isUpdating?: boolean;
   /** Error message */
@@ -64,6 +67,8 @@ interface ToolConfigurationProps {
   onResetTool?: (scenario: string, toolName: string) => void;
   /** Callback to refresh tool registry */
   onRefresh?: () => void;
+  /** Callback to discover tools from all running scenarios */
+  onSyncTools?: () => void;
   /** Callback when user wants to run a tool manually */
   onRunTool?: (tool: EffectiveTool) => void;
 }
@@ -104,6 +109,7 @@ export function ToolConfiguration({
   chatId,
   isLoading,
   isRefreshing,
+  isSyncing,
   isUpdating,
   error,
   yoloMode,
@@ -111,6 +117,7 @@ export function ToolConfiguration({
   onSetApproval,
   onResetTool,
   onRefresh,
+  onSyncTools,
   onRunTool,
 }: ToolConfigurationProps) {
   // Track which scenarios are expanded
@@ -194,23 +201,41 @@ export function ToolConfiguration({
 
   return (
     <div className="space-y-4" data-testid="tool-configuration">
-      {/* Header with refresh button */}
-      {onRefresh && (
+      {/* Header with sync/refresh buttons */}
+      {(onRefresh || onSyncTools) && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">
             {chatId ? "Override tool settings for this chat" : "Configure default tools for all chats"}
           </p>
-          <Tooltip content="Refresh tool registry">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              data-testid="refresh-tools-button"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            </Button>
-          </Tooltip>
+          <div className="flex items-center gap-1">
+            {onSyncTools && (
+              <Tooltip content="Discover tools from all running scenarios">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onSyncTools}
+                  disabled={isSyncing || isRefreshing}
+                  data-testid="sync-tools-button"
+                >
+                  <Search className={`h-4 w-4 ${isSyncing ? "animate-pulse" : ""}`} />
+                  <span className="ml-1 text-xs">{isSyncing ? "Syncing..." : "Sync"}</span>
+                </Button>
+              </Tooltip>
+            )}
+            {onRefresh && (
+              <Tooltip content="Refresh tool registry">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRefresh}
+                  disabled={isRefreshing || isSyncing}
+                  data-testid="refresh-tools-button"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       )}
 

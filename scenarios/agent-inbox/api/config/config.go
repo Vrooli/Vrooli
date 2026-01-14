@@ -165,9 +165,18 @@ type IntegrationConfig struct {
 // ToolDiscoveryConfig controls how agent-inbox discovers tools from scenarios.
 // Audience: Operators configuring multi-scenario deployments.
 type ToolDiscoveryConfig struct {
-	// Scenarios is the list of scenario names to discover tools from.
+	// AutoDiscovery enables dynamic discovery of tool-enabled scenarios.
+	// When true, uses `vrooli scenario list` to find all running scenarios
+	// and probes each for /api/v1/tools endpoints.
+	// When false, uses the explicit Scenarios list.
+	// Set via TOOL_AUTO_DISCOVERY env var ("true" or "false").
+	// Default: true
+	AutoDiscovery bool
+
+	// Scenarios is the explicit list of scenario names to discover tools from.
+	// Only used when AutoDiscovery is false, or as fallback when discovery fails.
 	// Set via TOOL_SCENARIOS env var (comma-separated).
-	// Default: ["agent-manager"]
+	// Default: ["agent-manager", "scenario-to-cloud"]
 	Scenarios []string
 
 	// DiscoveryTimeout is the HTTP timeout for fetching tool manifests.
@@ -317,6 +326,7 @@ func Default() *Config {
 				FallbackName:        "New Conversation",
 			},
 			ToolDiscovery: ToolDiscoveryConfig{
+				AutoDiscovery:    getEnvBool("TOOL_AUTO_DISCOVERY", true),
 				Scenarios:        getToolScenarios(),
 				DiscoveryTimeout: 10 * time.Second,
 				CacheTTL:         60 * time.Second,
@@ -433,6 +443,19 @@ func getEnvInt64(key string, defaultValue int64) int64 {
 	if value := os.Getenv(key); value != "" {
 		if i, err := strconv.ParseInt(value, 10, 64); err == nil {
 			return i
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		lower := strings.ToLower(value)
+		if lower == "true" || lower == "1" || lower == "yes" {
+			return true
+		}
+		if lower == "false" || lower == "0" || lower == "no" {
+			return false
 		}
 	}
 	return defaultValue

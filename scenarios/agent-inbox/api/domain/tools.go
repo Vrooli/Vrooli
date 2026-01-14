@@ -116,6 +116,22 @@ type ScenarioStatus struct {
 	Error string `json:"error,omitempty"`
 }
 
+// DiscoveryResult represents the result of a tool discovery sync operation.
+// Returned by the SyncTools endpoint to inform the UI about what changed.
+type DiscoveryResult struct {
+	// ScenariosWithTools is the number of scenarios that have tool endpoints.
+	ScenariosWithTools int `json:"scenarios_with_tools"`
+
+	// NewScenarios lists scenarios that were newly discovered (not in previous cache).
+	NewScenarios []string `json:"new_scenarios"`
+
+	// RemovedScenarios lists scenarios that were in previous cache but not found now.
+	RemovedScenarios []string `json:"removed_scenarios"`
+
+	// TotalTools is the total number of tools across all discovered scenarios.
+	TotalTools int `json:"total_tools"`
+}
+
 // -----------------------------------------------------------------------------
 // Helper Methods for EffectiveTool
 // -----------------------------------------------------------------------------

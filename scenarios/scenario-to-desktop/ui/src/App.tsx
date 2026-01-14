@@ -108,6 +108,8 @@ function AppContent() {
   } = useScenarioState({
     scenarioName: selectedScenarioName,
     enabled: Boolean(selectedScenarioName),
+    // Only check for staleness on the generator view where form editing is active
+    checkStaleness: viewMode === "generator",
     onStateLoaded: (state) => {
       if (!state.form_state) return;
       const fs = state.form_state;
@@ -179,10 +181,13 @@ function AppContent() {
     }
   }, [viewMode, selectedScenarioName]);
 
+  // Only poll scenario list on views that display or use it
+  const shouldPollScenarios = viewMode === "inventory" || viewMode === "generator" || viewMode === "signing";
+
   const { data: scenariosData } = useQuery<ScenariosResponse>({
     queryKey: ["scenarios-desktop-status"],
     queryFn: fetchScenarioDesktopStatus,
-    refetchInterval: 30000
+    refetchInterval: shouldPollScenarios ? 30000 : false
   });
 
   const selectedScenario: ScenarioDesktopStatus | null = useMemo(

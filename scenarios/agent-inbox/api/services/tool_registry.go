@@ -65,13 +65,30 @@ func NewToolRegistryWithDeps(client *integrations.ScenarioClient, repo *persiste
 	}
 }
 
-// RefreshTools fetches tools from all configured scenarios.
-// This is typically called on startup and periodically.
-// It auto-registers protocol handlers for all discovered scenarios that
-// implement the Tool Execution Protocol.
+// RefreshTools fetches tools from scenarios and updates the cache.
+// If AutoDiscovery is enabled, it discovers scenarios via vrooli CLI.
+// Otherwise, it uses the explicit Scenarios list from config.
+// It auto-registers protocol handlers for all discovered scenarios.
 func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
-	scenarios := r.cfg.Integration.ToolDiscovery.Scenarios
+	var scenarios []string
 
+	// Determine which scenarios to fetch from
+	if r.cfg.Integration.ToolDiscovery.AutoDiscovery {
+		// Dynamic discovery via vrooli CLI
+		discovered, err := r.scenarioClient.DiscoverToolScenarios(ctx)
+		if err != nil {
+			log.Printf("warning: auto-discovery failed, using fallback: %v", err)
+			scenarios = r.cfg.Integration.ToolDiscovery.Scenarios
+		} else {
+			scenarios = discovered
+			log.Printf("Auto-discovery found %d scenarios with tools", len(scenarios))
+		}
+	} else {
+		// Use explicit list from config
+		scenarios = r.cfg.Integration.ToolDiscovery.Scenarios
+	}
+
+	// Fetch tool manifests from discovered scenarios
 	manifests, errors := r.scenarioClient.FetchMultiple(ctx, scenarios)
 
 	// Log any errors but continue with available manifests
@@ -80,26 +97,7 @@ func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
 	}
 
 	// Auto-register protocol handlers for discovered scenarios
-	if r.toolExecutor != nil {
-		for scenarioName, manifest := range manifests {
-			// Resolve the scenario URL
-			baseURL, err := r.resolveScenarioURL(ctx, scenarioName)
-			if err != nil {
-				log.Printf("warning: failed to resolve URL for %s: %v", scenarioName, err)
-				continue
-			}
-
-			// Extract tool names from manifest
-			var toolNames []string
-			for _, tool := range manifest.Tools {
-				toolNames = append(toolNames, tool.Name)
-			}
-
-			// Register the protocol handler
-			r.toolExecutor.RegisterProtocolHandler(scenarioName, baseURL, toolNames)
-			log.Printf("Registered protocol handler for %s with %d tools", scenarioName, len(toolNames))
-		}
-	}
+	r.registerHandlers(ctx, manifests)
 
 	// Build aggregated tool set
 	toolSet := r.buildToolSet(manifests)
@@ -114,6 +112,141 @@ func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
 		len(toolSet.Tools), len(toolSet.Scenarios))
 
 	return nil
+}
+
+// StartAsyncDiscovery triggers background discovery without blocking.
+// Call this on startup if you want cached tools available immediately.
+func (r *ToolRegistry) StartAsyncDiscovery() {
+	if r.cfg.Integration.ToolDiscovery.AutoDiscovery {
+		go r.discoverAsync(context.Background())
+	}
+}
+
+// discoverAsync runs discovery in background and updates cache.
+func (r *ToolRegistry) discoverAsync(ctx context.Context) {
+	discovered, err := r.scenarioClient.DiscoverToolScenarios(ctx)
+	if err != nil {
+		log.Printf("warning: async auto-discovery failed: %v", err)
+		return
+	}
+
+	// Fetch manifests from discovered scenarios
+	manifests, errors := r.scenarioClient.FetchMultiple(ctx, discovered)
+	for scenario, err := range errors {
+		log.Printf("warning: failed to fetch tools from %s: %v", scenario, err)
+	}
+
+	// Update cache atomically
+	toolSet := r.buildToolSet(manifests)
+	r.mu.Lock()
+	r.cachedTools = toolSet
+	r.cacheTime = time.Now()
+	r.mu.Unlock()
+
+	// Register protocol handlers
+	r.registerHandlers(ctx, manifests)
+
+	log.Printf("Async discovery complete: %d scenarios with %d tools", len(discovered), len(toolSet.Tools))
+}
+
+// SyncTools performs full discovery synchronously (for manual sync button).
+// Returns detailed results about what was discovered.
+func (r *ToolRegistry) SyncTools(ctx context.Context) (*domain.DiscoveryResult, error) {
+	// Clear caches to force fresh discovery
+	r.scenarioClient.InvalidateAllCache()
+
+	// Get previous scenario list for comparison
+	r.mu.RLock()
+	previousScenarios := r.getScenarioNames()
+	r.mu.RUnlock()
+
+	// Discover scenarios with tools
+	discovered, err := r.scenarioClient.DiscoverToolScenarios(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("discovery failed: %w", err)
+	}
+
+	// Fetch manifests
+	manifests, errors := r.scenarioClient.FetchMultiple(ctx, discovered)
+	for scenario, err := range errors {
+		log.Printf("warning: failed to fetch tools from %s: %v", scenario, err)
+	}
+
+	// Build and update cache
+	toolSet := r.buildToolSet(manifests)
+	r.mu.Lock()
+	r.cachedTools = toolSet
+	r.cacheTime = time.Now()
+	r.mu.Unlock()
+
+	// Register protocol handlers
+	r.registerHandlers(ctx, manifests)
+
+	// Calculate diff
+	newScenarios := difference(discovered, previousScenarios)
+	removedScenarios := difference(previousScenarios, discovered)
+
+	return &domain.DiscoveryResult{
+		ScenariosWithTools: len(discovered),
+		NewScenarios:       newScenarios,
+		RemovedScenarios:   removedScenarios,
+		TotalTools:         len(toolSet.Tools),
+	}, nil
+}
+
+// getScenarioNames returns the names of scenarios in the current cache.
+func (r *ToolRegistry) getScenarioNames() []string {
+	if r.cachedTools == nil {
+		return nil
+	}
+	var names []string
+	for _, s := range r.cachedTools.Scenarios {
+		if s != nil {
+			names = append(names, s.Name)
+		}
+	}
+	return names
+}
+
+// registerHandlers registers protocol handlers for all discovered scenarios.
+func (r *ToolRegistry) registerHandlers(ctx context.Context, manifests map[string]*toolspb.ToolManifest) {
+	if r.toolExecutor == nil {
+		return
+	}
+
+	for scenarioName, manifest := range manifests {
+		// Resolve the scenario URL
+		baseURL, err := r.resolveScenarioURL(ctx, scenarioName)
+		if err != nil {
+			log.Printf("warning: failed to resolve URL for %s: %v", scenarioName, err)
+			continue
+		}
+
+		// Extract tool names from manifest
+		var toolNames []string
+		for _, tool := range manifest.Tools {
+			toolNames = append(toolNames, tool.Name)
+		}
+
+		// Register the protocol handler
+		r.toolExecutor.RegisterProtocolHandler(scenarioName, baseURL, toolNames)
+		log.Printf("Registered protocol handler for %s with %d tools", scenarioName, len(toolNames))
+	}
+}
+
+// difference returns elements in a that are not in b.
+func difference(a, b []string) []string {
+	bSet := make(map[string]bool)
+	for _, s := range b {
+		bSet[s] = true
+	}
+	var diff []string
+	for _, s := range a {
+		if !bSet[s] {
+			diff = append(diff, s)
+		}
+	}
+	return diff
 }
 
 // resolveScenarioURL resolves a scenario name to its API base URL.
