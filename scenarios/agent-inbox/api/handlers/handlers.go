@@ -38,8 +38,8 @@ type Handlers struct {
 
 // New creates a new Handlers instance with all dependencies.
 func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
-	toolRegistry := services.NewToolRegistry(repo)
 	toolExecutor := integrations.NewToolExecutor()
+	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
 	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor)
 
 	return &Handlers{

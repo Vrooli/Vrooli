@@ -8,15 +8,17 @@ import (
 	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // mockScenarioClient is a test double for integrations.ScenarioClient
 type mockScenarioClient struct {
-	manifests map[string]*domain.ToolManifest
+	manifests map[string]*toolspb.ToolManifest
 	errors    map[string]error
 }
 
-func (m *mockScenarioClient) FetchToolManifest(ctx context.Context, scenarioName string) (*domain.ToolManifest, error) {
+func (m *mockScenarioClient) FetchToolManifest(ctx context.Context, scenarioName string) (*toolspb.ToolManifest, error) {
 	if err, ok := m.errors[scenarioName]; ok {
 		return nil, err
 	}
@@ -26,8 +28,8 @@ func (m *mockScenarioClient) FetchToolManifest(ctx context.Context, scenarioName
 	return nil, nil
 }
 
-func (m *mockScenarioClient) FetchMultiple(ctx context.Context, scenarioNames []string) (map[string]*domain.ToolManifest, map[string]error) {
-	results := make(map[string]*domain.ToolManifest)
+func (m *mockScenarioClient) FetchMultiple(ctx context.Context, scenarioNames []string) (map[string]*toolspb.ToolManifest, map[string]error) {
+	results := make(map[string]*toolspb.ToolManifest)
 	errors := make(map[string]error)
 
 	for _, name := range scenarioNames {
@@ -67,19 +69,19 @@ func TestToolRegistry_BuildToolSet(t *testing.T) {
 		cfg:            config.Default(),
 	}
 
-	manifests := map[string]*domain.ToolManifest{
+	manifests := map[string]*toolspb.ToolManifest{
 		"agent-manager": {
 			ProtocolVersion: "1.0",
-			Scenario: domain.ScenarioInfo{
+			Scenario: &toolspb.ScenarioInfo{
 				Name:    "agent-manager",
 				Version: "1.0.0",
 			},
-			Tools: []domain.ToolDefinition{
+			Tools: []*toolspb.ToolDefinition{
 				{
 					Name:        "spawn_coding_agent",
 					Description: "Spawn a coding agent",
 					Category:    "lifecycle",
-					Metadata: domain.ToolMetadata{
+					Metadata: &toolspb.ToolMetadata{
 						EnabledByDefault: true,
 					},
 				},
@@ -87,34 +89,34 @@ func TestToolRegistry_BuildToolSet(t *testing.T) {
 					Name:        "check_agent_status",
 					Description: "Check agent status",
 					Category:    "status",
-					Metadata: domain.ToolMetadata{
+					Metadata: &toolspb.ToolMetadata{
 						EnabledByDefault: true,
 					},
 				},
 			},
-			Categories: []domain.ToolCategory{
-				{ID: "lifecycle", Name: "Lifecycle"},
-				{ID: "status", Name: "Status"},
+			Categories: []*toolspb.ToolCategory{
+				{Id: "lifecycle", Name: "Lifecycle"},
+				{Id: "status", Name: "Status"},
 			},
 		},
 		"research-agent": {
 			ProtocolVersion: "1.0",
-			Scenario: domain.ScenarioInfo{
+			Scenario: &toolspb.ScenarioInfo{
 				Name:    "research-agent",
 				Version: "1.0.0",
 			},
-			Tools: []domain.ToolDefinition{
+			Tools: []*toolspb.ToolDefinition{
 				{
 					Name:        "web_search",
 					Description: "Search the web",
 					Category:    "search",
-					Metadata: domain.ToolMetadata{
+					Metadata: &toolspb.ToolMetadata{
 						EnabledByDefault: false,
 					},
 				},
 			},
-			Categories: []domain.ToolCategory{
-				{ID: "search", Name: "Search"},
+			Categories: []*toolspb.ToolCategory{
+				{Id: "search", Name: "Search"},
 			},
 		},
 	}
@@ -148,12 +150,12 @@ func TestToolRegistry_BuildToolSet(t *testing.T) {
 }
 
 func TestToolDefinition_ToOpenAIFunction(t *testing.T) {
-	tool := &domain.ToolDefinition{
+	tool := &toolspb.ToolDefinition{
 		Name:        "test_tool",
 		Description: "A test tool",
-		Parameters: domain.ToolParameters{
+		Parameters: &toolspb.ToolParameters{
 			Type: "object",
-			Properties: map[string]domain.ParameterSchema{
+			Properties: map[string]*toolspb.ParameterSchema{
 				"param1": {
 					Type:        "string",
 					Description: "A parameter",
@@ -163,7 +165,7 @@ func TestToolDefinition_ToOpenAIFunction(t *testing.T) {
 		},
 	}
 
-	result := tool.ToOpenAIFunction()
+	result := domain.ToOpenAIFunction(tool)
 
 	// Check type
 	if result["type"] != "function" {

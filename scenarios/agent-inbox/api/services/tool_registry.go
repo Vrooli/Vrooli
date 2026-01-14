@@ -35,6 +35,7 @@ type ToolRegistry struct {
 	scenarioClient *integrations.ScenarioClient
 	repo           *persistence.Repository
 	cfg            *config.Config
+	toolExecutor   *integrations.ToolExecutor // Injected for auto-registering protocol handlers
 
 	// Cache for aggregated tool set
 	mu          sync.RWMutex
@@ -43,26 +44,31 @@ type ToolRegistry struct {
 }
 
 // NewToolRegistry creates a new ToolRegistry with default dependencies.
-func NewToolRegistry(repo *persistence.Repository) *ToolRegistry {
+// Pass nil for toolExecutor if you don't need auto-registration of protocol handlers.
+func NewToolRegistry(repo *persistence.Repository, toolExecutor *integrations.ToolExecutor) *ToolRegistry {
 	return &ToolRegistry{
 		scenarioClient: integrations.NewScenarioClient(),
 		repo:           repo,
 		cfg:            config.Default(),
+		toolExecutor:   toolExecutor,
 	}
 }
 
 // NewToolRegistryWithDeps creates a ToolRegistry with injected dependencies.
 // This is the constructor for testing.
-func NewToolRegistryWithDeps(client *integrations.ScenarioClient, repo *persistence.Repository, cfg *config.Config) *ToolRegistry {
+func NewToolRegistryWithDeps(client *integrations.ScenarioClient, repo *persistence.Repository, cfg *config.Config, toolExecutor *integrations.ToolExecutor) *ToolRegistry {
 	return &ToolRegistry{
 		scenarioClient: client,
 		repo:           repo,
 		cfg:            cfg,
+		toolExecutor:   toolExecutor,
 	}
 }
 
 // RefreshTools fetches tools from all configured scenarios.
 // This is typically called on startup and periodically.
+// It auto-registers protocol handlers for all discovered scenarios that
+// implement the Tool Execution Protocol.
 func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
 	scenarios := r.cfg.Integration.ToolDiscovery.Scenarios
 
@@ -71,6 +77,28 @@ func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
 	// Log any errors but continue with available manifests
 	for scenario, err := range errors {
 		log.Printf("warning: failed to fetch tools from %s: %v", scenario, err)
+	}
+
+	// Auto-register protocol handlers for discovered scenarios
+	if r.toolExecutor != nil {
+		for scenarioName, manifest := range manifests {
+			// Resolve the scenario URL
+			baseURL, err := r.resolveScenarioURL(ctx, scenarioName)
+			if err != nil {
+				log.Printf("warning: failed to resolve URL for %s: %v", scenarioName, err)
+				continue
+			}
+
+			// Extract tool names from manifest
+			var toolNames []string
+			for _, tool := range manifest.Tools {
+				toolNames = append(toolNames, tool.Name)
+			}
+
+			// Register the protocol handler
+			r.toolExecutor.RegisterProtocolHandler(scenarioName, baseURL, toolNames)
+			log.Printf("Registered protocol handler for %s with %d tools", scenarioName, len(toolNames))
+		}
 	}
 
 	// Build aggregated tool set
@@ -86,6 +114,26 @@ func (r *ToolRegistry) RefreshTools(ctx context.Context) error {
 		len(toolSet.Tools), len(toolSet.Scenarios))
 
 	return nil
+}
+
+// resolveScenarioURL resolves a scenario name to its API base URL.
+// It uses the same resolution logic as the ScenarioClient's URLResolver.
+func (r *ToolRegistry) resolveScenarioURL(ctx context.Context, scenarioName string) (string, error) {
+	// Create a temporary URL resolver to resolve the scenario URL
+	// This uses the same logic as ScenarioClient
+	resolver := &defaultURLResolver{}
+	return resolver.ResolveScenarioURL(ctx, scenarioName)
+}
+
+// defaultURLResolver implements URL resolution for scenarios.
+// This duplicates the logic from scenario_client.go's defaultURLResolver
+// to avoid a circular dependency.
+type defaultURLResolver struct{}
+
+// ResolveScenarioURL resolves a scenario name to its API base URL.
+func (r *defaultURLResolver) ResolveScenarioURL(ctx context.Context, scenarioName string) (string, error) {
+	// Use the integrations package's URL resolution
+	return integrations.ResolveScenarioURL(ctx, scenarioName)
 }
 
 // GetToolSet returns the current aggregated tool set.

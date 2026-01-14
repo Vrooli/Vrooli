@@ -25,6 +25,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -439,10 +440,18 @@ func (s *Server) setupRoutes() {
 	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)
 	toolsHandler.RegisterRoutes(&muxRouteAdapter{s.router})
 
+	// Register Tool Execution Protocol endpoint
+	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		Orchestrator: s.orchestrator,
+	})
+	toolExecHandler := toolexecution.NewHandler(toolExec)
+	s.router.HandleFunc("/api/v1/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
+
 	// Prometheus metrics endpoint
 	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
 
 	log.Printf("Tool discovery endpoint available at /api/v1/tools")
+	log.Printf("Tool execution endpoint available at /api/v1/tools/execute")
 	log.Printf("WebSocket endpoint available at /api/v1/ws")
 	log.Printf("Prometheus metrics available at /metrics")
 }

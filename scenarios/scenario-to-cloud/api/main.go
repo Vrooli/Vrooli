@@ -28,6 +28,7 @@ import (
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
+	"scenario-to-cloud/toolexecution"
 	"scenario-to-cloud/toolhandlers"
 	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
@@ -55,6 +56,8 @@ type Server struct {
 	orchestrator     *deployment.Orchestrator
 	// Tool Discovery Protocol
 	toolRegistry *toolregistry.Registry
+	// Tool Execution Protocol
+	toolExecutor *toolexecution.ServerExecutor
 
 	// Seam: SSH command execution (defaults to ssh.ExecRunner)
 	sshRunner ssh.Runner
@@ -173,6 +176,16 @@ func NewServer() (*Server, error) {
 	srv.toolRegistry.RegisterProvider(toolregistry.NewInspectionToolProvider())
 	srv.toolRegistry.RegisterProvider(toolregistry.NewValidationToolProvider())
 
+	// Initialize Tool Execution Protocol executor
+	srv.toolExecutor = toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		Repo:         repo,
+		Resolver:     toolregistry.NewResolver(repo),
+		Orchestrator: srv.orchestrator,
+		SSHRunner:    sshRunner,
+		DNSService:   dnsService,
+		Logger:       srv.log,
+	})
+
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -281,6 +294,10 @@ func (s *Server) setupRoutes() {
 	toolsHandler := toolhandlers.NewToolsHandler(s.toolRegistry)
 	api.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
 	api.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
+
+	// Tool Execution Protocol endpoint
+	toolExecHandler := toolexecution.NewHandler(s.toolExecutor)
+	api.HandleFunc("/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
 }
 
 // Router returns the HTTP handler for use with server.Run

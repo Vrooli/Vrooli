@@ -2,33 +2,36 @@ package integrations
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"agent-inbox/domain"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestScenarioClient_FetchToolManifest(t *testing.T) {
-	manifest := &domain.ToolManifest{
+	manifest := &toolspb.ToolManifest{
 		ProtocolVersion: domain.ToolProtocolVersion,
-		Scenario: domain.ScenarioInfo{
+		Scenario: &toolspb.ScenarioInfo{
 			Name:        "test-scenario",
 			Version:     "1.0.0",
 			Description: "Test scenario",
 		},
-		Tools: []domain.ToolDefinition{
+		Tools: []*toolspb.ToolDefinition{
 			{
 				Name:        "test_tool",
 				Description: "A test tool",
-				Metadata: domain.ToolMetadata{
+				Metadata: &toolspb.ToolMetadata{
 					EnabledByDefault: true,
 				},
 			},
 		},
-		GeneratedAt: time.Now(),
+		GeneratedAt: timestamppb.Now(),
 	}
 
 	// Create test server
@@ -38,7 +41,8 @@ func TestScenarioClient_FetchToolManifest(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(manifest)
+		data, _ := protojson.Marshal(manifest)
+		w.Write(data)
 	}))
 	defer server.Close()
 
@@ -72,13 +76,14 @@ func TestScenarioClient_FetchToolManifest_Caching(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
-		manifest := &domain.ToolManifest{
+		manifest := &toolspb.ToolManifest{
 			ProtocolVersion: domain.ToolProtocolVersion,
-			Scenario:        domain.ScenarioInfo{Name: "test"},
-			GeneratedAt:     time.Now(),
+			Scenario:        &toolspb.ScenarioInfo{Name: "test"},
+			GeneratedAt:     timestamppb.Now(),
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(manifest)
+		data, _ := protojson.Marshal(manifest)
+		w.Write(data)
 	}))
 	defer server.Close()
 
@@ -124,12 +129,13 @@ func TestScenarioClient_FetchToolManifest_Caching(t *testing.T) {
 
 func TestScenarioClient_FetchToolManifest_InvalidProtocolVersion(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		manifest := &domain.ToolManifest{
+		manifest := &toolspb.ToolManifest{
 			ProtocolVersion: "99.0", // Invalid version
-			GeneratedAt:     time.Now(),
+			GeneratedAt:     timestamppb.Now(),
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(manifest)
+		data, _ := protojson.Marshal(manifest)
+		w.Write(data)
 	}))
 	defer server.Close()
 
@@ -149,23 +155,16 @@ func TestScenarioClient_FetchToolManifest_InvalidProtocolVersion(t *testing.T) {
 }
 
 func TestScenarioClient_FetchMultiple(t *testing.T) {
-	scenarios := map[string]*domain.ToolManifest{
-		"scenario-a": {
-			ProtocolVersion: domain.ToolProtocolVersion,
-			Scenario:        domain.ScenarioInfo{Name: "scenario-a"},
-			Tools:           []domain.ToolDefinition{{Name: "tool_a"}},
-		},
-		"scenario-b": {
-			ProtocolVersion: domain.ToolProtocolVersion,
-			Scenario:        domain.ScenarioInfo{Name: "scenario-b"},
-			Tools:           []domain.ToolDefinition{{Name: "tool_b"}},
-		},
-	}
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifest := &toolspb.ToolManifest{
+			ProtocolVersion: domain.ToolProtocolVersion,
+			Scenario:        &toolspb.ScenarioInfo{Name: "scenario-a"},
+			Tools:           []*toolspb.ToolDefinition{{Name: "tool_a"}},
+			GeneratedAt:     timestamppb.Now(),
+		}
 		w.Header().Set("Content-Type", "application/json")
-		// Return a generic manifest for any request
-		json.NewEncoder(w).Encode(scenarios["scenario-a"])
+		data, _ := protojson.Marshal(manifest)
+		w.Write(data)
 	}))
 	defer server.Close()
 
@@ -191,13 +190,18 @@ func TestScenarioClient_FetchMultiple(t *testing.T) {
 
 func TestScenarioClient_CheckScenarioStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		manifest := &domain.ToolManifest{
+		manifest := &toolspb.ToolManifest{
 			ProtocolVersion: domain.ToolProtocolVersion,
-			Scenario:        domain.ScenarioInfo{Name: "test"},
-			Tools:           []domain.ToolDefinition{{Name: "tool_1"}, {Name: "tool_2"}},
+			Scenario:        &toolspb.ScenarioInfo{Name: "test"},
+			Tools: []*toolspb.ToolDefinition{
+				{Name: "tool_1"},
+				{Name: "tool_2"},
+			},
+			GeneratedAt: timestamppb.Now(),
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(manifest)
+		data, _ := protojson.Marshal(manifest)
+		w.Write(data)
 	}))
 	defer server.Close()
 

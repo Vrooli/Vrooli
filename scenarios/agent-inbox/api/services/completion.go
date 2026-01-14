@@ -60,10 +60,11 @@ type CompletionService struct {
 // NewCompletionService creates a new completion service.
 func NewCompletionService(repo *persistence.Repository, storage StorageService) *CompletionService {
 	modelRegistry := NewModelRegistry()
+	executor := integrations.NewToolExecutor()
 	return &CompletionService{
 		repo:             repo,
-		executor:         integrations.NewToolExecutor(),
-		toolRegistry:     NewToolRegistry(repo),
+		executor:         executor,
+		toolRegistry:     NewToolRegistry(repo, executor),
 		contextManager:   NewContextManager(modelRegistry, config.Default()),
 		messageConverter: NewMessageConverter(storage),
 		storage:          storage,

@@ -268,6 +268,15 @@ type defaultURLResolver struct{}
 // 1. Environment variable: <SCENARIO_NAME>_API_URL (e.g., AGENT_MANAGER_API_URL)
 // 2. Vrooli CLI: vrooli scenario port <name> API_PORT
 func (r *defaultURLResolver) ResolveScenarioURL(ctx context.Context, scenarioName string) (string, error) {
+	return ResolveScenarioURL(ctx, scenarioName)
+}
+
+// ResolveScenarioURL resolves a scenario name to its API base URL.
+// This is exported for use by other packages (e.g., tool_registry.go).
+// Priority:
+// 1. Environment variable: <SCENARIO_NAME>_API_URL (e.g., AGENT_MANAGER_API_URL)
+// 2. Vrooli CLI: vrooli scenario port <name> API_PORT
+func ResolveScenarioURL(ctx context.Context, scenarioName string) (string, error) {
 	// Try environment variable first
 	envKey := strings.ToUpper(strings.ReplaceAll(scenarioName, "-", "_")) + "_API_URL"
 	if url := os.Getenv(envKey); url != "" {
