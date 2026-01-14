@@ -6,7 +6,7 @@ import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, Book
 import {
   fetchCheckHistory, HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
   fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
-  type ActionResult
+  type ActionResult, type RecoveryAction
 } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
@@ -83,6 +83,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
   const showCheckId = title !== checkId;
   const [activeTab, setActiveTab] = useState<TabId>("details");
   const [autoHealResult, setAutoHealResult] = useState<ActionResult | null>(null);
+  const [confirmHealAction, setConfirmHealAction] = useState<RecoveryAction | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery<CheckHistoryResponse>({
     queryKey: ["check-history", checkId],
@@ -133,12 +134,22 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
     },
   });
 
-  // Find the primary healing action (restart for resources, first available otherwise)
+  // Find the primary healing action - prefer actual healing actions over diagnostic ones
   const primaryHealAction = useMemo(() => {
     if (!actionsData?.actions) return null;
     const available = actionsData.actions.filter((a) => a.available);
+
+    // Prefer restart action (most common healing action for resources)
     const restart = available.find((a) => a.id === "restart");
     if (restart) return restart;
+
+    // Then prefer actual healing actions over diagnostic/informational ones
+    // Diagnostic actions typically just show information, not fix problems
+    const diagnosticIds = ["list", "logs", "status", "diagnose", "info"];
+    const healingActions = available.filter((a) => !diagnosticIds.includes(a.id));
+    if (healingActions.length > 0) return healingActions[0];
+
+    // Fallback to first available (excluding logs which is purely informational)
     return available.find((a) => a.id !== "logs") || null;
   }, [actionsData]);
 
@@ -313,13 +324,25 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                   {/* Heal Now Button */}
                   {primaryHealAction && (
                     <button
-                      onClick={() => executeHealMutation.mutate(primaryHealAction.id)}
+                      onClick={() => {
+                        if (primaryHealAction.dangerous) {
+                          setConfirmHealAction(primaryHealAction);
+                        } else {
+                          executeHealMutation.mutate(primaryHealAction.id);
+                        }
+                      }}
                       disabled={executeHealMutation.isPending}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={`Run ${primaryHealAction.name} now`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        primaryHealAction.dangerous
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                          : "bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30"
+                      }`}
+                      title={`Run ${primaryHealAction.name} now${primaryHealAction.dangerous ? " (requires confirmation)" : ""}`}
                     >
                       {executeHealMutation.isPending ? (
                         <Loader2 size={12} className="animate-spin" />
+                      ) : primaryHealAction.dangerous ? (
+                        <AlertTriangle size={12} />
                       ) : (
                         <Zap size={12} />
                       )}
@@ -328,6 +351,43 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                   )}
                 </div>
               </div>
+
+              {/* Confirmation Dialog for Dangerous Actions */}
+              {confirmHealAction && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm text-amber-300 font-medium">Confirm Action</p>
+                      <p className="text-xs text-amber-200/80 mt-1">
+                        Are you sure you want to run <strong>{confirmHealAction.name}</strong>?
+                        {confirmHealAction.description && (
+                          <span className="block mt-1 text-amber-200/60">{confirmHealAction.description}</span>
+                        )}
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            executeHealMutation.mutate(confirmHealAction.id);
+                            setConfirmHealAction(null);
+                          }}
+                          disabled={executeHealMutation.isPending}
+                          className="px-3 py-1 text-xs font-medium rounded bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 transition-colors"
+                        >
+                          {executeHealMutation.isPending ? "Executing..." : "Confirm"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmHealAction(null)}
+                          disabled={executeHealMutation.isPending}
+                          className="px-3 py-1 text-xs rounded border border-white/10 text-slate-300 hover:bg-white/5 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Auto-Heal Result */}
               {autoHealResult && (

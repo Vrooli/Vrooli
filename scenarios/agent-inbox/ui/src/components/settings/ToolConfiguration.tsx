@@ -16,7 +16,7 @@
  * - Test IDs on interactive elements
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -65,8 +65,8 @@ interface ToolConfigurationProps {
   enabledCount?: number;
   /** Total count of all tools */
   totalCount?: number;
-  /** Callback when tool is toggled */
-  onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void;
+  /** Callback when tool is toggled (can be async for sequential batch operations) */
+  onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void | Promise<void>;
   /** Callback when tool approval is changed */
   onSetApproval?: (scenario: string, toolName: string, override: ApprovalOverride) => void;
   /** Callback when tool config is reset to default */
@@ -133,6 +133,28 @@ export function ToolConfiguration({
   // Sort order (default A-Z)
   const [sortOrder, setSortOrder] = useState<SortOrder>("a-z");
 
+  // Ref to prevent concurrent batch operations
+  const batchOperationInProgress = useRef(false);
+
+  // Stable callback for toggling all tools in a scenario
+  // Uses current toolsByScenario from props to avoid stale closures
+  const handleToggleScenario = useCallback(async (scenarioName: string, enableAll: boolean) => {
+    if (batchOperationInProgress.current || isUpdating) return;
+
+    batchOperationInProgress.current = true;
+    try {
+      // Get CURRENT tools from props (not from closure)
+      const currentTools = toolsByScenario.get(scenarioName) ?? [];
+      for (const tool of currentTools) {
+        if (tool.enabled !== enableAll) {
+          await onToggleTool(scenarioName, tool.tool.name, enableAll);
+        }
+      }
+    } finally {
+      batchOperationInProgress.current = false;
+    }
+  }, [toolsByScenario, isUpdating, onToggleTool]);
+
   const toggleScenario = (scenario: string) => {
     setExpandedScenarios((prev) => {
       const next = new Set(prev);
@@ -156,6 +178,48 @@ export function ToolConfiguration({
   for (const cat of categories) {
     categoryById.set(cat.id, cat);
   }
+
+  // Filter and sort scenarios
+  // NOTE: This useMemo MUST be called before any early returns to comply with Rules of Hooks
+  const scenarioEntries = useMemo(() => {
+    const entries = Array.from(toolsByScenario.entries());
+    const query = searchQuery.toLowerCase().trim();
+
+    // Filter by search query (match scenario name or tool names/descriptions)
+    const filtered = query
+      ? entries.filter(([scenario, tools]) => {
+          // Match scenario name
+          if (scenario.toLowerCase().includes(query)) return true;
+          // Match any tool name or description
+          return tools.some(
+            (t) =>
+              t.tool.name.toLowerCase().includes(query) ||
+              t.tool.description.toLowerCase().includes(query)
+          );
+        })
+      : entries;
+
+    // Sort scenarios
+    return filtered.sort((a, b) => {
+      const [scenarioA, toolsA] = a;
+      const [scenarioB, toolsB] = b;
+      const enabledA = toolsA.filter((t) => t.enabled).length;
+      const enabledB = toolsB.filter((t) => t.enabled).length;
+
+      switch (sortOrder) {
+        case "a-z":
+          return scenarioA.localeCompare(scenarioB);
+        case "z-a":
+          return scenarioB.localeCompare(scenarioA);
+        case "most-enabled":
+          return enabledB - enabledA || scenarioA.localeCompare(scenarioB);
+        case "fewest-enabled":
+          return enabledA - enabledB || scenarioA.localeCompare(scenarioB);
+        default:
+          return scenarioA.localeCompare(scenarioB);
+      }
+    });
+  }, [toolsByScenario, searchQuery, sortOrder]);
 
   if (isLoading) {
     return (
@@ -204,47 +268,6 @@ export function ToolConfiguration({
       </div>
     );
   }
-
-  // Filter and sort scenarios
-  const scenarioEntries = useMemo(() => {
-    const entries = Array.from(toolsByScenario.entries());
-    const query = searchQuery.toLowerCase().trim();
-
-    // Filter by search query (match scenario name or tool names/descriptions)
-    const filtered = query
-      ? entries.filter(([scenario, tools]) => {
-          // Match scenario name
-          if (scenario.toLowerCase().includes(query)) return true;
-          // Match any tool name or description
-          return tools.some(
-            (t) =>
-              t.tool.name.toLowerCase().includes(query) ||
-              t.tool.description.toLowerCase().includes(query)
-          );
-        })
-      : entries;
-
-    // Sort scenarios
-    return filtered.sort((a, b) => {
-      const [scenarioA, toolsA] = a;
-      const [scenarioB, toolsB] = b;
-      const enabledA = toolsA.filter((t) => t.enabled).length;
-      const enabledB = toolsB.filter((t) => t.enabled).length;
-
-      switch (sortOrder) {
-        case "a-z":
-          return scenarioA.localeCompare(scenarioB);
-        case "z-a":
-          return scenarioB.localeCompare(scenarioA);
-        case "most-enabled":
-          return enabledB - enabledA || scenarioA.localeCompare(scenarioB);
-        case "fewest-enabled":
-          return enabledA - enabledB || scenarioA.localeCompare(scenarioB);
-        default:
-          return scenarioA.localeCompare(scenarioB);
-      }
-    });
-  }, [toolsByScenario, searchQuery, sortOrder]);
 
   return (
     <div className="space-y-4" data-testid="tool-configuration">
@@ -350,16 +373,6 @@ export function ToolConfiguration({
         const allEnabled = scenarioEnabledCount === tools.length;
         const someEnabled = scenarioEnabledCount > 0 && scenarioEnabledCount < tools.length;
 
-        const handleToggleAllInScenario = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          const newEnabled = !allEnabled;
-          for (const tool of tools) {
-            if (tool.enabled !== newEnabled) {
-              onToggleTool(scenario, tool.tool.name, newEnabled);
-            }
-          }
-        };
-
         return (
           <div
             key={scenario}
@@ -390,26 +403,27 @@ export function ToolConfiguration({
 
               {/* Toggle all switch */}
               <Tooltip content={allEnabled ? "Disable all tools in this scenario" : "Enable all tools in this scenario"}>
-                <label
-                  className="relative inline-flex items-center cursor-pointer shrink-0"
-                  onClick={handleToggleAllInScenario}
-                >
-                  <input
-                    type="checkbox"
-                    checked={allEnabled}
-                    onChange={() => {}}
-                    disabled={isUpdating}
-                    className="sr-only peer"
-                    data-testid={`scenario-toggle-all-${scenario}`}
-                  />
-                  <div className={`w-9 h-5 rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 ${
+                <button
+                  type="button"
+                  onClick={() => handleToggleScenario(scenario, !allEnabled)}
+                  disabled={isUpdating || batchOperationInProgress.current}
+                  className={`relative inline-flex items-center shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                    isUpdating ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                  } ${
                     allEnabled
-                      ? "bg-indigo-500 peer-checked:after:translate-x-full"
+                      ? "bg-indigo-500"
                       : someEnabled
                         ? "bg-indigo-500/50"
                         : "bg-slate-700"
-                  } ${allEnabled ? "after:translate-x-full" : ""}`} />
-                </label>
+                  }`}
+                  data-testid={`scenario-toggle-all-${scenario}`}
+                >
+                  <span
+                    className={`absolute top-[2px] left-[2px] bg-white rounded-full h-4 w-4 transition-transform ${
+                      allEnabled ? "translate-x-full" : ""
+                    }`}
+                  />
+                </button>
               </Tooltip>
             </div>
 

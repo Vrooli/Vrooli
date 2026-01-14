@@ -186,6 +186,20 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			)`},
 		{"create idx_tool_configurations_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_chat_id ON tool_configurations(chat_id)`},
 		{"create idx_tool_configurations_global", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_global ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL`},
+		// Fix NULL handling in unique constraint - PostgreSQL treats NULLs as distinct by default
+		// This partial unique index enforces uniqueness for global (NULL chat_id) configurations
+		{"create unique index for global tool configs", `
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_configurations_global_unique
+			ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL`},
+		// Clean up duplicate global configurations (keep only the most recent one per tool)
+		{"cleanup duplicate global tool configs", `
+			DELETE FROM tool_configurations t1
+			USING tool_configurations t2
+			WHERE t1.chat_id IS NULL
+			  AND t2.chat_id IS NULL
+			  AND t1.scenario = t2.scenario
+			  AND t1.tool_name = t2.tool_name
+			  AND t1.updated_at < t2.updated_at`},
 		// Message branching support (ChatGPT-style regeneration)
 		{"add messages.parent_message_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_message_id UUID REFERENCES messages(id) ON DELETE CASCADE`},
 		{"create idx_messages_parent_id", `CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_message_id)`},

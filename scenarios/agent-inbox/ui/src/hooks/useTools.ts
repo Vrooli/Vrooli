@@ -115,7 +115,11 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   });
 
   // Toggle tool enabled state
+  // CRITICAL: Uses a mutation key so we can track pending mutations and avoid
+  // race conditions during batch operations (like scenario-level toggles)
+  const toggleMutationKey = ["tools", "toggle", chatId ?? "global"] as const;
   const toggleMutation = useMutation({
+    mutationKey: toggleMutationKey,
     mutationFn: async ({
       scenario,
       toolName,
@@ -133,13 +137,13 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
       });
     },
     onMutate: async ({ scenario, toolName, enabled: newEnabled }) => {
-      // Cancel outgoing refetches
+      // Cancel outgoing refetches to prevent them from overwriting optimistic updates
       await queryClient.cancelQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
 
-      // Snapshot previous value
+      // Snapshot previous value for rollback
       const previousToolSet = queryClient.getQueryData<ToolSet>(toolQueryKeys.toolSet(chatId));
 
-      // Optimistically update
+      // Optimistically update the cache
       if (previousToolSet) {
         queryClient.setQueryData<ToolSet>(toolQueryKeys.toolSet(chatId), {
           ...previousToolSet,
@@ -160,8 +164,20 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
       }
     },
     onSettled: () => {
-      // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+      // CRITICAL: Only invalidate if there are no more pending toggle mutations.
+      // This prevents race conditions during batch operations where multiple toggles
+      // fire in sequence (e.g., scenario-level toggle). Without this check, each
+      // mutation's onSettled would trigger a refetch that could overwrite subsequent
+      // optimistic updates.
+      //
+      // We use setTimeout to defer the check until after React's state updates,
+      // ensuring we see the correct count of pending mutations.
+      setTimeout(() => {
+        const pendingCount = queryClient.isMutating({ mutationKey: toggleMutationKey });
+        if (pendingCount === 0) {
+          queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+        }
+      }, 0);
     },
   });
 

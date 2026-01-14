@@ -14,8 +14,10 @@ vi.mock("../lib/api", () => ({
   fetchToolSet: vi.fn(),
   fetchScenarioStatuses: vi.fn(),
   setToolEnabled: vi.fn(),
+  setToolApproval: vi.fn(),
   resetToolConfig: vi.fn(),
   refreshTools: vi.fn(),
+  syncTools: vi.fn(),
 }));
 
 const mockToolSet: api.ToolSet = {
